@@ -2,31 +2,74 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BriefRooms — Geopolityka</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Geopolityka — Działy | BriefRooms</title>
+  <meta name="description" content="Działy geopolityki: krótkie zajawki tematów.">
+  <link rel="icon" href="/assets/favicon.svg" />
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;padding:40px;line-height:1.6}
-    a{color:#0a7;text-decoration:none} header{margin-bottom:24px}
-    .back{margin-top:24px;display:inline-block}
+    :root{ --bg:#0b1422; --txt:#eef3fb; --card:#131f31; --edge:#1e2b42; --accent:#93c5fd; }
+    *{ box-sizing:border-box }
+    body{ margin:0; font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
+          background: radial-gradient(1200px 700px at 50% -200px,#10223c 0 40%,transparent 60%), linear-gradient(#0a1626,#060c15 70%); }
+    header{ text-align:center; padding:36px 16px 8px }
+    h1{ margin:0 0 8px; font-size:clamp(22px,4.4vw,42px); letter-spacing:.2px }
+    p.sub{ margin:0; opacity:.8 }
+    main{ max-width:1100px; margin:28px auto 80px; padding:0 16px }
+    .shelf{ display:grid; gap:18px; grid-template-columns:repeat(3,1fr) }
+    @media (max-width:960px){ .shelf{ grid-template-columns:1fr 1fr } }
+    @media (max-width:640px){ .shelf{ grid-template-columns:1fr } }
+
+    .tile{
+      background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:18px; padding:18px;
+      box-shadow:0 18px 50px -16px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04);
+      transition:transform .15s ease, box-shadow .25s ease;
+      position:relative; overflow:hidden;
+    }
+    .tile::after{ /* cienka "półka" */
+      content:""; position:absolute; left:0; right:0; bottom:0; height:10px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+    }
+    .tile:hover{ transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45) }
+    .tile h3{ margin:6px 0 10px; font-size:20px }
+    .tile p{ margin:0; opacity:.9 }
+    .tile a.more{
+      display:inline-block; margin-top:12px; color:#bfe0ff; text-decoration:none;
+      border:1px solid rgba(147,197,253,.35); padding:6px 10px; border-radius:10px; font-size:14px;
+    }
+    .tile a.more:hover{ background:rgba(147,197,253,.08) }
+    footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
   </style>
 </head>
 <body>
   <header>
-    <h1>Geopolityka: Morze Czarne — węzeł interesów</h1>
-    <p>Krótko i na temat: dlaczego ten akwen jest kluczowy dla handlu, energii i bezpieczeństwa.</p>
+    <h1>Geopolityka — działy</h1>
+    <p class="sub">Kliknij zajawkę, by wejść w pełny temat ze źródłami i opiniami.</p>
   </header>
 
-  <h2>Najważniejsze punkty</h2>
-  <ul>
-    <li><strong>Szlaki handlowe</strong>: zboże, surowce i kontenery → tranzyt przez Bosfor do Morza Śródziemnego.</li>
-    <li><strong>Energia</strong>: rurociągi i terminale LNG zwiększają znaczenie regionu dla Europy.</li>
-    <li><strong>Bezpieczeństwo</strong>: obecność flot i strefy zastrzeżone — stałe napięcie i incydenty.</li>
-  </ul>
+  <main>
+    <section class="shelf">
+      <article class="tile">
+        <h3>Morze Czarne — węzeł interesów</h3>
+        <p>Dlaczego akwen jest kluczowy dla handlu, energii i bezpieczeństwa — w 2 akapitach.</p>
+        <a class="more" href="/pl/geo/morze-czarne.html">Wejdź →</a>
+      </article>
 
-  <h2>Co to oznacza praktycznie?</h2>
-  <p>Wahania ryzyka na Morzu Czarnym szybko przekładają się na koszty transportu, ceny żywności i sentyment rynków. 
-     Dla firm: dywersyfikacja tras i ubezpieczeń; dla konsumentów: większa zmienność cenowa w okresach napięć.</p>
+      <article class="tile">
+        <h3>Indo-Pacyfik — łańcuchy dostaw</h3>
+        <p>Ryzyka dla szlaków morskich i mikroelektroniki. Co to znaczy dla Europy?</p>
+        <a class="more" href="/pl/geo/indo-pacyfik.html">Wejdź →</a>
+      </article>
 
-  <a class="back" href="/pl/">← wróć do strony głównej</a>
+      <article class="tile">
+        <h3>Surowce krytyczne</h3>
+        <p>Kobalt, lit, REE: koncentracja wydobycia i polityka eksportowa.</p>
+        <a class="more" href="/pl/geo/surowce-krytyczne.html">Wejdź →</a>
+      </article>
+    </section>
+  </main>
+
+  <footer>© BriefRooms</footer>
 </body>
 </html>
