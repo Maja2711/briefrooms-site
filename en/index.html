@@ -12,129 +12,83 @@
       --txt:#e9eef5;
       --accent:#9c7349;
       --accent-dark:#7a5523;
-      --panel:#132235;
       --shadow: rgba(0,0,0,.35);
     }
     *{ box-sizing:border-box }
     html,body{ height:100% }
     body{
       margin:0;
-      font:16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       color:var(--txt);
       background:
-        radial-gradient(1200px 700px at 50% -200px, #11233b 0 40%, transparent 60%),
-        linear-gradient(#0a1626, #060c15 70%);
+        radial-gradient(1200px 700px at 50% -200px,#11233b 0 40%,transparent 60%),
+        linear-gradient(#0a1626,#060c15 70%);
       background-color:var(--bg);
     }
-    header{
-      text-align:center;
-      padding:40px 16px 10px;
-    }
+    header{ text-align:center; padding:40px 16px 10px }
     h1{
       margin:0 0 10px;
-      font-size:clamp(26px, 4.6vw, 48px);
-      line-height:1.2;
-      letter-spacing:.4px;
+      font-size:clamp(26px,4.6vw,48px);
+      line-height:1.2; letter-spacing:.4px;
       text-shadow:0 1px 0 #000, 0 3px 14px rgba(0,0,0,.35);
     }
-    .sub{
-      margin:0 0 14px;
-      opacity:.85;
-    }
-    .switch{
-      margin:0 0 10px;
-      font-size:14px;
-      opacity:.85;
-    }
+    .sub{ margin:0 0 14px; opacity:.85 }
+    .switch{ margin:0 0 10px; font-size:14px; opacity:.85 }
     .switch a{ color:#a8c8ff; text-decoration:none }
     .switch a:hover{ text-decoration:underline }
 
-    /* układ trzech drzwi */
     .grid{
-      max-width:1200px;
-      margin:24px auto 80px;
-      padding:0 16px 24px;
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:28px;
+      max-width:1200px; margin:24px auto 80px; padding:0 16px 24px;
+      display:grid; grid-template-columns:repeat(3,1fr); gap:28px;
     }
-    @media (max-width:1024px){
-      .grid{ gap:20px }
-    }
-    @media (max-width:860px){
-      .grid{ grid-template-columns: 1fr; max-width:720px }
-    }
+    @media (max-width:860px){ .grid{ grid-template-columns:1fr; max-width:720px } }
 
     .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
       border-radius:22px;
-      box-shadow:
-        0 18px 50px -16px var(--shadow),
-        inset 0 0 0 1px rgba(255,255,255,.04);
+      box-shadow:0 18px 50px -16px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.04);
       padding:22px 22px 28px;
     }
 
-    /* drzwi */
+    /* Doors */
     .door{
       position:relative;
-      height:52dvh;
-      min-height:420px;
-      max-height:620px;
+      height:52dvh; min-height:420px; max-height:620px;
       border-radius:18px;
-      background:
-        url("/assets/geo.svg") center/cover no-repeat; /* domyślnie – nadpisujemy niżej */
-      box-shadow:
-        inset 0 0 1px rgba(255,255,255,.06),
-        inset 0 -80px 120px rgba(0,0,0,.45);
-      transition: transform .2s ease, box-shadow .25s ease;
+      background-position:center; background-repeat:no-repeat; background-size:cover;
+      box-shadow:inset 0 0 1px rgba(255,255,255,.06), inset 0 -80px 120px rgba(0,0,0,.45);
+      transition:transform .2s ease, box-shadow .25s ease;
     }
     .door:hover{ transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45) }
-    .door a{
-      position:absolute; inset:0;
-      border-radius:inherit;
-      /* żeby klik działał na całe drzwi */
-    }
+    .door a{ position:absolute; inset:0; border-radius:inherit }
 
-    /* NAPIS NA DRZWIACH (EN) */
-    .door::after{
-      content: attr(data-label);
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      font-size: clamp(22px, 4vw, 34px);
-      color: rgba(255,255,255,.92);
-      text-shadow: 0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
-      letter-spacing: .5px;
-      pointer-events:none;
-    }
-
-    /* GAŁKA DRZWI – osobny pseudo-element, żeby nie nadpisywać napisu */
+    /* knob */
     .door::before{
-      content:"";
-      position:absolute;
-      right:22px;
-      top:calc(50% - 12px);
+      content:""; position:absolute; right:22px; top:calc(50% - 12px);
       width:12px; height:12px; border-radius:50%;
-      background: radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark));
+      background:radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark));
       box-shadow:0 0 3px rgba(0,0,0,.15);
     }
 
-    /* konkretne tła dla poszczególnych drzwi */
+    /* label plate that COVERS any text baked into the image */
+    .door-label{
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      padding:18px 26px; border-radius:12px;
+      background:linear-gradient(180deg, rgba(0,0,0,.36), rgba(0,0,0,.28));
+      color:rgba(255,255,255,.96);
+      font-size:clamp(20px,3.6vw,34px);
+      letter-spacing:.5px; text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
+      pointer-events:none; user-select:none;
+      backdrop-filter:saturate(110%) blur(0.5px);
+    }
+
+    /* backgrounds for each door (can be SVGs with Polish text — label covers it) */
     .g .door{ background-image:url("/assets/geo.svg") }
     .h .door{ background-image:url("/assets/health.svg") }
     .s .door{ background-image:url("/assets/sci.svg") }
 
-    footer{
-      text-align:center;
-      opacity:.55;
-      padding:6px 16px 36px;
-      font-size:14px;
-    }
-
-    /* noscript */
-    noscript .ns-links{ display:block; text-align:center; margin:10px 0 40px }
-    noscript a{ color:#a8c8ff; text-decoration:none }
-    noscript a:hover{ text-decoration:underline }
+    footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
   </style>
 </head>
 <body>
@@ -146,38 +100,28 @@
   </header>
 
   <main class="grid">
-    <!-- Geopolitics -->
     <section class="card g">
-      <div class="door" data-label="Geopolitics">
+      <div class="door">
+        <span class="door-label">Geopolitics</span>
         <a href="/en/geopolitics.html" aria-label="Open: Geopolitics"></a>
       </div>
     </section>
 
-    <!-- Health -->
     <section class="card h">
-      <div class="door" data-label="Health">
+      <div class="door">
+        <span class="door-label">Health</span>
         <a href="/en/health.html" aria-label="Open: Health"></a>
       </div>
     </section>
 
-    <!-- Science -->
     <section class="card s">
-      <div class="door" data-label="Science">
+      <div class="door">
+        <span class="door-label">Science</span>
         <a href="/en/science.html" aria-label="Open: Science"></a>
       </div>
     </section>
   </main>
 
   <footer>© BriefRooms</footer>
-
-  <noscript>
-    <div class="ns-links">
-      JavaScript is disabled. Use the links:
-      <div><a href="/en/geopolitics.html">Geopolitics</a> ·
-           <a href="/en/health.html">Health</a> ·
-           <a href="/en/science.html">Science</a></div>
-    </div>
-  </noscript>
-
 </body>
 </html>
