@@ -2,207 +2,170 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BriefRooms – wybierz pokój</title>
-  <meta name="description" content="BriefRooms: szybkie, rzeczowe skróty. Wybierz pokój: Geopolityka, Zdrowie, Nauka." />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BriefRooms — wybierz pokój (PL)</title>
+  <meta name="description" content="BriefRooms: krótkie, rzeczowe podsumowania. Wybierz dział: Geopolityka, Zdrowie, Nauka." />
+  <link rel="icon" href="/assets/favicon.svg" />
 
   <style>
-    /* ====== Kolory i obrazki (opcjonalnie podmień na zdjęcia) ====== */
     :root{
-    
-  --geo-img: url("/assets/geo.svg");     /* było .jpg */
-  --health-img: url("/assets/health.svg");
-  --sci-img: url("/assets/sci.svg");
+      --bg:#0f172a;        /* granat tła */
+      --card:#111827;      /* ciemna karta */
+      --txt:#e5e7eb;       /* jasny tekst */
+      --muted:#94a3b8;
+      --accent:#d4a373;    /* „mosiężna” gałka */
+      --shadow: 0 20px 40px rgba(0,0,0,.35);
+      --radius:24px;
     }
 
-    /* ====== Reset & layout ====== */
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
     body{
       margin:0;
-      font: 16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: var(--text);
-      background: radial-gradient(1200px 800px at 50% -200px, #1e58a1, var(--blue)) fixed;
-      display:flex; align-items:center; justify-content:center;
-      padding: clamp(16px, 3vw, 32px);
+      font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--txt);
+      background:
+        radial-gradient(1100px 800px at 20% -10%, #1e293b 0, #0b1220 50%, #050a16 100%),
+        var(--bg);
+      display:flex;
+      min-height:100dvh;
     }
 
     .wrap{
-      width:min(1200px, 100%);
+      width:min(1200px, 96vw);
+      margin:auto;
+      padding:32px 0 56px;
+      text-align:center;
     }
 
     header{
-      text-align:center;
-      margin-bottom: clamp(20px, 3vw, 32px);
+      margin-bottom:28px;
     }
-    header h1{
-      margin:0 0 .25em;
-      font-size: clamp(28px, 5vw, 44px);
-      letter-spacing:.5px;
+    h1{
+      margin:0 0 10px;
+      font-size:clamp(26px, 2.8vw, 36px);
+      font-weight:800;
+      letter-spacing:.2px;
     }
-    header p{
+    p.sub{
       margin:0;
-      color:#cfe3ff;
-      font-size: clamp(14px, 2.2vw, 18px);
-      opacity:.95;
+      color:var(--muted);
+      font-size:clamp(14px, 1.7vw, 18px);
     }
 
-    /* ====== Drzwi (siatka) ====== */
-    .doors{
+    .switch{
+      margin-top:10px;
+      font-size:14px;
+    }
+    .switch a{ color:#93c5fd; text-decoration:none }
+    .switch a:hover{ text-decoration:underline }
+
+    /* siatka kart */
+    .grid{
+      margin-top:22px;
       display:grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: clamp(14px, 2.2vw, 22px);
+      gap:24px;
     }
-    @media (max-width: 900px){
-      .doors{ grid-template-columns: 1fr; }
+    @media (max-width:980px){
+      .grid{ grid-template-columns: 1fr; gap:18px; }
     }
+
+    /* karta + drzwi */
+    .card{
+      position:relative;
+      display:block;
+      text-decoration:none;
+      color:inherit;
+      background:linear-gradient(#111827, #0b1324);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      padding:20px 20px 24px;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .card:hover{ transform: translateY(-3px); box-shadow: 0 24px 48px rgba(0,0,0,.45); }
 
     .door{
-      position:relative;
-      aspect-ratio: 3/5;           /* proporcja „drzwi” */
-      border-radius: 18px;
-      background:
-        /* warstwa 1: zdjęcie – jeśli jest */
-        var(--img, none),
-        /* fallback: „drewno” gdy brak zdjęcia */
-        var(--wood-bg),
-        /* półcień */
-        linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.25));
-      background-size: cover, cover, cover;
+      height:52dvh;
+      min-height:420px;
+      max-height:620px;
+      border-radius:18px;
       background-position:center;
-      box-shadow: var(--shadow);
-      border: 10px solid var(--accent-2);
-      outline: 2px solid rgba(0,0,0,.25);
-      overflow: hidden;
-      transform: translateZ(0);
-      transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
-      display:flex; align-items:flex-end; justify-content:center;
-      text-decoration:none;
-      isolation:isolate; /* label nad pseudo-elementami */
+      background-repeat:no-repeat;
+      background-size:cover;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 -80px 120px rgba(0,0,0,.45);
+      position:relative;
     }
-
-    /* delikatny „próg” i rama wewnętrzna */
-    .door::before,
+    /* mosiężna gałka */
     .door::after{
       content:"";
-      position:absolute; inset:0;
-      pointer-events:none;
-      border-radius:10px;
-    }
-    .door::before{
-      /* wewnętrzna rama */
-      border: 3px solid rgba(255,255,255,.08);
-      inset: 12px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
-      border-radius: 12px;
-    }
-    .door::after{
-      /* delikatny połysk pionowy */
-      background: linear-gradient(90deg, rgba(255,255,255,.06), transparent 40% 60%, rgba(255,255,255,.04));
-      mix-blend-mode: screen;
-      opacity:.8;
-    }
-
-    .door:hover{
-      transform: translateY(-6px);
-      box-shadow: 0 16px 36px rgba(0,0,0,.45);
-      filter: saturate(1.05);
-    }
-
-    /* „Klamka” */
-    .knob{
       position:absolute;
-      right: 22px;
-      top: 50%;
-      width: 12px; height: 12px;
-      background: radial-gradient(circle at 30% 30%, #fff8, #caa15e 45%, #a9813c 65%);
+      right:22px; top:calc(50% - 12px);
+      width:12px; height:12px;
       border-radius:50%;
-      box-shadow: inset 0 0 0 2px #8b6a33, 0 0 0 2px #aa8a54, 0 6px 10px rgba(0,0,0,.35);
-      transform: translateY(-50%);
-      opacity:.9;
+      background: radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, #7a5523);
+      box-shadow: 0 0 0 3px rgba(0,0,0,.15);
     }
 
+    /* podkład ze zdjęciami SVG */
+    .card[data-kind="geo"]    .door{ background-image:url("/assets/geo.svg"); }
+    .card[data-kind="health"] .door{ background-image:url("/assets/health.svg"); }
+    .card[data-kind="sci"]    .door{ background-image:url("/assets/sci.svg"); }
+
+    /* podpis */
     .label{
-      position:relative;
-      z-index:2;
-      width: 100%;
-      text-align:center;
-      background: linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.25) 60%);
-      padding: 18px 16px 22px;
-      color:#fff;
-      text-shadow: 0 2px 10px rgba(0,0,0,.5);
-      font-weight:700;
-      font-size: clamp(18px, 3.2vw, 26px);
+      margin-top:12px;
+      background:linear-gradient(transparent, rgba(0,0,0,.5));
+      border-radius:16px;
+      padding:12px 16px;
+      font-weight:800;
       letter-spacing:.3px;
+      font-size:clamp(18px, 2vw, 22px);
+      text-shadow:0 2px 10px rgba(0,0,0,.5);
     }
 
-    /* Podpis pod siatką */
-    .hint{
-      text-align:center;
-      margin-top: 18px;
-      color:#b9d1ff;
-      font-size: 14px;
-      opacity:.9;
-    }
-
-    /* Przypisanie grafik (jeśli kiedyś dodasz zdjęcia do /assets/doors) */
-    .door.geo    { --img: var(--geo-img); }
-    .door.health { --img: var(--health-img); }
-    .door.sci    { --img: var(--sci-img); }
-
-    /* Link „powrót” */
-    .back{
-      display:inline-block;
-      margin-top: 18px;
-      color:#cfe3ff;
-      text-decoration:none;
-    }
-    .back:hover{ text-decoration:underline; }
-  /* Upewnij się, że drzwi pokazują obraz z assets/ */
-  .card .door{
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-color: transparent; /* na wszelki wypadek */
-  }
-
-  /* Per-karta – przypięcie właściwego obrazka */
-  .card[data-kind="geo"] .door{ 
-    background-image: url("/assets/geo.svg");      /* jeśli masz JPG – zmień na geo.jpg */ 
-  }
-  .card[data-kind="health"] .door{ 
-    background-image: url("/assets/health.svg");   /* lub health.jpg */ 
-  }
-  .card[data-kind="sci"] .door{ 
-    background-image: url("/assets/sci.svg");      /* lub sci.jpg */ 
-  }
+    /* fallback dla noscript */
+    .nojs{ display:none; margin-top:22px; }
+    noscript + .nojs{ display:block; }
+    .nojs a{ color:#93c5fd; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>BriefRooms</h1>
-      <p>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami 👇</p>
+      <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
+      <p class="sub">Kliknij w drzwi, aby wejść do działu.</p>
+      <div class="switch">English? <a href="/en/">Go to EN version</a></div>
     </header>
 
-    <main class="doors" aria-label="Wybór działu">
-      <a class="door geo" href="/pl/geopolityka.html" aria-label="Geopolityka">
-        <span class="knob" aria-hidden="true"></span>
-        <span class="label">Geopolityka</span>
+    <main class="grid">
+      <a class="card" data-kind="geo" href="/pl/geopolityka.html" aria-label="Przejdź do działu Geopolityka">
+        <div class="door" aria-hidden="true"></div>
+        <div class="label">Geopolityka</div>
       </a>
 
-      <a class="door health" href="/pl/zdrowie.html" aria-label="Zdrowie">
-        <span class="knob" aria-hidden="true"></span>
-        <span class="label">Zdrowie</span>
+      <a class="card" data-kind="health" href="/pl/zdrowie.html" aria-label="Przejdź do działu Zdrowie">
+        <div class="door" aria-hidden="true"></div>
+        <div class="label">Zdrowie</div>
       </a>
 
-      <a class="door sci" href="/pl/nauka.html" aria-label="Nauka">
-        <span class="knob" aria-hidden="true"></span>
-        <span class="label">Nauka</span>
+      <a class="card" data-kind="sci" href="/pl/nauka.html" aria-label="Przejdź do działu Nauka">
+        <div class="door" aria-hidden="true"></div>
+        <div class="label">Nauka</div>
       </a>
     </main>
 
-    <p class="hint">Masz też wersję EN: <a class="back" href="/en/index.html">/en/index.html</a></p>
+    <noscript></noscript>
+    <div class="nojs">
+      <p><strong>Masz wyłączony JavaScript.</strong> Skorzystaj z linków:</p>
+      <ul>
+        <li><a href="/pl/geopolityka.html">Geopolityka</a></li>
+        <li><a href="/pl/zdrowie.html">Zdrowie</a></li>
+        <li><a href="/pl/nauka.html">Nauka</a></li>
+      </ul>
+    </div>
   </div>
 </body>
 </html>
