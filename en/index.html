@@ -3,25 +3,113 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BriefRooms — EN version</title>
-  <meta name="description" content="BriefRooms: crisp, to-the-point summaries. Geopolitics, health, science." />
+  <title>BriefRooms – choose a room</title>
+  <meta name="description" content="BriefRooms: crisp, to-the-point summaries. Choose a room: Geopolitics, Health, Science." />
+
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:40px; }
-    a { color:#0a7; text-decoration:none; }
+    :root{
+      --geo-img: url("/assets/doors/geo.jpg");
+      --health-img: url("/assets/doors/health.jpg");
+      --sci-img: url("/assets/doors/sci.jpg");
+
+      /* CSS wood fallback if images are missing */
+      --wood: repeating-linear-gradient(
+        90deg,
+        #6e4a2f 0 8px,
+        #7b5335 8px 16px,
+        #6a452a 16px 24px
+      );
+      --wood-knot: radial-gradient(14px 10px at 30% 40%, #5a3b24, transparent 60%);
+      --wood-bg: var(--wood), var(--wood-knot);
+      --blue: #0f3b73;
+      --text: #f7fbff;
+      --accent-2: #c49a62;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 50% -200px, #1e58a1, var(--blue)) fixed;
+      display:flex; align-items:center; justify-content:center;
+      padding: clamp(16px, 3vw, 32px);
+    }
+    .wrap{ width:min(1200px,100%); }
+
+    header{ text-align:center; margin-bottom:clamp(20px,3vw,32px); }
+    header h1{ margin:0 0 .25em; font-size:clamp(28px,5vw,44px); letter-spacing:.5px; }
+    header p{ margin:0; color:#cfe3ff; font-size:clamp(14px,2.2vw,18px); opacity:.95; }
+
+    .doors{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(14px,2.2vw,22px); }
+    @media (max-width:900px){ .doors{ grid-template-columns:1fr; } }
+
+    .door{
+      position:relative; aspect-ratio:3/5; border-radius:18px;
+      background: var(--img, none), var(--wood-bg), linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.25));
+      background-size:cover,cover,cover; background-position:center;
+      box-shadow:var(--shadow);
+      border:10px solid var(--accent-2);
+      outline:2px solid rgba(0,0,0,.25);
+      overflow:hidden; transform:translateZ(0);
+      transition:transform .25s ease, box-shadow .25s ease, filter .25s ease;
+      display:flex; align-items:flex-end; justify-content:center;
+      text-decoration:none; isolation:isolate;
+    }
+    .door::before,.door::after{ content:""; position:absolute; inset:0; border-radius:10px; pointer-events:none; }
+    .door::before{ border:3px solid rgba(255,255,255,.08); inset:12px; box-shadow:inset 0 0 0 2px rgba(0,0,0,.15); border-radius:12px; }
+    .door::after{ background:linear-gradient(90deg,rgba(255,255,255,.06),transparent 40% 60%,rgba(255,255,255,.04)); mix-blend-mode:screen; opacity:.8; }
+    .door:hover{ transform:translateY(-6px); box-shadow:0 16px 36px rgba(0,0,0,.45); filter:saturate(1.05); }
+
+    .knob{
+      position:absolute; right:22px; top:50%;
+      width:12px; height:12px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #fff8, #caa15e 45%, #a9813c 65%);
+      box-shadow: inset 0 0 0 2px #8b6a33, 0 0 0 2px #aa8a54, 0 6px 10px rgba(0,0,0,.35);
+      transform:translateY(-50%); opacity:.9;
+    }
+    .label{
+      position:relative; z-index:2; width:100%; text-align:center;
+      background:linear-gradient(180deg,rgba(0,0,0,.0),rgba(0,0,0,.25) 60%);
+      padding:18px 16px 22px; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.5);
+      font-weight:700; font-size:clamp(18px,3.2vw,26px); letter-spacing:.3px;
+    }
+
+    .hint{ text-align:center; margin-top:18px; color:#b9d1ff; font-size:14px; opacity:.9; }
+    .door.geo    { --img: var(--geo-img); }
+    .door.health { --img: var(--health-img); }
+    .door.sci    { --img: var(--sci-img); }
+    .back{ display:inline-block; margin-top:18px; color:#cfe3ff; text-decoration:none; }
+    .back:hover{ text-decoration:underline; }
   </style>
-  <link rel="icon" href="/assets/favicon.svg">
 </head>
 <body>
-  <h1>Welcome to BriefRooms (EN)</h1>
-  <p>This is the English page at <code>/en/index.html</code> served via GitHub Pages.</p>
+  <div class="wrap">
+    <header>
+      <h1>BriefRooms</h1>
+      <p>Pick a room with crisp, to-the-point summaries 👇</p>
+    </header>
 
-  <h2>Articles</h2>
-  <ul>
-    <li><a class="btn" href="/en/geopolitics.html">Geopolitics → Read</a></li>
-    <li><a class="btn" href="/en/health.html">Health → Read</a></li>
-    <li><a class="btn" href="/en/science.html">Science → Read</a></li>
-  </ul>
+    <main class="doors" aria-label="Choose a section">
+      <a class="door geo" href="/en/geopolitics.html" aria-label="Geopolitics">
+        <span class="knob" aria-hidden="true"></span>
+        <span class="label">Geopolitics</span>
+      </a>
 
-  <p><a href="/">&larr; back to home</a></p>
+      <a class="door health" href="/en/health.html" aria-label="Health">
+        <span class="knob" aria-hidden="true"></span>
+        <span class="label">Health</span>
+      </a>
+
+      <a class="door sci" href="/en/science.html" aria-label="Science">
+        <span class="knob" aria-hidden="true"></span>
+        <span class="label">Science</span>
+      </a>
+    </main>
+
+    <p class="hint">Polish version: <a class="back" href="/pl/index.html">/pl/index.html</a></p>
+  </div>
 </body>
 </html>
