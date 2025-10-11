@@ -158,6 +158,25 @@
       text-decoration:none;
     }
     .back:hover{ text-decoration:underline; }
+    <style>
+  /* Upewnij się, że drzwi pokazują obraz z assets/ */
+  .card .door{
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-color: transparent; /* na wszelki wypadek */
+  }
+
+  /* Per-karta – przypięcie właściwego obrazka */
+  .card[data-kind="geo"] .door{ 
+    background-image: url("/assets/geo.svg");      /* jeśli masz JPG – zmień na geo.jpg */ 
+  }
+  .card[data-kind="health"] .door{ 
+    background-image: url("/assets/health.svg");   /* lub health.jpg */ 
+  }
+  .card[data-kind="sci"] .door{ 
+    background-image: url("/assets/sci.svg");      /* lub sci.jpg */ 
+  }
   </style>
 </head>
 <body>
