@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms – choose a room</title>
   <meta name="description" content="BriefRooms: crisp, to-the-point summaries. Choose a room: Geopolitics, Health, Science." />
-
-  <style>
     :root{
   --geo-img: url("/assets/geo.svg");     /* było .jpg */
   --health-img: url("/assets/health.svg");
@@ -69,6 +67,25 @@
     .door.sci    { --img: var(--sci-img); }
     .back{ display:inline-block; margin-top:18px; color:#cfe3ff; text-decoration:none; }
     .back:hover{ text-decoration:underline; }
+    <style>
+  /* Upewnij się, że drzwi pokazują obraz z assets/ */
+  .card .door{
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-color: transparent; /* na wszelki wypadek */
+  }
+
+  /* Per-karta – przypięcie właściwego obrazka */
+  .card[data-kind="geo"] .door{ 
+    background-image: url("/assets/geo.svg");      /* jeśli masz JPG – zmień na geo.jpg */ 
+  }
+  .card[data-kind="health"] .door{ 
+    background-image: url("/assets/health.svg");   /* lub health.jpg */ 
+  }
+  .card[data-kind="sci"] .door{ 
+    background-image: url("/assets/sci.svg");      /* lub sci.jpg */ 
+  }
   </style>
 </head>
 <body>
