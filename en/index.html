@@ -70,18 +70,32 @@
       background:radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark));
       box-shadow:0 0 3px rgba(0,0,0,.15);
     }
+/* prostokąt-maskujący środkowy panel drzwi (zakrywa tekst z obrazka) */
+.door::after{
+  content:"";
+  position:absolute;
+  left:50%; top:50%; transform:translate(-50%, -50%);
+  width:min(72%, 520px);
+  height:30%;
+  border-radius:12px;
+  background:rgba(8, 8, 8, .82);  /* nieprzezroczyste, nic nie przebije */
+  box-shadow:0 0 12px rgba(0,0,0,.35) inset;
+  pointer-events:none;
+}
 
     /* label plate that COVERS any text baked into the image */
-    .door-label{
-      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-      padding:18px 26px; border-radius:12px;
-      background:linear-gradient(180deg, rgba(0,0,0,.36), rgba(0,0,0,.28));
-      color:rgba(255,255,255,.96);
-      font-size:clamp(20px,3.6vw,34px);
-      letter-spacing:.5px; text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
-      pointer-events:none; user-select:none;
-      backdrop-filter:saturate(110%) blur(0.5px);
-    }
+.door-label{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  z-index:2;                 /* nad maską */
+  padding:18px 26px; border-radius:12px;
+  background:transparent;    /* tło już niepotrzebne – maska robi robotę */
+  color:rgba(255,255,255,.98);
+  font-size:clamp(20px,3.6vw,34px);
+  letter-spacing:.5px;
+  text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
+  pointer-events:none;
+}
+.door a{ position:absolute; inset:0; border-radius:inherit; z-index:3; }
 
     /* backgrounds for each door (can be SVGs with Polish text — label covers it) */
     .g .door{ background-image:url("/assets/geo.svg") }
