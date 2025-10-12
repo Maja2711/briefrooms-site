@@ -9,9 +9,9 @@
   <style>
     :root{
       --bg:#0b1523; --panel:#101b2b; --panel2:#0e1827;
-      --txt:#e9eef5; --muted:#a8b3c7; --accent:#93c4ff;
-      --good:#6fd19e; --bad:#ff9b87; --line:rgba(255,255,255,.06);
-      --shadow:rgba(0,0,0,.35);
+      --txt:#e9eef5; --muted:#a8b3c7; --muted2:#9aa6bb;
+      --accent:#93c4ff; --good:#6fd19e; --bad:#ff9b87;
+      --line:rgba(255,255,255,.06);
     }
     *{ box-sizing:border-box }
     body{
@@ -29,7 +29,7 @@
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
       border:1px solid var(--line); border-radius:20px; padding:22px 22px;
-      box-shadow:0 16px 44px -18px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.03);
+      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
       margin-bottom:18px;
     }
     h2{ margin:6px 0 12px; font-size:clamp(20px,3.6vw,26px) }
@@ -37,16 +37,28 @@
     p{ margin:10px 0 12px }
     ul{ margin:8px 0 12px 20px }
     li{ margin:6px 0 }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#0e1c2c; border:1px solid var(--line); color:var(--muted); font-size:13px }
+
+    .hint, .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      background:#0f1a28; border:1px solid var(--line); color:var(--muted2);
+      font-size:13px;
+    }
     .wrap{ background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:14px; }
     .cols{ display:grid; grid-template-columns:1fr; gap:16px }
     @media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
-    .good{ color:var(--good) } .bad{ color:var(--bad) }
-    .sources li a{ color:var(--accent); text-decoration:none }
-    .sources li a:hover{ text-decoration:underline }
-    footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
-    .back a{ color:var(--accent); text-decoration:none }
+
+    .good{ color:var(--good) } 
+    .bad{ color:var(--bad) }
+
+    .sources{ margin-top:6px }
+    .sources li a{ color:#b9c5d8; text-decoration:none }     /* stonowane linki */
+    .sources li a:hover{ color:#c7d2e3; text-decoration:underline }
+
+    .back{ margin-top:12px }
+    .back a{ color:#b9c5d8; text-decoration:none }
     .back a:hover{ text-decoration:underline }
+
+    footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
   </style>
 </head>
 <body>
@@ -56,129 +68,116 @@
   </header>
 
   <main>
-    <!-- Krótki opis (z liczbami) -->
     <article class="card">
-      <h2>O co chodzi?</h2>
-      <p>
-        Morze Czarne łączy rynki zbożowe, energetyczne i szlaki morskie Europy, Azji i MENA.
-        Przed 2022 r. <strong>Rosja i Ukraina</strong> odpowiadały łącznie za ok.
-        <strong>≈ 34% światowego eksportu pszenicy</strong>, <strong>≈ 17% kukurydzy</strong>
-        i <strong>~ 75% oleju słonecznikowego</strong> (FAO/USDA).
-        Zakłócenia żeglugi i ubezpieczeń szybko przekładają się na globalne ceny żywności.
-      </p>
-      <p class="pill">Źródła: FAO/USDA (udziały w eksporcie)</p>
-    </article>
-
-    <article class="card">
-      <h2>Handel i żywność</h2>
-      <p>
-        W latach 2022–2023 inicjatywa ONZ (<em>Black Sea Grain Initiative</em>) pozwoliła wywieźć
-        z ukraińskich portów ok. <strong>32,9–33 mln t</strong> ładunków (gł. kukurydza, pszenica),
-        co schłodziło presję cenową na rynkach importerskich MENA/UE.
-      </p>
-      <ul>
-        <li><strong>Kanał cenowy:</strong> spadek premii za ryzyko i łatwiejszy dostęp do ziarna po wznowieniu żeglugi.</li>
-        <li><strong>Łańcuch dostaw:</strong> krótka trasa: porty UA → Bosfor → Morze Śródziemne → porty MENA/UE.</li>
-        <li><strong>Ubezpieczenia:</strong> napięcia podbijają stawki <em>war-risk</em> i wymagania bankowo-ubezpieczeniowe.</li>
-      </ul>
-      <p class="pill">Źródło: ONZ/UNCTAD – podsumowanie wolumenu korytarza</p>
-    </article>
-
-    <article class="card">
-      <h2>Energia</h2>
-      <p>
-        Region to również infrastruktura paliwowo-gazowa Turcji i gazociągi z Rosji do TR/UE.
-        <strong>TurkStream</strong> ma zdolność <strong>31,5 mld m³/rok</strong>
-        (ok. połowa na rynek TR, połowa do UE przez BG–RS–HU).
-        Przy popycie gazu w UE rzędu <strong>~ 326–330 mld m³ w 2023 r.</strong>
-        to <strong>niski jednocyfrowy procent</strong> całkowitego zapotrzebowania —
-        ale o dużym znaczeniu dla państw tranzytowych i odbiorców w regionie.
-      </p>
-      <ul>
-        <li><strong>Przepływy & polityka:</strong> konwencja z Montreux reguluje ruch przez cieśniny; incydenty zwiększają ryzyko.</li>
-        <li><strong>Substytucja:</strong> LNG i trasy przez TR ograniczają wrażliwość części UE na inne szlaki.</li>
-      </ul>
-      <p class="pill">Źródła: TurkStream (parametry), dane nt. popytu gazu UE 2023</p>
-    </article>
-
-    <article class="card">
-      <h2>Co to znaczy w praktyce?</h2>
-      <div class="wrap">
-        <h3>Wpływ na ceny i dostępność</h3>
+      <section>
+        <h2>O co chodzi?</h2>
         <p>
-          Incydenty, miny morskie i restrykcje ubezpieczeniowe windują stawki frachtu i premię ryzyka,
-          a przez to <strong>ceny zbóż i olejów</strong> w koszyku MENA/UE.
-          Gdy korytarz działał, przez 12 miesięcy wyjechało ok. <strong>33 mln t</strong> żywności,
-          co obniżyło presję cenową.
+          Morze Czarne łączy rynki zbożowe, energetyczne i szlaki morskie Europy, Azji i MENA.
+          Przed wojną <strong>Rosja i Ukraina</strong> odpowiadały łącznie za ok. 
+          <strong>34% światowego eksportu pszenicy</strong>, <strong>17% kukurydzy</strong> oraz
+          <strong>~75% oleju słonecznikowego</strong> (FAO). Zakłócenia żeglugi i wzrost premii ubezpieczeniowych
+          szybko wpływają na koszty i ceny żywności.
         </p>
-        <h3>Koordynacja ubezpieczeń i inspekcji</h3>
+        <p class="pill">Źródła: FAO/FAOSTAT (udziały)</p>
+      </section>
+
+      <section>
+        <h2>Handel i żywność</h2>
         <p>
-          Banki/ubezpieczyciele dostosowują akredytywy i stawki (<em>war-risk</em>, extra premium) do oceny ryzyka.
-          Notyfikacje NAVTEX/NOTAM oraz alerty ubezpieczycieli wpływają na to, czy statek podejmie podróż.
+          W latach 2022–2023 <em>Black Sea Grain Initiative</em> umożliwiła wywiezienie z Ukrainy ok.
+          <strong>32,9 mln ton</strong> ładunków (gł. kukurydza, pszenica), co schłodziło presję cenową
+          w koszyku zbóż i olejów roślinnych.
         </p>
-      </div>
-    </article>
-
-    <article class="card">
-      <h2>Mapa interesariuszy (skrót)</h2>
-      <ul>
-        <li><strong>Eksporterzy/importerzy:</strong> Rosja, Ukraina → Turcja, Egipt, kraje MENA i UE.</li>
-        <li><strong>Operatorzy infrastruktury:</strong> porty/terminale, armatorzy; <em>TurkStream</em> jako kanał gazowy przez Turcję.</li>
-        <li><strong>Ubezpieczyciele i banki:</strong> stawki <em>war-risk</em>, akredytywy, finansowanie łańcucha dostaw.</li>
-        <li><strong>Nawigacja & regulacje:</strong> konwencja z Montreux (cieśniny), kontrola ruchu, inspekcje.</li>
-      </ul>
-    </article>
-
-    <article class="card cols">
-      <div class="wrap">
-        <h3 class="good">Plusy / szanse</h3>
         <ul>
-          <li>Zwiększenie przepustowości i przewidywalności szlaków (stabilniejsze ceny, mniejsze premie ryzyka).</li>
-          <li>Dywersyfikacja logistyczna (przeładunki w TR, alternatywne trasy) zmniejsza zależność od wąskich gardeł.</li>
-          <li>Lepsza koordynacja kredytów/ubezpieczeń handlowych (łatwiejsze finansowanie łańcucha dostaw).</li>
+          <li><strong>Kanał cenowy:</strong> po wznowieniu żeglugi spadała premia za ryzyko, a import MENA/UE był łatwiejszy.</li>
+          <li><strong>Łańcuch dostaw:</strong> porty UA → Bosfor → Morze Śródziemne → porty MENA/UE (krótka trasa).</li>
+          <li><strong>Ubezpieczenia:</strong> przy napięciach rosną stawki <em>war-risk</em> i wymagania bankowe (akredytywy, klauzule).</li>
         </ul>
-      </div>
-      <div class="wrap">
-        <h3 class="bad">Minusy / ryzyka</h3>
+        <ul class="sources">
+          <li><a href="https://news.un.org/en/story/2023/07/1138977" target="_blank" rel="noopener">ONZ – podsumowanie wolumenu inicjatywy</a></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Energia</h2>
+        <p>
+          Region to także infrastruktura energetyczna: terminale paliw/LNG Turcji i rurociągi gazowe z Rosji do TR/UE.
+          <strong>TurkStream</strong> ma zdolność <strong>31,5 mld m³/rok</strong> (≈ połowa TR, połowa UE przez BG–RS–HU).
+          Przy popycie gazu w UE rzędu <strong>~326–330 mld m³ (2023)</strong> to udział rzędu <strong>niskich kilku procent</strong>,
+          ale o znaczeniu dla państw tranzytowych i odbiorców regionu.
+        </p>
         <ul>
-          <li>Skokowe zwyżki stawek <em>war-risk</em> i frachtu po incydentach; możliwe przestoje portów.</li>
-          <li>Eskalacja działań może znów ograniczyć dostępność ziarna → wzrost cen koszyka żywności.</li>
-          <li>Utrzymujące się wąskie gardła (Bosfor/Dardanele) – spiętrzenia i opóźnienia.</li>
+          <li><strong>Przepływy & polityka:</strong> konwencja z Montreux reguluje ruch przez cieśniny; incydenty zwiększają ryzyko.</li>
+          <li><strong>Substytucja:</strong> LNG i trasy przez TR zmniejszają wrażliwość części UE na inne szlaki.</li>
         </ul>
-      </div>
-    </article>
+        <ul class="sources">
+          <li><a href="https://turkstream.info/" target="_blank" rel="noopener">TurkStream – parametry</a></li>
+          <li><a href="https://www.reuters.com/world/europe/eu-gas-demand-2023-326-bcm-ember-2024-01-11/" target="_blank" rel="noopener">UE – popyt na gaz 2023</a></li>
+        </ul>
+      </section>
 
-    <article class="card">
-      <h2>Źródła i dalej czytaj</h2>
-      <ul class="sources">
-        <li><a href="https://www.fao.org/faostat/" target="_blank" rel="noopener">FAO/FAOSTAT – udziały w eksporcie (pszenica, kukurydza, olej słonecznikowy)</a></li>
-        <li><a href="https://unctad.org/" target="_blank" rel="noopener">UNCTAD / ONZ – „Black Sea Grain Initiative”, wolumen ok. 33 mln t</a></li>
-        <li><a href="https://turkstream.info/" target="_blank" rel="noopener">TurkStream – parametry techniczne (31,5 bcm/rok)</a></li>
-        <li><a href="https://www.reuters.com/world/europe/eu-gas-demand-2023-326-bcm-ember-2024-01-11/" target="_blank" rel="noopener">UE – popyt na gaz w 2023 (~326–330 bcm)</a></li>
-      </ul>
-      <p class="back"><a href="/pl/geopolityka.html">← wróć do Geopolityki</a></p>
-    </article>
+      <section class="wrap">
+        <h2>Co to znaczy w praktyce?</h2>
+        <ul>
+          <li><strong>Ceny żywności:</strong> powrót żeglugi z UA → odbicie w indeksach zbóż/olejów; zakłócenia → wzrosty.</li>
+          <li><strong>Fracht i ubezpieczenia:</strong> notyfikacje NAVTEX/NOTAM i incydenty windują stawki <em>war-risk</em> i fracht.</li>
+          <li><strong>Ryzyko stron:</strong> armatorzy/banki/ubezpieczyciele przerzucają premie ryzyka na ceny końcowe.</li>
+        </ul>
+      </section>
 
-    <!-- Opinie – Giscus -->
-    <article class="card">
-      <h2>Opinie: „za” i „przeciw” (wymagane źródła)</h2>
-      <p style="color:var(--muted)">Dodaj opinię z linkiem do źródła (bez źródła wpisy są odrzucane). Zaloguj się przez GitHub.</p>
-      <script src="https://giscus.app/client.js"
-        data-repo="Maja2711/briefrooms-site"
-        data-repo-id=""
-        data-category="Announcements"
-        data-category-id=""
-        data-mapping="pathname"
-        data-strict="0"
-        data-reactions-enabled="1"
-        data-emit-metadata="0"
-        data-input-position="top"
-        data-theme="dark_dimmed"
-        data-lang="pl"
-        crossorigin="anonymous"
-        async>
-      </script>
-      <noscript>Włącz JavaScript, aby dodać komentarz.</noscript>
+      <section class="cols">
+        <div class="wrap">
+          <h3 class="good">Plusy / szanse</h3>
+          <ul>
+            <li>Większa przepustowość i przewidywalność szlaków (stabilniejsze ceny, mniejsze premie ryzyka).</li>
+            <li>Dywersyfikacja logistyczna (TR, LNG, alternatywne trasy) ogranicza wrażliwość na wąskie gardła.</li>
+            <li>Lepsza koordynacja kredytów i ubezpieczeń handlowych (łatwiejsze finansowanie łańcucha dostaw).</li>
+          </ul>
+        </div>
+        <div class="wrap">
+          <h3 class="bad">Minusy / ryzyka</h3>
+          <ul>
+            <li>Skokowe zwyżki <em>war-risk</em> i frachtu po incydentach; możliwe przestoje portów.</li>
+            <li>Eskalacja działań może ponownie ograniczyć dostępność ziarna → wzrost cen koszyka żywności.</li>
+            <li>Wąskie gardła cieśnin (Bosfor/Dardanele) – czasowe spiętrzenia i opóźnienia.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Źródła i dalej czytaj</h2>
+        <ul class="sources">
+          <li><a href="https://www.fao.org/faostat/" target="_blank" rel="noopener">FAO/FAOSTAT – udziały w eksporcie</a></li>
+          <li><a href="https://news.un.org/en/story/2023/07/1138977" target="_blank" rel="noopener">ONZ – korytarz zbożowy (32,9 mln t)</a></li>
+          <li><a href="https://turkstream.info/" target="_blank" rel="noopener">TurkStream – parametry</a></li>
+          <li><a href="https://www.reuters.com/world/europe/eu-gas-demand-2023-326-bcm-ember-2024-01-11/" target="_blank" rel="noopener">Reuters – UE gaz 2023</a></li>
+        </ul>
+        <p class="back">← <a href="/pl/geopolityka.html">wróć do Geopolityki</a></p>
+      </section>
+
+      <!-- Komentarze (opinie za/przeciw) – weryfikacja źródłem -->
+      <section class="card" style="margin:0; border:none; background:transparent; box-shadow:none; padding:0">
+        <h2>Opinie: „za” i „przeciw” (wymagane źródła)</h2>
+        <p style="color:var(--muted)">
+          Dodaj opinię z linkiem do źródła (bez źródła wpisy są odrzucane). Zaloguj się przez GitHub.
+        </p>
+        <script src="https://giscus.app/client.js"
+          data-repo="Maja2711/briefrooms-site"
+          data-repo-id=""
+          data-category="Announcements"
+          data-category-id=""
+          data-mapping="pathname"
+          data-strict="0"
+          data-reactions-enabled="1"
+          data-emit-metadata="0"
+          data-input-position="top"
+          data-theme="dark_dimmed"
+          data-lang="pl"
+          crossorigin="anonymous"
+          async>
+        </script>
+        <noscript>Włącz JavaScript, aby dodać komentarz.</noscript>
+      </section>
     </article>
   </main>
 
