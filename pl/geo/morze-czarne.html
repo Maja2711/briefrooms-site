@@ -59,6 +59,16 @@
     .back a:hover{ text-decoration:underline }
 
     footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
+    /* Ocena: przyciski */
+.rate-box { display:flex; align-items:center; gap:12px }
+.rate-btn{
+  padding:10px 14px; border-radius:12px;
+  border:1px solid var(--line);
+  background:#0e1827; color:var(--txt);
+  cursor:pointer;
+}
+.rate-btn:hover{ background:#162339 }
+.rate-note{ opacity:.8 }
   </style>
 </head>
 <body>
@@ -180,6 +190,41 @@
       </section>
     </article>
   </main>
+<!-- Ocena: było pomocne? -->
+<section class="card rate-box">
+  <span class="rate-note">Czy to streszczenie było pomocne?</span>
+  <button class="rate-btn" data-v="up">👍 Tak</button>
+  <button class="rate-btn" data-v="down">👎 Nie bardzo</button>
+</section>
+
+<script>
+(() => {
+  const box = document.querySelector('.rate-box');
+  if (!box) return;
+
+  const key = 'rate:' + location.pathname;           // jeden głos na stronę
+  const voted = localStorage.getItem(key);
+  if (voted) return showThanks(voted);
+
+  box.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-v]');
+    if (!btn) return;
+    const v = btn.dataset.v;                          // "up" / "down"
+    localStorage.setItem(key, v);
+    showThanks(v);
+    // (opcjonalnie) wyślij zliczenie do Formspree – PODMIEŃ ID i odkomentuj:
+    // fetch('https://formspree.io/f/YOUR_FORMSPREE_ID', {
+    //   method:'POST',
+    //   headers:{'Content-Type':'application/json'},
+    //   body: JSON.stringify({ page: location.pathname, vote: v })
+    // }).catch(()=>{});
+  });
+
+  function showThanks(v){
+    box.innerHTML = `<span>Dzięki za opinię! ${v==='up' ? '👍' : '👎'}</span>`;
+  }
+})();
+</script>
 
   <footer>© BriefRooms</footer>
 </body>
