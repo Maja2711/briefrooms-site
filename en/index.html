@@ -1,111 +1,56 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — choose a room (EN)</title>
   <meta name="description" content="Pick a room with crisp, to-the-point summaries.">
   <link rel="icon" href="/assets/favicon.svg">
   <style>
-    :root{
-      --bg:#08111d;
-      --txt:#e9eef5;
-      --accent:#9c7349;
-      --accent-dark:#7a5523;
-      --shadow: rgba(0,0,0,.35);
-    }
-    *{ box-sizing:border-box }
-    html,body{ height:100% }
+    :root{ --bg:#08111d; --txt:#e9eef5; --accent:#9c7349; --accent-dark:#7a5523; --shadow:rgba(0,0,0,.35) }
+    *{ box-sizing:border-box } html,body{ height:100% }
     body{
-      margin:0;
-      font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--txt);
-      background:
-        radial-gradient(1200px 700px at 50% -200px,#11233b 0 40%,transparent 60%),
-        linear-gradient(#0a1626,#060c15 70%);
-      background-color:var(--bg);
+      margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
+      background: radial-gradient(1200px 700px at 50% -200px,#11233b 0 40%,transparent 60%), linear-gradient(#0a1626,#060c15 70%); background-color:#060c15;
     }
     header{ text-align:center; padding:40px 16px 10px }
-    h1{
-      margin:0 0 10px;
-      font-size:clamp(26px,4.6vw,48px);
-      line-height:1.2; letter-spacing:.4px;
-      text-shadow:0 1px 0 #000, 0 3px 14px rgba(0,0,0,.35);
-    }
+    h1{ margin:0 0 10px; font-size:clamp(26px,4.6vw,48px); line-height:1.2; letter-spacing:.4px; text-shadow:0 1px 0 #000, 0 3px 14px rgba(0,0,0,.35) }
     .sub{ margin:0 0 14px; opacity:.85 }
     .switch{ margin:0 0 10px; font-size:14px; opacity:.85 }
-    .switch a{ color:#a8c8ff; text-decoration:none }
-    .switch a:hover{ text-decoration:underline }
+    .switch a{ color:#a8c8ff; text-decoration:none } .switch a:hover{ text-decoration:underline }
 
-    .grid{
-      max-width:1200px; margin:24px auto 80px; padding:0 16px 24px;
-      display:grid; grid-template-columns:repeat(3,1fr); gap:28px;
-    }
+    .grid{ max-width:1200px; margin:24px auto 80px; padding:0 16px 24px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px }
     @media (max-width:860px){ .grid{ grid-template-columns:1fr; max-width:720px } }
-
-    .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.06);
-      border-radius:22px;
-      box-shadow:0 18px 50px -16px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.04);
-      padding:22px 22px 28px;
-    }
+    .card{ background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.06); border-radius:22px; box-shadow:0 18px 50px -16px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.04); padding:22px 22px 28px }
 
     /* Doors */
-    .door{
-      position:relative;
-      height:52dvh; min-height:420px; max-height:620px;
-      border-radius:18px;
+    .door{ position:relative; height:52dvh; min-height:420px; max-height:620px; border-radius:18px;
       background-position:center; background-repeat:no-repeat; background-size:cover;
       box-shadow:inset 0 0 1px rgba(255,255,255,.06), inset 0 -80px 120px rgba(0,0,0,.45);
-      transition:transform .2s ease, box-shadow .25s ease;
-    }
+      transition:transform .2s ease, box-shadow .25s ease; }
     .door:hover{ transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45) }
     .door a{ position:absolute; inset:0; border-radius:inherit }
 
     /* knob */
-    .door::before{
-      content:""; position:absolute; right:22px; top:calc(50% - 12px);
-      width:12px; height:12px; border-radius:50%;
-      background:radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark));
-      box-shadow:0 0 3px rgba(0,0,0,.15);
+    .door::before{ content:""; position:absolute; right:22px; top:calc(50% - 12px); width:12px; height:12px; border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark)); box-shadow:0 0 3px rgba(0,0,0,.15) }
+
+    /* mask fully covering the middle panel text from SVGs */
+    .door::after{
+      content:""; position:absolute; left:12%; right:12%; top:50%; transform:translateY(-50%);
+      height:36%; border-radius:14px;
+      background:linear-gradient(180deg,#6f421a 0%, #5b3614 100%); /* wood-like, opaque */
+      box-shadow: inset 0 0 9999px rgba(0,0,0,.20); z-index:1; pointer-events:none;
     }
-/* maska, która całkowicie zasłania środkowy panel drzwi */
-.door::after{
-  content:"";
-  position:absolute;
-  /* zostawiamy margines po bokach, żeby nie wjechać na ramę drzwi */
-  left:12%;
-  right:12%;
-  /* pozycjonowanie na środku wysokości */
-  top:50%;
-  height:36%;                 /* większa – zakryje cały napis z obrazka */
-  transform:translateY(-50%);
-  border-radius:14px;
 
-  /* w pełni nieprzezroczyste „drewno”, + lekki cień do środka */
-  background:linear-gradient(180deg,#6f421a 0%, #5b3614 100%);
-  box-shadow: inset 0 0 0 9999px rgba(0,0,0,.20);
-  z-index:1;
-  pointer-events:none;
-}
+    /* label plate (EN text) */
+    .door-label{
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2;
+      padding:18px 26px; border-radius:12px; background:transparent; color:rgba(255,255,255,.98);
+      font-size:clamp(20px,3.6vw,34px); letter-spacing:.5px; text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45); pointer-events:none;
+    }
 
-
-    /* label plate that COVERS any text baked into the image */
-.door-label{
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  z-index:2;                 /* nad maską */
-  padding:18px 26px; border-radius:12px;
-  background:transparent;    /* tło już niepotrzebne – maska robi robotę */
-  color:rgba(255,255,255,.98);
-  font-size:clamp(20px,3.6vw,34px);
-  letter-spacing:.5px;
-  text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
-  pointer-events:none;
-}
-.door a{ position:absolute; inset:0; border-radius:inherit; z-index:3; }
-
-    /* backgrounds for each door (can be SVGs with Polish text — label covers it) */
+    /* backgrounds (can be PL SVGs; label covers them) */
     .g .door{ background-image:url("/assets/geo.svg") }
     .h .door{ background-image:url("/assets/health.svg") }
     .s .door{ background-image:url("/assets/sci.svg") }
@@ -114,7 +59,6 @@
   </style>
 </head>
 <body>
-
   <header>
     <h1>Pick a room with crisp, to-the-point summaries</h1>
     <p class="sub">Click a door to enter a section.</p>
