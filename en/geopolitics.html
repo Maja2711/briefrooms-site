@@ -3,55 +3,49 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BriefRooms — Geopolitics</title>
-  <meta name="description" content="Pick a topic card. Short, crisp summaries with sources." />
+  <title>BriefRooms — Geopolitics (EN)</title>
+  <meta name="description" content="Geopolitics: topics in short, practical summaries." />
   <link rel="icon" href="/assets/favicon.svg" />
   <style>
     :root{
-      --bg:#0b1523; --card:#101b2b; --stroke:rgba(255,255,255,.08);
-      --txt:#e9eef5; --muted:#a8b3c7; --accent:#93c4ff;
+      --bg:#08111d; --panel:#101b2b; --txt:#e9eef5; --muted:#a8b3c7; --accent:#93c4ff;
+      --line:rgba(255,255,255,.06);
     }
     *{ box-sizing:border-box }
     body{
-      margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--txt);
+      margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
       background:
         radial-gradient(1100px 600px at 50% -180px,#12233a 0 40%,transparent 60%),
         linear-gradient(#0a1626,#08101b 70%);
       background-color:#08101b;
     }
-    header{ padding:28px 16px 8px; text-align:center }
-    h1{ margin:0 0 6px; font-size:clamp(26px,4.6vw,38px); letter-spacing:.3px }
-    p.lead{ margin:0; color:var(--muted) }
+    header{ padding:28px 16px 10px; text-align:center }
+    h1{ margin:0 0 6px; font-size:clamp(24px,4.2vw,40px) }
+    p{ margin:0 0 16px; color:var(--muted) }
 
-    main{ max-width:1060px; margin:22px auto 80px; padding:0 16px }
+    main{ max-width:1060px; margin:22px auto 80px; padding:0 16px; }
+    .tiles{ list-style:none; margin:18px 0; padding:0; display:grid; gap:14px; grid-template-columns:1fr }
+    @media (min-width:768px){ .tiles{ grid-template-columns:1fr 1fr } }
 
-    /* tiles */
-    .tiles{ list-style:none; margin:18px 0 0; padding:0;
-      display:grid; gap:14px; grid-template-columns:1fr }
-    @media (min-width:768px){ .tiles{ grid-template-columns:1fr 1fr 1fr } }
-
-    .tile{ border:1px solid var(--stroke); border-radius:12px; background:var(--card) }
-    .tile-link{ display:block; padding:18px 16px; color:inherit; text-decoration:none }
+    .tile{ border:1px solid var(--line); border-radius:12px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02)) }
+    .tile-link{ display:block; padding:16px; color:inherit; text-decoration:none }
     .tile-title{ display:block; font-weight:700; font-size:1.05rem; margin-bottom:6px }
     .tile-desc{ display:block; color:var(--muted); font-size:.95rem }
-    .tile-link:hover{ background:rgba(255,255,255,.03) }
+    .tile-link:hover{ background:rgba(255,255,255,.035) }
 
-    /* “back” link */
-    .back{ margin-top:18px }
-    .back a{ color:#a8c7ff; text-decoration:none }
+    .back{ margin:10px 0 28px; color:var(--muted) }
+    .back a{ color:#a8c8ff; text-decoration:none }
     .back a:hover{ text-decoration:underline }
   </style>
 </head>
 <body>
   <header>
     <h1>Black Sea: a strategic choke point</h1>
-    <p class="lead">Trade lanes, energy routes and military presence make it a volatility hotspot.</p>
+    <p>Trade lanes, energy routes and military presence make it a volatility hotspot.</p>
   </header>
 
   <main>
-    <h2 style="margin:6px 0 10px;">Key takeaways</h2>
-
+    <h2>Key takeaways</h2>
     <ul class="tiles">
       <li class="tile">
         <a class="tile-link" href="/en/geo/black-sea.html">
