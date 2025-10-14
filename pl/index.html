@@ -7,39 +7,46 @@
   <title>BriefRooms — wybierz pokój (PL)</title>
   <meta name="description" content="Wybierz pokój z krótkimi, rzeczowymi podsumowaniami. Kliknij w drzwi, aby wejść do działu." />
 
-  <!-- favicona + wspólny CSS -->
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
 
-  <!-- hreflang: para PL/EN -->
+  <!-- hreflang -->
   <link rel="alternate" href="https://briefrooms.com/pl/" hreflang="pl" />
   <link rel="alternate" href="https://briefrooms.com/en/" hreflang="en" />
   <link rel="alternate" href="https://briefrooms.com/pl/" hreflang="x-default" />
 
-  <!-- Styl tylko dla strony głównej (drzwi) -->
+  <!-- LOKALNY CSS tylko dla drzwi (sprawdzony układ sprzed zmian) -->
   <style>
+    header,main,footer{ max-width:980px; margin:0 auto; padding:0 16px }
+    header{ padding:28px 16px 8px; text-align:center }
+    h1{ margin:6px 0 4px; font-size:clamp(26px,5.2vw,44px) }
+    .sub{ margin:0 0 16px; color:var(--muted) }
+    .lang{ color:var(--muted); margin:6px 0 24px }
+    .lang a{ color:#a8c8ff; text-decoration:none }
+    .lang a:hover{ text-decoration:underline }
+
     .doors{ max-width:1220px; margin:24px auto 56px; padding:0 16px;
-            display:grid; gap:24px; grid-template-columns:1fr; }
+            display:grid; gap:24px; grid-template-columns:1fr }
     @media (min-width:980px){ .doors{ grid-template-columns:1fr 1fr 1fr } }
 
-    .door-card{
-      position:relative; border:1px solid var(--stroke); border-radius:18px;
-      background:rgba(255,255,255,.04);
+    .door-wrap{
+      border:1px solid var(--stroke); border-radius:18px; background:rgba(255,255,255,.04);
       box-shadow:0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.05);
       padding:18px; transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
     }
-    .door-card:hover{ transform:translateY(-2px); background:rgba(255,255,255,.05) }
+    .door-wrap:hover{ transform:translateY(-2px); background:rgba(255,255,255,.05) }
 
     .door{
       position:relative; display:block; overflow:hidden;
-      border-radius:12px; aspect-ratio: 4 / 5; /* ładne proporcje drzwi */
+      border-radius:12px; aspect-ratio: 4 / 5;
       background:#2b1d10 center/cover no-repeat;
+      color:#e7dcc8; text-decoration:none;
     }
-    /* obrazki drzwi jako tło — podajemy inline na elemencie door */
+    /* napis w drzwiach – jeden, pośrodku */
     .door .label{
-      position:absolute; left:0; right:0; bottom:10%; text-align:center;
-      font-size:clamp(18px,2.6vw,28px); color:#e7dcc8; text-shadow:0 1px 2px rgba(0,0,0,.6);
-      font-weight:600; letter-spacing:.2px;
+      position:absolute; left:12px; right:12px; top:50%; transform:translateY(-50%);
+      text-align:center; font-weight:600; font-size:clamp(18px,2.6vw,28px);
+      text-shadow:0 1px 2px rgba(0,0,0,.6);
     }
     /* złote gałki */
     .door .knobs::before,.door .knobs::after{
@@ -47,23 +54,11 @@
       background:radial-gradient(circle at 30% 30%, #ffe0a6 0, #ffcf7a 60%, #7a5523);
       box-shadow:0 0 3px rgba(0,0,0,.15); pointer-events:none;
     }
-    .door .knobs::before{ top:calc(50% - 10px) }  /* górna */
-    .door .knobs::after { top:calc(50% + 10px) }  /* dolna */
-
-    .lang{ text-align:center; color:var(--muted); margin:8px 0 12px }
-    .lang a{ color:#a8c8ff; text-decoration:none }
-    .lang a:hover{ text-decoration:underline }
+    .door .knobs::before{ top:calc(50% - 10px) }
+    .door .knobs::after { top:calc(50% + 10px) }
   </style>
 </head>
-
-<!-- bardzo ważne: klasa home w body -->
-<body class="home">
-
-  <!-- JEDYNE logo – tylko na stronie głównej -->
-  <a class="site-head" href="/pl/" aria-label="BriefRooms — strona główna">
-    <img src="/assets/logo.svg" alt="BriefRooms" class="logo">
-    <span class="brand">BriefRooms</span>
-  </a>
+<body>
 
   <header>
     <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
@@ -75,7 +70,7 @@
     <section class="doors" aria-label="Wybór działów">
 
       <!-- Geopolityka -->
-      <div class="door-card">
+      <div class="door-wrap">
         <a class="door" href="/pl/geopolityka.html"
            aria-label="Geopolityka — wejdź do działu"
            style="background-image:url('/assets/geo.svg')">
@@ -85,7 +80,7 @@
       </div>
 
       <!-- Zdrowie -->
-      <div class="door-card">
+      <div class="door-wrap">
         <a class="door" href="/pl/zdrowie.html"
            aria-label="Zdrowie — wejdź do działu"
            style="background-image:url('/assets/health.svg')">
@@ -95,7 +90,7 @@
       </div>
 
       <!-- Nauka -->
-      <div class="door-card">
+      <div class="door-wrap">
         <a class="door" href="/pl/nauka.html"
            aria-label="Nauka — wejdź do działu"
            style="background-image:url('/assets/sci.svg')">
@@ -108,10 +103,5 @@
   </main>
 
   <footer></footer>
-
-  <!-- Bezpiecznik: jeśli przypadkiem jest inny luźny link pod <body> -->
-  <style>
-    body.home > a:not(.site-head){ display:none !important; }
-  </style>
 </body>
 </html>
