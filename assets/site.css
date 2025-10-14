@@ -1,22 +1,29 @@
 /* ——— USTAWIENIA OGÓLNE ——— */
 :root{
-  --bg1:#0b1420; --bg2:#0e1b2b; --panel:#112235; --panel-2:#0f1e30;
+  --bg1:#0b1420; --bg2:#0e1b2b;
+  --panel:#112235; --panel-2:#0f1e30;
   --txt:#e7eef9; --muted:#b9c5d8; --stroke:rgba(255,255,255,.08);
   --focus:#86b7ff;
+  --head-space:64px; /* odsunięcie treści od góry pod stałe logo */
 }
+
 *{ box-sizing:border-box }
 html,body{ margin:0 }
+
 body{
   min-height:100vh;
   color:var(--txt);
   background:linear-gradient(#0a1626,#08111d);
   font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding-top:var(--head-space); /* żeby logo nie nachodziło na nagłówki */
 }
+
 a{ color:var(--muted); text-decoration:none }
 a:hover{ text-decoration:underline }
 a:focus-visible, button:focus-visible{
   outline:3px solid var(--focus); outline-offset:2px; border-radius:8px;
 }
+
 header,main,footer{ max-width:980px; margin:0 auto; padding:0 16px }
 header{ padding:28px 16px 8px }
 h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
@@ -28,12 +35,14 @@ h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
   display:grid; gap:14px; grid-template-columns:1fr;
 }
 @media (min-width:760px){ .tiles{ grid-template-columns:1fr 1fr } }
+
 .tile{
   border:1px solid var(--stroke); border-radius:12px; background:rgba(255,255,255,.04);
-  box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
-  transform: translateY(0); transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+  transform:translateY(0);
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.tile:hover{ transform: translateY(-2px); background:rgba(255,255,255,.05) }
+.tile:hover{ transform:translateY(-2px); background:rgba(255,255,255,.05) }
 .tile-link{ display:block; padding:16px 18px; color:inherit; text-decoration:none }
 .tile-title{ display:block; font-weight:700; font-size:1.05rem; margin-bottom:6px }
 .tile-desc{ display:block; color:var(--muted); font-size:.95rem }
@@ -48,41 +57,33 @@ h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid rgba(255,255,255,.06);
   border-radius:16px; padding:18px 20px; margin:14px 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
 }
-.cols{display:grid; gap:16px; grid-template-columns:1fr; margin:16px 0}
-@media (min-width:780px){ .cols{grid-template-columns:1fr 1fr} }
-.good{background:linear-gradient(180deg,#12341f,#0f2a1a)}
-.bad{background:linear-gradient(180deg,#2e1616,#241111)}
+.cols{ display:grid; gap:16px; grid-template-columns:1fr; margin:16px 0 }
+@media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
+.good{ background:linear-gradient(180deg,#12341f,#0f2a1a) }
+.bad{  background:linear-gradient(180deg,#2e1616,#241111) }
 
 /* ——— PRZYCISKI GŁOSOWANIA ——— */
-
-.rate-row{display:flex;gap:10px;margin-bottom:8px}
+.rate-row{ display:flex; gap:10px; margin-bottom:8px }
 .btn{
-  padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+  padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.1);
   background:linear-gradient(180deg,#1a2b42,#152336);
   color:var(--txt); cursor:pointer;
   box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
 /* —— GLOBALNY BADGE LOGO W LEWYM GÓRNYM ROGU —— */
-:root{ --head-space:64px }           /* odsunięcie treści od góry */
 .site-head{
-  position: fixed;
-  top: 12px; left: 16px;
-  z-index: 1000;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(10,22,38,.38);
-  backdrop-filter: blur(6px);
-  color: var(--txt);
-  text-decoration: none;
-  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  position:fixed; top:12px; left:16px; z-index:1000;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:10px;
+  background:rgba(10,22,38,.38);
+  backdrop-filter:blur(6px);
+  color:var(--txt); text-decoration:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
 }
-.site-head:hover{ filter: brightness(1.06); text-decoration: none }
-.site-head .logo{ height:20px; margin:0 }   /* mniejsze logo wewnątrz badge */
+.site-head:hover{ filter:brightness(1.06); text-decoration:none }
+.site-head:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; border-radius:12px }
+.site-head .logo{ height:20px; margin:0; vertical-align:middle }
 .site-head .brand{ font-weight:700; opacity:.95 }
-
-/* odsunięcie treści w dół, żeby logo nie nachodziło na nagłówek */
-body{ padding-top: var(--head-space); }
