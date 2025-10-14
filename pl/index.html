@@ -39,18 +39,31 @@
       position:relative;
     }
  /* gałki – dwie, jak w EN */
-.door{ position:relative }
+/* --- Gałki drzwi (PL) – wyrównane jak w EN --- */
+.door{ position:relative; }
 
 .door::before,
 .door::after{
   content:"";
   position:absolute;
-  right:22px;                  /* stały odstęp od prawej */
+  right:22px;               /* stałe odsunięcie od prawej krawędzi */
   width:12px; height:12px;
   border-radius:50%;
-  background:radial-gradient(circle at 30% 30%, #ffe0a6, #d8a85a 60%, #7a5523);
-  box-shadow:0 3px 0 rgba(0,0,0,.15);
+  background:radial-gradient(circle at 30% 30%, #ffe0a6 0, #ffcf7a 60%, #7a5523);
+  box-shadow:0 0 3px rgba(0,0,0,.15);
 }
+
+/* górna kropka */
+.door::before{
+  top:calc(50% - 12px);     /* zawsze w tym samym miejscu */
+}
+
+/* dolna kropka */
+.door::after{
+  top:calc(50% + 6px);
+  opacity:.95;
+}
+
 
 /* górna kropka – trochę powyżej środka */
 .door::before{ top:calc(50% - 10px) }
