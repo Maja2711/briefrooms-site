@@ -57,21 +57,29 @@
     }
 
     /* maska – wyrównuje label i przykrywa wszelki tekst z grafiki */
-    .door::after{
-      content:""; position:absolute; left:12%; right:12%; top:50%; height:36%;
-      transform:translateY(-50%); border-radius:14px;
-      background:linear-gradient(180deg,#6f421a 0%, #5b3614 100%);
-      box-shadow: inset 0 0 9999px rgba(0,0,0,.20); z-index:1; pointer-events:none;
-    }
+  .door::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:transparent;   /* żadnego tła */
+  box-shadow:none;          /* żadnego cienia */
+}
 
     /* label na środku */
-    .door-label{
-      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2;
-      padding:18px 26px; border-radius:12px; background:transparent; color:rgba(255,255,255,.98);
-      font-size:clamp(20px,3.6vw,34px); letter-spacing:.5px;
-      text-shadow:0 1px 0 #5c3b1c, 0 2px 6px rgba(0,0,0,.45);
-      pointer-events:none;
-    }
+.door-label{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2;
+  padding:0;                     /* bez „pigułki” */
+  background:transparent;        /* bez tła */
+  color:rgba(255,255,255,.98);
+  font-size:clamp(20px,3.6vw,34px);
+  font-weight:600;
+  letter-spacing:.5px;
+  text-shadow:0 2px 8px rgba(0,0,0,.45); /* tylko delikatny cień pod tekst */
+  pointer-events:none;
+}
+
 
     /* tła “drzwi” (używamy tych samych SVG co w PL) */
     .g .door{ background-image:url("/assets/geo.svg") }
