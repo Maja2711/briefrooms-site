@@ -2,109 +2,116 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>BriefRooms — wybierz pokój (PL)</title>
-  <meta name="description" content="BriefRooms: krótkie, rzeczowe podsumowania. Wybierz dział: Geopolityka, Zdrowie, Nauka." />
+  <meta name="description" content="Wybierz pokój z krótkimi, rzeczowymi podsumowaniami. Kliknij w drzwi, aby wejść do działu." />
+
+  <!-- favicona + wspólny CSS -->
   <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/site.css" />
+
+  <!-- hreflang: para PL/EN -->
+  <link rel="alternate" href="https://briefrooms.com/pl/" hreflang="pl" />
+  <link rel="alternate" href="https://briefrooms.com/en/" hreflang="en" />
+  <link rel="alternate" href="https://briefrooms.com/pl/" hreflang="x-default" />
+
+  <!-- Styl tylko dla strony głównej (drzwi) -->
   <style>
-    :root{
-      --bg:#0f172a; --card:#111827; --txt:#e5e7eb; --muted:#94a3b8;
-      --shadow:0 20px 40px rgba(0,0,0,.35); --radius:24px;
-    }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{
-      margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
-      background: radial-gradient(1100px 800px at 20% -10%, #1e293b 0, #0b1220 50%, #050a16 100%), var(--bg);
-      display:flex; min-height:100dvh;
-    }
-    .wrap{width:min(1200px,96vw); margin:auto; padding:32px 0 56px; text-align:center}
-    header{margin-bottom:28px}
-    h1{margin:0 0 10px; font-size:clamp(26px,2.8vw,36px); font-weight:800}
-    .sub{margin:0; color:var(--muted); font-size:clamp(14px,1.7vw,18px)}
-    .switch{margin-top:10px; font-size:14px}
-    .switch a{color:#93c5fd; text-decoration:none} .switch a:hover{text-decoration:underline}
+    .doors{ max-width:1220px; margin:24px auto 56px; padding:0 16px;
+            display:grid; gap:24px; grid-template-columns:1fr; }
+    @media (min-width:980px){ .doors{ grid-template-columns:1fr 1fr 1fr } }
 
-    .grid{margin-top:22px; display:grid; grid-template-columns:repeat(3,1fr); gap:24px}
-    @media(max-width:980px){.grid{grid-template-columns:1fr; gap:18px}}
-
-    .card{
-      position:relative; display:block; text-decoration:none; color:inherit;
-      background:linear-gradient(#111827,#0b1324); border:1px solid rgba(255,255,255,.06);
-      border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; padding:20px 20px 24px;
-      transition:transform .18s, box-shadow .18s;
+    .door-card{
+      position:relative; border:1px solid var(--stroke); border-radius:18px;
+      background:rgba(255,255,255,.04);
+      box-shadow:0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.05);
+      padding:18px; transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
     }
-    .card:hover{transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45)}
+    .door-card:hover{ transform:translateY(-2px); background:rgba(255,255,255,.05) }
 
     .door{
-      height:52dvh; min-height:420px; max-height:620px; border-radius:18px;
-      background-position:center; background-repeat:no-repeat; background-size:cover;
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.06), inset 0 -80px 120px rgba(0,0,0,.45);
-      position:relative;
+      position:relative; display:block; overflow:hidden;
+      border-radius:12px; aspect-ratio: 4 / 5; /* ładne proporcje drzwi */
+      background:#2b1d10 center/cover no-repeat;
     }
-
-    /* 1) PASEK MASKUJĄCY „STARĄ” GAŁKĘ Z TŁA (SVG) */
-    .door .hide-knob{
-      position:absolute; right:18px; top:calc(50% - 28px);
-      width:22px; height:56px; border-radius:6px;
-      /* półprzezroczyste „drewno”, żeby zlało się z panelem drzwi */
-      background:linear-gradient(180deg, rgba(127,82,38,.92), rgba(104,66,29,.92));
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.25), 0 0 2px rgba(0,0,0,.35);
-      pointer-events:none;
+    /* obrazki drzwi jako tło — podajemy inline na elemencie door */
+    .door .label{
+      position:absolute; left:0; right:0; bottom:10%; text-align:center;
+      font-size:clamp(18px,2.6vw,28px); color:#e7dcc8; text-shadow:0 1px 2px rgba(0,0,0,.6);
+      font-weight:600; letter-spacing:.2px;
     }
-
-    /* 2) NASZE DWIE GAŁKI – IDENTYCZNIE NA KAŻDYCH DRZWIACH */
-    .door .knobs::before,
-    .door .knobs::after{
+    /* złote gałki */
+    .door .knobs::before,.door .knobs::after{
       content:""; position:absolute; right:22px; width:12px; height:12px; border-radius:50%;
       background:radial-gradient(circle at 30% 30%, #ffe0a6 0, #ffcf7a 60%, #7a5523);
-      box-shadow:0 0 3px rgba(0,0,0,.15);
-      pointer-events:none;
+      box-shadow:0 0 3px rgba(0,0,0,.15); pointer-events:none;
     }
     .door .knobs::before{ top:calc(50% - 10px) }  /* górna */
     .door .knobs::after { top:calc(50% + 10px) }  /* dolna */
 
-    /* tła drzwi */
-    .card[data-kind="geo"]    .door{background-image:url("/assets/geo.svg")}
-    .card[data-kind="health"] .door{background-image:url("/assets/health.svg")}
-    .card[data-kind="sci"]    .door{background-image:url("/assets/sci.svg")}
+    .lang{ text-align:center; color:var(--muted); margin:8px 0 12px }
+    .lang a{ color:#a8c8ff; text-decoration:none }
+    .lang a:hover{ text-decoration:underline }
   </style>
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
-      <p class="sub">Kliknij w drzwi, aby wejść do działu.</p>
-      <div class="switch">English? <a href="/en/">Go to EN version</a></div>
-    </header>
 
-    <main class="grid">
-      <a class="card" data-kind="geo" href="/pl/geopolityka.html" aria-label="Przejdź do działu Geopolityka">
-        <div class="door" aria-hidden="true">
-          <span class="hide-knob"></span>
-          <span class="knobs"></span>
-        </div>
-      </a>
+<!-- bardzo ważne: klasa home w body -->
+<body class="home">
 
-      <a class="card" data-kind="health" href="/pl/zdrowie.html" aria-label="Przejdź do działu Zdrowie">
-        <div class="door" aria-hidden="true">
-          <span class="hide-knob"></span>
-          <span class="knobs"></span>
-        </div>
-      </a>
-
-      <a class="card" data-kind="sci" href="/pl/nauka.html" aria-label="Przejdź do działu Nauka">
-        <div class="door" aria-hidden="true">
-          <span class="hide-knob"></span>
-          <span class="knobs"></span>
-        </div>
-      </a>
-    </main>
-  </div>
-</body>
+  <!-- JEDYNE logo – tylko na stronie głównej -->
   <a class="site-head" href="/pl/" aria-label="BriefRooms — strona główna">
-  <img src="/assets/logo.svg" alt="BriefRooms" class="logo">
-  <span class="brand">BriefRooms</span>
-</a>
+    <img src="/assets/logo.svg" alt="BriefRooms" class="logo">
+    <span class="brand">BriefRooms</span>
+  </a>
 
- <body class="home"> 
+  <header>
+    <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
+    <p class="sub">Kliknij w drzwi, aby wejść do działu.</p>
+    <p class="lang">English? <a href="/en/">Go to EN version</a></p>
+  </header>
+
+  <main>
+    <section class="doors" aria-label="Wybór działów">
+
+      <!-- Geopolityka -->
+      <div class="door-card">
+        <a class="door" href="/pl/geopolityka.html"
+           aria-label="Geopolityka — wejdź do działu"
+           style="background-image:url('/assets/geo.svg')">
+          <span class="knobs" aria-hidden="true"></span>
+          <span class="label">Geopolityka</span>
+        </a>
+      </div>
+
+      <!-- Zdrowie -->
+      <div class="door-card">
+        <a class="door" href="/pl/zdrowie.html"
+           aria-label="Zdrowie — wejdź do działu"
+           style="background-image:url('/assets/health.svg')">
+          <span class="knobs" aria-hidden="true"></span>
+          <span class="label">Zdrowie</span>
+        </a>
+      </div>
+
+      <!-- Nauka -->
+      <div class="door-card">
+        <a class="door" href="/pl/nauka.html"
+           aria-label="Nauka — wejdź do działu"
+           style="background-image:url('/assets/sci.svg')">
+          <span class="knobs" aria-hidden="true"></span>
+          <span class="label">Nauka</span>
+        </a>
+      </div>
+
+    </section>
+  </main>
+
+  <footer></footer>
+
+  <!-- Bezpiecznik: jeśli przypadkiem jest inny luźny link pod <body> -->
+  <style>
+    body.home > a:not(.site-head){ display:none !important; }
+  </style>
+</body>
 </html>
