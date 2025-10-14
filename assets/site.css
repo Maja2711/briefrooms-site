@@ -80,4 +80,25 @@ h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
 .site-head:hover{ filter: brightness(1.05); text-decoration: none }
 .site-head .logo{ height:22px; margin:0; vertical-align:middle }
 .site-head .brand{ font-weight:700; opacity:.95 }
+  /* —— GLOBALNE LOGO W LEWYM GÓRNYM ROGU —— */
+:root{ --head-space:64px }           /* ile miejsca zostawiamy na logo */
+.site-head{
+  position: fixed;
+  top: 12px; left: 16px;
+  z-index: 1000;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(10,22,38,.38);
+  backdrop-filter: blur(6px);
+  color: var(--txt); text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
+.site-head:hover{ filter: brightness(1.06); text-decoration: none }
+.site-head .logo{ height:22px; margin:0; vertical-align:middle }
+.site-head .brand{ font-weight:700; opacity:.95 }
+
+/* odsunięcie treści w dół, żeby logo nie nachodziło */
+body{ padding-top: var(--head-space); }
+
 }
