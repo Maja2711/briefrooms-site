@@ -3,35 +3,36 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BriefRooms — Geopolitics (EN)</title>
-  <meta name="description" content="Geopolitics: topics in short, practical summaries." />
+  <title>Geopolitics — Sections | BriefRooms</title>
+  <meta name="description" content="Short, factual explainers on geopolitical topics. Enter a section.">
   <link rel="icon" href="/assets/favicon.svg" />
   <style>
-    :root{
-      --bg:#08111d; --panel:#101b2b; --txt:#e9eef5; --muted:#a8b3c7; --accent:#93c4ff;
-      --line:rgba(255,255,255,.06);
-    }
+    :root{ --bg:#0a1626; --txt:#e9eef5; --muted:#9fb4cc; --card:rgba(255,255,255,.04); --stroke:rgba(255,255,255,.08) }
     *{ box-sizing:border-box }
     body{
       margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
-      background:
-        radial-gradient(1100px 600px at 50% -180px,#12233a 0 40%,transparent 60%),
-        linear-gradient(#0a1626,#08101b 70%);
-      background-color:#08101b;
+      background:linear-gradient(#0a1626,#08111d)
     }
-    header{ padding:28px 16px 10px; text-align:center }
-    h1{ margin:0 0 6px; font-size:clamp(24px,4.2vw,40px) }
-    p{ margin:0 0 16px; color:var(--muted) }
+    header,main,footer{ max-width:980px; margin:0 auto; padding:0 16px }
+    header{ padding:28px 16px 8px }
+    h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
+    .sub{ margin:0 0 16px; color:var(--muted) }
 
-    main{ max-width:1060px; margin:22px auto 80px; padding:0 16px; }
-    .tiles{ list-style:none; margin:18px 0; padding:0; display:grid; gap:14px; grid-template-columns:1fr }
-    @media (min-width:768px){ .tiles{ grid-template-columns:1fr 1fr } }
-
-    .tile{ border:1px solid var(--line); border-radius:12px; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02)) }
-    .tile-link{ display:block; padding:16px; color:inherit; text-decoration:none }
+    /* tiles (3D cards) */
+    .tiles{
+      list-style:none; margin:18px 0 28px; padding:0;
+      display:grid; gap:14px; grid-template-columns:1fr
+    }
+    @media (min-width:760px){ .tiles{ grid-template-columns:1fr 1fr } }
+    .tile{
+      border:1px solid var(--stroke); border-radius:12px; background:var(--card);
+      box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+      transform: translateY(0); transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .tile:hover{ transform: translateY(-2px); background:rgba(255,255,255,.05) }
+    .tile-link{ display:block; padding:16px 18px; color:inherit; text-decoration:none }
     .tile-title{ display:block; font-weight:700; font-size:1.05rem; margin-bottom:6px }
     .tile-desc{ display:block; color:var(--muted); font-size:.95rem }
-    .tile-link:hover{ background:rgba(255,255,255,.035) }
 
     .back{ margin:10px 0 28px; color:var(--muted) }
     .back a{ color:#a8c8ff; text-decoration:none }
@@ -40,22 +41,33 @@
 </head>
 <body>
   <header>
-    <h1>Black Sea: a strategic choke point</h1>
-    <p>Trade lanes, energy routes and military presence make it a volatility hotspot.</p>
+    <h1>Geopolitics</h1>
+    <p class="sub">Pick a topic — short summary, key points, sources.</p>
   </header>
 
   <main>
-    <h2>Key takeaways</h2>
+    <!-- TOPIC TILES -->
     <ul class="tiles">
+      <!-- Existing article -->
       <li class="tile">
         <a class="tile-link" href="/en/geo/black-sea.html">
-          <span class="tile-title">Black Sea — a strategic chokepoint</span>
-          <span class="tile-desc">Grains, energy, shipping: how it hits prices and risk.</span>
+          <span class="tile-title">Black Sea — a strategic hub</span>
+          <span class="tile-desc">Grain, energy, routes. Why this basin shapes prices and risk.</span>
+        </a>
+      </li>
+
+      <!-- NEW LINK: draft of the new EN page -->
+      <li class="tile">
+        <a class="tile-link" href="/en/geo/topic.html">
+          <span class="tile-title">New topic (EN) — draft</span>
+          <span class="tile-desc">Test page to confirm everything works.</span>
         </a>
       </li>
     </ul>
 
-    <p class="back">← <a href="/en/">back to home</a></p>
+    <p class="back">← <a href="/en/">Back to room selection</a></p>
   </main>
+
+  <footer></footer>
 </body>
 </html>
