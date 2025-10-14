@@ -9,31 +9,30 @@
   <style>
     :root{ --bg:#0a1626; --txt:#e9eef5; --muted:#9fb4cc; --card:rgba(255,255,255,.04); --stroke:rgba(255,255,255,.08) }
     *{ box-sizing:border-box }
-    body{ margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
-          background:linear-gradient(#0a1626,#08111d) }
+    body{
+      margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
+      background:linear-gradient(#0a1626,#08111d)
+    }
     header,main,footer{ max-width:980px; margin:0 auto; padding:0 16px }
     header{ padding:28px 16px 8px }
     h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
     .sub{ margin:0 0 16px; color:var(--muted) }
 
-    /* kafelki */
-    <ul class="tiles">
-  <li class="tile">
-    <a class="tile-link" href="/pl/geo/morze-czarne.html">
-      <span class="tile-title">Morze Czarne — węzeł interesów</span>
-      <span class="tile-desc">Szlaki, energia i bezpieczeństwo: jak akwen wpływa na ceny i ryzyko.</span>
-    </a>
-  </li>
-</ul>
-
-    .tiles{ list-style:none; margin:18px 0 28px; padding:0;
-            display:grid; gap:14px; grid-template-columns:1fr }
+    /* kafelki (karty 3D) */
+    .tiles{
+      list-style:none; margin:18px 0 28px; padding:0;
+      display:grid; gap:14px; grid-template-columns:1fr
+    }
     @media (min-width:760px){ .tiles{ grid-template-columns:1fr 1fr } }
-    .tile{ border:1px solid var(--stroke); border-radius:12px; background:var(--card); }
+    .tile{
+      border:1px solid var(--stroke); border-radius:12px; background:var(--card);
+      box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+      transform: translateY(0); transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .tile:hover{ transform: translateY(-2px); background:rgba(255,255,255,.05) }
     .tile-link{ display:block; padding:16px 18px; color:inherit; text-decoration:none }
     .tile-title{ display:block; font-weight:700; font-size:1.05rem; margin-bottom:6px }
     .tile-desc{ display:block; color:var(--muted); font-size:.95rem }
-    .tile-link:hover{ background:rgba(255,255,255,.03) }
 
     .back{ margin:10px 0 28px; color:var(--muted) }
     .back a{ color:#a8c8ff; text-decoration:none }
@@ -47,8 +46,9 @@
   </header>
 
   <main>
-    <!-- TU są kafelki (pod nagłówkiem h1, NIE w <head>) -->
+    <!-- KAFELKI TEMATÓW -->
     <ul class="tiles">
+      <!-- Istniejący artykuł -->
       <li class="tile">
         <a class="tile-link" href="/pl/geo/morze-czarne.html">
           <span class="tile-title">Morze Czarne — węzeł interesów</span>
@@ -56,7 +56,13 @@
         </a>
       </li>
 
-      <!-- tu w przyszłości dopiszesz kolejne li.tile z innymi tematami -->
+      <!-- NOWY LINK: szkic nowej strony PL -->
+      <li class="tile">
+        <a class="tile-link" href="/pl/geo/temat.html">
+          <span class="tile-title">Nowy temat (PL) — szkic</span>
+          <span class="tile-desc">Strona testowa. Szybko sprawdzisz, czy wszystko działa.</span>
+        </a>
+      </li>
     </ul>
 
     <p class="back">← <a href="/pl/">Wróć na stronę wyboru pokoi</a></p>
