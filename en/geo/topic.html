@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>New topic (EN) | BriefRooms</title>
+  <meta name="description" content="Draft of a new English article.">
+  <!-- Canonical + language links (hreflang = language alternates) -->
+  <link rel="canonical" href="https://briefrooms.com/en/geo/topic.html">
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/geo/topic.html">
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/geo/temat.html">
+  <style>
+    :root{--bg1:#0b1420;--bg2:#0e1b2b;--panel:#112235;--panel2:#0f1e30;--txt:#e7eef9;--muted:#b9c5d8;--focus:#86b7ff}
+    *{box-sizing:border-box} html,body{margin:0}
+    body{min-height:100vh;color:var(--txt);background:radial-gradient(1000px 600px at 50% -10%,#1a2c46 0%,var(--bg1) 40%,var(--bg2) 100%);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:980px;margin:0 auto;padding:28px}
+    h1{font-size:clamp(28px,4vw,44px);margin:.2em 0 .4em}
+    h2{font-size:clamp(20px,3vw,26px);margin:0 0 .5em}
+    a{color:var(--muted);text-decoration:none} a:hover{text-decoration:underline}
+    a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:8px}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:18px 20px;margin:14px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.25)}
+    .cols{display:grid;gap:16px;grid-template-columns:1fr;margin:16px 0}
+    @media (min-width:780px){.cols{grid-template-columns:1fr 1fr}}
+    .good{background:linear-gradient(180deg,#12341f,#0f2a1a)}
+    .bad{background:linear-gradient(180deg,#2e1616,#241111)}
+    .tile3d{display:inline-block;margin:18px 0 6px;padding:14px 18px;border-radius:14px;color:#eaffea;background:linear-gradient(160deg,#1f6d3a,#1b5c31);box-shadow:0 14px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15);transform:translateY(0);transition:transform .12s ease,box-shadow .12s ease}
+    .tile3d:hover{text-decoration:none;transform:translateY(-2px)} .tile3d:active{transform:translateY(1px)}
+    .rate-row{display:flex;gap:10px;margin-bottom:8px}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,#1a2b42,#152336);color:var(--txt);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>New topic (EN) — draft</h1>
+    <p class="lead">This is a test version of an English article.</p>
+
+    <section class="card"><h2>What’s the point?</h2><p>Short intro…</p></section>
+    <section class="card"><h2>Theme block</h2><ul><li>Point 1</li><li>Point 2</li></ul></section>
+    <section class="cols">
+      <div class="card good"><h3>Pros</h3><ul><li>…</li></ul></div>
+      <div class="card bad"><h3>Cons</h3><ul><li>…</li></ul></div>
+    </section>
+    <section class="card"><h2>Sources</h2><ul><li><a href="https://example.com" rel="noopener noreferrer">Sample source</a></li></ul></section>
+
+    <a class="tile3d" href="/en/geopolitics.html" aria-label="Back to room selection">← Back to room selection</a>
+
+    <section class="rate-box card">
+      <div class="rate-row"><button class="btn" data-v="up">👍</button><button class="btn" data-v="down">👎</button></div>
+      <small>Your feedback helps us improve.</small>
+    </section>
+  </main>
+
+  <!-- Voting + Formspree (simple form service = collects votes without own backend/server) -->
+  <script>
+  (()=>{const box=document.querySelector('.rate-box');if(!box)return;
+    const key='rate:'+location.pathname;const voted=localStorage.getItem(key);
+    if(voted){box.innerHTML=`Thanks! ${voted==='up'?'👍':'👎'}`;return;}
+    box.addEventListener('click',e=>{const btn=e.target.closest('[data-v]');if(!btn)return;
+      const v=btn.dataset.v;localStorage.setItem(key,v);box.innerHTML=`Thanks! ${v==='up'?'👍':'👎'}`;
+      fetch('https://formspree.io/f/YOUR_ID',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({page:location.pathname,vote:v,ts:new Date().toISOString()})}).catch(()=>{});
+    });
+  })();
+  </script>
+</body>
+</html>
