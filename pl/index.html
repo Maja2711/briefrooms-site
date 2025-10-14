@@ -23,8 +23,10 @@
     .sub{margin:0; color:var(--muted); font-size:clamp(14px,1.7vw,18px)}
     .switch{margin-top:10px; font-size:14px}
     .switch a{color:#93c5fd; text-decoration:none} .switch a:hover{text-decoration:underline}
+
     .grid{margin-top:22px; display:grid; grid-template-columns:repeat(3,1fr); gap:24px}
     @media(max-width:980px){.grid{grid-template-columns:1fr; gap:18px}}
+
     .card{
       position:relative; display:block; text-decoration:none; color:inherit;
       background:linear-gradient(#111827,#0b1324); border:1px solid rgba(255,255,255,.06);
@@ -32,6 +34,7 @@
       transition:transform .18s, box-shadow .18s;
     }
     .card:hover{transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45)}
+
     .door{
       height:52dvh; min-height:420px; max-height:620px; border-radius:18px;
       background-position:center; background-repeat:no-repeat; background-size:cover;
@@ -39,27 +42,18 @@
       position:relative;
     }
 
-/* --- Door knobs (PL) — two aligned, same as EN --- */
-.door{ position:relative; }
+    /* ——— Gałki jako elementy HTML (spójne na wszystkich drzwiach) ——— */
+    .door::before, .door::after { content:none !important; }  /* dezaktywacja starych pseudo-elementów (gdyby zostały w cache) */
+    .knob{
+      position:absolute; right:22px;
+      width:12px; height:12px; border-radius:50%;
+      background:radial-gradient(circle at 30% 30%, #ffe0a6 0, #ffcf7a 60%, #7a5523);
+      box-shadow:0 0 3px rgba(0,0,0,.15);
+    }
+    .knob--top{    top:calc(50% - 12px); }
+    .knob--bottom{ top:calc(50% +  6px); opacity:.95; }
 
-.door::before,
-.door::after{
-  content:"";
-  position:absolute;
-  right:22px;
-  width:12px; height:12px;
-  border-radius:50%;
-  background:radial-gradient(circle at 30% 30%, #ffe0a6 0, #ffcf7a 60%, #7a5523);
-  box-shadow:0 0 3px rgba(0,0,0,.15);
-}
-
-/* upper dot */
-.door::before{ top:calc(50% - 12px); }
-
-/* lower dot */
-.door::after { top:calc(50% + 6px); opacity:.95; }
-
-
+    /* Tła drzwi */
     .card[data-kind="geo"]    .door{background-image:url("/assets/geo.svg")}
     .card[data-kind="health"] .door{background-image:url("/assets/health.svg")}
     .card[data-kind="sci"]    .door{background-image:url("/assets/sci.svg")}
@@ -75,13 +69,24 @@
 
     <main class="grid">
       <a class="card" data-kind="geo" href="/pl/geopolityka.html" aria-label="Przejdź do działu Geopolityka">
-        <div class="door" aria-hidden="true"></div>
+        <div class="door" aria-hidden="true">
+          <span class="knob knob--top"></span>
+          <span class="knob knob--bottom"></span>
+        </div>
       </a>
+
       <a class="card" data-kind="health" href="/pl/zdrowie.html" aria-label="Przejdź do działu Zdrowie">
-        <div class="door" aria-hidden="true"></div>
+        <div class="door" aria-hidden="true">
+          <span class="knob knob--top"></span>
+          <span class="knob knob--bottom"></span>
+        </div>
       </a>
+
       <a class="card" data-kind="sci" href="/pl/nauka.html" aria-label="Przejdź do działu Nauka">
-        <div class="door" aria-hidden="true"></div>
+        <div class="door" aria-hidden="true">
+          <span class="knob knob--top"></span>
+          <span class="knob knob--bottom"></span>
+        </div>
       </a>
     </main>
   </div>
