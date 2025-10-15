@@ -51,6 +51,35 @@
     .back a:hover{ text-decoration:underline }
 
     footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
+/* ——— Mały znaczek magnesu w nagłówku ——— */
+header{ position:relative; padding-right:72px; }   /* miejsce na badge po prawej */
+
+.magnet-badge{
+  position:absolute;
+  top:-6px;              /* lekko nad tytułem */
+  right:12px;
+  width:48px;            /* ~3/4 poprzedniego „dużego” wariantu */
+  height:48px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:12px;
+  background:rgba(12,22,36,.55);
+  backdrop-filter:blur(6px);
+  box-shadow:0 6px 16px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.07);
+}
+.magnet-badge svg{ width:28px; height:28px; display:block }
+
+/* mniejsze ekrany */
+@media (max-width: 680px){
+  header{ padding-right:54px; }
+  .magnet-badge{ width:40px; height:40px; top:-4px; }
+  .magnet-badge svg{ width:24px; height:24px; }
+}
+
+/* bardzo wąskie — badge znika, nic nie zasłania */
+@media (max-width: 420px){
+  header{ padding-right:16px; }
+  .magnet-badge{ display:none; }
+}
 
    
   </style>
