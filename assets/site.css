@@ -97,4 +97,19 @@ h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
 body.home .site-head{ display:inline-flex; }
 /* Home: ukryj każdy bezpośredni <a> w <body> poza .site-head (zabłąkany link) */
 body.home > a:not(.site-head){ display:none !important; }
+/* === VOTE BUTTONS — clean + equal === */
+.rate-box{display:flex;gap:10px;align-items:center;margin:16px auto 32px;padding:0 16px}
+.rate-btn{
+  appearance:none; -webkit-appearance:none;
+  display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  padding:10px 14px; min-width:120px; height:42px; /* ta sama szer./wys. */
+  border-radius:12px; border:1px solid rgba(255,255,255,.12);
+  background:#0e1827; color:#e9eef5; line-height:1; cursor:pointer;
+  transition:transform .15s ease, background .15s ease;
+}
+.rate-btn:hover{ background:#162339; transform:translateY(-1px) }
+.rate-btn:focus-visible{ outline:3px solid #86b7ff; outline-offset:3px; border-radius:14px }
+
+/* Ikonka kciuka – stały wymiar i brak „kwadratowego” tła */
+.rate-btn .icon{ width:20px; height:20px; display:block; flex:0 0 20px }
 
