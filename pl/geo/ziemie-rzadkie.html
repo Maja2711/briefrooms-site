@@ -12,10 +12,12 @@
       --panel:#101b2b; --panel2:#0e1827; --line:rgba(255,255,255,.06);
       --muted:#a8b3c7; --muted2:#b9c5d8; --good:#6fd19e; --bad:#ff9b87;
     }
-    header{ padding:32px 16px 18px; text-align:center }
+    /* nagłówek: dodane position:relative dla badge */
+    header{ position:relative; padding:32px 16px 18px; text-align:center }
     h1{ margin:0 0 8px; font-size:clamp(26px,4.8vw,40px); letter-spacing:.3px }
     .lead{ margin:0; color:var(--muted) }
     main{ max-width:1060px; margin:26px auto 80px; padding:0 16px; }
+
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
       border:1px solid var(--line); border-radius:20px; padding:22px 22px;
@@ -26,6 +28,7 @@
     h3{ margin:18px 0 10px; font-size:clamp(18px,2.8vw,22px) }
     p{ margin:10px 0 12px }
     ul{ margin:8px 0 12px 20px } li{ margin:6px 0 }
+
     .pill{
       display:inline-block; padding:4px 10px; border-radius:999px;
       background:#0f1a28; border:1px solid var(--line); color:var(--muted2); font-size:13px;
@@ -33,21 +36,50 @@
     .wrap{ background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:14px; }
     .cols{ display:grid; grid-template-columns:1fr; gap:16px }
     @media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
+
     .good{ color:var(--good) } .bad{ color:var(--bad) }
+
     .sources li a{ color:#b9c5d8; text-decoration:none } 
     .sources li a:hover{ color:#c7d2e3; text-decoration:underline }
-    .back{ margin-top:12px } .back a{ color:#b9c5d8; text-decoration:none } .back a:hover{ text-decoration:underline }
+
+    .back{ margin-top:12px } 
+    .back a{ color:#b9c5d8; text-decoration:none } 
+    .back a:hover{ text-decoration:underline }
+
     footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
+
+    /* --- mały magnes w prawym górnym rogu nagłówka --- */
+    .magnet-badge{
+      position:absolute; right:16px; top:16px;
+      width:54px; height:54px; border-radius:12px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+      display:grid; place-items:center;
+      backdrop-filter:blur(6px);
+    }
+    .magnet-badge svg{ width:28px; height:28px; display:block; }
   </style>
 </head>
 <body>
   <header>
+    <!-- ikona magnesu -->
+    <span class="magnet-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+        <path d="M7 10v4a5 5 0 0 0 10 0v-4" stroke="#c6d3e6" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 10V6h4v4" stroke="#9cc0ff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M17 10V6h-4v4" stroke="#ffcf7a" stroke-width="2" stroke-linecap="round"/>
+        <path d="M3.5 7.5l1.8.6M18.7 7.1l1.8-.6" stroke="rgba(255,255,255,.55)" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </span>
+
     <h1>Metale ziem rzadkich: między cyklami surowcowymi a geopolityką (2010 → 2025)</h1>
     <p class="lead">REE (rare earth elements): od szoku 2010 po reglobalizację łańcuchów dostaw i wyścig o magnesy.</p>
   </header>
 
   <main>
     <article class="card">
+      <!-- Wprowadzenie -->
       <section>
         <p>
           Metale ziem rzadkich (REE, <em>rare earth elements</em>) – od lantanu po dysproz i neodym – są ciche, ale kluczowe: trafiają do
@@ -57,6 +89,7 @@
         </p>
       </section>
 
+      <!-- 2010–2015 -->
       <section>
         <h2>2010–2015: szok podaży, skok cen i „powrót do średniej”</h2>
         <p><strong>2010:</strong> podczas sporu o wyspy Senkaku/Diaoyu Chiny – dominujące w wydobyciu i zwłaszcza przetwarzaniu REE –
@@ -72,6 +105,7 @@
           co utrudnia proste porównania poziomów cen 1:1 bez przeliczeń. <span class="pill">MIAX</span></p>
       </section>
 
+      <!-- 2023–2025 -->
       <section>
         <h2>2023–2025: od deglobalizacji do reglobalizacji łańcuchów dostaw</h2>
         <p><strong>Dzisiejsza sytuacja znów przypomina 2010 r., ale jest szersza i bardziej systemowa.</strong> Chiny wprowadziły i rozszerzyły
@@ -87,6 +121,7 @@
         </ul>
       </section>
 
+      <!-- Kto kontroluje wartość dodaną -->
       <section class="wrap">
         <h2>Kto kontroluje wartość dodaną?</h2>
         <p>Kluczem nie jest sama ruda, lecz <strong>rafinerie i produkcja magnesów</strong>. Na koniec 2024 r. Chiny wytwarzały
@@ -153,20 +188,7 @@
         <p class="lead" style="text-align:center; margin:10px 0 0">Źródło: TradingView (REMX). ETF = koszyk spółek, nie ceny metali.</p>
       </section>
 
-      <section>
-        <h2>Fundamenty podaży/popytu w 2025 r.</h2>
-        <ul>
-          <li><strong>Popyt strukturalny:</strong> transformacja energetyczna i zbrojenia wspierają popyt na magnesy
-              NdFeB (neodym–żelazo–bor) i ciężkie REE do aplikacji high-end. USGS raportuje wzrost wydobycia globalnie oraz
-              wysokie kwoty wydobywcze i separacyjne w Chinach w 2023–2024. <span class="pill">USGS</span></li>
-          <li><strong>Oferta:</strong> poza Chinami kluczowe są Lynas (Australia/Malezja) i MP Materials (USA); rosną inwestycje w
-              przetwórstwo i magnesy w USA, UE i Japonii. <span class="pill">IEA</span></li>
-          <li><strong>Geopolityka:</strong> zacieśnienia kontroli przez Chiny zwykle wywołują skoki notowań i mobilizują Zachód do
-              przyspieszania CAPEX w rafinacji/magnesach, co długoterminowo może osłabiać przewagi kosztowe Pekinu.
-              <span class="pill">Reuters</span></li>
-        </ul>
-      </section>
-
+      <!-- Perspektywy, źródła itd. -->
       <section class="wrap">
         <h2>Czego nauczył nas okres 2010–2015 – i co różni go od 2025?</h2>
         <p><strong>Podobieństwo:</strong> w obu okresach czynniki polityczno-regulacyjne (nie tylko popyt) wywołują silne ruchy cen i wyceny spółek.</p>
