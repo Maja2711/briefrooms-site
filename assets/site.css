@@ -112,4 +112,62 @@ body.home > a:not(.site-head){ display:none !important; }
 
 /* Ikonka kciuka – stały wymiar i brak „kwadratowego” tła */
 .rate-btn .icon{ width:20px; height:20px; display:block; flex:0 0 20px }
+/* ===== MOBILE FIRST / RESPONSIVE TWEAKS (global) ===== */
+
+/* 1) Czytelniejsza typografia na małych ekranach */
+@media (max-width: 420px){
+  html { font-size: 15px; }               /* ciut większe litery niż fabryczne 16 → 15px + lepsze proporcje */
+  body { line-height: 1.65; }
+  h1 { font-size: clamp(22px, 7vw, 32px); }
+  h2 { font-size: clamp(18px, 5.4vw, 24px); }
+  h3 { font-size: clamp(16px, 4.6vw, 20px); }
+}
+
+/* 2) Marginesy i kolumny – więcej powietrza na telefonach */
+@media (max-width: 720px){
+  header, main, footer { padding: 0 14px; }
+  .card { padding: 16px 16px; border-radius: 14px; }
+  .cols { grid-template-columns: 1fr; gap: 12px; }
+  .tiles { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* 3) Link „powrót” – większy obszar kliku */
+.back a{
+  padding: 6px 4px;
+  border-radius: 8px;
+}
+.back a:active{
+  background: rgba(255,255,255,.06);
+}
+
+/* 4) Listy i akapity – mniej ścisku */
+p{ margin: 10px 0 12px; }
+ul{ margin: 8px 0 12px 20px }
+li{ margin: 6px 0 }
+
+/* 5) Przyciski głosowania – jednorodna wysokość i siatka w pionie na telefonie */
+.rate-box{ gap: 10px; flex-wrap: wrap; }
+.rate-btn{
+  min-height: 44px;                /* zalecany rozmiar dotykowy */
+  padding: 10px 14px;
+}
+@media (max-width: 520px){
+  .rate-box{
+    flex-direction: column; 
+    align-items: stretch;
+  }
+  .rate-btn{ justify-content: center; }
+}
+
+/* 6) Kontrast i stany focus dla dostępności klawiaturą */
+a:focus-visible, button:focus-visible{
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* 7) (opcjonalnie) mniejsze cienie na słabszych urządzeniach */
+@media (max-width: 420px){
+  .tile, .card{ box-shadow: 0 10px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04); }
+}
 
