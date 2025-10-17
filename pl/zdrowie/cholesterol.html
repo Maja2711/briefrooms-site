@@ -1,86 +1,68 @@
 <!doctype html>
 <html lang="pl">
 <head>
+  <!-- hreflang pair -->
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/cholesterol.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/cholesterol.html" />
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
+
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Twój cholesterol i cały lipidogram — praktyczny przewodnik | BriefRooms</title>
-  <meta name="description" content="Jak czytać lipidogram (LDL, HDL, TG, non-HDL, Remnant-C/RC, TG/HDL), co naprawdę działa i jak to wdrożyć. Prosto, praktycznie, na bazie ESC/EAS, ACC/AHA, AHA/WHO, EFSA." />
+  <meta name="description" content="Jak czytać LDL, HDL, triglicerydy, non-HDL-C, Remnant-C/RC, TG/HDL oraz co realnie poprawia wyniki. Praktyczne kroki oparte na ESC/EAS, ACC/AHA, AHA/WHO, EFSA." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
   <style>
+    :root{ --line:rgba(255,255,255,.08); --muted:#a8b3c7; --muted2:#b9c5d8 }
+    header{ padding:32px 16px 18px; text-align:center }
+    h1{ margin:0 0 8px; font-size:clamp(26px,4.8vw,40px) }
+    .lead{ margin:0; color:var(--muted) }
     main{ max-width:1060px; margin:26px auto 80px; padding:0 16px }
-    header{ text-align:center; padding:32px 16px 14px }
-    h1{ margin:0 0 8px; font-size:clamp(26px,4.6vw,40px) }
-    .lead{ margin:0 0 10px; opacity:.9 }
-    .intro{ color:var(--muted,#a8b3c7); margin:6px auto 0; max-width:880px }
-
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:22px;
+      border:1px solid var(--line); border-radius:20px; padding:22px;
       box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
-      margin:16px 0;
+      margin-bottom:18px;
     }
-    h2{ margin:10px 0 12px; font-size:clamp(20px,3.6vw,28px) }
+    h2{ margin:6px 0 12px; font-size:clamp(20px,3.6vw,26px) }
     h3{ margin:18px 0 10px; font-size:clamp(18px,2.8vw,22px) }
     p{ margin:10px 0 12px }
     ul{ margin:8px 0 12px 20px } li{ margin:6px 0 }
-
-    .pill{
-      display:inline-block; padding:2px 8px; border-radius:999px;
-      background:#0f1a28; border:1px solid rgba(255,255,255,.08);
-      color:#b9c5d8; font-size:.9rem; vertical-align:baseline;
-    }
-
-    .wrap{ background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px }
-    .note{ border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:14px; margin:12px 0 }
-    .note h4{ margin:0 0 6px; font-size:1.05rem }
-    .note.focus{ background:linear-gradient(180deg,rgba(29,55,33,.35),rgba(18,34,24,.25)) }
-    .note.care{  background:linear-gradient(180deg,rgba(64,30,30,.35),rgba(38,18,18,.25)) }
-
-    /* chips + popovery */
-    .chip-row{ display:flex; align-items:center; flex-wrap:wrap; gap:10px }
-    .chip{
-      position:relative; display:inline-flex; align-items:center; gap:8px;
-      padding:8px 12px; border-radius:14px; cursor:pointer;
-      background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.10);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.25);
-      font-size:.95rem; color:inherit;
-      transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
-    }
-    .chip:hover{ transform:translateY(-1px); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.3) }
-    .chip .dot{ width:8px; height:8px; border-radius:50%; background:#ffd48a; display:inline-block }
-    .chip.ghost{
-      background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));
-      border:1px solid rgba(255,255,255,.16);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 8px 22px rgba(0,0,0,.28);
-    }
-    .popover{
-      position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:340px;
-      background:rgba(8,17,29,.98); border:1px solid rgba(255,255,255,.10); border-radius:12px;
-      box-shadow:0 16px 40px rgba(0,0,0,.45); padding:12px; z-index:30; display:none;
-    }
-    .popover h4{ margin:0 0 6px; font-size:1rem }
-    .popover ul{ margin:6px 0 0 18px } .popover li{ margin:4px 0 }
-    .popover .small{ font-size:.82rem; line-height:1.35; opacity:.95 }
-    .chip[aria-expanded="true"] .popover{ display:block }
-
+    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; background:#0f1a28; border:1px solid var(--line); color:var(--muted2); font-size:13px; white-space:nowrap }
+    .wrap{ background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:14px }
+    .cols{ display:grid; grid-template-columns:1fr; gap:16px }
+    @media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
+    .sources li a{ color:#b9c5d8; text-decoration:none } .sources li a:hover{ color:#c7d2e3; text-decoration:underline }
+    .back{ margin-top:12px } .back a{ color:#a8c8ff; text-decoration:none } .back a:hover{ text-decoration:underline }
     footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
+
+    /* „przezroczyste” 3D chipy na <details> (bez JS) */
+    .chips{ display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 6px }
+    details.pop{
+      position:relative; border-radius:12px; border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+      box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+      padding:8px 12px; cursor:pointer; transition:.15s ease;
+    }
+    details.pop:hover{ filter:brightness(1.04) }
+    details.pop summary{ list-style:none; outline:none }
+    details.pop summary::-webkit-details-marker{ display:none }
+    details.pop .popover{
+      position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
+      border-radius:12px; border:1px solid var(--line); background:rgba(10,16,28,.96); color:#e7eef9;
+      box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.03);
+      padding:12px 14px; font-size:13px; z-index:5;
+    }
+    details.pop[open] .popover{ animation:pop .12s ease-out }
+    @keyframes pop{ from{ transform:translateY(-4px); opacity:0 } to{ transform:none; opacity:1 } }
+    .small{ font-size:12px; opacity:.95; line-height:1.45 }
+    .mb0{ margin-bottom:0 }
   </style>
 </head>
 <body>
   <header>
     <h1>Twój cholesterol i cały lipidogram — praktyczny przewodnik</h1>
-    <p class="lead">Jak czytać wyniki, co je faktycznie poprawia i jak wdrożyć to sensownie.</p>
-    <p class="intro">
-      Poniżej dostajesz esencję tego, jak czytać wyniki, co naprawdę je poprawia i jak wdrożyć zmiany w 5 krokach.
-      Oparte na zgodnych wytycznych <strong>ESC/EAS</strong>, <strong>ACC/AHA</strong>, stanowiskach <strong>AHA/WHO</strong>,
-      przeglądach <strong>EFSA</strong> oraz pracach przeglądowych o „remnant cholesterol”
-      (np. przeglądy w <span class="pill">PMC – remnant C review</span>).
-      Krótko: najważniejszy jest <strong>LDL-C</strong>, ale patrzymy też na <strong>non-HDL-C</strong> i <strong>Remnant-C</strong>.
-      Działają proste rzeczy: zamiana tłuszczów nasyconych na nienasycone, wzorzec śródziemnomorski,
-      błonnik rozpuszczalny (owies/psyllium), fitosterole, ruch oraz ograniczenie alkoholu i cukrów prostych.
-    </p>
+    <p class="lead">Poniżej dostajesz esencję tego, jak czytać wyniki, co naprawdę je poprawia i jak wdrożyć zmiany w 5 krokach. Oparte na zgodnych wytycznych (ESC/EAS, ACC/AHA), stanowiskach AHA/WHO oraz przeglądach EFSA i pracach przeglądowych o „remnant cholesterol” (np. <span class="pill">PMC</span>).</p>
   </header>
 
   <main>
@@ -88,189 +70,127 @@
       <section>
         <h2>Twój lipidogram bez żargonu</h2>
         <ul>
-          <li><strong>LDL-C</strong> — „zły” cholesterol. Im niżej, tym lepiej. Orientacyjnie u osób bez wysokiego ryzyka:
-              &lt;100 mg/dl dobrze, 100–159 do poprawy, ≥160 źle. <span class="pill">ESC/EAS</span></li>
-          <li><strong>HDL-C</strong> — „dobry” cholesterol. Za niskie: &lt;40 mg/dl (M), &lt;50 mg/dl (K). <span class="pill">ACC</span></li>
-          <li><strong>TG</strong> — triglicerydy. &lt;150 dobrze, 150–499 do poprawy, ≥500 bardzo źle (ryzyko trzustki). <span class="pill">ACC/AHA</span></li>
-          <li><strong>TC</strong> — pomocniczo; ważniejsze są LDL i wskaźniki poniżej.</li>
+          <li><strong>LDL-C</strong> — „zły” cholesterol (główny sprawca miażdżycy). Im niżej, tym lepiej. Dla przeciętnej, zdrowej osoby orientacyjnie: dobrze &lt;<strong>100 mg/dl</strong>, do poprawy <strong>100–159</strong>, źle <strong>≥160</strong>. Ostateczne cele ustala lekarz po ocenie ryzyka. <span class="pill">ESC/EAS</span></li>
+          <li><strong>HDL-C</strong> — „dobry” cholesterol. Za niskie: &lt;<strong>40</strong> mg/dl mężczyźni, &lt;<strong>50</strong> mg/dl kobiety. Nie „gonimy” tabletkami za wysokim HDL — liczy się cały profil. <span class="pill">ACC</span></li>
+          <li><strong>TG</strong> (triglicerydy) — tłuszcze krążące we krwi. Dobrze &lt;<strong>150</strong> mg/dl, do poprawy <strong>150–499</strong>, bardzo źle <strong>≥500</strong> (ryzyko ostrego zapalenia trzustki). <span class="pill">ACC</span></li>
+          <li><strong>Cholesterol całkowity</strong> — traktuj pomocniczo; ważniejsze są LDL-C i wskaźniki poniżej. <span class="pill">ESC/EAS</span></li>
         </ul>
 
         <h3>Wskaźniki do policzenia samemu</h3>
         <ul>
-          <li><strong>non-HDL-C</strong> = TC − HDL-C. &lt;130 dobrze; 130–159 do poprawy; ≥160 źle. <span class="pill">ESC/EAS</span></li>
-          <li><strong>Remnant-C</strong> = TC − LDL-C − HDL-C (albo non-HDL − LDL). &gt;~20–25 mg/dl → ryzyko resztkowe. <span class="pill">PMC</span></li>
-          <li><strong>RC (residual cholesterol)</strong> — stosujemy tę samą definicję co wyżej (TC − LDL-C − HDL-C);
-              pomaga wychwycić „resztkowe” ryzyko przy prawidłowym LDL. &gt;~20–25 mg/dl niepokoi. <span class="pill">PMC</span></li>
-          <li><strong>Wskaźnik TG/HDL-C</strong> — orientacyjny marker zaburzeń metabolicznych/insulinooporności:
-              <em>&lt;2</em> bardzo dobrze, <em>2–3</em> do poprawy, <em>&gt;3</em> — wysokie ryzyko (warto redukować TG i masę ciała). <span class="pill">ACC/AHA</span></li>
+          <li><strong>non-HDL-C = Cholesterol całkowity − HDL-C.</strong> Obejmuje wszystkie „złe” cząstki (LDL + resztki). Orientacyjnie: dobrze &lt;<strong>130</strong>, do poprawy <strong>130–159</strong>, źle <strong>≥160</strong>. (Wytyczne: próg non-HDL jest ~30 mg/dl wyższy niż odpowiadający mu cel LDL). <span class="pill">ScienceDirect</span></li>
+          <li><strong>Remnant-C (cholesterol resztkowy) = Cholesterol całkowity − LDL-C − HDL-C</strong> (albo non-HDL − LDL). Im wyżej, tym gorzej; &gt;<strong>20–25</strong> mg/dl często sygnalizuje „ryzyko resztkowe”. <span class="pill">PMC</span></li>
+          <li><strong>RC (residual cholesterol):</strong> używany podobnie do Remnant-C; podwyższony sugeruje nadmiar cząstek resztkowych nawet przy „przyzwoitym” LDL. <span class="pill">PMC</span></li>
+          <li><strong>Wskaźnik TG/HDL:</strong> praktyczna wskazówka insulinooporności; wyższe wartości idą w parze z gorszym ryzykiem kardiometabolicznym (interpretuj łącznie z TG, HDL i kontekstem klinicznym). <span class="pill">PMC</span></li>
         </ul>
+      </section>
+
+      <section class="wrap">
+        <h2>Dlaczego to ma znaczenie</h2>
+        <p>To nie tylko korelacja: LDL-C <em>powoduje</em> miażdżycę — potwierdzają to genetyka, obserwacje i setki badań klinicznych. Redukcja LDL obniża ryzyko zawału/udaru; długotrwała ekspozycja na wysokie LDL kumuluje ryzyko. Resztki (Remnant-C) dokładają swoje nawet przy „przyzwoitym” LDL. <span class="pill">PMC</span></p>
       </section>
 
       <section>
-        <h2>Dlaczego to ma znaczenie?</h2>
-        <p><strong>LDL-C powoduje miażdżycę</strong> — zgodnie z genetyką, obserwacjami i RCT. „Resztki” (Remnant-C/RC) też podnoszą ryzyko
-           nawet przy „przyzwoitym” LDL. <span class="pill">ESC/EAS</span> <span class="pill">PMC</span></p>
-      </section>
+        <h2>Co najbardziej działa — prosto i skutecznie</h2>
 
-      <section class="wrap">
-        <h2>5 rzeczy, które naprawdę działają</h2>
+        <h3>1) Jedzenie: zmieniaj <em>rodzaj</em> tłuszczu, nie tylko „ilość”</h3>
 
-        <h3>5.1 Zmieniaj tłuszcze <em>nasycone</em> → na <em>nienasycone</em></h3>
-        <div class="chip-row" role="group" aria-label="Informacje o typach tłuszczu">
-          <button class="chip" id="chip-sfa" aria-expanded="false" aria-controls="pop-sfa">
-            <span class="dot"></span> tłuszcze nasycone
-            <div class="popover" id="pop-sfa" role="dialog" aria-label="Tłuszcze nasycone – przykłady">
-              <h4>Tłuszcze nasycone (SFA) — gdzie najwięcej?</h4>
-              <ul>
-                <li>tłuste sery i pełnotłuste produkty mleczne,</li>
-                <li>masło, smalec, tłuste mięsa/przetwory,</li>
-                <li>olej kokosowy i palmowy,</li>
-                <li>fast-foody, wypieki z twardymi tłuszczami.</li>
-              </ul>
+        <div class="chips">
+          <!-- SFA chip -->
+          <details class="pop">
+            <summary>Tłuszcze nasycone</summary>
+            <div class="popover">
+              <div class="small">
+                <strong>SFA</strong> najwięcej w: tłuste czerwone mięsa, sery pełnotłuste, masło/śmietana, tłuszcze palmowy/kokosowy.
+                Skup się na <em>zamianie</em> SFA, a nie dokładaniu „superfoods”.
+              </div>
             </div>
-          </button>
+          </details>
 
-          <span aria-hidden="true">→</span>
-
-          <button class="chip" id="chip-unsat" aria-expanded="false" aria-controls="pop-unsat">
-            <span class="dot"></span> tłuszcze nienasycone
-            <div class="popover" id="pop-unsat" role="dialog" aria-label="Tłuszcze nienasycone – przykłady">
-              <h4>Tłuszcze nienasycone — najlepsze źródła</h4>
-              <ul>
-                <li><strong>MUFA</strong>: oliwa z oliwek, olej rzepakowy, awokado, orzechy.</li>
-                <li><strong>PUFA</strong>: olej lniany/sojowy/słonecznikowy,</li>
-                <li>ryby tłuste 2×/tydz. (łosoś, makrela, śledź, sardynki),</li>
-                <li>pestki i nasiona (siemię lniane, sezam).</li>
-              </ul>
+          <!-- UFA chip -->
+          <details class="pop">
+            <summary>Tłuszcze nienasycone</summary>
+            <div class="popover">
+              <div class="small">
+                <strong>MUFA</strong> (oliwa, rzepak, oleje wysokooleinowe, orzechy) i <strong>PUFA</strong> (oleje sojowy/słonecznikowy/lniany, orzechy włoskie, tłuste ryby). Zamiana SFA na MUFA/PUFA obniża LDL i ryzyko sercowo-naczyniowe.
+              </div>
             </div>
-          </button>
+          </details>
 
-          <button class="chip ghost" id="chip-rapeseed" aria-expanded="false" aria-controls="pop-rapeseed" title="Dlaczego rzepak (MUFA)?">
-            <span class="dot"></span> olej rzepakowy (MUFA)
-            <div class="popover" id="pop-rapeseed" role="dialog" aria-label="Olej rzepakowy — fakty">
-              <h4>Olej rzepakowy — w skrócie</h4>
-              <p class="small">
-                Twierdzenie, że „oleje z nasion wywołują stany zapalne”, nie znajduje potwierdzenia w solidnych przeglądach i zaleceniach —
-                zamiana SFA na UFA (np. rzepak/oliwa/soja) obniża LDL i ryzyko CVD; sama wyższa podaż ω-6 nie podnosi markerów zapalenia.
-                <span class="pill">AHA</span> <span class="pill">ACC</span>
-              </p>
-              <p class="small">
-                Bezpieczeństwo: UE odnowiła dopuszczenie glifosatu (zakaz desykacji przed zbiorem); monitoring FAO/WHO wskazuje, że
-                wyniki w żywności mieszczą się poniżej limitów, a związek — silnie polarny — pozostaje głównie w śrucie (nie w oleju).
-                Historyczny problem kwasu erukowego dotyczył starych odmian; dziś obowiązują niskie limity (TDI EFSA) i kontrola.
-                <span class="pill">European Commission</span> <span class="pill">Food Safety</span> <span class="pill">PMC</span> <span class="pill">EFSA</span>
-              </p>
+          <!-- Canola/rapeseed note -->
+          <details class="pop">
+            <summary>Olej rzepakowy (MUFA)</summary>
+            <div class="popover">
+              <div class="small">
+                W skrócie: teza, że „oleje z nasion powodują stany zapalne”, nie ma potwierdzenia w solidnych przeglądach i zaleceniach — zamiana SFA na nienasycone (rzepak/oliwa/soja) obniża LDL i ryzyko CVD; sama wyższa podaż omega-6 nie podnosi markerów zapalenia. <span class="pill">AHA</span> <span class="pill">ACC</span><br><br>
+                Regulacje: UE odnowiła dopuszczenie glifosatu do 15.12.2033 r. z zakazem desykacji przed zbiorem; monitoring FAO/WHO pokazuje, że wyniki są zwykle poniżej limitów prawnych. Glifosat jest silnie polarny i pozostaje głównie w śrucie — w badaniach nie wykrywano go w oleju tłoczonym na zimno z rzepaku. Problem kwasu erukowego dotyczył dawnych odmian; dziś obowiązują niskie limity i kontrola. <span class="pill">EC</span> <span class="pill">FAO/WHO</span> <span class="pill">PMC</span> <span class="pill">EFSA</span>
+              </div>
             </div>
-          </button>
+          </details>
         </div>
 
-        <p>Gotuj na oliwie/olejach roślinnych, jedz orzechy, pestki i ryby <em>zamiast</em> tłustych mięs i serów.
-           To obniża LDL i ryzyko sercowo-naczyniowe. <span class="pill">AHA</span> <span class="pill">ACC</span></p>
-
-        <!-- ROZBUDOWANE: Skup się na -->
-        <div class="note focus">
-          <h4>Skup się na:</h4>
-          <ul>
-            <li><strong>Tłuszcze nienasycone (jako zamiennik SFA):</strong>
-              <ul>
-                <li>oliwa z oliwek, olej rzepakowy (MUFA), olej lniany/sojowy/słonecznikowy (PUFA),</li>
-                <li>porcje praktyczne: 2–4 łyżki stołowe dziennie łącznie jako „dodany tłuszcz” (do sałatek/gotowania).</li>
-              </ul>
-            </li>
-            <li><strong>Orzechy i pestki (porcja ok. 30 g/dzień):</strong> migdały, orzechy włoskie, laskowe, pistacje, siemię lniane, sezam.</li>
-            <li><strong>Ryby morskie tłuste 2×/tydz. (porcja 120–150 g):</strong> łosoś, makrela, śledź, sardynki.</li>
-            <li><strong>Strączki 3–5×/tydz.:</strong> soczewica, ciecierzyca, fasola; świetny zamiennik mięsa.</li>
-            <li><strong>Pełne ziarna:</strong> owies, jęczmień (β-glukan), razowe pieczywo, kasze.</li>
-            <li><strong>Warzywa i owoce (≥5 porcji/dzień):</strong> nacisk na warzywa zielone liściaste, pomidory, jagodowe owoce.</li>
-            <li><strong>Nabiał fermentowany o niższej zawartości tłuszczu:</strong> jogurt naturalny/kefir; unikaj dosładzanych wersji.</li>
-            <li><strong>Soja i produkty sojowe:</strong> tofu, tempeh — roślinna alternatywa białka sprzyjająca obniżaniu LDL.</li>
-          </ul>
-        </div>
-
-        <div class="note care">
-          <h4>Ostrożnie / ograniczaj:</h4>
-          <ul>
-            <li>Tłuste sery, masło, śmietanka; tłuste mięsa i wędliny.</li>
-            <li>Produkty z olejem palmowym/kokosowym, fast-foody, wypieki z twardymi tłuszczami.</li>
-            <li>Cukry proste i alkohol — najszybciej podnoszą TG.</li>
-          </ul>
-        </div>
-
-        <p class="card" style="margin-top:12px">
-          <strong>Badania (Mensink, Am J Clin Nutr 2016):</strong> zamiana ~5% energii z SFA na UFA ↓ LDL o ok. 10%, bez szkody dla HDL.
-        </p>
-
-        <h3>5.2 Błonnik rozpuszczalny — codziennie</h3>
-        <p>≈3 g/d β-glukanu (owies/jęczmień) → ~5–7% spadku LDL; 5–10 g/d <em>psyllium</em> podobnie. <span class="pill">EFSA</span> <span class="pill">PMC</span></p>
-
-        <h3>5.3 Fitosterole</h3>
-        <p>1.5–2.4 g/d → ~7–10% niższy LDL. Naturalnie: oleje roślinne, sezam, słonecznik, orzechy, kiełki pszenicy;
-           wzbogacane produkty ułatwiają „dowożenie”. <span class="pill">EFSA</span></p>
-
-        <h3>5.4 Ruch „na zegarek”</h3>
-        <p>150–300 min/tydz. umiarkowanego lub 75–150 min intensywnego + 2 dni siły — spadają TG, rośnie HDL. <span class="pill">WHO</span></p>
-
-        <h3>5.5 Nawyki o dużym wpływie</h3>
+        <p class="mb0"><strong>Na co stawiać (codzienny wzorzec):</strong></p>
         <ul>
-          <li>Masa ciała ↓ (gdy nadmiar): najmocniej ↓ TG i non-HDL-C. <span class="pill">ACC</span></li>
+          <li>Oliwa z oliwek, olej rzepakowy (przewaga MUFA); oleje lniany/sojowy/słonecznikowy (PUFA) w rozsądnym użyciu kulinarnym.</li>
+          <li>Orzechy i pestki (migdały, włoskie, siemię lniane, sezam) zamiast słodyczy i słonych przekąsek.</li>
+          <li>Ryby <strong>2×/tydz.</strong> (łosoś, makrela, śledź, sardynki).</li>
+          <li>Dużo warzyw/strączków/pełnych zbóż — wzorzec śródziemnomorski, minimalnie przetworzony.</li>
+          <li>Ogranicz: tłuste wędliny, sery pełnotłuste/masło, ultra-przetworzone słodycze i rafinowane węgle.</li>
+        </ul>
+
+        <p class="wrap"><strong>5.1 Badania:</strong> (np. Mensink RP, <em>Am J Clin Nutr</em> 2016) — zamiana <strong>5% energii z SFA</strong> na nienasycone obniża <strong>LDL o ≈10%</strong>, bez szkody dla HDL. <span class="pill">AHA</span></p>
+
+        <h3>2) Błonnik rozpuszczalny — codziennie, z konkretnych źródeł</h3>
+        <ul>
+          <li>≈<strong>3 g/d</strong> β-glukanu z owsa/jęczmienia daje ~5–7% spadku LDL. Psyllium 5–10 g/d podobnie. <span class="pill">EFSA</span> <span class="pill">PMC</span></li>
+          <li>Najlepsze źródła: płatki/otręby owsiane, jęczmień, łuski babki jajowatej, rośliny strączkowe.</li>
+        </ul>
+
+        <h3>3) Fitosterole — naturalnie + produkty wzbogacane</h3>
+        <ul>
+          <li><strong>1,5–2,4 g/d</strong> obniża LDL ~7–10%. Bogate: oleje roślinne (sezam/otręby ryżowe/kukurydza/rzepak), sezam, słonecznik, kiełki pszenicy; produkty wzbogacane pomagają „dowieźć” 2 g/d. <span class="pill">EFSA</span> <span class="pill">NCBI</span></li>
+        </ul>
+
+        <h3>4) Ruch „na zegarek”</h3>
+        <ul>
+          <li><strong>150–300 min/tydz.</strong> umiarkowanego lub <strong>75–150 min</strong> intensywnego + <strong>2×</strong> siła: TG ↓, HDL ↑, czasem LDL ↓; najważniejsza jest regularność. <span class="pill">WHO</span></li>
+        </ul>
+
+        <h3>5) Kilka prostych nawyków o dużym wpływie</h3>
+        <ul>
+          <li>Masa ciała ↓ (jeśli nadmiar): najsilniej obniża TG i non-HDL-C. <span class="pill">ACC</span></li>
           <li>Alkohol i cukry proste ↓: najszybszy sposób na spadek TG. <span class="pill">ACC</span></li>
-          <li>Rzuć palenie — HDL w górę, ryzyko w dół. <span class="pill">AHA</span></li>
-          <li>Wyklucz przyczyny wtórne (np. tarczyca, leki). <span class="pill">ESC/EAS</span></li>
+          <li>Rzuć palenie: HDL w górę, ryzyko całkowite w dół. <span class="pill">AHA</span></li>
+          <li>Wyklucz przyczyny wtórne (np. niedoczynność tarczycy, niektóre leki). <span class="pill">ESC/EAS</span></li>
         </ul>
       </section>
 
       <section class="wrap">
-        <h2>Jak to zastosować — mini-procedura</h2>
+        <h2>Jak to zastosować — mini-procedura w 5 krokach</h2>
         <ol>
-          <li>Zapisz: TC, LDL-C, HDL-C, TG.</li>
-          <li>Policz: <strong>non-HDL-C</strong> = TC − HDL-C; <strong>Remnant-C/RC</strong> = TC − LDL-C − HDL-C; oraz <strong>TG/HDL-C</strong>.</li>
-          <li>Oceń orientacyjnie (jeśli brak rozpoznanego wysokiego ryzyka):
-            <ul>
-              <li>LDL-C: &lt;100 dobrze, 100–159 do poprawy, ≥160 źle. <span class="pill">AHA/ACC</span></li>
-              <li>non-HDL-C: &lt;130 dobrze, 130–159 do poprawy, ≥160 źle. <span class="pill">ESC/EAS</span></li>
-              <li>Remnant-C/RC: &gt;~20–25 mg/dl → ryzyko resztkowe. <span class="pill">PMC</span></li>
-              <li>TG/HDL-C: &lt;2 bardzo dobrze, 2–3 do poprawy, &gt;3 — wysokie ryzyko metaboliczne. <span class="pill">ACC/AHA</span></li>
-            </ul>
-          </li>
-          <li>Wdroż: śródziemnomorski wzorzec + zamiana tłuszczu + błonnik + ruch WHO + mniej alkoholu/cukru. <span class="pill">AHA</span></li>
-          <li>Powtórz badanie za 6–12 tyg.; jeśli brak poprawy, porozmawiaj z lekarzem o leczeniu (np. ezetymib/statyny/PCSK9). <span class="pill">ESC/EAS</span></li>
+          <li>Spisz cztery liczby: <strong>Cholesterol całkowity, LDL-C, HDL-C, TG</strong>.</li>
+          <li>Policz: <strong>non-HDL-C = Cholesterol całkowity − HDL-C</strong>; <strong>Remnant-C = Cholesterol całkowity − LDL-C − HDL-C</strong>.</li>
+          <li>Ocena „światełkami” (osoba bez rozpoznanego wysokiego ryzyka): LDL-C &lt;100 dobrze, 100–159 do poprawy, ≥160 źle; non-HDL-C &lt;130 dobrze, 130–159 do poprawy, ≥160 źle; TG &lt;150 dobrze, 150–499 do poprawy, ≥500 bardzo źle; HDL-C za niskie &lt;40 (M) / &lt;50 (K). <span class="pill">ESC/EAS</span> <span class="pill">ACC</span></li>
+          <li>Wdroż: wzorzec śródziemnomorski + zamiana SFA→UFA + błonnik codziennie + aktywność wg WHO + ograniczenie alkoholu/cukru.</li>
+          <li>Kontrola po 6–12 tyg. Jeśli nie „zielono”: porozmawiaj z lekarzem o kolejnych krokach (np. ezetymib/statyny/PCSK9 wg ryzyka).</li>
         </ol>
       </section>
 
       <section>
         <h2>Źródła i dalej czytaj</h2>
-        <ul>
-          <li>ESC/EAS — interpretacja lipidogramu i cele LDL/non-HDL/ApoB. <span class="pill">ESC/EAS</span></li>
-          <li>ACC/AHA — hipertriglicerydemia (progi 150/500/1000). <span class="pill">ACC/AHA</span></li>
-          <li>AHA — tłuszcze w diecie i wzorce żywieniowe. <span class="pill">AHA</span></li>
-          <li>WHO — zalecenia aktywności fizycznej dla dorosłych. <span class="pill">WHO</span></li>
-          <li>EFSA — β-glukan/psyllium oraz fitosterole. <span class="pill">EFSA</span></li>
-          <li>Przeglądy o remnant cholesterol. <span class="pill">PMC</span></li>
+        <ul class="sources">
+          <li><a href="https://www.portailvasculaire.fr/" target="_blank" rel="noopener">ESC/EAS 2019 — dyslipidemie (cele LDL/non-HDL/ApoB; pobrania niefasting)</a></li>
+          <li><a href="https://www.ahajournals.org/" target="_blank" rel="noopener">AHA — tłuszcze w diecie i wzorce żywienia</a></li>
+          <li><a href="https://professional.heart.org/" target="_blank" rel="noopener">AHA — rzucanie palenia a ryzyko CVD</a></li>
+          <li><a href="https://www.acc.org/" target="_blank" rel="noopener">ACC/AHA — triglicerydy: progi i postępowanie</a></li>
+          <li><a href="https://www.who.int/" target="_blank" rel="noopener">WHO — zalecenia aktywności fizycznej dla dorosłych</a></li>
+          <li><a href="https://www.efsa.europa.eu/" target="_blank" rel="noopener">EFSA — β-glukan/psyllium i fitosterole</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">PMC — remnant cholesterol & ryzyko kardiometaboliczne</a></li>
         </ul>
-        <p class="back">← <a href="/pl/zdrowie.html">wróć do Zdrowia</a></p>
+        <p class="back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
       </section>
     </article>
   </main>
-
-  <script>
-    // Prosty, dostępny toggle popoverów + zamykanie po kliknięciu poza
-    const chips = document.querySelectorAll('.chip');
-    function closeAll(exceptId){
-      chips.forEach(ch=>{
-        if (!exceptId || ch.id !== exceptId) ch.setAttribute('aria-expanded','false');
-      });
-    }
-    chips.forEach(chip=>{
-      chip.addEventListener('click', (e)=>{
-        const open = chip.getAttribute('aria-expanded') === 'true';
-        closeAll(chip.id);
-        chip.setAttribute('aria-expanded', open ? 'false' : 'true');
-        e.stopPropagation();
-      });
-    });
-    document.addEventListener('click', ()=>closeAll(null));
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeAll(null); });
-  </script>
 
   <footer>© BriefRooms</footer>
 </body>
