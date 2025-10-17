@@ -201,5 +201,25 @@ details.pop .popover{
 }
 .chips details.pop summary{ color:#e7f5ec; }
 .chips details.pop:hover{ filter:brightness(1.06); }
+/* separator między „chipami” */
+.chips{
+  display:flex; flex-wrap:wrap; align-items:center;
+  gap:12px; /* nieco większy luz między elementami */
+}
+
+.chip-sep{
+  display:flex; align-items:center; gap:8px;
+  font-size:14px; opacity:.9; user-select:none;
+  padding:2px 6px; border-radius:8px;
+  /* delikatne „powietrze”, bez ramki */
+}
+
+.chip-sep .arrow{ font-size:18px; line-height:1; opacity:.9 }
+
+/* na bardzo wąskich ekranach niech separator spadnie do nowej linii */
+@media (max-width:560px){
+  .chips{ gap:10px }
+  .chip-sep{ width:100%; justify-content:center; margin:2px 0 }
+}
 
 
