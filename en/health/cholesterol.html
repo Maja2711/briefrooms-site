@@ -47,12 +47,16 @@
     details.pop:hover{ filter:brightness(1.04) }
     details.pop summary{ list-style:none; outline:none }
     details.pop summary::-webkit-details-marker{ display:none }
-    details.pop .popover{
-      position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
-      border-radius:12px; border:1px solid var(--line); background:rgba(10,16,28,.96); color:#e7eef9;
-      box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.03);
-      padding:12px 14px; font-size:13px; z-index:5;
-    }
+  details.pop .popover{
+  position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
+  border-radius:12px; 
+  border:1px solid rgba(255,255,255,.14);
+  background:linear-gradient(180deg, rgba(64,110,84,.98), rgba(38,79,60,.98)); /* ciepło-zielone tło */
+  color:#f3fff6; /* jaśniejszy tekst dla kontrastu */
+  box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+  padding:12px 14px; font-size:13px; z-index:5;
+}
+
     details.pop[open] .popover{ animation:pop .12s ease-out }
     @keyframes pop{ from{ transform:translateY(-4px); opacity:0 } to{ transform:none; opacity:1 } }
 
