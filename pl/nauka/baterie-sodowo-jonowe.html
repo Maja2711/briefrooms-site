@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nowe chińskie baterie sodowo-jonowe: co działa, co nadchodzi i gdzie to ma sens | BriefRooms</title>
+  <meta name="description" content="Sodowo-jonowe (Na-ion) w Chinach: jak działają, gdzie już pracują, parametry (gęstość, ładowanie, trwałość), ograniczenia i plany CATL/HiNa/BYD." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/site.css" />
+  <style>
+    :root{
+      --line:rgba(255,255,255,.06);
+      --muted:#a8b3c7; --muted2:#b9c5d8; --good:#6fd19e; --bad:#ff9b87;
+    }
+    header{ position:relative; padding:32px 16px 18px; text-align:center }
+    h1{ margin:0 0 8px; font-size:clamp(26px,4.8vw,40px); letter-spacing:.3px }
+    .lead{ margin:0; color:var(--muted) }
+    main{ max-width:1060px; margin:26px auto 80px; padding:0 16px }
+
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid var(--line); border-radius:20px; padding:22px 22px;
+      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+      margin-bottom:18px;
+    }
+    h2{ margin:6px 0 12px; font-size:clamp(20px,3.6vw,26px) }
+    h3{ margin:18px 0 10px; font-size:clamp(18px,2.8vw,22px) }
+    p{ margin:10px 0 12px }
+    ul{ margin:8px 0 12px 20px } li{ margin:6px 0 }
+
+    .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      background:#0f1a28; border:1px solid var(--line); color:var(--muted2); font-size:13px;
+      white-space:nowrap;
+    }
+    .wrap{ background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:14px; }
+    .cols{ display:grid; grid-template-columns:1fr; gap:16px }
+    @media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
+
+    .good{ color:var(--good) } .bad{ color:var(--bad) }
+
+    .sources li a{ color:#b9c5d8; text-decoration:none }
+    .sources li a:hover{ color:#c7d2e3; text-decoration:underline }
+
+    .back{ margin-top:12px } 
+    .back a{ color:#a8c8ff; text-decoration:none } 
+    .back a:hover{ text-decoration:underline }
+
+    footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
+
+    /* mała ikonka baterii w rogu nagłówka (ukryta na wąskich ekranach) */
+    .battery-badge{
+      position:absolute; right:16px; top:10px; width:46px; height:46px; border-radius:12px;
+      background:rgba(255,255,255,.06); border:1px solid var(--line);
+      display:grid; place-items:center; box-shadow:0 10px 24px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .battery-badge svg{ width:26px; height:26px }
+    @media (max-width:640px){ .battery-badge{ display:none } }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="battery-badge" aria-hidden="true">
+      <!-- prosty piktogram baterii -->
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+        <rect x="3" y="7" width="17" height="10" rx="2.2" stroke="#c6d3e6" stroke-width="1.8"/>
+        <rect x="20.5" y="10" width="1.5" height="4" rx=".6" fill="#c6d3e6"/>
+        <rect x="5" y="9" width="6" height="6" rx="1.2" fill="#9cc0ff"/>
+        <rect x="12" y="9" width="6" height="6" rx="1.2" fill="#ffd084"/>
+      </svg>
+    </span>
+
+    <h1>Nowe chińskie baterie sodowo-jonowe: co już działa, co nadchodzi i gdzie to ma sens</h1>
+    <p class="lead">Sód zamiast litu? Chiny wprowadzają Na-ion do realnych zastosowań — od magazynów energii po mikromobilność. Tu masz skrót: jak działa, gdzie pracuje, parametry, ograniczenia i plany największych graczy.</p>
+  </header>
+
+  <main>
+    <article class="card">
+
+      <section>
+        <h2>Dlaczego akurat sód?</h2>
+        <ul>
+          <li><strong>Obfitość i cena:</strong> sód jest powszechniejszy i tańszy od litu; łańcuch dostaw można mocniej oprzeć na lokalnych surowcach.</li>
+          <li><strong>Bezpieczeństwo:</strong> ogniwa Na-ion są z natury mniej podatne na ucieczkę termiczną niż część chemii litowych.</li>
+          <li><strong>Słabsza gęstość energii, ale…</strong> w magazynach energii i lekkiej mobilności liczy się koszt cyklu życia, trwałość i ładowalność — i tu Na-ion potrafi wygrywać.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Co już działa w Chinach</h2>
+        <ul>
+          <li><strong>Największy magazyn Na-ion:</strong> Datang Group uruchomiła w Qianjiang (Hubei) system <strong>50 MW / 100 MWh</strong> na ogniwach HiNa Battery — instalacja pracuje na sieci (nie tylko pilotaż). <span class="pill">Batteries International</span></li>
+          <li><strong>Pierwsza „grid-forming” elektrownia Na-ion:</strong> w czerwcu 2025 ruszył projekt Baochi (Yunnan) — magazyn potrafi stabilizować sieć jak klasyczna elektrownia. <span class="pill">Energy Storage</span></li>
+          <li><strong>Mikromobilność i wymiana pakietów:</strong> producenci e-skuterów (np. Yadea) wdrażają Na-ion i sieci szybkiej wymiany; prognozy mówią o ~<strong>15%</strong> udziału Na-ion w chińskich skuterach do 2030 r. <span class="pill">TechRadar</span></li>
+        </ul>
+      </section>
+
+      <section class="wrap">
+        <h2>Najwięksi gracze i parametry nowych generacji</h2>
+
+        <h3>CATL — marka Naxtra</h3>
+        <ul>
+          <li><strong>Wdrożenie:</strong> ogłoszona w IV 2025, start masowej produkcji deklarowany na koniec 2025 r. i skalowanie w 2026 r. <span class="pill">Reuters</span></li>
+          <li><strong>Parametry:</strong> gęstość energii około <strong>175 Wh/kg</strong>, czyli poziom dolnej/środkowej półki LFP. <span class="pill">Reuters</span></li>
+          <li><strong>Bezpieczeństwo:</strong> krajowa certyfikacja <strong>GB 38031-2025</strong> dla akumulatorów trakcyjnych. <span class="pill">Electronic Design</span></li>
+          <li><strong>Motoryzacja:</strong> CATL sygnalizuje zasięgi do ~<strong>500 km</strong> w wybranych klasach (często jako hybrydy Na-ion + Li-ion). Realne wdrożenia aut oczekiwane po 2026 r. <span class="pill">The Verge</span></li>
+        </ul>
+
+        <h3>HiNa Battery</h3>
+        <p>Dostawca ogniw do projektu <strong>100 MWh</strong>; rozwija seryjne komórki <strong>180 Ah</strong> do systemów stacjonarnych. <span class="pill">Batteries International</span></p>
+
+        <h3>BYD</h3>
+        <p>Własna linia Na-ion celowana w BESS i najtańsze platformy miejskie; pierwsze szerokie wdrożenia spodziewane w segmencie stacjonarnym (w modelu Seagull ostatecznie użyto LFP). <span class="pill">S&amp;P Global</span></p>
+      </section>
+
+      <section class="cols">
+        <div class="wrap">
+          <h2>Gdzie Na-ion ma dziś największy sens</h2>
+          <ul>
+            <li><strong>Magazyny energii (BESS):</strong> liczy się koszt/cykl i bezpieczeństwo; jak pokazują Datang i Baochi, Na-ion potrafi już pracować komercyjnie i pełnić funkcje regulacyjne. <span class="pill">Batteries International</span></li>
+            <li><strong>Mikromobilność i floty sharingowe:</strong> skutery, cargo-bike’i, małe quadricycle — szybkie ładowanie i niższe koszty pakietów. <span class="pill">TechRadar</span></li>
+            <li><strong>Tanie auta miejskie i hybrydy pakietów:</strong> Na-ion najpierw w parze z LFP albo w modelach, gdzie cena > zasięg. <span class="pill">Reuters</span></li>
+          </ul>
+        </div>
+
+        <div class="wrap">
+          <h2>Parametry, które warto znać (2024–2025)</h2>
+          <ul>
+            <li><strong>Gęstość energii:</strong> ~<strong>140–175 Wh/kg</strong> (leading-edge pakiety/ogniwa). <span class="pill">Reuters</span></li>
+            <li><strong>Ładowanie / niskie temperatury:</strong> dobra ładowalność w chłodzie (w tym z testów i certyfikacji Naxtra). <span class="pill">Electronic Design</span></li>
+            <li><strong>Trwałość:</strong> stacjonarnie „kilka tysięcy” cykli; potwierdzane praktyką w projektach gridowych. <span class="pill">Batteries International</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Co jeszcze blokuje szeroką adopcję</h2>
+        <ul>
+          <li><span class="bad">Niższa gęstość energii</span> niż NMC/NCA — w autach klasy średniej i wyższej nadal wygrywa lit o wysokiej gęstości.</li>
+          <li><span class="bad">Standaryzacja i łańcuch dostaw:</span> ekosystem Na-ion jest młodszy; dopiero 2025 r. przyniósł ważne certyfikacje i pierwsze większe serie. <span class="pill">Electronic Design</span></li>
+          <li><span class="bad">Szum informacyjny:</span> warto trzymać się twardych komunikatów producentów; pojawiają się medialne nadinterpretacje „przełomów”. <span class="pill">CarNewsChina</span></li>
+        </ul>
+      </section>
+
+      <section class="wrap">
+        <h2>Co dalej (2025–2027)</h2>
+        <ul>
+          <li><strong>CATL (Naxtra):</strong> produkcja masowa od końca 2025 r., skalowanie w 2026 r.; cel: częściowe zastąpienie LFP w krótszych zasięgach i dominacja w BESS. <span class="pill">Reuters</span></li>
+          <li><strong>BESS i usługi systemowe:</strong> kolejne projekty „grid-forming” i hybrydy (Na-ion + flow/VRFB) — rośnie popyt sieci na sterowalność, nie tylko energię. <span class="pill">Energy Storage</span></li>
+          <li><strong>Mikromobilność / ostatnia mila:</strong> największe udziały Na-ion zobaczymy w skuterach i lekkich dostawczakach miejskich, gdzie TCO > zasięg 600+ km.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Źródła i dalej czytaj</h2>
+        <ul class="sources">
+          <li><a href="https://www.reuters.com/" target="_blank" rel="noopener">Reuters — ogłoszenia i parametry Naxtra (CATL)</a></li>
+          <li><a href="https://www.batteriesinternational.com/" target="_blank" rel="noopener">Batteries International — projekty Datang/HiNa (50 MW / 100 MWh)</a></li>
+          <li><a href="https://www.energystorage.news/" target="_blank" rel="noopener">Energy Storage — projekty grid-forming / trendy BESS</a></li>
+          <li><a href="https://www.electronicdesign.com/" target="_blank" rel="noopener">Electronic Design — normy GB 38031-2025, testy i bezpieczeństwo</a></li>
+          <li><a href="https://www.techradar.com/" target="_blank" rel="noopener">TechRadar — mikromobilność i wymiana pakietów (Na-ion)</a></li>
+          <li><a href="https://www.theverge.com/" target="_blank" rel="noopener">The Verge — slajdy rynkowe o zasięgach, konfiguracje hybrydowe</a></li>
+          <li><a href="https://www.spglobal.com/commodityinsights/en/" target="_blank" rel="noopener">S&amp;P Global — BYD i Na-ion w segmencie BESS</a></li>
+          <li><a href="https://carnewschina.com/" target="_blank" rel="noopener">CarNewsChina — weryfikacja medialnych „przełomów”</a></li>
+        </ul>
+        <p class="back">← <a href="/pl/nauka.html">wróć do Nauki</a></p>
+      </section>
+
+    </article>
+  </main>
+
+  <footer>© BriefRooms</footer>
+</body>
+</html>
