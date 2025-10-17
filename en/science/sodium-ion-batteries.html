@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- hreflang pair -->
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/science/sodium-ion-batteries.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/nauka/baterie-sodowo-jonowe.html" />
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>China’s sodium-ion batteries: what runs now, what’s next & where it makes sense | BriefRooms</title>
+  <meta name="description" content="Na-ion in China: deployments (BESS, micromobility), parameters (energy density, charging, life), limits and roadmaps (CATL/HiNa/BYD). Practical overview." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/site.css" />
+  <style>
+    :root{ --line:rgba(255,255,255,.06); --muted:#a8b3c7; --muted2:#b9c5d8 }
+    header{ position:relative; padding:32px 16px 18px; text-align:center }
+    h1{ margin:0 0 8px; font-size:clamp(26px,4.8vw,40px) }
+    .lead{ margin:0; color:var(--muted) }
+    main{ max-width:1060px; margin:26px auto 80px; padding:0 16px }
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid var(--line); border-radius:20px; padding:22px;
+      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+      margin-bottom:18px;
+    }
+    h2{ margin:6px 0 12px; font-size:clamp(20px,3.6vw,26px) }
+    h3{ margin:18px 0 10px; font-size:clamp(18px,2.8vw,22px) }
+    p{ margin:10px 0 12px }
+    ul{ margin:8px 0 12px 20px } li{ margin:6px 0 }
+    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; background:#0f1a28; border:1px solid var(--line); color:var(--muted2); font-size:13px; white-space:nowrap }
+    .wrap{ background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:14px }
+    .cols{ display:grid; grid-template-columns:1fr; gap:16px }
+    @media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
+    .sources li a{ color:#b9c5d8; text-decoration:none } .sources li a:hover{ color:#c7d2e3; text-decoration:underline }
+    .back{ margin-top:12px } .back a{ color:#a8c8ff; text-decoration:none } .back a:hover{ text-decoration:underline }
+    footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
+
+    /* small battery badge (hidden on narrow screens) */
+    .battery-badge{
+      position:absolute; right:16px; top:10px; width:46px; height:46px; border-radius:12px;
+      background:rgba(255,255,255,.06); border:1px solid var(--line);
+      display:grid; place-items:center; box-shadow:0 10px 24px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .battery-badge svg{ width:26px; height:26px }
+    @media (max-width:640px){ .battery-badge{ display:none } }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="battery-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+        <rect x="3" y="7" width="17" height="10" rx="2.2" stroke="#c6d3e6" stroke-width="1.8"/>
+        <rect x="20.5" y="10" width="1.5" height="4" rx=".6" fill="#c6d3e6"/>
+        <rect x="5" y="9" width="6" height="6" rx="1.2" fill="#9cc0ff"/>
+        <rect x="12" y="9" width="6" height="6" rx="1.2" fill="#ffd084"/>
+      </svg>
+    </span>
+
+    <h1>China’s sodium-ion batteries: what runs now, what’s next & where it makes sense</h1>
+    <p class="lead">Sodium instead of lithium? China is rolling Na-ion into real deployments — from grid-scale storage to scooters and budget city cars. Here’s a crisp explainer: how it works, where it’s live, key parameters, limits and plans of the largest players.</p>
+  </header>
+
+  <main>
+    <article class="card">
+      <section>
+        <h2>Why sodium?</h2>
+        <ul>
+          <li><strong>Abundance & cost:</strong> sodium is cheaper and more abundant than lithium; supply chains can lean more on local feedstocks.</li>
+          <li><strong>Safety:</strong> Na-ion chemistries are inherently less prone to thermal runaway than some Li-ion chemistries.</li>
+          <li><strong>Lower energy density, but…</strong> in BESS and light mobility the cost per cycle, durability and chargeability dominate — Na-ion can win here.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What is already running in China</h2>
+        <ul>
+          <li><strong>World’s largest Na-ion BESS:</strong> Datang Group commissioned <strong>50 MW / 100 MWh</strong> in Qianjiang (Hubei) using HiNa cells — a live grid asset. <span class="pill">Batteries International</span></li>
+          <li><strong>First grid-forming Na-ion plant:</strong> June 2025, Baochi (Yunnan) — can stabilise the grid like a conventional power plant. <span class="pill">Energy Storage</span></li>
+          <li><strong>Micromobility & swap:</strong> e-scooter makers (e.g., Yadea) deploy Na-ion models and swap networks; ~<strong>15%</strong> Na-ion share in Chinese scooters by 2030 is forecast. <span class="pill">TechRadar</span></li>
+        </ul>
+      </section>
+
+      <section class="wrap">
+        <h2>Key players & new-gen parameters</h2>
+
+        <h3>CATL — Naxtra</h3>
+        <ul>
+          <li><strong>Ramp:</strong> announced Apr-2025; mass production slated for late 2025 with scale-up in 2026. <span class="pill">Reuters</span></li>
+          <li><strong>Specs:</strong> energy density around <strong>175 Wh/kg</strong> (lower/mid LFP territory). <span class="pill">Reuters</span></li>
+          <li><strong>Safety:</strong> certified to <strong>GB 38031-2025</strong> for traction batteries. <span class="pill">Electronic Design</span></li>
+          <li><strong>Autos:</strong> slideware cites up to ~<strong>500 km</strong> ranges in some classes (often Na-ion + Li-ion hybrids). Wider EV adoption expected post-2026. <span class="pill">The Verge</span></li>
+        </ul>
+
+        <h3>HiNa Battery</h3>
+        <p>Supplier to the <strong>100 MWh</strong> project; developing <strong>180 Ah</strong> cells for stationary systems. <span class="pill">Batteries International</span></p>
+
+        <h3>BYD</h3>
+        <p>In-house Na-ion aimed at BESS and low-cost city platforms; first broad deployments expected in stationary. (The Seagull ultimately shipped with LFP.) <span class="pill">S&amp;P Global</span></p>
+      </section>
+
+      <section class="cols">
+        <div class="wrap">
+          <h2>Where Na-ion makes the most sense today</h2>
+          <ul>
+            <li><strong>BESS:</strong> cost/cycle & safety outweigh volumetric density; Datang/Baochi show commercial grid service including regulation. <span class="pill">Batteries International</span></li>
+            <li><strong>Micromobility & sharing fleets:</strong> scooters, cargo-bikes, small quadricycles — fast charging, lower pack costs. <span class="pill">TechRadar</span></li>
+            <li><strong>Budget city cars & hybrid packs:</strong> Na-ion first in hybrids with LFP or in price-first segments. <span class="pill">Reuters</span></li>
+          </ul>
+        </div>
+
+        <div class="wrap">
+          <h2>Parameters to know (2024–2025)</h2>
+          <ul>
+            <li><strong>Energy density:</strong> ~<strong>140–175 Wh/kg</strong> for leading packs/cells. <span class="pill">Reuters</span></li>
+            <li><strong>Cold-charge performance:</strong> good chargeability at low temps (incl. from Naxtra testing/cert). <span class="pill">Electronic Design</span></li>
+            <li><strong>Life:</strong> “several thousand” cycles in stationary use; supported by grid-scale ops. <span class="pill">Batteries International</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>What still limits broad adoption</h2>
+        <ul>
+          <li><span class="pill">Density</span> lower than NMC/NCA — mid/high-range passenger cars favour high-density Li-ion.</li>
+          <li><span class="pill">Standards & supply chain:</span> the Na-ion ecosystem is younger; 2025 brought key certifications and first larger series. <span class="pill">Electronic Design</span></li>
+          <li><span class="pill">Info noise:</span> stick to primary disclosures — media “breakthroughs” are often overstated. <span class="pill">CarNewsChina</span></li>
+        </ul>
+      </section>
+
+      <section class="wrap">
+        <h2>Outlook (2025–2027)</h2>
+        <ul>
+          <li><strong>CATL (Naxtra):</strong> mass production late-2025, scaling in 2026; aim: partly replace LFP in shorter-range EVs and lead in BESS. <span class="pill">Reuters</span></li>
+          <li><strong>BESS portfolio:</strong> more grid-forming projects and hybrids (Na-ion + flow/VRFB) as systems need controllability, not just energy. <span class="pill">Energy Storage</span></li>
+          <li><strong>Micromobility / last-mile:</strong> largest near-term Na-ion share in scooters and light urban logistics where TCO matters more than 600+ km range.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Sources & further reading</h2>
+        <ul class="sources">
+          <li><a href="https://www.reuters.com/" target="_blank" rel="noopener">Reuters — CATL Naxtra announcements & specs</a></li>
+          <li><a href="https://www.batteriesinternational.com/" target="_blank" rel="noopener">Batteries International — Datang/HiNa (50 MW / 100 MWh)</a></li>
+          <li><a href="https://www.energystorage.news/" target="_blank" rel="noopener">Energy Storage — grid-forming projects & BESS trends</a></li>
+          <li><a href="https://www.electronicdesign.com/" target="_blank" rel="noopener">Electronic Design — GB 38031-2025 and testing</a></li>
+          <li><a href="https://www.techradar.com/" target="_blank" rel="noopener">TechRadar — micromobility & swap ecosystems</a></li>
+          <li><a href="https://www.theverge.com/" target="_blank" rel="noopener">The Verge — OEM slides on ranges & hybrid pack configs</a></li>
+          <li><a href="https://www.spglobal.com/commodityinsights/en/" target="_blank" rel="noopener">S&amp;P Global — BYD & Na-ion in BESS</a></li>
+          <li><a href="https://carnewschina.com/" target="_blank" rel="noopener">CarNewsChina — debunking over-hyped “breakthroughs”</a></li>
+        </ul>
+        <p class="back">← <a href="/en/science.html">Back to Science</a></p>
+      </section>
+    </article>
+  </main>
+
+  <footer>© BriefRooms</footer>
+</body>
+</html>
