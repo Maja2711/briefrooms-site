@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Twój cholesterol i cały lipidogram — praktyczny przewodnik | BriefRooms</title>
+  <meta name="description" content="Jak czytać lipidogram (LDL, HDL, TG, non-HDL, Remnant-C, ApoB, Lp(a)) i co realnie poprawia wyniki. Praktyczne progi, jedzenie, ruch, błonnik, fitosterole." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/site.css" />
+  <style>
+    /* Lokalne drobiazgi do interaktywnych 'chipów' i popoverów */
+    :root{
+      --glass: rgba(255,255,255,.06);
+      --glass2: rgba(255,255,255,.10);
+      --line: rgba(255,255,255,.10);
+      --txt: #e9eef5;
+      --muted:#a8b3c7;
+    }
+    header{ padding:32px 16px 18px; text-align:center }
+    h1{ margin:0 0 10px; font-size:clamp(26px,4.8vw,42px); letter-spacing:.3px }
+    .lead{ margin:0; color:var(--muted) }
+    main{ max-width:1060px; margin:26px auto 80px; padding:0 16px }
+    .card{
+      background:linear-gradient(180deg,var(--glass),rgba(255,255,255,.03));
+      border:1px solid var(--line); border-radius:20px; padding:22px; margin-bottom:18px;
+      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    h2{ margin:6px 0 12px; font-size:clamp(20px,3.4vw,28px) }
+    h3{ margin:18px 0 10px; font-size:clamp(18px,2.8vw,22px) }
+    p{ margin:10px 0 12px }
+    ul{ margin:8px 0 12px 20px } li{ margin:6px 0 }
+    .pill{ display:inline-block; padding:4px 10px; border-radius:999px; background:#0f1a28; border:1px solid var(--line); color:#cbd6ea; font-size:13px }
+
+    /* Szklane, lekko 3D 'chipy' do kliknięcia */
+    .chip-3d{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 12px; border-radius:12px; cursor:pointer; user-select:none;
+      background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      box-shadow: 0 6px 16px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
+      color:var(--txt); text-decoration:none; transition:.15s ease;
+    }
+    .chip-3d:hover{ filter:brightness(1.06); transform:translateY(-1px) }
+    .chip-dot{ width:6px; height:6px; border-radius:50%; background:#ffd58a; box-shadow:0 0 0 2px rgba(255,213,138,.2) }
+
+    /* Popovery – małe kwadraty z opisem */
+    .popover{
+      position:fixed; z-index:2000; min-width:220px; max-width:280px;
+      background:rgba(10,16,28,.96); color:var(--txt);
+      border:1px solid var(--line); border-radius:12px; padding:12px 12px 10px;
+      box-shadow: 0 18px 38px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+      display:none;
+    }
+    .popover h4{ margin:0 0 6px; font-size:15px }
+    .popover ul{ margin:6px 0 0 16px; font-size:14px }
+    .popover::after{ /* strzałka u dołu popovera */
+      content:""; position:absolute; width:10px; height:10px; background:rgba(10,16,28,.96);
+      border-left:1px solid var(--line); border-top:1px solid var(--line); transform:rotate(45deg);
+      left:18px; bottom:-6px;
+    }
+    /* wyróżnione bloki 'Skup się' i 'Ogranicz' */
+    .good-wrap, .bad-wrap{
+      border:1px solid var(--line); border-radius:12px; padding:14px; background:rgba(255,255,255,.03);
+    }
+    .good-wrap h3{ color:#6fd19e } .bad-wrap h3{ color:#ff9b87 }
+
+    footer{ text-align:center; opacity:.55; padding:4px 16px 36px; font-size:14px }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Twój cholesterol i cały lipidogram — praktyczny przewodnik</h1>
+    <p class="lead">Jak czytać wyniki (LDL, HDL, TG, non-HDL, Remnant-C, ApoB, Lp(a)) i co realnie je poprawia — bez żargonu.</p>
+  </header>
+
+  <main>
+    <article class="card">
+      <section>
+        <h2>Co tak naprawdę oznaczają moje wyniki?</h2>
+        <ul>
+          <li><strong>LDL-C („zły”)</strong> — im <em>niżej</em>, tym lepiej. Orientacyjnie: dobrze &lt; 100 mg/dl; 100–159 do poprawy; ≥160 źle. Cele ustala lekarz wg ryzyka. <span class="pill">ESC/EAS</span></li>
+          <li><strong>HDL-C („dobry”)</strong> — za niskie: &lt;40 mg/dl (M), &lt;50 mg/dl (K). Nie „gonimy” samego HDL lekiem — liczy się cały profil. <span class="pill">ACC/AHA</span></li>
+          <li><strong>TG (triglicerydy)</strong> — dobrze &lt;150; 150–499 do poprawy; <strong>≥500</strong> bardzo źle (ryzyko trzustki, pilna kontrola). <span class="pill">ACC/AHA</span></li>
+          <li><strong>TC (całkowity)</strong> — pomocniczo; ważniejsze: LDL, non-HDL i Remnant-C.</li>
+        </ul>
+        <p><strong>Bez głodówki?</strong> Na co dzień lipidogram można robić bez czczo. Przy TG ≥ 400–500 mg/dl rozważ powtórkę czczo i/lub LDL oznaczony bezpośrednio. <span class="pill">ESC/EAS</span></p>
+      </section>
+
+      <section>
+        <h2>Dwa pożyteczne wskaźniki do policzenia samemu</h2>
+        <ul>
+          <li><strong>non-HDL-C = TC − HDL-C</strong> — obejmuje wszystkie „złe” cząstki (LDL + reszta). Orientacyjnie: dobrze &lt;130; 130–159 do poprawy; ≥160 źle. (Cel non-HDL bywa ~30 mg/dl wyższy niż odpowiadający mu cel LDL). <span class="pill">ESC/EAS</span></li>
+          <li><strong>Remnant-C = TC − LDL-C − HDL-C</strong> (albo: non-HDL − LDL). Powyżej ~20–25 mg/dl często oznacza „ryzyko resztkowe”, które warto zbijać dietą, ruchem i leczeniem TG. <span class="pill">przeglądy PMC</span></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Dlaczego to ma znaczenie?</h2>
+        <p><strong>LDL-C powoduje miażdżycę</strong> — to wniosek spójny z genetyki, obserwacji i setek badań klinicznych. Długa ekspozycja na podwyższone LDL kumuluje ryzyko zawału i udaru. „Resztki” (Remnant-C) także dokładają swoje nawet przy „przyzwoitym” LDL. <span class="pill">ESC/EAS</span> <span class="pill">PMC</span></p>
+      </section>
+
+      <section>
+        <h2>5 rzeczy, które naprawdę działają</h2>
+
+        <h3>5.1 Zmieniaj <span class="chip-3d popchip" data-pop="sfa"><span class="chip-dot"></span> tłuszcze nasycone</span> → na <span class="chip-3d popchip" data-pop="ufa"><span class="chip-dot"></span> tłuszcze nienasycone</span></h3>
+        <p>
+          Gotuj na oliwie/olejach roślinnych, jedz orzechy, pestki i ryby <em>zamiast</em> tłustych mięs i serów. To obniża LDL i ryzyko sercowo-naczyniowe — efekt potwierdzony w stanowiskach AHA i metaanalizach diet zamiennych.
+        </p>
+        <div class="good-wrap">
+          <h3>Skup się na:</h3>
+          <ul>
+            <li>Oliwa z oliwek, olej rzepakowy (MUFA), olej lniany/sojowy/słonecznikowy (PUFA).</li>
+            <li>Orzechy i pestki (migdały, orzechy włoskie, siemię lniane, sezam).</li>
+            <li>Ryby 2×/tydz. (łosoś, makrela, śledź, sardynki).</li>
+            <li>Dużo warzyw/roślin — wzorzec śródziemnomorski.</li>
+          </ul>
+        </div>
+        <div class="bad-wrap" style="margin-top:12px">
+          <h3>Ograniczaj:</h3>
+          <ul>
+            <li>Tłuste czerwone mięsa, wędliny, podroby; sery pełnotłuste, masło.</li>
+            <li>Oleje tropikalne bogate w SFA (kokosowy, palmowy).</li>
+            <li>„Słodkie szybkie kalorie” (cukry proste) — zamiana SFA na cukierki nie poprawia ryzyka.</li>
+          </ul>
+        </div>
+        <p style="margin-top:10px"><strong>Badania (Mensink RP, Am J Clin Nutr 2016):</strong> zamiana <strong>~5% energii</strong> z tłuszczów <strong>nasyconych (SFA)</strong> na <strong>nienasycone</strong> obniża <strong>LDL o ok. 10%</strong>, bez szkody dla HDL.</p>
+
+        <h3>5.2 Błonnik rozpuszczalny — codziennie</h3>
+        <p><strong>≈3 g/d β-glukanu</strong> z owsa/jęczmienia → zwykle <strong>~5–7% spadku LDL</strong>. <strong>Psyllium</strong> 5–10 g/d — podobny efekt. Najprościej: płatki/otręby owsiane, jęczmień, psyllium do jogurtu/wody, strączki. <span class="pill">EFSA</span> <span class="pill">PMC</span></p>
+
+        <h3>5.3 Fitosterole</h3>
+        <p><strong>1,5–2,4 g/d</strong> obniża LDL o <strong>~7–10%</strong>. Naturalnie: oleje roślinne (sezam, otręby ryżowe, kukurydza, rzepak), sezam, słonecznik, orzechy, kiełki pszenicy. Produkty wzbogacane (margaryny/jogurty z fitosterolami) ułatwiają „dowożenie” ~2 g/d — decyzję skonsultuj z lekarzem/dietetykiem. <span class="pill">EFSA</span></p>
+
+        <h3>5.4 Ruch „na zegarek”</h3>
+        <p><strong>150–300 min/tydz.</strong> umiarkowanego lub <strong>75–150 min</strong> intensywnego + <strong>2 dni siły</strong> — TG spadają, HDL rośnie, LDL bywa niższy; najważniejsza jest regularność. <span class="pill">WHO</span></p>
+
+        <h3>5.5 Nawyki o dużym wpływie</h3>
+        <ul>
+          <li><strong>Masa ciała ↓</strong> (jeśli nadmiar): najmocniej obniża TG i non-HDL-C.</li>
+          <li><strong>Alkohol i cukry proste ↓</strong>: najszybszy sposób na spadek TG.</li>
+          <li><strong>Rzucenie palenia</strong>: HDL ↑, ryzyko ↓.</li>
+          <li><strong>Wyklucz przyczyny wtórne</strong>: np. niedoczynność tarczycy, leki — to trzeba leczyć u podstaw. <span class="pill">ESC/EAS</span></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Jak to wdrożyć — 5 kroków</h2>
+        <ol>
+          <li>Zapisz: <strong>TC, LDL-C, HDL-C, TG</strong>.</li>
+          <li>Policz: <strong>non-HDL = TC − HDL</strong> oraz <strong>Remnant-C = TC − LDL − HDL</strong>.</li>
+          <li>Oceń orientacyjnie (bez wysokiego ryzyka klinicznego):
+            <ul>
+              <li>LDL-C: &lt;100 dobrze • 100–159 do poprawy • ≥160 źle.</li>
+              <li>non-HDL-C: &lt;130 dobrze • 130–159 do poprawy • ≥160 źle.</li>
+              <li>TG: &lt;150 dobrze • 150–499 do poprawy • ≥500 bardzo źle.</li>
+              <li>HDL-C: za niskie &lt;40 (M) / &lt;50 (K).</li>
+            </ul>
+          </li>
+          <li>Wdroż fundamenty: śródziemnomorski styl jedzenia + zamiana tłuszczów + błonnik rozpuszczalny codziennie + ruch wg WHO + alkohol/cukier ↓.</li>
+          <li><strong>Kontrola po 6–12 tyg.</strong> Jeśli „kolor” nie robi się zielony — omów z lekarzem kolejne kroki (np. ezetymib/statyny/PCSK9 wg wytycznych i ryzyka).</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Źródła i dalej czytaj</h2>
+        <ul class="sources">
+          <li>ESC/EAS — europejskie wytyczne dot. lipidów (cele LDL/non-HDL/ApoB, pomiar bez czczo).</li>
+          <li>ACC/AHA — progi i postępowanie przy hipertriglicerydemii.</li>
+          <li>AHA — zamiana tłuszczów nasyconych na nienasycone, wzorce żywieniowe.</li>
+          <li>WHO 2020 — aktywność fizyczna dla dorosłych.</li>
+          <li>EFSA — β-glukan (owies/jęczmień) i fitosterole — opinie i metaanalizy.</li>
+          <li>Mensink RP et al., Am J Clin Nutr 2016 — efekty zamiany SFA → UFA na frakcje lipidów.</li>
+          <li>Przeglądy PMC — remnant cholesterol i ryzyko CVD.</li>
+        </ul>
+        <p class="back">← <a href="/pl/zdrowie.html">wróć do Zdrowia</a></p>
+      </section>
+    </article>
+  </main>
+
+  <!-- Popovery – treść -->
+  <div class="popover" id="pop-sfa">
+    <h4>Tłuszcze nasycone (SFA)</h4>
+    <p>Najwyższe źródła:</p>
+    <ul>
+      <li>Masło, śmietana, sery twarde pełnotłuste</li>
+      <li>Tłuste czerwone mięsa, wędliny</li>
+      <li>Oleje tropikalne: kokosowy, palmowy</li>
+      <li>Wypieki/przetwory z dużą ilością tłuszczu mlecznego</li>
+    </ul>
+  </div>
+
+  <div class="popover" id="pop-ufa">
+    <h4>Tłuszcze nienasycone (MUFA/PUFA)</h4>
+    <p>Najlepsze wybory:</p>
+    <ul>
+      <li>Oliwa z oliwek, olej rzepakowy (MUFA)</li>
+      <li>Orzechy (migdały, włoskie), pestki (sezam, słonecznik)</li>
+      <li>Siemię lniane / olej lniany (omega-3, PUFA)</li>
+      <li>Ryby morskie: łosoś, makrela, śledź, sardynki</li>
+    </ul>
+  </div>
+
+  <script>
+    // Proste popovery (bez bibliotek)
+    (function(){
+      const chips = document.querySelectorAll('.popchip');
+      const pops  = {
+        sfa: document.getElementById('pop-sfa'),
+        ufa: document.getElementById('pop-ufa')
+      };
+
+      function closeAll(){ Object.values(pops).forEach(p => { p.style.display = 'none'; }); }
+
+      function placePopover(pop, anchorEl){
+        const r = anchorEl.getBoundingClientRect();
+        const pad = 8;
+        // domyślnie pod chipem, w lewo od jego początku
+        let top  = r.bottom + pad;
+        let left = r.left;
+
+        // korygowanie, żeby nie wychodziło poza viewport
+        const maxLeft = document.documentElement.clientWidth - pop.offsetWidth - 8;
+        if(left > maxLeft) left = Math.max(8, maxLeft);
+        if(top + pop.offsetHeight + 8 > window.innerHeight + window.scrollY){
+          // pokaż nad chipem
+          top = r.top - pop.offsetHeight - pad;
+          pop.style.transformOrigin = 'left bottom';
+        }else{
+          pop.style.transformOrigin = 'left top';
+        }
+        pop.style.top  = Math.round(top + window.scrollY) + 'px';
+        pop.style.left = Math.round(left + window.scrollX) + 'px';
+      }
+
+      chips.forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const key = chip.dataset.pop;
+          const pop = pops[key];
+          if(!pop) return;
+          const isOpen = pop.style.display === 'block';
+          closeAll();
+          if(!isOpen){
+            pop.style.display = 'block';
+            // trzeba najpierw wyświetlić, by znać wymiar
+            requestAnimationFrame(() => placePopover(pop, chip));
+          }
+        });
+      });
+
+      document.addEventListener('click', closeAll);
+      window.addEventListener('resize', closeAll);
+      window.addEventListener('scroll', () => {
+        // przy scrollu chowamy, by nie „uciekały”
+        closeAll();
+      });
+    })();
+  </script>
+
+  <footer>© BriefRooms</footer>
+</body>
+</html>
