@@ -206,9 +206,219 @@ details.pop .popover{
         </ul>
         <p class="back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
       </section>
-    </article>
+      <div id="br-comments"></div>
+</article>
   </main>
 
   <footer>© BriefRooms</footer>
+  <!-- ========== BriefRooms: Comments (no-backend) ========== -->
+<style>
+  .brc{--bg:#0c1626;--panel:#0f1b2b;--panel2:#0d1726;--line:rgba(255,255,255,.08);
+       --txt:#e8eef7;--muted:#a9b6c9;--focus:#86b7ff;--accent:#9ccf9f}
+  .brc{max-width:860px;margin:28px auto 48px;padding:0 16px;color:var(--txt)}
+  .brc .card{background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:18px;padding:18px 18px 6px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 16px 40px rgba(0,0,0,.28)}
+  .brc h2{margin:2px 0 12px;font-size:clamp(18px,2.6vw,22px)}
+  .brc .sub{margin:0 0 14px;color:var(--muted);font-size:14px}
+  .brc .row{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 8px}
+  .brc input[type="text"], .brc textarea{
+    width:100%;background:#0b1523;color:var(--txt);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;font:inherit;line-height:1.4}
+  .brc input[type="text"]{max-width:260px}
+  .brc textarea{min-height:96px;resize:vertical}
+  .brc input:focus,.brc textarea:focus{outline:3px solid var(--focus);outline-offset:2px}
+  .brc .meta{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}
+  .brc .count{font-size:12px;color:var(--muted)}
+  .brc .btn{background:linear-gradient(180deg,#1a2d45,#16263a);color:var(--txt);
+    border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 14px;
+    cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.25);transition:transform .08s}
+  .brc .btn:disabled{opacity:.6;cursor:not-allowed}
+  .brc .btn:hover:not(:disabled){transform:translateY(-1px)}
+  .brc .list{margin:10px 0 8px;padding:0;list-style:none}
+  .brc .item{position:relative;padding:14px;border:1px solid var(--line);
+    border-radius:14px;background:rgba(255,255,255,.03);margin:10px 0}
+  .brc .nick{font-weight:600}
+  .brc .time{color:var(--muted);font-size:12px;margin-left:8px}
+  .brc .text{white-space:pre-wrap;margin:8px 0 2px}
+  .brc .actions{display:flex;gap:10px;justify-content:flex-end}
+  .brc .link{color:#a8c8ff;text-decoration:none}
+  .brc .link:hover{text-decoration:underline}
+  .brc .chip{display:inline-block;border:1px solid var(--line);border-radius:999px;
+    padding:4px 8px;background:rgba(255,255,255,.04);color:var(--muted);font-size:12px}
+  .brc .empty{color:var(--muted);text-align:center;border:1px dashed var(--line);
+    border-radius:12px;padding:14px;margin:10px 0 16px}
+  .brc .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;
+    background:rgba(156,207,159,.12);border:1px solid rgba(156,207,159,.3);color:#dff5e0;font-size:12px}
+  @media (max-width:560px){
+    .brc input[type="text"]{max-width:none}
+    .brc .meta{flex-direction:column;align-items:flex-start;gap:8px}
+  }
+</style>
+
+<div class="brc" role="region" aria-labelledby="brc-title">
+  <div class="card">
+    <h2 id="brc-title">Komentarze</h2>
+    <p class="sub">Pisz jako <span id="brc-current-nick" class="badge">Gość</span>.
+      Możesz zmienić nick, zanim dodasz komentarz.</p>
+
+    <div class="row" aria-label="formularz komentarza">
+      <input id="brc-nick" type="text" placeholder="Twój nick (np. Gość #1234)" maxlength="32" aria-label="Nick">
+      <textarea id="brc-text" placeholder="Napisz komentarz…" maxlength="1200" aria-label="Treść komentarza"></textarea>
+      <div class="meta">
+        <span class="count"><span id="brc-chars">0</span>/1200</span>
+        <button id="brc-send" class="btn" type="button" disabled>Dodaj komentarz</button>
+      </div>
+    </div>
+
+    <ul id="brc-list" class="list" aria-live="polite" aria-relevant="additions removals"></ul>
+    <div id="brc-empty" class="empty" hidden>Jeszcze nikt nie skomentował. Bądź pierwszy/a!</div>
+    <div class="sub">Komentarze są zapisywane lokalnie w tej przeglądarce (bez serwera).</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const el = (id)=>document.getElementById(id);
+  const listEl = el('brc-list');
+  const emptyEl= el('brc-empty');
+  const sendEl = el('brc-send');
+  const textEl = el('brc-text');
+  const nickEl = el('brc-nick');
+  const charsEl= el('brc-chars');
+  const curNick= el('brc-current-nick');
+
+  const KEY_PREFIX = 'brc-comments:';
+  const PAGE_KEY   = KEY_PREFIX + location.pathname;
+  const NICK_KEY   = 'brc-nick';
+  const OWNER_KEY  = 'brc-owner-ids'; // koszyk ID komentarzy dodanych z tej przeglądarki
+
+  // utils
+  const nowISO = ()=>new Date().toISOString();
+  const fmt = (iso)=>new Date(iso).toLocaleString();
+  const rid = ()=>crypto.getRandomValues(new Uint32Array(1))[0].toString(36) + Date.now().toString(36);
+  const escapeText = (s)=>s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const linkify = (text)=>{
+    // zwróć fragmenty jako węzły; url -> <a>
+    const frag = document.createDocumentFragment();
+    const parts = text.split(/(https?:\/\/[^\s]+)/g);
+    parts.forEach(p=>{
+      if(/^https?:\/\//.test(p)){
+        const a = document.createElement('a');
+        a.href = p; a.textContent = p; a.target="_blank"; a.rel="noopener";
+        a.className = 'link'; frag.appendChild(a);
+      }else{
+        frag.appendChild(document.createTextNode(p));
+      }
+    });
+    return frag;
+  };
+
+  const load = ()=>JSON.parse(localStorage.getItem(PAGE_KEY) || '[]');
+  const save = (arr)=>localStorage.setItem(PAGE_KEY, JSON.stringify(arr));
+  const loadOwner = ()=>new Set(JSON.parse(localStorage.getItem(OWNER_KEY)||'[]'));
+  const saveOwner = (set)=>localStorage.setItem(OWNER_KEY, JSON.stringify([...set]));
+
+  // nick startowy
+  let nick = localStorage.getItem(NICK_KEY);
+  if(!nick){
+    nick = 'Gość #' + String(Math.floor(1000 + Math.random()*9000));
+    localStorage.setItem(NICK_KEY, nick);
+  }
+  nickEl.value = nick;
+  curNick.textContent = nick;
+
+  // render
+  function render(){
+    const items = load();
+    listEl.innerHTML = '';
+    const mine = loadOwner();
+    if(items.length === 0){ emptyEl.hidden = false; return; }
+    emptyEl.hidden = true;
+
+    items.forEach(item=>{
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.setAttribute('data-id', item.id);
+
+      const head = document.createElement('div');
+      const nickSpan = document.createElement('span');
+      nickSpan.className = 'nick';
+      nickSpan.textContent = item.nick;
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'time';
+      timeSpan.textContent = '• ' + fmt(item.time);
+
+      head.appendChild(nickSpan);
+      head.appendChild(timeSpan);
+      li.appendChild(head);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'text';
+      textDiv.appendChild(linkify(item.text)); // już bezpieczne
+      li.appendChild(textDiv);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      if(mine.has(item.id)){
+        const del = document.createElement('button');
+        del.className = 'btn';
+        del.type='button';
+        del.textContent = 'Usuń';
+        del.addEventListener('click', ()=>{
+          const arr = load().filter(x=>x.id!==item.id);
+          save(arr);
+          mine.delete(item.id); saveOwner(mine);
+          render();
+        });
+        actions.appendChild(del);
+      }else{
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = 'Gość';
+        actions.appendChild(chip);
+      }
+      li.appendChild(actions);
+
+      listEl.appendChild(li);
+    });
+  }
+
+  // form logic
+  function validate(){
+    const t = textEl.value.trim();
+    const n = nickEl.value.trim();
+    charsEl.textContent = textEl.value.length;
+    sendEl.disabled = (t.length<2 || n.length<2);
+  }
+  textEl.addEventListener('input', validate);
+  nickEl.addEventListener('input', ()=>{
+    const n = nickEl.value.trim();
+    curNick.textContent = n || 'Gość';
+    if(n.length>=2) localStorage.setItem(NICK_KEY, n);
+    validate();
+  });
+
+  sendEl.addEventListener('click', ()=>{
+    const text = textEl.value.trim();
+    const nick = (nickEl.value.trim() || 'Gość').slice(0,32);
+    if(text.length<2) return;
+
+    const item = { id: rid(), nick, text: escapeText(text), time: nowISO() };
+    const arr = load(); arr.push(item); save(arr);
+
+    const mine = loadOwner(); mine.add(item.id); saveOwner(mine);
+
+    textEl.value=''; validate(); render();
+    // przewiń do dodanego (opcjonalnie)
+    listEl.lastElementChild?.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
+  // init
+  validate(); render();
+})();
+</script>
+<!-- ========== /BriefRooms: Comments ========== -->
+
 </body>
 </html>
