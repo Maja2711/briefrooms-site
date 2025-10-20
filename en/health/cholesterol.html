@@ -213,9 +213,147 @@
         </ul>
         <p class="back">← <a href="/en/health.html">Back to Health</a></p>
       </section>
+      <!-- Comments -->
+<div id="br-comments"></div>
+
     </article>
   </main>
 
   <footer>© BriefRooms</footer>
+  <!-- ========= BriefRooms Comments (no-backend, EN) ========= -->
+<style>
+  .brc{margin:22px 0 0}
+  .brc-card{
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px;
+    box-shadow:0 14px 36px -20px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.03);
+  }
+  .brc h3{margin:0 0 10px; font-size:clamp(18px,2.3vw,22px)}
+  .brc-form{display:grid; gap:10px; grid-template-columns:1fr auto}
+  .brc-form input[type="text"]{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+    border-radius:10px; padding:10px 12px; color:#e7eef9; width:100%;
+  }
+  .brc-form textarea{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+    border-radius:10px; padding:10px 12px; color:#e7eef9; min-height:88px; resize:vertical;
+  }
+  .brc-btn{
+    align-self:start; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
+    background:linear-gradient(180deg,#1a2b42,#152336); color:#e7eef9; cursor:pointer;
+    box-shadow:0 8px 18px rgba(0,0,0,.35);
+  }
+  .brc-list{margin:14px 0 0; padding:0; list-style:none}
+  .brc-item{
+    border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 12px 10px;
+    background:rgba(255,255,255,.04); margin:10px 0;
+  }
+  .brc-meta{display:flex; gap:8px; align-items:center; opacity:.8; font-size:13px; margin-bottom:6px}
+  .brc-name{font-weight:600}
+  .brc-actions{margin-left:auto; display:flex; gap:8px}
+  .brc-link{color:#a8c8ff; text-decoration:none; font-size:13px}
+  .brc-link:hover{text-decoration:underline}
+  .brc-empty{opacity:.7; font-size:14px; margin:10px 0 0}
+  @media (max-width:640px){
+    .brc-form{grid-template-columns:1fr}
+    .brc-btn{width:100%}
+  }
+</style>
+
+<div class="brc" aria-label="Comments">
+  <div class="brc-card">
+    <h3>Comments</h3>
+
+    <!-- form -->
+    <div class="brc-form" id="brc-form">
+      <input type="text" id="brc-name" placeholder="Display name (optional, default: Guest #1234)" />
+      <button class="brc-btn" id="brc-post">Post</button>
+      <textarea id="brc-text" placeholder="Share your thoughts..."></textarea>
+    </div>
+
+    <!-- list -->
+    <ul class="brc-list" id="brc-list" aria-live="polite"></ul>
+    <p class="brc-empty" id="brc-empty" hidden>No comments yet — be the first to comment.</p>
+  </div>
+</div>
+
+<template id="brc-item-tpl">
+  <li class="brc-item">
+    <div class="brc-meta">
+      <span class="brc-name"></span>
+      <span>•</span>
+      <time class="brc-time"></time>
+      <div class="brc-actions">
+        <a href="#" class="brc-link brc-del">Delete</a>
+      </div>
+    </div>
+    <div class="brc-body"></div>
+  </li>
+</template>
+
+<script>
+(function(){
+  const KEY = 'brc:' + location.pathname;      // per-page storage
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+
+  const listEl = $('#brc-list');
+  const emptyEl = $('#brc-empty');
+  const nameEl = $('#brc-name');
+  const textEl = $('#brc-text');
+  const postBtn = $('#brc-post');
+  const tpl = $('#brc-item-tpl');
+
+  function load(){
+    try{ return JSON.parse(localStorage.getItem(KEY)) || [] }catch{ return [] }
+  }
+  function save(data){
+    localStorage.setItem(KEY, JSON.stringify(data));
+  }
+  function guestName(){
+    // pseudo-stable guest id per browser
+    if(!localStorage.getItem('brc:guest')){
+      localStorage.setItem('brc:guest', String(Math.floor(1000 + Math.random()*9000)));
+    }
+    return 'Guest #' + localStorage.getItem('brc:guest');
+  }
+  function render(){
+    const data = load();
+    listEl.innerHTML = '';
+    emptyEl.hidden = data.length > 0;
+    data.forEach(item => {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      $('.brc-name', node).textContent = item.name || guestName();
+      $('.brc-time', node).textContent = new Date(item.ts).toLocaleString();
+      $('.brc-body', node).textContent = item.text;
+
+      $('.brc-del', node).addEventListener('click', (e)=>{
+        e.preventDefault();
+        const confirmed = confirm('Delete this comment?');
+        if(!confirmed) return;
+        const after = load().filter(x => x.id !== item.id);
+        save(after); render();
+      });
+
+      listEl.appendChild(node);
+    });
+  }
+
+  postBtn.addEventListener('click', ()=>{
+    const text = (textEl.value||'').trim();
+    const name = (nameEl.value||'').trim();
+    if(!text) return;
+    const data = load();
+    data.push({ id: crypto.randomUUID(), ts: Date.now(), name, text });
+    save(data);
+    textEl.value = '';
+    render();
+  });
+
+  render();
+})();
+</script>
+<!-- ========= /BriefRooms Comments ========= -->
+
 </body>
 </html>
