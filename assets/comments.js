@@ -94,11 +94,11 @@ const BR_COMMENTS_API = "https://script.google.com/macros/s/AKfycbygH4xWX3T9PTuV
       try{
         localStorage.setItem("br_nick", n || "Gość");
         const body = { contents: { page, nick: n || "Gość", text: t, uid: uid() } };
-        const r = await fetch(EP, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(body)
-        });
+       const r = await fetch(EP, {
+  method:"POST",
+  headers:{ "Content-Type":"text/plain;charset=utf-8" }, // simple request → brak preflight
+  body: JSON.stringify(body)
+});
         await r.json(); // {ok:true}
         textInp.value = "";
         await load();
