@@ -1,16 +1,23 @@
-<script>
 /* === BriefRooms – Comments (JS) === */
+
+// WSTAW TU SWÓJ AKTUALNY URL z „Aplikacja internetowa”
+const BR_COMMENTS_API = "https://script.google.com/macros/s/AKfycbygH4xWX3T9PTuV4hmZ-_qk0kiXyxKT2crunQwoqdWV-8YsfvxF6Lth3IidvHOm2yo4/exec";
+
 (() => {
-  const EP = window.BR_COMMENTS_ENDPOINT ||
-             "https://script.google.com/macros/s/AKfycbygH4xWX3T9PTuV4hmZ-_qk0kiXyxKT2crunQwoqdWV-8YsfvxF6Lth3IidvHOm2yo4/exec";
+  // EP bierze najpierw ewentualny global z HTML (BR_COMMENTS_ENDPOINT),
+  // a jeśli go nie ma – używa BR_COMMENTS_API powyżej.
+  const EP = window.BR_COMMENTS_ENDPOINT || BR_COMMENTS_API;
   const MAX_LEN = 2000;
 
   const esc = s => String(s)
-      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-  function uid(){ let u = localStorage.getItem("br_uid");
-    if(!u){ u = Math.random().toString(36).slice(2)+Date.now().toString(36);
-            localStorage.setItem("br_uid",u); }
+  function uid(){
+    let u = localStorage.getItem("br_uid");
+    if(!u){
+      u = Math.random().toString(36).slice(2)+Date.now().toString(36);
+      localStorage.setItem("br_uid",u);
+    }
     return u;
   }
   function defaultNick(){
@@ -52,7 +59,7 @@
 
     async function load(){
       try{
-        const r = await fetch(EP+"?page="+encodeURIComponent(page), {cache:"no-store"});
+        const r = await fetch(EP + "?page=" + encodeURIComponent(page), { cache:"no-store" });
         const j = await r.json();
         list.innerHTML = "";
         if(!j || !j.rows || !j.rows.length){
@@ -60,14 +67,16 @@
           return;
         }
         for(const it of j.rows){
-          const [ts,pg,nick,text] = it;
+          const [ts, pg, nick, text] = it;
           const dt = new Date(ts);
           const li = document.createElement("li");
           li.className = "brc-item";
           li.innerHTML = `
-            <div class="brc-meta"><span class="brc-nick">${esc(nick||"Gość")}</span> ·
-              <time datetime="${dt.toISOString()}">${dt.toLocaleString()}</time></div>
-            <div class="brc-text">${esc(text||"")}</div>`;
+            <div class="brc-meta">
+              <span class="brc-nick">${esc(nick || "Gość")}</span> ·
+              <time datetime="${dt.toISOString()}">${dt.toLocaleString()}</time>
+            </div>
+            <div class="brc-text">${esc(text || "")}</div>`;
           list.appendChild(li);
         }
       }catch(e){
@@ -77,24 +86,27 @@
 
     form.addEventListener("submit", async (e)=>{
       e.preventDefault(); showErr("");
-      const n = nickInp.value.trim(); const t = textInp.value.trim();
+      const n = nickInp.value.trim();
+      const t = textInp.value.trim();
       if(!t) return showErr("Wpisz treść komentarza.");
       if(t.length > MAX_LEN) return showErr("Za długi komentarz.");
       sendBtn.disabled = true;
       try{
         localStorage.setItem("br_nick", n || "Gość");
-        const body = { contents: { page, nick:n||"Gość", text:t, uid:uid() } };
+        const body = { contents: { page, nick: n || "Gość", text: t, uid: uid() } };
         const r = await fetch(EP, {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify(body)
+          body: JSON.stringify(body)
         });
-        await r.json();  // {ok:true}
+        await r.json(); // {ok:true}
         textInp.value = "";
         await load();
       }catch(e){
         showErr("Wysyłka nie powiodła się. Spróbuj ponownie.");
-      }finally{ sendBtn.disabled = false; }
+      }finally{
+        sendBtn.disabled = false;
+      }
     });
 
     load();
@@ -106,4 +118,3 @@
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
 })();
-</script>
