@@ -12,41 +12,55 @@
       --door:#3a2417; --door2:#2b1a10;
       --panel:#512f1d; --panel2:#3c2416;
       --accent:#9ed2ff;
-      --door-max: 200px;                 /* rozmiar drzwi */
+      --door-max: 200px; /* rozmiar drzwi */
+    }
+
+    /* === animowane tło morza (lokalne: /assets/sea.gif) === */
+    .bg-sea{
+      position:fixed; inset:0;
+      background:url("/assets/sea.gif") center/cover no-repeat;
+      z-index:-2;
+      pointer-events:none;
+    }
+    /* lekki przyciemniający overlay, by tekst i drzwi były czytelne */
+    .bg-overlay{
+      position:fixed; inset:0;
+      background:
+        radial-gradient(1200px 600px at 50% -80px, rgba(8,28,45,.65), rgba(7,30,46,.85) 60%, rgba(6,24,38,.92) 100%),
+        linear-gradient(180deg, rgba(7,30,46,.88), rgba(11,42,64,.92));
+      z-index:-1;
+      pointer-events:none;
     }
 
     html,body{
       height:100%; margin:0; color:var(--txt);
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      background:
-        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-        linear-gradient(180deg,var(--bg1),var(--bg2));
+      /* zostawiamy Twoje statyczne gradienty jako fallback,
+         ale są przykryte .bg-sea + .bg-overlay */
+      background: radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+                  linear-gradient(180deg,var(--bg1),var(--bg2));
     }
 
-    main{max-width:1100px;margin:0 auto;padding:32px 16px 64px}
-    header{text-align:center;margin:8px 0 24px}
-    h1{margin:0 0 8px;font-weight:800;letter-spacing:.2px;font-size:clamp(26px,4.8vw,44px)}
-    .lead{margin:0;color:var(--muted)}
-    .lead a{color:var(--accent);text-decoration:none}
+    main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
+    header{text-align:center; margin:8px 0 24px}
+    h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
+    .lead{margin:0; color:var(--muted)}
+    .lead a{color:var(--accent); text-decoration:none}
     .lead a:hover{text-decoration:underline}
 
-    /* siatka */
-    .grid{display:grid;gap:22px;grid-template-columns:repeat(3,1fr);margin-top:22px}
+    .grid{display:grid; gap:22px; grid-template-columns:repeat(3,1fr); margin-top:22px}
     @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
     @media (max-width:620px){.grid{grid-template-columns:1fr}}
 
-    /* karta pod drzwiami */
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
       border:1px solid var(--line); border-radius:20px; padding:18px;
       box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
       display:flex; justify-content:center; align-items:center;
       transition:transform .12s ease, box-shadow .12s ease;
-      color:inherit;                         /* link nie zmienia koloru wewnątrz */
-      text-decoration:none;
+      text-decoration:none; color:inherit;
     }
-    .card:hover{transform:translateY(-3px);box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
-    .card:link, .card:visited{color:inherit} /* na wszelki wypadek */
+    .card:hover{transform:translateY(-3px); box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
 
     /* DRZWI */
     .door{
@@ -54,7 +68,7 @@
       background:linear-gradient(180deg,var(--door),var(--door2));
       border-radius:16px; border:1px solid rgba(0,0,0,.45);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
-      position:relative; display:block;
+      position:relative; display:block; color:inherit;
     }
     .door .frame{position:absolute; inset:14px; border-radius:12px;
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);}
@@ -65,27 +79,28 @@
     .panel.p2{top:calc(50% - 8%)}
     .panel.p3{bottom:56px}
     .knob{position:absolute; right:14px; top:50%; transform:translateY(-50%);
-      width:12px;height:12px;border-radius:50%;
+      width:12px; height:12px; border-radius:50%;
       background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
       box-shadow:0 2px 8px rgba(0,0,0,.5)}
 
-    /* PODPIS NA ŚRODKU DRZWI — CZARNY */
+    /* NAPIS NA DRZWIACH – czarny i idealnie wyśrodkowany */
     .label{
       position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
-      color:#111;                 /* <<< CZARNY NAPIS */
-      text-shadow:none;           /* bez poświaty */
+      color:#111;           /* CZARNY */
+      text-shadow:none;     /* bez niebieskiej poświaty */
     }
 
-    /* Stopka */
     footer{
-      text-align:center;
-      color:var(--muted);
-      padding:18px 12px 28px;
+      text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
     }
   </style>
 </head>
 <body>
+  <!-- warstwy tła -->
+  <div class="bg-sea"></div>
+  <div class="bg-overlay"></div>
+
   <main>
     <header>
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
