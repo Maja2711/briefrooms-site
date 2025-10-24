@@ -4,133 +4,150 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — choose a room (EN)</title>
-  <meta name="description" content="Pick a room with crisp, to-the-point summaries. (EN)" />
   <link rel="icon" href="/assets/favicon.svg" />
   <style>
     :root{
-      --bg:#08111d; --txt:#e9eef5; --accent:#9c7349; --accent-dark:#7a5523; --shadow:rgba(0,0,0,.35);
+      --bg1:#071e2e; --bg2:#0b2a40;
+      --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
+      --door:#3a2417; --door2:#2b1a10;
+      --panel:#512f1d; --panel2:#3c2416;
+      --accent:#9ed2ff;
+      --door-max: 200px; /* door size */
     }
-    *{ box-sizing:border-box }
-    html,body{ height:100% }
-    body{
-      margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
+
+    /* Fallback static background → on html (not body) */
+    html{
       background:
-        radial-gradient(1200px 700px at 50% -200px,#11233b 0 40%, transparent 60%),
-        linear-gradient(#0a1626,#060c15 70%);
-      background-color:var(--bg);
+        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-    header{ text-align:center; padding:40px 16px 10px }
-    h1{
-      margin:0 0 10px; font-size:clamp(26px,4.6vw,48px);
-      line-height:1.2; letter-spacing:.4px; text-shadow:0 1px 0 #0b0, 0 3px 14px rgba(0,0,0,.35);
+
+    /* body is transparent and hosts our layers */
+    body{
+      height:100%;
+      margin:0;
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      background:transparent;
+      position:relative;
     }
-    .sub{ margin:0 0 14px; opacity:.85 }
-    .switch{ margin:0 10px; font-size:14px; opacity:.85 }
-    .switch a{ color:#a8c8ff; text-decoration:none }
-    .switch a:hover{ text-decoration:underline }
 
-    .grid{ max-width:1200px; margin:24px auto 80px; padding:0 16px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px }
-    @media (max-width:860px){ .grid{ grid-template-columns:1fr; max-width:720px } }
+    /* SEA GIF background (your file in /assets/) */
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+      opacity:.22;                 /* tweak e.g. .28 if you want it stronger */
+      z-index:0;                   /* above html, below content */
+      pointer-events:none;
+    }
+    /* subtle bottom darkening for readability */
+    body::after{
+      content:"";
+      position:fixed; left:0; right:0; bottom:0; height:35vh;
+      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+      z-index:1;
+      pointer-events:none;
+    }
 
-    /* karta drzwi */
+    main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
+    header{text-align:center; margin:8px 0 24px}
+    h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
+    .lead{margin:0; color:var(--muted)}
+    .lead a{color:var(--accent); text-decoration:none}
+    .lead a:hover{text-decoration:underline}
+
+    .grid{display:grid; gap:22px; grid-template-columns:repeat(3,1fr); margin-top:22px}
+    @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:620px){.grid{grid-template-columns:1fr}}
+
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.06); border-radius:22px;
-      box-shadow:0 18px 50px -16px var(--shadow), inset 0 0 1px rgba(255,255,255,.04);
-      padding:22px 22px 28px;
+      border:1px solid var(--line); border-radius:20px; padding:18px;
+      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+      display:flex; justify-content:center; align-items:center;
+      transition:transform .12s ease, box-shadow .12s ease;
+      text-decoration:none; color:inherit;
     }
+    .card:hover{transform:translateY(-3px); box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
+
+    /* DOORS */
     .door{
-      position:relative; height:520px; min-height:420px; max-height:620px; border-radius:18px;
-      background-position:center; background-repeat:no-repeat; background-size:cover;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 0 180px rgba(0,0,0,.45);
-      transition:transform .25s ease, box-shadow .25s ease;
+      width:min(var(--door-max), 80%); aspect-ratio: 3 / 5;
+      background:linear-gradient(180deg,var(--door),var(--door2));
+      border-radius:16px; border:1px solid rgba(0,0,0,.45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
+      position:relative; display:block; color:inherit;
     }
-    .door:hover{ transform:translateY(-3px); box-shadow:0 24px 48px rgba(0,0,0,.45), inset 0 0 180px rgba(0,0,0,.45) }
-    .door a{ position:absolute; inset:0; border-radius:inherit }
-
-    /* gałka */
-    .door::before{
-      content:""; position:absolute; right:22px; top:calc(50% - 12px);
+    .door .frame{position:absolute; inset:14px; border-radius:12px;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);}
+    .panel{position:absolute; left:26px; right:26px; height:16%;
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      border-radius:10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);}
+    .panel.p1{top:56px}
+    .panel.p2{top:calc(50% - 8%)}
+    .panel.p3{bottom:56px}
+    .knob{position:absolute; right:14px; top:50%; transform:translateY(-50%);
       width:12px; height:12px; border-radius:50%;
-      background:radial-gradient(circle at 30% 30%, #ffe0a6, #b68442 60%, var(--accent-dark));
-      box-shadow:0 3px rgba(0,0,0,.15);
+      background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
+      box-shadow:0 2px 8px rgba(0,0,0,.5)}
+
+    /* LABEL ON DOORS – black and perfectly centered */
+    .label{
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
+      color:#111;           /* BLACK */
+      text-shadow:none;     /* no glow */
     }
 
-    /* maska – wyrównuje label i przykrywa wszelki tekst z grafiki */
-  .door::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:inherit;
-  pointer-events:none;
-  background:transparent;   /* żadnego tła */
-  box-shadow:none;          /* żadnego cienia */
-}
-
-    /* tła “drzwi” (używamy tych samych SVG co w PL) */
-.g .door{ background-image:url("/assets/door-plain.svg") }
-.h .door{ background-image:url("/assets/door-plain.svg") }
-.s .door{ background-image:url("/assets/door-plain.svg") }
-
-
-    footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
-    /* ===== RWD for room selection pages ===== */
-@media (max-width: 1100px){
-  .grid{ grid-template-columns: 1fr; max-width: 720px; gap: 20px; }
-}
-
-@media (max-width: 600px){
-  header{ padding: 28px 14px 8px; }
-  .grid{ padding: 0 14px; }
-  .card{ border-radius: 18px; padding: 16px 16px 20px; }
-  .door{ height: 62vh; min-height: 360px; border-radius: 16px; }
-  .door:hover{ transform: none; } /* bez „skakania” na dotyk */
-}
-
-/* Etykieta na środku drzwi – jedna, scalona wersja */
-.door-label{
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  color:rgba(255,255,255,.98); font-weight:600;
-  font-size: clamp(20px, 5.5vw, 32px);
-  letter-spacing:.5px; line-height:1.25;
-  text-shadow:0 2px 8px rgba(0,0,0,.45);
-  background:transparent; padding:0; border:0;
-  z-index:2; pointer-events:none; text-align:center;
-}
-
+    footer{
+      text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Pick a room with crisp, to-the-point summaries</h1>
-    <p class="sub">Click a door to enter a section.</p>
-    <p class="switch">Polski? <a href="/pl/">Przejdź do wersji PL</a></p>
-  </header>
+  <main>
+    <header>
+      <h1>Choose a room with concise, no-nonsense summaries</h1>
+      <p class="lead">Click a door to enter a section. Polish? <a href="/pl/">Go to PL version</a></p>
+    </header>
 
-  <main class="grid">
-    <section class="card g">
-      <div class="door">
-        <span class="door-label">Geopolitics</span>
-        <a href="/en/geopolitics.html" aria-label="Open: Geopolitics"></a>
-      </div>
-    </section>
+    <section class="grid">
+      <a class="card" href="/en/geopolitics.html" aria-label="Geopolitics">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Geopolitics</span>
+        </div>
+      </a>
 
-    <section class="card h">
-      <div class="door">
-        <span class="door-label">Health</span>
-        <a href="/en/health.html" aria-label="Open: Health"></a>
-      </div>
-    </section>
+      <a class="card" href="/en/health.html" aria-label="Health">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Health</span>
+        </div>
+      </a>
 
-    <section class="card s">
-      <div class="door">
-        <span class="door-label">Science</span>
-        <a href="/en/science.html" aria-label="Open: Science"></a>
-      </div>
+      <a class="card" href="/en/science.html" aria-label="Science">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Science</span>
+        </div>
+      </a>
     </section>
   </main>
 
   <footer>© BriefRooms</footer>
 </body>
-
 </html>
