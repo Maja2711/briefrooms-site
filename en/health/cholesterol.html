@@ -11,7 +11,17 @@
   <title>Your cholesterol & full lipid panel — a practical guide | BriefRooms</title>
   <meta name="description" content="How to read LDL, HDL, TG, non-HDL, Remnant-C/RC, TG/HDL, and what really improves the numbers. Evidence-based, practical steps (ESC/EAS, ACC/AHA, AHA/WHO, EFSA)." />
   <link rel="icon" href="/assets/favicon.svg" />
+
+  <!-- site styles + comments styles -->
   <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/comments.css" />
+
+  <!-- Comments endpoint: USE THE GOOGLEUSERCONTENT URL (same for PL/EN) -->
+  <script>
+    window.BR_COMMENTS_ENDPOINT = "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLgjojMVF5JPhBUzvHT2md6hP2Lx_93gbdqArN-PI65lNkdKsALfP5wpj4HhfvfOlB5A_6SCrK4TEY2xOk2ATX83u_H26tSxPO5e6vdIMAd1eBziO4NGI0MWCJESiT_hbTa3VFNxkfPBKCTNcnjWpVbV-ie0a6MMk_qAMbmTEPkQad_rwzy_h0n2TGDuEO-aFEkZIOCsRkQ8JNTqfo2vMPooO-jmm5pDLe60lGMsg6uXjfuPs7KAeTbD4OwSZaxfPfzwYrX1bUepPZKmY1ct5JVlzEcmRg&lib=MF2kJZiB0iU3yfW9Wf0agcCAggSt92OEn";
+  </script>
+  <script src="/assets/comments.js" defer></script>
+
   <style>
     :root{ --line:rgba(255,255,255,.08); --muted:#a8b3c7; --muted2:#b9c5d8 }
     header{ padding:32px 16px 18px; text-align:center }
@@ -36,7 +46,7 @@
     .back{ margin-top:12px } .back a{ color:#a8c8ff; text-decoration:none } .back a:hover{ text-decoration:underline }
     footer{ text-align:center; opacity:.55; padding:6px 16px 36px; font-size:14px }
 
-    /* 3D transparent chips using <details> (no JS) */
+    /* transparent 3D chips on <details> (no JS) */
     .chips{ display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 6px }
     details.pop{
       position:relative; border-radius:12px; border:1px solid var(--line);
@@ -47,24 +57,23 @@
     details.pop:hover{ filter:brightness(1.04) }
     details.pop summary{ list-style:none; outline:none }
     details.pop summary::-webkit-details-marker{ display:none }
-  details.pop .popover{
-  position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
-  border-radius:12px; 
-  border:1px solid rgba(255,255,255,.14);
-  background:linear-gradient(180deg, rgba(64,110,84,.98), rgba(38,79,60,.98)); /* ciepło-zielone tło */
-  color:#f3fff6; /* jaśniejszy tekst dla kontrastu */
-  box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
-  padding:12px 14px; font-size:13px; z-index:5;
-}
-
+    details.pop .popover{
+      position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(180deg, rgba(64,110,84,.98), rgba(38,79,60,.98)); /* warm green */
+      color:#f3fff6;
+      box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+      padding:12px 14px; font-size:13px; z-index:5;
+    }
     details.pop[open] .popover{ animation:pop .12s ease-out }
     @keyframes pop{ from{ transform:translateY(-4px); opacity:0 } to{ transform:none; opacity:1 } }
-
-    /* small text inside popovers */
     .small{ font-size:12px; opacity:.95; line-height:1.45 }
-
-    /* spacing helpers */
     .mb0{ margin-bottom:0 }
+
+    /* Comments UI small tweaks: bigger textarea, hide tiny path line if present */
+    #br-comments textarea{ min-height:120px }
+    #br-comments small{ display:none }
   </style>
 </head>
 <body>
@@ -78,10 +87,10 @@
       <section>
         <h2>Your lipid panel, without jargon</h2>
         <ul>
-          <li><strong>LDL-C</strong> — the “bad” cholesterol and main driver of atherosclerosis. Lower is better. For a generally healthy adult (final targets depend on clinical risk and your doctor): roughly good &lt; <strong>100 mg/dL</strong>, needs work <strong>100–159</strong>, high/poor <strong>≥160</strong>. <span class="pill">ESC/EAS</span></li>
+          <li><strong>LDL-C</strong> — the “bad” cholesterol and main driver of atherosclerosis. Lower is better. For a generally healthy adult (final targets depend on clinical risk and your doctor): roughly good &lt;<strong>100 mg/dL</strong>, needs work <strong>100–159</strong>, high/poor <strong>≥160</strong>. <span class="pill">ESC/EAS</span></li>
           <li><strong>HDL-C</strong> — the “good” one. Too low: &lt;<strong>40</strong> mg/dL (men), &lt;<strong>50</strong> mg/dL (women). We don’t “chase” very high HDL with pills — the whole profile matters. <span class="pill">ACC</span></li>
           <li><strong>TG</strong> (triglycerides) — fats circulating in blood. Good &lt;<strong>150</strong> mg/dL; borderline/high <strong>150–499</strong>; very high <strong>≥500</strong> (pancreatitis risk → urgent management). <span class="pill">ACC</span></li>
-          <li><strong>TC</strong> (total cholesterol) — use as supportive only; LDL-C and the indices below are more informative. <span class="pill">ESC/EAS</span></li>
+          <li><strong>TC</strong> (total cholesterol) — supportive only; LDL-C and the indices below are more informative. <span class="pill">ESC/EAS</span></li>
         </ul>
 
         <h3>Two extremely useful indices you can calculate yourself</h3>
@@ -103,55 +112,46 @@
 
         <h3>1) Food: change the <em>type</em> of fat, not just “eat less fat”</h3>
 
-<div class="chips">
-  <!-- SFA chip -->
-  <details class="pop">
-    <summary>Saturated fats</summary>
-    <div class="popover">
-      <div class="small">
-        <strong>SFA</strong> most abundant in: fatty red meats, full-fat cheese, butter/cream, palm/coconut fats.
-        Focus on swapping SFA <em>out</em> rather than adding “superfoods”.
-      </div>
-    </div>
-  </details>
+        <div class="chips">
+          <!-- SFA chip -->
+          <details class="pop">
+            <summary>Saturated fats</summary>
+            <div class="popover">
+              <div class="small">
+                <strong>SFA</strong> most abundant in: fatty cuts of red meat, full-fat cheese, butter/cream, palm/coconut fats.
+                Focus on swapping SFA <em>out</em> rather than adding “superfoods”.
+              </div>
+            </div>
+          </details>
 
-  <!-- separator -->
-  <span class="chip-sep">
-    <span class="arrow">→</span>
-    swap to
-    <span class="arrow">→</span>
-  </span>
+          <!-- separator with text -->
+          <span class="chip-sep">
+            <span class="arrow">→</span>
+            swap to
+            <span class="arrow">→</span>
+          </span>
 
-  <!-- UFA chip -->
-  <details class="pop">
-    <summary>Unsaturated fats</summary>
-    <div class="popover">
-      <div class="small">
-        <strong>MUFA</strong> (olive, canola/rapeseed, high-oleic oils, nuts) and
-        <strong>PUFA</strong> (soy/sunflower/linseed oils, walnuts, fatty fish).
-        Replacing SFA with MUFA/PUFA lowers LDL and ASCVD risk.
-      </div>
-    </div>
-  </details>
+          <!-- UFA chip -->
+          <details class="pop">
+            <summary>Unsaturated fats</summary>
+            <div class="popover">
+              <div class="small">
+                <strong>MUFA</strong> (olive, canola/rapeseed, high-oleic oils, nuts) and <strong>PUFA</strong> (soy/sunflower/linseed oils, walnuts, fatty fish). Replacing SFA → MUFA/PUFA lowers LDL and ASCVD risk.
+              </div>
+            </div>
+          </details>
 
-  <!-- Canola note -->
-  <details class="pop">
-    <summary>Canola oil (MUFA)</summary>
-    <div class="popover">
-      <div class="small">
-        In short: claims that “seed oils cause inflammation” aren’t supported by solid reviews or guidelines —
-        swapping SFA for unsaturated fats (canola/olive/soy) lowers LDL and CVD risk; higher omega-6 intake alone
-        doesn’t raise inflammatory markers. <span class="pill">AHA</span> <span class="pill">ACC</span><br><br>
-        Regulatory view: EU renewed glyphosate approval to 15-Dec-2033 with a pre-harvest desiccation ban; FAO/WHO
-        monitoring shows residues largely within legal limits. Glyphosate is highly polar and remains mainly in meal;
-        studies did not detect it in cold-pressed rapeseed oil. Historic erucic-acid issues concern old cultivars; modern
-        low-erucic varieties comply with strict limits. <span class="pill">EC</span> <span class="pill">FAO/WHO</span>
-        <span class="pill">PMC</span> <span class="pill">EFSA</span>
-      </div>
-    </div>
-  </details>
-</div>
-
+          <!-- Canola note -->
+          <details class="pop">
+            <summary>Canola oil (MUFA)</summary>
+            <div class="popover">
+              <div class="small">
+                In short: claims that “seed oils cause inflammation” aren’t supported by solid reviews or guidelines — swapping SFA for unsaturated fats (canola/olive/soy) lowers LDL and CVD risk; higher omega-6 intake alone doesn’t raise inflammatory markers. <span class="pill">AHA</span> <span class="pill">ACC</span><br><br>
+                Regulatory view: the EU renewed glyphosate approval to 15-Dec-2033 with a desiccation ban; FAO/WHO monitoring shows residues largely within legal limits. Glyphosate is highly polar and remains mainly in meal; studies did not detect it in cold-pressed rapeseed oil. Historical erucic-acid issues concern old cultivars; modern low-erucic varieties meet strict limits. <span class="pill">EC</span> <span class="pill">FAO/WHO</span> <span class="pill">PMC</span> <span class="pill">EFSA</span>
+              </div>
+            </div>
+          </details>
+        </div>
 
         <p class="mb0"><strong>What to prioritise (everyday pattern):</strong></p>
         <ul>
@@ -162,7 +162,7 @@
           <li>Limit: fatty processed meats, full-fat cheeses/butter, ultra-processed sweets and refined carbs.</li>
         </ul>
 
-        <p class="wrap"><strong>5.1 Evidence note:</strong> studies (e.g., Mensink RP, <em>Am J Clin Nutr</em> 2016) show that replacing <strong>5% of energy from SFA</strong> with unsaturated fats lowers <strong>LDL by ≈10%</strong> with no harm to HDL. <span class="pill">AHA</span></p>
+        <p class="wrap"><strong>5.1 Evidence note:</strong> (e.g., Mensink RP, <em>Am J Clin Nutr</em> 2016) — replacing <strong>5% of energy from SFA</strong> with unsaturated fats lowers <strong>LDL by ≈10%</strong> without harming HDL. <span class="pill">AHA</span></p>
 
         <h3>2) Soluble (gel-forming) fibre — daily, from concrete sources</h3>
         <ul>
@@ -195,7 +195,7 @@
           <li>Write down four numbers: <strong>TC, LDL-C, HDL-C, TG</strong>.</li>
           <li>Compute: <strong>non-HDL-C = TC − HDL-C</strong>; <strong>Remnant-C = TC − LDL-C − HDL-C</strong>.</li>
           <li>Traffic-light check (healthy adult, no known high risk): LDL-C &lt;100 good, 100–159 needs work, ≥160 poor; non-HDL-C &lt;130 good, 130–159 needs work, ≥160 poor; TG &lt;150 good, 150–499 needs work, ≥500 very high; HDL-C low if &lt;40 (men) / &lt;50 (women). <span class="pill">ESC/EAS</span> <span class="pill">ACC</span></li>
-          <li>Implement: Mediterranean pattern + SFA→UFA (MUFA/PUFA) swap + daily soluble fibre + WHO activity + alcohol/sugar cut-back.</li>
+          <li>Implement: Mediterranean pattern + SFA→UFA swap + daily soluble fibre + WHO activity + alcohol/sugar cut-back.</li>
           <li>Re-check in 6–12 weeks. If not green: talk to your clinician about next steps (e.g., ezetimibe/statins/PCSK9 as per guidelines and risk).</li>
         </ol>
       </section>
@@ -213,147 +213,12 @@
         </ul>
         <p class="back">← <a href="/en/health.html">Back to Health</a></p>
       </section>
-      <!-- Comments -->
-<div id="br-comments"></div>
 
+      <!-- ONE comments mount point, with EXACT page path -->
+      <div id="br-comments" data-page="/en/health/cholesterol.html"></div>
     </article>
   </main>
 
   <footer>© BriefRooms</footer>
-  <!-- ========= BriefRooms Comments (no-backend, EN) ========= -->
-<style>
-  .brc{margin:22px 0 0}
-  .brc-card{
-    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-    border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px;
-    box-shadow:0 14px 36px -20px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.03);
-  }
-  .brc h3{margin:0 0 10px; font-size:clamp(18px,2.3vw,22px)}
-  .brc-form{display:grid; gap:10px; grid-template-columns:1fr auto}
-  .brc-form input[type="text"]{
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
-    border-radius:10px; padding:10px 12px; color:#e7eef9; width:100%;
-  }
-  .brc-form textarea{
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
-    border-radius:10px; padding:10px 12px; color:#e7eef9; min-height:88px; resize:vertical;
-  }
-  .brc-btn{
-    align-self:start; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
-    background:linear-gradient(180deg,#1a2b42,#152336); color:#e7eef9; cursor:pointer;
-    box-shadow:0 8px 18px rgba(0,0,0,.35);
-  }
-  .brc-list{margin:14px 0 0; padding:0; list-style:none}
-  .brc-item{
-    border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 12px 10px;
-    background:rgba(255,255,255,.04); margin:10px 0;
-  }
-  .brc-meta{display:flex; gap:8px; align-items:center; opacity:.8; font-size:13px; margin-bottom:6px}
-  .brc-name{font-weight:600}
-  .brc-actions{margin-left:auto; display:flex; gap:8px}
-  .brc-link{color:#a8c8ff; text-decoration:none; font-size:13px}
-  .brc-link:hover{text-decoration:underline}
-  .brc-empty{opacity:.7; font-size:14px; margin:10px 0 0}
-  @media (max-width:640px){
-    .brc-form{grid-template-columns:1fr}
-    .brc-btn{width:100%}
-  }
-</style>
-
-<div class="brc" aria-label="Comments">
-  <div class="brc-card">
-    <h3>Comments</h3>
-
-    <!-- form -->
-    <div class="brc-form" id="brc-form">
-      <input type="text" id="brc-name" placeholder="Display name (optional, default: Guest #1234)" />
-      <button class="brc-btn" id="brc-post">Post</button>
-      <textarea id="brc-text" placeholder="Share your thoughts..."></textarea>
-    </div>
-
-    <!-- list -->
-    <ul class="brc-list" id="brc-list" aria-live="polite"></ul>
-    <p class="brc-empty" id="brc-empty" hidden>No comments yet — be the first to comment.</p>
-  </div>
-</div>
-
-<template id="brc-item-tpl">
-  <li class="brc-item">
-    <div class="brc-meta">
-      <span class="brc-name"></span>
-      <span>•</span>
-      <time class="brc-time"></time>
-      <div class="brc-actions">
-        <a href="#" class="brc-link brc-del">Delete</a>
-      </div>
-    </div>
-    <div class="brc-body"></div>
-  </li>
-</template>
-
-<script>
-(function(){
-  const KEY = 'brc:' + location.pathname;      // per-page storage
-  const $ = (sel, root=document) => root.querySelector(sel);
-  const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
-
-  const listEl = $('#brc-list');
-  const emptyEl = $('#brc-empty');
-  const nameEl = $('#brc-name');
-  const textEl = $('#brc-text');
-  const postBtn = $('#brc-post');
-  const tpl = $('#brc-item-tpl');
-
-  function load(){
-    try{ return JSON.parse(localStorage.getItem(KEY)) || [] }catch{ return [] }
-  }
-  function save(data){
-    localStorage.setItem(KEY, JSON.stringify(data));
-  }
-  function guestName(){
-    // pseudo-stable guest id per browser
-    if(!localStorage.getItem('brc:guest')){
-      localStorage.setItem('brc:guest', String(Math.floor(1000 + Math.random()*9000)));
-    }
-    return 'Guest #' + localStorage.getItem('brc:guest');
-  }
-  function render(){
-    const data = load();
-    listEl.innerHTML = '';
-    emptyEl.hidden = data.length > 0;
-    data.forEach(item => {
-      const node = tpl.content.firstElementChild.cloneNode(true);
-      $('.brc-name', node).textContent = item.name || guestName();
-      $('.brc-time', node).textContent = new Date(item.ts).toLocaleString();
-      $('.brc-body', node).textContent = item.text;
-
-      $('.brc-del', node).addEventListener('click', (e)=>{
-        e.preventDefault();
-        const confirmed = confirm('Delete this comment?');
-        if(!confirmed) return;
-        const after = load().filter(x => x.id !== item.id);
-        save(after); render();
-      });
-
-      listEl.appendChild(node);
-    });
-  }
-
-  postBtn.addEventListener('click', ()=>{
-    const text = (textEl.value||'').trim();
-    const name = (nameEl.value||'').trim();
-    if(!text) return;
-    const data = load();
-    data.push({ id: crypto.randomUUID(), ts: Date.now(), name, text });
-    save(data);
-    textEl.value = '';
-    render();
-  });
-
-  render();
-})();
-</script>
-<!-- ========= /BriefRooms Comments ========= -->
-
 </body>
 </html>
