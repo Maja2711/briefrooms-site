@@ -15,30 +15,39 @@
       --door-max: 200px; /* rozmiar drzwi */
     }
 
-    /* === animowane tło morza (lokalne: /assets/sea.gif) === */
-    .bg-sea{
-      position:fixed; inset:0;
-      background:url("/assets/sea.gif") center/cover no-repeat;
-      z-index:-2;
-      pointer-events:none;
-    }
-    /* lekki przyciemniający overlay, by tekst i drzwi były czytelne */
-    .bg-overlay{
-      position:fixed; inset:0;
+    /* Fallbackowe statyczne tło → na html (nie na body) */
+    html{
       background:
-        radial-gradient(1200px 600px at 50% -80px, rgba(8,28,45,.65), rgba(7,30,46,.85) 60%, rgba(6,24,38,.92) 100%),
-        linear-gradient(180deg, rgba(7,30,46,.88), rgba(11,42,64,.92));
-      z-index:-1;
-      pointer-events:none;
+        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
     }
 
-    html,body{
-      height:100%; margin:0; color:var(--txt);
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      /* zostawiamy Twoje statyczne gradienty jako fallback,
-         ale są przykryte .bg-sea + .bg-overlay */
-      background: radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-                  linear-gradient(180deg,var(--bg1),var(--bg2));
+    /* body jest przezroczyste i stanowi kontekst dla warstw */
+    body{
+      height:100%;
+      margin:0;
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      background:transparent;      /* <<< ważne */
+      position:relative;
+    }
+
+    /* TŁO z GIF-a (Twoja nazwa pliku w /assets/) */
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+      opacity:.22;                 /* możesz podbić np. do .28 */
+      z-index:0;                   /* nad html, pod treścią */
+      pointer-events:none;
+    }
+    /* delikatne przyciemnienie dołu */
+    body::after{
+      content:"";
+      position:fixed; left:0; right:0; bottom:0; height:35vh;
+      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+      z-index:1;
+      pointer-events:none;
     }
 
     main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
@@ -88,35 +97,15 @@
       position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
       color:#111;           /* CZARNY */
-      text-shadow:none;     /* bez niebieskiej poświaty */
+      text-shadow:none;     /* bez poświaty */
     }
 
     footer{
       text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
     }
-    /* tło z gifa – używa dokładnie Twojej nazwy pliku */
-body::before{
-  content:"";
-  position:fixed; inset:0;
-  background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-  opacity:.22;                /* możesz zmienić np. na .28 */
-  z-index:-1;
-  pointer-events:none;
-}
-body::after{
-  content:"";
-  position:fixed; left:0; right:0; bottom:0; height:35vh;
-  background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
-  z-index:-1;
-}
-
   </style>
 </head>
 <body>
-  <!-- warstwy tła -->
-  <div class="bg-sea"></div>
-  <div class="bg-overlay"></div>
-
   <main>
     <header>
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
