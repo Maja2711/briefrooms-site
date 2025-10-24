@@ -94,6 +94,22 @@
     footer{
       text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
     }
+    /* tło z gifa – używa dokładnie Twojej nazwy pliku */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+  opacity:.22;                /* możesz zmienić np. na .28 */
+  z-index:-1;
+  pointer-events:none;
+}
+body::after{
+  content:"";
+  position:fixed; left:0; right:0; bottom:0; height:35vh;
+  background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+  z-index:-1;
+}
+
   </style>
 </head>
 <body>
