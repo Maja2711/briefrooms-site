@@ -1,5 +1,79 @@
 <!doctype html>
-<meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=/pl/">
-<title>BriefRooms</title>
-<p>Przekierowanie do <a href="/pl/">/pl/</a>…</p>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <title>BriefRooms — wybór języka</title>
+
+  <!-- SEO / Internationalization -->
+  <link rel="canonical" href="https://briefrooms.com/">
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
+  <meta name="robots" content="noindex,follow">
+
+  <!-- Minimal styling tylko po to, by ładnie wyglądał fallback -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{ color-scheme: light dark; }
+    body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+          display:grid; place-items:center; min-height:100svh; padding:24px;
+          background: linear-gradient(180deg,#0a1626,#08111d); color:#e7eef9; }
+    .card{ max-width:680px; width:100%; padding:20px; border-radius:14px;
+           background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08);
+           box-shadow:0 18px 48px rgba(0,0,0,.35); }
+    h1{ margin:.2em 0 .3em; font-size:clamp(20px,4.5vw,28px) }
+    p{ margin:.4em 0 1em; opacity:.9 }
+    .links{ display:flex; gap:10px; flex-wrap:wrap }
+    .btn{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px;
+          border-radius:10px; text-decoration:none; color:#e7f0ff;
+          background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16) }
+    .btn:hover{ background:rgba(255,255,255,.14) }
+    small{ opacity:.75 }
+  </style>
+
+  <!-- Fallback: jeśli z jakiegoś powodu JS nie wystartuje, po 3 s przenieś na /pl/ -->
+  <meta http-equiv="refresh" content="3; url=/pl/">
+</head>
+<body>
+  <div class="card" role="main" aria-live="polite">
+    <h1>Przekierowanie do odpowiedniej wersji językowej…</h1>
+    <p><small>(Jeśli nic się nie dzieje w kilka sekund, skorzystaj z odnośników poniżej)</small></p>
+    <div class="links">
+      <a class="btn" href="/pl/" hreflang="pl">Polski / PL</a>
+      <a class="btn" href="/en/" hreflang="en">English / EN</a>
+    </div>
+    <p><small>Robots: noindex, follow • hreflang: pl, en, x-default • canonical: /</small></p>
+  </div>
+
+  <script>
+    (function () {
+      // Zmapuj pref. język na folder
+      function mapLangToPath(lang) {
+        if (!lang) return "/pl/";
+        lang = String(lang).toLowerCase();
+        if (lang.startsWith("pl")) return "/pl/";
+        if (lang.startsWith("en")) return "/en/";
+        return "/pl/"; // domyślnie PL
+      }
+
+      // Weź najlepszą kandydaturę z navigator.languages / language
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ""];
+
+      var target = mapLangToPath(langs[0]);
+
+      // Zachowaj query i hash (np. ?ref=… #sekcja)
+      var q = window.location.search || "";
+      var h = window.location.hash   || "";
+
+      // replace() nie zostawia "śmieci" w historii
+      window.location.replace(target + q + h);
+    })();
+  </script>
+
+  <noscript>
+    <!-- Gdy JS wyłączony: zostają linki wyżej + meta refresh do /pl/ -->
+  </noscript>
+</body>
+</html>
