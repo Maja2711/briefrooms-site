@@ -319,5 +319,27 @@ details.pop .popover{
 /* wyjątek: pokaż pływający przycisk kontaktu na stronie głównej */
 body.home > a.contact-fab { display: inline-flex !important; }
 .contact-fab{ z-index: 10000; }
+/* === FIX dla "małej skrzynki" w rogu (FAB) === */
+
+/* 1) Nigdy nie ukrywaj FAB-a, nawet jeśli inne reguły chowają <a> w <body> */
+body > a.contact-fab { 
+  display: inline-flex !important; 
+}
+
+/* 2) Na stronie głównej też ma być widoczny (przebija body.home > a {...}) */
+body.home > a.contact-fab { 
+  display: inline-flex !important; 
+}
+
+/* 3) Na wszelki wypadek podnieś warstwę, żeby był nad wszystkim */
+.contact-fab { 
+  z-index: 10000; 
+}
+
+/* 4) Ukryj duży, stary blok kontaktu (gigantyczna koperta), jeśli gdzieś jest */
+#contact, 
+.contact-hero { 
+  display: none !important; 
+}
 
 
