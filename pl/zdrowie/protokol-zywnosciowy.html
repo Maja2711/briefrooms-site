@@ -151,10 +151,95 @@
     nie pokazują spadku zgonów ani dużych incydentów CVD (wyjątki dotyczą specyficznych pacjentów/leków).</p>
   </section>
 
-<!-- AUTOFAGIA: mini-widget -->
-<div id="autofagia-widget" class="my-6"></div>
+<!-- WIDGET: Autofagia (mini) -->
+<style>
+  /* mini styl tylko dla tego widżetu */
+  .af { margin: 18px 0; }
+  .af-btn{
+    display:inline-flex; align-items:center; gap:10px;
+    font: inherit; color: inherit; background: transparent; border: 0; padding: 0;
+    cursor:pointer;
+  }
+  .af-cube{
+    width:28px; height:28px; border-radius:8px;
+    background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
+    border:1px solid rgba(255,255,255,.22);
+    box-shadow: 0 8px 16px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.06);
+    transform: rotateX(-8deg) rotateY(-10deg);
+    transition: transform .35s ease, box-shadow .35s ease, background .35s ease;
+  }
+  .af-btn[aria-expanded="true"] .af-cube{
+    transform: rotateX(6deg) rotateY(12deg);
+    box-shadow: 0 10px 22px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.08);
+    background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
+  }
+  .af-label{ font-weight:600; letter-spacing:.1px; }
+  .af-panel{
+    margin-top:12px; border:1px solid rgba(255,255,255,.14); border-radius:14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    box-shadow: 0 12px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05);
+    overflow:hidden;
+  }
+  .af-inner{ padding:14px 16px; }
+  .af-inner ul{ margin:8px 0 0 18px }
+  .af-inner li{ margin:6px 0; }
+  /* jaśniejsze, bardziej czytelne linki źródeł na ciemnym tle */
+  .af-sources a{
+    color:#a8c8ff; text-decoration: underline;
+  }
+  .af-sources a:hover{ color:#cfe0ff; }
+</style>
 
-<!-- ETAPY ŻYCIA -->
+<div class="af" id="af">
+  <!-- wiersz: mała kostka + krótki podpis w stylu artykułu -->
+  <button class="af-btn" type="button" aria-expanded="false" aria-controls="af-panel">
+    <span class="af-cube" aria-hidden="true"></span>
+    <span class="af-label">Autofagia — kliknij</span>
+  </button>
+
+  <!-- panel z treścią -->
+  <div id="af-panel" class="af-panel" hidden>
+    <div class="af-inner">
+      <ul>
+        <li>Mechanizm <strong>autofagii</strong> jest dobrze ugruntowany biologicznie (Nagroda Nobla 2016).</li>
+        <li>U ludzi <em>IF</em> / umiarkowana CR poprawiają głównie <strong>markery metaboliczne</strong>
+            (masa ciała, ciśnienie, lipidy, glikemia) w badaniach randomizowanych.</li>
+        <li>Bezpośrednia aktywacja autofagii w tkankach człowieka jest <strong>zależna od tkanki i czasu</strong>
+            – np. po 36&nbsp;h postu w mięśniu obserwowano niewielkie zmiany; w innych protokołach (np. IF w Ramadanie)
+            rośnie ekspresja genów związanych z autofagią (wskaźniki pośrednie).</li>
+        <li>Brak twardych dowodów, że IF/CR <strong>wydłuża życie ludzi</strong> (brak długich RCT ze śmiertelnością jako
+            punktem końcowym).</li>
+      </ul>
+
+      <div class="af-sources" style="margin-top:10px; font-size:.95em">
+        <strong>Źródła:</strong>
+        Nobel 2016 – <a href="https://www.nobelprize.org/prizes/medicine/2016/press-release/" target="_blank" rel="noreferrer">press</a>,
+        <a href="https://www.nobelprize.org/prizes/medicine/2016/advanced-information/" target="_blank" rel="noreferrer">advanced</a>;
+        36 h postu / biopsje mięśni: <a href="https://pubmed.ncbi.nlm.nih.gov/30161009/" target="_blank" rel="noreferrer">PubMed</a>;
+        IF (Ramadan) – ekspresja genów: <a href="https://pubmed.ncbi.nlm.nih.gov/39542136/" target="_blank" rel="noreferrer">PubMed</a>;
+        Umbrella review IF (RCT): <a href="https://www.thelancet.com/journals/eclinm/article/PIIS2589-53702400098-1/fulltext" target="_blank" rel="noreferrer">EClinicalMedicine</a>;
+        CR – CALERIE (2 lata): <a href="https://pubmed.ncbi.nlm.nih.gov/26187233/" target="_blank" rel="noreferrer">Ravussin 2015</a>,
+        <a href="https://pubmed.ncbi.nlm.nih.gov/31303390/" target="_blank" rel="noreferrer">Kraus 2019</a>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // otwieranie/zamykanie (bez zależności) – działa z wieloma widżetami na stronie
+  document.querySelectorAll('.af-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      const panel = document.getElementById(btn.getAttribute('aria-controls'));
+      btn.setAttribute('aria-expanded', String(!expanded));
+      if(panel){
+        panel.hidden = expanded;
+      }
+    });
+  });
+</script>
+<!-- /WIDGET: Autofagia (mini) -->
+
 
   <!-- ETAPY ŻYCIA -->
   <section id="etapy" class="card">
