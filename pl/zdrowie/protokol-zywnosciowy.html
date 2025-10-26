@@ -322,6 +322,28 @@
   text-underline-offset:2px !important;
 }
 .af-sources a:hover{ color:#075e39 !important; }
+/* --- Mobile fix: białe tło przycisku na telefonach --- */
+.af-btn{
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e9f8ef !important;       /* jasna zieleń */
+  background-color: #e9f8ef !important;  /* fallback */
+  color: #0f5132 !important;             /* ciemno-zielony tekst */
+  border: 1px solid #b7ebc6 !important;
+}
+
+/* panel – jawne tło (czasem UA nadpisuje gradienty) */
+.af-panel{
+  background: linear-gradient(180deg,#eefaf3,#e7f8ef) !important;
+  background-color: #e7f8ef !important;
+}
+
+/* drobne dopasowanie pod małe ekrany */
+@media (max-width: 640px){
+  .af-btn{ padding: 8px 10px; border-radius: 8px; }
+  .af-label{ font-size: .95rem; }
+  .af-cube{ width: 22px; height: 22px; border-radius: 6px; }
+}
 
 </style>
 
