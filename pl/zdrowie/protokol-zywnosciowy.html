@@ -346,6 +346,38 @@
   .af-label{ font-size: .95rem; }
   .af-cube{ width: 22px; height: 22px; border-radius: 6px; }
 }
+/* --- iOS/Safari mobile fix: buttonface nadpisuje nasze tło --- */
+.af .af-btn,
+button.af-btn{
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: none !important;
+  background: #e9f8ef !important;        /* jasna zieleń */
+  background-color: #e9f8ef !important;   /* fallback */
+  border: 1px solid #b7ebc6 !important;
+  color: #0f5132 !important;
+  box-shadow: 0 6px 18px rgba(16,103,54,.12) !important;
+}
+
+/* upewnij się, że tekst i „kostka” biorą kolor/tło z przycisku */
+.af .af-btn *{ color: inherit !important; }
+.af .af-cube{
+  background: linear-gradient(135deg,#dff7e9,#c9f0db) !important;
+  border:1px solid #a9e1bf !important;
+  box-shadow: inset 0 1px 0 #ffffffaa, 0 1px 6px rgba(16,103,54,.15) !important;
+}
+
+/* panel po rozwinięciu (jawne tło – bez gradientu UA) */
+.af .af-panel{
+  background: #e7f8ef !important;
+  border: 1px solid #b7ebc6 !important;
+}
+/* Android/Chromium — wyłącz podświetlenie dotyku i trzymaj kolory w dark mode */
+.af .af-btn{ -webkit-tap-highlight-color: transparent; }
+@media (prefers-color-scheme: dark){
+  .af .af-btn{ background:#e9f8ef !important; color:#0f5132 !important; }
+  .af .af-panel{ background:#e7f8ef !important; }
+}
 
 </style>
 
