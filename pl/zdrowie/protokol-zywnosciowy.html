@@ -63,6 +63,9 @@
   </script>
 
   <!-- GŁÓWNY CSS STRONY -->
+  <!-- Tailwind w trybie CDN (wystarczy do widgetu) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
   <link rel="stylesheet" href="/assets/site.css">
 
   <!-- LEKKIE DOPKI (możesz usunąć, jeśli niepotrzebne) -->
@@ -147,6 +150,11 @@
     dowodów na wydłużenie życia u ludzi. Podobnie suplementy „na long-life”: u zdrowych dorosłych duże próby
     nie pokazują spadku zgonów ani dużych incydentów CVD (wyjątki dotyczą specyficznych pacjentów/leków).</p>
   </section>
+
+<!-- AUTOFAGIA: mini-widget -->
+<div id="autofagia-widget" class="my-6"></div>
+
+<!-- ETAPY ŻYCIA -->
 
   <!-- ETAPY ŻYCIA -->
   <section id="etapy" class="card">
@@ -312,6 +320,139 @@
   const a = document.getElementById('tweet-this');
   if (a) a.href = share;
 })();
+</script>
+<!-- React + ReactDOM (UMD) -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+<!-- Babel do parsowania JSX w przeglądarce (wygodne, bez procesu build) -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Twój komponent w JSX (bez importów, bez export default) -->
+<script type="text/babel">
+function AutofagiaWidget(){
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className="min-h-[60vh] w-full grid place-items-center bg-white">
+      <div className="w-full max-w-xl p-4">
+        <p className="text-sm text-gray-600 mb-3">
+          Kontekst zdania z wstępu: <em>„IF (intermittent fasting, post przerywany) poprawia masę ciała i część
+          wskaźników metabolicznych w RCT, ale nie ma twardych dowodów na wydłużenie życia u ludzi.”</em>
+        </p>
+
+        {/* Interaktywny kafelek 3D */}
+        <div className="flex items-center gap-4">
+          <button
+            aria-expanded={open}
+            aria-controls="autofagia-panel"
+            onClick={() => setOpen(!open)}
+            className="relative select-none"
+            title="Kliknij, aby rozwinąć opis ze źródłami"
+          >
+            <div className="[perspective:800px]">
+              <div
+                className={[
+                  "h-20 w-20 grid place-items-center rounded-xl shadow-lg cursor-pointer",
+                  "bg-gradient-to-br from-gray-50 to-gray-200 border border-gray-300",
+                  "[transform-style:preserve-3d] transition-transform duration-500",
+                  open ? "rotate-x-6 rotate-y-12" : "-rotate-x-6 -rotate-y-6",
+                ].join(" ")}
+              >
+                <span
+                  className="text-[11px] font-semibold uppercase tracking-wide text-gray-700 [transform:translateZ(8px)]"
+                  style={{ textShadow: "0 1px 0 rgba(255,255,255,0.6)" }}
+                >
+                  autofagia
+                </span>
+                <span className="absolute inset-0 rounded-xl bg-black/5 [transform:translateZ(-10px)]"/>
+              </div>
+            </div>
+          </button>
+
+          <div className="text-sm text-gray-700">
+            <strong>Kliknij kostkę</strong> — rozwinie się „Wniosek w pigułce” ze źródłami.
+          </div>
+        </div>
+
+        {/* Panel rozwijany */}
+        <div
+          id="autofagia-panel"
+          className={[
+            "overflow-hidden border border-gray-200 rounded-2xl mt-4 shadow-sm",
+            open ? "max-h-[2000px]" : "max-h-0",
+            "transition-[max-height] duration-500 ease-in-out",
+          ].join(" ")}
+        >
+          <div className="p-5 bg-gray-50">
+            <h3 className="text-base font-semibold mb-2">Wniosek w pigułce</h3>
+            <ul className="list-disc pl-5 space-y-2 text-gray-800 leading-relaxed">
+              <li>
+                Mechanizm <strong>autofagii</strong> jest dobrze ugruntowany biologicznie (Nagroda Nobla 2016).
+                Głodzenie i deficyt energii należą do klasycznych wyzwalaczy na poziomie komórkowym.
+              </li>
+              <li>
+                U ludzi <em>IF</em> i restrykcja kalorii poprawiają przede wszystkim <strong>markery metaboliczne</strong>
+                (masa ciała, ciśnienie, lipidy, glikemia) w badaniach randomizowanych — to mocny, powtarzalny sygnał.
+              </li>
+              <li>
+                Bezpośrednia aktywacja autofagii w różnych tkankach człowieka jest <strong>zależna od tkanki, czasu i
+                kontekstu</strong>. Np. po 36 h postu w mięśniu szkieletowym odnotowano jedynie skromne zmiany markerów,
+                podczas gdy inne protokoły (np. dłuższy post/IF dobowy w Ramadanie) pokazują wzrost ekspresji genów
+                związanych z autofagią — to jednak <em>pośrednie</em> wskaźniki.
+              </li>
+              <li>
+                Na dziś <strong>brakuje twardych dowodów</strong>, że IF/CR wydłuża życie ludzi (brak długich prób z punktami
+                końcowymi w postaci śmiertelności). W modelach zwierzęcych — owszem, efekty wydłużenia życia są
+                udokumentowane, ale nie przekładają się automatycznie na ludzi.
+              </li>
+            </ul>
+
+            <div className="mt-4 text-sm">
+              <h4 className="font-semibold mb-1">Źródła (wybór):</h4>
+              <ul className="list-none space-y-1">
+                <li>
+                  Nobel 2016 — Ohsumi, mechanizmy autofagii:{" "}
+                  <a className="underline text-blue-700" href="https://www.nobelprize.org/prizes/medicine/2016/press-release/" target="_blank" rel="noreferrer">nobelprize.org (press)</a>{" | "}
+                  <a className="underline text-blue-700" href="https://www.nobelprize.org/prizes/medicine/2016/advanced-information/" target="_blank" rel="noreferrer">advanced info</a>
+                </li>
+                <li>
+                  36 h postu a autofagia w mięśniu (biopsje, ludzie):{" "}
+                  <a className="underline text-blue-700" href="https://pubmed.ncbi.nlm.nih.gov/30161009/" target="_blank" rel="noreferrer">PubMed (Dethlefsen 2018)</a>{" | "}
+                  <a className="underline text-blue-700" href="https://journals.physiology.org/doi/abs/10.1152/japplphysiol.01146.2017" target="_blank" rel="noreferrer">J Appl Physiol</a>
+                </li>
+                <li>
+                  IF w Ramadanie a ekspresja genów autofagii (ludzie):{" "}
+                  <a className="underline text-blue-700" href="https://pubmed.ncbi.nlm.nih.gov/39542136/" target="_blank" rel="noreferrer">PubMed (2025)</a>{" | "}
+                  <a className="underline text-blue-700" href="https://www.sciencedirect.com/science/article/abs/pii/S2405457724015109" target="_blank" rel="noreferrer">Clin Nutr ESPEN</a>
+                </li>
+                <li>
+                  IF — umbrella review RCT (metabolizm, brak danych o przeżyciu):{" "}
+                  <a className="underline text-blue-700" href="https://www.thelancet.com/journals/eclinm/article/PIIS2589-53702400098-1/fulltext" target="_blank" rel="noreferrer">EClinicalMedicine / The Lancet (2024)</a>{" | "}
+                  <a className="underline text-blue-700" href="https://pubmed.ncbi.nlm.nih.gov/38500840/" target="_blank" rel="noreferrer">PubMed</a>
+                </li>
+                <li>
+                  CR — RCT u zdrowych dorosłych (CALERIE, 2 lata):{" "}
+                  <a className="underline text-blue-700" href="https://pubmed.ncbi.nlm.nih.gov/26187233/" target="_blank" rel="noreferrer">PubMed (Ravussin 2015)</a>{" | "}
+                  <a className="underline text-blue-700" href="https://pubmed.ncbi.nlm.nih.gov/31303390/" target="_blank" rel="noreferrer">PubMed (Kraus 2019)</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-gray-500">
+          Uwaga: Ten widget ma charakter informacyjny i nie zastępuje porady lekarskiej.
+          IF = intermittent fasting (post przerywany), CR = caloric restriction (restrykcja kaloryczna).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// render do placeholdera
+const root = ReactDOM.createRoot(document.getElementById('autofagia-widget'));
+root.render(<AutofagiaWidget />);
 </script>
 
 </body>
