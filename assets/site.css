@@ -430,5 +430,69 @@ body.home > a.contact-fab {
   .card .toc li a{ padding: 12px; }
   .card .toc li::before{ flex-basis: 26px; height: 26px; }
 }
+/* ====== KONTRAST TEKSTU + AKCENTY (BriefRooms: dark) ====== */
+:root{
+  --br-text-strong: #eef4f8;   /* biały, ale nie „przepalony” */
+  --br-text-body:   #d6e1e8;   /* główny kolor akapitów */
+  --br-text-mute:   #b3c2cd;   /* opisy, drobne napisy */
+  --br-link:        #86c5ff;   /* linki (niebieski, czytelny) */
+  --br-link-hover:  #aee0ff;
+  --br-accent:      #7ae0b8;   /* miękka zieleń – akcenty */
+  --br-accent-2:    #ffd166;   /* żółty do lekkiego wyróżniania */
+  --br-card-bg:     rgba(255,255,255,.055); /* karty – tło */
+  --br-card-bg-2:   rgba(255,255,255,.035); /* karty – naprzemiennie */
+}
+
+/* Tekst bazowy */
+body { color: var(--br-text-body); }
+p, li { color: var(--br-text-body); }
+small, .sub, .lead { color: var(--br-text-mute); }
+
+/* Nagłówki: trochę jaśniejsze, żeby „trzymały” sekcje wzrokiem */
+h1, h2, h3 { color: var(--br-text-strong); }
+h2 { text-shadow: 0 1px 0 rgba(255,255,255,.06); }
+h3 { color: #e3edf4; }
+
+/* Linki czytelniejsze i z wyraźnym hoverem */
+a { color: var(--br-link); text-decoration-color: rgba(134,197,255,.5); }
+a:hover { color: var(--br-link-hover); text-decoration-color: var(--br-link-hover); }
+
+/* Wyróżnienia w tekście – zamiast ostrej żółci delikatny akcent */
+b, strong { color: var(--br-text-strong); }
+em { color: var(--br-accent); font-style: normal; }
+
+/* Karty/sekcje – subtelne urozmaicenie tła co drugą kartę */
+.card { background: var(--br-card-bg); }
+.card:nth-of-type(2n){ background: var(--br-card-bg-2); }
+
+/* Spis treści – zachęca do kliknięcia: jaśniejsze linki i bullets */
+#spis a { color: var(--br-link); }
+#spis a:hover { color: var(--br-link-hover); }
+#spis ol, #spis ul { 
+  --dot: var(--br-accent);
+}
+#spis li::marker { color: var(--dot); }
+
+/* Drobne akcenty w nawiasach/etykietach, żeby rozbić monotonię */
+.badge, .label, .pill {
+  color:#0e1b25; background: var(--br-accent);
+  padding:.12rem .45rem; border-radius:.5rem;
+}
+
+/* Widget autofagii – spójny z prośbą o „jasnozielone” tło */
+.af-btn, .af-panel {
+  background: rgba(122,224,184,.12);
+  border-color: rgba(122,224,184,.35);
+}
+.af-label { color: var(--br-accent); }
+.af-sources a { color: #bfeeff; }
+.af-sources a:hover { color:#e4f7ff; }
+
+/* Cytaty / callout – lekkie przełamanie kolorystyczne */
+blockquote {
+  color: #e9f1f6;
+  border-left: 3px solid var(--br-accent);
+  background: rgba(122,224,184,.06);
+}
 
 
