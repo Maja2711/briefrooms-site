@@ -322,6 +322,36 @@
   text-underline-offset:2px !important;
 }
 .af-sources a:hover{ color:#075e39 !important; }
+  /* --- KONTRAST PANELU AUTOFAGIA (mobile/desktop) --- */
+.af-panel .af-inner,
+.af-panel .af-inner *{
+  color:#0f2e1f !important;       /* ciemny, wyraźny tekst */
+  opacity:1 !important;           /* zdejmij ewentualne półprzezroczystości */
+  text-shadow:none !important;    /* bez rozmycia, czytelniej na zielonym tle */
+  mix-blend-mode:normal !important;
+}
+
+.af-panel strong{ color:#0d3a27 !important; }
+.af-panel em{ color:#144b34 !important; }
+.af-panel a{
+  color:#0b6841 !important;
+  text-decoration:underline !important;
+  text-underline-offset:2px !important;
+}
+.af-panel a:hover{ color:#075c38 !important; }
+
+/* drobne dostrojenie pod małe ekrany */
+@media (max-width: 520px){
+  .af-panel .af-inner{ font-size:1.02rem; line-height:1.55; }
+}
+
+/* iOS/Android: wyłącz podświetlenie tap i pilnuj kolorów w dark mode */
+.af .af-btn{ -webkit-tap-highlight-color:transparent; }
+@media (prefers-color-scheme: dark){
+  .af .af-btn{ background:#e9f8ef !important; color:#0f5132 !important; }
+  .af .af-panel{ background:linear-gradient(180deg,#eefaf3,#e7f8ef) !important; }
+}
+
 /* --- Mobile fix: białe tło przycisku na telefonach --- */
 .af-btn{
   -webkit-appearance: none;
