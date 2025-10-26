@@ -86,7 +86,39 @@
     h3{ margin:12px 0 6px }
     .sources ul{ margin:8px 0 8px 20px }
     .tagline{ margin:6px 0 0; color:#b9c5d8; font-size:.96rem }
-  </style>
+   
+  /* Paleta i kontrast */
+  :root{
+    --br-text-strong:#eef4f8;
+    --br-text-body:#d6e1e8;
+    --br-link:#86c5ff;
+    --br-link-hover:#aee0ff;
+    --br-accent:#7ae0b8;
+  }
+  body{ color:var(--br-text-body) !important; }
+  h1,h2,h3{ color:var(--br-text-strong) !important; }
+
+  /* SPIS TREŚCI (u Ciebie .toc, nie #spis) */
+  .toc a{
+    color:var(--br-link) !important;
+    text-decoration:underline;
+    text-underline-offset:2px;
+    text-decoration-color:rgba(134,197,255,.5);
+    display:inline-block;
+    padding:.25rem .45rem;
+    border-radius:.4rem;
+    transition:background .2s ease,color .2s ease;
+  }
+  .toc a:hover{
+    color:var(--br-link-hover) !important;
+    background:rgba(134,197,255,.10);
+  }
+  .toc li::marker{ color:var(--br-accent); }
+
+  /* Linki w treści – czytelniejsze */
+  main a{ color:var(--br-link); }
+  main a:hover{ color:var(--br-link-hover); }
+</style>
 </head>
 <body>
 
