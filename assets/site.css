@@ -494,5 +494,47 @@ blockquote {
   border-left: 3px solid var(--br-accent);
   background: rgba(122,224,184,.06);
 }
+<style>
+/* === Health tiles === */
+.health-grid{ display:grid; gap:18px; }
+@media (min-width: 720px){ .health-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+.topic-card{
+  position:relative; display:block; text-decoration:none; color:#e7eef9;
+  padding:18px 20px 22px; min-height:260px;
+  border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
+  transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.topic-card:hover{
+  transform:translateY(-2px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 16px 34px rgba(0,0,0,.28);
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+}
+.topic-card h3{
+  margin:0 0 8px; font-size:1.25rem; line-height:1.35; color:#eef4f8; letter-spacing:.1px;
+}
+.topic-card .tags{
+  margin:0 0 10px; font-size:.92rem; color:#9fc1ff;
+}
+.topic-card .blurb{
+  margin:0; max-width:50ch; color:#d6e1e8; line-height:1.55;
+}
+
+/* „New” badge */
+.badge-new{
+  position:absolute; top:14px; left:14px;
+  display:inline-flex; align-items:center; justify-content:center;
+  height:28px; padding:0 12px; border-radius:9999px;
+  font-weight:700; font-size:.85rem; letter-spacing:.2px;
+  background:rgba(134,197,255,.18); border:1px solid rgba(134,197,255,.35); color:#d7e6ff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px rgba(0,0,0,.22);
+}
+
+/* opcjonalnie: wyrównaj siatkę tak jak cholesterol */
+.topic-stack{ display:flex; flex-direction:column; gap:22px; }
+</style>
 
 
