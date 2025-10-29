@@ -1,0 +1,35 @@
+name: Build EN news page (daily)
+
+on:
+  schedule:
+    - cron: "20 4 * * *"  # codziennie ~04:20 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install feedparser
+
+      - name: Generate EN news
+        run: |
+          python scripts/fetch_news_en.py
+
+      - name: Commit & push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(news-en): auto-update daily news"
+          branch: main
