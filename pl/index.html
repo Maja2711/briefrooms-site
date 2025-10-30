@@ -75,9 +75,13 @@
     .lead a{color:var(--accent); text-decoration:none}
     .lead a:hover{text-decoration:underline}
 
-    .grid{display:grid; gap:22px; grid-template-columns:repeat(3,1fr); margin-top:22px}
-    @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media (max-width:620px){.grid{grid-template-columns:1fr}}
+    .grid{
+  display:grid;
+  gap:22px;
+  grid-template-columns:repeat(4,1fr);   /* było 3 */
+  margin-top:22px
+}
+
 
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
@@ -146,52 +150,55 @@ body::after{
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
       <p class="lead">Kliknij w drzwi, aby wejść do działu. English? <a href="/en/">Go to EN version</a></p>
     </header>
-    <section class="grid">
-      <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
-        <div class="door">
-          <span class="frame"></span>
-          <span class="panel p1"></span>
-          <span class="panel p2"></span>
-          <span class="panel p3"></span>
-          <span class="knob"></span>
-          <span class="label">Geopolityka</span>
-        </div>
-      </a>
+  <section class="grid">
+  <!-- 1. Aktualności -->
+  <a class="card" href="/pl/aktualnosci.html" aria-label="Aktualności">
+    <div class="door">
+      <span class="frame"></span>
+      <span class="panel p1"></span>
+      <span class="panel p2"></span>
+      <span class="panel p3"></span>
+      <span class="knob"></span>
+      <span class="label">Aktualności</span>
+    </div>
+  </a>
 
-      <a class="card" href="/pl/zdrowie.html" aria-label="Zdrowie">
-        <div class="door">
-          <span class="frame"></span>
-          <span class="panel p1"></span>
-          <span class="panel p2"></span>
-          <span class="panel p3"></span>
-          <span class="knob"></span>
-          <span class="label">Zdrowie</span>
-        </div>
-      </a>
+  <!-- 2. Geopolityka -->
+  <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
+    <div class="door">
+      <span class="frame"></span>
+      <span class="panel p1"></span>
+      <span class="panel p2"></span>
+      <span class="panel p3"></span>
+      <span class="knob"></span>
+      <span class="label">Geopolityka</span>
+    </div>
+  </a>
 
-      <a class="card" href="/pl/nauka.html" aria-label="Nauka">
-        <div class="door">
-          <span class="frame"></span>
-          <span class="panel p1"></span>
-          <span class="panel p2"></span>
-          <span class="panel p3"></span>
-          <span class="knob"></span>
-          <span class="label">Nauka</span>
-        </div>
-      </a>
+  <!-- 3. Zdrowie -->
+  <a class="card" href="/pl/zdrowie.html" aria-label="Zdrowie">
+    <div class="door">
+      <span class="frame"></span>
+      <span class="panel p1"></span>
+      <span class="panel p2"></span>
+      <span class="panel p3"></span>
+      <span class="knob"></span>
+      <span class="label">Zdrowie</span>
+    </div>
+  </a>
 
-      <!-- NOWE DRZWI: Aktualności -->
-      <a class="card" href="/pl/aktualnosci.html" aria-label="Aktualności">
-        <div class="door">
-          <span class="frame"></span>
-          <span class="panel p1"></span>
-          <span class="panel p2"></span>
-          <span class="panel p3"></span>
-          <span class="knob"></span>
-          <span class="label">Aktualności</span>
-        </div>
-      </a>
-    </section>
+  <!-- 4. Nauka -->
+  <a class="card" href="/pl/nauka.html" aria-label="Nauka">
+    <div class="door">
+      <span class="frame"></span>
+      <span class="panel p1"></span>
+      <span class="panel p2"></span>
+      <span class="panel p3"></span>
+      <span class="knob"></span>
+      <span class="label">Nauka</span>
+    </div>
+  </a>
+</section>
   </main>
 
   <footer>© BriefRooms</footer>
