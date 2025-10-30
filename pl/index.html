@@ -22,153 +22,157 @@
   <meta name="twitter:site" content="@TwojeKonto">
 
   <style>
-    :root{
-      --bg1:#071e2e; --bg2:#0b2a40;
-      --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
-      --door:#3a2417; --door2:#2b1a10;
-      --panel:#512f1d; --panel2:#3c2416;
-      --accent:#9ed2ff;
-      --door-max: 200px; /* bazowy max szerokości drzwi */
-    }
+  :root{
+    --bg1:#071e2e; --bg2:#0b2a40;
+    --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
+    --door:#3a2417; --door2:#2b1a10;
+    --panel:#512f1d; --panel2:#3c2416;
+    --accent:#9ed2ff;
+    --door-max: 200px; /* domyślny max drzwi na duże ekrany */
+  }
 
-    /* tło */
-    html{
-      background:
-        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-        linear-gradient(180deg,var(--bg1),var(--bg2));
-    }
-    body{
-      height:100%;
-      margin:0;
-      color:var(--txt);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      background:transparent;
-      position:relative;
-    }
-    body::before{
-      content:"";
-      position:fixed; inset:0;
-      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-      opacity:.22;
-      z-index:0;
-      pointer-events:none;
-    }
-    body::after{
-      content:"";
-      position:fixed; left:0; right:0; bottom:0; height:35vh;
-      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
-      z-index:1;
-      pointer-events:none;
-    }
+  /* tło na html */
+  html{
+    background:
+      radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+      linear-gradient(180deg,var(--bg1),var(--bg2));
+  }
 
-    main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
-    header{text-align:center; margin:8px 0 24px}
-    h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
-    .lead{margin:0; color:var(--muted)}
-    .lead a{color:var(--accent); text-decoration:none}
-    .lead a:hover{text-decoration:underline}
+  /* body przezroczyste, nałożymy GIF-a */
+  body{
+    height:100%;
+    margin:0;
+    color:var(--txt);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    background:transparent;
+    position:relative;
+  }
 
-    /* GRID DRZWI
-       - mobile: 1 kolumna
-       - >620px: 2 kolumny
-       - >980px: 4 kolumny (jak chciałeś)
-    */
+  /* GIF w tle */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+    opacity:.22;
+    z-index:0;
+    pointer-events:none;
+  }
+  /* przyciemnienie dołu */
+  body::after{
+    content:"";
+    position:fixed; left:0; right:0; bottom:0; height:35vh;
+    background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+    z-index:1;
+    pointer-events:none;
+  }
+
+  main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
+  header{text-align:center; margin:8px 0 24px}
+  h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
+  .lead{margin:0; color:var(--muted)}
+  .lead a{color:var(--accent); text-decoration:none}
+  .lead a:hover{text-decoration:underline}
+
+  /* GRID DRZWI
+     - mobile: 1 kolumna
+     - >=620px: 2 kolumny
+     - >=980px: 4 kolumny
+  */
+  .grid{
+    display:grid;
+    gap:22px;
+    grid-template-columns:1fr;  /* mobile: po kolei w dół */
+    margin-top:22px;
+  }
+  @media (min-width: 620px){
     .grid{
-      display:grid;
-      gap:22px;
-      grid-template-columns:1fr;  /* mobile: po kolei w dół */
-      margin-top:22px;
+      grid-template-columns:repeat(2, 1fr);
     }
-    @media (min-width: 620px){
-      .grid{
-        grid-template-columns:repeat(2, 1fr);
-      }
+  }
+  @media (min-width: 980px){
+    .grid{
+      grid-template-columns:repeat(4, 1fr);
     }
-    @media (min-width: 980px){
-      .grid{
-        grid-template-columns:repeat(4, 1fr);
-      }
-    }
+  }
 
-    .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-      border:1px solid var(--line); border-radius:20px; padding:18px;
-      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
-      display:flex; justify-content:center; align-items:center;
-      transition:transform .12s ease, box-shadow .12s ease;
-      text-decoration:none; color:inherit;
-      min-height:240px; /* żeby drzwi nie były przyduszone */
-    }
-    .card:hover{
-      transform:translateY(-3px);
-      box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
-    }
-
-    /* DRZWI */
-    .door{
-      width:min(var(--door-max), 80%);
-      aspect-ratio: 3 / 5;
-      background:linear-gradient(180deg,var(--door),var(--door2));
-      border-radius:16px; border:1px solid rgba(0,0,0,.45);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
-      position:relative; display:block; color:inherit;
-    }
-    .door .frame{
-      position:absolute; inset:14px; border-radius:12px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
-    }
-    .panel{
-      position:absolute; left:26px; right:26px; height:16%;
-      background:linear-gradient(180deg,var(--panel),var(--panel2));
-      border-radius:10px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-    }
-    .panel.p1{top:56px}
-    .panel.p2{top:calc(50% - 8%)}
-    .panel.p3{bottom:56px}
-    .knob{
-      position:absolute; right:14px; top:50%; transform:translateY(-50%);
-      width:12px; height:12px; border-radius:50%;
-      background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
-      box-shadow:0 2px 8px rgba(0,0,0,.5)
-    }
-
-    /* napis */
-    .label{
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
-      color:#000;
-      text-shadow:0 1px 0 rgba(255,255,255,.25);
-      background:rgba(255,255,255,.08);
-      padding:.15em .5em;
-      border-radius:8px;
-    }
-
-    /* mobilki – upewniamy się, że drzwi są wyśrodkowane i nie za małe */
-   @media (max-width: 619px){
   .card{
-    min-height: 250px;           /* troszkę wyższa karta */
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+    border:1px solid var(--line); border-radius:20px; padding:18px;
+    box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+    display:flex; justify-content:center; align-items:center;
+    transition:transform .12s ease, box-shadow .12s ease;
+    text-decoration:none; color:inherit;
+    min-height:240px; /* żeby drzwi nie były przyduszone */
   }
+  .card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+
+  /* DRZWI */
   .door{
-    width: min(210px, 100%);      /* było 190px → daj 210px */
-    max-width: 210px;
-    margin: 0 auto;
+    width:min(var(--door-max), 80%);
+    aspect-ratio: 3 / 5;
+    background:linear-gradient(180deg,var(--door),var(--door2));
+    border-radius:16px; border:1px solid rgba(0,0,0,.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
+    position:relative; display:block; color:inherit;
   }
+  .door .frame{
+    position:absolute; inset:14px; border-radius:12px;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
+  }
+  .panel{
+    position:absolute; left:26px; right:26px; height:16%;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border-radius:10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .panel.p1{top:56px}
+  .panel.p2{top:calc(50% - 8%)}
+  .panel.p3{bottom:56px}
+  .knob{
+    position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    width:12px; height:12px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
+    box-shadow:0 2px 8px rgba(0,0,0,.5)
+  }
+
+  /* napis */
   .label{
-    background:rgba(255,255,255,.12);
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
+    color:#000;
+    text-shadow:0 1px 0 rgba(255,255,255,.25);
+    background:rgba(255,255,255,.08);
+    padding:.15em .5em;
+    border-radius:8px;
   }
-}
+  @media (max-width:640px){
+    .label{ background:rgba(255,255,255,.12) }
+  }
 
-
-    footer{
-      text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
+  /* mobliki – upewniamy się, że drzwi są wyśrodkowane i nie za małe */
+  @media (max-width: 619px){
+    .card{
+      min-height:250px;
     }
-
-    /* mocniejszy przyciemiacz przy dole */
-    body::after{
-      background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+    .door{
+      width: min(210px, 100%);   /* tu powiększamy drzwi na telefonie */
+      max-width: 210px;
+      margin: 0 auto;
     }
-  </style>
+  }
+
+  footer{
+    text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
+  }
+
+  /* mocniejszy przyciemiacz przy dole */
+  body::after{
+    background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+  }
+</style>
+
 </head>
 <body>
   <main>
