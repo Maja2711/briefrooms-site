@@ -2,40 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>News — BriefRooms</title>
-  <meta name="description" content="Automatically refreshed headlines from last hours: world, business, sports." />
+  <meta name="description" content="Automatic digest of the last hours: politics/world, business/economy, sports. Page is overwritten daily." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/news.html">
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/aktualnosci.html">
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
+
   <style>
-    header{ text-align:center; padding:24px 12px 6px }
-    .sub{ color:#b9c5d8 }
-    main{ max-width:980px; margin:0 auto; padding:0 16px 48px }
-    .card{ background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-           border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:18px 20px; margin:14px 0;
-           box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25) }
-    h2{ margin:8px 0 6px; color:#d7e6ff }
-    h3{ margin:12px 0 6px; color:#aecdff }
-    ul.news{ margin:6px 0 0 18px }
-    .note{ color:#9fb3c8; font-size:.92rem }
+    header{ text-align:center; padding:32px 16px 8px }
+    h1{ margin:0 0 6px }
+    .sub{ color:#b9c5d8; margin:0 0 18px }
+    main{ max-width:1050px; margin:0 auto; padding:0 16px 48px }
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:20px;
+      padding:18px 20px 16px;
+      margin:18px 0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.03), 0 18px 40px rgba(0,0,0,.28);
+    }
+    h2{ margin:0 0 10px }
+    ul{ margin:0; padding-left:22px }
+    li{ margin:6px 0 }
+    a{ color:#9ed0ff }
+    a:hover{ color:#bfe3ff }
+    footer{ text-align:center; opacity:.7; padding:24px 16px 34px }
   </style>
 </head>
 <body>
-<header>
-  <h1>News</h1>
-  <p class="sub">Last ~36 hours • 2025-10-30</p>
-</header>
-<main>
+  <header>
+    <h1>News</h1>
+    <!-- ten tekst będzie podmieniany przez skrypt -->
+    <p class="sub" id="news-meta">Last ~36 hours • 2025-10-30</p>
+  </header>
 
-<section class="card"><h2>Sports</h2><ul class="news">
-<li><a href="https://www.espn.com/mlb/story/_/id/46672356/mlb-2025-world-series-game-5-los-angeles-dodgers-toronto-blue-jays-lineups-live-updates-analysis" target="_blank" rel="noopener">One win away! Takeaways as Blue Jays drop Dodgers in Game 5</a></li>
-<li><a href="https://www.espn.com/mlb/story/_/id/46776812/yesavage-record-12-k-lead-blue-jays-dodgers-game-5" target="_blank" rel="noopener">Yesavage&#x27;s record 12 K&#x27;s lead Jays past Dodgers</a></li>
-<li><a href="https://www.espn.com/mlb/story/_/id/46774654/twins-hire-derek-shelton-manager-sources-say" target="_blank" rel="noopener">Sources: Twins pick Shelton to be next manager</a></li>
-<li><a href="https://www.espn.com/college-football/story/_/id/46773515/gov-jeff-landry-critical-ad-scott-woodward-amid-lsu-shakeup" target="_blank" rel="noopener">La. Gov.: LSU AD won&#x27;t select new football coach</a></li>
-<li><a href="https://www.espn.com/nba/story/_/id/46775467/atlanta-hawks-trae-young-exits-game-vs-brooklyn-nets-right-knee-sprain" target="_blank" rel="noopener">Hawks&#x27; Young avoids ACL injury, but MRI to follow</a></li>
-<li><a href="https://www.espn.com/soccer/report/_/gameId/757333" target="_blank" rel="noopener">Sears&#x27; hat trick sees USWNT close window in rout</a></li>
-</ul></section>
-<p class="note">Automatic digest (RSS). Links go to original publishers. Page is overwritten daily.</p>
-</main>
-<footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
-</body></html>
+  <main>
+    <!-- 1. POLITICS / WORLD -->
+    <section class="card" id="news-politics">
+      <h2>Politics / World</h2>
+      <ul>
+        <li><a href="#" target="_blank" rel="noopener">Sample headline from BBC / Reuters.</a></li>
+      </ul>
+    </section>
+
+    <!-- 2. BUSINESS / ECONOMY -->
+    <section class="card" id="news-business">
+      <h2>Business / Economy</h2>
+      <ul>
+        <li><a href="#" target="_blank" rel="noopener">Sample business/economy headline.</a></li>
+      </ul>
+    </section>
+
+    <!-- 3. SPORTS -->
+    <section class="card" id="news-sports">
+      <h2>Sports</h2>
+      <ul>
+        <li><a href="#" target="_blank" rel="noopener">Sample sports headline.</a></li>
+      </ul>
+    </section>
+
+    <p class="sub">Automatic digest (RSS). Links go to original publishers. Page is overwritten daily.</p>
+  </main>
+
+  <footer>© BriefRooms</footer>
+</body>
+</html>
