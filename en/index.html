@@ -120,6 +120,13 @@
   </style>
 </head>
 <body>
+  <!-- AI badge -->
+  <a href="/pl/aktualnosci.html" class="ai-badge" aria-label="Powered by AI">
+    <span class="ai-dot"></span>
+    <span class="ai-title">BriefRooms</span>
+    <span class="ai-sub">Powered by AI</span>
+  </a>
+
   <main>
     <header>
       <h1>Choose a room with concise, practical summaries</h1>
@@ -193,5 +200,51 @@
       <a class="footer-link" href="/en/">EN</a>
     </div>
   </footer>
+  <style>
+  .ai-badge{
+    position:fixed;
+    top:14px;
+    left:14px;
+    z-index:35;
+    background:rgba(3,19,32,.48);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:999px;
+    padding:6px 16px 6px 32px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    backdrop-filter:blur(12px);
+    text-decoration:none;
+  }
+  .ai-dot{
+    position:absolute;
+    left:10px;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
+    box-shadow:0 0 10px rgba(255,178,58,.8);
+  }
+  .ai-title{
+    font-weight:600;
+    font-size:13px;
+    color:#fff;
+  }
+  .ai-sub{
+    font-size:11px;
+    color:#a8cfff;
+    white-space:nowrap;
+  }
+  @media (max-width:680px){
+    .ai-badge{
+      top:10px;
+      left:10px;
+      padding:5px 14px 5px 30px;
+    }
+    .ai-title{ font-size:12px; }
+    .ai-sub{ font-size:10px; }
+  }
+</style>
+
 </body>
 </html>
