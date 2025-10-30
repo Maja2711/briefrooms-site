@@ -7,21 +7,19 @@
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=2">
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
-<link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
-<link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
   <meta property="og:title" content="BriefRooms — krótkie, rzeczowe podsumowania">
-<meta property="og:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
-<meta property="og:url" content="https://briefrooms.com/pl/">
-<meta property="og:type" content="website">
-<meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="BriefRooms — krótkie, rzeczowe podsumowania">
-<meta name="twitter:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
-<meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
-<!-- (opcjonalnie) konto -->
-<meta name="twitter:site" content="@TwojeKonto">
- 
+  <meta property="og:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
+  <meta property="og:url" content="https://briefrooms.com/pl/">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="BriefRooms — krótkie, rzeczowe podsumowania">
+  <meta name="twitter:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
+  <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
+  <meta name="twitter:site" content="@TwojeKonto">
 
   <style>
     :root{
@@ -30,36 +28,31 @@
       --door:#3a2417; --door2:#2b1a10;
       --panel:#512f1d; --panel2:#3c2416;
       --accent:#9ed2ff;
-      --door-max: 200px; /* rozmiar drzwi */
+      --door-max: 200px; /* bazowy max szerokości drzwi */
     }
 
-    /* Fallbackowe statyczne tło → na html (nie na body) */
+    /* tło */
     html{
       background:
         radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
         linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-
-    /* body jest przezroczyste i stanowi kontekst dla warstw */
     body{
       height:100%;
       margin:0;
       color:var(--txt);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      background:transparent;      /* <<< ważne */
+      background:transparent;
       position:relative;
     }
-
-    /* TŁO z GIF-a (Twoja nazwa pliku w /assets/) */
     body::before{
       content:"";
       position:fixed; inset:0;
       background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-      opacity:.22;                 /* możesz podbić np. do .28 */
-      z-index:0;                   /* nad html, pod treścią */
+      opacity:.22;
+      z-index:0;
       pointer-events:none;
     }
-    /* delikatne przyciemnienie dołu */
     body::after{
       content:"";
       position:fixed; left:0; right:0; bottom:0; height:35vh;
@@ -75,13 +68,27 @@
     .lead a{color:var(--accent); text-decoration:none}
     .lead a:hover{text-decoration:underline}
 
+    /* GRID DRZWI
+       - mobile: 1 kolumna
+       - >620px: 2 kolumny
+       - >980px: 4 kolumny (jak chciałeś)
+    */
     .grid{
-  display:grid;
-  gap:22px;
-  grid-template-columns:repeat(4,1fr);   /* było 3 */
-  margin-top:22px
-}
-
+      display:grid;
+      gap:22px;
+      grid-template-columns:1fr;  /* mobile: po kolei w dół */
+      margin-top:22px;
+    }
+    @media (min-width: 620px){
+      .grid{
+        grid-template-columns:repeat(2, 1fr);
+      }
+    }
+    @media (min-width: 980px){
+      .grid{
+        grid-template-columns:repeat(4, 1fr);
+      }
+    }
 
     .card{
       background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
@@ -90,58 +97,76 @@
       display:flex; justify-content:center; align-items:center;
       transition:transform .12s ease, box-shadow .12s ease;
       text-decoration:none; color:inherit;
+      min-height:240px; /* żeby drzwi nie były przyduszone */
     }
-    .card:hover{transform:translateY(-3px); box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
+    .card:hover{
+      transform:translateY(-3px);
+      box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
+    }
 
     /* DRZWI */
     .door{
-      width:min(var(--door-max), 80%); aspect-ratio: 3 / 5;
+      width:min(var(--door-max), 80%);
+      aspect-ratio: 3 / 5;
       background:linear-gradient(180deg,var(--door),var(--door2));
       border-radius:16px; border:1px solid rgba(0,0,0,.45);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
       position:relative; display:block; color:inherit;
     }
-    .door .frame{position:absolute; inset:14px; border-radius:12px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);}
-    .panel{position:absolute; left:26px; right:26px; height:16%;
+    .door .frame{
+      position:absolute; inset:14px; border-radius:12px;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
+    }
+    .panel{
+      position:absolute; left:26px; right:26px; height:16%;
       background:linear-gradient(180deg,var(--panel),var(--panel2));
-      border-radius:10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);}
+      border-radius:10px;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    }
     .panel.p1{top:56px}
     .panel.p2{top:calc(50% - 8%)}
     .panel.p3{bottom:56px}
-    .knob{position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    .knob{
+      position:absolute; right:14px; top:50%; transform:translateY(-50%);
       width:12px; height:12px; border-radius:50%;
       background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
-      box-shadow:0 2px 8px rgba(0,0,0,.5)}
+      box-shadow:0 2px 8px rgba(0,0,0,.5)
+    }
 
-    /* NAPIS NA DRZWIACH – czarny i idealnie wyśrodkowany */
+    /* napis */
     .label{
       position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
-      color:#111;           /* CZARNY */
-      text-shadow:none;     /* bez poświaty */
+      color:#000;
+      text-shadow:0 1px 0 rgba(255,255,255,.25);
+      background:rgba(255,255,255,.08);
+      padding:.15em .5em;
+      border-radius:8px;
+    }
+
+    /* mobilki – upewniamy się, że drzwi są wyśrodkowane i nie za małe */
+    @media (max-width: 619px){
+      .card{
+        min-height:230px;
+      }
+      .door{
+        width: min(190px, 100%);
+        max-width: 190px;
+        margin: 0 auto;
+      }
+      .label{
+        background:rgba(255,255,255,.12);
+      }
     }
 
     footer{
       text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
     }
-    /* Lepsza czytelność etykiet drzwi */
-.label{
-  color:#000;
-  text-shadow:0 1px 0 rgba(255,255,255,.25);
-  background:rgba(255,255,255,.08);
-  padding:.15em .5em;
-  border-radius:8px;
-}
-@media (max-width:640px){
-  .label{ background:rgba(255,255,255,.12) }
-}
 
-/* Mocniejszy przyciemiacz przy dole */
-body::after{
-  background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
-}
-
+    /* mocniejszy przyciemiacz przy dole */
+    body::after{
+      background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+    }
   </style>
 </head>
 <body>
@@ -150,87 +175,87 @@ body::after{
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
       <p class="lead">Kliknij w drzwi, aby wejść do działu. English? <a href="/en/">Go to EN version</a></p>
     </header>
-  <section class="grid">
-  <!-- 1. Aktualności -->
-  <a class="card" href="/pl/aktualnosci.html" aria-label="Aktualności">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Aktualności</span>
-    </div>
-  </a>
 
-  <!-- 2. Geopolityka -->
-  <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Geopolityka</span>
-    </div>
-  </a>
+    <section class="grid">
+      <!-- 1. Aktualności -->
+      <a class="card" href="/pl/aktualnosci.html" aria-label="Aktualności">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Aktualności</span>
+        </div>
+      </a>
 
-  <!-- 3. Zdrowie -->
-  <a class="card" href="/pl/zdrowie.html" aria-label="Zdrowie">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Zdrowie</span>
-    </div>
-  </a>
+      <!-- 2. Geopolityka -->
+      <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Geopolityka</span>
+        </div>
+      </a>
 
-  <!-- 4. Nauka -->
-  <a class="card" href="/pl/nauka.html" aria-label="Nauka">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Nauka</span>
-    </div>
-  </a>
-</section>
+      <!-- 3. Zdrowie -->
+      <a class="card" href="/pl/zdrowie.html" aria-label="Zdrowie">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Zdrowie</span>
+        </div>
+      </a>
+
+      <!-- 4. Nauka -->
+      <a class="card" href="/pl/nauka.html" aria-label="Nauka">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Nauka</span>
+        </div>
+      </a>
+    </section>
   </main>
 
   <footer>© BriefRooms</footer>
-<footer class="site-footer">
-  <div class="footer-wrap">
-    <a class="footer-link" 
-       href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A%0D%0A(krótko%20opisz%20spraw%C4%99)%0D%0A"
-       aria-label="Wyślij e-mail na contact@briefrooms.com">
-      <!-- Ikona koperty (SVG, lekka) -->
-      <svg class="ico-mail" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
-      </svg>
-      <span>Kontakt: <strong>contact@briefrooms.com</strong></span>
-    </a>
-    <span class="footer-dot" aria-hidden="true">•</span>
-    <a class="footer-link" href="/pl/">PL</a>
-    <a class="footer-link" href="/en/">EN</a>
-  </div>
-</footer>
+  <footer class="site-footer">
+    <div class="footer-wrap">
+      <a class="footer-link" 
+         href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A%0D%0A(krótko%20opisz%20spraw%C4%99)%0D%0A"
+         aria-label="Wyślij e-mail na contact@briefrooms.com">
+        <svg class="ico-mail" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
+        </svg>
+        <span>Kontakt: <strong>contact@briefrooms.com</strong></span>
+      </a>
+      <span class="footer-dot" aria-hidden="true">•</span>
+      <a class="footer-link" href="/pl/">PL</a>
+      <a class="footer-link" href="/en/">EN</a>
+    </div>
+  </footer>
 
-<!-- Mały przycisk kontaktu (FAB) -->
-<a
-  class="contact-fab"
-  href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A(kr%C3%B3tko%20opisz%20spraw%C4%99)%0D%0A"
-  aria-label="Napisz do nas"
-  title="Kontakt"
->
-  <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
-    <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 2v.01L12 12 4 6.01V6h16ZM4 18V8.236l7.4 5.55a1 1 0 0 0 1.2 0L20 8.236V18H4Z"/>
-  </svg>
-  <span class="sr-only">Kontakt e-mail</span>
-</a>
+  <!-- FAB -->
+  <a
+    class="contact-fab"
+    href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A(kr%C3%B3tko%20opisz%20spraw%C4%99)%0D%0A"
+    aria-label="Napisz do nas"
+    title="Kontakt"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
+      <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 2v.01L12 12 4 6.01V6h16ZM4 18V8.236l7.4 5.55a1 1 0 0 0 1.2 0L20 8.236V18H4Z"/>
+    </svg>
+    <span class="sr-only">Kontakt e-mail</span>
+  </a>
 
 </body>
 </html>
