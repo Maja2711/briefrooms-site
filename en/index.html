@@ -5,21 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — choose a room (EN)</title>
   <link rel="icon" href="/assets/favicon.svg" />
-  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/site.css?v=2">
+  <!-- hreflang -->
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
-<link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
-<link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
-<meta property="og:title" content="BriefRooms — short, practical briefs">
-<meta property="og:description" content="Choose a room and read short, practical briefs.">
-<meta property="og:url" content="https://briefrooms.com/en/">
-<meta property="og:type" content="website">
-<meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="BriefRooms — short, practical briefs">
-<meta name="twitter:description" content="Choose a room and read short, practical briefs.">
-<meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
-<meta name="twitter:site" content="@YourHandle">
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
+  <!-- OG / Twitter (możesz skopiować z PL) -->
+  <meta property="og:title" content="BriefRooms — concise, practical summaries">
+  <meta property="og:description" content="Pick a room and read short, practical briefs.">
+  <meta property="og:url" content="https://briefrooms.com/en/">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="BriefRooms — concise, practical summaries">
+  <meta name="twitter:description" content="Pick a room and read short, practical briefs.">
+  <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
 
   <style>
     :root{
@@ -28,17 +28,13 @@
       --door:#3a2417; --door2:#2b1a10;
       --panel:#512f1d; --panel2:#3c2416;
       --accent:#9ed2ff;
-      --door-max: 200px; /* door size */
+      --door-max: 200px;
     }
-
-    /* Fallback static background → on html (not body) */
     html{
       background:
         radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
         linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-
-    /* body is transparent and hosts our layers */
     body{
       height:100%;
       margin:0;
@@ -47,21 +43,19 @@
       background:transparent;
       position:relative;
     }
-
-    /* SEA GIF background (your file in /assets/) */
+    /* tło gif jak w PL */
     body::before{
       content:"";
       position:fixed; inset:0;
       background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-      opacity:.22;                 /* tweak e.g. .28 if you want it stronger */
-      z-index:0;                   /* above html, below content */
+      opacity:.22;
+      z-index:0;
       pointer-events:none;
     }
-    /* subtle bottom darkening for readability */
     body::after{
       content:"";
       position:fixed; left:0; right:0; bottom:0; height:35vh;
-      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+      background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
       z-index:1;
       pointer-events:none;
     }
@@ -73,8 +67,8 @@
     .lead a{color:var(--accent); text-decoration:none}
     .lead a:hover{text-decoration:underline}
 
-    .grid{display:grid; gap:22px; grid-template-columns:repeat(3,1fr); margin-top:22px}
-    @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+    .grid{display:grid; gap:22px; grid-template-columns:repeat(4,1fr); margin-top:22px}
+    @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
     @media (max-width:620px){.grid{grid-template-columns:1fr}}
 
     .card{
@@ -87,7 +81,6 @@
     }
     .card:hover{transform:translateY(-3px); box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
 
-    /* DOORS */
     .door{
       width:min(var(--door-max), 80%); aspect-ratio: 3 / 5;
       background:linear-gradient(180deg,var(--door),var(--door2));
@@ -108,55 +101,45 @@
       background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
       box-shadow:0 2px 8px rgba(0,0,0,.5)}
 
-    /* LABEL ON DOORS – black and perfectly centered */
     .label{
       position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
-      color:#111;           /* BLACK */
-      text-shadow:none;     /* no glow */
+      color:#000;
+      text-shadow:0 1px 0 rgba(255,255,255,.25);
+      background:rgba(255,255,255,.08);
+      padding:.15em .5em;
+      border-radius:8px;
+    }
+    @media (max-width:640px){
+      .label{ background:rgba(255,255,255,.12) }
     }
 
     footer{
       text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
     }
-    /* Lepsza czytelność etykiet drzwi */
-.label{
-  color:#000;
-  text-shadow:0 1px 0 rgba(255,255,255,.25);
-  background:rgba(255,255,255,.08);
-  padding:.15em .5em;
-  border-radius:8px;
-}
-@media (max-width:640px){
-  .label{ background:rgba(255,255,255,.12) }
-}
-
-/* Mocniejszy przyciemiacz przy dole */
-body::after{
-  background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
-}
-
   </style>
 </head>
 <body>
   <main>
     <header>
-      <h1>Choose a room with concise, no-nonsense summaries</h1>
-      <p class="lead">Click a door to enter a section. Polish? <a href="/pl/">Go to PL version</a></p>
+      <h1>Choose a room with concise, practical summaries</h1>
+      <p class="lead">Click the door to enter. Polski? <a href="/pl/">Przejdź do wersji PL</a></p>
     </header>
 
     <section class="grid">
-      <a class="card" href="/en/geopolitics.html" aria-label="Geopolitics">
+      <!-- 1) News (z działami w środku) -->
+      <a class="card" href="/en/news.html" aria-label="News">
         <div class="door">
           <span class="frame"></span>
           <span class="panel p1"></span>
           <span class="panel p2"></span>
           <span class="panel p3"></span>
           <span class="knob"></span>
-          <span class="label">Geopolitics</span>
+          <span class="label">News</span>
         </div>
       </a>
 
+      <!-- 2) Health -->
       <a class="card" href="/en/health.html" aria-label="Health">
         <div class="door">
           <span class="frame"></span>
@@ -168,6 +151,19 @@ body::after{
         </div>
       </a>
 
+      <!-- 3) Geopolitics -->
+      <a class="card" href="/en/geopolitics.html" aria-label="Geopolitics">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Geopolitics</span>
+        </div>
+      </a>
+
+      <!-- 4) Science -->
       <a class="card" href="/en/science.html" aria-label="Science">
         <div class="door">
           <span class="frame"></span>
@@ -178,73 +174,24 @@ body::after{
           <span class="label">Science</span>
         </div>
       </a>
-     
-  <!-- NEWS (PL: Aktualności) -->
-  <a class="card" href="/en/news.html" aria-label="News">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">News</span>
-    </div>
-  </a>
-
-  <!-- POLITICS / WORLD (PL: Polityka / Kraj) -->
-  <a class="card" href="/en/news-politics.html" aria-label="Politics and World">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Politics / World</span>
-    </div>
-  </a>
-
-  <!-- BUSINESS / ECONOMY (PL: Biznes / Ekonomia) -->
-  <a class="card" href="/en/news-business.html" aria-label="Business and Economy">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Business / Economy</span>
-    </div>
-  </a>
-
-  <!-- SPORT (to co masz) -->
-  <a class="card" href="/en/news-sport.html" aria-label="Sport">
-    <div class="door">
-      <span class="frame"></span>
-      <span class="panel p1"></span>
-      <span class="panel p2"></span>
-      <span class="panel p3"></span>
-      <span class="knob"></span>
-      <span class="label">Sport</span>
-    </div>
-  </a>
-</section>
- 
-
     </section>
   </main>
 
   <footer>© BriefRooms</footer>
-  <!-- Floating e-mail button (EN) -->
-<a
-  class="contact-fab"
-  href="mailto:contact@briefrooms.com?subject=Contact%20from%20BriefRooms&body=Hello,%0D%0A%0D%0A(short%20describe%20your%20request)%0D%0A"
-  aria-label="Email us"
-  title="Contact"
->
-  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-    <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 2v.01L12 12 4 6.01V6h16ZM4 18V8.236l7.4 5.55a1 1 0 0 0 1.2 0L20 8.236V18H4Z"/>
-  </svg>
-  <span class="sr-only">Email</span>
-</a>
-
+  <footer class="site-footer">
+    <div class="footer-wrap">
+      <a class="footer-link"
+         href="mailto:contact@briefrooms.com?subject=Contact%20BriefRooms&body=Hello,%0D%0A%0D%0A(shortly%20describe%20your%20case)%0D%0A"
+         aria-label="Send e-mail to contact@briefrooms.com">
+        <svg class="ico-mail" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
+        </svg>
+        <span>Contact: <strong>contact@briefrooms.com</strong></span>
+      </a>
+      <span class="footer-dot" aria-hidden="true">•</span>
+      <a class="footer-link" href="/pl/">PL</a>
+      <a class="footer-link" href="/en/">EN</a>
+    </div>
+  </footer>
 </body>
 </html>
