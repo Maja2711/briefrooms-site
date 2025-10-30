@@ -175,6 +175,13 @@
 
 </head>
 <body>
+  <!-- AI badge -->
+  <a href="/pl/aktualnosci.html" class="ai-badge" aria-label="Powered by AI">
+    <span class="ai-dot"></span>
+    <span class="ai-title">BriefRooms</span>
+    <span class="ai-sub">Powered by AI</span>
+  </a>
+ 
   <main>
     <header>
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
@@ -266,29 +273,48 @@
   <span class="ai-badge-text">Powered by AI</span>
 </a>
 <style>
-  .ai-badge-link{
+  .ai-badge{
     position:fixed;
-    right:74px;
-    bottom:28px;
-    z-index:20;
+    top:14px;
+    left:14px;
+    z-index:35;
+    background:rgba(3,19,32,.48);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:999px;
+    padding:6px 16px 6px 32px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    backdrop-filter:blur(12px);
+    text-decoration:none;
   }
-  .ai-badge-link img{
-    width:164px;
-    display:block;
-  }
-  .ai-badge-text{
+  .ai-dot{
     position:absolute;
-    left:56px;
-    bottom:7px;
-    font-size:10px;
-    color:#a8cfff;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    pointer-events:none;
+    left:10px;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
+    box-shadow:0 0 10px rgba(255,178,58,.8);
   }
-  @media (max-width:720px){
-    .ai-badge-link{ right:16px; bottom:86px; }
-    .ai-badge-link img{ width:150px; }
-    .ai-badge-text{ left:54px; bottom:6px; }
+  .ai-title{
+    font-weight:600;
+    font-size:13px;
+    color:#fff;
+  }
+  .ai-sub{
+    font-size:11px;
+    color:#a8cfff;
+    white-space:nowrap;
+  }
+  @media (max-width:680px){
+    .ai-badge{
+      top:10px;
+      left:10px;
+      padding:5px 14px 5px 30px;
+    }
+    .ai-title{ font-size:12px; }
+    .ai-sub{ font-size:10px; }
   }
 </style>
 
