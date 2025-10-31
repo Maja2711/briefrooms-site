@@ -154,36 +154,41 @@
   }
 
   /* label na górze drzwi */
-  .label{
-    position:absolute;
-    top:23px;
-    left:50%;
-    transform:translateX(-50%);
-    max-width:78%;
-    background:rgba(255,255,255,.14);
-    padding:.25em .6em;
-    border-radius:10px;
-    font-weight:700;
-    font-size:clamp(15px,2.1vw,19px);
-    color:#111;
-    text-shadow:0 1px 0 rgba(255,255,255,.2);
-    text-align:center;
-    line-height:1.05;
-    pointer-events:none;
-  }
-  @media (max-width:640px){
-    .label{ background:rgba(255,255,255,.14); }
-  }
+/* napis na drzwiach – jak w PL */
+.label{
+  position:absolute;
+  top:23px;
+  left:50%;
+  transform:translateX(-50%);
+  max-width:78%;
+  background:rgba(255,255,255,.14);
+  padding:.25em .6em;
+  border-radius:10px;
+  font-weight:700;
+  font-size:clamp(16px,2.2vw,20px);
+  color:#000;
+  text-shadow:0 1px 0 rgba(255,255,255,.25);
+  text-align:center;
+  line-height:1.1;
+  pointer-events:none;
+}
 
-  /* mobile – większe drzwi, żeby były czytelne */
-  @media (max-width:619px){
-    .card{ min-height:240px; }
-    .door{
-      width:min(210px, 100%);
-      max-width:210px;
-      margin:0 auto;
-    }
+@media (max-width:640px){
+  .label{ background:rgba(255,255,255,.12) }
+}
+
+/* mobile – tak samo jak w PL */
+@media (max-width: 619px){
+  .card{
+    min-height:250px;
   }
+  .door{
+    width: min(210px, 100%);
+    max-width: 210px;
+    margin: 0 auto;
+  }
+}
+
 
   footer{
     text-align:center;
