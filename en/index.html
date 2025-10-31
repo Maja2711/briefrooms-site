@@ -21,103 +21,221 @@
   <meta name="twitter:description" content="Pick a room and read short, practical briefs.">
   <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
 
-  <style>
-    :root{
-      --bg1:#071e2e; --bg2:#0b2a40;
-      --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
-      --door:#3a2417; --door2:#2b1a10;
-      --panel:#512f1d; --panel2:#3c2416;
-      --accent:#9ed2ff;
-      --door-max: 200px;
-    }
-    html{
-      background:
-        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-        linear-gradient(180deg,var(--bg1),var(--bg2));
-    }
-    body{
-      height:100%;
-      margin:0;
-      color:var(--txt);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      background:transparent;
-      position:relative;
-    }
-    /* tło gif jak w PL */
-    body::before{
-      content:"";
-      position:fixed; inset:0;
-      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-      opacity:.22;
-      z-index:0;
-      pointer-events:none;
-    }
-    body::after{
-      content:"";
-      position:fixed; left:0; right:0; bottom:0; height:35vh;
-      background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
-      z-index:1;
-      pointer-events:none;
-    }
+ <style>
+  :root{
+    --bg1:#071e2e; --bg2:#0b2a40;
+    --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
+    --door:#3a2417; --door2:#2b1a10;
+    --panel:#512f1d; --panel2:#3c2416;
+    --accent:#9ed2ff;
+    --door-max: 200px;
+  }
 
-    main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
-    header{text-align:center; margin:8px 0 24px}
-    h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
-    .lead{margin:0; color:var(--muted)}
-    .lead a{color:var(--accent); text-decoration:none}
-    .lead a:hover{text-decoration:underline}
+  html{
+    background:
+      radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+      linear-gradient(180deg,var(--bg1),var(--bg2));
+  }
 
-    .grid{display:grid; gap:22px; grid-template-columns:repeat(4,1fr); margin-top:22px}
-    @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media (max-width:620px){.grid{grid-template-columns:1fr}}
+  body{
+    height:100%;
+    margin:0;
+    color:var(--txt);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    background:transparent;
+    position:relative;
+  }
 
-    .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-      border:1px solid var(--line); border-radius:20px; padding:18px;
-      box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
-      display:flex; justify-content:center; align-items:center;
-      transition:transform .12s ease, box-shadow .12s ease;
-      text-decoration:none; color:inherit;
-    }
-    .card:hover{transform:translateY(-3px); box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04)}
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+    opacity:.22;
+    z-index:0;
+    pointer-events:none;
+  }
+  body::after{
+    content:"";
+    position:fixed; left:0; right:0; bottom:0; height:35vh;
+    background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+    z-index:1;
+    pointer-events:none;
+  }
 
+  main{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 14px 56px;
+    position:relative;
+    z-index:2;
+  }
+  header{
+    text-align:center;
+    margin:0 0 18px;
+  }
+  h1{
+    margin:0 0 6px;
+    font-weight:800;
+    font-size:clamp(25px,4.4vw,42px);
+  }
+  .lead{
+    margin:0;
+    color:var(--muted);
+  }
+  .lead a{color:var(--accent); text-decoration:none}
+  .lead a:hover{text-decoration:underline}
+
+  /* GRID */
+  .grid{
+    display:grid;
+    gap:16px;
+    grid-template-columns:repeat(5, minmax(150px,1fr));
+    margin-top:18px;
+  }
+  @media (max-width:1180px){
+    .grid{ grid-template-columns:repeat(4, minmax(150px,1fr)); }
+  }
+  @media (max-width:980px){
+    .grid{ grid-template-columns:repeat(2, minmax(140px,1fr)); }
+  }
+  @media (max-width:560px){
+    .grid{ grid-template-columns:1fr; }
+  }
+
+  /* karta */
+  .card{
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
+    border:1px solid rgba(255,255,255,.04);
+    border-radius:20px;
+    padding:16px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:210px;
+    backdrop-filter:blur(10px);
+    text-decoration:none;
+    color:inherit;
+    transition:.12s ease;
+  }
+  .card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 20px 50px -20px rgba(0,0,0,.5);
+  }
+
+  /* drzwi */
+  .door{
+    width:min(210px, 82%);
+    aspect-ratio: 3 / 5;
+    background:linear-gradient(180deg,var(--door),var(--door2));
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
+    position:relative;
+    display:block;
+  }
+  .door .frame{
+    position:absolute; inset:14px; border-radius:12px;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
+  }
+  .panel{
+    position:absolute; left:26px; right:26px; height:16%;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border-radius:10px;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .panel.p1{top:56px}
+  .panel.p2{top:calc(50% - 8%)}
+  .panel.p3{bottom:56px}
+  .knob{
+    position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    width:12px; height:12px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
+    box-shadow:0 2px 8px rgba(0,0,0,.5)
+  }
+
+  /* label na górze drzwi */
+  .label{
+    position:absolute;
+    top:23px;
+    left:50%;
+    transform:translateX(-50%);
+    max-width:78%;
+    background:rgba(255,255,255,.14);
+    padding:.25em .6em;
+    border-radius:10px;
+    font-weight:700;
+    font-size:clamp(15px,2.1vw,19px);
+    color:#111;
+    text-shadow:0 1px 0 rgba(255,255,255,.2);
+    text-align:center;
+    line-height:1.05;
+    pointer-events:none;
+  }
+  @media (max-width:640px){
+    .label{ background:rgba(255,255,255,.14); }
+  }
+
+  /* mobile – większe drzwi, żeby były czytelne */
+  @media (max-width:619px){
+    .card{ min-height:240px; }
     .door{
-      width:min(var(--door-max), 80%); aspect-ratio: 3 / 5;
-      background:linear-gradient(180deg,var(--door),var(--door2));
-      border-radius:16px; border:1px solid rgba(0,0,0,.45);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
-      position:relative; display:block; color:inherit;
+      width:min(210px, 100%);
+      max-width:210px;
+      margin:0 auto;
     }
-    .door .frame{position:absolute; inset:14px; border-radius:12px;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);}
-    .panel{position:absolute; left:26px; right:26px; height:16%;
-      background:linear-gradient(180deg,var(--panel),var(--panel2));
-      border-radius:10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);}
-    .panel.p1{top:56px}
-    .panel.p2{top:calc(50% - 8%)}
-    .panel.p3{bottom:56px}
-    .knob{position:absolute; right:14px; top:50%; transform:translateY(-50%);
-      width:12px; height:12px; border-radius:50%;
-      background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
-      box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  }
 
-    .label{
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      font-weight:800; letter-spacing:.2px; font-size:clamp(18px,2.6vw,22px);
-      color:#000;
-      text-shadow:0 1px 0 rgba(255,255,255,.25);
-      background:rgba(255,255,255,.08);
-      padding:.15em .5em;
-      border-radius:8px;
-    }
-    @media (max-width:640px){
-      .label{ background:rgba(255,255,255,.12) }
-    }
+  footer{
+    text-align:center;
+    opacity:.7;
+    padding:18px 12px 28px;
+    font-size:14px;
+  }
 
-    footer{
-      text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
+  /* AI badge */
+  .ai-badge{
+    position:fixed;
+    top:14px;
+    left:14px;
+    z-index:35;
+    background:rgba(3,19,32,.48);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:999px;
+    padding:6px 16px 6px 32px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    backdrop-filter:blur(12px);
+    text-decoration:none;
+  }
+  .ai-dot{
+    position:absolute;
+    left:10px;
+    width:14px; height:14px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
+    box-shadow:0 0 10px rgba(255,178,58,.8);
+  }
+  .ai-title{
+    font-weight:600;
+    font-size:13px;
+    color:#fff;
+  }
+  .ai-sub{
+    font-size:11px;
+    color:#a8cfff;
+    white-space:nowrap;
+  }
+  @media (max-width:680px){
+    .ai-badge{
+      top:10px; left:10px;
+      padding:5px 14px 5px 30px;
     }
-  </style>
+    .ai-title{ font-size:12px; }
+    .ai-sub{ font-size:10px; }
+  }
+</style>
+
 </head>
 <body>
   <!-- AI badge -->
