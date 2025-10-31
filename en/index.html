@@ -20,6 +20,7 @@
   <meta name="twitter:title" content="BriefRooms — concise, practical summaries">
   <meta name="twitter:description" content="Pick a room and read short, practical briefs.">
   <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
+
 <style>
   :root{
     --bg1:#071e2e; --bg2:#0b2a40;
@@ -59,13 +60,13 @@
   }
 
   main{max-width:1100px; margin:0 auto; padding:28px 14px 56px; position:relative; z-index:2}
-  header{text-align:center; margin:10px 0 16px}
+  header{text-align:center; margin:8px 0 12px}
   h1{margin:0 0 6px; font-weight:800; font-size:clamp(25px,4.4vw,42px)}
   .lead{margin:0; color:var(--muted)}
   .lead a{color:var(--accent); text-decoration:none}
   .lead a:hover{text-decoration:underline}
 
-  /* 4 drzwi na desktopie */
+  /* GRID – jak w PL */
   .grid{
     display:grid;
     gap:16px;
@@ -79,15 +80,16 @@
     .grid{grid-template-columns:1fr}
   }
 
+  /* Karta pod drzwiami */
   .card{
     background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
     border:1px solid rgba(255,255,255,.03);
     border-radius:22px;
-    padding:18px 10px;
+    padding:16px 10px;
     display:flex;
     justify-content:center;
     align-items:center;
-    min-height:210px;
+    min-height:210px;                 /* to na desktop/tablet */
     box-shadow:0 16px 44px -18px rgba(0,0,0,.35);
     text-decoration:none;
     color:inherit;
@@ -98,6 +100,7 @@
     box-shadow:0 24px 56px -16px rgba(0,0,0,.5);
   }
 
+  /* DRZWI */
   .door{
     width:min(210px, 80%);
     aspect-ratio:3 / 5;
@@ -120,15 +123,14 @@
   .panel.p1{top:56px}
   .panel.p2{top:calc(50% - 8%)}
   .panel.p3{bottom:56px}
-
   .knob{
     position:absolute; right:14px; top:50%; transform:translateY(-50%);
     width:12px; height:12px; border-radius:50%;
     background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
-    box-shadow:0 2px 8px rgba(0,0,0,.5);
+    box-shadow:0 2px 8px rgba(0,0,0,.5)
   }
 
-  /* >>> to jest najważniejsze – takie samo jak w PL */
+  /* LABEL – taki sam jak w PL */
   .label{
     position:absolute;
     top:23px;
@@ -150,15 +152,21 @@
     .label{ background:rgba(255,255,255,.12) }
   }
 
+  /* MOBILE – tu był problem */
   @media (max-width:619px){
-    .card{min-height:250px}
+    header{margin:4px 0 8px}
+    .card{
+      min-height:200px;      /* mniejsze niż w EN wcześniej */
+      padding:12px 10px;
+    }
     .door{
-      width:min(210px,100%);
-      max-width:210px;
+      width:min(200px,100%);
+      max-width:200px;
       margin:0 auto;
     }
   }
 
+  /* badge w lewym górnym – jak w PL */
   .ai-badge{
     position:fixed;
     top:14px;
