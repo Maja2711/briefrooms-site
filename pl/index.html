@@ -59,8 +59,26 @@
   }
 
   main{max-width:1100px; margin:0 auto; padding:28px 14px 56px; position:relative; z-index:2}
-  header{text-align:center; margin:4px 0 18px}
-  h1{margin:0 0 6px; font-weight:800; font-size:clamp(25px,4.4vw,42px)}
+header{
+  text-align:center;
+  margin:46px 0 18px;  /* było 4px → 46px, żeby nie wchodziło na badge */
+}
+
+h1{
+  margin:0 0 6px;
+  font-weight:800;
+  font-size:clamp(25px,4.4vw,42px);
+}
+
+@media (max-width:720px){
+  header{
+    margin:58px 0 16px;  /* na telefonie ciut niżej */
+  }
+  h1{
+    font-size:clamp(22px,6vw,34px); /* trochę mniejszy na tel */
+  }
+}
+
   .lead{margin:0; color:var(--muted)}
   .lead a{color:var(--accent); text-decoration:none}
   .lead a:hover{text-decoration:underline}
