@@ -67,104 +67,112 @@
   .lead a:hover{text-decoration:underline}
 
   /* GRID – jak w PL */
+/* GRID DOORS – desktop */
+.grid{
+  display:grid;
+  gap:16px;
+  grid-template-columns:repeat(5, minmax(150px,1fr));
+  margin-top:18px;
+}
+
+/* card = “plexi” under doors */
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
+  border:1px solid rgba(255,255,255,.04);
+  border-radius:26px;
+  padding:14px 6px 16px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:230px;
+}
+
+/* DOOR */
+.door{
+  width:min(var(--door-max), 84%);
+  aspect-ratio:3 / 5;
+  background:linear-gradient(180deg,var(--door),var(--door2));
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 10px 20px rgba(0,0,0,.45);
+  position:relative;
+}
+.door .frame{
+  position:absolute;
+  inset:14px;
+  border-radius:12px;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 5px rgba(255,255,255,.03);
+}
+.panel{
+  position:absolute;
+  left:22px;
+  right:22px;
+  height:15%;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border-radius:9px;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.panel.p1{top:56px}
+.panel.p2{top:calc(50% - 8%)}
+.panel.p3{bottom:56px}
+.knob{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
+  box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+
+/* LABEL on top of door – same look as PL */
+.label{
+  position:absolute;
+  top:23px;
+  left:50%;
+  transform:translateX(-50%);
+  max-width:78%;
+  background:rgba(255,255,255,.03);
+  padding:.1em .3em;
+  border-radius:6px;
+  font-weight:700;
+  font-size:clamp(16px,2.2vw,20px);
+  color:#f4e0b8;
+  text-shadow:0 1px 2px rgba(0,0,0,.65);
+  text-align:center;
+  line-height:1.1;
+  pointer-events:none;
+}
+
+/* <=1024px → 3 columns */
+@media (max-width:1024px){
   .grid{
-    display:grid;
-    gap:16px;
-    grid-template-columns:repeat(4, minmax(150px,1fr));
-    margin-top:18px;
+    grid-template-columns:repeat(3, minmax(150px,1fr));
+    justify-items:center;
   }
-  @media (max-width:980px){
-    .grid{grid-template-columns:repeat(2, minmax(150px,1fr))}
-  }
-  @media (max-width:620px){
-    .grid{grid-template-columns:1fr}
-  }
+  .card{min-height:220px}
+}
 
-  /* Karta pod drzwiami */
-  .card{
-    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
-    border:1px solid rgba(255,255,255,.03);
-    border-radius:22px;
-    padding:16px 10px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:210px;                 /* to na desktop/tablet */
-    box-shadow:0 16px 44px -18px rgba(0,0,0,.35);
-    text-decoration:none;
-    color:inherit;
-    transition:transform .12s ease, box-shadow .12s ease;
+/* <=640px → 2 columns, bigger door (like PL) */
+@media (max-width:640px){
+  main{padding-top:22px}
+  .grid{
+    grid-template-columns:repeat(2, minmax(140px,1fr));
+    gap:14px;
   }
-  .card:hover{
-    transform:translateY(-3px);
-    box-shadow:0 24px 56px -16px rgba(0,0,0,.5);
-  }
-
-  /* DRZWI */
+  .card{min-height:210px}
   .door{
-    width:min(210px, 80%);
-    aspect-ratio:3 / 5;
-    background:linear-gradient(180deg,var(--door),var(--door2));
-    border-radius:16px;
-    border:1px solid rgba(0,0,0,.45);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
-    position:relative;
+    width:150px;
+    max-width:150px;
   }
-  .door .frame{
-    position:absolute; inset:14px; border-radius:12px;
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
-  }
-  .panel{
-    position:absolute; left:26px; right:26px; height:16%;
-    background:linear-gradient(180deg,var(--panel),var(--panel2));
-    border-radius:10px;
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-  }
-  .panel.p1{top:56px}
-  .panel.p2{top:calc(50% - 8%)}
-  .panel.p3{bottom:56px}
-  .knob{
-    position:absolute; right:14px; top:50%; transform:translateY(-50%);
-    width:12px; height:12px; border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
-    box-shadow:0 2px 8px rgba(0,0,0,.5)
-  }
-
-  /* LABEL – taki sam jak w PL */
   .label{
-    position:absolute;
-    top:23px;
-    left:50%;
-    transform:translateX(-50%);
-    max-width:78%;
     background:rgba(255,255,255,.14);
-    padding:.25em .6em;
-    border-radius:10px;
-    font-weight:700;
-    font-size:clamp(16px,2.2vw,20px);
-    color:#fff;
-    text-shadow:0 1px 1px rgba(0,0,0,.35);
-    text-align:center;
-    line-height:1.1;
-    pointer-events:none;
+    font-size:15px;
   }
-  @media (max-width:640px){
-    .label{ background:rgba(255,255,255,.12) }
-  }
+}
 
-  /* MOBILE – tu był problem */
-  @media (max-width:619px){
-    header{margin:4px 0 8px}
-    .card{
-      min-height:200px;      /* mniejsze niż w EN wcześniej */
-      padding:12px 10px;
-    }
-    .door{
-      width:min(200px,100%);
-      max-width:200px;
-      margin:0 auto;
-    }
-  }
 
   /* badge w lewym górnym – jak w PL */
   .ai-badge{
