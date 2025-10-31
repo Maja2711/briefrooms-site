@@ -21,34 +21,28 @@
   <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
   <meta name="twitter:site" content="@TwojeKonto">
 
-  <style>
+<style>
   :root{
     --bg1:#071e2e; --bg2:#0b2a40;
     --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
     --door:#3a2417; --door2:#2b1a10;
     --panel:#512f1d; --panel2:#3c2416;
     --accent:#9ed2ff;
-    --door-max: 200px; /* domyślny max drzwi na duże ekrany */
+    --door-max: 170px; /* było 200 – zmniejszamy */
   }
 
-  /* tło na html */
   html{
     background:
       radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
       linear-gradient(180deg,var(--bg1),var(--bg2));
   }
-
-  /* body przezroczyste, nałożymy GIF-a */
   body{
-    height:100%;
     margin:0;
     color:var(--txt);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     background:transparent;
     position:relative;
   }
-
-  /* GIF w tle */
   body::before{
     content:"";
     position:fixed; inset:0;
@@ -57,121 +51,108 @@
     z-index:0;
     pointer-events:none;
   }
-  /* przyciemnienie dołu */
   body::after{
     content:"";
     position:fixed; left:0; right:0; bottom:0; height:35vh;
-    background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
-    z-index:1;
-    pointer-events:none;
+    background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+    z-index:1; pointer-events:none;
   }
 
-  main{max-width:1100px; margin:0 auto; padding:32px 16px 64px}
-  header{text-align:center; margin:8px 0 24px}
-  h1{margin:0 0 8px; font-weight:800; letter-spacing:.2px; font-size:clamp(26px,4.8vw,44px)}
+  main{max-width:1100px; margin:0 auto; padding:28px 14px 56px; position:relative; z-index:2}
+  header{text-align:center; margin:4px 0 18px}
+  h1{margin:0 0 6px; font-weight:800; font-size:clamp(25px,4.4vw,42px)}
   .lead{margin:0; color:var(--muted)}
   .lead a{color:var(--accent); text-decoration:none}
   .lead a:hover{text-decoration:underline}
 
-  /* GRID DRZWI
-     - mobile: 1 kolumna
-     - >=620px: 2 kolumny
-     - >=980px: 4 kolumny
-  */
+  /* GRID DRZWI – desktop: 5 w jednym rzędzie, ale przy 4 też ładnie wygląda */
   .grid{
     display:grid;
-    gap:22px;
-    grid-template-columns:1fr;  /* mobile: po kolei w dół */
-    margin-top:22px;
-  }
-  @media (min-width: 620px){
-    .grid{
-      grid-template-columns:repeat(2, 1fr);
-    }
-  }
-  @media (min-width: 980px){
-    .grid{
-      grid-template-columns:repeat(4, 1fr);
-    }
+    gap:16px;
+    grid-template-columns:repeat(5, minmax(150px,1fr));
+    margin-top:18px;
   }
 
+  /* card = „pleksi” pod drzwiami */
   .card{
-    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-    border:1px solid var(--line); border-radius:20px; padding:18px;
-    box-shadow:0 16px 44px -18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.0));
+    border:1px solid rgba(255,255,255,.04);
+    border-radius:26px;
+    padding:14px 6px 16px;
     display:flex; justify-content:center; align-items:center;
-    transition:transform .12s ease, box-shadow .12s ease;
-    text-decoration:none; color:inherit;
-    min-height:240px; /* żeby drzwi nie były przyduszone */
-  }
-  .card:hover{
-    transform:translateY(-3px);
-    box-shadow:0 26px 58px -18px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
+    min-height:230px;                 /* mniejsze niż wcześniej */
   }
 
   /* DRZWI */
-.door{
-  width:min(210px, 82%);   /* było 200px – lekko szersze */
-  aspect-ratio: 3 / 5;
-  background:linear-gradient(180deg,var(--door),var(--door2));
-  border-radius:16px;
-  border:1px solid rgba(0,0,0,.45);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.45);
-  position:relative;
-  display:block;
-  color:inherit;
+  .door{
+    width:min(var(--door-max), 84%);
+    aspect-ratio: 3 / 5;
+    background:linear-gradient(180deg,var(--door),var(--door2));
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 20px rgba(0,0,0,.45);
+    position:relative;
   }
   .door .frame{
     position:absolute; inset:14px; border-radius:12px;
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.03);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 5px rgba(255,255,255,.03);
   }
   .panel{
-    position:absolute; left:26px; right:26px; height:16%;
+    position:absolute; left:22px; right:22px; height:15%;
     background:linear-gradient(180deg,var(--panel),var(--panel2));
-    border-radius:10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    border-radius:9px;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
   }
   .panel.p1{top:56px}
   .panel.p2{top:calc(50% - 8%)}
   .panel.p3{bottom:56px}
   .knob{
-    position:absolute; right:14px; top:50%; transform:translateY(-50%);
-    width:12px; height:12px; border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #ffd699, #c08a2b 60%, #83591b);
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    width:13px; height:13px; border-radius:50%;
+    background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
     box-shadow:0 2px 8px rgba(0,0,0,.5)
   }
 
-  /* napis */
-.label{
-  position:absolute;
-  top:23px;
-  left:50%;
-  transform:translateX(-50%);
-  max-width:78%;
-  background:rgba(255,255,255,.14);
-  padding:.25em .6em;
-  border-radius:10px;
-  font-weight:700;
-  font-size:clamp(16px,2.2vw,20px);
-  color:#000;
-  text-shadow:0 1px 0 rgba(255,255,255,.25);
-  text-align:center;
-  line-height:1.1;
-  pointer-events:none;
-}
-
-  @media (max-width:640px){
-    .label{ background:rgba(255,255,255,.12) }
+  /* NAPIS U GÓRY DRZWI – taki jak PL */
+  .label{
+    position:absolute;
+    top:10px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700;
+    letter-spacing:.03em;
+    font-size:clamp(15px,2vw,19px);
+    color:#000;
+    text-shadow:0 1px 0 rgba(255,255,255,.23);
+    background:rgba(255,255,255,.12);
+    padding:.25em .7em;
+    border-radius:9px;
+    max-width:82%;
+    text-align:center;
   }
 
-  /* mobliki – upewniamy się, że drzwi są wyśrodkowane i nie za małe */
-  @media (max-width: 619px){
-    .card{
-      min-height:250px;
+  /* TABLET / MAŁY LAPTOP – 3 kolumny */
+  @media (max-width:1024px){
+    .grid{
+      grid-template-columns:repeat(3, minmax(150px,1fr));
+      justify-items:center;
     }
+    .card{min-height:220px}
+  }
+
+  /* TELEFON – 2 kolumny, trochę większe drzwi żeby były czytelne */
+  @media (max-width:640px){
+    main{padding-top:22px}
+    .grid{
+      grid-template-columns:repeat(2, minmax(140px,1fr));
+      gap:14px;
+    }
+    .card{min-height:210px}
     .door{
-      width: min(210px, 100%);   /* tu powiększamy drzwi na telefonie */
-      max-width: 210px;
-      margin: 0 auto;
+      width:150px;
+    }
+    .label{
+      background:rgba(255,255,255,.14);
+      font-size:15px;
     }
   }
 
@@ -179,9 +160,25 @@
     text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
   }
 
-  /* mocniejszy przyciemiacz przy dole */
-  body::after{
-    background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
+  /* badge w lewym górnym rogu zostawiamy jak miałeś */
+  .ai-badge{
+    position:fixed; top:14px; left:14px; z-index:50;
+    background:rgba(12,20,28,.88);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:999px;
+    display:flex; gap:7px; align-items:center;
+    padding:6px 12px 6px 6px;
+    backdrop-filter:blur(6px);
+  }
+  .ai-badge-dot{
+    width:26px; height:26px; border-radius:999px;
+    background:radial-gradient(circle at 30% 30%, #ffd27a, #b87a15 70%);
+    box-shadow:0 0 14px rgba(255,199,105,.45);
+  }
+  .ai-badge-title{font-weight:700; font-size:.9rem}
+  .ai-badge-sub{font-size:.7rem; opacity:.78}
+  @media (max-width:540px){
+    .ai-badge{transform:scale(.94); transform-origin:top left}
   }
 </style>
 
