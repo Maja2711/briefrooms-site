@@ -7,14 +7,66 @@
   <meta name="description" content="Automatic daily digest: politics/world, business/economy, sports." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
- <style>
+
+  <!-- custom styles: warm white links + thumbnails -->
+  <style>
+    /* linki w newsach na ciepły biały */
     main .card ul li a {
-      color: #fdf3e3;          /* ciepły biały */
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fdf3e3; /* ciepły biały */
       text-decoration: none;
+      line-height: 1.25;
     }
     main .card ul li a:hover {
       color: #ffffff;
       text-decoration: underline;
+    }
+
+    /* miniaturka / placeholder */
+    .news-thumb {
+      width: 62px;
+      min-width: 62px;
+      height: 50px;
+      border-radius: 10px;
+      background: rgba(253,243,227,.03);
+      border: 1px solid rgba(253,243,227,.35);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2px;
+      overflow: hidden;
+    }
+    .news-thumb .title {
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    .news-thumb .sub {
+      font-size: .48rem;
+      opacity: .75;
+      white-space: nowrap;
+    }
+    .news-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* tekst obok miniaturki */
+    .news-text {
+      flex: 1;
+    }
+
+    /* dolny link "back" też w ciepłym białym */
+    p.back a {
+      color: #fdf3e3;
+    }
+    p.back a:hover {
+      color: #ffffff;
     }
   </style>
 </head>
@@ -27,45 +79,223 @@
     <section class="card" style="margin:16px 0; border-radius:22px;">
       <h2>Politics / World</h2>
       <ul>
-        <li><a href="https://www.bbc.com/news/articles/crl25xl1gjpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Trump hails 'amazing' meeting with China's Xi but no formal trade deal agreed</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cq50jg5nv45o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Sudan RSF chief promises investigation as anger mounts over el-Fasher killings</a></li>
-        <li><a href="https://www.bbc.com/news/articles/c4gj90j2g8jo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Israel receives coffins Hamas says contain two Gaza hostages' bodies</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cpwvy4w875vo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Dutch centrist liberals neck and neck with populist Wilders in tight election</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cz91jnyelq2o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Five new suspects arrested over Louvre jewellery theft</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cy5q0leq2lpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">K-pop group NewJeans loses legal battle against agency</a></li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/crl25xl1gjpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Trump hails 'amazing' meeting with China's Xi but no formal trade deal agreed</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cq50jg5nv45o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Sudan RSF chief promises investigation as anger mounts over el-Fasher killings</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/c4gj90j2g8jo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Israel receives coffins Hamas says contain two Gaza hostages' bodies</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cpwvy4w875vo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Dutch centrist liberals neck and neck with populist Wilders in tight election</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cz91jnyelq2o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Five new suspects arrested over Louvre jewellery theft</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cy5q0leq2lpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">K-pop group NewJeans loses legal battle against agency</span>
+          </a>
+        </li>
       </ul>
     </section>
+
     <section class="card" style="margin:16px 0; border-radius:22px;">
       <h2>Business / Economy</h2>
       <ul>
-        <li><a href="https://www.bbc.com/news/articles/cd047vl9ylpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Watchdog slams O2 over unexpected price rise</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cy8v5z15551o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Virgin cleared to challenge Eurostar on Channel Tunnel route</a></li>
-        <li><a href="https://www.bbc.com/news/articles/crl25xl1gjpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Trump hails 'amazing' meeting with China's Xi but no formal trade deal agreed</a></li>
-        <li><a href="https://www.bbc.com/news/articles/c4gpzynky88o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Thousands could have energy debt written off but bills would go up for others</a></li>
-        <li><a href="https://www.bbc.com/news/articles/ce9d3kpdp4do?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Spooky spending creeping in weeks before Halloween</a></li>
-        <li><a href="https://www.bbc.com/news/articles/cwykqrlwwxqo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">Should K-beauty products have to come from South Korea?</a></li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cd047vl9ylpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Watchdog slams O2 over unexpected price rise</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cy8v5z15551o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Virgin cleared to challenge Eurostar on Channel Tunnel route</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/crl25xl1gjpo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Trump hails 'amazing' meeting with China's Xi but no formal trade deal agreed</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/c4gpzynky88o?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Thousands could have energy debt written off but bills would go up for others</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/ce9d3kpdp4do?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Spooky spending creeping in weeks before Halloween</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.bbc.com/news/articles/cwykqrlwwxqo?at_medium=RSS&at_campaign=rss" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Should K-beauty products have to come from South Korea?</span>
+          </a>
+        </li>
       </ul>
     </section>
+
     <section class="card" style="margin:16px 0; border-radius:22px;">
       <h2>Sports</h2>
       <ul>
-        <li><a href="https://www.espn.com/womens-college-basketball/story/_/id/46770503/womens-ncaa-basketball-predictions-picks-2025-2026" target="_blank" rel="noopener">The comprehensive guide to the women's hoops season, including preseason picks</a></li>
-        <li><a href="https://www.espn.com/mens-college-basketball/story/_/id/46771940/mens-ncaa-basketball-conference-storylines-watch-2025-2026" target="_blank" rel="noopener">Storylines to watch in all 31 men's basketball conferences</a></li>
-        <li><a href="https://www.espn.com/college-football/story/_/id/46780529/sources-nebraska-rhule-agrees-2-year-extension-2032" target="_blank" rel="noopener">Nebraska's Rhule signs extension through 2032</a></li>
-        <li><a href="https://www.espn.com/college-football/story/_/id/46782471/report-rose-bowl-city-sues-ucla-alleged-plan-move-sofi" target="_blank" rel="noopener">Report: Rose, city sue UCLA for alleged SoFi plan</a></li>
-        <li><a href="https://www.espn.com/nba/story/_/id/46782242/hornets-lamelo-ball-fined-35k-making-obscene-gesture" target="_blank" rel="noopener">Hornets' Ball fined $35K for flipping off ref in loss</a></li>
-        <li><a href="https://www.espn.com/nba/story/_/id/46782684/nba-approves-mark-walter-purchase-majority-stake-lakers" target="_blank" rel="noopener">NBA approves Walter's majority stake in Lakers</a></li>
+        <li>
+          <a href="https://www.espn.com/womens-college-basketball/story/_/id/46770503/womens-ncaa-basketball-predictions-picks-2025-2026" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">The comprehensive guide to the women's hoops season, including preseason picks</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.espn.com/mens-college-basketball/story/_/id/46771940/mens-ncaa-basketball-conference-storylines-watch-2025-2026" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Storylines to watch in all 31 men's basketball conferences</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.espn.com/college-football/story/_/id/46780529/sources-nebraska-rhule-agrees-2-year-extension-2032" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Nebraska's Rhule signs extension through 2032</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.espn.com/college-football/story/_/id/46782471/report-rose-bowl-city-sues-ucla-alleged-plan-move-sofi" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Report: Rose, city sue UCLA for alleged SoFi plan</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.espn.com/nba/story/_/id/46782242/hornets-lamelo-ball-fined-35k-making-obscene-gesture" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">Hornets' Ball fined $35K for flipping off ref in loss</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://www.espn.com/nba/story/_/id/46782684/nba-approves-mark-walter-purchase-majority-stake-lakers" target="_blank" rel="noopener">
+            <span class="news-thumb">
+              <span class="title">NEWS</span>
+              <span class="sub">BriefRooms • AI</span>
+            </span>
+            <span class="news-text">NBA approves Walter's majority stake in Lakers</span>
+          </a>
+        </li>
       </ul>
     </section>
+
     <p class="sub" style="margin-top:22px">
       Automatic digest (RSS). Links go to original publishers. Page is overwritten daily.
     </p>
-        <p class="back" style="margin-top:22px">
+    <p class="back" style="margin-top:22px">
       ← <a href="/en/">Back to room selection</a>
     </p>
   </main>
 
-  </main>
   <footer style="text-align:center; opacity:.6; padding:16px 12px 36px">© BriefRooms</footer>
+
+  <!-- JS: wykrywa domenę i jeśli mamy ikonę – podmienia -->
+  <script>
+    // tu podajesz swoje ikonki (jak wrzucisz do /assets/news/)
+    const SOURCE_IMAGES = {
+      'bbc.com': '/assets/news/bbc.png',
+      'espn.com': '/assets/news/espn.png'
+      // 'reuters.com': '/assets/news/reuters.png',
+      // 'polsatsport.pl': '/assets/news/polsat.png',
+    };
+
+    document.querySelectorAll('main .card ul li a').forEach(a => {
+      const href = a.getAttribute('href');
+      if (!href) return;
+
+      let host = '';
+      try { host = new URL(href).host; } catch (e) {}
+
+      const thumb = a.querySelector('.news-thumb');
+      if (!thumb) return;
+
+      const icon = SOURCE_IMAGES[host];
+      if (icon) {
+        thumb.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = icon;
+        img.alt = host + ' news';
+        thumb.appendChild(img);
+      }
+      // jeśli brak w mapie – zostaje NEWS + BriefRooms • AI
+    });
+  </script>
 </body>
 </html>
