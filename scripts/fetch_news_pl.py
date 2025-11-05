@@ -18,8 +18,7 @@ TZ = tz.gettz("Europe/Warsaw")
 # ===== KONFIG =====
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
-AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
-AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")  # zmienisz, jeśli chcesz
+AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 CACHE_PATH = ".cache/news_summaries_pl.json"
 
 FEEDS = {
@@ -110,7 +109,7 @@ def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
 
-# ===== AI SUMMARIZATION =====
+# ===== CACHE =====
 def load_cache(path: str):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -126,48 +125,50 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(CACHE_PATH)
 
+# ===== AI SUMMARIZATION =====
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     """
-    Zwraca dict:
-    { "summary": "...", "uncertain": "...", "model": "gpt-4o-mini" }
+    Zwraca dict: { "summary": "...", "uncertain": "...", "model": "gpt-4o-mini" }
+    Sekcja 'uncertain' jest PUSTA, jeśli nie wykryto realnych niejasności.
     """
     key = os.getenv("OPENAI_API_KEY")
-    if not key:
-        # Fallback bez AI
-        return {
-            "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "Brak analizy AI – skrót na podstawie opisu w RSS.",
-            "model": "fallback"
-        }
-
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
         return CACHE[cache_key]
 
-    prompt = f"""Streść zwięźle po polsku (maks 2–3 zdania) najważniejsze fakty z poniższej wiadomości.
-Następnie wypisz krótko, co jest NIEPEWNE/SPORNE lub może być błędnie interpretowane (jeśli brak – napisz 'brak').
+    if not key:
+        out = {
+            "summary": (snippet or title or "")[:320].strip(),
+            "uncertain": "",
+            "model": "fallback"
+        }
+        CACHE[cache_key] = out
+        save_cache(CACHE_PATH, CACHE)
+        return out
+
+    prompt = f"""Streść zwięźle po polsku (maks 2–3 zdania) NAJWAŻNIEJSZE fakty z wiadomości.
+Następnie napisz drugą linijkę TYLKO jeśli widzisz realne ryzyko nieścisłości / błędnej interpretacji na podstawie TYTUŁU i OPISU RSS:
+- 'Niepewne/sporne: …' (konkret, bez ogólników).
+Jeśli NIC istotnego nie budzi wątpliwości — nie pisz w ogóle tej drugiej linijki.
+Bądź konserwatywny: nie zgaduj, nie spekuluj, nie dopisuj faktów spoza tytułu/opisu.
 Tytuł: {title}
 Opis (RSS/snippet): {snippet}
-Nie fantazjuj – jeśli czegoś nie ma w tytule/opisie, nie dopisuj.
-Zwróć odpowiedź jako dwa akapity:
-- Najważniejsze: …
-- Niepewne/sporne: …
+FORMAT ODPOWIEDZI:
+Najważniejsze: …
+[opcjonalne] Niepewne/sporne: …
 """
 
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś rzetelnym asystentem prasowym, zwięzłym i ostrożnym."},
+                    {"role": "system", "content": "Jesteś rzetelnym, ostrożnym asystentem prasowym. Nie dopisujesz faktów."},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.2,
+                "temperature": 0.1,
                 "max_tokens": 220
             },
             timeout=25
@@ -175,33 +176,36 @@ Zwróć odpowiedź jako dwa akapity:
         resp.raise_for_status()
         txt = resp.json()["choices"][0]["message"]["content"].strip()
 
-        # prosty parser na dwie linie
         parts = {"summary": "", "uncertain": ""}
         for line in txt.splitlines():
             l = line.strip()
             if not l:
                 continue
-            if l.lower().startswith("najważniejsze:"):
+            low = l.lower()
+            if low.startswith("najważniejsze:"):
                 parts["summary"] = l.split(":", 1)[1].strip()
-            elif l.lower().startswith("niepewne") or "sporne" in l.lower():
-                parts["uncertain"] = l.split(":", 1)[1].strip() if ":" in l else l
+            elif low.startswith("niepewne") or "sporne" in low:
+                # tylko jeśli faktycznie jest treść po dwukropku
+                val = l.split(":", 1)[1].strip() if ":" in l else ""
+                if val and val.lower() not in {"brak", "none"}:
+                    parts["uncertain"] = val
 
         if not parts["summary"]:
-            parts["summary"] = txt[:320]
-
-        if not parts["uncertain"]:
-            parts["uncertain"] = "brak"
-
+            parts["summary"] = txt[:320].strip()
+        # jeśli nie ma realnych niepewności — trzymamy pusty string
         out = {**parts, "model": AI_MODEL}
         CACHE[cache_key] = out
         save_cache(CACHE_PATH, CACHE)
         return out
-    except Exception as e:
-        return {
+    except Exception:
+        out = {
             "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "Brak analizy AI – skrót na podstawie opisu w RSS.",
+            "uncertain": "",
             "model": "fallback-error"
         }
+        CACHE[cache_key] = out
+        save_cache(CACHE_PATH, CACHE)
+        return out
 
 # ===== FETCH & PICK =====
 def fetch_section(section_key: str):
@@ -226,11 +230,9 @@ def fetch_section(section_key: str):
         except Exception as ex:
             print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
-    # scoring
     for it in items:
         it["_score"] = score_item(it, section_key)
 
-    # sort
     items.sort(key=lambda x: x["_score"], reverse=True)
 
     # dedupe
@@ -243,7 +245,7 @@ def fetch_section(section_key: str):
         seen.add(key)
         deduped.append(it)
 
-    # cap per host + take N
+    # per-host limit + top N
     per_host = {}
     picked = []
     for it in deduped:
@@ -256,7 +258,7 @@ def fetch_section(section_key: str):
         if len(picked) >= MAX_PER_SECTION:
             break
 
-    # sport: spróbuj dodać 1 "live" jeśli dostępny
+    # sport: spróbuj dodać 1 LIVE
     if section_key == "sport":
         has_live = any(LIVE_RE.search(x["title"]) for x in picked)
         if not has_live:
@@ -268,11 +270,11 @@ def fetch_section(section_key: str):
                         picked.append(it)
                     break
 
-    # AI summary dla każdego
+    # AI summary
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
         it["ai_summary"] = s["summary"]
-        it["ai_uncertain"] = s["uncertain"]
+        it["ai_uncertain"] = s["uncertain"]  # PUSTE jeśli brak niepewności
         it["ai_model"] = s["model"]
 
     return picked
@@ -280,6 +282,8 @@ def fetch_section(section_key: str):
 # ===== RENDER =====
 def render_html(pl_sections: dict) -> str:
     extra_css = """
+    ul.news { list-style: none; padding-left: 0 }
+    ul.news li { margin: 0 0 16px 0 }
     ul.news li a{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
@@ -299,25 +303,19 @@ def render_html(pl_sections: dict) -> str:
     .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
     .ai-note{
-      margin:6px 0 0 88px;  /* wyrównanie pod linkiem obok badge */
+      margin:6px 0 0 88px;
       font-size:.92rem; color:#dfe7f1; line-height:1.35;
       background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
       padding:10px 12px; border-radius:12px;
     }
-    .ai-note .ai-head{
-      display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700;
-      color:#fdf3e3;
-    }
+    .ai-note .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
     .ai-badge{
       display:inline-flex; align-items:center; gap:6px;
       padding:3px 8px; border-radius:999px;
       background:linear-gradient(135deg,#0ea5e9,#7c3aed);
       font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35);
     }
-    .ai-dot{
-      width:8px; height:8px; border-radius:999px; background:#fff;
-      box-shadow:0 0 6px rgba(255,255,255,.7);
-    }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
     .ai-note .sec{ margin-top:4px; opacity:.9; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
@@ -332,6 +330,11 @@ def render_html(pl_sections: dict) -> str:
         )
 
     def make_li(it):
+        uncertain_block = (
+            f'<div class="sec"><strong>Niepewne / sporne:</strong> {esc(it.get("ai_uncertain",""))}</div>'
+            if it.get("ai_uncertain")
+            else ""
+        )
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
@@ -340,7 +343,7 @@ def render_html(pl_sections: dict) -> str:
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_summary",""))}</div>
-    <div class="sec"><strong>Niepewne / sporne:</strong> {esc(it.get("ai_uncertain",""))}</div>
+    {uncertain_block}
   </div>
 </li>'''
 
@@ -403,7 +406,7 @@ def main():
     html_str = render_html(sections)
     with open("pl/aktualnosci.html", "w", encoding="utf-8") as f:
         f.write(html_str)
-    print("✓ Wygenerowano pl/aktualnosci.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
+    print("✓ Wygenerowano pl/aktualnosci.html")
 
 if __name__ == "__main__":
     main()
