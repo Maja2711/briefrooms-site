@@ -11,13 +11,51 @@
     header{ text-align:center; padding:24px 12px 6px }
     .sub{ color:#b9c5d8 }
     main{ max-width:980px; margin:0 auto; padding:0 16px 48px }
-    .card{ background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
-           border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:18px 20px; margin:14px 0;
-           box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25) }
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:18px 20px; margin:14px 0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
+    }
     h2{ margin:8px 0 6px; color:#d7e6ff }
-    h3{ margin:12px 0 6px; color:#aecdff }
-    ul.news{ margin:6px 0 0 18px }
-    .note{ color:#9fb3c8; font-size:.92rem }
+    
+    ul.news { list-style: none; padding-left: 0 }
+    ul.news li { margin: 0 0 16px 0 }
+    ul.news li a{
+      display:flex; align-items:center; gap:10px;
+      color:#fdf3e3; text-decoration:none; line-height:1.25;
+    }
+    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-thumb{
+      width:78px; min-width:78px; height:54px; border-radius:14px;
+      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
+      border:1px solid rgba(255,255,255,.28);
+      display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+      gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    .news-thumb .dot{
+      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
+      border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
+    }
+    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .ai-note{
+      margin:6px 0 0 88px;
+      font-size:.92rem; color:#dfe7f1; line-height:1.35;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      padding:10px 12px; border-radius:12px;
+    }
+    .ai-note .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed);
+      font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35);
+    }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .ai-note .sec{ margin-top:4px; opacity:.9; }
+    .note{ color:#9fb3cb; font-size:.92rem }
+    
   </style>
 </head>
 <body>
@@ -27,31 +65,228 @@
 </header>
 <main>
 
-<section class="card"><h2>Polityka / Kraj</h2><ul class="news">
-<li><a href="https://tvn24.pl/swiat/rosja-wladimir-putin-podpisal-ustawe-o-calorocznym-poborze-do-wojska-st8736041?source=rss" target="_blank" rel="noopener">Pobór do wojska przez cały rok. Putin podpisał ustawę</a></li>
-<li><a href="https://tvn24.pl/swiat/szesc-rzeczy-ktore-warto-wiedziec-w-srode-5-listopada-najwazniejsze-informacje-st8736156?source=rss" target="_blank" rel="noopener">Drony nad lotniskami, wybory w Nowym Jorku, wyrok dla Doriana S.</a></li>
-<li><a href="https://tvn24.pl/swiat/usa-zohran-mamdani-zwyciezca-wyborow-na-burmistrza-nowego-jorku-st8736157?source=rss" target="_blank" rel="noopener">Nowojorczycy wybrali burmistrza</a></li>
-<li><a href="https://tvn24.pl/swiat/usa-samolot-transportowy-rozbil-sie-w-poblizu-lotniska-w-louisville-st8736067?source=rss" target="_blank" rel="noopener">Samolot transportowy rozbił się w pobliżu lotniska w Louisville</a></li>
-<li><a href="https://tvn24.pl/tvnmeteo/prognoza/pogoda-na-dzis-sroda-5-11-czeka-nas-pogodny-dzien-na-termometrach-do-15-st-c-st8736015?source=rss" target="_blank" rel="noopener">Pogoda na dziś - środa, 5.11. Czeka nas pogodny dzień, na termometrach do 15 st. C</a></li>
-<li><a href="https://tvn24.pl/polska/tusk-mial-postawic-ultimatum-w-sprawie-cpk-premier-powiedzial-jasno-st8736040?source=rss" target="_blank" rel="noopener">Tusk miał postawić ultimatum. Wiceminister: premier powiedział jasno</a></li>
-</ul></section>
-<section class="card"><h2>Ekonomia / Biznes</h2><ul class="news">
-<li><a href="https://www.bankier.pl/wiadomosc/Prof-Krzysztof-Jajuga-To-te-czynniki-zadecyduja-o-tempie-wzrostu-gospodarczego-w-Polsce-9033911.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Prof. Krzysztof Jajuga: To te czynniki zadecydują o tempie wzrostu gospodarczego w Polsce</a></li>
-<li><a href="https://www.bankier.pl/wiadomosc/KGHM-zloto-w-centrum-uwagi-srebro-rosnie-za-jego-przykladem-miedz-w-dlugim-horyzoncie-powinna-drozec-9034432.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">KGHM: złoto w centrum uwagi, srebro rośnie za jego przykładem, miedź w długim horyzoncie powinna drożeć</a></li>
-<li><a href="https://www.bankier.pl/wiadomosc/Paliwo-w-polskiej-gospodarce-sie-skonczylo-Na-horyzoncie-szereg-wyzwan-9034092.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Paliwo w polskiej gospodarce się skończyło? Na horyzoncie szereg wyzwań</a></li>
-<li><a href="https://www.bankier.pl/wiadomosc/Portfel-Gwiazd-na-listopad-Zobacz-na-co-stawiaja-gwiazdy-polskiej-ekonomii-9034176.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Portfel Gwiazd na listopad. Zobacz, na co stawiają gwiazdy polskiej ekonomii!</a></li>
-<li><a href="https://www.bankier.pl/wiadomosc/GOSPODARCZY-PUNKT-WIDZENIA-9034459.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Giełda kontra &quot;prywatny parkiet&quot;. Jak działa Private Equity?</a></li>
-<li><a href="https://www.bankier.pl/wiadomosc/Sesja-gieldowa-4-11-2025-Spadkowy-poczatek-listopada-na-warszawskiej-gieldzie-9034892.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">WIG20 popchnięty w dół. Spadkowy początek listopada na warszawskiej giełdzie</a></li>
-</ul></section>
-<section class="card"><h2>Sport</h2><ul class="news">
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/liga-konferencji-sparta-praga-rakow-czestochowa-gdzie-obejrzec-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">Liga Konferencji: Sparta Praga - Raków Częstochowa. Gdzie obejrzeć? Transmisja TV i stream online</a></li>
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/liga-konferencji-celje-legia-warszawa-gdzie-obejrzec-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">Liga Konferencji: Celje - Legia Warszawa. Gdzie obejrzeć? Transmisja TV i stream online</a></li>
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/liga-konferencji-shkendija-jagiellonia-bialystok-gdzie-obejrzec-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">Liga Konferencji: Shkendija - Jagiellonia Białystok. Gdzie obejrzeć? Transmisja TV i stream online</a></li>
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/liga-konferencji-rayo-vallecano-lech-poznan-gdzie-obejrzec-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">Liga Konferencji: Rayo Vallecano - Lech Poznań. Gdzie obejrzeć? Transmisja TV i stream online</a></li>
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/aktualna-tabela-ligi-mistrzow-kto-prowadzi/" target="_blank" rel="noopener">Aktualna tabela Ligi Mistrzów. Kto prowadzi?</a></li>
-<li><a href="https://www.polsatsport.pl/wiadomosc/2025-11-04/psg-bayern-kto-wygral-wynik/" target="_blank" rel="noopener">Kontuzje gwiazd, czerwona kartka i walka do końca! Wielkie emocje w hicie LM</a></li>
-</ul></section>
+<section class="card">
+  <h2>Polityka / Kraj</h2>
+  <ul class="news">
+    <li>
+  <a href="https://www.polsatnews.pl/gosc-wydarzen/2025-11-05/mowie-to-wprost-i-bardzo-brutalnie-minister-motyka-o-transformacji-energetycznej/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">&quot;Mówię to wprost i bardzo brutalnie&quot;. Minister Motyka o transformacji energetycznej</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> - Powiem brutalnie dla nas transformacja energetyczna nie jest celem, który ma realizować założenia klimatyczne. Kluczowe jest bezpieczeństwo energetyczne - powiedział minister energii Miłosz Motyka, komentując decyzję UE w sprawie opróżnienia o rok wejścia w życie programu ETS2. Minister zaznaczył, że ETS2 wpłynie na</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-05/ukraina-zawarla-nowy-sojusz-jasny-sygnal-dla-putina/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Ukraina zawarła nowy sojusz. &quot;Jasny sygnał dla Putina&quot;</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Ukraina oficjalnie dołączyła do sojuszu Połączonych Sił Ekspedycyjnych (JEF), tworzonego przez jedenaście państw północnej Europy i współpracującego z NATO. Jak podkreślił szef brytyjskiego MON, decyzja ma być jasnym sygnałem dla rosyjskiego przywódcy Władimira Putina, że jego agresja spotka się ze zdecydowaną odpowied</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://tvn24.pl/polska/fundusz-sprawiedliwosci-wiceminister-dariusz-mazur-nie-ma-dobrych-wiesci-o-zwrocie-pieniedzy-od-fundacji-st8737807?source=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Wiceminister &quot;nie ma dobrych wieści&quot;. &quot;To wszystko, co do tej pory odzyskano&quot;</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Wiceminister sprawiedliwości Dariusz Mazur przekazał w &quot;Tak jest&quot;, że jedynie 400 tysięcy z blisko 90 milionów złotych zostało do tej pory zwrócone przez organizacje, które zdaniem rządzących bezprawnie otrzymały pieniądze z Funduszu Sprawiedliwości. Odniósł się też do wniosku w sprawie Zbigniewa Ziobry i zwracał uwagę</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://tvn24.pl/biznes/ze-swiata/francja-rzad-wszczal-procedure-zawieszenia-dzialalnosci-handlowego-giganta-st8737697?source=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Rząd uruchomił procedurę zawieszenia działalności wielkiej platformy handlowej</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Rząd w Paryżu wszczął procedurę zawieszenia działalności platformy internetowej Shein do czasu, aż wykaże ona, że działa zgodnie z francuskim prawem. To reakcja na skandal, w którym odkryto, że za pośrednictwem Shein oferowano lalki erotyczne o wyglądzie dzieci.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://tvn24.pl/kultura-i-styl/malezja-raper-zatrzymany-w-zwiazku-ze-sprawa-smierci-influencerki-z-tajwanu-st8737307?source=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Media: znany raper zatrzymany po śmierci influencerki. Została znaleziona w hotelowej wannie</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Popularny malezyjski raper został zatrzymany w związku ze śledztwem w sprawie śmierci tajwańskiej influencerki - informuje Sky News. Namewee sam oddał się w środę w ręce policji, zaprzecza zarzutom i obiecuje pomóc policji w śledztwie w sprawie Iris Hsieh.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-05/tu-kieszonkowcy-czuja-sie-jak-ryba-w-wodzie-na-liscie-polska/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Tu kieszonkowcy czują się jak ryba w wodzie. Na liście Polska</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Przez lata Barcelona uchodziła za europejską stolicę kieszonkowców. W Hiszpanii turyści rzeczywiście często stają się celem złodziei, ale kraj ten nie przoduje już w rankingach. Na prowadzenie wybiły się Włochy, a najniebezpieczniejszym miejscem okazuje się słynna Fontanna di Trevi w Rzymie. Wśród 10 europejskich krajó</div>
+    
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Ekonomia / Biznes</h2>
+  <ul class="news">
+    <li>
+  <a href="https://www.bankier.pl/wiadomosc/Czolgi-i-rakiety-nie-pociagna-PKB-Wydatki-na-obronnosc-moga-przyniesc-tylko-krotkotrwaly-wzrost-9035598.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Czołgi i rakiety nie pociągną PKB? &quot;Wydatki na obronność mogą przynieść tylko krótkotrwały wzrost&quot;</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Wyższe europejskie wydatki na obronność będą budować ochronę kontynentu przed zagrożeniami, ale wygenerują krótkotrwały wzrost PKB, jeśli fundusze nie zostaną skierowane m.in. na prace badawczo-rozwojowe – twierdzą eksperci na łamach „Financial Times”.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Rada-Polityki-Pienieznej-obnizyla-stopy-procentowe-w-listopadzie-2025-To-juz-druga-jesienna-cwiartka-9035311.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Rada Polityki Pieniężnej obniżyła stopy procentowe. To już druga jesienna ćwiartka</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Rada Polityki Pieniężnej tym razem nie zaskoczyła
+ekonomistów i zgodnie z oczekiwaniami obniżyła stopy procentowe NBP o ćwierć
+punktu procentowego.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Setki-milionow-na-nowa-eske-BGK-ma-kredyt-na-budowe-100-km-drogi-S74-9035358.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Setki milionów na nową &quot;eskę&quot;. BGK ma kredyt na budowę 100 km drogi S74</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Bank Gospodarstwa Krajowego uzyskał z EBI kredyt w wysokości 600 mln euro; zostanie przeznaczony na budowę blisko 100 km odcinka drogi ekspresowej S74 pomiędzy Sulejowem i Tomaszowem i na obwodnicę Opatowa - poinformował w środę BGK.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Dolar-pozostaje-mocny-Zloty-czeka-na-decyzje-RPP-9035204.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Dolar pozostaje mocny. Złoty czeka na decyzję RPP</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Krajowy rynek walutowy wyczekuje decyzji
+Rady Polityki Pieniężnej, która najprawdopodobniej ponownie obniży stopy
+procentowe. Nadal blisko 5-letniego minimum notowany był funt brytyjski.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Temperatura-w-dol-ceny-wegla-dla-energetyki-w-gore-Na-razie-minimalnie-9035631.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Temperatura w dół, ceny węgla dla energetyki w górę. Na razie minimalnie</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Krajowy węgiel dostarczany z kopalń do energetyki był we wrześniu br. droższy o 1,1 proc. niż w sierpniu br., a węgiel dla ciepłownictwa zdrożał w tym czasie o 1,0 proc. - wynika z indeksów cenowych ARP.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Cla-Trumpa-rozbijaja-sie-o-Sad-Najwyzszy-Sedziowie-sceptyczni-co-do-uprawnien-prezydenta-9035620.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Cła Trumpa rozbijają się o Sąd Najwyższy. Sędziowie sceptyczni</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Większość sędziów Sądu Najwyższego wyrażało podczas środowej rozprawy sceptycyzm co do uprawnień prezydenta Donalda Trumpa do nałożenia większości ceł na towary z niemal wszystkich państw świata. Decyzja w tej sprawie zapadnie w późniejszym terminie.</div>
+    
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Sport</h2>
+  <ul class="news">
+    <li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/polsat-futbol-cast-przed-meczami-polskich-klubow-w-lk-06-11-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Polsat Futbol Cast przed meczami polskich klubów w LK - 06.11. Transmisja TV i stream online</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Przed nami kolejny odcinek Polsat Futbol Cast. Tym razem nasi eksperci porozmawiają o nadchodzących meczach polskich klubów w Lidze Konferencji. Transmisja Polsat Futbol Cast w Polsacie Sport 1 i online na Polsatsport.pl oraz na Polsat Box Go.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/al-ko-superpuchar-polski-bogdanka-luk-lublin-jsw-jastrzebski-wegiel-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">AL-KO Superpuchar Polski: Bogdanka LUK Lublin - JSW Jastrzębski Węgiel. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Bogdanka LUK Lublin i JSW Jastrzębski Węgiel zmierzą się w walce o AL-KO Superpuchar Polski. Kto wygra to trofeum? Relacja live i wynik na żywo meczu Bogdanka LUK Lublin - JSW Jastrzębski Węgiel na Polsatsport.pl.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/al-ko-superpuchar-polski-developres-rzeszow-lks-commercecon-lodz-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">AL-KO Superpuchar Polski: DevelopRes Rzeszów - ŁKS Commercecon Łódź. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> DevelopRes Rzeszów zagra z ŁKS-em Commercecon Łódź o triumf w AL-KO Superpucharze Polski. Kto wygra to trofeum? Relacja live i wynik na żywo meczu DevelopRes Rzeszów - ŁKS Commercecon Łódź na Polsatsport.pl.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/pls-1-liga-siatkarzy-cku-anioly-torun-pzl-leonardo-avia-swidnik-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">PLS 1. Liga siatkarzy: CKU Anioły Toruń - PZL Leonardo Avia Świdnik. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> CKU Anioły Toruń zagrają z PZL Leonardo Avia Świdnik w meczu 8. kolejki PLS 1. Ligi siatkarzy. Kiedy i o której godzinie mecz? Kto wygra to spotkanie? Relacja live i wynik na żywo z meczu CKU Anioły Toruń – PZL Leonardo Avia Świdnik na Polsatsport.pl.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/liga-mistrzow-promitheas-patras-legia-warszawa-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Liga Mistrzów: Promitheas Patras - Legia Warszawa. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Promitheas Patras - Legia Warszawa to spotkanie w ramach czwartej kolejki koszykarskiej Ligi Mistrzów. Relacja live i wynik na żywo meczu Promitheas Patras - Legia Warszawa na Polsatsport.pl. Początek o 19:00.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-05/pls-1-liga-siatkarzy-ks-necko-augustow-lechia-tomaszow-mazowiecki-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">PLS 1. Liga siatkarzy: KS Necko Augustów - Lechia Tomaszów Mazowiecki. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> KS Necko Augustów zagra z Lechią Tomaszów Mazowiecki w meczu 8. kolejki PLS 1. Ligi siatkarzy. Kiedy i o której godzinie mecz? Kto wygra to spotkanie? Relacja live i wynik na żywo z meczu KS Necko Augustów – Lechia Tomaszów Mazowiecki na Polsatsport.pl.</div>
+    
+  </div>
+</li>
+  </ul>
+</section>
+
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana codziennie.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
-</body></html>
+</body>
+</html>
