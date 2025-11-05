@@ -71,6 +71,36 @@ BAN_PATTERNS = [
 LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
 
 # ===== UTIL =====
+SENT_LIMIT = 420  # bezpieczny limit znaków na sekcję
+
+def tidy_sentence_block(text: str, limit: int = SENT_LIMIT) -> str:
+    """
+    - Usuwa wiodące bullet'y ('- ', '• ' itp.)
+    - Normalizuje spacje.
+    - Jeśli za długie: tnie do limitu, ale do OSTATNIEGO końca zdania (. ! ?).
+      Jeśli brak pełnego zdania w limicie – ucina po słowie i dodaje '…'.
+    - Gwarantuje zakończenie pełnym zdaniem (kropka/!/?) gdy to sensowne.
+    """
+    if not text:
+        return ""
+    t = " ".join(text.strip().split())
+    t = re.sub(r"^[-–•]\s+", "", t)
+
+    if len(t) <= limit:
+        return t if t.endswith(('.', '!', '?')) else (t + '.')
+
+    cut = t[:limit]
+    last_dot = cut.rfind('.')
+    last_exc = cut.rfind('!')
+    last_q   = cut.rfind('?')
+    last_end = max(last_dot, last_exc, last_q)
+
+    if last_end >= 40:
+        return cut[:last_end + 1]
+
+    cut = cut.rsplit(' ', 1)[0]
+    return cut + '…'
+
 def norm_title(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"&\w+;|&#\d+;", " ", s)
@@ -128,8 +158,8 @@ CACHE = load_cache(CACHE_PATH)
 # ===== AI SUMMARIZATION =====
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     """
-    Zwraca dict: { "summary": "...", "uncertain": "...", "model": "gpt-4o-mini" }
-    Sekcja 'uncertain' jest PUSTA, jeśli nie wykryto realnych niejasności.
+    Zwraca: { "summary": "...", "uncertain": "", "model": "..." }
+    'uncertain' jest PUSTE, jeśli brak realnych wątpliwości.
     """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
@@ -147,10 +177,11 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
         return out
 
     prompt = f"""Streść zwięźle po polsku (maks 2–3 zdania) NAJWAŻNIEJSZE fakty z wiadomości.
-Następnie napisz drugą linijkę TYLKO jeśli widzisz realne ryzyko nieścisłości / błędnej interpretacji na podstawie TYTUŁU i OPISU RSS:
-- 'Niepewne/sporne: …' (konkret, bez ogólników).
+NIE używaj wypunktowań ani myślników na początku zdań.
+Następnie napisz drugą linijkę TYLKO jeśli widzisz realne ryzyko nieścisłości/błędnej interpretacji na podstawie TYTUŁU i OPISU RSS:
+- 'Niepewne/sporne: …' (konkretnie, bez ogólników).
 Jeśli NIC istotnego nie budzi wątpliwości — nie pisz w ogóle tej drugiej linijki.
-Bądź konserwatywny: nie zgaduj, nie spekuluj, nie dopisuj faktów spoza tytułu/opisu.
+Bądź konserwatywny: nie spekuluj, nie dopisuj faktów spoza tytułu/opisu.
 Tytuł: {title}
 Opis (RSS/snippet): {snippet}
 FORMAT ODPOWIEDZI:
@@ -185,14 +216,13 @@ Najważniejsze: …
             if low.startswith("najważniejsze:"):
                 parts["summary"] = l.split(":", 1)[1].strip()
             elif low.startswith("niepewne") or "sporne" in low:
-                # tylko jeśli faktycznie jest treść po dwukropku
                 val = l.split(":", 1)[1].strip() if ":" in l else ""
                 if val and val.lower() not in {"brak", "none"}:
                     parts["uncertain"] = val
 
         if not parts["summary"]:
             parts["summary"] = txt[:320].strip()
-        # jeśli nie ma realnych niepewności — trzymamy pusty string
+
         out = {**parts, "model": AI_MODEL}
         CACHE[cache_key] = out
         save_cache(CACHE_PATH, CACHE)
@@ -235,7 +265,6 @@ def fetch_section(section_key: str):
 
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # dedupe
     seen = set()
     deduped = []
     for it in items:
@@ -245,7 +274,6 @@ def fetch_section(section_key: str):
         seen.add(key)
         deduped.append(it)
 
-    # per-host limit + top N
     per_host = {}
     picked = []
     for it in deduped:
@@ -258,7 +286,6 @@ def fetch_section(section_key: str):
         if len(picked) >= MAX_PER_SECTION:
             break
 
-    # sport: spróbuj dodać 1 LIVE
     if section_key == "sport":
         has_live = any(LIVE_RE.search(x["title"]) for x in picked)
         if not has_live:
@@ -270,12 +297,11 @@ def fetch_section(section_key: str):
                         picked.append(it)
                     break
 
-    # AI summary
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
-        it["ai_summary"] = s["summary"]
-        it["ai_uncertain"] = s["uncertain"]  # PUSTE jeśli brak niepewności
-        it["ai_model"] = s["model"]
+        it["ai_summary"]   = tidy_sentence_block(s["summary"])
+        it["ai_uncertain"] = tidy_sentence_block(s["uncertain"]) if s["uncertain"] else ""
+        it["ai_model"]     = s["model"]
 
     return picked
 
@@ -410,4 +436,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
