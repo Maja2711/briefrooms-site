@@ -2,41 +2,51 @@ name: Build PL Aktualności (2x dziennie)
 
 on:
   schedule:
-    # UTC! 05:10 ≈ 06:10 CET / 07:10 CEST ; 12:10 UTC ≈ 13:10 CET / 14:10 CEST
+    # Uwaga: czasy w UTC.
+    # 05:10 UTC ≈ 06:10 CET / 07:10 CEST
+    # 12:10 UTC ≈ 13:10 CET / 14:10 CEST
     - cron: "10 5 * * *"
     - cron: "10 12 * * *"
   workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install feedparser python-dateutil
+          pip install feedparser python-dateutil requests
 
-      - name: Build PL aktualności
+      - name: Generate PL Aktualności (with AI summaries if key is set)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
         run: |
           python scripts/fetch_news_pl.py
 
       - name: Commit & push if changed
         run: |
-          if [[ -n "$(git status --porcelain pl/aktualnosci.html)" ]]; then
+          if [[ -n "$(git status --porcelain pl/aktualnosci.html .cache/news_summaries_pl.json)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add pl/aktualnosci.html
-            git commit -m "chore(news-pl): auto-update (2x daily)"
+            git add pl/aktualnosci.html .cache/news_summaries_pl.json
+            git commit -m "chore(news-pl): update (2x daily, AI summaries)"
             git push
           else
-            echo "No changes to commit."
+            echo "No changes."
           fi
+
