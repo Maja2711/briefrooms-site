@@ -59,6 +59,34 @@ BAN_PATTERNS = [
 ]
 LIVE_RE = re.compile(r"(LIVE|live)", re.I)
 
+# ===== UTIL =====
+SENT_LIMIT = 420
+
+def tidy_sentence_block(text: str, limit: int = SENT_LIMIT) -> str:
+    """
+    Normalizes whitespace, strips bullets, and guarantees a full sentence ending.
+    Cuts to the last sentence end within `limit`; otherwise trims to word and adds '…'.
+    """
+    if not text:
+        return ""
+    t = " ".join(text.strip().split())
+    t = re.sub(r"^[-–•]\s+", "", t)
+
+    if len(t) <= limit:
+        return t if t.endswith(('.', '!', '?')) else (t + '.')
+
+    cut = t[:limit]
+    last_dot = cut.rfind('.')
+    last_exc = cut.rfind('!')
+    last_q   = cut.rfind('?')
+    last_end = max(last_dot, last_exc, last_q)
+
+    if last_end >= 40:
+        return cut[:last_end + 1]
+
+    cut = cut.rsplit(' ', 1)[0]
+    return cut + '…'
+
 def norm_title(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"&\w+;|&#\d+;", " ", s)
@@ -112,7 +140,7 @@ CACHE = load_cache(CACHE_PATH)
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     """
     Returns: { "summary": "...", "uncertain": "", "model": "..." }
-    'uncertain' stays EMPTY unless a clear, concrete uncertainty/misleading angle is found.
+    'uncertain' stays EMPTY unless a clear issue is detected.
     """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
@@ -127,11 +155,12 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
 
-    prompt = f"""Summarize concisely in English (max 2–3 sentences) the MOST IMPORTANT facts from the news item.
-Only if you see a concrete risk of misunderstanding or uncertainty based on the TITLE and RSS SNIPPET, add a second line:
-- 'Uncertain/disputed: …' (be specific, no generic disclaimers).
-If nothing relevant is uncertain — DO NOT output that second line.
-Be conservative; do not speculate or add facts outside title/snippet.
+    prompt = f"""Summarize concisely in English (max 2–3 sentences) the MOST IMPORTANT facts from the item.
+Do not start lines with bullets or dashes.
+Only if you see a concrete risk of misunderstanding/uncertainty based on the TITLE and RSS SNIPPET, add a second line:
+- 'Uncertain/disputed: …' (be specific; no generic disclaimers).
+If nothing notable is uncertain — DO NOT output that second line.
+Be conservative; never speculate or add facts outside the title/snippet.
 Title: {title}
 Snippet (RSS): {snippet}
 RESPONSE FORMAT:
@@ -146,7 +175,7 @@ Most important: …
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role":"system","content":"You are a careful, conservative news assistant. Never invent details."},
+                    {"role":"system","content":"You are a careful, conservative news assistant. Do not invent details."},
                     {"role":"user","content": prompt}
                 ],
                 "temperature": 0.1,
@@ -230,9 +259,9 @@ def fetch_section(section_key: str):
 
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw",""), it["link"])
-        it["ai_summary"]=s["summary"]
-        it["ai_uncertain"]=s["uncertain"]  # empty unless real issue
-        it["ai_model"]=s["model"]
+        it["ai_summary"]   = tidy_sentence_block(s["summary"])
+        it["ai_uncertain"] = tidy_sentence_block(s["uncertain"]) if s["uncertain"] else ""
+        it["ai_model"]     = s["model"]
     return picked
 
 # ===== RENDER =====
@@ -354,3 +383,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
