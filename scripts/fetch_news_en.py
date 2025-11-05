@@ -9,7 +9,7 @@ import feedparser
 from dateutil import tz
 import requests
 
-TZ = tz.gettz("Europe/London")  # wyświetlana data
+TZ = tz.gettz("Europe/London")
 
 # ===== CONFIG =====
 MAX_PER_SECTION = 6
@@ -19,7 +19,6 @@ CACHE_PATH = ".cache/news_summaries_en.json"
 
 FEEDS = {
     "politics": [
-        # solid world/uk sources
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://feeds.bbci.co.uk/news/uk/rss.xml",
         "https://feeds.bbci.co.uk/news/politics/rss.xml",
@@ -29,7 +28,6 @@ FEEDS = {
     "business": [
         "https://feeds.bbci.co.uk/news/business/rss.xml",
         "https://feeds.reuters.com/reuters/businessNews",
-        # Bloomberg has limited public RSS – keep Reuters/BBC primary
     ],
     "sports": [
         "https://www.espn.com/espn/rss/news",
@@ -110,8 +108,12 @@ def save_cache(path: str, data: dict):
         json.dump(data, f, ensure_ascii=False, indent=2)
 CACHE = load_cache(CACHE_PATH)
 
-# ===== AI SUMMARY (English) =====
+# ===== AI SUMMARY (EN) =====
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
+    """
+    Returns: { "summary": "...", "uncertain": "", "model": "..." }
+    'uncertain' stays EMPTY unless a clear, concrete uncertainty/misleading angle is found.
+    """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
@@ -120,20 +122,23 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     if not key:
         out = {
             "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "No AI analysis — brief based on RSS snippet.",
+            "uncertain": "",
             "model": "fallback"
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
 
-    prompt = f"""Summarize concisely in English (max 2–3 sentences) the most important facts in this news item.
-Then list briefly what is UNCERTAIN/DISPUTED or could be misinterpreted (if nothing, write 'none').
+    prompt = f"""Summarize concisely in English (max 2–3 sentences) the MOST IMPORTANT facts from the news item.
+Only if you see a concrete risk of misunderstanding or uncertainty based on the TITLE and RSS SNIPPET, add a second line:
+- 'Uncertain/disputed: …' (be specific, no generic disclaimers).
+If nothing relevant is uncertain — DO NOT output that second line.
+Be conservative; do not speculate or add facts outside title/snippet.
 Title: {title}
 Snippet (RSS): {snippet}
-Do not invent details not present in the title/snippet.
-Return exactly two paragraphs:
-- Most important: …
-- Uncertain/disputed: …
+RESPONSE FORMAT:
+Most important: …
+[optional] Uncertain/disputed: …
 """
+
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -141,32 +146,38 @@ Return exactly two paragraphs:
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role":"system","content":"You are a concise, careful news assistant."},
+                    {"role":"system","content":"You are a careful, conservative news assistant. Never invent details."},
                     {"role":"user","content": prompt}
                 ],
-                "temperature": 0.2,
+                "temperature": 0.1,
                 "max_tokens": 220
             },
             timeout=25
         )
         resp.raise_for_status()
         txt = resp.json()["choices"][0]["message"]["content"].strip()
+
         parts = {"summary":"", "uncertain":""}
         for line in txt.splitlines():
             l = line.strip()
             if not l: continue
-            if l.lower().startswith("most important:"):
+            low = l.lower()
+            if low.startswith("most important:"):
                 parts["summary"] = l.split(":",1)[1].strip()
-            elif l.lower().startswith("uncertain") or "disputed" in l.lower():
-                parts["uncertain"] = l.split(":",1)[1].strip() if ":" in l else l
-        if not parts["summary"]: parts["summary"] = txt[:320]
-        if not parts["uncertain"]: parts["uncertain"] = "none"
+            elif low.startswith("uncertain") or "disputed" in low:
+                val = l.split(":",1)[1].strip() if ":" in l else ""
+                if val and val.lower() not in {"none","brak"}:
+                    parts["uncertain"] = val
+
+        if not parts["summary"]:
+            parts["summary"] = txt[:320].strip()
+
         out = {**parts, "model": AI_MODEL}
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
     except Exception:
         out = {
             "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "No AI analysis — brief based on RSS snippet.",
+            "uncertain": "",
             "model": "fallback-error"
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
@@ -219,12 +230,16 @@ def fetch_section(section_key: str):
 
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw",""), it["link"])
-        it["ai_summary"]=s["summary"]; it["ai_uncertain"]=s["uncertain"]; it["ai_model"]=s["model"]
+        it["ai_summary"]=s["summary"]
+        it["ai_uncertain"]=s["uncertain"]  # empty unless real issue
+        it["ai_model"]=s["model"]
     return picked
 
 # ===== RENDER =====
 def render_html(sections: dict) -> str:
     extra_css = """
+    ul.news { list-style: none; padding-left: 0 }
+    ul.news li { margin: 0 0 16px 0 }
     ul.news li a{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
@@ -260,6 +275,11 @@ def render_html(sections: dict) -> str:
                 '</span>')
 
     def make_li(it):
+        uncertain_block = (
+            f'<div class="sec"><strong>Uncertain / disputed:</strong> {esc(it.get("ai_uncertain",""))}</div>'
+            if it.get("ai_uncertain")
+            else ""
+        )
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
@@ -268,7 +288,7 @@ def render_html(sections: dict) -> str:
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
     <div class="sec"><strong>Most important:</strong> {esc(it.get("ai_summary",""))}</div>
-    <div class="sec"><strong>Uncertain / disputed:</strong> {esc(it.get("ai_uncertain",""))}</div>
+    {uncertain_block}
   </div>
 </li>'''
 
@@ -330,7 +350,7 @@ def main():
     html_str = render_html(sections)
     with open("en/news.html", "w", encoding="utf-8") as f:
         f.write(html_str)
-    print("✓ Generated en/news.html with AI comments.")
+    print("✓ Generated en/news.html")
 
 if __name__ == "__main__":
     main()
