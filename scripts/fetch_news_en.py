@@ -16,6 +16,7 @@ MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 CACHE_PATH = ".cache/news_summaries_en.json"
+CACHE_VERSION = "v2"  # bump to ignore old cached entries with generic "No AI analysis..."
 
 FEEDS = {
     "politics": [
@@ -54,38 +55,45 @@ BOOST = {
     ],
 }
 
-BAN_PATTERNS = [
-    re.compile(r"quiz|gossip|gallery|photos|sponsored|advertorial", re.I),
-]
+BAN_PATTERNS = [re.compile(r"quiz|gossip|gallery|photos|sponsored|advertorial", re.I)]
 LIVE_RE = re.compile(r"(LIVE|live)", re.I)
 
 # ===== UTIL =====
 SENT_LIMIT = 420
+GENERIC_UNCERTAIN = [
+    re.compile(r"no ai analysis", re.I),
+    re.compile(r"brief based on rss", re.I),
+    re.compile(r"no analysis", re.I),
+    re.compile(r"not analyzed", re.I),
+]
 
 def tidy_sentence_block(text: str, limit: int = SENT_LIMIT) -> str:
-    """
-    Normalizes whitespace, strips bullets, and guarantees a full sentence ending.
-    Cuts to the last sentence end within `limit`; otherwise trims to word and adds '…'.
-    """
+    """Normalize whitespace, strip bullets, keep full sentence end; add … only if no sentence end in limit."""
     if not text:
         return ""
     t = " ".join(text.strip().split())
     t = re.sub(r"^[-–•]\s+", "", t)
-
     if len(t) <= limit:
         return t if t.endswith(('.', '!', '?')) else (t + '.')
-
     cut = t[:limit]
-    last_dot = cut.rfind('.')
-    last_exc = cut.rfind('!')
-    last_q   = cut.rfind('?')
-    last_end = max(last_dot, last_exc, last_q)
-
+    last_end = max(cut.rfind('.'), cut.rfind('!'), cut.rfind('?'))
     if last_end >= 40:
         return cut[:last_end + 1]
-
     cut = cut.rsplit(' ', 1)[0]
     return cut + '…'
+
+def clean_uncertain(u: str) -> str:
+    """Drop generic / useless uncertainty lines."""
+    if not u:
+        return ""
+    u2 = " ".join(u.strip().split())
+    for rx in GENERIC_UNCERTAIN:
+        if rx.search(u2):
+            return ""
+    # remove generic 'brak/none'
+    if u2.lower() in {"none", "brak", "n/a"}:
+        return ""
+    return u2
 
 def norm_title(s: str) -> str:
     s = (s or "").lower()
@@ -130,10 +138,12 @@ def load_cache(path: str):
             return json.load(f)
     except Exception:
         return {}
+
 def save_cache(path: str, data: dict):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
 CACHE = load_cache(CACHE_PATH)
 
 # ===== AI SUMMARY (EN) =====
@@ -143,14 +153,17 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     'uncertain' stays EMPTY unless a clear issue is detected.
     """
     key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"{norm_title(title)}|{today_str()}"
+    cache_key = f"{CACHE_VERSION}|{norm_title(title)}|{today_str()}"
+    # prefer fresh 'v2' entries only
     if cache_key in CACHE:
-        return CACHE[cache_key]
+        cached = CACHE[cache_key]
+        cached["uncertain"] = clean_uncertain(cached.get("uncertain", ""))
+        return cached
 
     if not key:
         out = {
             "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "",
+            "uncertain": "",  # never emit generic text when no key
             "model": "fallback"
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
@@ -195,18 +208,21 @@ Most important: …
                 parts["summary"] = l.split(":",1)[1].strip()
             elif low.startswith("uncertain") or "disputed" in low:
                 val = l.split(":",1)[1].strip() if ":" in l else ""
-                if val and val.lower() not in {"none","brak"}:
-                    parts["uncertain"] = val
+                parts["uncertain"] = clean_uncertain(val)
 
         if not parts["summary"]:
-            parts["summary"] = txt[:320].strip()
+            parts["summary"] = (snippet or title or "")[:320].strip()
 
         out = {**parts, "model": AI_MODEL}
+        # normalize text for safe rendering
+        out["summary"]   = tidy_sentence_block(out["summary"])
+        out["uncertain"] = tidy_sentence_block(out["uncertain"]) if out["uncertain"] else ""
+
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
     except Exception:
         out = {
             "summary": (snippet or title or "")[:320].strip(),
-            "uncertain": "",
+            "uncertain": "",  # never emit generic text on error
             "model": "fallback-error"
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE); return out
@@ -257,11 +273,13 @@ def fetch_section(section_key: str):
                     else: picked.append(it)
                     break
 
+    # AI pass
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw",""), it["link"])
-        it["ai_summary"]   = tidy_sentence_block(s["summary"])
-        it["ai_uncertain"] = tidy_sentence_block(s["uncertain"]) if s["uncertain"] else ""
-        it["ai_model"]     = s["model"]
+        # s is already cleaned, but keep one more safety net
+        it["ai_summary"]   = tidy_sentence_block(s.get("summary",""))
+        it["ai_uncertain"] = clean_uncertain(s.get("uncertain",""))
+        it["ai_model"]     = s.get("model","")
     return picked
 
 # ===== RENDER =====
@@ -304,10 +322,10 @@ def render_html(sections: dict) -> str:
                 '</span>')
 
     def make_li(it):
+        uncertain = it.get("ai_uncertain","").strip()
         uncertain_block = (
-            f'<div class="sec"><strong>Uncertain / disputed:</strong> {esc(it.get("ai_uncertain",""))}</div>'
-            if it.get("ai_uncertain")
-            else ""
+            f'<div class="sec"><strong>Uncertain / disputed:</strong> {esc(uncertain)}</div>'
+            if uncertain else ""
         )
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
