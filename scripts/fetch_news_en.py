@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import re
 import json
 import html
@@ -29,7 +28,6 @@ CACHE_PATH = ".cache/news_summaries_en.json"
 
 FEEDS = {
     "politics": [
-        # general & politics/world
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://feeds.bbci.co.uk/news/uk/rss.xml",
         "https://www.reuters.com/rss/world",
@@ -37,7 +35,6 @@ FEEDS = {
         "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
     ],
     "business": [
-        "https://www.reuters.com/finance/markets/rss",     # older alias still widely served
         "https://www.reuters.com/rss/businessNews",
         "https://feeds.bbci.co.uk/news/business/rss.xml",
         "https://apnews.com/hub/business?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
@@ -49,7 +46,7 @@ FEEDS = {
     ],
 }
 
-# Trusted sources used for corroboration
+# Trusted sources for corroboration
 TRUSTED_CORRO_FEEDS = [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://feeds.bbci.co.uk/news/uk/rss.xml",
@@ -57,6 +54,14 @@ TRUSTED_CORRO_FEEDS = [
     "https://www.reuters.com/rss/businessNews",
     "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
     "https://apnews.com/hub/business?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
+]
+
+# Trusted science/health sources
+OFFICIAL_SCIENCE_FEEDS = [
+    "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
+    "https://www.cdc.gov/media/rss.htm",
+    "https://www.nhs.uk/news/feed/",
+    "https://www.cochrane.org/news-feed.xml",
 ]
 
 SOURCE_PRIORITY = [
@@ -75,9 +80,9 @@ BOOST = {
         (re.compile(r"inflation|CPI|interest rates|BoE|Bank of England|Fed|Federal Reserve|GDP|unemployment|NASDAQ|S&P|FTSE|Dow|bond|gilts|Treasur", re.I), 28),
     ],
     "sports": [
-        # Prioritise US/UK star names & teams
+        # UK & US stars/teams
         (re.compile(r"LeBron James|Steph Curry|Patrick Mahomes|Tom Brady|Serena Williams|Coco Gauff|Noah Lyles|Simone Biles", re.I), 42),
-        (re.compile(r"Lewis Hamilton|Lando Norris|Jude Bellingham|Harry Kane|Bukayo Saka|Marcus Rashford|Emma Raducanu|Andy Murray", re.I), 42),
+        (re.compile(r"Lewis Hamilton|Lando Norris|Jude Bellingham|Harry Kane|Bukayo Saka|Marcus Rashford|Emma Raducanu|Andy Murray|Lionesses", re.I), 42),
         (re.compile(r"(LIVE|live blog|live text|as it happens|stream)", re.I), 45),
     ],
 }
@@ -115,12 +120,6 @@ SIMILARITY_THRESHOLD = 0.70
 # =========================
 # HELPERS
 # =========================
-def norm_title(s: str) -> str:
-    s = (s or "").lower()
-    s = re.sub(r"&\w+;|&#\d+;", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
 def host_of(url: str) -> str:
     try:
         return urlparse(url).netloc
@@ -133,6 +132,25 @@ def today_str() -> str:
 
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
+
+def ensure_period(txt: str) -> str:
+    txt = (txt or "").strip()
+    if not txt:
+        return txt
+    if txt[-1] not in ".!?…":
+        txt += "."
+    return txt
+
+def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
+    t = (text or "").strip()
+    if not t:
+        return ""
+    if len(t) > max_chars:
+        t = t[:max_chars+1]
+    end = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
+    if end != -1:
+        t = t[:end+1]
+    return t.strip()
 
 def score_item(item, section_key: str) -> float:
     score = 0.0
@@ -171,23 +189,18 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(CACHE_PATH)
 
-def ensure_period(txt: str) -> str:
-    txt = (txt or "").strip()
-    if not txt:
-        return txt
-    if txt[-1] not in ".!?…":
-        txt += "."
-    return txt
-
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
+    """
+    Returns: {"summary": "...", "note": ""} – 'note' empty when no warning needed.
+    """
     key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"{norm_title(title)}|{today_str()}"
+    cache_key = f"{title.lower().strip()}|{today_str()}"
     if cache_key in CACHE:
         return CACHE[cache_key]
 
     if not key:
         out = {
-            "summary": ensure_period((snippet or title or "").strip()[:600]),
+            "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
             "note": "",
             "model": "fallback"
         }
@@ -195,124 +208,141 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
         save_cache(CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Summarise in English (2–3 full sentences) the most important facts from the news below.
-If there is something potentially misleading/disputed or easy to misinterpret, add ONE short warning sentence starting with "Note:".
-If not, do NOT add any warning line.
+    prompt = f"""Summarise in English in up to 2 short sentences the key facts from the title and RSS description below.
+If there is any potentially misleading/disputed element or something easy to misinterpret, add ONE short sentence starting with "Note:".
+If there is no need for a warning, DO NOT add that line.
 Title: {title}
-Snippet (RSS): {snippet}
-Do not invent facts not present in title/snippet.
-Return two lines:
-1) Most important: …
-2) (optional) Note: …"""
+RSS description: {snippet}
+Rules:
+- Be concise and neutral.
+- End sentences with a period.
+- Do not add facts not present in title/description.
+- Return plain text, line by line (no formatting)."""
 
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "You are a concise, reliable news assistant. Always finish sentences with a period."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You are a reliable, concise news assistant. Always end sentences with a period."},
+                    {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 240
+                "max_tokens": 220,
             },
-            timeout=25
+            timeout=25,
         )
         resp.raise_for_status()
-        txt = resp.json()["choices"][0]["message"]["content"].strip()
+        text = resp.json()["choices"][0]["message"]["content"].strip()
 
-        summary = ""
-        note = ""
-        for line in txt.splitlines():
-            l = line.strip()
-            if not l:
-                continue
-            low = l.lower()
-            if low.startswith("most important:"):
-                summary = l.split(":", 1)[1].strip()
-            elif low.startswith("note:"):
-                note = l
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        summary_lines, note_line = [], ""
+        for ln in lines:
+            if ln.lower().startswith("note:"):
+                note_line = ln
+            else:
+                summary_lines.append(ln)
 
-        summary = ensure_period(summary or (snippet or title or ""))
-        note_out = ensure_period(note) if note else ""
+        summary = ensure_full_sentence(" ".join(summary_lines), 320)
+        note_line = ensure_period(note_line) if note_line else ""
 
-        out = {"summary": summary, "note": note_out, "model": AI_MODEL}
+        out = {"summary": summary, "note": note_line}
         CACHE[cache_key] = out
         save_cache(CACHE_PATH, CACHE)
         return out
-
     except Exception:
-        out = {
-            "summary": ensure_period((snippet or title or "").strip()[:600]),
-            "note": "",
-            "model": "fallback-error"
+        return {
+            "summary": ensure_full_sentence((snippet or title)[:320], 320),
+            "note": ""
         }
-        CACHE[cache_key] = out
-        save_cache(CACHE_PATH, CACHE)
-        return out
 
 # =========================
 # VERIFICATION LAYER (EN)
 # =========================
+# Strong claims need corroboration
 STRONG_CLAIM_RE = re.compile(
     r"(convicted|arrested|proven|fraud|record|killed|deaths|catastroph|leak|bankrupt|treason|corruption|manipulation|broke\s+the\s+law)",
     re.I
 )
 
-PRESUMPTION_RE = re.compile(
-    r"(must|will have to)\s+prove\s+(his|her|their)\s+innocence",
-    re.I
-)
+# Legal rules (EN)
+LEGAL_RULES_EN = [
+    (re.compile(r"(must|will have to)\s+prove\s+(his|her|their)\s+innocence", re.I),
+     "criminal cases follow the presumption of innocence — prosecutors must prove guilt, not defendants their innocence."),
+    (re.compile(r"\bconvicted\b", re.I),
+     "‘convicted’ should be used only after a final judgment; earlier stages are ‘charged’, ‘indicted’ or ‘arrested’."),
+]
 
-def search_trusted_matches(title: str, feeds=TRUSTED_CORRO_FEEDS, min_sim=0.58, max_look=60):
+# Science/health red flags (EN)
+SCIENCE_RED_FLAGS_EN = [
+    (re.compile(r"\b(100%|guarantee|cure|miracle|zero risk)\b", re.I),
+     "absolute claims (‘100%’, ‘cure’, ‘zero risk’) are rarely supported by high-quality evidence."),
+    (re.compile(r"\b(causes?|proves?)\b", re.I),
+     "causation/proof requires robust study design; many headlines report correlation."),
+    (re.compile(r"\bpreprint\b|\bmedrxiv\b|\bbiorxiv\b", re.I),
+     "preprints are not peer-reviewed; findings may change after review."),
+    (re.compile(r"\b(n=\s?\d{1,2}\b|\b(sample|group)\s+of\s+\d{1,2}\b)", re.I),
+     "very small samples limit reliability; results may not generalise."),
+]
+
+def _search_trusted_sources(title: str, feeds, min_sim=0.58, max_look=60):
     base_tok = tokens_en(title)
-    matches = []
+    hits = []
     for f in feeds:
         try:
-            parsed = feedparser.parse(f)
-            for e in parsed.entries[:max_look]:
+            p = feedparser.parse(f)
+            for e in p.entries[:max_look]:
                 t = (e.get("title") or "").strip()
                 if not t:
                     continue
                 sc = jaccard(base_tok, tokens_en(t))
                 if sc >= min_sim:
-                    matches.append({
-                        "host": host_of(e.get("link","")),
-                        "title": t,
-                        "link": e.get("link",""),
-                        "score": sc
-                    })
+                    hits.append((host_of(e.get("link","")), sc))
         except Exception as ex:
-            print(f"[WARN] corroboration RSS error: {f} -> {ex}", file=sys.stderr)
-    matches.sort(key=lambda x: x["score"], reverse=True)
-    return matches[:3]
+            print(f"[WARN] verification RSS error: {f} -> {ex}")
+    hits.sort(key=lambda x: x[1], reverse=True)
+    return [h[0] for h in hits[:3]]
+
+def _apply_rules(rules, title: str, snippet: str):
+    notes = []
+    for rx, msg in rules:
+        if rx.search(title) or rx.search(snippet):
+            notes.append(msg)
+    return notes
 
 def verify_note_en(title: str, snippet: str) -> str:
+    """
+    Returns a single concise 'Note: …' only when:
+    - legal rule mismatch, or
+    - science/health red flags (+ check WHO/CDC/NHS/Cochrane), or
+    - strong claim without corroboration in BBC/Reuters/AP.
+    """
     notes = []
 
-    # Legal presumption of innocence
-    if PRESUMPTION_RE.search(title) or PRESUMPTION_RE.search(snippet):
-        notes.append("Note: criminal cases follow the presumption of innocence — prosecutors must prove guilt, not defendants their innocence.")
+    # 1) Legal
+    notes += _apply_rules(LEGAL_RULES_EN, title, snippet)
 
-    # Strong claims should have at least one trusted match
-    strong = STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet)
-    if strong:
-        matches = search_trusted_matches(title)
-        if not matches:
-            notes.append("Note: we did not find corroboration in trusted sources (BBC/Reuters/AP) based on RSS headlines — treat the claim with caution.")
-        else:
-            srcs = ", ".join(sorted(set(host_of(m['link']) for m in matches)))
-            notes.append(f"Note: related headlines appear in trusted outlets ({srcs}); headlines may still omit important context.")
+    # 2) Science/health
+    science_hits = _apply_rules(SCIENCE_RED_FLAGS_EN, title, snippet)
+    if science_hits:
+        notes += science_hits
+        sci_srcs = _search_trusted_sources(title, OFFICIAL_SCIENCE_FEEDS)
+        if not sci_srcs:
+            notes.append("no matching headlines found in WHO/CDC/NHS/Cochrane RSS.")
+
+    # 3) Strong claims -> require at least one corroboration
+    if STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet):
+        gen_srcs = _search_trusted_sources(title, TRUSTED_CORRO_FEEDS)
+        if not gen_srcs:
+            notes.append("no corroboration in BBC/Reuters/AP headlines — treat with caution.")
 
     if not notes:
         return ""
-    text = " ".join(notes[:2]).strip()
-    if text and text[-1] not in ".!?…":
+    text = "Note: " + " ".join(sorted(set(notes)))
+    text = text.strip()
+    if text[-1] not in ".!?…":
         text += "."
     return text
 
@@ -326,7 +356,7 @@ def fetch_section(section_key: str):
             parsed = feedparser.parse(feed_url)
             for e in parsed.entries:
                 title = e.get("title", "") or ""
-                link = e.get("link", "") or ""
+                link  = e.get("link", "") or ""
                 if not title or not link:
                     continue
                 if any(rx.search(title) for rx in BAN_PATTERNS):
@@ -334,79 +364,95 @@ def fetch_section(section_key: str):
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 items.append({
                     "title": title.strip(),
-                    "link": link.strip(),
+                    "link":  link.strip(),
                     "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
         except Exception as ex:
-            print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
+            print(f"[WARN] RSS error: {feed_url} -> {ex}")
 
+    # score + tokens
     for it in items:
         it["_score"] = score_item(it, section_key)
         it["_tok"] = tokens_en(it["title"])
 
+    # sort by score
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # semantic dedupe
+    # semantic dedupe (Jaccard on title tokens)
     kept = []
     for it in items:
         dup = any(jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD for got in kept)
         if not dup:
             kept.append(it)
 
-    # per-host & total limits
+    # per-host + total limits
     per_host = {}
-    picked = []
+    pool = []
     for it in kept:
         h = host_of(it["link"])
         per_host[h] = per_host.get(h, 0)
         if per_host[h] >= MAX_PER_HOST:
             continue
         per_host[h] += 1
-        picked.append(it)
-        if len(picked) >= MAX_PER_SECTION:
-            break
+        pool.append(it)
 
-    # sports: ensure at least one LIVE + mild diversification
+    # SPORTS: LIVE + diversification across disciplines
     if section_key == "sports":
-        has_live = any(LIVE_RE.search(x["title"]) for x in picked)
-        if not has_live:
-            for it in kept:
-                if LIVE_RE.search(it["title"]) and it not in picked:
-                    if len(picked) == MAX_PER_SECTION:
-                        picked[-1] = it
-                    else:
-                        picked.append(it)
+        picked = []
+        # 1) up to 2 LIVE or star-name items first
+        for it in pool:
+            t = it["title"]
+            if LIVE_RE.search(t) or re.search(r"LeBron|Curry|Mahomes|Brady|Serena|Gauff|Hamilton|Norris|Bellingham|Kane|Saka|Rashford|Raducanu|Murray|Lionesses", t, re.I):
+                picked.append(it)
+                if len(picked) >= 2:
                     break
-        if len(picked) >= 4:
-            heads = {}
-            for it in picked:
-                head = next(iter(tokens_en(it["title"])), "")
-                heads[head] = heads.get(head, 0) + 1
-            common = [k for k, v in heads.items() if v >= 4]
-            if common:
-                for it in kept:
-                    head = next(iter(tokens_en(it["title"])), "")
-                    if head not in common and it not in picked:
-                        picked[-1] = it
-                        break
 
-    # AI + verification
+        # 2) diversify disciplines
+        def tag(t):
+            t=t.lower()
+            if any(k in t for k in ["tennis","wimbledon","us open","australian open"]): return "tennis"
+            if any(k in t for k in ["football","premier league","fa cup","champions league","arsenal","chelsea","manchester","liverpool","tottenham","lionesses"]): return "football"
+            if "nba" in t or "basketball" in t: return "nba"
+            if any(k in t for k in ["f1","formula","grand prix"]): return "f1"
+            if any(k in t for k in ["golf","pga","open championship"]): return "golf"
+            if any(k in t for k in ["boxing","ufc","mma"]): return "fight"
+            return "other"
+
+        seen_tags = {tag(x["title"]) for x in picked}
+        for it in pool:
+            if it in picked: continue
+            tg = tag(it["title"])
+            if tg not in seen_tags:
+                picked.append(it); seen_tags.add(tg)
+                if len(picked) >= MAX_PER_SECTION: break
+
+        # 3) fill to limit
+        for it in pool:
+            if len(picked) >= MAX_PER_SECTION: break
+            if it not in picked:
+                picked.append(it)
+    else:
+        picked = pool[:MAX_PER_SECTION]
+
+    # AI + verification (print 'Note:' only if really needed)
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw", ""), it["link"])
         verify = verify_note_en(it["title"], it.get("summary_raw",""))
         final_note = verify or s.get("note","")
         it["ai_summary"] = ensure_period(s["summary"])
         it["ai_note"] = ensure_period(final_note) if final_note else ""
-        it["ai_model"] = s["model"]
+        it["ai_model"] = s.get("model","")
 
     return picked
 
 # =========================
-# RENDER HTML (EN)
+# RENDER HTML
 # =========================
 def render_html(sections: dict) -> str:
     extra_css = """
+    ul.news{ list-style:none; padding-left:0; }
+    ul.news li{ margin:18px 0 24px; }
     ul.news li a{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
@@ -425,27 +471,18 @@ def render_html(sections: dict) -> str:
     }
     .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+
     .ai-note{
-      margin:6px 0 0 88px;
-      font-size:.92rem; color:#dfe7f1; line-height:1.35;
+      margin:10px 0 0 88px;
+      font-size:.95rem; color:#dfe7f1; line-height:1.4;
       background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
-      padding:10px 12px; border-radius:12px;
+      padding:12px 14px; border-radius:12px;
     }
-    .ai-note .ai-head{
-      display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700;
-      color:#fdf3e3;
-    }
-    .ai-badge{
-      display:inline-flex; align-items:center; gap:6px;
-      padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed);
-      font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35);
-    }
-    .ai-dot{
-      width:8px; height:8px; border-radius:999px; background:#fff;
-      box-shadow:0 0 6px rgba(255,255,255,.7);
-    }
-    .ai-note .sec{ margin-top:4px; opacity:.95; }
+    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .sec{ margin-top:4px; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
@@ -515,7 +552,7 @@ def render_html(sections: dict) -> str:
 {make_section("Business / Economy", sections["business"])}
 {make_section("Sports", sections["sports"])}
 
-<p class="note">Automatic digest (RSS). Links go to original publishers. Page is overwritten daily.</p>
+<p class="note">Automatic digest (RSS). Links go to original publishers. Page is overwritten automatically.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
 </body>
@@ -532,6 +569,7 @@ def main():
         "sports": fetch_section("sports"),
     }
     html_str = render_html(sections)
+    os.makedirs("en", exist_ok=True)
     with open("en/news.html", "w", encoding="utf-8") as f:
         f.write(html_str)
     print("✓ Generated en/news.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
