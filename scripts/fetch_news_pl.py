@@ -6,6 +6,7 @@ import sys
 import re
 import json
 import html
+import itertools
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -21,7 +22,7 @@ MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 CACHE_PATH = ".cache/news_summaries_pl.json"
-CACHE_VERSION = "v2"   # nowy klucz – żeby nie brać starych, uciętych komentarzy
+CACHE_VERSION = "v2"   # nowy klucz cache, żeby nie trzymać starych, uciętych komentarzy
 
 FEEDS = {
     "polityka": [
@@ -30,7 +31,7 @@ FEEDS = {
         "https://tvn24.pl/swiat.xml",
         "https://www.polsatnews.pl/rss/wszystkie.xml",
         "https://feeds.reuters.com/reuters/worldNews",
-        "https://feeds.reuters.com/reuters/businessNews",  # czasem jest tam polityka
+        "https://feeds.reuters.com/reuters/businessNews",
     ],
     "biznes": [
         "https://www.bankier.pl/rss/wiadomosci.xml",
@@ -43,7 +44,6 @@ FEEDS = {
     ],
 }
 
-# priorytet domen
 SOURCE_PRIORITY = [
     (re.compile(r"pap\.pl", re.I), 25),
     (re.compile(r"polsatnews\.pl", re.I), 18),
@@ -53,7 +53,6 @@ SOURCE_PRIORITY = [
     (re.compile(r"polsatsport\.pl", re.I), 18),
 ]
 
-# dodatkowe boosty treści
 BOOST = {
     "polityka": [
         (re.compile(r"Polska|kraj|rząd|Sejm|Senat|prezydent|premier|ustawa|minister|samorząd|Trybunał|TK|SN|UE|budżet|PKW", re.I), 35),
@@ -61,52 +60,69 @@ BOOST = {
     "biznes": [
         (re.compile(r"NBP|RPP|inflacja|stopy|obligacj|kredyt|ZUS|VAT|CIT|PIT|GPW|WIG|paliw|energia|MWh", re.I), 30),
     ],
-    # sport rozbijamy dalej – tu tylko podstawowe
     "sport": [
         (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 35),
     ],
 }
 
-# filtry
 BAN_PATTERNS = [
     re.compile(r"horoskop|plotk|quiz|sponsorowany|sponsor|galeria|zobacz zdjęcia|clickbait", re.I),
 ]
 
-# dopalacze dla polskich sportowców i różnych dyscyplin
 SPORT_STAR_POL = re.compile(
     r"(Świątek|Swiatek|Hurkacz|Lewandowsk|Zielińsk|Zielinsk|Raków|Rakow|Legia|Lech|Pogoń|Pogon|reprezentacja|siatkówk|żużel|zuzel|skoki|Kamil Stoch|Żyła|Zyla)",
     re.I,
 )
-
 LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
 
-# ====== UTILE ======
-def tidy_sentence_pl(text: str, limit: int = 420) -> str:
-    """Ucina tak, żeby skończyć pełnym zdaniem. Jak się nie da – kończy elipsą."""
+# ===== UTILS – pełne zdania i czyszczenie =====
+SENT_END_RE = re.compile(r'([.!?])\s+')
+TRAILING_JUNK_RE = re.compile(r'[\s\-–—,:;]+$')
+
+def split_sentences(txt: str):
+    if not txt:
+        return []
+    txt = " ".join(txt.strip().split())
+    txt = re.sub(r'^(?:[-–•]\s*)+', '', txt)
+    txt = re.sub(r'\s+([,.;:!?])', r'\1', txt)
+    parts = []
+    last = 0
+    for m in SENT_END_RE.finditer(txt + " "):
+        end = m.end(1)
+        parts.append(txt[last:end].strip())
+        last = m.end(1) + (m.end() - m.end(1)) - 1
+    tail = txt[last:].strip()
+    if tail:
+        parts.append(tail)
+    return [TRAILING_JUNK_RE.sub('', p) for p in parts if p]
+
+def normalize_ai_block(text: str, max_sentences: int = 3, hard_limit: int = 520) -> str:
     if not text:
         return ""
-    # normalizacja
-    t = " ".join(text.strip().split())
-    t = re.sub(r"^[-–•]\s+", "", t)
-    if len(t) <= limit:
-        return t if t.endswith(('.', '!', '?')) else t + "."
-    cut = t[:limit]
-    # szukamy ostatniej kropki/wykrzyknika/pytajnika
-    last_end = max(cut.rfind('.'), cut.rfind('!'), cut.rfind('?'))
-    if last_end >= 50:  # żeby nie kończyć po 2 słowach
-        return cut[:last_end + 1]
-    # w ostateczności urwij na słowie
-    cut = cut.rsplit(" ", 1)[0]
-    return cut + "…"
+    text = re.sub(r'^(most important|najważniejsze)\s*:\s*', '', text, flags=re.I)
+    sents = split_sentences(text)
+    if not sents:
+        s = TRAILING_JUNK_RE.sub('', text.strip())
+        return s + ('.' if not s.endswith(('.', '!', '?')) else '')
+    kept = list(itertools.islice((s for s in sents if s), 0, max_sentences))
+    out = " ".join((s if s.endswith(('.', '!', '?')) else s + '.') for s in kept)
+    if len(out) > hard_limit:
+        trimmed = split_sentences(out)
+        acc = []
+        total = 0
+        for s in trimmed:
+            s2 = s if s.endswith(('.', '!', '?')) else s + '.'
+            if total + len(s2) <= hard_limit:
+                acc.append(s2); total += len(s2)
+            else:
+                break
+        out = " ".join(acc).strip()
+    return out
 
 def clean_uncertain_pl(u: str) -> str:
-    """Nie pokazuj generycznych, pustych tekstów."""
-    if not u:
-        return ""
+    if not u: return ""
     u2 = " ".join(u.strip().split())
-    if re.search(r"brak analizy|brak|none|n/a|nie dotyczy", u2, re.I):
-        return ""
-    if re.search(r"rss", u2, re.I):
+    if re.search(r"brak analizy|brak|none|n/a|nie dotyczy|rss", u2, re.I):
         return ""
     return u2
 
@@ -130,11 +146,9 @@ def score_item(item, section_key: str) -> float:
         age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
         score += max(0.0, 36.0 - age_h)
     t = item.get("title", "") or ""
-    # boost ogólny
     for rx, pts in BOOST.get(section_key, []):
         if rx.search(t):
             score += pts
-    # sport – ekstra za polskich sportowców
     if section_key == "sport" and SPORT_STAR_POL.search(t):
         score += 40
     h = host_of(item.get("link", "") or "")
@@ -152,7 +166,7 @@ def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
 
-# ====== CACHE ======
+# ===== CACHE =====
 def load_cache(path: str):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -168,15 +182,11 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(CACHE_PATH)
 
-# ====== AI ======
+# ===== AI (PL) =====
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     """
     Zwraca:
-    {
-      "summary": "...",
-      "uncertain": "",   # puste, jeśli nic nie jest niepewne
-      "model": "..."
-    }
+    { "summary": "...", "uncertain": "", "model": "..." }
     """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{CACHE_VERSION}|{norm_title(title)}|{today_str()}"
@@ -184,37 +194,34 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     if cache_key in CACHE:
         cached = CACHE[cache_key]
         cached["uncertain"] = clean_uncertain_pl(cached.get("uncertain", ""))
-        cached["summary"] = tidy_sentence_pl(cached.get("summary", ""))
+        cached["summary"] = normalize_ai_block(cached.get("summary", ""), 3, 520)
         return cached
 
     if not key:
         out = {
-            "summary": tidy_sentence_pl((snippet or title or "")[:320]),
+            "summary": normalize_ai_block((snippet or title or "")[:360], 3),
             "uncertain": "",
             "model": "fallback",
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Streść bardzo zwięźle (2–3 zdania) najważniejsze fakty z wiadomości.
-Jeśli W TYTULE albo w OPISIE widać, że coś jest niepotwierdzone / zależy od decyzji sądu / wynika z przecieków / może się zmienić – dopisz drugą linijkę:
+    prompt = f"""Streść zwięźle (2–3 zdania) najważniejsze fakty z poniższej wiadomości.
+Jeśli w tytule/opisie widać, że coś jest niepewne (niepotwierdzone, zależy od decyzji, wynika z przecieków) – dopisz drugą linijkę:
 "Niepewne / sporne: …"
-Jeśli takiej niepewności nie widać – NIE PISZ tej drugiej linijki.
+Jeśli nie ma niepewności – nie pisz drugiej linijki.
 Tytuł: {title}
 Opis (RSS): {snippet}
-Nie dopisuj rzeczy spoza tytułu/opisu."""
+Nie dopisuj nic spoza tytułu/opisu. Pisz po polsku."""
 
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś ostrożnym, rzetelnym asystentem prasowym po polsku. Nie fantazjuj."},
+                    {"role": "system", "content": "Jesteś rzetelnym, ostrożnym asystentem prasowym po polsku."},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.15,
@@ -228,35 +235,34 @@ Nie dopisuj rzeczy spoza tytułu/opisu."""
         parts = {"summary": "", "uncertain": ""}
         for line in txt.splitlines():
             l = line.strip()
-            if not l:
-                continue
+            if not l: continue
             low = l.lower()
             if low.startswith("najważniejsze:"):
                 parts["summary"] = l.split(":", 1)[1].strip()
             elif low.startswith("niepewne") or "sporne" in low:
-                val = l.split(":", 1)[1].strip() if ":" in l else ""
-                parts["uncertain"] = clean_uncertain_pl(val)
+                parts["uncertain"] = l.split(":", 1)[1].strip() if ":" in l else ""
 
+        parts["uncertain"] = clean_uncertain_pl(parts["uncertain"])
         if not parts["summary"]:
             parts["summary"] = (snippet or title or "")[:320]
 
         out = {
-            "summary": tidy_sentence_pl(parts["summary"]),
-            "uncertain": tidy_sentence_pl(parts["uncertain"]) if parts["uncertain"] else "",
+            "summary": normalize_ai_block(parts["summary"], max_sentences=3, hard_limit=520),
+            "uncertain": normalize_ai_block(parts["uncertain"], max_sentences=2, hard_limit=360) if parts["uncertain"] else "",
             "model": AI_MODEL,
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
         return out
     except Exception:
         out = {
-            "summary": tidy_sentence_pl((snippet or title or "")[:320]),
+            "summary": normalize_ai_block((snippet or title or "")[:360], 3),
             "uncertain": "",
             "model": "fallback-error",
         }
         CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
         return out
 
-# ====== POBIERANIE ======
+# ===== POBIERANIE =====
 def fetch_section(section_key: str):
     items = []
     for feed_url in FEEDS[section_key]:
@@ -279,14 +285,10 @@ def fetch_section(section_key: str):
         except Exception as ex:
             print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
-    # scoring
     for it in items:
         it["_score"] = score_item(it, section_key)
-
-    # sort
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # dedupe po tytule
     seen = set()
     deduped = []
     for it in items:
@@ -296,7 +298,6 @@ def fetch_section(section_key: str):
         seen.add(key)
         deduped.append(it)
 
-    # zwykłe sekcje – prosto
     if section_key != "sport":
         per_host = {}
         picked = []
@@ -310,11 +311,8 @@ def fetch_section(section_key: str):
             if len(picked) >= MAX_PER_SECTION:
                 break
     else:
-        # ===== SPECJALNA LOGIKA SPORT =====
-        picked = []
-        per_host = {}
-
-        # 1) NAJPIERW: max 2 linki live / relacja / mecz z udziałem polskiej drużyny
+        picked, per_host = [], {}
+        # 1) max 2 LIVE / polskie
         for it in deduped:
             if len(picked) >= 2:
                 break
@@ -322,51 +320,33 @@ def fetch_section(section_key: str):
             if LIVE_RE.search(title) or SPORT_STAR_POL.search(title):
                 h = host_of(it["link"])
                 per_host[h] = per_host.get(h, 0)
-                if per_host[h] >= MAX_PER_HOST:
-                    continue
+                if per_host[h] >= MAX_PER_HOST: continue
                 per_host[h] += 1
                 picked.append(it)
-
-        # 2) POTEM: inne sporty (tenis, siatkówka, reprezentacja, skoki…) – żeby nie było 6x to samo
+        # 2) inne sporty / nazwiska / różne hosty
         for it in deduped:
-            if len(picked) >= MAX_PER_SECTION:
-                break
+            if len(picked) >= MAX_PER_SECTION: break
             title = it["title"]
-            # jeśli to jest identyczny temat co już mamy – pomiń
-            if any(norm_title(title) == norm_title(x["title"]) for x in picked):
-                continue
-
-            # preferuj te z polskimi nazwiskami/drużynami
+            if any(norm_title(title) == norm_title(x["title"]) for x in picked): continue
             important_polish = bool(SPORT_STAR_POL.search(title))
-            # jeśli nie ma polskich, to bierz inny HOST niż dominujący
             h = host_of(it["link"])
             per_host[h] = per_host.get(h, 0)
-
             if important_polish:
                 if per_host[h] < MAX_PER_HOST:
-                    per_host[h] += 1
-                    picked.append(it)
+                    per_host[h] += 1; picked.append(it)
             else:
-                # "inne sporty" – tylko jeśli jeszcze mamy miejsce i nie zdominowaliśmy hostem
-                if per_host[h] < 2:   # mniejsze odcięcie
-                    per_host[h] += 1
-                    picked.append(it)
-
-        # 3) jeśli nadal mniej niż 6 – dobierz cokolwiek innego
+                if per_host[h] < 2:
+                    per_host[h] += 1; picked.append(it)
+        # 3) dobierz resztę
         if len(picked) < MAX_PER_SECTION:
             for it in deduped:
-                if len(picked) >= MAX_PER_SECTION:
-                    break
-                if any(norm_title(it["title"]) == norm_title(x["title"]) for x in picked):
-                    continue
+                if len(picked) >= MAX_PER_SECTION: break
+                if any(norm_title(it["title"]) == norm_title(x["title"]) for x in picked): continue
                 h = host_of(it["link"])
                 per_host[h] = per_host.get(h, 0)
-                if per_host[h] >= MAX_PER_HOST:
-                    continue
-                per_host[h] += 1
-                picked.append(it)
+                if per_host[h] >= MAX_PER_HOST: continue
+                per_host[h] += 1; picked.append(it)
 
-    # AI dla wszystkich wybranych
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
         it["ai_summary"] = s["summary"]
@@ -375,8 +355,8 @@ def fetch_section(section_key: str):
 
     return picked
 
-# ====== RENDER HTML ======
-def render_html(pl_sections: dict) -> str:
+# ===== HTML =====
+def render_html(sections: dict) -> str:
     extra_css = """
     ul.news { list-style:none; padding-left:0 }
     ul.news li { margin:0 0 16px 0 }
@@ -481,9 +461,9 @@ def render_html(pl_sections: dict) -> str:
   <p class="sub">Ostatnie ~36 godzin • {today_str()}</p>
 </header>
 <main>
-{make_section("Polityka / Kraj", pl_sections["polityka"])}
-{make_section("Ekonomia / Biznes", pl_sections["biznes"])}
-{make_section("Sport", pl_sections["sport"])}
+{make_section("Polityka / Kraj", sections["polityka"])}
+{make_section("Ekonomia / Biznes", sections["biznes"])}
+{make_section("Sport", sections["sport"])}
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana 2× dziennie.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
@@ -491,7 +471,7 @@ def render_html(pl_sections: dict) -> str:
 </html>"""
     return html_out
 
-# ====== MAIN ======
+# ===== MAIN =====
 def main():
     sections = {
         "polityka": fetch_section("polityka"),
@@ -505,3 +485,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
