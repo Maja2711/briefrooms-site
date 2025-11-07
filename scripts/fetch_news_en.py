@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import re
 import json
 import html
@@ -12,161 +13,149 @@ import feedparser
 from dateutil import tz
 import requests
 
-# ---------- Timezone ----------
+# =========================
+# TIMEZONE
+# =========================
 TZ = tz.gettz("Europe/London")
 
-# ---------- Config ----------
+# =========================
+# CONFIG
+# =========================
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
-
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
-AI_MODEL   = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
+AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 CACHE_PATH = ".cache/news_summaries_en.json"
 
-# Promote US/UK names (sports heavy; a light touch for politics/business)
-SPORT_STAR_US_UK = re.compile(
-    r"(LeBron|Curry|Mahomes|Brady|Serena Williams|Coco Gauff|"
-    r"Iga Świątek|Hurkacz|Alcaraz|Djokovic|"  # tennis global stars (help ranking)
-    r"Harry Kane|Bukayo Saka|Rashford|Jude Bellingham|"
-    r"Raheem Sterling|Declan Rice|"
-    r"Patrick Mahomes|Travis Kelce|"
-    r"Tyson Fury|Anthony Joshua|"
-    r"Lewis Hamilton|Lando Norris|"
-    r"Rory McIlroy|"
-    r"Megan Rapinoe|Lionesses|Team GB)", re.I
-)
-
-POLITICS_FIG_US_UK = re.compile(
-    r"(Biden|Trump|Kamala Harris|Keir Starmer|Rishi Sunak|Downing Street|White House)", re.I
-)
-
-BUSINESS_US_UK = re.compile(
-    r"(FTSE|Bank of England|Fed|Federal Reserve|Treasury|HMRC|HM Treasury|Wall Street|S&P|Nasdaq|"
-    r"Apple|Microsoft|Amazon|Nvidia|Google|Alphabet|Meta|TSLA|Tesla|"
-    r"BP|Shell|Barclays|HSBC)", re.I
-)
-
-# ---------- Feeds ----------
 FEEDS = {
     "politics": [
-        "https://feeds.bbci.co.uk/news/politics/rss.xml",
+        # general & politics/world
         "https://feeds.bbci.co.uk/news/world/rss.xml",
-        "https://feeds.reuters.com/reuters/worldNews",
-        "https://feeds.reuters.com/reuters/ukNews",
-        "https://feeds.reuters.com/reuters/politicsNews",
+        "https://feeds.bbci.co.uk/news/uk/rss.xml",
+        "https://www.reuters.com/rss/world",
+        "https://www.reuters.com/rss/politicsNews",
+        "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
     ],
     "business": [
+        "https://www.reuters.com/finance/markets/rss",     # older alias still widely served
+        "https://www.reuters.com/rss/businessNews",
         "https://feeds.bbci.co.uk/news/business/rss.xml",
-        "https://www.bloomberg.com/feeds/podcasts/etf-report.xml",  # bloomberg rss is limited; still a signal
-        "https://feeds.reuters.com/reuters/businessNews",
-        "https://www.ft.com/?format=rss",  # some entries will be paywalled; filtered by scoring & host limits
+        "https://apnews.com/hub/business?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
     ],
     "sports": [
         "https://www.espn.com/espn/rss/news",
-        "https://www.espn.com/espn/rss/nba/news",
-        "https://www.espn.com/espn/rss/soccer/news",
-        "https://www.espn.com/espn/rss/tennis/news",
-        "https://www.skysports.com/rss/12040",       # football
-        "https://www.skysports.com/rss/12028",       # tennis
-        "https://www.skysports.com/rss/12040",       # football (duplicate ok — host cap handles)
-        "https://feeds.bbci.co.uk/sport/rss.xml?edition=uk",  # BBC Sport
+        "https://www.bbc.com/sport/rss.xml",
+        "https://apnews.com/hub/apf-sports?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
     ],
 }
 
-# ---------- Source priority ----------
-def rx(d): return re.compile(d, re.I)
-SOURCE_PRIORITY = [
-    (rx(r"bbc\."),        22),
-    (rx(r"reuters\.com"), 20),
-    (rx(r"espn\.com"),    18),
-    (rx(r"skysports\.com"),16),
-    (rx(r"bloomberg\.com"),12),
-    (rx(r"ft\.com"),      10),
+# Trusted sources used for corroboration
+TRUSTED_CORRO_FEEDS = [
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.bbci.co.uk/news/uk/rss.xml",
+    "https://www.reuters.com/rss/world",
+    "https://www.reuters.com/rss/businessNews",
+    "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
+    "https://apnews.com/hub/business?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
 ]
 
-# ---------- Thematic boosts ----------
+SOURCE_PRIORITY = [
+    (re.compile(r"bbc\.co\.uk|bbc\.com", re.I), 22),
+    (re.compile(r"reuters\.com", re.I), 20),
+    (re.compile(r"apnews\.com", re.I), 18),
+    (re.compile(r"espn\.com", re.I), 18),
+]
+
 BOOST = {
     "politics": [
-        (POLITICS_FIG_US_UK, 26),
+        (re.compile(r"UK|Britain|British|Prime Minister|Parliament|Commons|Downing Street|No\.?10|Home Office|NHS|Scotland|Wales|Northern Ireland", re.I), 32),
+        (re.compile(r"US|United States|White House|Congress|Senate|House of Representatives|Supreme Court|FBI|CIA|IRS", re.I), 24),
     ],
     "business": [
-        (BUSINESS_US_UK, 24),
-        (re.compile(r"(inflation|interest rate|CPI|jobs report|labour market|oil|energy|GDP)", re.I), 12),
+        (re.compile(r"inflation|CPI|interest rates|BoE|Bank of England|Fed|Federal Reserve|GDP|unemployment|NASDAQ|S&P|FTSE|Dow|bond|gilts|Treasur", re.I), 28),
     ],
     "sports": [
-        (SPORT_STAR_US_UK, 35),
-        (re.compile(r"(LIVE|live blog|as it happens|stream|coverage)", re.I), 30),
+        # Prioritise US/UK star names & teams
+        (re.compile(r"LeBron James|Steph Curry|Patrick Mahomes|Tom Brady|Serena Williams|Coco Gauff|Noah Lyles|Simone Biles", re.I), 42),
+        (re.compile(r"Lewis Hamilton|Lando Norris|Jude Bellingham|Harry Kane|Bukayo Saka|Marcus Rashford|Emma Raducanu|Andy Murray", re.I), 42),
+        (re.compile(r"(LIVE|live blog|live text|as it happens|stream)", re.I), 45),
     ],
 }
 
-# ---------- Filters ----------
 BAN_PATTERNS = [
-    re.compile(r"(horoscope|quiz|gallery|photo gallery|opinion|sponsored)", re.I),
+    re.compile(r"horoscope|gossip|quiz|sponsored|gallery|in pictures|clickbait", re.I),
 ]
-LIVE_RE = re.compile(r"(LIVE|live blog|as it happens|stream|coverage)", re.I)
 
-# ---------- Utils ----------
-def host_of(url: str) -> str:
-    try:
-        return urlparse(url).netloc
-    except Exception:
-        return ""
+LIVE_RE = re.compile(r"(LIVE|live blog|live text|as it happens|stream)", re.I)
 
-def esc(s: str) -> str:
-    return html.escape(s or "", quote=True)
+# =========================
+# TOKENIZATION / SIMILARITY
+# =========================
+STOP_EN = {
+    "the","and","or","a","an","of","to","for","in","on","at","by","with","as","from","that","this","these","those",
+    "is","are","was","were","be","been","being","it","its","into","over","under","than","then","but","so","if","not",
+    "–","—","-","\"","“","”","'","…"
+}
+TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
-def today_str() -> str:
-    now = datetime.now(TZ)
-    return now.strftime("%Y-%m-%d")
+def tokens_en(text: str):
+    toks = [t.lower() for t in TOKEN_RE.findall(text or "")]
+    toks = [t for t in toks if t not in STOP_EN and len(t) > 2 and not t.isdigit()]
+    return set(toks)
 
+def jaccard(a: set, b: set) -> float:
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
+
+SIMILARITY_THRESHOLD = 0.70
+
+# =========================
+# HELPERS
+# =========================
 def norm_title(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"&\w+;|&#\d+;", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
-def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
-    """Trim to <=max_chars and end on a full sentence (., !, ?)."""
-    t = (text or "").strip()
-    if not t:
+def host_of(url: str) -> str:
+    try:
+        return urlparse(url).netloc
+    except Exception:
         return ""
-    if len(t) <= max_chars:
-        pass
-    else:
-        t = t[:max_chars+1]
-    # try cut to last sentence end
-    m = re.findall(r"[.!?](?!.*[.!?])", t)
-    if m:
-        end = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
-        if end != -1:
-            t = t[:end+1]
-    return t.strip()
 
-# ---------- Scoring ----------
+def today_str() -> str:
+    now = datetime.now(TZ)
+    return now.strftime("%Y-%m-%d")
+
+def esc(s: str) -> str:
+    return html.escape(s or "", quote=True)
+
 def score_item(item, section_key: str) -> float:
     score = 0.0
-    # recency (≤36h full credit)
     published_parsed = item.get("published_parsed") or item.get("updated_parsed")
     if published_parsed:
         dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
         age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
         score += max(0.0, 36.0 - age_h)
-
     t = item.get("title", "") or ""
-    for rxp, pts in BOOST.get(section_key, []):
-        if rxp.search(t):
+    for rx, pts in BOOST.get(section_key, []):
+        if rx.search(t):
             score += pts
-
     h = host_of(item.get("link", "") or "")
-    for rxp, pts in SOURCE_PRIORITY:
-        if rxp.search(h):
+    for rx, pts in SOURCE_PRIORITY:
+        if rx.search(h):
             score += pts
-
     if len(t) > 140:
         score -= 5
     return score
 
-# ---------- AI Summaries (English) ----------
+# =========================
+# AI SUMMARIES (CACHE)
+# =========================
 def load_cache(path: str):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -182,75 +171,154 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(CACHE_PATH)
 
-def ai_summarize_en(title: str, snippet: str) -> dict:
-    """
-    Returns dict:
-    { "summary": "...", "uncertain": "" } — 'uncertain' omitted if not detected.
-    """
+def ensure_period(txt: str) -> str:
+    txt = (txt or "").strip()
+    if not txt:
+        return txt
+    if txt[-1] not in ".!?…":
+        txt += "."
+    return txt
+
+def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
         return CACHE[cache_key]
 
     if not key:
-        summary = ensure_full_sentence((snippet or title)[:320], 320)
-        out = {"summary": summary, "uncertain": ""}
+        out = {
+            "summary": ensure_period((snippet or title or "").strip()[:600]),
+            "note": "",
+            "model": "fallback"
+        }
         CACHE[cache_key] = out
         save_cache(CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Summarize the key facts in **2 short sentences max** based **only** on the title and RSS snippet below.
-Then, **only if warranted**, add one sentence starting with "Uncertain / disputed:" describing something unclear,
-contested, preliminary, or possibly misleading to readers. If nothing is unclear, **do not add that line**.
-
+    prompt = f"""Summarise in English (2–3 full sentences) the most important facts from the news below.
+If there is something potentially misleading/disputed or easy to misinterpret, add ONE short warning sentence starting with "Note:".
+If not, do NOT add any warning line.
 Title: {title}
-RSS snippet: {snippet}
-
-Rules:
-- Be concise, neutral, and non-speculative.
-- End each sentence with a proper period.
-- Do not invent details that are not present.
-- Output plain text, no markdown.
-"""
+Snippet (RSS): {snippet}
+Do not invent facts not present in title/snippet.
+Return two lines:
+1) Most important: …
+2) (optional) Note: …"""
 
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "You are a careful news assistant. Be concise and precise."},
-                    {"role": "user", "content": prompt},
+                    {"role": "system", "content": "You are a concise, reliable news assistant. Always finish sentences with a period."},
+                    {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.2,
-                "max_tokens": 220,
+                "max_tokens": 240
             },
-            timeout=25,
+            timeout=25
         )
         resp.raise_for_status()
-        text = resp.json()["choices"][0]["message"]["content"].strip()
+        txt = resp.json()["choices"][0]["message"]["content"].strip()
 
-        # Split optional uncertainty line
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        summary_lines = []
-        uncertain_line = ""
-        for ln in lines:
-            if ln.lower().startswith("uncertain / disputed:"):
-                uncertain_line = ln  # keep as-is
-            else:
-                summary_lines.append(ln)
-        summary = ensure_full_sentence(" ".join(summary_lines), 320)
+        summary = ""
+        note = ""
+        for line in txt.splitlines():
+            l = line.strip()
+            if not l:
+                continue
+            low = l.lower()
+            if low.startswith("most important:"):
+                summary = l.split(":", 1)[1].strip()
+            elif low.startswith("note:"):
+                note = l
 
-        out = {"summary": summary, "uncertain": uncertain_line}
+        summary = ensure_period(summary or (snippet or title or ""))
+        note_out = ensure_period(note) if note else ""
+
+        out = {"summary": summary, "note": note_out, "model": AI_MODEL}
         CACHE[cache_key] = out
         save_cache(CACHE_PATH, CACHE)
         return out
-    except Exception:
-        summary = ensure_full_sentence((snippet or title)[:320], 320)
-        return {"summary": summary, "uncertain": ""}
 
-# ---------- Fetch & Pick ----------
+    except Exception:
+        out = {
+            "summary": ensure_period((snippet or title or "").strip()[:600]),
+            "note": "",
+            "model": "fallback-error"
+        }
+        CACHE[cache_key] = out
+        save_cache(CACHE_PATH, CACHE)
+        return out
+
+# =========================
+# VERIFICATION LAYER (EN)
+# =========================
+STRONG_CLAIM_RE = re.compile(
+    r"(convicted|arrested|proven|fraud|record|killed|deaths|catastroph|leak|bankrupt|treason|corruption|manipulation|broke\s+the\s+law)",
+    re.I
+)
+
+PRESUMPTION_RE = re.compile(
+    r"(must|will have to)\s+prove\s+(his|her|their)\s+innocence",
+    re.I
+)
+
+def search_trusted_matches(title: str, feeds=TRUSTED_CORRO_FEEDS, min_sim=0.58, max_look=60):
+    base_tok = tokens_en(title)
+    matches = []
+    for f in feeds:
+        try:
+            parsed = feedparser.parse(f)
+            for e in parsed.entries[:max_look]:
+                t = (e.get("title") or "").strip()
+                if not t:
+                    continue
+                sc = jaccard(base_tok, tokens_en(t))
+                if sc >= min_sim:
+                    matches.append({
+                        "host": host_of(e.get("link","")),
+                        "title": t,
+                        "link": e.get("link",""),
+                        "score": sc
+                    })
+        except Exception as ex:
+            print(f"[WARN] corroboration RSS error: {f} -> {ex}", file=sys.stderr)
+    matches.sort(key=lambda x: x["score"], reverse=True)
+    return matches[:3]
+
+def verify_note_en(title: str, snippet: str) -> str:
+    notes = []
+
+    # Legal presumption of innocence
+    if PRESUMPTION_RE.search(title) or PRESUMPTION_RE.search(snippet):
+        notes.append("Note: criminal cases follow the presumption of innocence — prosecutors must prove guilt, not defendants their innocence.")
+
+    # Strong claims should have at least one trusted match
+    strong = STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet)
+    if strong:
+        matches = search_trusted_matches(title)
+        if not matches:
+            notes.append("Note: we did not find corroboration in trusted sources (BBC/Reuters/AP) based on RSS headlines — treat the claim with caution.")
+        else:
+            srcs = ", ".join(sorted(set(host_of(m['link']) for m in matches)))
+            notes.append(f"Note: related headlines appear in trusted outlets ({srcs}); headlines may still omit important context.")
+
+    if not notes:
+        return ""
+    text = " ".join(notes[:2]).strip()
+    if text and text[-1] not in ".!?…":
+        text += "."
+    return text
+
+# =========================
+# FETCH + DEDUPLICATION
+# =========================
 def fetch_section(section_key: str):
     items = []
     for feed_url in FEEDS[section_key]:
@@ -258,7 +326,7 @@ def fetch_section(section_key: str):
             parsed = feedparser.parse(feed_url)
             for e in parsed.entries:
                 title = e.get("title", "") or ""
-                link  = e.get("link", "") or ""
+                link = e.get("link", "") or ""
                 if not title or not link:
                     continue
                 if any(rx.search(title) for rx in BAN_PATTERNS):
@@ -266,94 +334,79 @@ def fetch_section(section_key: str):
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 items.append({
                     "title": title.strip(),
-                    "link":  link.strip(),
+                    "link": link.strip(),
                     "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
-        except Exception:
-            pass
+        except Exception as ex:
+            print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
-    # score & sort
     for it in items:
         it["_score"] = score_item(it, section_key)
+        it["_tok"] = tokens_en(it["title"])
+
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # dedupe by normalized title
-    seen = set()
-    deduped = []
+    # semantic dedupe
+    kept = []
     for it in items:
-        key = norm_title(it["title"])
-        if key and key not in seen:
-            seen.add(key)
-            deduped.append(it)
+        dup = any(jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD for got in kept)
+        if not dup:
+            kept.append(it)
 
-    # keep host cap
+    # per-host & total limits
     per_host = {}
-    pool = []
-    for it in deduped:
+    picked = []
+    for it in kept:
         h = host_of(it["link"])
         per_host[h] = per_host.get(h, 0)
         if per_host[h] >= MAX_PER_HOST:
             continue
         per_host[h] += 1
-        pool.append(it)
+        picked.append(it)
+        if len(picked) >= MAX_PER_SECTION:
+            break
 
-    # SPORTS: ensure diversity + LIVE preference + US/UK stars
+    # sports: ensure at least one LIVE + mild diversification
     if section_key == "sports":
-        picked = []
-        live_added = 0
-
-        # 1) take up to 2 with LIVE or US/UK stars
-        for it in pool:
-            t = it["title"]
-            if LIVE_RE.search(t) or SPORT_STAR_US_UK.search(t):
-                picked.append(it)
-                live_added += 1 if LIVE_RE.search(t) else 0
-                if len(picked) >= 2:
+        has_live = any(LIVE_RE.search(x["title"]) for x in picked)
+        if not has_live:
+            for it in kept:
+                if LIVE_RE.search(it["title"]) and it not in picked:
+                    if len(picked) == MAX_PER_SECTION:
+                        picked[-1] = it
+                    else:
+                        picked.append(it)
                     break
+        if len(picked) >= 4:
+            heads = {}
+            for it in picked:
+                head = next(iter(tokens_en(it["title"])), "")
+                heads[head] = heads.get(head, 0) + 1
+            common = [k for k, v in heads.items() if v >= 4]
+            if common:
+                for it in kept:
+                    head = next(iter(tokens_en(it["title"])), "")
+                    if head not in common and it not in picked:
+                        picked[-1] = it
+                        break
 
-        # 2) ensure diversity by discipline keywords
-        def tag(t):
-            t=t.lower()
-            if any(k in t for k in ["tennis","wimbledon","us open","australian open"]): return "tennis"
-            if any(k in t for k in ["premier league","fa cup","champions league","soccer","football"]): return "football"
-            if any(k in t for k in ["nba","basketball"]): return "basketball"
-            if any(k in t for k in ["f1","formula 1","grand prix"]): return "f1"
-            if any(k in t for k in ["golf","pga","the open"]): return "golf"
-            if any(k in t for k in ["boxing","ufc"]): return "fight"
-            return "other"
-
-        seen_tags = {tag(x["title"]) for x in picked}
-        for it in pool:
-            if it in picked: continue
-            tg = tag(it["title"])
-            if tg not in seen_tags:
-                picked.append(it); seen_tags.add(tg)
-                if len(picked) >= MAX_PER_SECTION: break
-
-        # 3) fill remaining by score
-        for it in pool:
-            if len(picked) >= MAX_PER_SECTION: break
-            if it not in picked:
-                picked.append(it)
-
-    else:
-        # politics/business simple top-N
-        picked = pool[:MAX_PER_SECTION]
-
-    # AI summarize
+    # AI + verification
     for it in picked:
-        s = ai_summarize_en(it["title"], it.get("summary_raw", ""))
-        it["ai_summary"] = s["summary"]
-        it["ai_uncertain"] = s["uncertain"]
+        s = ai_summarize_en(it["title"], it.get("summary_raw", ""), it["link"])
+        verify = verify_note_en(it["title"], it.get("summary_raw",""))
+        final_note = verify or s.get("note","")
+        it["ai_summary"] = ensure_period(s["summary"])
+        it["ai_note"] = ensure_period(final_note) if final_note else ""
+        it["ai_model"] = s["model"]
 
     return picked
 
-# ---------- Render ----------
+# =========================
+# RENDER HTML (EN)
+# =========================
 def render_html(sections: dict) -> str:
     extra_css = """
-    ul.news{ list-style:none; padding-left:0; }
-    ul.news li{ margin:18px 0 24px; }
     ul.news li a{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
@@ -361,28 +414,38 @@ def render_html(sections: dict) -> str:
     ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
-      background:radial-gradient(circle at 12% 10%, #ffd089 0%, #f59e0b 36%, #0f172a 100%);
+      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
       border:1px solid rgba(255,255,255,.28);
       display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
       gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
     }
     .news-thumb .dot{
-      width:14px; height:14px; border-radius:999px; background:rgba(14,165,233,1);
+      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
       border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
     }
     .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
-
     .ai-note{
-      margin:10px 0 0 88px;
-      font-size:.95rem; color:#dfe7f1; line-height:1.4;
+      margin:6px 0 0 88px;
+      font-size:.92rem; color:#dfe7f1; line-height:1.35;
       background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
-      padding:12px 14px; border-radius:12px;
+      padding:10px 12px; border-radius:12px;
     }
-    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
-    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
-    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .ai-note .ai-head{
+      display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700;
+      color:#fdf3e3;
+    }
+    .ai-badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed);
+      font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35);
+    }
+    .ai-dot{
+      width:8px; height:8px; border-radius:999px; background:#fff;
+      box-shadow:0 0 6px rgba(255,255,255,.7);
+    }
+    .ai-note .sec{ margin-top:4px; opacity:.95; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
@@ -396,8 +459,7 @@ def render_html(sections: dict) -> str:
         )
 
     def make_li(it):
-        uncertain = it.get("ai_uncertain","").strip()
-        uncertain_html = f'<div class="sec">{esc(uncertain)}</div>' if uncertain else ""
+        note_html = f'<div class="sec"><strong>Note:</strong> {esc(it["ai_note"])}</div>' if it.get("ai_note") else ""
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
@@ -406,7 +468,7 @@ def render_html(sections: dict) -> str:
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
     <div class="sec"><strong>Most important:</strong> {esc(it.get("ai_summary",""))}</div>
-    {uncertain_html}
+    {note_html}
   </div>
 </li>'''
 
@@ -452,6 +514,7 @@ def render_html(sections: dict) -> str:
 {make_section("Politics / World", sections["politics"])}
 {make_section("Business / Economy", sections["business"])}
 {make_section("Sports", sections["sports"])}
+
 <p class="note">Automatic digest (RSS). Links go to original publishers. Page is overwritten daily.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
@@ -459,11 +522,14 @@ def render_html(sections: dict) -> str:
 </html>"""
     return html_out
 
+# =========================
+# MAIN
+# =========================
 def main():
     sections = {
         "politics": fetch_section("politics"),
         "business": fetch_section("business"),
-        "sports":   fetch_section("sports"),
+        "sports": fetch_section("sports"),
     }
     html_str = render_html(sections)
     with open("en/news.html", "w", encoding="utf-8") as f:
