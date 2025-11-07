@@ -122,7 +122,7 @@ SIMILARITY_THRESHOLD = 0.70
 # =========================
 def host_of(url: str) -> str:
     try:
-        return urlparse(url).netloc
+        return urlparse(url).netloc.lower()
     except Exception:
         return ""
 
@@ -170,6 +170,22 @@ def score_item(item, section_key: str) -> float:
     if len(t) > 140:
         score -= 5
     return score
+
+# =========================
+# HEALTH TOPIC GATE
+# =========================
+HEALTH_KEYWORDS = re.compile(
+    r"\b(vaccine|vaccination|virus|covid|flu|influenza|health|hospital|doctor|patient|disease|cancer|trial|therapy|treatment|mask|immunity|infection|outbreak)\b",
+    re.I
+)
+HEALTH_DOMAINS = {"who.int","cdc.gov","nhs.uk","cochrane.org"}
+
+def is_health_topic(title: str, snippet: str, url: str = "") -> bool:
+    host = host_of(url)
+    if any(host.endswith(d) or host == d for d in HEALTH_DOMAINS):
+        return True
+    text = f"{title} {snippet}"
+    return bool(HEALTH_KEYWORDS.search(text))
 
 # =========================
 # AI SUMMARIES (CACHE)
@@ -312,7 +328,7 @@ def _apply_rules(rules, title: str, snippet: str):
             notes.append(msg)
     return notes
 
-def verify_note_en(title: str, snippet: str) -> str:
+def verify_note_en(title: str, snippet: str, url: str = "") -> str:
     """
     Returns a single concise 'Note: …' only when:
     - legal rule mismatch, or
@@ -324,13 +340,14 @@ def verify_note_en(title: str, snippet: str) -> str:
     # 1) Legal
     notes += _apply_rules(LEGAL_RULES_EN, title, snippet)
 
-    # 2) Science/health
-    science_hits = _apply_rules(SCIENCE_RED_FLAGS_EN, title, snippet)
-    if science_hits:
-        notes += science_hits
-        sci_srcs = _search_trusted_sources(title, OFFICIAL_SCIENCE_FEEDS)
-        if not sci_srcs:
-            notes.append("no matching headlines found in WHO/CDC/NHS/Cochrane RSS.")
+    # 2) Science/health — ONLY when it's a health topic
+    if is_health_topic(title, snippet, url):
+        science_hits = _apply_rules(SCIENCE_RED_FLAGS_EN, title, snippet)
+        if science_hits:
+            notes += science_hits
+            sci_srcs = _search_trusted_sources(title, OFFICIAL_SCIENCE_FEEDS)
+            if not sci_srcs:
+                notes.append("no matching headlines found in WHO/CDC/NHS/Cochrane RSS.")
 
     # 3) Strong claims -> require at least one corroboration
     if STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet):
@@ -354,7 +371,7 @@ def fetch_section(section_key: str):
     for feed_url in FEEDS[section_key]:
         try:
             parsed = feedparser.parse(feed_url)
-            for e in parsed.entries:
+            for e in parsed.entries[:80]:  # light cap for speed
                 title = e.get("title", "") or ""
                 link  = e.get("link", "") or ""
                 if not title or not link:
@@ -438,7 +455,7 @@ def fetch_section(section_key: str):
     # AI + verification (print 'Note:' only if really needed)
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw", ""), it["link"])
-        verify = verify_note_en(it["title"], it.get("summary_raw",""))
+        verify = verify_note_en(it["title"], it.get("summary_raw",""), it["link"])
         final_note = verify or s.get("note","")
         it["ai_summary"] = ensure_period(s["summary"])
         it["ai_note"] = ensure_period(final_note) if final_note else ""
@@ -496,7 +513,11 @@ def render_html(sections: dict) -> str:
         )
 
     def make_li(it):
-        note_html = f'<div class="sec"><strong>Note:</strong> {esc(it["ai_note"])}</div>' if it.get("ai_note") else ""
+        # avoid "Note: Note:" duplication
+        note_text = (it.get("ai_note","") or "").strip()
+        if note_text.lower().startswith("note:"):
+            note_text = note_text[5:].strip()
+        note_html = f'<div class="sec"><strong>Note:</strong> {esc(note_text)}</div>' if note_text else ""
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
@@ -576,3 +597,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
