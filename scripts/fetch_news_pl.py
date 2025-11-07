@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import re
 import json
 import html
-import itertools
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -14,16 +12,21 @@ import feedparser
 from dateutil import tz
 import requests
 
-# ======= STREFA / CZAS =======
+# ===== USTAWIENIA CZASU =====
 TZ = tz.gettz("Europe/Warsaw")
 
-# ======= KONFIG =======
+# ===== KONFIG OGÓLNY =====
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
-AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
-CACHE_PATH = ".cache/news_summaries_pl.json"
-CACHE_VERSION = "v2"   # nowy klucz cache, żeby nie trzymać starych, uciętych komentarzy
 
+AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
+AI_MODEL   = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
+
+# Każda zmiana tej wersji „przebija” cache i wymusza nowe skróty.
+SUMMARY_VERSION = "2025-11-07b"
+CACHE_PATH = ".cache/news_summaries_pl.json"
+
+# ===== REGUŁY WYBORU FEEDÓW =====
 FEEDS = {
     "polityka": [
         "https://tvn24.pl/najnowsze.xml",
@@ -31,7 +34,7 @@ FEEDS = {
         "https://tvn24.pl/swiat.xml",
         "https://www.polsatnews.pl/rss/wszystkie.xml",
         "https://feeds.reuters.com/reuters/worldNews",
-        "https://feeds.reuters.com/reuters/businessNews",
+        "https://feeds.reuters.com/reuters/politicsNews",
     ],
     "biznes": [
         "https://www.bankier.pl/rss/wiadomosci.xml",
@@ -41,123 +44,51 @@ FEEDS = {
     "sport": [
         "https://www.polsatsport.pl/rss/wszystkie.xml",
         "https://tvn24.pl/sport.xml",
+        "https://feeds.bbci.co.uk/sport/rss.xml?edition=int",  # dywersyfikacja
     ],
 }
 
+# ===== PRIORYTETY ŹRÓDEŁ =====
+def rx(d): return re.compile(d, re.I)
 SOURCE_PRIORITY = [
-    (re.compile(r"pap\.pl", re.I), 25),
-    (re.compile(r"polsatnews\.pl", re.I), 18),
-    (re.compile(r"tvn24\.pl", re.I), 16),
-    (re.compile(r"bankier\.pl", re.I), 20),
-    (re.compile(r"reuters\.com", re.I), 12),
-    (re.compile(r"polsatsport\.pl", re.I), 18),
+    (rx(r"pap\.pl"),          25),
+    (rx(r"polsatnews\.pl"),   18),
+    (rx(r"tvn24\.pl"),        15),
+    (rx(r"bankier\.pl"),      20),
+    (rx(r"reuters\.com"),     12),
+    (rx(r"polsatsport\.pl"),  22),
+    (rx(r"bbc\."),            10),
 ]
 
+# ===== DOPALACZE TEMATYCZNE =====
 BOOST = {
     "polityka": [
-        (re.compile(r"Polska|kraj|rząd|Sejm|Senat|prezydent|premier|ustawa|minister|samorząd|Trybunał|TK|SN|UE|budżet|PKW", re.I), 35),
+        (re.compile(r"Polska|kraj|Sejm|Senat|premier|prezydent|rząd|samorząd|ustawa|Trybunał|UE|budżet|PKW", re.I), 30),
+        (re.compile(r"inflacja|NBP|RPP|podatek|ZUS|emerytur|Orlen|PGE|LOT|PKP", re.I), 18),
     ],
     "biznes": [
-        (re.compile(r"NBP|RPP|inflacja|stopy|obligacj|kredyt|ZUS|VAT|CIT|PIT|GPW|WIG|paliw|energia|MWh", re.I), 30),
+        (re.compile(r"NBP|RPP|PKB|inflacja|stopy|obligacj|kredyt|VAT|CIT|PIT|GPW|WIG|paliw|energia|MWh", re.I), 28),
     ],
     "sport": [
-        (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 35),
+        # promuj polskich sportowców/brandów i LIVE
+        (re.compile(r"Polak|Polska|Polski|Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Stoch|Żyła|Zyla|"
+                    r"Siatkar|Reprezentacja|Legia|Raków|Rakow|Lech|Iga|Hubert", re.I), 40),
+        (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 34),
     ],
 }
 
+# ===== FILTRY =====
 BAN_PATTERNS = [
-    re.compile(r"horoskop|plotk|quiz|sponsorowany|sponsor|galeria|zobacz zdjęcia|clickbait", re.I),
+    re.compile(r"horoskop|plotk|quiz|sponsorowany|galeria|zobacz zdjęcia|clickbait", re.I),
 ]
-
-SPORT_STAR_POL = re.compile(
-    r"(Świątek|Swiatek|Hurkacz|Lewandowsk|Zielińsk|Zielinsk|Raków|Rakow|Legia|Lech|Pogoń|Pogon|reprezentacja|siatkówk|żużel|zuzel|skoki|Kamil Stoch|Żyła|Zyla)",
-    re.I,
-)
 LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
 
-# ===== UTILS – pełne zdania i czyszczenie =====
-SENT_END_RE = re.compile(r'([.!?])\s+')
-TRAILING_JUNK_RE = re.compile(r'[\s\-–—,:;]+$')
-
-def split_sentences(txt: str):
-    if not txt:
-        return []
-    txt = " ".join(txt.strip().split())
-    txt = re.sub(r'^(?:[-–•]\s*)+', '', txt)
-    txt = re.sub(r'\s+([,.;:!?])', r'\1', txt)
-    parts = []
-    last = 0
-    for m in SENT_END_RE.finditer(txt + " "):
-        end = m.end(1)
-        parts.append(txt[last:end].strip())
-        last = m.end(1) + (m.end() - m.end(1)) - 1
-    tail = txt[last:].strip()
-    if tail:
-        parts.append(tail)
-    return [TRAILING_JUNK_RE.sub('', p) for p in parts if p]
-
-def normalize_ai_block(text: str, max_sentences: int = 3, hard_limit: int = 520) -> str:
-    if not text:
-        return ""
-    text = re.sub(r'^(most important|najważniejsze)\s*:\s*', '', text, flags=re.I)
-    sents = split_sentences(text)
-    if not sents:
-        s = TRAILING_JUNK_RE.sub('', text.strip())
-        return s + ('.' if not s.endswith(('.', '!', '?')) else '')
-    kept = list(itertools.islice((s for s in sents if s), 0, max_sentences))
-    out = " ".join((s if s.endswith(('.', '!', '?')) else s + '.') for s in kept)
-    if len(out) > hard_limit:
-        trimmed = split_sentences(out)
-        acc = []
-        total = 0
-        for s in trimmed:
-            s2 = s if s.endswith(('.', '!', '?')) else s + '.'
-            if total + len(s2) <= hard_limit:
-                acc.append(s2); total += len(s2)
-            else:
-                break
-        out = " ".join(acc).strip()
-    return out
-
-def clean_uncertain_pl(u: str) -> str:
-    if not u: return ""
-    u2 = " ".join(u.strip().split())
-    if re.search(r"brak analizy|brak|none|n/a|nie dotyczy|rss", u2, re.I):
-        return ""
-    return u2
-
-def norm_title(s: str) -> str:
-    s = (s or "").lower()
-    s = re.sub(r"&\w+;|&#\d+;", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
+# ===== NARZĘDZIA =====
 def host_of(url: str) -> str:
     try:
         return urlparse(url).netloc
     except Exception:
         return ""
-
-def score_item(item, section_key: str) -> float:
-    score = 0.0
-    published_parsed = item.get("published_parsed") or item.get("updated_parsed")
-    if published_parsed:
-        dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
-        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
-        score += max(0.0, 36.0 - age_h)
-    t = item.get("title", "") or ""
-    for rx, pts in BOOST.get(section_key, []):
-        if rx.search(t):
-            score += pts
-    if section_key == "sport" and SPORT_STAR_POL.search(t):
-        score += 40
-    h = host_of(item.get("link", "") or "")
-    for rx, pts in SOURCE_PRIORITY:
-        if rx.search(h):
-            score += pts
-    if len(t) > 140:
-        score -= 5
-    return score
 
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
@@ -165,6 +96,47 @@ def esc(s: str) -> str:
 def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
+
+def norm_title(s: str) -> str:
+    s = (s or "").lower()
+    s = re.sub(r"&\w+;|&#\d+;", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
+    """Przytnij do <= max_chars i zakończ na pełnym zdaniu (. ! ?)."""
+    t = (text or "").strip()
+    if not t:
+        return ""
+    if len(t) > max_chars:
+        t = t[:max_chars+1]
+    end = max(t.rfind("."), t.rfind("!"), t.rfind("?"))
+    if end != -1:
+        t = t[:end+1]
+    return t.strip()
+
+# ===== SCORING =====
+def score_item(item, section_key: str) -> float:
+    score = 0.0
+    published_parsed = item.get("published_parsed") or item.get("updated_parsed")
+    if published_parsed:
+        dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        score += max(0.0, 36.0 - age_h)
+
+    t = item.get("title", "") or ""
+    for rxp, pts in BOOST.get(section_key, []):
+        if rxp.search(t):
+            score += pts
+
+    h = host_of(item.get("link", "") or "")
+    for rxp, pts in SOURCE_PRIORITY:
+        if rxp.search(h):
+            score += pts
+
+    if len(t) > 140:
+        score -= 5
+    return score
 
 # ===== CACHE =====
 def load_cache(path: str):
@@ -182,37 +154,37 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(CACHE_PATH)
 
-# ===== AI (PL) =====
-def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
+# ===== AI PODSUMOWANIA (PL) =====
+def ai_summarize_pl(title: str, snippet: str) -> dict:
     """
-    Zwraca:
-    { "summary": "...", "uncertain": "", "model": "..." }
+    Zwraca: {"summary": "...", "uncertain": ""} – 'uncertain' pusta, jeśli brak niepewności.
     """
-    key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"{CACHE_VERSION}|{norm_title(title)}|{today_str()}"
-
+    cache_key = f"{SUMMARY_VERSION}|{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
-        cached = CACHE[cache_key]
-        cached["uncertain"] = clean_uncertain_pl(cached.get("uncertain", ""))
-        cached["summary"] = normalize_ai_block(cached.get("summary", ""), 3, 520)
-        return cached
+        return CACHE[cache_key]
 
+    key = os.getenv("OPENAI_API_KEY")
     if not key:
         out = {
-            "summary": normalize_ai_block((snippet or title or "")[:360], 3),
-            "uncertain": "",
-            "model": "fallback",
+            "summary": ensure_full_sentence((snippet or title)[:320], 320),
+            "uncertain": ""
         }
-        CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
+        CACHE[cache_key] = out
+        save_cache(CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Streść zwięźle (2–3 zdania) najważniejsze fakty z poniższej wiadomości.
-Jeśli w tytule/opisie widać, że coś jest niepewne (niepotwierdzone, zależy od decyzji, wynika z przecieków) – dopisz drugą linijkę:
-"Niepewne / sporne: …"
-Jeśli nie ma niepewności – nie pisz drugiej linijki.
+    prompt = f"""Streść po polsku w maksymalnie 2 krótkich zdaniach najważniejsze informacje z tytułu i fragmentu RSS poniżej.
+Następnie – tylko jeśli to zasadne – dodaj jedno zdanie zaczynające się od „Niepewne / sporne:”, opisujące to, co niejasne,
+wstępne lub potencjalnie mylące dla czytelnika. Jeśli nic takiego nie występuje, NIE dodawaj tej linii.
+
 Tytuł: {title}
-Opis (RSS): {snippet}
-Nie dopisuj nic spoza tytułu/opisu. Pisz po polsku."""
+Opis RSS: {snippet}
+
+Zasady:
+- Bądź zwięzły, neutralny i nie spekuluj.
+- Każde zdanie zakończ kropką.
+- Nie dopisuj faktów spoza tytułu/opisu.
+- Zwróć czysty tekst (bez formatowania)."""
 
     try:
         resp = requests.post(
@@ -221,48 +193,41 @@ Nie dopisuj nic spoza tytułu/opisu. Pisz po polsku."""
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś rzetelnym, ostrożnym asystentem prasowym po polsku."},
+                    {"role": "system", "content": "Jesteś rzetelnym i zwięzłym asystentem prasowym."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.15,
-                "max_tokens": 230,
+                "temperature": 0.2,
+                "max_tokens": 220,
             },
             timeout=25,
         )
         resp.raise_for_status()
-        txt = resp.json()["choices"][0]["message"]["content"].strip()
+        text = resp.json()["choices"][0]["message"]["content"].strip()
 
-        parts = {"summary": "", "uncertain": ""}
-        for line in txt.splitlines():
-            l = line.strip()
-            if not l: continue
-            low = l.lower()
-            if low.startswith("najważniejsze:"):
-                parts["summary"] = l.split(":", 1)[1].strip()
-            elif low.startswith("niepewne") or "sporne" in low:
-                parts["uncertain"] = l.split(":", 1)[1].strip() if ":" in l else ""
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        summary_lines, uncertain_line = [], ""
+        for ln in lines:
+            if ln.lower().startswith("niepewne / sporne:"):
+                uncertain_line = ln
+            else:
+                summary_lines.append(ln)
 
-        parts["uncertain"] = clean_uncertain_pl(parts["uncertain"])
-        if not parts["summary"]:
-            parts["summary"] = (snippet or title or "")[:320]
+        summary = ensure_full_sentence(" ".join(summary_lines), 320)
+        # usuń „niepewne”, jeśli puste
+        if not uncertain_line or uncertain_line.lower() in {"niepewne / sporne:", "niepewne/sporne:", "niepewne: brak", "niepewne / sporne: brak"}:
+            uncertain_line = ""
 
-        out = {
-            "summary": normalize_ai_block(parts["summary"], max_sentences=3, hard_limit=520),
-            "uncertain": normalize_ai_block(parts["uncertain"], max_sentences=2, hard_limit=360) if parts["uncertain"] else "",
-            "model": AI_MODEL,
-        }
-        CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
+        out = {"summary": summary, "uncertain": uncertain_line}
+        CACHE[cache_key] = out
+        save_cache(CACHE_PATH, CACHE)
         return out
     except Exception:
-        out = {
-            "summary": normalize_ai_block((snippet or title or "")[:360], 3),
-            "uncertain": "",
-            "model": "fallback-error",
+        return {
+            "summary": ensure_full_sentence((snippet or title)[:320], 320),
+            "uncertain": ""
         }
-        CACHE[cache_key] = out; save_cache(CACHE_PATH, CACHE)
-        return out
 
-# ===== POBIERANIE =====
+# ===== POBIERANIE I WYBÓR =====
 def fetch_section(section_key: str):
     items = []
     for feed_url in FEEDS[section_key]:
@@ -270,7 +235,7 @@ def fetch_section(section_key: str):
             parsed = feedparser.parse(feed_url)
             for e in parsed.entries:
                 title = e.get("title", "") or ""
-                link = e.get("link", "") or ""
+                link  = e.get("link", "") or ""
                 if not title or not link:
                     continue
                 if any(rx.search(title) for rx in BAN_PATTERNS):
@@ -278,12 +243,12 @@ def fetch_section(section_key: str):
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 items.append({
                     "title": title.strip(),
-                    "link": link.strip(),
+                    "link":  link.strip(),
                     "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
-        except Exception as ex:
-            print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
+        except Exception:
+            pass
 
     for it in items:
         it["_score"] = score_item(it, section_key)
@@ -293,73 +258,69 @@ def fetch_section(section_key: str):
     deduped = []
     for it in items:
         key = norm_title(it["title"])
-        if not key or key in seen:
+        if key and key not in seen:
+            seen.add(key)
+            deduped.append(it)
+
+    per_host = {}
+    pool = []
+    for it in deduped:
+        h = host_of(it["link"])
+        per_host[h] = per_host.get(h, 0)
+        if per_host[h] >= MAX_PER_HOST:
             continue
-        seen.add(key)
-        deduped.append(it)
+        per_host[h] += 1
+        pool.append(it)
 
-    if section_key != "sport":
-        per_host = {}
+    if section_key == "sport":
         picked = []
-        for it in deduped:
-            h = host_of(it["link"])
-            per_host[h] = per_host.get(h, 0)
-            if per_host[h] >= MAX_PER_HOST:
-                continue
-            per_host[h] += 1
-            picked.append(it)
-            if len(picked) >= MAX_PER_SECTION:
-                break
-    else:
-        picked, per_host = [], {}
-        # 1) max 2 LIVE / polskie
-        for it in deduped:
-            if len(picked) >= 2:
-                break
-            title = it["title"]
-            if LIVE_RE.search(title) or SPORT_STAR_POL.search(title):
-                h = host_of(it["link"])
-                per_host[h] = per_host.get(h, 0)
-                if per_host[h] >= MAX_PER_HOST: continue
-                per_host[h] += 1
+        # 1) preferuj LIVE lub PL gwiazdy – weź do 2
+        for it in pool:
+            t = it["title"]
+            if LIVE_RE.search(t) or re.search(r"Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Legia|Raków|Rakow|Lech", t, re.I):
                 picked.append(it)
-        # 2) inne sporty / nazwiska / różne hosty
-        for it in deduped:
-            if len(picked) >= MAX_PER_SECTION: break
-            title = it["title"]
-            if any(norm_title(title) == norm_title(x["title"]) for x in picked): continue
-            important_polish = bool(SPORT_STAR_POL.search(title))
-            h = host_of(it["link"])
-            per_host[h] = per_host.get(h, 0)
-            if important_polish:
-                if per_host[h] < MAX_PER_HOST:
-                    per_host[h] += 1; picked.append(it)
-            else:
-                if per_host[h] < 2:
-                    per_host[h] += 1; picked.append(it)
-        # 3) dobierz resztę
-        if len(picked) < MAX_PER_SECTION:
-            for it in deduped:
-                if len(picked) >= MAX_PER_SECTION: break
-                if any(norm_title(it["title"]) == norm_title(x["title"]) for x in picked): continue
-                h = host_of(it["link"])
-                per_host[h] = per_host.get(h, 0)
-                if per_host[h] >= MAX_PER_HOST: continue
-                per_host[h] += 1; picked.append(it)
+                if len(picked) >= 2:
+                    break
 
+        # 2) dywersyfikacja dyscyplin
+        def tag(t):
+            t=t.lower()
+            if any(k in t for k in ["tenis","wimbledon","us open","australian open"]): return "tenis"
+            if any(k in t for k in ["piłka nożna","ekstraklasa","liga konferencji","liga europy","mecz","legia","lech","raków","rakow"]): return "pilka"
+            if any(k in t for k in ["siatkówka","siatkar"]): return "siatkowka"
+            if any(k in t for k in ["koszykówka","nba"]): return "kosz"
+            if any(k in t for k in ["f1","formula","grand prix"]): return "f1"
+            return "inne"
+
+        seen_tags = {tag(x["title"]) for x in picked}
+        for it in pool:
+            if it in picked: continue
+            tg = tag(it["title"])
+            if tg not in seen_tags:
+                picked.append(it); seen_tags.add(tg)
+                if len(picked) >= MAX_PER_SECTION: break
+
+        # 3) uzupełnij do limitu najwyżej punktowanymi
+        for it in pool:
+            if len(picked) >= MAX_PER_SECTION: break
+            if it not in picked:
+                picked.append(it)
+    else:
+        picked = pool[:MAX_PER_SECTION]
+
+    # AI skróty
     for it in picked:
-        s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
-        it["ai_summary"] = s["summary"]
+        s = ai_summarize_pl(it["title"], it.get("summary_raw", ""))
+        it["ai_summary"]   = s["summary"]
         it["ai_uncertain"] = s["uncertain"]
-        it["ai_model"] = s["model"]
 
     return picked
 
-# ===== HTML =====
+# ===== RENDER =====
 def render_html(sections: dict) -> str:
     extra_css = """
-    ul.news { list-style:none; padding-left:0 }
-    ul.news li { margin:0 0 16px 0 }
+    ul.news{ list-style:none; padding-left:0; }
+    ul.news li{ margin:18px 0 24px; }
     ul.news li a{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
@@ -367,31 +328,29 @@ def render_html(sections: dict) -> str:
     ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
-      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
+      background:radial-gradient(circle at 12% 10%, #ffd089 0%, #f59e0b 36%, #0f172a 100%);
       border:1px solid rgba(255,255,255,.28);
       display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
       gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
     }
     .news-thumb .dot{
-      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
+      width:14px; height:14px; border-radius:999px; background:rgba(14,165,233,1);
       border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
     }
     .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+
     .ai-note{
-      margin:6px 0 0 88px;
-      font-size:.92rem; color:#dfe7f1; line-height:1.35;
+      margin:10px 0 0 88px;
+      font-size:.95rem; color:#dfe7f1; line-height:1.4;
       background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
-      padding:10px 12px; border-radius:12px;
+      padding:12px 14px; border-radius:12px;
     }
     .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
-    .ai-badge{
-      display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff;
-      border:1px solid rgba(255,255,255,.35);
-    }
+    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
-    .ai-note .sec{ margin-top:4px; }
+    .sec{ margin-top:4px; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
@@ -405,11 +364,8 @@ def render_html(sections: dict) -> str:
         )
 
     def make_li(it):
-        uncertain = it.get("ai_uncertain", "").strip()
-        uncertain_block = (
-            f'<div class="sec"><strong>Niepewne / sporne:</strong> {esc(uncertain)}</div>'
-            if uncertain else ""
-        )
+        uncertain = it.get("ai_uncertain","").strip()
+        uncertain_html = f'<div class="sec">{esc(uncertain)}</div>' if uncertain else ""
         return f'''<li>
   <a href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
@@ -418,7 +374,7 @@ def render_html(sections: dict) -> str:
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_summary",""))}</div>
-    {uncertain_block}
+    {uncertain_html}
   </div>
 </li>'''
 
@@ -464,24 +420,23 @@ def render_html(sections: dict) -> str:
 {make_section("Polityka / Kraj", sections["polityka"])}
 {make_section("Ekonomia / Biznes", sections["biznes"])}
 {make_section("Sport", sections["sport"])}
-<p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana 2× dziennie.</p>
+<p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
 </body>
 </html>"""
     return html_out
 
-# ===== MAIN =====
 def main():
     sections = {
         "polityka": fetch_section("polityka"),
-        "biznes": fetch_section("biznes"),
-        "sport": fetch_section("sport"),
+        "biznes":   fetch_section("biznes"),
+        "sport":    fetch_section("sport"),
     }
     html_str = render_html(sections)
     with open("pl/aktualnosci.html", "w", encoding="utf-8") as f:
         f.write(html_str)
-    print("✓ Wygenerowano pl/aktualnosci.html (AI: ON)" if os.getenv("OPENAI_API_KEY") else "✓ Wygenerowano pl/aktualnosci.html (AI: OFF)")
+    print("✓ Wygenerowano pl/aktualnosci.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
 
 if __name__ == "__main__":
     main()
