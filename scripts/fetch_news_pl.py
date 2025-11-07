@@ -24,7 +24,7 @@ TZ = tz.gettz("Europe/Warsaw")
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
-AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")  # model dla komentarzy
+AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 CACHE_PATH = ".cache/news_summaries_pl.json"
 
 FEEDS = {
@@ -50,7 +50,17 @@ FEEDS = {
     ],
 }
 
-# ŹRÓDŁA: większy punkcik = większa szansa, że wejdzie do listy
+# Dodatkowe, zaufane źródła do KORESPONDENCJI (potwierdzanie)
+TRUSTED_CORRO_FEEDS = [
+    "https://www.pap.pl/rss.xml",
+    "https://feeds.reuters.com/reuters/worldNews",
+    "https://feeds.reuters.com/reuters/businessNews",
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.bbci.co.uk/news/uk/rss.xml",
+    "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",  # AP (RSS hub)
+]
+
+# ŹRÓDŁA: preferencje
 SOURCE_PRIORITY = [
     (re.compile(r"pap\.pl", re.I), 25),
     (re.compile(r"polsatnews\.pl", re.I), 18),
@@ -60,7 +70,7 @@ SOURCE_PRIORITY = [
     (re.compile(r"polsatsport\.pl", re.I), 25),
 ]
 
-# BOOST wg sekcji — słowa kluczowe
+# BOOST wg sekcji
 BOOST = {
     "polityka": [
         (re.compile(r"Polska|kraj|Sejm|Senat|prezydent|premier|ustawa|minister|rząd|samorząd|Trybunał|TK|SN|UE|KE|budżet|PKW", re.I), 35),
@@ -70,9 +80,7 @@ BOOST = {
         (re.compile(r"NBP|RPP|PKB|inflacja|stopy|obligacj|kredyt|ZUS|VAT|CIT|PIT|GPW|WIG|paliw|energia|MWh", re.I), 28),
     ],
     "sport": [
-        # Polscy sportowcy/drużyny
         (re.compile(r"Iga Świątek|Swiatek|Hurkacz|Lewandowski|Zieliński|Zielinski|Siatkar|Reprezentacja|Legia|Raków|Rakow|Lech", re.I), 40),
-        # relacje na żywo
         (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 45),
     ],
 }
@@ -89,7 +97,7 @@ STOP_PL = {
     "i","oraz","a","w","we","z","za","do","dla","na","o","u","od","po","pod","nad","przed",
     "jest","są","był","była","było","będzie","to","ten","ta","te","tych","tym","tą","że",
     "jak","kiedy","który","która","które","których","którym","którego","której","czy",
-    "się","ze","go","jej","ich","jego","nią","nią","nim","nią","lub","albo","też","również",
+    "się","ze","go","jej","ich","jego","nią","nim","lub","albo","też","również",
     "–","—","-","\"","„","”","'", "…"
 }
 
@@ -107,7 +115,7 @@ def jaccard(a: set, b: set) -> float:
     union = len(a | b)
     return inter / union if union else 0.0
 
-SIMILARITY_THRESHOLD = 0.70  # próg: to samo „o tym samym” → odrzuć duplikat
+SIMILARITY_THRESHOLD = 0.70
 
 # =========================
 # POMOCNICZE
@@ -133,23 +141,19 @@ def esc(s: str) -> str:
 
 def score_item(item, section_key: str) -> float:
     score = 0.0
-    # świeżość
     published_parsed = item.get("published_parsed") or item.get("updated_parsed")
     if published_parsed:
         dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
         age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
         score += max(0.0, 36.0 - age_h)
-    # boost z tytułu
     t = item.get("title", "") or ""
     for rx, pts in BOOST.get(section_key, []):
         if rx.search(t):
             score += pts
-    # preferencje hosta
     h = host_of(item.get("link", "") or "")
     for rx, pts in SOURCE_PRIORITY:
         if rx.search(h):
             score += pts
-    # kosmetyka: bardzo długie tytuły lekko w dół
     if len(t) > 140:
         score -= 5
     return score
@@ -173,7 +177,6 @@ def save_cache(path: str, data: dict):
 CACHE = load_cache(CACHE_PATH)
 
 def ensure_period(txt: str) -> str:
-    """Zadbaj, by komentarz kończył się kropką."""
     txt = (txt or "").strip()
     if not txt:
         return txt
@@ -182,17 +185,11 @@ def ensure_period(txt: str) -> str:
     return txt
 
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
-    """
-    Zwraca dict:
-    { "summary": "...", "uncertain": "...", "model": "gpt-4o-mini" }
-    'uncertain' pojawia się tylko, gdy model wskaże coś potencjalnie mylnego/niepewnego.
-    """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
         return CACHE[cache_key]
 
-    # fallback bez klucza (bez AI) – nie generujemy „uncertain”
     if not key:
         out = {
             "summary": ensure_period((snippet or title or "").strip()[:600]),
@@ -204,16 +201,14 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
         return out
 
     prompt = f"""Streść zwięźle po polsku (2–3 pełne zdania) najważniejsze fakty z poniższej wiadomości.
-Następnie – tylko jeśli widzisz w tytule/opisie elementy niepewne, dyskusyjne lub łatwe do błędnej interpretacji –
-podaj JEDNO krótkie zdanie ostrzegawcze zaczynające się od "Uwaga:".
-Jeśli nic takiego nie ma, NIE pisz żadnego ostrzeżenia.
+Jeśli widzisz element niepewny/sporny lub łatwy do błędnej interpretacji, dodaj JEDNO krótkie zdanie ostrzegawcze zaczynające się od "Uwaga:".
+Jeśli nic takiego nie ma, NIE pisz ostrzeżenia.
 Tytuł: {title}
 Opis (RSS/snippet): {snippet}
 Nie dodawaj faktów, których nie ma w tytule/opisie.
 Zwróć odpowiedź w dwóch liniach:
 1) Najważniejsze: …
-2) (opcjonalnie) Uwaga: … (tylko jeśli potrzebne)
-"""
+2) (opcjonalnie) Uwaga: …"""
 
     try:
         resp = requests.post(
@@ -249,7 +244,6 @@ Zwróć odpowiedź w dwóch liniach:
                 warn = l
 
         summary = ensure_period(summary or (snippet or title or ""))
-        # ostrzeżenie tylko gdy istnieje (już zawiera "Uwaga:")
         uncertain_out = ensure_period(warn) if warn else ""
 
         out = {"summary": summary, "uncertain": uncertain_out, "model": AI_MODEL}
@@ -268,7 +262,76 @@ Zwróć odpowiedź w dwóch liniach:
         return out
 
 # =========================
-# POBIERANIE I DEDUPE
+# WARSTWA WERYFIKACJI (CORROBORATION + RULES)
+# =========================
+
+# „Mocne” słowa – jeśli występują, chcemy mieć przynajmniej 1 potwierdzenie w trusted feeds
+STRONG_CLAIM_RE = re.compile(
+    r"(skazany|aresztowano|udowodni|fałszerstw|rekordow|zginęł|ofiara|katastrof|wyciek|bankructw|zdrad[ay]|korupcj|manipulacj|łamani[ea] prawa)",
+    re.I
+)
+
+# Reguła: domniemanie niewinności
+PRESUMPTION_RE = re.compile(
+    r"(musi|będzie musiał|będzie musiała)\s+udowodnić\s+(swoją|swoja|swą|swa)?\s*niewinność",
+    re.I
+)
+
+def search_trusted_matches(title: str, feeds=TRUSTED_CORRO_FEEDS, min_sim=0.58, max_look=60):
+    """Przeszukaj nagłówki zaufanych RSS i zwróć listę podobnych tytułów (host, title, link, score)."""
+    base_tok = tokens_pl(title)
+    matches = []
+    for f in feeds:
+        try:
+            parsed = feedparser.parse(f)
+            for i, e in enumerate(parsed.entries[:max_look]):
+                t = (e.get("title") or "").strip()
+                if not t:
+                    continue
+                sc = jaccard(base_tok, tokens_pl(t))
+                if sc >= min_sim:
+                    matches.append({
+                        "host": host_of(e.get("link","")),
+                        "title": t,
+                        "link": e.get("link",""),
+                        "score": sc
+                    })
+        except Exception as ex:
+            print(f"[WARN] corroboration RSS error: {f} -> {ex}", file=sys.stderr)
+    # najwyżej 3 najlepsze
+    matches.sort(key=lambda x: x["score"], reverse=True)
+    return matches[:3]
+
+def verify_note_pl(title: str, snippet: str) -> str:
+    """Zbuduj krótkie ostrzeżenie (Uwaga: …) na bazie reguł + krzyżowego sprawdzenia w trusted feeds."""
+    notes = []
+
+    # 1) Twarda reguła: domniemanie niewinności
+    if PRESUMPTION_RE.search(title) or PRESUMPTION_RE.search(snippet):
+        notes.append("Uwaga: w postępowaniu karnym obowiązuje domniemanie niewinności — to prokurator ma obowiązek udowodnić winę, a nie oskarżony swoją niewinność.")
+
+    # 2) „Mocna teza” bez zewnętrznego potwierdzenia
+    strong = STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet)
+    if strong:
+        matches = search_trusted_matches(title)
+        if not matches:
+            notes.append("Uwaga: brak potwierdzenia tej informacji w zaufanych źródłach (Reuters/PAP/BBC/AP) na podstawie nagłówków RSS — traktuj wiadomość ostrożnie.")
+        else:
+            # jeśli są, to delikatna notka potwierdzająca/ostrożna
+            srcs = ", ".join(sorted(set(host_of(m['link']) for m in matches)))
+            notes.append(f"Uwaga: podobną informację odnotowały zaufane źródła ({srcs}); mimo to pamiętaj, że nagłówki RSS mogą nie oddawać pełnego kontekstu.")
+
+    # Sklej jedną, maksymalnie dwuzdaniową uwagę
+    if not notes:
+        return ""
+    # skróć do dwóch zdań max
+    text = " ".join(notes[:2]).strip()
+    if text and text[-1] not in ".!?…":
+        text += "."
+    return text
+
+# =========================
+# POBIERANIE + DEDUPLIKACJA
 # =========================
 def fetch_section(section_key: str):
     items = []
@@ -292,26 +355,24 @@ def fetch_section(section_key: str):
         except Exception as ex:
             print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
-    # scoring
     for it in items:
         it["_score"] = score_item(it, section_key)
         it["_tok"] = tokens_pl(it["title"])
 
-    # sort malejąco po wartości
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # deduplikacja „semantyczna” – odrzucaj wiadomości o tym samym temacie
+    # deduplikacja semantyczna
     kept = []
     for it in items:
-        is_dup = False
+        dup = False
         for got in kept:
             if jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD:
-                is_dup = True
+                dup = True
                 break
-        if not is_dup:
+        if not dup:
             kept.append(it)
 
-    # limit na host oraz total
+    # limity per host / total
     per_host = {}
     picked = []
     for it in kept:
@@ -324,7 +385,7 @@ def fetch_section(section_key: str):
         if len(picked) >= MAX_PER_SECTION:
             break
 
-    # sport: spróbuj wymusić 1 link LIVE, jeśli żaden nie wszedł
+    # sport: wymuś LIVE + prosta dywersyfikacja
     if section_key == "sport":
         has_live = any(LIVE_RE.search(x["title"]) for x in picked)
         if not has_live:
@@ -335,9 +396,6 @@ def fetch_section(section_key: str):
                     else:
                         picked.append(it)
                     break
-
-        # prosta dywersyfikacja: spróbuj złamać monotonię (np. same mecze jednej ligi)
-        # patrzymy na pierwsze słowo po filtrach – jeśli 4+ tytuły zaczynają się podobnie, podmień ostatni
         if len(picked) >= 4:
             heads = {}
             for it in picked:
@@ -345,18 +403,20 @@ def fetch_section(section_key: str):
                 heads[head] = heads.get(head, 0) + 1
             common = [k for k, v in heads.items() if v >= 4]
             if common:
-                # znajdź alternatywę różniącą się headem
                 for it in kept:
                     head = next(iter(tokens_pl(it["title"])), "")
                     if head not in common and it not in picked:
                         picked[-1] = it
                         break
 
-    # komentarze AI (pełne zdania)
+    # komentarze AI + weryfikacja „Uwaga”
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
+        # warstwa weryfikacji: reguły + szukanie potwierdzeń
+        verify = verify_note_pl(it["title"], it.get("summary_raw",""))
+        final_warn = verify or s.get("uncertain","")
         it["ai_summary"] = ensure_period(s["summary"])
-        it["ai_uncertain"] = ensure_period(s["uncertain"]) if s.get("uncertain") else ""
+        it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s["model"]
 
     return picked
