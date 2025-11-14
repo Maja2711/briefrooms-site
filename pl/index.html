@@ -4,222 +4,398 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — wybierz pokój (PL)</title>
+
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=2">
+
+  <!-- hreflang -->
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
-  <meta property="og:title" content="BriefRooms — krótkie, rzeczowe podsumowania">
+
+  <!-- OG / Twitter -->
+  <meta property="og:title" content="BriefRooms — krótkie, praktyczne podsumowania">
   <meta property="og:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
   <meta property="og:url" content="https://briefrooms.com/pl/">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
-  <!-- Twitter Card -->
+
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="BriefRooms — krótkie, rzeczowe podsumowania">
+  <meta name="twitter:title" content="BriefRooms — krótkie, praktyczne podsumowania">
   <meta name="twitter:description" content="Wybierz pokój i czytaj krótkie, praktyczne briefy.">
   <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
-  <meta name="twitter:site" content="@TwojeKonto">
 
-<style>
-  :root{
-    --bg1:#071e2e; --bg2:#0b2a40;
-    --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
-    --door:#3a2417; --door2:#2b1a10;
-    --panel:#512f1d; --panel2:#3c2416;
-    --accent:#9ed2ff;
-    --door-max: 170px; /* było 200 – zmniejszamy */
-  }
-
-  html{
-    background:
-      radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-      linear-gradient(180deg,var(--bg1),var(--bg2));
-  }
-  body{
-    margin:0;
-    color:var(--txt);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-    background:transparent;
-    position:relative;
-  }
-  body::before{
-    content:"";
-    position:fixed; inset:0;
-    background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-    opacity:.22;
-    z-index:0;
-    pointer-events:none;
-  }
-  body::after{
-    content:"";
-    position:fixed; left:0; right:0; bottom:0; height:35vh;
-    background:linear-gradient(0deg, rgba(0,0,0,.42), transparent);
-    z-index:1; pointer-events:none;
-  }
-
-  main{max-width:1100px; margin:0 auto; padding:28px 14px 56px; position:relative; z-index:2}
-header{
-  text-align:center;
-  margin:46px 0 18px;  /* było 4px → 46px, żeby nie wchodziło na badge */
-}
-
-h1{
-  margin:0 0 6px;
-  font-weight:800;
-  font-size:clamp(25px,4.4vw,42px);
-}
-
-@media (max-width:720px){
-  header{
-    margin:58px 0 16px;  /* na telefonie ciut niżej */
-  }
-  h1{
-    font-size:clamp(22px,6vw,34px); /* trochę mniejszy na tel */
-  }
-}
-
-  .lead{margin:0; color:var(--muted)}
-  .lead a{color:var(--accent); text-decoration:none}
-  .lead a:hover{text-decoration:underline}
-
-  /* GRID DRZWI – desktop: 5 w jednym rzędzie, ale przy 4 też ładnie wygląda */
-  .grid{
-    display:grid;
-    gap:16px;
-    grid-template-columns:repeat(5, minmax(150px,1fr));
-    margin-top:18px;
-  }
-
-  /* card = „pleksi” pod drzwiami */
-  .card{
-    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.0));
-    border:1px solid rgba(255,255,255,.04);
-    border-radius:26px;
-    padding:14px 6px 16px;
-    display:flex; justify-content:center; align-items:center;
-    min-height:230px;                 /* mniejsze niż wcześniej */
-  }
-
-  /* DRZWI */
-  .door{
-    width:min(var(--door-max), 84%);
-    aspect-ratio: 3 / 5;
-    background:linear-gradient(180deg,var(--door),var(--door2));
-    border-radius:16px;
-    border:1px solid rgba(0,0,0,.45);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 20px rgba(0,0,0,.45);
-    position:relative;
-  }
-  .door .frame{
-    position:absolute; inset:14px; border-radius:12px;
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 0 0 5px rgba(255,255,255,.03);
-  }
-  .panel{
-    position:absolute; left:22px; right:22px; height:15%;
-    background:linear-gradient(180deg,var(--panel),var(--panel2));
-    border-radius:9px;
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
-  }
-  .panel.p1{top:56px}
-  .panel.p2{top:calc(50% - 8%)}
-  .panel.p3{bottom:56px}
-  .knob{
-    position:absolute; right:12px; top:50%; transform:translateY(-50%);
-    width:13px; height:13px; border-radius:50%;
-    background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
-    box-shadow:0 2px 8px rgba(0,0,0,.5)
-  }
-
-  /* NAPIS U GÓRY DRZWI – taki jak PL */
-.label{
-  position:absolute;
-  top:23px;
-  left:50%;
-  transform:translateX(-50%);
-  max-width:78%;
-  background:rgba(255,255,255,.03);   /* leciutka poświata, prawie niewidoczna */
-  padding:.1em .3em;
-  border-radius:6px;
-  font-weight:700;
-  font-size:clamp(16px,2.2vw,20px);
-  color:#f4e0b8;                      /* jasny „piaskowy” */
-  text-shadow:0 1px 2px rgba(0,0,0,.65); /* kontrast na brązie */
-  text-align:center;
-  line-height:1.1;
-  pointer-events:none;
-}
-
-
-  /* TABLET / MAŁY LAPTOP – 3 kolumny */
-  @media (max-width:1024px){
-    .grid{
-      grid-template-columns:repeat(3, minmax(150px,1fr));
-      justify-items:center;
+  <style>
+    :root{
+      --bg1:#071e2e; --bg2:#0b2a40;
+      --txt:#eaf2fb; --muted:#9ab0c5;
+      --accent:#9ed2ff;
+      --door-max:200px;
     }
-    .card{min-height:220px}
-  }
 
-  /* TELEFON – 2 kolumny, trochę większe drzwi żeby były czytelne */
-  @media (max-width:640px){
-    main{padding-top:22px}
-    .grid{
-      grid-template-columns:repeat(2, minmax(140px,1fr));
-      gap:14px;
+    html{
+      background:
+        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-    .card{min-height:210px}
+
+    body{
+      height:100%;
+      margin:0;
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      background:transparent;
+      position:relative;
+    }
+
+    /* ocean gif w tle */
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+      opacity:.22;
+      z-index:0;
+      pointer-events:none;
+    }
+    /* przyciemnienie dołu */
+    body::after{
+      content:"";
+      position:fixed; left:0; right:0; bottom:0; height:35vh;
+      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+      z-index:1;
+      pointer-events:none;
+    }
+
+    main{
+      max-width:1100px;
+      margin:0 auto;
+      padding:28px 14px 56px;
+      position:relative;
+      z-index:2;
+    }
+
+    /* GÓRNE MENU */
+    .top-nav{
+      margin-bottom:18px;
+    }
+    .top-nav-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:8px 18px;
+      border-radius:999px;
+      background:rgba(3,19,32,.9);
+      border:1px solid rgba(255,255,255,.16);
+      backdrop-filter:blur(14px);
+      box-shadow:0 12px 26px rgba(0,0,0,.55);
+    }
+    .top-nav-logo{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+    }
+    .top-nav-logo-mark{
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      background:radial-gradient(circle at 30% 30%, #ffe5a6, #ffb23a 55%, #a86810);
+      box-shadow:
+        0 0 12px rgba(255,178,58,.95),
+        0 0 32px rgba(255,178,58,.45);
+    }
+    .top-nav-logo-text{
+      font-weight:700;
+      letter-spacing:.12em;
+      font-size:13px;
+      color:#fff;
+      text-transform:uppercase;
+    }
+    .top-nav-links{
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:12px;
+      font-size:13px;
+    }
+    .top-nav-link{
+      text-decoration:none;
+      color:var(--muted);
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid transparent;
+      transition:background .18s ease, color .18s ease, border-color .18s ease;
+    }
+    .top-nav-link:hover,
+    .top-nav-link:focus-visible{
+      color:#fff;
+      border-color:rgba(255,255,255,.32);
+      background:rgba(7,38,62,.9);
+      outline:none;
+    }
+
+    @media (max-width:720px){
+      .top-nav-inner{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:6px;
+      }
+      .top-nav-links{
+        gap:8px;
+      }
+    }
+
+    header{
+      text-align:center;
+      margin:30px 0 18px;
+    }
+    h1{
+      margin:0 0 6px;
+      font-weight:800;
+      font-size:clamp(25px,4.4vw,42px);
+    }
+    .lead{
+      margin:0;
+      color:var(--muted);
+    }
+    .lead a{
+      color:var(--accent);
+      text-decoration:none;
+    }
+    .lead a:hover{
+      text-decoration:underline;
+    }
+
+    /* GRID drzwi */
+    .grid{
+      display:grid;
+      gap:16px;
+      grid-template-columns:repeat(4, minmax(150px,1fr));
+      margin-top:26px;
+    }
+
+    /* zewnętrzna „szyba” */
+    .card{
+      background:radial-gradient(circle at 20% 0%, rgba(255,255,255,.16), rgba(255,255,255,0) 55%);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:34px;
+      padding:18px 8px 20px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:260px;
+      text-decoration:none;
+      color:inherit;
+      box-shadow:
+        0 18px 40px rgba(0,0,0,.65),
+        inset 0 0 0 1px rgba(255,255,255,.04);
+      backdrop-filter:blur(10px);
+      transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+    .card:hover,
+    .card:focus-visible{
+      transform:translateY(-6px);
+      box-shadow:
+        0 26px 55px rgba(0,0,0,.85),
+        inset 0 0 0 1px rgba(255,255,255,.08);
+      border-color:rgba(255,255,255,.26);
+      outline:none;
+    }
+
+    /* wewnętrzne drzwi 3D */
     .door{
-      width:150px;
+      width:min(var(--door-max), 84%);
+      aspect-ratio:3 / 5;
+      position:relative;
+      border-radius:22px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(255,255,255,.40), rgba(255,255,255,0) 55%),
+        radial-gradient(circle at 80% 90%, rgba(0,0,0,.55), rgba(0,0,0,0) 55%),
+        linear-gradient(180deg, #293746 0%, #0e1b27 100%);
+      box-shadow:
+        0 10px 25px rgba(0,0,0,.75),
+        inset 0 0 0 1px rgba(255,255,255,.25),
+        inset 0 0 0 6px rgba(5,18,30,.9);
+      overflow:hidden;
     }
+
+    .door::before{
+      content:"";
+      position:absolute;
+      inset:8px;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.85);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.25),
+        inset 0 -1px 0 rgba(0,0,0,.65);
+    }
+
+    .door .frame{
+      position:absolute;
+      inset:18px;
+      border-radius:16px;
+      background:radial-gradient(circle at 15% 0%, rgba(255,255,255,.24), rgba(255,255,255,0) 55%);
+      box-shadow:
+        inset 0 0 24px rgba(0,0,0,.55),
+        0 0 0 1px rgba(255,255,255,.03);
+    }
+
+    .panel{
+      position:absolute;
+      left:28px;
+      right:34px;
+      height:15%;
+      border-radius:12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 40%, rgba(0,0,0,.35) 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.35),
+        0 4px 10px rgba(0,0,0,.55);
+    }
+    .panel.p1{ top:58px; }
+    .panel.p2{ top:calc(50% - 8%); }
+    .panel.p3{ bottom:58px; }
+
+    .knob{
+      position:absolute;
+      right:20px;
+      top:50%;
+      transform:translateY(-50%);
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
+      box-shadow:
+        0 2px 8px rgba(0,0,0,.6),
+        0 0 10px rgba(255,194,120,.9);
+    }
+
+    /* label – dużo miejsca, nie wyjdzie poza drzwi */
     .label{
-      background:rgba(255,255,255,.14);
-      font-size:15px;
+      position:absolute;
+      top:20px;
+      left:22px;
+      right:54px;
+      padding:.22em .7em;
+      border-radius:9px;
+      background:linear-gradient(180deg, rgba(9,24,36,.95), rgba(9,24,36,.75));
+      border:1px solid rgba(255,255,255,.18);
+      font-weight:700;
+      font-size:clamp(16px,2.1vw,20px);
+      color:#fff;
+      text-shadow:0 1px 3px rgba(0,0,0,.9);
+      line-height:1.1;
+      pointer-events:none;
+      text-align:left;
+      word-wrap:break-word;
     }
-  }
 
-  footer{
-    text-align:center; opacity:.75; padding:18px 12px 28px; font-size:14px
-  }
+    @media (max-width:1024px){
+      .grid{
+        grid-template-columns:repeat(3, minmax(150px,1fr));
+        justify-items:center;
+      }
+      .card{ min-height:240px; }
+    }
 
-  /* badge w lewym górnym rogu zostawiamy jak miałeś */
-  .ai-badge{
-    position:fixed; top:14px; left:14px; z-index:50;
-    background:rgba(12,20,28,.88);
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:999px;
-    display:flex; gap:7px; align-items:center;
-    padding:6px 12px 6px 6px;
-    backdrop-filter:blur(6px);
-  }
-  .ai-badge-dot{
-    width:26px; height:26px; border-radius:999px;
-    background:radial-gradient(circle at 30% 30%, #ffd27a, #b87a15 70%);
-    box-shadow:0 0 14px rgba(255,199,105,.45);
-  }
-  .ai-badge-title{font-weight:700; font-size:.9rem}
-  .ai-badge-sub{font-size:.7rem; opacity:.78}
-  @media (max-width:540px){
-    .ai-badge{transform:scale(.94); transform-origin:top left}
-  }
-</style>
+    @media (max-width:640px){
+      main{ padding-top:22px; }
+      .grid{
+        grid-template-columns:repeat(2, minmax(140px,1fr));
+        gap:14px;
+      }
+      .card{ min-height:220px; }
+      .door{
+        width:150px;
+        max-width:150px;
+      }
+      .label{
+        font-size:15px;
+      }
+    }
 
+    footer{
+      text-align:center;
+      opacity:.75;
+      padding:18px 12px 28px;
+      font-size:14px;
+      position:relative;
+      z-index:2;
+    }
+
+    /* AI badge – LEWY DOLNY RÓG, tylko „Powered by AI” */
+    .ai-badge{
+      position:fixed;
+      bottom:14px;
+      left:14px;
+      z-index:35;
+      background:rgba(3,19,32,.7);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:999px;
+      padding:6px 16px 6px 30px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      backdrop-filter:blur(12px);
+      text-decoration:none;
+    }
+    .ai-dot{
+      position:absolute;
+      left:9px;
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
+      box-shadow:0 0 10px rgba(255,178,58,.8);
+    }
+    .ai-sub{
+      font-size:11px;
+      color:#a8cfff;
+      white-space:nowrap;
+    }
+    @media (max-width:680px){
+      .ai-badge{
+        bottom:10px;
+        left:10px;
+        padding:5px 14px 5px 28px;
+      }
+      .ai-sub{ font-size:10px; }
+    }
+  </style>
 </head>
+
 <body>
-  <!-- AI badge -->
-  <a href="/pl/aktualnosci.html" class="ai-badge" aria-label="Powered by AI">
+  <!-- AI badge (lewy dolny róg) -->
+  <a href="/pl/aktualnosci.html" class="ai-badge" aria-label="Powered by AI – przejdź do Aktualności">
     <span class="ai-dot"></span>
-    <span class="ai-title">BriefRooms</span>
     <span class="ai-sub">Powered by AI</span>
   </a>
- 
+
   <main>
+    <!-- górne menu -->
+    <nav class="top-nav" aria-label="Główne">
+      <div class="top-nav-inner">
+        <a href="/pl/" class="top-nav-logo">
+          <span class="top-nav-logo-mark" aria-hidden="true"></span>
+          <span class="top-nav-logo-text">BRIEFROOMS</span>
+        </a>
+        <div class="top-nav-links">
+          <a class="top-nav-link" href="/pl/aktualnosci.html">Aktualności</a>
+          <a class="top-nav-link" href="/pl/geopolityka.html">Geopolityka</a>
+          <a class="top-nav-link" href="/pl/zdrowie.html">Zdrowie</a>
+          <a class="top-nav-link" href="/pl/nauka.html">Nauka</a>
+          <a class="top-nav-link" href="/pl/o-projekcie.html">O projekcie</a>
+        </div>
+      </div>
+    </nav>
+
     <header>
       <h1>Wybierz pokój z krótkimi, rzeczowymi podsumowaniami</h1>
-      <p class="lead">Kliknij w drzwi, aby wejść do działu. English? <a href="/en/">Go to EN version</a></p>
+      <p class="lead">Kliknij drzwi, aby wejść. English? <a href="/en/">Go to EN version</a></p>
     </header>
 
     <section class="grid">
-      <!-- 1. Aktualności -->
+      <!-- 1) Aktualności -->
       <a class="card" href="/pl/aktualnosci.html" aria-label="Aktualności">
         <div class="door">
           <span class="frame"></span>
@@ -231,19 +407,7 @@ h1{
         </div>
       </a>
 
-      <!-- 2. Geopolityka -->
-      <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
-        <div class="door">
-          <span class="frame"></span>
-          <span class="panel p1"></span>
-          <span class="panel p2"></span>
-          <span class="panel p3"></span>
-          <span class="knob"></span>
-          <span class="label">Geopolityka</span>
-        </div>
-      </a>
-
-      <!-- 3. Zdrowie -->
+      <!-- 2) Zdrowie -->
       <a class="card" href="/pl/zdrowie.html" aria-label="Zdrowie">
         <div class="door">
           <span class="frame"></span>
@@ -255,7 +419,19 @@ h1{
         </div>
       </a>
 
-      <!-- 4. Nauka -->
+      <!-- 3) Geopolityka -->
+      <a class="card" href="/pl/geopolityka.html" aria-label="Geopolityka">
+        <div class="door">
+          <span class="frame"></span>
+          <span class="panel p1"></span>
+          <span class="panel p2"></span>
+          <span class="panel p3"></span>
+          <span class="knob"></span>
+          <span class="label">Geopolityka</span>
+        </div>
+      </a>
+
+      <!-- 4) Nauka -->
       <a class="card" href="/pl/nauka.html" aria-label="Nauka">
         <div class="door">
           <span class="frame"></span>
@@ -269,11 +445,10 @@ h1{
     </section>
   </main>
 
-  <footer>© BriefRooms</footer>
   <footer class="site-footer">
     <div class="footer-wrap">
-      <a class="footer-link" 
-         href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A%0D%0A(krótko%20opisz%20spraw%C4%99)%0D%0A"
+      <a class="footer-link"
+         href="mailto:contact@briefrooms.com?subject=Kontakt%20BriefRooms&body=Dzień%20dobry,%0D%0A%0D%0A(krótko%20opisz%20sprawę)%0D%0A"
          aria-label="Wyślij e-mail na contact@briefrooms.com">
         <svg class="ico-mail" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
@@ -281,72 +456,11 @@ h1{
         <span>Kontakt: <strong>contact@briefrooms.com</strong></span>
       </a>
       <span class="footer-dot" aria-hidden="true">•</span>
+      <span class="footer-link">© BriefRooms</span>
+      <span class="footer-dot" aria-hidden="true">•</span>
       <a class="footer-link" href="/pl/">PL</a>
       <a class="footer-link" href="/en/">EN</a>
     </div>
   </footer>
-
-  <!-- FAB -->
-  <a
-    class="contact-fab"
-    href="mailto:contact@briefrooms.com?subject=Kontakt%20z%20BriefRooms&body=Dzie%C5%84%20dobry,%0D%0A(kr%C3%B3tko%20opisz%20spraw%C4%99)%0D%0A"
-    aria-label="Napisz do nas"
-    title="Kontakt"
-  >
-    <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
-      <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 2v.01L12 12 4 6.01V6h16ZM4 18V8.236l7.4 5.55a1 1 0 0 0 1.2 0L20 8.236V18H4Z"/>
-    </svg>
-    <span class="sr-only">Kontakt e-mail</span>
-  </a>
-<a href="/pl/aktualnosci.html" class="ai-badge-link">
-  <img src="/assets/briefrooms-ai.svg" alt="BriefRooms – Powered by AI">
-  <span class="ai-badge-text">Powered by AI</span>
-</a>
-<style>
-  .ai-badge{
-    position:fixed;
-    top:14px;
-    left:14px;
-    z-index:35;
-    background:rgba(3,19,32,.48);
-    border:1px solid rgba(255,255,255,.1);
-    border-radius:999px;
-    padding:6px 16px 6px 32px;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    backdrop-filter:blur(12px);
-    text-decoration:none;
-  }
-  .ai-dot{
-    position:absolute;
-    left:10px;
-    width:14px;
-    height:14px;
-    border-radius:50%;
-    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
-    box-shadow:0 0 10px rgba(255,178,58,.8);
-  }
-  .ai-title{
-    font-weight:600;
-    font-size:13px;
-    color:#fff;
-  }
-  .ai-sub{
-    font-size:11px;
-    color:#a8cfff;
-    white-space:nowrap;
-  }
-  @media (max-width:680px){
-    .ai-badge{
-      top:10px;
-      left:10px;
-      padding:5px 14px 5px 30px;
-    }
-    .ai-title{ font-size:12px; }
-    .ai-sub{ font-size:10px; }
-  }
-</style>
-
 </body>
 </html>
