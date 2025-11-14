@@ -4,304 +4,389 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — choose a room (EN)</title>
+
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=2">
+
   <!-- hreflang -->
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
-  <!-- OG / Twitter (możesz skopiować z PL) -->
+
+  <!-- OG / Twitter -->
   <meta property="og:title" content="BriefRooms — concise, practical summaries">
   <meta property="og:description" content="Pick a room and read short, practical briefs.">
   <meta property="og:url" content="https://briefrooms.com/en/">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg">
+
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="BriefRooms — concise, practical summaries">
   <meta name="twitter:description" content="Pick a room and read short, practical briefs.">
   <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg">
 
-<style>
-  :root{
-    --bg1:#071e2e; --bg2:#0b2a40;
-    --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
-    --door:#3a2417; --door2:#2b1a10;
-    --panel:#512f1d; --panel2:#3c2416;
-    --accent:#9ed2ff;
-    --door-max: 200px;
-  }
-
-  html{
-    background:
-      radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
-      linear-gradient(180deg,var(--bg1),var(--bg2));
-  }
-
-  body{
-    height:100%;
-    margin:0;
-    color:var(--txt);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-    background:transparent;
-    position:relative;
-  }
-
-  /* gif w tle */
-  body::before{
-    content:"";
-    position:fixed; inset:0;
-    background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
-    opacity:.22;
-    z-index:0;
-    pointer-events:none;
-  }
-  /* przyciemnienie dołu */
-  body::after{
-    content:"";
-    position:fixed; left:0; right:0; bottom:0; height:35vh;
-    background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
-    z-index:1;
-    pointer-events:none;
-  }
-
-  main{
-    max-width:1100px;
-    margin:0 auto;
-    padding:28px 14px 56px;
-    position:relative;
-    z-index:2;
-  }
-
-  header{
-    text-align:center;
-    margin:4px 0 18px;
-  }
-  h1{
-    margin:0 0 6px;
-    font-weight:800;
-    font-size:clamp(25px,4.4vw,42px);
-  }
-  .lead{
-    margin:0;
-    color:var(--muted);
-  }
-  .lead a{
-    color:var(--accent);
-    text-decoration:none;
-  }
-  .lead a:hover{
-    text-decoration:underline;
-  }
-
-  /* GRID doors */
-  .grid{
-    display:grid;
-    gap:16px;
-    grid-template-columns:repeat(5, minmax(150px,1fr));
-    margin-top:18px;
-  }
-
-  /* card (plexi) */
-  .card{
-    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
-    border:1px solid rgba(255,255,255,.04);
-    border-radius:26px;
-    padding:14px 6px 16px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:230px;
-    text-decoration:none;
-    color:inherit;
-  }
-
-  /* DOOR */
-/* SZKLANE DRZWI */
-/* SZKLANE, 3D DRZWI */
-.door{
-  width:min(var(--door-max), 84%);
-  aspect-ratio: 3 / 5;
-  /* prawie przezroczyste – morze widać */
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 38%),
-    radial-gradient(circle at 14% 18%, rgba(255,255,255,.55), rgba(255,255,255,0) 55%);
-  border:1px solid rgba(255,255,255,.38);
-  border-radius:18px;
-  backdrop-filter:blur(15px);
-  /* 3D: jasna krawędź góra-lewo, ciemniejsza dół-prawo */
-  box-shadow:
-    0 14px 28px rgba(0,0,0,.28),
-    inset 2px 2px 4px rgba(255,255,255,.45),
-    inset -5px -6px 10px rgba(0,0,0,.18);
-  position:relative;
-}
-
-/* wewnętrzna rama */
-.door .frame{
-  position:absolute;
-  inset:10px;
-  border-radius:14px;
-  background:linear-gradient(180deg, rgba(3,15,23,.25), rgba(3,15,23,0));
-  border:1px solid rgba(255,255,255,.08);
-  /* delikatny „rowek” w środku */
-  box-shadow:inset 0 0 18px rgba(0,0,0,.15);
-}
-
-/* panele */
-.panel{
-  position:absolute;
-  left:20px;
-  right:20px;
-  height:15%;
-  border-radius:10px;
-  background:linear-gradient(180deg, rgba(6,25,37,.3), rgba(6,25,37,.02));
-  border:1px solid rgba(255,255,255,.03);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.35),
-    0 3px 12px rgba(0,0,0,.12);
-}
-.panel.p1{ top:58px; }
-.panel.p2{ top:calc(50% - 8%); }
-.panel.p3{ bottom:58px; }
-
-/* klamka – zostawiamy złotą */
-.knob{
-  position:absolute;
-  right:12px;
-  top:50%;
-  transform:translateY(-50%);
-  width:13px;
-  height:13px;
-  border-radius:50%;
-  background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
-  box-shadow:0 2px 8px rgba(0,0,0,.5);
-}
-
-/* napis na górze */
-.label{
-  position:absolute;
-  top:18px;
-  left:50%;
-  transform:translateX(-50%);
-  max-width:78%;
-  background:rgba(3,16,26,.28);
-  padding:.18em .6em;
-  border-radius:7px;
-  font-weight:700;
-  font-size:clamp(16px,2.2vw,20px);
-  color:#fff;
-  text-shadow:0 1px 3px rgba(0,0,0,.9);
-  text-align:center;
-  line-height:1.1;
-  pointer-events:none;
-}
-@media (max-width:640px){
-  .label{ font-size:15px; }
-}
-
- 
-  /* 3 columns <= 1024px */
-  @media (max-width:1024px){
-    .grid{
-      grid-template-columns:repeat(3, minmax(150px,1fr));
-      justify-items:center;
+  <style>
+    :root{
+      --bg1:#071e2e; --bg2:#0b2a40;
+      --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
+      --accent:#9ed2ff;
+      --door-max:200px;
     }
-    .card{min-height:220px}
-  }
 
-  /* 2 columns on phone */
-  @media (max-width:640px){
-    main{padding-top:22px}
-    .grid{
-      grid-template-columns:repeat(2, minmax(140px,1fr));
-      gap:14px;
+    html{
+      background:
+        radial-gradient(1200px 600px at 50% -80px, #0f304d 0%, #0a2236 60%, #081c2d 100%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
     }
-    .card{min-height:210px}
+
+    body{
+      height:100%;
+      margin:0;
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      background:transparent;
+      position:relative;
+    }
+
+    /* ocean gif in the back */
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      background:url("/assets/ocean-waves-ocean-waves-relaxing.gif") center bottom / cover no-repeat;
+      opacity:.22;
+      z-index:0;
+      pointer-events:none;
+    }
+    /* darkening bottom */
+    body::after{
+      content:"";
+      position:fixed; left:0; right:0; bottom:0; height:35vh;
+      background:linear-gradient(0deg, rgba(0,0,0,.35), transparent);
+      z-index:1;
+      pointer-events:none;
+    }
+
+    main{
+      max-width:1100px;
+      margin:0 auto;
+      padding:28px 14px 56px;
+      position:relative;
+      z-index:2;
+    }
+
+    /* TOP NAV */
+    .top-nav{
+      margin-bottom:18px;
+    }
+    .top-nav-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:8px 18px;
+      border-radius:999px;
+      background:rgba(3,19,32,.75);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter:blur(14px);
+    }
+    .top-nav-logo{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+    }
+    .top-nav-logo-mark{
+      width:20px;
+      height:20px;
+      border-radius:6px;
+      background:radial-gradient(circle at 30% 30%, #ffe5a6, #ffb23a 60%, #a86810);
+      box-shadow:0 0 10px rgba(255,178,58,.85);
+    }
+    .top-nav-logo-text{
+      font-weight:700;
+      letter-spacing:.03em;
+      font-size:14px;
+      color:#fff;
+      text-transform:uppercase;
+    }
+    .top-nav-links{
+      display:flex;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:12px;
+      font-size:13px;
+    }
+    .top-nav-link{
+      text-decoration:none;
+      color:var(--muted);
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid transparent;
+    }
+    .top-nav-link:hover,
+    .top-nav-link:focus-visible{
+      color:#fff;
+      border-color:rgba(255,255,255,.28);
+      background:rgba(7,38,62,.8);
+      outline:none;
+    }
+
+    @media (max-width:720px){
+      .top-nav-inner{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:6px;
+      }
+      .top-nav-links{
+        gap:8px;
+      }
+    }
+
+    header{
+      text-align:center;
+      margin:4px 0 18px;
+    }
+    h1{
+      margin:0 0 6px;
+      font-weight:800;
+      font-size:clamp(25px,4.4vw,42px);
+    }
+    .lead{
+      margin:0;
+      color:var(--muted);
+    }
+    .lead a{
+      color:var(--accent);
+      text-decoration:none;
+    }
+    .lead a:hover{
+      text-decoration:underline;
+    }
+
+    /* GRID doors */
+    .grid{
+      display:grid;
+      gap:16px;
+      grid-template-columns:repeat(4, minmax(150px,1fr));
+      margin-top:18px;
+    }
+
+    /* card */
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
+      border:1px solid rgba(255,255,255,.04);
+      border-radius:26px;
+      padding:14px 6px 16px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:230px;
+      text-decoration:none;
+      color:inherit;
+      transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+    .card:hover,
+    .card:focus-visible{
+      transform:translateY(-4px);
+      box-shadow:0 16px 30px rgba(0,0,0,.45);
+      border-color:rgba(255,255,255,.16);
+      outline:none;
+    }
+
+    /* GLASS 3D DOOR */
     .door{
-      width:150px;
-      max-width:150px;
+      width:min(var(--door-max), 84%);
+      aspect-ratio:3 / 5;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 38%),
+        radial-gradient(circle at 14% 18%, rgba(255,255,255,.55), rgba(255,255,255,0) 55%);
+      border:1px solid rgba(255,255,255,.38);
+      border-radius:18px;
+      backdrop-filter:blur(15px);
+      box-shadow:
+        0 14px 28px rgba(0,0,0,.28),
+        inset 2px 2px 4px rgba(255,255,255,.45),
+        inset -5px -6px 10px rgba(0,0,0,.18);
+      position:relative;
+      transition:transform .22s ease, box-shadow .22s ease;
     }
+    .card:hover .door,
+    .card:focus-visible .door{
+      transform:translateY(-2px);
+      box-shadow:
+        0 18px 36px rgba(0,0,0,.48),
+        inset 2px 2px 4px rgba(255,255,255,.5),
+        inset -6px -7px 12px rgba(0,0,0,.22);
+    }
+
+    .door .frame{
+      position:absolute;
+      inset:10px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(3,15,23,.25), rgba(3,15,23,0));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:inset 0 0 18px rgba(0,0,0,.15);
+    }
+
+    .panel{
+      position:absolute;
+      left:20px;
+      right:20px;
+      height:15%;
+      border-radius:10px;
+      background:linear-gradient(180deg, rgba(6,25,37,.3), rgba(6,25,37,.02));
+      border:1px solid rgba(255,255,255,.03);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.35),
+        0 3px 12px rgba(0,0,0,.12);
+    }
+    .panel.p1{ top:58px; }
+    .panel.p2{ top:calc(50% - 8%); }
+    .panel.p3{ bottom:58px; }
+
+    .knob{
+      position:absolute;
+      right:12px;
+      top:50%;
+      transform:translateY(-50%);
+      width:13px;
+      height:13px;
+      border-radius:50%;
+      background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
+      box-shadow:0 2px 8px rgba(0,0,0,.5);
+    }
+
+    /* label: text kept comfortably inside door, with space near the knob */
     .label{
-      background:rgba(255,255,255,.14);
-      font-size:15px;
+      position:absolute;
+      top:18px;
+      left:18px;
+      right:44px; /* keeps text well clear of the knob on the right */
+      padding:.2em .6em;
+      border-radius:7px;
+      background:rgba(3,16,26,.28);
+      font-weight:700;
+      font-size:clamp(16px,2.2vw,20px);
+      color:#fff;
+      text-shadow:0 1px 3px rgba(0,0,0,.9);
+      line-height:1.1;
+      pointer-events:none;
+      text-align:left;
+      word-wrap:break-word;
     }
-  }
 
-  footer{
-    text-align:center;
-    opacity:.75;
-    padding:18px 12px 28px;
-    font-size:14px;
-    position:relative;
-    z-index:2;
-  }
+    @media (max-width:1024px){
+      .grid{
+        grid-template-columns:repeat(3, minmax(150px,1fr));
+        justify-items:center;
+      }
+      .card{ min-height:220px; }
+    }
 
-  /* badge top-left – możesz zostawić jak w PL */
-  .ai-badge{
-    position:fixed;
-    top:14px;
-    left:14px;
-    z-index:35;
-    background:rgba(3,19,32,.48);
-    border:1px solid rgba(255,255,255,.1);
-    border-radius:999px;
-    padding:6px 16px 6px 32px;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    backdrop-filter:blur(12px);
-    text-decoration:none;
-  }
-  .ai-dot{
-    position:absolute;
-    left:10px;
-    width:14px;
-    height:14px;
-    border-radius:50%;
-    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
-    box-shadow:0 0 10px rgba(255,178,58,.8);
-  }
-  .ai-title{
-    font-weight:600;
-    font-size:13px;
-    color:#fff;
-  }
-  .ai-sub{
-    font-size:11px;
-    color:#a8cfff;
-    white-space:nowrap;
-  }
-  @media (max-width:680px){
+    @media (max-width:640px){
+      main{ padding-top:22px; }
+      .grid{
+        grid-template-columns:repeat(2, minmax(140px,1fr));
+        gap:14px;
+      }
+      .card{ min-height:210px; }
+      .door{
+        width:150px;
+        max-width:150px;
+      }
+      .label{
+        font-size:15px;
+      }
+    }
+
+    footer{
+      text-align:center;
+      opacity:.75;
+      padding:18px 12px 28px;
+      font-size:14px;
+      position:relative;
+      z-index:2;
+    }
+
+    /* AI badge – fixed top-left */
     .ai-badge{
-      top:10px;
-      left:10px;
-      padding:5px 14px 5px 30px;
+      position:fixed;
+      top:14px;
+      left:14px;
+      z-index:35;
+      background:rgba(3,19,32,.48);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:999px;
+      padding:6px 16px 6px 32px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      backdrop-filter:blur(12px);
+      text-decoration:none;
     }
-    .ai-title{font-size:12px}
-    .ai-sub{font-size:10px}
-  }
-</style>
-
-
- 
-
+    .ai-dot{
+      position:absolute;
+      left:10px;
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
+      box-shadow:0 0 10px rgba(255,178,58,.8);
+    }
+    .ai-title{
+      font-weight:600;
+      font-size:13px;
+      color:#fff;
+    }
+    .ai-sub{
+      font-size:11px;
+      color:#a8cfff;
+      white-space:nowrap;
+    }
+    @media (max-width:680px){
+      .ai-badge{
+        top:10px;
+        left:10px;
+        padding:5px 14px 5px 30px;
+      }
+      .ai-title{ font-size:12px; }
+      .ai-sub{ font-size:10px; }
+    }
+  </style>
 </head>
+
 <body>
   <!-- AI badge -->
-  <a href="/pl/aktualnosci.html" class="ai-badge" aria-label="Powered by AI">
+  <a href="/en/news.html" class="ai-badge" aria-label="Powered by AI – go to News">
     <span class="ai-dot"></span>
     <span class="ai-title">BriefRooms</span>
     <span class="ai-sub">Powered by AI</span>
   </a>
 
   <main>
+    <!-- top navigation: shows that this page is part of a bigger ecosystem -->
+    <nav class="top-nav" aria-label="Main">
+      <div class="top-nav-inner">
+        <a href="/en/" class="top-nav-logo">
+          <span class="top-nav-logo-mark" aria-hidden="true"></span>
+          <span class="top-nav-logo-text">BriefRooms</span>
+        </a>
+        <div class="top-nav-links">
+          <a class="top-nav-link" href="/en/news.html">News</a>
+          <a class="top-nav-link" href="/en/geopolitics.html">Geopolitics</a>
+          <a class="top-nav-link" href="/en/health.html">Health</a>
+          <a class="top-nav-link" href="/en/science.html">Science</a>
+          <a class="top-nav-link" href="/en/about.html">About</a>
+        </div>
+      </div>
+    </nav>
+
     <header>
       <h1>Choose a room with concise, practical summaries</h1>
       <p class="lead">Click the door to enter. Polski? <a href="/pl/">Przejdź do wersji PL</a></p>
     </header>
 
     <section class="grid">
-      <!-- 1) News (z działami w środku) -->
+      <!-- 1) News -->
       <a class="card" href="/en/news.html" aria-label="News">
         <div class="door">
           <span class="frame"></span>
@@ -351,7 +436,6 @@
     </section>
   </main>
 
-  <footer>© BriefRooms</footer>
   <footer class="site-footer">
     <div class="footer-wrap">
       <a class="footer-link"
@@ -363,55 +447,11 @@
         <span>Contact: <strong>contact@briefrooms.com</strong></span>
       </a>
       <span class="footer-dot" aria-hidden="true">•</span>
+      <span class="footer-link">© BriefRooms</span>
+      <span class="footer-dot" aria-hidden="true">•</span>
       <a class="footer-link" href="/pl/">PL</a>
       <a class="footer-link" href="/en/">EN</a>
     </div>
   </footer>
-  <style>
-  .ai-badge{
-    position:fixed;
-    top:14px;
-    left:14px;
-    z-index:35;
-    background:rgba(3,19,32,.48);
-    border:1px solid rgba(255,255,255,.1);
-    border-radius:999px;
-    padding:6px 16px 6px 32px;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    backdrop-filter:blur(12px);
-    text-decoration:none;
-  }
-  .ai-dot{
-    position:absolute;
-    left:10px;
-    width:14px;
-    height:14px;
-    border-radius:50%;
-    background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
-    box-shadow:0 0 10px rgba(255,178,58,.8);
-  }
-  .ai-title{
-    font-weight:600;
-    font-size:13px;
-    color:#fff;
-  }
-  .ai-sub{
-    font-size:11px;
-    color:#a8cfff;
-    white-space:nowrap;
-  }
-  @media (max-width:680px){
-    .ai-badge{
-      top:10px;
-      left:10px;
-      padding:5px 14px 5px 30px;
-    }
-    .ai-title{ font-size:12px; }
-    .ai-sub{ font-size:10px; }
-  }
-</style>
-
 </body>
 </html>
