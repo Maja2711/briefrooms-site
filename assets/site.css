@@ -536,5 +536,116 @@ blockquote {
 /* opcjonalnie: wyrównaj siatkę tak jak cholesterol */
 .topic-stack{ display:flex; flex-direction:column; gap:22px; }
 </style>
+/* ============================================
+   Light theme for content rooms (News / Health / Geo / Science)
+   ============================================ */
+
+:root{
+  /* tło "ciepło-białe" + kolory bazowe */
+  --room-bg: #f6f2ea;          /* ciepłe, zgaszone ecru */
+  --room-surface: #ffffff;     /* białe panele */
+  --room-surface-soft: #f9f4ec;
+  --room-border: rgba(15,23,42,.06);
+
+  --room-text: #111827;        /* prawie czarny, ale miękki */
+  --room-muted: #6b7280;       /* opis, meta, daty */
+  --room-heading: #0f172a;
+
+  /* spokojny, profesjonalny akcent (niekrzykliwy niebieski) */
+  --room-accent: #2563eb;
+  --room-accent-soft: #e0edff;
+}
+
+/* Bazowe tło + tekst dla wszystkich stron bez własnego inline-style
+   (home ma swój <style> w HTML, więc pozostaje morski i ciemny). */
+body{
+  background: var(--room-bg);
+  color: var(--room-text);
+}
+
+/* Szerokość kolumny czytania (News, artykuły zdrowotne itd.) */
+main{
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+/* Główne „pudełko” z treścią:
+   - News: cały panel z nagłówkiem „Politics / World”
+   - Cholesterol: duży panel z nagłówkiem i akapitami
+
+   Nie dotykamy sekcji z drzwiami, bo ma klasę .grid. */
+main > section:not(.grid){
+  background: linear-gradient(180deg, var(--room-surface), var(--room-surface-soft));
+  border-radius: 28px;
+  border: 1px solid var(--room-border);
+  box-shadow: 0 18px 40px rgba(15,23,42,.08);
+  padding: 32px 26px 40px;
+}
+
+/* Nagłówki + podstawowy tekst */
+h1, h2, h3, h4{
+  color: var(--room-heading);
+}
+p, li{
+  color: var(--room-text);
+}
+
+/* Meta, daty, „Last ~36 hours”, dopiski podtytułów */
+.page-meta,
+small,
+.muted{
+  color: var(--room-muted);
+}
+
+/* Linki w treści (bez wpływu na menu, które ma własne klasy) */
+main a{
+  color: var(--room-accent);
+  text-decoration: none;
+}
+main a:hover{
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Typowe „karty” wewnątrz sekcji:
+   – pojedyncze newsy
+   – bloki typu „Your lipid panel, without jargon”
+   Jeśli masz inne klasy, one tylko zyskają to tło, układ się nie zmieni. */
+article,
+.section-card,
+.news-item,
+.health-block{
+  background: var(--room-surface);
+  border-radius: 20px;
+  border: 1px solid rgba(15,23,42,.05);
+  box-shadow: 0 10px 24px rgba(15,23,42,.06);
+}
+
+/* Delikatne tło dla „pigułek” (tagi typu ESC/EAS, ACC itd., jeśli mają takie klasy) */
+.tag-pill,
+.badge,
+.meta-pill{
+  background: var(--room-accent-soft);
+  color: var(--room-heading);
+}
+
+/* Tabele (np. jeśli w artykułach o zdrowiu dodasz tabelki z wynikami) */
+table{
+  border-collapse: collapse;
+  width: 100%;
+}
+table thead{
+  background: var(--room-surface-soft);
+}
+table th,
+table td{
+  border: 1px solid rgba(15,23,42,.06);
+  padding: 8px 10px;
+}
+table th{
+  font-weight: 600;
+  color: var(--room-heading);
+}
 
 
