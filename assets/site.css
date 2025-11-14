@@ -647,5 +647,98 @@ table th{
   font-weight: 600;
   color: var(--room-heading);
 }
+/* === LIGHT ROOMS (News / Health / Geo / Science) — tylko poza stroną główną === */
+
+:root{
+  /* ciepłe, spokojne kolory dla „pokojów” */
+  --room-bg:            #f6f2ea;  /* ciepłe ecru w tle strony */
+  --room-surface:       #ffffff;  /* białe karty */
+  --room-surface-soft:  #f3ece2;  /* delikatnie ciemniejsze sekcje w kartach */
+  --room-border:        rgba(15,23,42,.08);
+
+  --room-text:          #111827;  /* prawie czarny, ale miękki */
+  --room-muted:         #6b7280;  /* opisy, daty, meta */
+  --room-heading:       #0f172a;  /* nagłówki */
+
+  --room-accent:        #2563eb;  /* spokojny niebieski akcent */
+  --room-accent-soft:   #e3edff;  /* jasne tło dla „pigułek” */
+}
+
+/* 1. Tło i podstawowy tekst – dla wszystkich stron, które NIE są .home */
+body:not(.home){
+  background: var(--room-bg);
+  color: var(--room-text);
+}
+
+/* 2. Nagłówki i tekst */
+body:not(.home) h1,
+body:not(.home) h2,
+body:not(.home) h3{
+  color: var(--room-heading);
+}
+
+body:not(.home) p,
+body:not(.home) li{
+  color: var(--room-text);
+}
+
+body:not(.home) small,
+body:not(.home) .sub,
+body:not(.home) .lead{
+  color: var(--room-muted);
+}
+
+/* 3. Linki w treści – spokojny niebieski, z fajnym hoverem */
+body:not(.home) main a{
+  color: var(--room-accent);
+  text-decoration-color: rgba(37,99,235,.35);
+}
+body:not(.home) main a:hover{
+  color: #1d4ed8;
+  text-decoration-color: #1d4ed8;
+}
+
+/* 4. Główne karty z treścią (news box, panele w Health itd.) */
+body:not(.home) .card{
+  background: var(--room-surface);
+  border-radius: 22px;
+  border: 1px solid var(--room-border);
+  box-shadow:
+    0 14px 34px rgba(15,23,42,.08),
+    0 1px 0 rgba(255,255,255,.7);
+}
+
+/* zagnieżdżone karty (jeśli są) trochę odcinamy od tła */
+body:not(.home) .card .card{
+  background: var(--room-surface-soft);
+}
+
+/* 5. Badges / pigułki typu ESC/EAS, ACC itd. (jeśli korzystają z tych klas) */
+body:not(.home) .badge,
+body:not(.home) .pill,
+body:not(.home) .meta-pill{
+  background: var(--room-accent-soft);
+  color: var(--room-heading);
+  border-radius: 999px;
+}
+
+/* 6. Cytaty / callouty – spokojny, czytelny box */
+body:not(.home) blockquote{
+  background: var(--room-surface-soft);
+  border-left: 4px solid var(--room-accent);
+  color: var(--room-text);
+}
+
+/* 7. Stopka na jasnych stronach */
+body:not(.home) .site-footer{
+  border-top-color: rgba(15,23,42,.08);
+  background: #f0ece4;
+}
+body:not(.home) .footer-link{
+  color: #1f2937;
+}
+body:not(.home) .footer-link:hover{
+  color: #111827;
+}
 
 
