@@ -494,14 +494,24 @@ blockquote {
   border-left: 3px solid var(--br-accent);
   background: rgba(122,224,184,.06);
 }
-<style>
+
 /* === Health tiles === */
-.health-grid{ display:grid; gap:18px; }
-@media (min-width: 720px){ .health-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+/* === Health tiles === */
+.health-grid{ 
+  display:grid; 
+  gap:18px; 
+}
+@media (min-width: 720px){
+  .health-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
 
 .topic-card{
-  position:relative; display:block; text-decoration:none; color:#e7eef9;
-  padding:18px 20px 22px; min-height:260px;
+  position:relative; 
+  display:block; 
+  text-decoration:none; 
+  color:#e7eef9;
+  padding:18px 20px 22px; 
+  min-height:260px;
   border-radius:16px;
   background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
   border:1px solid rgba(255,255,255,.08);
@@ -514,28 +524,148 @@ blockquote {
   background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
 }
 .topic-card h3{
-  margin:0 0 8px; font-size:1.25rem; line-height:1.35; color:#eef4f8; letter-spacing:.1px;
+  margin:0 0 8px; 
+  font-size:1.25rem; 
+  line-height:1.35; 
+  color:#eef4f8; 
+  letter-spacing:.1px;
 }
 .topic-card .tags{
-  margin:0 0 10px; font-size:.92rem; color:#9fc1ff;
+  margin:0 0 10px; 
+  font-size:.92rem; 
+  color:#9fc1ff;
 }
 .topic-card .blurb{
-  margin:0; max-width:50ch; color:#d6e1e8; line-height:1.55;
+  margin:0; 
+  max-width:50ch; 
+  color:#d6e1e8; 
+  line-height:1.55;
 }
 
 /* „New” badge */
 .badge-new{
-  position:absolute; top:14px; left:14px;
-  display:inline-flex; align-items:center; justify-content:center;
-  height:28px; padding:0 12px; border-radius:9999px;
-  font-weight:700; font-size:.85rem; letter-spacing:.2px;
-  background:rgba(134,197,255,.18); border:1px solid rgba(134,197,255,.35); color:#d7e6ff;
+  position:absolute; 
+  top:14px; 
+  left:14px;
+  display:inline-flex; 
+  align-items:center; 
+  justify-content:center;
+  height:28px; 
+  padding:0 12px; 
+  border-radius:9999px;
+  font-weight:700; 
+  font-size:.85rem; 
+  letter-spacing:.2px;
+  background:rgba(134,197,255,.18); 
+  border:1px solid rgba(134,197,255,.35); 
+  color:#d7e6ff;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px rgba(0,0,0,.22);
 }
 
-/* opcjonalnie: wyrównaj siatkę tak jak cholesterol */
-.topic-stack{ display:flex; flex-direction:column; gap:22px; }
-</style>
+/* wyrównana kolumna tematów (np. cholesterol + inne) */
+.topic-stack{ 
+  display:flex; 
+  flex-direction:column; 
+  gap:22px; 
+}
+
+/* ============================================
+   LIGHT ROOMS (News / Health / Geo / Science)
+   obowiązuje na wszystkich stronach poza .home
+   ============================================ */
+
+:root{
+  /* ciepły, spokojny motyw dla czytania tekstu */
+  --room-bg:            #f6f2ea;  /* tło – jasne ecru */
+  --room-surface:       #ffffff;  /* białe karty */
+  --room-surface-soft:  #f3ece2;  /* drugi odcień do przełamania */
+  --room-border:        rgba(15,23,42,.08);
+
+  --room-text:          #111827;  /* prawie czarny */
+  --room-muted:         #6b7280;  /* meta / opisy */
+  --room-heading:       #0f172a;  /* nagłówki */
+
+  --room-accent:        #2563eb;  /* spokojny niebieski */
+  --room-accent-soft:   #e3edff;  /* miękkie tło dla „pigułek” */
+}
+
+/* 1. tło i podstawowy tekst – tylko poza stroną główną */
+body:not(.home){
+  background: var(--room-bg);
+  color: var(--room-text);
+}
+
+/* 2. nagłówki i akapity */
+body:not(.home) h1,
+body:not(.home) h2,
+body:not(.home) h3{
+  color: var(--room-heading);
+}
+
+body:not(.home) p,
+body:not(.home) li{
+  color: var(--room-text);
+}
+
+body:not(.home) small,
+body:not(.home) .sub,
+body:not(.home) .lead{
+  color: var(--room-muted);
+}
+
+/* 3. linki w treści (menu zostawiamy – ma własne klasy) */
+body:not(.home) main a{
+  color: var(--room-accent);
+  text-decoration-color: rgba(37,99,235,.35);
+}
+body:not(.home) main a:hover{
+  color: #1d4ed8;
+  text-decoration-color: #1d4ed8;
+}
+
+/* 4. główne karty z treścią (news boxy, panele zdrowotne itd.) */
+body:not(.home) .card{
+  background: var(--room-surface);
+  border-radius: 22px;
+  border: 1px solid var(--room-border);
+  box-shadow:
+    0 14px 34px rgba(15,23,42,.08),
+    0 1px 0 rgba(255,255,255,.7);
+}
+
+/* jeśli są zagnieżdżone karty w środku – delikatnie inne tło */
+body:not(.home) .card .card{
+  background: var(--room-surface-soft);
+}
+
+/* 5. badge / „pigułki” źródeł (ESC/EAS, ACC, itp.) */
+body:not(.home) .badge,
+body:not(.home) .pill,
+body:not(.home) .meta-pill{
+  background: var(--room-accent-soft);
+  color: var(--room-heading);
+  border-radius: 999px;
+}
+
+/* 6. cytaty / callouty */
+body:not(.home) blockquote{
+  background: var(--room-surface-soft);
+  border-left: 4px solid var(--room-accent);
+  color: var(--room-text);
+}
+
+/* 7. stopka na jasnych stronach */
+body:not(.home) .site-footer{
+  border-top-color: rgba(15,23,42,.08);
+  background: #f0ece4;
+}
+body:not(.home) .footer-link{
+  color: #1f2937;
+}
+body:not(.home) .footer-link:hover{
+  color: #111827;
+}
+
 /* ============================================
    Light theme for content rooms (News / Health / Geo / Science)
    ============================================ */
