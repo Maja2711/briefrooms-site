@@ -28,7 +28,7 @@
   <style>
     :root{
       --bg1:#071e2e; --bg2:#0b2a40;
-      --txt:#eaf2fb; --muted:#9ab0c5; --line:rgba(255,255,255,.08);
+      --txt:#eaf2fb; --muted:#9ab0c5;
       --accent:#9ed2ff;
       --door-max:200px;
     }
@@ -84,27 +84,30 @@
       justify-content:space-between;
       padding:8px 18px;
       border-radius:999px;
-      background:rgba(3,19,32,.75);
-      border:1px solid rgba(255,255,255,.12);
+      background:rgba(3,19,32,.9);
+      border:1px solid rgba(255,255,255,.16);
       backdrop-filter:blur(14px);
+      box-shadow:0 12px 26px rgba(0,0,0,.55);
     }
     .top-nav-logo{
       display:flex;
       align-items:center;
-      gap:8px;
+      gap:10px;
       text-decoration:none;
     }
     .top-nav-logo-mark{
-      width:20px;
-      height:20px;
-      border-radius:6px;
-      background:radial-gradient(circle at 30% 30%, #ffe5a6, #ffb23a 60%, #a86810);
-      box-shadow:0 0 10px rgba(255,178,58,.85);
+      width:28px;
+      height:28px;
+      border-radius:999px;
+      background:radial-gradient(circle at 30% 30%, #ffe5a6, #ffb23a 55%, #a86810);
+      box-shadow:
+        0 0 12px rgba(255,178,58,.95),
+        0 0 32px rgba(255,178,58,.45);
     }
     .top-nav-logo-text{
       font-weight:700;
-      letter-spacing:.03em;
-      font-size:14px;
+      letter-spacing:.12em;
+      font-size:13px;
       color:#fff;
       text-transform:uppercase;
     }
@@ -118,15 +121,16 @@
     .top-nav-link{
       text-decoration:none;
       color:var(--muted);
-      padding:3px 8px;
+      padding:4px 10px;
       border-radius:999px;
       border:1px solid transparent;
+      transition:background .18s ease, color .18s ease, border-color .18s ease;
     }
     .top-nav-link:hover,
     .top-nav-link:focus-visible{
       color:#fff;
-      border-color:rgba(255,255,255,.28);
-      background:rgba(7,38,62,.8);
+      border-color:rgba(255,255,255,.32);
+      background:rgba(7,38,62,.9);
       outline:none;
     }
 
@@ -143,7 +147,7 @@
 
     header{
       text-align:center;
-      margin:4px 0 18px;
+      margin:30px 0 18px;
     }
     h1{
       margin:0 0 6px;
@@ -167,77 +171,87 @@
       display:grid;
       gap:16px;
       grid-template-columns:repeat(4, minmax(150px,1fr));
-      margin-top:18px;
+      margin-top:26px;
     }
 
-    /* card */
+    /* outer glass card */
     .card{
-      background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));
-      border:1px solid rgba(255,255,255,.04);
-      border-radius:26px;
-      padding:14px 6px 16px;
+      background:radial-gradient(circle at 20% 0%, rgba(255,255,255,.16), rgba(255,255,255,0) 55%);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:34px;
+      padding:18px 8px 20px;
       display:flex;
       justify-content:center;
       align-items:center;
-      min-height:230px;
+      min-height:260px;
       text-decoration:none;
       color:inherit;
+      box-shadow:
+        0 18px 40px rgba(0,0,0,.65),
+        inset 0 0 0 1px rgba(255,255,255,.04);
+      backdrop-filter:blur(10px);
       transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
     }
     .card:hover,
     .card:focus-visible{
-      transform:translateY(-4px);
-      box-shadow:0 16px 30px rgba(0,0,0,.45);
-      border-color:rgba(255,255,255,.16);
+      transform:translateY(-6px);
+      box-shadow:
+        0 26px 55px rgba(0,0,0,.85),
+        inset 0 0 0 1px rgba(255,255,255,.08);
+      border-color:rgba(255,255,255,.26);
       outline:none;
     }
 
-    /* GLASS 3D DOOR */
+    /* inner door, pełne 3D */
     .door{
       width:min(var(--door-max), 84%);
       aspect-ratio:3 / 5;
-      background:
-        linear-gradient(145deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 38%),
-        radial-gradient(circle at 14% 18%, rgba(255,255,255,.55), rgba(255,255,255,0) 55%);
-      border:1px solid rgba(255,255,255,.38);
-      border-radius:18px;
-      backdrop-filter:blur(15px);
-      box-shadow:
-        0 14px 28px rgba(0,0,0,.28),
-        inset 2px 2px 4px rgba(255,255,255,.45),
-        inset -5px -6px 10px rgba(0,0,0,.18);
       position:relative;
-      transition:transform .22s ease, box-shadow .22s ease;
-    }
-    .card:hover .door,
-    .card:focus-visible .door{
-      transform:translateY(-2px);
+      border-radius:22px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(255,255,255,.40), rgba(255,255,255,0) 55%),
+        radial-gradient(circle at 80% 90%, rgba(0,0,0,.55), rgba(0,0,0,0) 55%),
+        linear-gradient(180deg, #293746 0%, #0e1b27 100%);
       box-shadow:
-        0 18px 36px rgba(0,0,0,.48),
-        inset 2px 2px 4px rgba(255,255,255,.5),
-        inset -6px -7px 12px rgba(0,0,0,.22);
+        0 10px 25px rgba(0,0,0,.75),
+        inset 0 0 0 1px rgba(255,255,255,.25),
+        inset 0 0 0 6px rgba(5,18,30,.9);
+      overflow:hidden;
+    }
+
+    .door::before{
+      /* wewnętrzny „rant” przy krawędziach */
+      content:"";
+      position:absolute;
+      inset:8px;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.85);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.25),
+        inset 0 -1px 0 rgba(0,0,0,.65);
     }
 
     .door .frame{
       position:absolute;
-      inset:10px;
-      border-radius:14px;
-      background:linear-gradient(180deg, rgba(3,15,23,.25), rgba(3,15,23,0));
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:inset 0 0 18px rgba(0,0,0,.15);
+      inset:18px;
+      border-radius:16px;
+      background:radial-gradient(circle at 15% 0%, rgba(255,255,255,.24), rgba(255,255,255,0) 55%);
+      box-shadow:
+        inset 0 0 24px rgba(0,0,0,.55),
+        0 0 0 1px rgba(255,255,255,.03);
     }
 
     .panel{
       position:absolute;
-      left:20px;
-      right:20px;
+      left:28px;
+      right:34px;
       height:15%;
-      border-radius:10px;
-      background:linear-gradient(180deg, rgba(6,25,37,.3), rgba(6,25,37,.02));
-      border:1px solid rgba(255,255,255,.03);
+      border-radius:12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 40%, rgba(0,0,0,.35) 100%);
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,.35),
-        0 3px 12px rgba(0,0,0,.12);
+        0 4px 10px rgba(0,0,0,.55);
     }
     .panel.p1{ top:58px; }
     .panel.p2{ top:calc(50% - 8%); }
@@ -245,27 +259,30 @@
 
     .knob{
       position:absolute;
-      right:12px;
+      right:20px;
       top:50%;
       transform:translateY(-50%);
-      width:13px;
-      height:13px;
+      width:14px;
+      height:14px;
       border-radius:50%;
       background:radial-gradient(circle at 32% 32%, #ffd58a, #bc881f 60%, #714715);
-      box-shadow:0 2px 8px rgba(0,0,0,.5);
+      box-shadow:
+        0 2px 8px rgba(0,0,0,.6),
+        0 0 10px rgba(255,194,120,.9);
     }
 
-    /* label: text kept comfortably inside door, with space near the knob */
+    /* label – pewnie w środku, nigdy poza drzwiami */
     .label{
       position:absolute;
-      top:18px;
-      left:18px;
-      right:44px; /* keeps text well clear of the knob on the right */
-      padding:.2em .6em;
-      border-radius:7px;
-      background:rgba(3,16,26,.28);
+      top:20px;
+      left:22px;
+      right:54px; /* zostawia dużo miejsca przed klamką */
+      padding:.22em .7em;
+      border-radius:9px;
+      background:linear-gradient(180deg, rgba(9,24,36,.95), rgba(9,24,36,.75));
+      border:1px solid rgba(255,255,255,.18);
       font-weight:700;
-      font-size:clamp(16px,2.2vw,20px);
+      font-size:clamp(16px,2.1vw,20px);
       color:#fff;
       text-shadow:0 1px 3px rgba(0,0,0,.9);
       line-height:1.1;
@@ -279,7 +296,7 @@
         grid-template-columns:repeat(3, minmax(150px,1fr));
         justify-items:center;
       }
-      .card{ min-height:220px; }
+      .card{ min-height:240px; }
     }
 
     @media (max-width:640px){
@@ -288,7 +305,7 @@
         grid-template-columns:repeat(2, minmax(140px,1fr));
         gap:14px;
       }
-      .card{ min-height:210px; }
+      .card{ min-height:220px; }
       .door{
         width:150px;
         max-width:150px;
@@ -307,16 +324,16 @@
       z-index:2;
     }
 
-    /* AI badge – fixed top-left */
+    /* AI badge – LEWY DOLNY RÓG, tylko „Powered by AI” */
     .ai-badge{
       position:fixed;
-      top:14px;
+      bottom:14px;
       left:14px;
       z-index:35;
-      background:rgba(3,19,32,.48);
-      border:1px solid rgba(255,255,255,.1);
+      background:rgba(3,19,32,.7);
+      border:1px solid rgba(255,255,255,.18);
       border-radius:999px;
-      padding:6px 16px 6px 32px;
+      padding:6px 16px 6px 30px;
       display:flex;
       align-items:center;
       gap:6px;
@@ -325,17 +342,12 @@
     }
     .ai-dot{
       position:absolute;
-      left:10px;
+      left:9px;
       width:14px;
       height:14px;
       border-radius:50%;
       background:radial-gradient(circle at 35% 35%, #ffe5a6, #ffb23a 60%, #a86810);
       box-shadow:0 0 10px rgba(255,178,58,.8);
-    }
-    .ai-title{
-      font-weight:600;
-      font-size:13px;
-      color:#fff;
     }
     .ai-sub{
       font-size:11px;
@@ -344,31 +356,29 @@
     }
     @media (max-width:680px){
       .ai-badge{
-        top:10px;
+        bottom:10px;
         left:10px;
-        padding:5px 14px 5px 30px;
+        padding:5px 14px 5px 28px;
       }
-      .ai-title{ font-size:12px; }
       .ai-sub{ font-size:10px; }
     }
   </style>
 </head>
 
 <body>
-  <!-- AI badge -->
+  <!-- AI badge (bottom-left) -->
   <a href="/en/news.html" class="ai-badge" aria-label="Powered by AI – go to News">
     <span class="ai-dot"></span>
-    <span class="ai-title">BriefRooms</span>
     <span class="ai-sub">Powered by AI</span>
   </a>
 
   <main>
-    <!-- top navigation: shows that this page is part of a bigger ecosystem -->
+    <!-- top navigation -->
     <nav class="top-nav" aria-label="Main">
       <div class="top-nav-inner">
         <a href="/en/" class="top-nav-logo">
           <span class="top-nav-logo-mark" aria-hidden="true"></span>
-          <span class="top-nav-logo-text">BriefRooms</span>
+          <span class="top-nav-logo-text">BRIEFROOMS</span>
         </a>
         <div class="top-nav-links">
           <a class="top-nav-link" href="/en/news.html">News</a>
