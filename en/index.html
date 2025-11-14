@@ -30,7 +30,7 @@
       --bg1:#071e2e; --bg2:#0b2a40;
       --txt:#eaf2fb; --muted:#9ab0c5;
       --accent:#9ed2ff;
-      --door-max:200px;
+      --door-max:170px; /* smaller doors */
     }
 
     html{
@@ -114,9 +114,15 @@
     .top-nav-links{
       display:flex;
       align-items:center;
-      flex-wrap:wrap;
       gap:12px;
       font-size:13px;
+      flex-wrap:nowrap;
+      overflow-x:auto;          /* keep on one line, allow horizontal scroll on small screens */
+      white-space:nowrap;
+      -webkit-overflow-scrolling:touch;
+    }
+    .top-nav-links::-webkit-scrollbar{
+      display:none;
     }
     .top-nav-link{
       text-decoration:none;
@@ -136,12 +142,14 @@
 
     @media (max-width:720px){
       .top-nav-inner{
-        flex-direction:column;
-        align-items:flex-start;
-        gap:6px;
+        padding:6px 10px;
       }
-      .top-nav-links{
-        gap:8px;
+      .top-nav-logo-text{
+        font-size:12px;
+      }
+      .top-nav-link{
+        padding:3px 8px;
+        font-size:12px;
       }
     }
 
@@ -170,7 +178,7 @@
     .grid{
       display:grid;
       gap:16px;
-      grid-template-columns:repeat(4, minmax(150px,1fr));
+      grid-template-columns:repeat(4, minmax(140px,1fr));
       margin-top:26px;
     }
 
@@ -179,11 +187,11 @@
       background:radial-gradient(circle at 20% 0%, rgba(255,255,255,.16), rgba(255,255,255,0) 55%);
       border:1px solid rgba(255,255,255,.14);
       border-radius:34px;
-      padding:18px 8px 20px;
+      padding:16px 8px 18px;
       display:flex;
       justify-content:center;
       align-items:center;
-      min-height:260px;
+      min-height:230px;
       text-decoration:none;
       color:inherit;
       box-shadow:
@@ -202,7 +210,7 @@
       outline:none;
     }
 
-    /* inner door, pełne 3D */
+    /* inner 3D door */
     .door{
       width:min(var(--door-max), 84%);
       aspect-ratio:3 / 5;
@@ -220,7 +228,6 @@
     }
 
     .door::before{
-      /* wewnętrzny „rant” przy krawędziach */
       content:"";
       position:absolute;
       inset:8px;
@@ -243,8 +250,8 @@
 
     .panel{
       position:absolute;
-      left:28px;
-      right:34px;
+      left:26px;
+      right:32px;
       height:15%;
       border-radius:12px;
       background:
@@ -259,7 +266,7 @@
 
     .knob{
       position:absolute;
-      right:20px;
+      right:18px;
       top:50%;
       transform:translateY(-50%);
       width:14px;
@@ -271,47 +278,49 @@
         0 0 10px rgba(255,194,120,.9);
     }
 
-    /* label – pewnie w środku, nigdy poza drzwiami */
+    /* label – no background, single line */
     .label{
       position:absolute;
       top:20px;
-      left:22px;
-      right:54px; /* zostawia dużo miejsca przed klamką */
-      padding:.22em .7em;
-      border-radius:9px;
-      background:linear-gradient(180deg, rgba(9,24,36,.95), rgba(9,24,36,.75));
-      border:1px solid rgba(255,255,255,.18);
+      left:24px;
+      right:40px;
+      padding:0 .2em;
+      border-radius:0;
+      background:none;
+      border:none;
       font-weight:700;
-      font-size:clamp(16px,2.1vw,20px);
+      font-size:clamp(13px, 1.2vw, 15px);
       color:#fff;
       text-shadow:0 1px 3px rgba(0,0,0,.9);
       line-height:1.1;
       pointer-events:none;
       text-align:left;
-      word-wrap:break-word;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:clip;
     }
 
     @media (max-width:1024px){
       .grid{
-        grid-template-columns:repeat(3, minmax(150px,1fr));
+        grid-template-columns:repeat(3, minmax(140px,1fr));
         justify-items:center;
       }
-      .card{ min-height:240px; }
+      .card{ min-height:220px; }
     }
 
     @media (max-width:640px){
       main{ padding-top:22px; }
       .grid{
-        grid-template-columns:repeat(2, minmax(140px,1fr));
+        grid-template-columns:repeat(2, minmax(130px,1fr));
         gap:14px;
       }
-      .card{ min-height:220px; }
+      .card{ min-height:210px; }
       .door{
-        width:150px;
-        max-width:150px;
+        width:140px;
+        max-width:140px;
       }
       .label{
-        font-size:15px;
+        font-size:12px;
       }
     }
 
@@ -324,7 +333,7 @@
       z-index:2;
     }
 
-    /* AI badge – LEWY DOLNY RÓG, tylko „Powered by AI” */
+    /* AI badge – bottom-left */
     .ai-badge{
       position:fixed;
       bottom:14px;
@@ -362,6 +371,41 @@
       }
       .ai-sub{ font-size:10px; }
     }
+
+    /* floating mail – bottom-right */
+    .floating-mail{
+      position:fixed;
+      bottom:14px;
+      right:14px;
+      z-index:35;
+      background:rgba(3,19,32,.8);
+      border-radius:999px;
+      padding:7px 14px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      border:1px solid rgba(255,255,255,.22);
+      backdrop-filter:blur(10px);
+      text-decoration:none;
+      color:var(--txt);
+      font-size:12px;
+    }
+    .floating-mail svg{
+      width:16px;
+      height:16px;
+      fill:currentColor;
+    }
+    .floating-mail span{
+      white-space:nowrap;
+    }
+    @media (max-width:680px){
+      .floating-mail{
+        bottom:10px;
+        right:10px;
+        padding:6px 12px;
+        font-size:11px;
+      }
+    }
   </style>
 </head>
 
@@ -370,6 +414,16 @@
   <a href="/en/news.html" class="ai-badge" aria-label="Powered by AI – go to News">
     <span class="ai-dot"></span>
     <span class="ai-sub">Powered by AI</span>
+  </a>
+
+  <!-- floating contact mail (bottom-right) -->
+  <a class="floating-mail"
+     href="mailto:contact@briefrooms.com?subject=Contact%20BriefRooms&body=Hello,%0D%0A%0D%0A(briefly%20describe%20your%20case)%0D%0A"
+     aria-label="Send e-mail to contact@briefrooms.com">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
+    </svg>
+    <span>Contact</span>
   </a>
 
   <main>
@@ -449,7 +503,7 @@
   <footer class="site-footer">
     <div class="footer-wrap">
       <a class="footer-link"
-         href="mailto:contact@briefrooms.com?subject=Contact%20BriefRooms&body=Hello,%0D%0A%0D%0A(shortly%20describe%20your%20case)%0D%0A"
+         href="mailto:contact@briefrooms.com?subject=Contact%20BriefRooms&body=Hello,%0D%0A%0D%0A(briefly%20describe%20your%20case)%0D%0A"
          aria-label="Send e-mail to contact@briefrooms.com">
         <svg class="ico-mail" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm0 2.2v.3l9 5.3 9-5.3v-.3L12 13.1 3 8.2z"/>
@@ -458,7 +512,6 @@
       </a>
       <span class="footer-dot" aria-hidden="true">•</span>
       <span class="footer-link">© BriefRooms</span>
-      <span class="footer-dot" aria-hidden="true">•</span>
       <a class="footer-link" href="/pl/">PL</a>
       <a class="footer-link" href="/en/">EN</a>
     </div>
