@@ -731,3 +731,111 @@ blockquote{
   flex-direction:column;
   gap:22px;
 }
+/* === LIGHT THEME DLA POKOI I ARTYKUŁÓW
+   (wszystko poza stroną główną z drzwiami – body.home) === */
+
+body:not(.home){
+  background: #f6f2ea;      /* ciepłe ecru */
+  color: #111827;           /* bardzo ciemny, przyjemny granatowo-szary */
+}
+
+/* Główna kolumna czytania – zostawiamy szerokość, tylko dbamy o spójność */
+body:not(.home) header,
+body:not(.home) main,
+body:not(.home) footer{
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* Nagłówki: ciemniejsze, wyraźne */
+body:not(.home) h1,
+body:not(.home) h2,
+body:not(.home) h3,
+body:not(.home) h4{
+  color: #0f172a;
+}
+
+/* Tekst główny + listy – bardzo ciemny, wygodny do czytania */
+body:not(.home) p,
+body:not(.home) li{
+  color: #111827;
+}
+
+/* Tekst „opisowy”: podtytuły, leady, mniejsze dopiski */
+body:not(.home) small,
+body:not(.home) .sub,
+body:not(.home) .lead{
+  color: #4b5563;  /* delikatny, neutralny szary */
+}
+
+/* KARTY: news boxy, panele zdrowia, kafelki w pokojach */
+body:not(.home) .card,
+body:not(.home) .tile{
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
+  color: #111827;
+}
+
+/* Opisy pod tytułami kafelków (np. /zdrowie.html) */
+body:not(.home) .tile-title{
+  color: #0f172a;
+}
+body:not(.home) .tile-desc{
+  color: #4b5563;
+}
+
+/* Karty z tematami zdrowia (topic-card w /zdrowie.html) */
+body:not(.home) .topic-card{
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 12px 30px rgba(15,23,42,.10);
+  color: #111827;
+}
+body:not(.home) .topic-card h3{
+  color: #0f172a;
+}
+body:not(.home) .topic-card .tags{
+  color: #4b5563;
+}
+
+/* Pigułki typu ESC/EAS, ACC, PMC itp. – jasne tło, ciemny tekst */
+body:not(.home) .badge,
+body:not(.home) .label,
+body:not(.home) .pill,
+body:not(.home) .meta-pill,
+body:not(.home) .tag-pill{
+  background: #e0edff;
+  color: #0f172a;
+  border-radius: 999px;
+}
+
+/* Linki w TREŚCI (menu zostawiamy – ma swoje style) */
+body:not(.home) main a{
+  color: #2563eb;
+  text-decoration-color: rgba(37,99,235,.35);
+}
+body:not(.home) main a:hover{
+  color: #1d4ed8;
+  text-decoration-color: #1d4ed8;
+}
+
+/* Cytaty / callouty w artykułach */
+body:not(.home) blockquote{
+  background: #f3ece2;
+  border-left: 4px solid #2563eb;
+  color: #111827;
+}
+
+/* Stopka na jasnych stronach (pokoje + artykuły) */
+body:not(.home) .site-footer{
+  border-top-color: rgba(15,23,42,.08);
+  background: #f0ece4;
+}
+body:not(.home) .footer-link{
+  color: #1f2937;
+}
+body:not(.home) .footer-link:hover{
+  color: #111827;
+}
