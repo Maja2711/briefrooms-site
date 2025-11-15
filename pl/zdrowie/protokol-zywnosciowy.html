@@ -7,7 +7,8 @@
   <title>Protokół żywnościowy — Dieta | BriefRooms</title>
   <meta name="description" content="Co naprawdę wiemy o diecie pro-zdrowotnej i długowieczności. Praktyczny protokół: wzorzec śródziemnomorski, IF/CR, suplementy, produkty-filary i białko." />
   <link rel="icon" href="/assets/favicon.svg" />
-  <!-- JEDEN CSS z wersją, żeby odświeżyć cache -->
+
+  <!-- GŁÓWNY CSS Z WERSJĄ (odświeża cache przeglądarki) -->
   <link rel="stylesheet" href="/assets/site.css?v=rooms3" />
 
   <!-- hreflang -->
@@ -64,12 +65,11 @@
   }
   </script>
 
-  <!-- Tailwind w trybie CDN (wystarczy do widgetu) -->
+  <!-- Tailwind tylko do widżetu 3D (może zostać) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- GŁÓWNY CSS STRONY – JASNY MOTYW, CIEMNY TEKST -->
+  <!-- LEKKIE DOPKI – JASNY MOTYW, CIEMNY TEKST -->
   <style>
-    /* tło i bazowy kolor tekstu dla tej konkretnej strony */
     body.rooms-light.protocol-page{
       background:#f5eee5;          /* jasny beż */
       color:#111827;               /* ciemny tekst */
@@ -81,8 +81,8 @@
     }
 
     .sub{
+      color:#4b5563;
       margin:0 0 6px;
-      color:#4b5563;               /* slate-600 */
     }
 
     time.pub{ opacity:.85; }
@@ -102,9 +102,7 @@
       box-shadow:0 10px 24px rgba(15,23,42,.08);
     }
 
-    h1{
-      color:#0f172a;
-    }
+    h1{ color:#0f172a; }
 
     h2{
       margin:14px 0 8px;
@@ -116,23 +114,19 @@
       color:#111827;
     }
 
-    .sources ul{
-      margin:8px 0 8px 20px;
-    }
+    .sources ul{ margin:8px 0 8px 20px; }
 
     .tagline{
       margin:6px 0 0;
-      color:#374151;               /* slate-700 */
+      color:#374151;
       font-size:.96rem;
     }
 
     /* Spis treści */
-    .toc ol{
-      margin:8px 0 0 22px;
-    }
+    .toc ol{ margin:8px 0 0 22px; }
 
     .toc a{
-      color:#1d4ed8;               /* blue-700 */
+      color:#1d4ed8;
       text-decoration:underline;
       text-underline-offset:2px;
       text-decoration-color:rgba(37,99,235,.5);
@@ -143,12 +137,12 @@
     }
 
     .toc a:hover{
-      color:#1e40af;               /* blue-800 */
+      color:#1e40af;
       background:rgba(37,99,235,.06);
     }
 
     .toc li::marker{
-      color:#2563eb;               /* blue-600 punktor */
+      color:#2563eb;
     }
 
     /* Mała kropka przed h2 w kartach */
@@ -175,7 +169,7 @@
       text-underline-offset:3px;
     }
 
-    /* Linki w treści artykułu – ciemno-niebieskie */
+    /* Linki w treści – ciemno-niebieskie/ciemne */
     main a{
       color:#1d4ed8;
       text-decoration:underline;
@@ -188,15 +182,12 @@
       text-decoration-color:rgba(30,64,175,.9);
     }
 
-    /* Link „Wróć do Zdrowia” */
     .back{
       margin-top:22px;
     }
-
     .back a{
       color:#1d4ed8;
     }
-
     .back a:hover{
       color:#1e40af;
     }
@@ -213,7 +204,6 @@
       color:#f9fafb;
       text-decoration:none;
     }
-
     .tweet-share:hover{
       background:#020617;
     }
@@ -229,7 +219,6 @@
 
   <!-- Udostępnij na X -->
   <p><a id="tweet-this" class="tweet-share" target="_blank" rel="noopener" aria-label="Udostępnij na X">
-    <!-- prosta ikonka „X” -->
     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 3L13.9 10.7L21 21H16.2L11.3 14.3L6 21H3.7L10.6 12.7L4 3H8.9L13.4 9.5L18.3 3h2z"/></svg>
     Udostępnij na X
   </a></p>
@@ -272,6 +261,7 @@
     mało żywności ultraprzetworzonej i czerwonego/przetworzonego mięsa. W dużym RCT PREDIMED grupy
     losowo przydzielone do MedDiet miały mniej poważnych zdarzeń sercowo-naczyniowych niż kontrola.
     Sieciowe metaanalizy programów dietetycznych (BMJ) potwierdzają korzyści dla przeżycia i CVD.</p>
+
     <p class="tagline">
       <strong>Źródła:</strong>
       PREDIMED (reanaliza, NEJM 2018):
@@ -291,9 +281,8 @@
     incydentów CVD (wyjątki dotyczą specyficznych pacjentów/leków).</p>
   </section>
 
-  <!-- WIDGET: Autofagia (mini) -->
+  <!-- WIDGET: Autofagia (mini, vanilla JS) -->
   <style>
-    /* mini styl tylko dla tego widżetu */
     .af { margin: 18px 0; }
     .af-btn{
       display:inline-flex; align-items:center; gap:10px;
@@ -323,55 +312,19 @@
     .af-inner{ padding:14px 16px; }
     .af-inner ul{ margin:8px 0 0 18px }
     .af-inner li{ margin:6px 0; }
-    /* jaśniejsze, bardziej czytelne linki źródeł na ciemnym tle */
     .af-sources a{
       color:#a8c8ff; text-decoration: underline;
     }
     .af-sources a:hover{ color:#cfe0ff; }
 
-    /* === Autofagia: jasno-zielony motyw === */
-    .auto-btn{
-      display:inline-flex; align-items:center; gap:.6rem;
-      padding:.45rem .75rem; border-radius:10px;
-      background:#e9f8ef;
-      border:1px solid #b7ebc6;
-      color:#0f5132;
-      font-weight:700; cursor:pointer;
-      box-shadow:0 6px 18px rgba(16,103,54,.12);
-      transition:transform .15s ease, background .2s ease, border-color .2s ease;
-    }
-    .auto-btn:hover{ transform:translateY(-1px); background:#d6f3e3; border-color:#9de0b5; }
-    .auto-btn:focus-visible{ outline:3px solid #8ae0b2; outline-offset:3px; }
-
-    .auto-btn .cube{
-      width:18px; height:18px; border-radius:5px;
-      background:linear-gradient(135deg,#dff7e9,#c9f0db);
-      border:1px solid #a9e1bf;
-      box-shadow:inset 0 1px 0 #fff7, 0 1px 6px rgba(16,103,54,.15);
-    }
-
-    .auto-panel{
-      margin-top:.65rem;
-      background:linear-gradient(180deg,#eefaf3,#e7f8ef);
-      border:1px solid #b7ebc6;
-      border-radius:14px;
-      box-shadow:0 10px 28px rgba(16,103,54,.12), inset 0 1px 0 #fff7;
-      overflow:hidden;
-    }
-    .auto-panel .inner{ padding:16px 18px; color:#113a2a; }
-    .auto-panel h4{ margin:0 0 .4rem; font-weight:800; color:#0f5132; }
-
-    .auto-panel a{
-      color:#0c7a4a; text-decoration:underline; text-underline-offset:2px;
-    }
-    .auto-panel a:hover{ color:#075e39; }
-
-    /* === OVERRIDE: jasno-zielony motyw widżetu Autofagia === */
+    /* jasno-zielony motyw widżetu (czytelny na jasnym tle) */
     .af-btn{
       background:#e9f8ef !important;
       border:1px solid #b7ebc6 !important;
       color:#0f5132 !important;
       box-shadow:0 6px 18px rgba(16,103,54,.12) !important;
+      -webkit-appearance:none;
+      appearance:none;
     }
     .af-btn:hover{ background:#d6f3e3 !important; border-color:#9de0b5 !important; }
     .af-btn:focus-visible{ outline:3px solid #8ae0b2 !important; outline-offset:3px !important; }
@@ -381,20 +334,12 @@
       border:1px solid #a9e1bf !important;
       box-shadow:inset 0 1px 0 #ffffffaa, 0 1px 6px rgba(16,103,54,.15) !important;
     }
-
     .af-panel{
-      background:linear-gradient(180deg,#eefaf3,#e7f8ef) !important;
+      background:#e7f8ef !important;
       border:1px solid #b7ebc6 !important;
       box-shadow:0 10px 28px rgba(16,103,54,.12), inset 0 1px 0 #ffffffaa !important;
     }
     .af-inner{ color:#113a2a !important; }
-
-    .af-sources a{
-      color:#0c7a4a !important;
-      text-decoration:underline !important;
-      text-underline-offset:2px !important;
-    }
-    .af-sources a:hover{ color:#075e39 !important; }
 
     .af-panel .af-inner,
     .af-panel .af-inner *{
@@ -403,76 +348,30 @@
       text-shadow:none !important;
       mix-blend-mode:normal !important;
     }
-
-    .af-panel strong{ color:#0d3a27 !important; }
-    .af-panel em{ color:#144b34 !important; }
-    .af-panel a{
+    .af-sources a{
       color:#0b6841 !important;
       text-decoration:underline !important;
       text-underline-offset:2px !important;
     }
-    .af-panel a:hover{ color:#075c38 !important; }
-
-    @media (max-width: 520px){
-      .af-panel .af-inner{ font-size:1.02rem; line-height:1.55; }
-    }
-
-    .af .af-btn{ -webkit-tap-highlight-color:transparent; }
-    @media (prefers-color-scheme: dark){
-      .af .af-btn{ background:#e9f8ef !important; color:#0f5132 !important; }
-      .af .af-panel{ background:linear-gradient(180deg,#eefaf3,#e7f8ef) !important; }
-    }
-
-    .af-btn{
-      -webkit-appearance: none;
-      appearance: none;
-      background: #e9f8ef !important;
-      background-color: #e9f8ef !important;
-      color: #0f5132 !important;
-      border: 1px solid #b7ebc6 !important;
-      color-scheme: light;
-    }
-
-    .af-panel{
-      background: linear-gradient(180deg,#eefaf3,#e7f8ef) !important;
-      background-color: #e7f8ef !important;
-    }
+    .af-sources a:hover{ color:#075c38 !important; }
 
     @media (max-width: 640px){
       .af-btn{ padding: 8px 10px; border-radius: 8px; }
       .af-label{ font-size: .95rem; }
       .af-cube{ width: 22px; height: 22px; border-radius: 6px; }
-    }
-
-    .af .af-btn,
-    button.af-btn{
-      -webkit-appearance: none !important;
-      appearance: none !important;
-      background-image: none !important;
-      background: #e9f8ef !important;
-      background-color: #e9f8ef !important;
-      border: 1px solid #b7ebc6 !important;
-      color: #0f5132 !important;
-      box-shadow: 0 6px 18px rgba(16,103,54,.12) !important;
-    }
-
-    .af .af-btn *{ color: inherit !important; }
-
-    .af .af-cube{
-      background: linear-gradient(135deg,#dff7e9,#c9f0db) !important;
-      border:1px solid #a9e1bf !important;
-      box-shadow: inset 0 1px 0 #ffffffaa, 0 1px 6px rgba(16,103,54,.15) !important;
-    }
-
-    .af .af-panel{
-      background: #e7f8ef !important;
-      border: 1px solid #b7ebc6 !important;
+      .af-panel .af-inner{ font-size:1.02rem; line-height:1.55; }
     }
 
     .af .af-btn{ -webkit-tap-highlight-color: transparent; }
-    @media (prefers-color-scheme: dark){
-      .af .af-btn{ background:#e9f8ef !important; color:#0f5132 !important; }
-      .af .af-panel{ background:#e7f8ef !important; }
+
+    /* Ciemne linki tylko na tej stronie (świadomie) */
+    body.protocol-page main a{
+      color:#0f172a;
+      text-decoration-color:rgba(15,23,42,.4);
+    }
+    body.protocol-page main a:hover{
+      color:#0b1120;
+      text-decoration-color:#0b1120;
     }
   </style>
 
@@ -485,12 +384,12 @@
     <div id="af-panel" class="af-panel" hidden>
       <div class="af-inner">
         <ul>
-          <li>Mechanizm <strong>autofagii</strong> jest dobrze ugruntowany biologicznie, nagroda Nobla dla Yoshinoriego Ohsumiego za odkrycie autofagii głównie w drożdżach, z pokazaniem, że podobne maszyny działają w komórkach ssaków (Nagroda Nobla 2016). Autofagia to "sprzątanie komórkowe", komórka usuwa uszkodzone białka z organizmu.</li>
+          <li>Mechanizm <strong>autofagii</strong> jest dobrze ugruntowany biologicznie, nagroda Nobla dla Yoshinoriego Ohsumiego za odkrycie autofagii głównie w drożdżach, z pokazaniem, że podobne maszyny działają w komórkach ssaków (Nagroda Nobla 2016). Autofagia to „sprzątanie komórkowe”.</li>
           <li>U ludzi <em>post przerywany (IF)</em> / umiarkowana CR poprawiają głównie <strong>markery metaboliczne</strong>
               (masa ciała, ciśnienie, lipidy, glikemia) w badaniach randomizowanych.</li>
           <li>Bezpośrednia aktywacja autofagii w tkankach człowieka jest <strong>zależna od tkanki i czasu</strong>
               – np. po 36&nbsp;h postu w mięśniu obserwowano niewielkie zmiany; w innych protokołach (np. IF w Ramadanie)
-              rośnie ekspresja genów związanych z autofagią (wskaźniki pośrednie), ale kierunek jest spójny: im dłużej nie jesz (w granicach rozsądku), tym silniejsza autofagia.</li>
+              rośnie ekspresja genów związanych z autofagią (wskaźniki pośrednie).</li>
           <li>Brak twardych dowodów, że IF/CR <strong>wydłuża życie ludzi</strong> (brak długich RCT ze śmiertelnością jako
               punktem końcowym).</li>
         </ul>
@@ -523,9 +422,172 @@
   </script>
   <!-- /WIDGET: Autofagia (mini) -->
 
-  <!-- ... DALEJ BEZ ZMIAN: sekcje #etapy, #evidence, #supl, #filary, #praktyka, #zrodla, stopka, skrypty React ... -->
-  <!-- (zostawiłem je takie jak w Twojej wersji – możesz je skopiować z obecnego pliku, bo nie wpływają na kolor tekstu) -->
+  <!-- ETAPY ŻYCIA -->
+  <section id="etapy" class="card">
+    <h2>1) Zwykły śmiertelnik — jak jeść wg etapu życia</h2>
 
+    <h3>20–40 lat: fundamenty na lata</h3>
+    <ul>
+      <li><b>Trzon:</b> talerz pełen warzyw i owoców, pełne ziarna zamiast rafinowanych, orzechy/nasiona, strączki często,
+          ryby zamiast czerwonego mięsa, <b>EVOO</b> jako tłuszcz bazowy.</li>
+      <li><b>Rytm:</b> łagodny IF (dłuższa przerwa nocna) może porządkować żywienie/glikemię — ale to nie „eliksir długowieczności”.</li>
+      <li><b>Wyjątek:</b> planowanie ciąży — folian 400–800&nbsp;μg/d (suplement), zmniejsza ryzyko wad cewy nerwowej.</li>
+    </ul>
+
+    <h3>40–60 lat: serce i metabolizm</h3>
+    <ul>
+      <li>Jak wyżej, z większym naciskiem na <b>zamiany</b>: białe → pełnoziarniste, przekąski → orzechy/strączki,
+          czerwone/przetworzone mięso → ryby/rośliny. PREDIMED pokazał mniej zdarzeń CVD.</li>
+      <li><b>Białko:</b> przy zwykłej aktywności wystarcza umiarkowana, równomierna podaż; priorytetem jest jakość całej diety.</li>
+    </ul>
+
+    <h3>60+ lat: mięśnie, siła, sprawność</h3>
+    <ul>
+      <li><b>Białko kluczowe:</b> rekomendacje geriatryczne (PROT-AGE/ESPEN) ~1,0–1,2&nbsp;g/kg m.c./dzień + prosty trening oporowy.</li>
+      <li>Skład talerza jak wcześniej; warto okresowo sprawdzić B12 i 25-OH-D (suplementacja tylko przy niedoborach).</li>
+    </ul>
+
+    <p><i>Myśl na co dzień:</i> w każdej okazji do jedzenia zapytaj „co tu wymieniam na pełniejsze, bardziej roślinne, mniej
+    przetworzone”. Sumaryczna przewaga takich wyborów daje realny efekt w długim czasie.</p>
+  </section>
+
+  <!-- EVIDENCE -->
+  <section id="evidence" class="card">
+    <h2>2) Co mówi nauka (prace i konsensus)</h2>
+
+    <h3>Wzorzec śródziemnomorski (MedDiet)</h3>
+    <p><b>PREDIMED (RCT):</b> mniej poważnych incydentów sercowo-naczyniowych w grupach z EVOO lub orzechami vs. kontrola;
+    po reanalizie losowania wnioski o ochronie CVD podtrzymano. Sieciowe przeglądy (BMJ) wskazują, że MedDiet
+    (i w różnym stopniu programy niskotłuszczowe) obniżają ryzyko zgonu i CVD.</p>
+
+    <h3>Produkty-filary</h3>
+    <ul>
+      <li><b>Pełne ziarna:</b> wybierane zamiast rafinowanych wiążą się z niższym ryzykiem zgonu i CVD.</li>
+      <li><b>Orzechy:</b> częstsze jedzenie — niższa śmiertelność ogółem i CVD.</li>
+      <li><b>Warzywa i owoce:</b> więcej i bardziej różnorodne = mniejsze długoterminowe ryzyko.</li>
+    </ul>
+
+    <h3>IF i CR</h3>
+    <p><b>U zwierząt:</b> CR i formy IF wydłużają życie (zależnie od genów i skali ograniczeń).  
+       <b>U ludzi:</b> IF poprawia masę ciała i markery metaboliczne (RCT, umbrella review). W 2-letnim RCT CALERIE umiarkowana CR
+       poprawiła wiele biomarkerów starzenia/ryzyka, ale nadal brak danych o śmiertelności (próby musiałyby trwać dekady).
+       Wniosek: IF/CR — narzędzia metaboliczne, nie potwierdzona „pigułka long-life”.</p>
+
+    <p class="tagline">
+      <strong>Źródła:</strong>
+      IF – umbrella review RCT (metabolizm):
+      <a href="https://www.thelancet.com/journals/eclinm/article/PIIS2589-5370(24)00098-1/fulltext" target="_blank" rel="noopener">EClinicalMedicine / The Lancet (2024)</a>;
+      CR – 2-letnie RCT CALERIE (zdrowi, nieotyli):
+      <a href="https://pubmed.ncbi.nlm.nih.gov/26187233/" target="_blank" rel="noopener">Ravussin 2015 (PubMed)</a>, 
+      <a href="https://pubmed.ncbi.nlm.nih.gov/31303390/" target="_blank" rel="noopener">Kraus 2019 (PubMed)</a>.
+    </p>
+  </section>
+
+  <!-- SUPLEMENTY -->
+  <section id="supl" class="card">
+    <h2>3) Kiedy stosować suplementy</h2>
+    <h3>Zdecydowane „tak” w określonych sytuacjach</h3>
+    <ul>
+      <li><b>Kwas foliowy</b> 400–800&nbsp;μg/d przy planowaniu ciąży — silne rekomendacje.</li>
+      <li><b>Jod</b> w ciąży/laktacji przy ryzyku niedoboru (dawkę ustala się świadomie, z lekarzem).</li>
+    </ul>
+
+    <h3>„Tylko gdy masz niedobór lub wskazanie”</h3>
+    <ul>
+      <li><b>Witamina D:</b> u zdrowych dorosłych duże RCT nie pokazały spadku dużych incydentów CVD/nowotworów — koryguj niedobór.</li>
+      <li><b>Omega-3 (EPA+DHA):</b> w populacji ogólnej mały/żaden wpływ na zgony/Zdarzenia CVD; wyjątki to leki (EPA) u wysokiego ryzyka.</li>
+      <li><b>Wit. B12:</b> często potrzebna u seniorów, na dietach roślinnych i z problemami wchłaniania — wtedy tak.</li>
+    </ul>
+
+    <p class="tagline">
+      <strong>Źródła:</strong>
+      Witamina D – duże RCT u zdrowych dorosłych (VITAL):
+      <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa1809944" target="_blank" rel="noopener">NEJM (2019)</a>;
+      Omega-3 (EPA+DHA) – przegląd Cochrane:
+      <a href="https://www.cochranelibrary.com/cdsr/doi/10.1002/14651858.CD003177.pub5/full" target="_blank" rel="noopener">Cochrane (2020)</a>.
+    </p>
+
+    <p><b>Zasada:</b> suplement = narzędzie korekcyjne (ciąża, niedobory, konkretne choroby). Najpierw badania, potem celowane uzupełnienie.</p>
+  </section>
+
+  <!-- FILARY + BIAŁKO -->
+  <section id="filary" class="card">
+    <h2>4) Produkty najbardziej „długowieczne” + białko (najlepsze źródła)</h2>
+
+    <h3>Najlepiej udokumentowane kategorie</h3>
+    <ul>
+      <li><b>Pełne ziarna</b> (owies, żyto, pszenica pełnoziarnista, brązowy ryż, komosa).</li>
+      <li><b>Orzechy i nasiona</b> (włoskie, migdały, pistacje, arachidy itd.).</li>
+      <li><b>Warzywa i owoce</b> — różnorodne barwy = różne związki ochronne.</li>
+      <li><b>Ryby</b> i <b>EVOO</b> — filary MedDiet poparte RCT.</li>
+    </ul>
+
+    <h3>Białko — ile i z czego?</h3>
+    <p><b>Ilość:</b> dorośli zwykle dobrze funkcjonują na ok. 0,8–1,0&nbsp;g/kg m.c./dzień; u 60+ lat i/lub przy profilaktyce sarkopenii
+    gremia PROT-AGE/ESPEN zalecają ~1,0–1,2&nbsp;g/kg m.c./dzień (dzielone na posiłki, łączone z prostym treningiem oporowym).</p>
+
+    <p class="tagline">
+      <strong>Źródła:</strong>
+      PROT-AGE – zalecenia białka dla osób starszych:
+      <a href="https://www.jamda.com/article/S1525-8610(13)00326-5/fulltext" target="_blank" rel="noopener">JAMDA (2013)</a>;
+      ESPEN – żywienie/uwodnienie w geriatrii (wytyczne):
+      <a href="https://www.espen.org/files/ESPEN-Guidelines/ESPEN_guideline_on_clinical_nutrition_and_hydration_in_geriatrics.pdf" target="_blank" rel="noopener">ESPEN (PDF)</a>.
+    </p>
+
+    <p><b>Jakość i źródła:</b></p>
+    <ul>
+      <li><b>Ryby</b> (pieczone, gotowane) — białko pełnowartościowe + korzystny profil kwasów tłuszczowych; filar wzorca śródziemnomorskiego.</li>
+      <li><b>Strączki</b> (soczewica, ciecierzyca, fasola, tofu/tempeh) — białko + błonnik i fitochemikalia; w badaniach korelują z niższą śmiertelnością/CVD.</li>
+      <li><b>Fermentowane produkty mleczne</b> (jogurt naturalny, kefir, skyr) — wygodne uzupełnienie białka; wybieraj niskosłodzone.</li>
+      <li><b>Jaja</b> — komplet aminokwasów; jedz rozsądnie, patrząc na ogólny kontekst diety i lipidogram.</li>
+      <li><b>Drób</b> (np. pierś z kurczaka/indyka) — alternatywa dla czerwonego/przetworzonego mięsa.</li>
+      <li><b>Orzechy i nasiona</b> — porcja białka + tłuszcze nienasycone; dobre jako zamiennik słodkich/przetworzonych przekąsek.</li>
+    </ul>
+
+    <p><i>Roślinne vs. zwierzęce:</i> nie trzeba „kompletować” aminokwasów w jednym posiłku — liczy się różnorodność w skali dnia/tygodnia.
+    W praktyce miks roślin (strączki + zboża) + ryby/fermentowane nabiały daje bardzo dobry profil odżywczy.</p>
+
+    <p><b>Dlaczego te źródła?</b> Oparcie o prace: RCT PREDIMED, przeglądy sieciowe diet (BMJ), stanowiska PROT-AGE/ESPEN dla seniorów,
+    przeglądy ryb/fermentowanego nabiału/strączków w kontekście CVD i przeżywalności.</p>
+  </section>
+
+  <!-- PRAKTYKA -->
+  <section id="praktyka" class="card">
+    <h2>Podsumowanie praktyczne + przykładowe połączenia</h2>
+    <h3>Co jeść najczęściej</h3>
+    <ul>
+      <li><b>Warzywa i owoce</b> (różnokolorowe, świeże/mrożone) — rdzeń talerza.</li>
+      <li><b>Pełne ziarna</b> zamiast „białych” produktów.</li>
+      <li><b>Orzechy/nasiona i strączki</b> — metabolizm i serce.</li>
+      <li><b>Ryby + EVOO</b> — filary sprawdzone w RCT.</li>
+    </ul>
+
+    <h3>Jak łączyć</h3>
+    <ul>
+      <li><b>Miska pełnoziarnista:</b> komosa + pieczone warzywa (brokuł/papryka/cukinia) + ciecierzyca + dressing z EVOO i cytryny.</li>
+      <li><b>Sałatka „kolory + orzech”:</b> liściaste + jabłko/gruszka + orzech włoski + oliwa.</li>
+      <li><b>Zamiana obiadowa:</b> zamiast czerwonego mięsa — pieczona ryba + kasza gryczana + surówka (różne kolory).</li>
+    </ul>
+
+    <p><b>IF:</b> traktuj jako narzędzie porządkujące (wygoda, glikemia), nie gwarancję dłuższego życia.  
+       <b>CR:</b> u ludzi — obiecujące biomarkery, brak twardych danych o przeżyciu (np. CALERIE). Priorytet: odżywczość + siła mięśni.</p>
+  </section>
+
+  <!-- ŹRÓDŁA (linki pomocnicze) -->
+  <section id="zrodla" class="card sources">
+    <h2>Źródła i lektury</h2>
+    <ul>
+      <li>PREDIMED (MedDiet, RCT) — omówienia i materiały konferencyjne/artykuły przeglądowe.</li>
+      <li>BMJ / Lancet — sieciowe metaanalizy programów dietetycznych a przeżycie/CVD.</li>
+      <li>PROT-AGE / ESPEN — rekomendacje białka dla osób starszych i w prewencji sarkopenii.</li>
+      <li>CALERIE (CR, 2 lata) — biomarkery starzenia i ryzyka, brak danych o śmiertelności.</li>
+      <li>Umbrella reviews IF — efekty metaboliczne (masa, glikemia, lipidy, ciśnienie).</li>
+    </ul>
+    <p class="sub">Uwaga: to streszczenie badań dla zdrowej populacji. Jeżeli masz choroby przewlekłe, przyjmujesz leki,
+    jesteś w ciąży/karmisz — decyzje żywieniowe i suplementację ustalaj z lekarzem/dietetykiem.</p>
+  </section>
+
+  <p class="back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
 </main>
 
 <footer>© BriefRooms</footer>
@@ -551,12 +613,82 @@
 })();
 </script>
 
-<!-- React + ReactDOM (UMD) -->
+<!-- React + ReactDOM (UMD) – jeżeli chcesz używać wersji React widżetu.
+     Na razie nie ma w HTML elementu #autofagia-widget, więc ten blok możesz
+     docelowo usunąć, ale zostawiam go, bo był w Twoim oryginalnym pliku. -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<!-- Tu zostaw swój komponent JSX (AutofagiaWidget) tak jak w Twojej wersji,
-     bo nie wpływa na kolor tekstu w słowniczku. -->
-</body>
-</html>
+<script type="text/babel">
+function AutofagiaWidget(){
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className="min-h-[60vh] w-full grid place-items-center bg-white">
+      <div className="w-full max-w-xl p-4">
+        <p className="text-sm text-gray-600 mb-3">
+          Kontekst zdania z wstępu: <em>„IF (intermittent fasting, post przerywany) poprawia masę ciała i część
+          wskaźników metabolicznych w RCT, ale nie ma twardych dowodów na wydłużenie życia u ludzi.”</em>
+        </p>
+
+        <div className="flex items-center gap-4">
+          <button
+            aria-expanded={open}
+            aria-controls="autofagia-panel"
+            onClick={() => setOpen(!open)}
+            className="relative select-none"
+            title="Kliknij, aby rozwinąć opis ze źródłami"
+          >
+            <div className="[perspective:800px]">
+              <div
+                className={[
+                  "h-20 w-20 grid place-items-center rounded-xl shadow-lg cursor-pointer",
+                  "bg-gradient-to-br from-gray-50 to-gray-200 border border-gray-300",
+                  "[transform-style:preserve-3d] transition-transform duration-500",
+                  open ? "rotate-x-6 rotate-y-12" : "-rotate-x-6 -rotate-y-6",
+                ].join(" ")}
+              >
+                <span
+                  className="text-[11px] font-semibold uppercase tracking-wide text-gray-700 [transform:translateZ(8px)]"
+                  style={{ textShadow: "0 1px 0 rgba(255,255,255,0.6)" }}
+                >
+                  autofagia
+                </span>
+                <span className="absolute inset-0 rounded-xl bg-black/5 [transform:translateZ(-10px)]"/>
+              </div>
+            </div>
+          </button>
+
+          <div className="text-sm text-gray-700">
+            <strong>Kliknij kostkę</strong> — rozwinie się „Wniosek w pigułce” ze źródłami.
+          </div>
+        </div>
+
+        <div
+          id="autofagia-panel"
+          className={[
+            "overflow-hidden border border-gray-200 rounded-2xl mt-4 shadow-sm",
+            open ? "max-h-[2000px]" : "max-h-0",
+            "transition-[max-height] duration-500 ease-in-out",
+          ].join(" ")}
+        >
+          <div className="p-5 bg-gray-50">
+            <h3 className="text-base font-semibold mb-2">Wniosek w pigułce</h3>
+            <ul className="list-disc pl-5 space-y-2 text-gray-800 leading-relaxed">
+              <li>
+                Mechanizm <strong>autofagii</strong> jest dobrze ugruntowany biologicznie (Nagroda Nobla 2016).
+                Głodzenie i deficyt energii należą do klasycznych wyzwalaczy na poziomie komórkowym.
+              </li>
+              <li>
+                U ludzi <em>IF</em> i restrykcja kalorii poprawiają przede wszystkim <strong>markery metaboliczne</strong>
+                (masa ciała, ciśnienie, lipidy, glikemia) w badaniach randomizowanych — to mocny, powtarzalny sygnał.
+              </li>
+              <li>
+                Bezpośrednia aktywacja autofagii w różnych tkankach człowieka jest <strong>zależna od tkanki, czasu i
+                kontekstu</strong>. Np. po 36 h postu w mięśniu szkieletowym odnotowano jedynie skromne zmiany markerów,
+                podczas gdy inne protokoły (np. dłuższy post/IF dobowy w Ramadanie) pokazują wzrost ekspresji genów
+                związanych z autofagią — to jednak <em>pośrednie</em> wskaźniki.
+              </li>
+              <li>
+                Na dziś <strong>brakuje twardych dowodów</strong>, że
