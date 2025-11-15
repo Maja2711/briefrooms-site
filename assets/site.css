@@ -801,3 +801,34 @@ body.rooms-light .footer-link{
 body.rooms-light .footer-link:hover{
   color:#111827;
 }
+/* Ostateczna poprawka czytelności w pokojach
+   – na wszystkich stronach poza stroną główną
+   – zwykły tekst ma ciemny kolor, linki są wyraźnie niebieskie */
+
+body:not(.home) h1,
+body:not(.home) h2,
+body:not(.home) h3,
+body:not(.home) h4,
+body:not(.home) h5,
+body:not(.home) h6{
+  color:var(--room-text) !important;
+}
+
+body:not(.home) p,
+body:not(.home) li,
+body:not(.home) .sub,
+body:not(.home) .lead,
+body:not(.home) small{
+  color:var(--room-text) !important;
+}
+
+/* wszystkie linki w treści (również w spisach treści itp.) */
+body:not(.home) a,
+body:not(.home) a:visited{
+  color:var(--room-link) !important;
+}
+
+body:not(.home) a:hover{
+  color:var(--room-link) !important;
+  text-decoration:underline;
+}
