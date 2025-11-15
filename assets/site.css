@@ -886,19 +886,20 @@ body.rooms-light .footer-link:hover{
   .br-hotbar-label{ display:none; }  /* na bardzo małych ekranach zostaw sam tekst newsów */
   .br-hotbar-time{ font-size:10px; }
 }
-/* Home: nawigacja „przyklejona” do paska HOT NEWS */
-.br-hotbar{
-  margin-bottom:0;
+/* Home: nawigacja „przyklejona” do paska HOT NEWS (PL + EN) */
+body.home .br-hotbar{
+  margin-bottom:0 !important;
 }
 
-/* header, który stoi od razu za hotbarem – bez żadnego odstępu */
-.br-hotbar + header{
-  margin-top:0;
-  padding-top:0;
+body.home header{
+  margin-top:0 !important;
+  padding-top:0 !important;
 }
 
-/* pierwsze dziecko (nawigacja) w tym headerze też bez marginesu w górę */
-.br-hotbar + header > *:first-child{
+/* kasujemy górne marginesy wszystkich elementów w headerze,
+   żeby nic nie „odsuwało się” od paska */
+body.home header *{
   margin-top:0;
 }
+
 
