@@ -1,4 +1,7 @@
-/* ——— USTAWIENIA OGÓLNE ——— */
+/* ================================
+   USTAWIENIA OGÓLNE (CIEMNY MOTYW)
+   ================================ */
+
 :root{
   --bg1:#0b1420;
   --bg2:#0e1b2b;
@@ -9,7 +12,22 @@
   --stroke:rgba(255,255,255,.08);
   --focus:#86b7ff;
   --head-space:64px; /* odsunięcie treści od góry pod stałe logo (tylko na .home) */
+
+  /* ZMIENNE DLA JASNYCH „POKOJÓW” (ROOMS / ARTYKUŁY) */
+  --room-bg:#f6f2ea;            /* tło ecru */
+  --room-surface:#ffffff;       /* białe panele */
+  --room-surface-soft:#f3ece2;  /* delikatnie ciemniejsze */
+  --room-border:rgba(15,23,42,.08);
+
+  --room-text:#111827;          /* prawie czarny tekst */
+  --room-heading:#0f172a;       /* nagłówki */
+  --room-muted:#4b5563;         /* opisy, meta */
+
+  --room-link:#2563eb;
+  --room-link-hover:#1d4ed8;
 }
+
+/* RESET + BAZA */
 
 *{ box-sizing:border-box }
 html,body{ margin:0 }
@@ -25,7 +43,10 @@ body{
 /* Tylko strona główna (z klasą .home) ma odsunięcie pod logo */
 body.home{ padding-top:var(--head-space); }
 
-a{ color:var(--muted); text-decoration:none }
+a{
+  color:var(--muted);
+  text-decoration:none;
+}
 a:hover{ text-decoration:underline }
 
 a:focus-visible,
@@ -46,12 +67,16 @@ h1{
   margin:6px 0 4px;
   font-size:clamp(22px,4.2vw,34px);
 }
+
 .sub{
   margin:0 0 16px;
   color:var(--muted);
 }
 
-/* ——— KAFELKI / TILES (używane w hubach) ——— */
+/* ==========================
+   KAFELKI / TILES (w hubach)
+   ========================== */
+
 .tiles{
   list-style:none;
   margin:18px 0 28px;
@@ -61,19 +86,16 @@ h1{
   grid-template-columns:1fr;
 }
 @media (min-width:760px){
-  .tiles{ grid-template-columns:1fr 1fr; }
+  .tiles{ grid-template-columns:1fr 1fr }
 }
 
 .tile{
   border:1px solid var(--stroke);
   border-radius:12px;
   background:rgba(255,255,255,.04);
-  box-shadow:0 10px 24px rgba(0,0,0,.25),
-             inset 0 1px 0 rgba(255,255,255,.05);
+  box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
   transform:translateY(0);
-  transition:transform .12s ease,
-             box-shadow .12s ease,
-             background .12s ease;
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
 .tile:hover{
   transform:translateY(-2px);
@@ -97,7 +119,10 @@ h1{
   font-size:.95rem;
 }
 
-/* ——— NAPROWADZACZ W DÓŁ ——— */
+/* ====================
+   NAPROWADZACZ W DÓŁ
+   ==================== */
+
 .back{
   margin:10px 0 28px;
   color:var(--muted);
@@ -106,18 +131,19 @@ h1{
   color:#a8c8ff;
   text-decoration:none;
 }
-.back a:hover{ text-decoration:underline; }
+.back a:hover{ text-decoration:underline }
 
-/* ——— KARTY / PANELE (do artykułów) ——— */
+/* ========================
+   KARTY / PANELE (artykuły)
+   ======================== */
+
 .card{
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid rgba(255,255,255,.06);
   border-radius:16px;
   padding:18px 20px;
   margin:14px 0;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.04),
-    0 10px 30px rgba(0,0,0,.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
 }
 
 .cols{
@@ -127,13 +153,16 @@ h1{
   margin:16px 0;
 }
 @media (min-width:780px){
-  .cols{ grid-template-columns:1fr 1fr; }
+  .cols{ grid-template-columns:1fr 1fr }
 }
 
-.good{ background:linear-gradient(180deg,#12341f,#0f2a1a); }
-.bad{  background:linear-gradient(180deg,#2e1616,#241111); }
+.good{ background:linear-gradient(180deg,#12341f,#0f2a1a) }
+.bad{  background:linear-gradient(180deg,#2e1616,#241111) }
 
-/* ——— PRZYCISKI GŁOSOWANIA ——— */
+/* =======================
+   PRZYCISKI GŁOSOWANIA
+   ======================= */
+
 .rate-row{
   display:flex;
   gap:10px;
@@ -149,7 +178,10 @@ h1{
   box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
-/* —— GLOBALNY BADGE LOGO —— */
+/* ============================
+   GLOBALNY BADGE LOGO (u góry)
+   ============================ */
+
 /* Domyślnie logo WYŁĄCZONE wszędzie */
 .site-head{
   display:none;
@@ -194,7 +226,10 @@ body.home > a:not(.site-head):not(.contact-fab){
   display:none !important;
 }
 
-/* === VOTE BUTTONS — clean + equal === */
+/* ===========================
+   VOTE BUTTONS — clean + equal
+   =========================== */
+
 .rate-box{
   display:flex;
   gap:10px;
@@ -238,10 +273,12 @@ body.home > a:not(.site-head):not(.contact-fab){
   flex:0 0 20px;
 }
 
-/* ===== MOBILE FIRST / RESPONSIVE TWEAKS (global) ===== */
+/* ==============================
+   MOBILE FIRST / RESPONSIVE TWEAKS
+   ============================== */
 
 /* 1) Czytelniejsza typografia na małych ekranach */
-@media (max-width:420px){
+@media (max-width: 420px){
   html { font-size:15px; }
   body { line-height:1.65; }
   h1 { font-size:clamp(22px,7vw,32px); }
@@ -250,20 +287,11 @@ body.home > a:not(.site-head):not(.contact-fab){
 }
 
 /* 2) Marginesy i kolumny – więcej powietrza na telefonach */
-@media (max-width:720px){
-  header,main,footer{ padding:0 14px; }
-  .card{
-    padding:16px 16px;
-    border-radius:14px;
-  }
-  .cols{
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-  .tiles{
-    grid-template-columns:1fr;
-    gap:12px;
-  }
+@media (max-width: 720px){
+  header, main, footer { padding:0 14px; }
+  .card { padding:16px 16px; border-radius:14px; }
+  .cols { grid-template-columns:1fr; gap:12px; }
+  .tiles { grid-template-columns:1fr; gap:12px; }
 }
 
 /* 3) Link „powrót” – większy obszar kliku */
@@ -286,7 +314,7 @@ li{ margin:6px 0; }
   flex-wrap:wrap;
 }
 .rate-btn{
-  min-height:44px;              /* zalecany rozmiar dotykowy */
+  min-height:44px; /* zalecany rozmiar dotykowy */
   padding:10px 14px;
 }
 @media (max-width:520px){
@@ -305,7 +333,7 @@ button:focus-visible{
   border-radius:10px;
 }
 
-/* 7) (opcjonalnie) mniejsze cienie na słabszych urządzeniach */
+/* 7) Mniejsze cienie na słabszych urządzeniach */
 @media (max-width:420px){
   .tile,
   .card{
@@ -314,20 +342,15 @@ button:focus-visible{
   }
 }
 
-/* --- Zielone "chipsy" jak popover --- */
-.chips{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:12px; /* nieco większy luz między elementami */
-}
+/* ====================================
+   Zielone „chipsy” i popovery (cholesterol)
+   ==================================== */
 
 .chips details.pop{
   background:linear-gradient(180deg,rgba(66,115,90,.24),rgba(66,115,90,.14));
   border-color:rgba(164,224,198,.28);
-  box-shadow:
-    0 10px 24px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(164,224,198,.12);
+  box-shadow:0 10px 24px rgba(0,0,0,.25),
+             inset 0 0 0 1px rgba(164,224,198,.12);
 }
 .chips details.pop summary{ color:#e7f5ec; }
 .chips details.pop:hover{ filter:brightness(1.06); }
@@ -341,8 +364,8 @@ details.pop .popover{
   max-width:320px;
   border-radius:12px;
   border:1px solid rgba(255,255,255,.14);
-  background:linear-gradient(180deg,rgba(64,110,84,.98),rgba(38,79,60,.98)); /* ciepło-zielone tło */
-  color:#f3fff6; /* jaśniejszy tekst dla kontrastu */
+  background:linear-gradient(180deg,rgba(64,110,84,.98),rgba(38,79,60,.98));
+  color:#f3fff6;
   box-shadow:0 18px 42px rgba(0,0,0,.45),
              inset 0 0 0 1px rgba(255,255,255,.06);
   padding:12px 14px;
@@ -350,7 +373,13 @@ details.pop .popover{
   z-index:5;
 }
 
-/* separator między „chipami” */
+/* Separator między „chipami” */
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:12px;
+}
 .chip-sep{
   display:flex;
   align-items:center;
@@ -366,8 +395,6 @@ details.pop .popover{
   line-height:1;
   opacity:.9;
 }
-
-/* na bardzo wąskich ekranach niech separator spadnie do nowej linii */
 @media (max-width:560px){
   .chips{ gap:10px; }
   .chip-sep{
@@ -377,7 +404,10 @@ details.pop .popover{
   }
 }
 
-/* --- STOPKA + FAB KONTAKTU --- */
+/* =======================
+   STOPKA + KONTAKT (FAB)
+   ======================= */
+
 .site-footer{
   margin-top:48px;
   border-top:1px solid rgba(255,255,255,.08);
@@ -405,7 +435,10 @@ details.pop .popover{
   color:#ffffff;
   text-decoration:underline;
 }
-.footer-dot{ opacity:.45; margin:0 4px; }
+.footer-dot{
+  opacity:.45;
+  margin:0 4px;
+}
 .ico-mail{
   width:18px;
   height:18px;
@@ -417,13 +450,13 @@ details.pop .popover{
   .footer-link{ color:#0e84ff; }
 }
 
-/* Ukryj duży, stary blok kontaktu (gigantyczna koperta), jeśli gdzieś jest */
+/* Tymczasowo chowamy dużą sekcję kontaktu, jeśli była na stronie */
 #contact,
 .contact-hero{
   display:none !important;
 }
 
-/* Mały pływający przycisk kontaktu w prawym-dolnym rogu */
+/* Mały pływający przycisk kontaktu w prawym dolnym rogu */
 .contact-fab{
   position:fixed;
   right:22px;
@@ -439,7 +472,7 @@ details.pop .popover{
   box-shadow:0 6px 24px rgba(0,0,0,.35);
   backdrop-filter:blur(6px);
   -webkit-backdrop-filter:blur(6px);
-  z-index:10000;
+  z-index:9999;
   transition:transform .15s ease,
              background .2s ease,
              border-color .2s ease;
@@ -477,17 +510,23 @@ details.pop .popover{
   margin:-1px;
 }
 
-/* FAB zawsze widoczny */
-body > a.contact-fab,
+/* Nigdy nie ukrywaj FAB-a (fix) */
+body > a.contact-fab{
+  display:inline-flex !important;
+}
 body.home > a.contact-fab{
   display:inline-flex !important;
 }
+.contact-fab{ z-index:10000; }
 
-/* === ToC (Spis treści) — eleganckie, klikalne kafelki === */
+/* ===========================
+   ToC (Spis treści) w kartach
+   =========================== */
+
 :root{
-  --toc-accent:#22c55e;        /* zielony akcent */
-  --toc-accent-2:#86efac;      /* jaśniejszy zielony */
-  --toc-bg:rgba(34,197,94,.08); /* tło hover/focus */
+  --toc-accent:#22c55e;
+  --toc-accent-2:#86efac;
+  --toc-bg:rgba(34,197,94,.08);
 }
 
 .card .toc{
@@ -504,11 +543,10 @@ body.home > a.contact-fab{
   border-radius:14px;
   background:rgba(255,255,255,.03);
   box-shadow:0 2px 12px rgba(0,0,0,.12);
-  transition:
-    transform .2s ease,
-    box-shadow .2s ease,
-    border-color .2s ease,
-    background-color .2s ease;
+  transition:transform .2s ease,
+             box-shadow .2s ease,
+             border-color .2s ease,
+             background-color .2s ease;
 }
 .card .toc li a{
   display:flex;
@@ -516,7 +554,7 @@ body.home > a.contact-fab{
   gap:12px;
   padding:12px 14px;
   text-decoration:none;
-  color:#e6f6ee; /* czytelny na ciemnym */
+  color:#e6f6ee;
   font-weight:600;
   line-height:1.25;
 }
@@ -529,14 +567,15 @@ body.home > a.contact-fab{
   place-items:center;
   border-radius:8px;
   background:linear-gradient(135deg,var(--toc-accent-2),#c7f9cc);
-  color:#064e3b; /* ciemno-zielony */
+  color:#064e3b;
   font-weight:800;
   font-variant-numeric:tabular-nums;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.6),
-    0 1px 6px rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),
+             0 1px 6px rgba(0,0,0,.12);
 }
-.card .toc li a span{ font-weight:600; }
+.card .toc li a span{
+  font-weight:600;
+}
 .card .toc li a::after{
   content:"›";
   margin-left:auto;
@@ -554,13 +593,11 @@ body.home > a.contact-fab{
   transform:translateX(2px);
   opacity:.8;
 }
-/* focus dla klawiatury/AA */
 .card .toc li a:focus-visible{
   outline:3px solid var(--toc-accent);
   outline-offset:4px;
   border-radius:10px;
 }
-/* Mobilne dopasowanie */
 @media (max-width:640px){
   .card .toc li a{ padding:12px; }
   .card .toc li::before{
@@ -569,87 +606,10 @@ body.home > a.contact-fab{
   }
 }
 
-/* ====== KONTRAST TEKSTU + AKCENTY (BriefRooms: dark) ====== */
-:root{
-  --br-text-strong:#eef4f8;   /* biały, ale nie „przepalony” */
-  --br-text-body:#d6e1e8;     /* główny kolor akapitów */
-  --br-text-mute:#b3c2cd;     /* opisy, drobne napisy */
-  --br-link:#86c5ff;          /* linki (niebieski, czytelny) */
-  --br-link-hover:#aee0ff;
-  --br-accent:#7ae0b8;        /* miękka zieleń – akcenty */
-  --br-accent-2:#ffd166;      /* żółty do lekkiego wyróżniania */
-  --br-card-bg:rgba(255,255,255,.055); /* karty – tło */
-  --br-card-bg-2:rgba(255,255,255,.035); /* karty – naprzemiennie */
-}
+/* =========================
+   HEALTH TILES (hub zdrowie)
+   ========================= */
 
-/* Tekst bazowy */
-body{ color:var(--br-text-body); }
-p, li{ color:var(--br-text-body); }
-small, .sub, .lead{ color:var(--br-text-mute); }
-
-/* Nagłówki: trochę jaśniejsze, żeby „trzymały” sekcje wzrokiem */
-h1, h2, h3{ color:var(--br-text-strong); }
-h2{ text-shadow:0 1px 0 rgba(255,255,255,.06); }
-h3{ color:#e3edf4; }
-
-/* Linki czytelniejsze i z wyraźnym hoverem */
-a{
-  color:var(--br-link);
-  text-decoration-color:rgba(134,197,255,.5);
-}
-a:hover{
-  color:var(--br-link-hover);
-  text-decoration-color:var(--br-link-hover);
-}
-
-/* Wyróżnienia w tekście – zamiast ostrej żółci delikatny akcent */
-b, strong{ color:var(--br-text-strong); }
-em{
-  color:var(--br-accent);
-  font-style:normal;
-}
-
-/* Karty/sekcje – subtelne urozmaicenie tła co drugą kartę */
-.card{ background:var(--br-card-bg); }
-.card:nth-of-type(2n){ background:var(--br-card-bg-2); }
-
-/* Spis treści – zachęca do kliknięcia: jaśniejsze linki i bullets */
-#spis a{ color:var(--br-link); }
-#spis a:hover{ color:var(--br-link-hover); }
-#spis ol,
-#spis ul{
-  --dot:var(--br-accent);
-}
-#spis li::marker{ color:var(--dot); }
-
-/* Drobne akcenty w nawiasach/etykietach, żeby rozbić monotonię */
-.badge,
-.label,
-.pill{
-  color:#0e1b25;
-  background:var(--br-accent);
-  padding:.12rem .45rem;
-  border-radius:.5rem;
-}
-
-/* Widget autofagii – spójny z prośbą o „jasnozielone” tło */
-.af-btn,
-.af-panel{
-  background:rgba(122,224,184,.12);
-  border-color:rgba(122,224,184,.35);
-}
-.af-label{ color:var(--br-accent); }
-.af-sources a{ color:#bfeeff; }
-.af-sources a:hover{ color:#e4f7ff; }
-
-/* Cytaty / callout – lekkie przełamanie kolorystyczne */
-blockquote{
-  color:#e9f1f6;
-  border-left:3px solid var(--br-accent);
-  background:rgba(122,224,184,.06);
-}
-
-/* === Health tiles === */
 .health-grid{
   display:grid;
   gap:18px;
@@ -670,18 +630,16 @@ blockquote{
   border-radius:16px;
   background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
   border:1px solid rgba(255,255,255,.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.04),
-    0 10px 30px rgba(0,0,0,.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),
+             0 10px 30px rgba(0,0,0,.25);
   transition:transform .18s ease,
              box-shadow .18s ease,
              background .18s ease;
 }
 .topic-card:hover{
   transform:translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.06),
-    0 16px 34px rgba(0,0,0,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),
+             0 16px 34px rgba(0,0,0,.28);
   background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
 }
 .topic-card h3{
@@ -720,9 +678,8 @@ blockquote{
   background:rgba(134,197,255,.18);
   border:1px solid rgba(134,197,255,.35);
   color:#d7e6ff;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.25),
-    0 6px 18px rgba(0,0,0,.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),
+             0 6px 18px rgba(0,0,0,.22);
 }
 
 /* wyrównana kolumna tematów (np. cholesterol + inne) */
@@ -731,111 +688,116 @@ blockquote{
   flex-direction:column;
   gap:22px;
 }
-/* === LIGHT THEME DLA POKOI I ARTYKUŁÓW
-   (wszystko poza stroną główną z drzwiami – body.home) === */
+
+/* =========================================================
+   JASNY MOTYW DLA POKOI I ARTYKUŁÓW
+   – obowiązuje na wszystkich stronach poza .home
+   – spełnia Twoje punkty 2), 3), 4)
+   ========================================================= */
 
 body:not(.home){
-  background: #f6f2ea;      /* ciepłe ecru */
-  color: #111827;           /* bardzo ciemny, przyjemny granatowo-szary */
+  background:var(--room-bg);
+  color:var(--room-text);
 }
 
-/* Główna kolumna czytania – zostawiamy szerokość, tylko dbamy o spójność */
-body:not(.home) header,
-body:not(.home) main,
-body:not(.home) footer{
-  max-width: 980px;
-  margin: 0 auto;
-}
+/* typografia */
 
-/* Nagłówki: ciemniejsze, wyraźne */
 body:not(.home) h1,
 body:not(.home) h2,
-body:not(.home) h3,
-body:not(.home) h4{
-  color: #0f172a;
+body:not(.home) h3{
+  color:var(--room-heading);
 }
 
-/* Tekst główny + listy – bardzo ciemny, wygodny do czytania */
 body:not(.home) p,
 body:not(.home) li{
-  color: #111827;
+  color:var(--room-text);
 }
 
-/* Tekst „opisowy”: podtytuły, leady, mniejsze dopiski */
 body:not(.home) small,
 body:not(.home) .sub,
 body:not(.home) .lead{
-  color: #4b5563;  /* delikatny, neutralny szary */
+  color:var(--room-muted);
 }
 
-/* KARTY: news boxy, panele zdrowia, kafelki w pokojach */
-body:not(.home) .card,
-body:not(.home) .tile{
-  background: #ffffff;
-  border-radius: 20px;
-  border: 1px solid rgba(15,23,42,.08);
-  box-shadow: 0 10px 24px rgba(15,23,42,.08);
-  color: #111827;
-}
+/* linki w treści (menu ma własne style) */
 
-/* Opisy pod tytułami kafelków (np. /zdrowie.html) */
-body:not(.home) .tile-title{
-  color: #0f172a;
-}
-body:not(.home) .tile-desc{
-  color: #4b5563;
-}
-
-/* Karty z tematami zdrowia (topic-card w /zdrowie.html) */
-body:not(.home) .topic-card{
-  background: #ffffff;
-  border: 1px solid rgba(15,23,42,.08);
-  box-shadow: 0 12px 30px rgba(15,23,42,.10);
-  color: #111827;
-}
-body:not(.home) .topic-card h3{
-  color: #0f172a;
-}
-body:not(.home) .topic-card .tags{
-  color: #4b5563;
-}
-
-/* Pigułki typu ESC/EAS, ACC, PMC itp. – jasne tło, ciemny tekst */
-body:not(.home) .badge,
-body:not(.home) .label,
-body:not(.home) .pill,
-body:not(.home) .meta-pill,
-body:not(.home) .tag-pill{
-  background: #e0edff;
-  color: #0f172a;
-  border-radius: 999px;
-}
-
-/* Linki w TREŚCI (menu zostawiamy – ma swoje style) */
 body:not(.home) main a{
-  color: #2563eb;
-  text-decoration-color: rgba(37,99,235,.35);
+  color:var(--room-link);
+  text-decoration-color:rgba(37,99,235,.35);
 }
 body:not(.home) main a:hover{
-  color: #1d4ed8;
-  text-decoration-color: #1d4ed8;
+  color:var(--room-link-hover);
+  text-decoration-color:var(--room-link-hover);
 }
 
-/* Cytaty / callouty w artykułach */
+/* główne karty z treścią (news boxy, panele zdrowia, artykuły) */
+
+body:not(.home) .card{
+  background:var(--room-surface);
+  border-radius:22px;
+  border:1px solid var(--room-border);
+  box-shadow:0 14px 34px rgba(15,23,42,.08),
+             0 1px 0 rgba(255,255,255,.7);
+  color:var(--room-text);
+}
+
+/* zagnieżdżone karty wewnątrz kart – trochę inne tło */
+
+body:not(.home) .card .card{
+  background:var(--room-surface-soft);
+}
+
+/* kafelki / topic-cards w hubach (Health / Science / Geo itd.) */
+
+body:not(.home) .tile,
+body:not(.home) .topic-card{
+  background:linear-gradient(180deg,#ffffff,#f3ece2);
+  border-color:var(--room-border);
+  box-shadow:0 10px 24px rgba(15,23,42,.08);
+  color:var(--room-text);
+}
+
+body:not(.home) .tile-title,
+body:not(.home) .topic-card h3{
+  color:var(--room-heading);
+}
+
+body:not(.home) .tile-desc,
+body:not(.home) .topic-card .blurb{
+  color:var(--room-text);
+}
+
+body:not(.home) .topic-card .tags{
+  color:var(--room-muted);
+}
+
+/* „pigułki” ESC/EAS, ACC itd. – czytelne na jasnym tle */
+
+body:not(.home) .badge,
+body:not(.home) .pill,
+body:not(.home) .meta-pill{
+  background:var(--room-accent-soft);
+  color:var(--room-heading);
+  border-radius:999px;
+}
+
+/* cytaty / callouty w artykułach */
+
 body:not(.home) blockquote{
-  background: #f3ece2;
-  border-left: 4px solid #2563eb;
-  color: #111827;
+  background:var(--room-surface-soft);
+  border-left:4px solid var(--room-link);
+  color:var(--room-text);
 }
 
-/* Stopka na jasnych stronach (pokoje + artykuły) */
+/* jasna stopka na stronach z treścią */
+
 body:not(.home) .site-footer{
-  border-top-color: rgba(15,23,42,.08);
-  background: #f0ece4;
+  border-top-color:var(--room-border);
+  background:#f0ece4;
 }
 body:not(.home) .footer-link{
-  color: #1f2937;
+  color:#1f2937;
 }
 body:not(.home) .footer-link:hover{
-  color: #111827;
+  color:#111827;
 }
