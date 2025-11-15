@@ -14,17 +14,19 @@
   --head-space:64px; /* odsunięcie treści od góry pod stałe logo (tylko na .home) */
 
   /* ZMIENNE DLA JASNYCH „POKOJÓW” (ROOMS / ARTYKUŁY) */
-  --room-bg:#f6f2ea;            /* tło ecru */
-  --room-surface:#ffffff;       /* białe panele */
-  --room-surface-soft:#f3ece2;  /* delikatnie ciemniejsze */
+  --room-bg:#f6f2ea;             /* tło ecru */
+  --room-surface:#ffffff;        /* białe panele */
+  --room-surface-soft:#f3ece2;   /* delikatnie ciemniejsze */
   --room-border:rgba(15,23,42,.08);
 
-  --room-text:#111827;          /* prawie czarny tekst */
-  --room-heading:#0f172a;       /* nagłówki */
-  --room-muted:#4b5563;         /* opisy, meta */
+  --room-text:#111827;           /* prawie czarny tekst */
+  --room-heading:#0f172a;        /* nagłówki */
+  --room-muted:#4b5563;          /* opisy, meta */
 
   --room-link:#2563eb;
   --room-link-hover:#1d4ed8;
+
+  --room-accent-soft:#e0edff;    /* tło dla „pigułek” */
 }
 
 /* RESET + BAZA */
@@ -689,125 +691,14 @@ body.home > a.contact-fab{
   gap:22px;
 }
 
-/* =========================================================
-   JASNY MOTYW DLA POKOI I ARTYKUŁÓW
-   – obowiązuje na wszystkich stronach poza .home
-   – spełnia Twoje punkty 2), 3), 4)
-   ========================================================= */
-
-body:not(.home){
-  background:var(--room-bg);
-  color:var(--room-text);
-}
-
-/* typografia */
-
-body:not(.home) h1,
-body:not(.home) h2,
-body:not(.home) h3{
-  color:var(--room-heading);
-}
-
-body:not(.home) p,
-body:not(.home) li{
-  color:var(--room-text);
-}
-
-body:not(.home) small,
-body:not(.home) .sub,
-body:not(.home) .lead{
-  color:var(--room-muted);
-}
-
-/* linki w treści (menu ma własne style) */
-
-body:not(.home) main a{
-  color:var(--room-link);
-  text-decoration-color:rgba(37,99,235,.35);
-}
-body:not(.home) main a:hover{
-  color:var(--room-link-hover);
-  text-decoration-color:var(--room-link-hover);
-}
-
-/* główne karty z treścią (news boxy, panele zdrowia, artykuły) */
-
-body:not(.home) .card{
-  background:var(--room-surface);
-  border-radius:22px;
-  border:1px solid var(--room-border);
-  box-shadow:0 14px 34px rgba(15,23,42,.08),
-             0 1px 0 rgba(255,255,255,.7);
-  color:var(--room-text);
-}
-
-/* zagnieżdżone karty wewnątrz kart – trochę inne tło */
-
-body:not(.home) .card .card{
-  background:var(--room-surface-soft);
-}
-
-/* kafelki / topic-cards w hubach (Health / Science / Geo itd.) */
-
-body:not(.home) .tile,
-body:not(.home) .topic-card{
-  background:linear-gradient(180deg,#ffffff,#f3ece2);
-  border-color:var(--room-border);
-  box-shadow:0 10px 24px rgba(15,23,42,.08);
-  color:var(--room-text);
-}
-
-body:not(.home) .tile-title,
-body:not(.home) .topic-card h3{
-  color:var(--room-heading);
-}
-
-body:not(.home) .tile-desc,
-body:not(.home) .topic-card .blurb{
-  color:var(--room-text);
-}
-
-body:not(.home) .topic-card .tags{
-  color:var(--room-muted);
-}
-
-/* „pigułki” ESC/EAS, ACC itd. – czytelne na jasnym tle */
-
-body:not(.home) .badge,
-body:not(.home) .pill,
-body:not(.home) .meta-pill{
-  background:var(--room-accent-soft);
-  color:var(--room-heading);
-  border-radius:999px;
-}
-
-/* cytaty / callouty w artykułach */
-
-body:not(.home) blockquote{
-  background:var(--room-surface-soft);
-  border-left:4px solid var(--room-link);
-  color:var(--room-text);
-}
-
-/* jasna stopka na stronach z treścią */
-
-body:not(.home) .site-footer{
-  border-top-color:var(--room-border);
-  background:#f0ece4;
-}
-body:not(.home) .footer-link{
-  color:#1f2937;
-}
-body:not(.home) .footer-link:hover{
-  color:#111827;
-}
 /* ===========================================
    JASNE „POKOJE” – gdy <body class="rooms-light">
+   (PL + EN: pokoje i artykuły zdrowie / nauka / geo / news)
    =========================================== */
 
 body.rooms-light{
-  background:#f6f2ea !important;  /* ciepłe ecru */
-  color:#111827 !important;       /* prawie czarny tekst */
+  background:var(--room-bg) !important;   /* ciepłe ecru */
+  color:var(--room-text) !important;      /* ciemny tekst */
 }
 
 /* typografia */
@@ -815,7 +706,7 @@ body.rooms-light{
 body.rooms-light h1,
 body.rooms-light h2,
 body.rooms-light h3{
-  color:#0f172a !important;       /* nagłówki */
+  color:var(--room-heading) !important;
 }
 
 body.rooms-light p,
@@ -823,18 +714,18 @@ body.rooms-light li,
 body.rooms-light .sub,
 body.rooms-light .lead,
 body.rooms-light small{
-  color:#111827 !important;
+  color:var(--room-text) !important;
 }
 
 /* linki w treści (menu ma swoje klasy) */
 
 body.rooms-light main a{
-  color:#2563eb;
+  color:var(--room-link);
   text-decoration-color:rgba(37,99,235,.35);
 }
 body.rooms-light main a:hover{
-  color:#1d4ed8;
-  text-decoration-color:#1d4ed8;
+  color:var(--room-link-hover);
+  text-decoration-color:var(--room-link-hover);
 }
 
 /* karty i kafelki (news/zdrowie/geopolityka/nauka) */
@@ -842,49 +733,66 @@ body.rooms-light main a:hover{
 body.rooms-light .card,
 body.rooms-light .tile,
 body.rooms-light .topic-card{
-  background:#ffffff !important;
-  color:#111827 !important;
+  background:var(--room-surface) !important;
+  color:var(--room-text) !important;
   border-radius:20px;
-  border:1px solid rgba(15,23,42,.06);
+  border:1px solid var(--room-border);
   box-shadow:0 10px 24px rgba(15,23,42,.08);
 }
 
 body.rooms-light .tile-title,
 body.rooms-light .topic-card h3{
-  color:#0f172a !important;
+  color:var(--room-heading) !important;
 }
 
 body.rooms-light .tile-desc,
 body.rooms-light .topic-card .blurb{
-  color:#111827 !important;
+  color:var(--room-text) !important;
 }
 
 body.rooms-light .topic-card .tags{
-  color:#4b5563 !important;
+  color:var(--room-muted) !important;
 }
 
-/* pigułki ESC/EAS, ACC, itp. */
+/* zagnieżdżone karty wewnątrz kart – lekko ciemniejsze */
+
+body.rooms-light .card .card{
+  background:var(--room-surface-soft) !important;
+}
+
+/* „pigułki” ESC/EAS, ACC, itp. */
 
 body.rooms-light .badge,
 body.rooms-light .pill,
 body.rooms-light .meta-pill{
-  background:#e0edff;
-  color:#0f172a;
+  background:var(--room-accent-soft) !important;
+  color:var(--room-heading) !important;
   border-radius:999px;
 }
 
 /* cytaty / callouty */
 
 body.rooms-light blockquote{
-  background:#f3ece2;
-  border-left:4px solid #2563eb;
-  color:#111827;
+  background:var(--room-surface-soft) !important;
+  border-left:4px solid var(--room-link);
+  color:var(--room-text) !important;
+}
+
+/* AI komentarze (Aktualności) – lepszy kontrast na jasnym tle */
+
+body.rooms-light .ai-note{
+  background:var(--room-surface-soft);
+  border-color:var(--room-border);
+  color:var(--room-text);
+}
+body.rooms-light .ai-head{
+  color:var(--room-heading);
 }
 
 /* stopka na jasnych stronach */
 
 body.rooms-light .site-footer{
-  border-top-color:rgba(15,23,42,.08);
+  border-top-color:var(--room-border);
   background:#f0ece4;
 }
 body.rooms-light .footer-link{
