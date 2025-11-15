@@ -1,14 +1,14 @@
-/* ---- USTAWIENIA OGÓLNE ---- */
+/* ——— USTAWIENIA OGÓLNE ——— */
 :root{
-  --bg1:#0a1626;
-  --bg2:#08111d;
+  --bg1:#0b1420;
+  --bg2:#0e1b2b;
   --panel:#112235;
   --panel-2:#0f1e30;
   --txt:#e7eef9;
   --muted:#b9c5d8;
   --stroke:rgba(255,255,255,.08);
   --focus:#86b7ff;
-  --head-space:64px;
+  --head-space:64px; /* odsunięcie treści od góry pod stałe logo (tylko na .home) */
 }
 
 *{ box-sizing:border-box }
@@ -27,56 +27,125 @@ body.home{ padding-top:var(--head-space); }
 
 a{ color:var(--muted); text-decoration:none }
 a:hover{ text-decoration:underline }
-a:focus-visible, button:focus-visible{
-  outline:3px solid var(--focus); outline-offset:2px; border-radius:8px;
+
+a:focus-visible,
+button:focus-visible{
+  outline:3px solid var(--focus);
+  outline-offset:2px;
+  border-radius:8px;
 }
 
-header,main,footer{ max-width:980px; margin:0 auto; padding:0 16px }
+header,main,footer{
+  max-width:980px;
+  margin:0 auto;
+  padding:0 16px;
+}
 header{ padding:28px 16px 8px }
-h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
-.sub{ margin:0 0 16px; color:var(--muted) }
+
+h1{
+  margin:6px 0 4px;
+  font-size:clamp(22px,4.2vw,34px);
+}
+.sub{
+  margin:0 0 16px;
+  color:var(--muted);
+}
 
 /* ——— KAFELKI / TILES (używane w hubach) ——— */
 .tiles{
-  list-style:none; margin:18px 0 28px; padding:0;
-  display:grid; gap:14px; grid-template-columns:1fr;
+  list-style:none;
+  margin:18px 0 28px;
+  padding:0;
+  display:grid;
+  gap:14px;
+  grid-template-columns:1fr;
 }
-@media (min-width:760px){ .tiles{ grid-template-columns:1fr 1fr } }
+@media (min-width:760px){
+  .tiles{ grid-template-columns:1fr 1fr; }
+}
 
 .tile{
-  border:1px solid var(--stroke); border-radius:12px; background:rgba(255,255,255,.04);
-  box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+  border:1px solid var(--stroke);
+  border-radius:12px;
+  background:rgba(255,255,255,.04);
+  box-shadow:0 10px 24px rgba(0,0,0,.25),
+             inset 0 1px 0 rgba(255,255,255,.05);
   transform:translateY(0);
-  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  transition:transform .12s ease,
+             box-shadow .12s ease,
+             background .12s ease;
 }
-.tile:hover{ transform:translateY(-2px); background:rgba(255,255,255,.05) }
-.tile-link{ display:block; padding:16px 18px; color:inherit; text-decoration:none }
-.tile-title{ display:block; font-weight:700; font-size:1.05rem; margin-bottom:6px }
-.tile-desc{ display:block; color:var(--muted); font-size:.95rem }
+.tile:hover{
+  transform:translateY(-2px);
+  background:rgba(255,255,255,.05);
+}
+.tile-link{
+  display:block;
+  padding:16px 18px;
+  color:inherit;
+  text-decoration:none;
+}
+.tile-title{
+  display:block;
+  font-weight:700;
+  font-size:1.05rem;
+  margin-bottom:6px;
+}
+.tile-desc{
+  display:block;
+  color:var(--muted);
+  font-size:.95rem;
+}
 
 /* ——— NAPROWADZACZ W DÓŁ ——— */
-.back{ margin:10px 0 28px; color:var(--muted) }
-.back a{ color:#a8c8ff; text-decoration:none }
-.back a:hover{ text-decoration:underline }
+.back{
+  margin:10px 0 28px;
+  color:var(--muted);
+}
+.back a{
+  color:#a8c8ff;
+  text-decoration:none;
+}
+.back a:hover{ text-decoration:underline; }
 
 /* ——— KARTY / PANELE (do artykułów) ——— */
 .card{
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid rgba(255,255,255,.06);
-  border-radius:16px; padding:18px 20px; margin:14px 0;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
+  border-radius:16px;
+  padding:18px 20px;
+  margin:14px 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 10px 30px rgba(0,0,0,.25);
 }
-.cols{ display:grid; gap:16px; grid-template-columns:1fr; margin:16px 0 }
-@media (min-width:780px){ .cols{ grid-template-columns:1fr 1fr } }
-.good{ background:linear-gradient(180deg,#12341f,#0f2a1a) }
-.bad{  background:linear-gradient(180deg,#2e1616,#241111) }
+
+.cols{
+  display:grid;
+  gap:16px;
+  grid-template-columns:1fr;
+  margin:16px 0;
+}
+@media (min-width:780px){
+  .cols{ grid-template-columns:1fr 1fr; }
+}
+
+.good{ background:linear-gradient(180deg,#12341f,#0f2a1a); }
+.bad{  background:linear-gradient(180deg,#2e1616,#241111); }
 
 /* ——— PRZYCISKI GŁOSOWANIA ——— */
-.rate-row{ display:flex; gap:10px; margin-bottom:8px }
+.rate-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:8px;
+}
 .btn{
-  padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.1);
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.1);
   background:linear-gradient(180deg,#1a2b42,#152336);
-  color:var(--txt); cursor:pointer;
+  color:var(--txt);
+  cursor:pointer;
   box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
@@ -84,888 +153,581 @@ h1{ margin:6px 0 4px; font-size:clamp(22px,4.2vw,34px) }
 /* Domyślnie logo WYŁĄCZONE wszędzie */
 .site-head{
   display:none;
-  position:fixed; top:12px; left:16px; z-index:1000;
-  align-items:center; gap:8px;
-  padding:6px 10px; border-radius:10px;
+  position:fixed;
+  top:12px;
+  left:16px;
+  z-index:1000;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:10px;
   background:rgba(10,22,38,.38);
   backdrop-filter:blur(6px);
-  color:var(--txt); text-decoration:none;
+  color:var(--txt);
+  text-decoration:none;
   box-shadow:0 4px 14px rgba(0,0,0,.25);
 }
-.site-head:hover{ filter:brightness(1.06); text-decoration:none }
-.site-head:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; border-radius:12px }
-.site-head .logo{ height:20px; margin:0; vertical-align:middle }
-.site-head .brand{ font-weight:700; opacity:.95 }
+.site-head:hover{
+  filter:brightness(1.06);
+  text-decoration:none;
+}
+.site-head:focus-visible{
+  outline:3px solid var(--focus);
+  outline-offset:3px;
+  border-radius:12px;
+}
+.site-head .logo{
+  height:20px;
+  margin:0;
+  vertical-align:middle;
+}
+.site-head .brand{
+  font-weight:700;
+  opacity:.95;
+}
 
 /* Pokaż logo TYLKO na stronie głównej (body.home) */
 body.home .site-head{ display:inline-flex; }
-/* Home: ukryj każdy bezpośredni <a> w <body> poza .site-head (zabłąkany link) */
+
 /* Home: ukryj każdy bezpośredni <a> w <body> poza .site-head i .contact-fab */
-body.home > a:not(.site-head):not(.contact-fab){ display:none !important; }
+body.home > a:not(.site-head):not(.contact-fab){
+  display:none !important;
+}
 
 /* === VOTE BUTTONS — clean + equal === */
-.rate-box{display:flex;gap:10px;align-items:center;margin:16px auto 32px;padding:0 16px}
+.rate-box{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin:16px auto 32px;
+  padding:0 16px;
+}
 .rate-btn{
-  appearance:none; -webkit-appearance:none;
-  display:inline-flex; align-items:center; justify-content:center; gap:10px;
-  padding:10px 14px; min-width:120px; height:42px; /* ta sama szer./wys. */
-  border-radius:12px; border:1px solid rgba(255,255,255,.12);
-  background:#0e1827; color:#e9eef5; line-height:1; cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:10px 14px;
+  min-width:120px;
+  height:42px; /* ta sama szer./wys. */
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:#0e1827;
+  color:#e9eef5;
+  line-height:1;
+  cursor:pointer;
   transition:transform .15s ease, background .15s ease;
 }
-.rate-btn:hover{ background:#162339; transform:translateY(-1px) }
-.rate-btn:focus-visible{ outline:3px solid #86b7ff; outline-offset:3px; border-radius:14px }
+.rate-btn:hover{
+  background:#162339;
+  transform:translateY(-1px);
+}
+.rate-btn:focus-visible{
+  outline:3px solid #86b7ff;
+  outline-offset:3px;
+  border-radius:14px;
+}
 
 /* Ikonka kciuka – stały wymiar i brak „kwadratowego” tła */
-.rate-btn .icon{ width:20px; height:20px; display:block; flex:0 0 20px }
+.rate-btn .icon{
+  width:20px;
+  height:20px;
+  display:block;
+  flex:0 0 20px;
+}
+
 /* ===== MOBILE FIRST / RESPONSIVE TWEAKS (global) ===== */
 
 /* 1) Czytelniejsza typografia na małych ekranach */
-@media (max-width: 420px){
-  html { font-size: 15px; }               /* ciut większe litery niż fabryczne 16 → 15px + lepsze proporcje */
-  body { line-height: 1.65; }
-  h1 { font-size: clamp(22px, 7vw, 32px); }
-  h2 { font-size: clamp(18px, 5.4vw, 24px); }
-  h3 { font-size: clamp(16px, 4.6vw, 20px); }
+@media (max-width:420px){
+  html { font-size:15px; }
+  body { line-height:1.65; }
+  h1 { font-size:clamp(22px,7vw,32px); }
+  h2 { font-size:clamp(18px,5.4vw,24px); }
+  h3 { font-size:clamp(16px,4.6vw,20px); }
 }
 
 /* 2) Marginesy i kolumny – więcej powietrza na telefonach */
-@media (max-width: 720px){
-  header, main, footer { padding: 0 14px; }
-  .card { padding: 16px 16px; border-radius: 14px; }
-  .cols { grid-template-columns: 1fr; gap: 12px; }
-  .tiles { grid-template-columns: 1fr; gap: 12px; }
+@media (max-width:720px){
+  header,main,footer{ padding:0 14px; }
+  .card{
+    padding:16px 16px;
+    border-radius:14px;
+  }
+  .cols{
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+  .tiles{
+    grid-template-columns:1fr;
+    gap:12px;
+  }
 }
 
 /* 3) Link „powrót” – większy obszar kliku */
 .back a{
-  padding: 6px 4px;
-  border-radius: 8px;
+  padding:6px 4px;
+  border-radius:8px;
 }
 .back a:active{
-  background: rgba(255,255,255,.06);
+  background:rgba(255,255,255,.06);
 }
 
 /* 4) Listy i akapity – mniej ścisku */
-p{ margin: 10px 0 12px; }
-ul{ margin: 8px 0 12px 20px }
-li{ margin: 6px 0 }
+p{ margin:10px 0 12px; }
+ul{ margin:8px 0 12px 20px; }
+li{ margin:6px 0; }
 
 /* 5) Przyciski głosowania – jednorodna wysokość i siatka w pionie na telefonie */
-.rate-box{ gap: 10px; flex-wrap: wrap; }
-.rate-btn{
-  min-height: 44px;                /* zalecany rozmiar dotykowy */
-  padding: 10px 14px;
+.rate-box{
+  gap:10px;
+  flex-wrap:wrap;
 }
-@media (max-width: 520px){
+.rate-btn{
+  min-height:44px;              /* zalecany rozmiar dotykowy */
+  padding:10px 14px;
+}
+@media (max-width:520px){
   .rate-box{
-    flex-direction: column; 
-    align-items: stretch;
+    flex-direction:column;
+    align-items:stretch;
   }
-  .rate-btn{ justify-content: center; }
+  .rate-btn{ justify-content:center; }
 }
 
 /* 6) Kontrast i stany focus dla dostępności klawiaturą */
-a:focus-visible, button:focus-visible{
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
-  border-radius: 10px;
+a:focus-visible,
+button:focus-visible{
+  outline:3px solid var(--focus);
+  outline-offset:3px;
+  border-radius:10px;
 }
 
 /* 7) (opcjonalnie) mniejsze cienie na słabszych urządzeniach */
-@media (max-width: 420px){
-  .tile, .card{ box-shadow: 0 10px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04); }
-}
-/* --- Zielone "chipsy" jak popover --- */
-.chips details.pop{
-  background: linear-gradient(180deg, rgba(66,115,90,.24), rgba(66,115,90,.14));
-  border-color: rgba(164,224,198,.28);
-  box-shadow:
-    0 10px 24px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(164,224,198,.12);
-}
-.chips details.pop summary{ color:#e7f5ec; }
-.chips details.pop:hover{ filter:brightness(1.06); }
-/* Zielone tło popovera (PL/EN) */
-details.pop .popover{
-  position:absolute; left:0; top:calc(100% + 8px); min-width:260px; max-width:320px;
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.14);
-  background:linear-gradient(180deg, rgba(64,110,84,.98), rgba(38,79,60,.98)); /* ciepło-zielone tło */
-  color:#f3fff6; /* jaśniejszy tekst dla kontrastu */
-  box-shadow:0 18px 42px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
-  padding:12px 14px; font-size:13px; z-index:5;
+@media (max-width:420px){
+  .tile,
+  .card{
+    box-shadow:0 10px 22px rgba(0,0,0,.28),
+               inset 0 1px 0 rgba(255,255,255,.04);
+  }
 }
 
-/* Zielone „chipsy” (przyciski) – taki sam odcień jak popover */
-.chips details.pop{
-  background: linear-gradient(180deg, rgba(66,115,90,.24), rgba(66,115,90,.14));
-  border-color: rgba(164,224,198,.28);
-  box-shadow:
-    0 10px 24px rgba(0,0,0,.25),
-    inset 0 0 0 1px rgba(164,224,198,.12);
-}
-.chips details.pop summary{ color:#e7f5ec; }
-.chips details.pop:hover{ filter:brightness(1.06); }
-/* separator między „chipami” */
+/* --- Zielone "chipsy" jak popover --- */
 .chips{
-  display:flex; flex-wrap:wrap; align-items:center;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
   gap:12px; /* nieco większy luz między elementami */
 }
 
-.chip-sep{
-  display:flex; align-items:center; gap:8px;
-  font-size:14px; opacity:.9; user-select:none;
-  padding:2px 6px; border-radius:8px;
-  /* delikatne „powietrze”, bez ramki */
+.chips details.pop{
+  background:linear-gradient(180deg,rgba(66,115,90,.24),rgba(66,115,90,.14));
+  border-color:rgba(164,224,198,.28);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.25),
+    inset 0 0 0 1px rgba(164,224,198,.12);
+}
+.chips details.pop summary{ color:#e7f5ec; }
+.chips details.pop:hover{ filter:brightness(1.06); }
+
+/* Zielone tło popovera (PL/EN) */
+details.pop .popover{
+  position:absolute;
+  left:0;
+  top:calc(100% + 8px);
+  min-width:260px;
+  max-width:320px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background:linear-gradient(180deg,rgba(64,110,84,.98),rgba(38,79,60,.98)); /* ciepło-zielone tło */
+  color:#f3fff6; /* jaśniejszy tekst dla kontrastu */
+  box-shadow:0 18px 42px rgba(0,0,0,.45),
+             inset 0 0 0 1px rgba(255,255,255,.06);
+  padding:12px 14px;
+  font-size:13px;
+  z-index:5;
 }
 
-.chip-sep .arrow{ font-size:18px; line-height:1; opacity:.9 }
+/* separator między „chipami” */
+.chip-sep{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:14px;
+  opacity:.9;
+  user-select:none;
+  padding:2px 6px;
+  border-radius:8px;
+}
+.chip-sep .arrow{
+  font-size:18px;
+  line-height:1;
+  opacity:.9;
+}
 
 /* na bardzo wąskich ekranach niech separator spadnie do nowej linii */
 @media (max-width:560px){
-  .chips{ gap:10px }
-  .chip-sep{ width:100%; justify-content:center; margin:2px 0 }
-}
-/* separator between chips */
-.chips{ display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-
-.chip-sep{
-  display:flex; align-items:center; gap:8px;
-  font-size:14px; opacity:.9; user-select:none;
-  padding:2px 6px; border-radius:8px;
+  .chips{ gap:10px; }
+  .chip-sep{
+    width:100%;
+    justify-content:center;
+    margin:2px 0;
+  }
 }
 
-.chip-sep .arrow{ font-size:18px; line-height:1; opacity:.9 }
-
-@media (max-width:560px){
-  .chips{ gap:10px }
-  .chip-sep{ width:100%; justify-content:center; margin:2px 0 }
-}
+/* --- STOPKA + FAB KONTAKTU --- */
 .site-footer{
-  margin-top: 48px;
-  border-top: 1px solid rgba(255,255,255,.08);
-  background: rgba(7,14,24,.85);
-  backdrop-filter: blur(6px);
+  margin-top:48px;
+  border-top:1px solid rgba(255,255,255,.08);
+  background:rgba(7,14,24,.85);
+  backdrop-filter:blur(6px);
 }
 .footer-wrap{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  max-width:1100px;
+  margin:0 auto;
+  padding:18px 16px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
 }
 .footer-link{
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: #cfe3ff;
-  text-decoration: none;
-  font-weight: 500;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  color:#cfe3ff;
+  text-decoration:none;
+  font-weight:500;
 }
-.footer-link:hover{ color:#ffffff; text-decoration: underline; }
-.footer-dot{ opacity:.45; margin: 0 4px; }
+.footer-link:hover{
+  color:#ffffff;
+  text-decoration:underline;
+}
+.footer-dot{ opacity:.45; margin:0 4px; }
 .ico-mail{
-  width: 18px; height: 18px; fill: currentColor; opacity: .9;
+  width:18px;
+  height:18px;
+  fill:currentColor;
+  opacity:.9;
 }
-@media (prefers-color-scheme: light){
+@media (prefers-color-scheme:light){
   .site-footer{ background:#0e1a2b; }
   .footer-link{ color:#0e84ff; }
 }
-/* Tymczasowo chowamy dużą sekcję kontaktu, jeśli była na stronie */
-#contact, .contact-hero { display: none !important; }
+
+/* Ukryj duży, stary blok kontaktu (gigantyczna koperta), jeśli gdzieś jest */
+#contact,
+.contact-hero{
+  display:none !important;
+}
+
 /* Mały pływający przycisk kontaktu w prawym-dolnym rogu */
 .contact-fab{
-  position: fixed;
-  right: 22px;
-  bottom: 22px;
-  width: 52px;
-  height: 52px;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: 0 6px 24px rgba(0,0,0,.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  z-index: 9999;
-  transition: transform .15s ease, background .2s ease, border-color .2s ease;
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  width:52px;
+  height:52px;
+  border-radius:9999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.18);
+  box-shadow:0 6px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  z-index:10000;
+  transition:transform .15s ease,
+             background .2s ease,
+             border-color .2s ease;
 }
 .contact-fab:hover{
-  transform: translateY(-2px) scale(1.03);
-  background: rgba(255,255,255,0.14);
-  border-color: rgba(255,255,255,0.30);
+  transform:translateY(-2px) scale(1.03);
+  background:rgba(255,255,255,0.14);
+  border-color:rgba(255,255,255,0.30);
 }
 .contact-fab svg{
-  width: 24px;
-  height: 24px;
-  fill: #d6e5ff;
-  opacity: .95;
+  width:24px;
+  height:24px;
+  fill:#d6e5ff;
+  opacity:.95;
 }
-@media (max-width: 640px){
+@media (max-width:640px){
   .contact-fab{
-    right: 14px;
-    bottom: 14px;
-    width: 48px;
-    height: 48px;
+    right:14px;
+    bottom:14px;
+    width:48px;
+    height:48px;
   }
 }
 
 /* Tekst tylko dla czytników ekranu (dostępność) */
 .sr-only{
   position:absolute !important;
-  height:1px; width:1px;
-  overflow:hidden; clip:rect(1px,1px,1px,1px);
-  white-space:nowrap; border:0; padding:0; margin:-1px;
-}
-/* wyjątek: pokaż pływający przycisk kontaktu na stronie głównej */
-body.home > a.contact-fab { display: inline-flex !important; }
-.contact-fab{ z-index: 10000; }
-/* === FIX dla "małej skrzynki" w rogu (FAB) === */
-
-/* 1) Nigdy nie ukrywaj FAB-a, nawet jeśli inne reguły chowają <a> w <body> */
-body > a.contact-fab { 
-  display: inline-flex !important; 
+  height:1px;
+  width:1px;
+  overflow:hidden;
+  clip:rect(1px,1px,1px,1px);
+  white-space:nowrap;
+  border:0;
+  padding:0;
+  margin:-1px;
 }
 
-/* 2) Na stronie głównej też ma być widoczny (przebija body.home > a {...}) */
-body.home > a.contact-fab { 
-  display: inline-flex !important; 
+/* FAB zawsze widoczny */
+body > a.contact-fab,
+body.home > a.contact-fab{
+  display:inline-flex !important;
 }
 
-/* 3) Na wszelki wypadek podnieś warstwę, żeby był nad wszystkim */
-.contact-fab { 
-  z-index: 10000; 
-}
-
-/* 4) Ukryj duży, stary blok kontaktu (gigantyczna koperta), jeśli gdzieś jest */
-#contact, 
-.contact-hero { 
-  display: none !important; 
-}
 /* === ToC (Spis treści) — eleganckie, klikalne kafelki === */
 :root{
-  --toc-accent: #22c55e;        /* zielony akcent */
-  --toc-accent-2: #86efac;      /* jaśniejszy zielony */
-  --toc-bg: rgba(34,197,94,.08); /* tło hover/focus */
+  --toc-accent:#22c55e;        /* zielony akcent */
+  --toc-accent-2:#86efac;      /* jaśniejszy zielony */
+  --toc-bg:rgba(34,197,94,.08); /* tło hover/focus */
 }
 
 .card .toc{
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  counter-reset: toc;
-  display: grid;
-  gap: 10px;
+  list-style:none;
+  margin:12px 0 0;
+  padding:0;
+  counter-reset:toc;
+  display:grid;
+  gap:10px;
 }
-
 .card .toc li{
-  position: relative;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 14px;
-  background: rgba(255,255,255,.03);
-  box-shadow: 0 2px 12px rgba(0,0,0,.12);
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+  position:relative;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  background:rgba(255,255,255,.03);
+  box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    border-color .2s ease,
+    background-color .2s ease;
 }
-
 .card .toc li a{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  text-decoration: none;
-  color: #e6f6ee; /* czytelny na ciemnym */
-  font-weight: 600;
-  line-height: 1.25;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  text-decoration:none;
+  color:#e6f6ee; /* czytelny na ciemnym */
+  font-weight:600;
+  line-height:1.25;
 }
-
 .card .toc li::before{
-  counter-increment: toc;
-  content: counter(toc);
-  flex: 0 0 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--toc-accent-2), #c7f9cc);
-  color: #064e3b; /* ciemno-zielony */
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 6px rgba(0,0,0,.12);
+  counter-increment:toc;
+  content:counter(toc);
+  flex:0 0 28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:linear-gradient(135deg,var(--toc-accent-2),#c7f9cc);
+  color:#064e3b; /* ciemno-zielony */
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 1px 6px rgba(0,0,0,.12);
 }
-
-.card .toc li a span{
-  font-weight: 600;
-}
-
+.card .toc li a span{ font-weight:600; }
 .card .toc li a::after{
-  content: "›";
-  margin-left: auto;
-  font-size: 18px;
-  opacity: .45;
-  transition: transform .2s ease, opacity .2s ease;
+  content:"›";
+  margin-left:auto;
+  font-size:18px;
+  opacity:.45;
+  transition:transform .2s ease, opacity .2s ease;
 }
-
 .card .toc li:hover{
-  border-color: var(--toc-accent);
-  background: var(--toc-bg);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(34,197,94,.12);
+  border-color:var(--toc-accent);
+  background:var(--toc-bg);
+  transform:translateY(-1px);
+  box-shadow:0 8px 22px rgba(34,197,94,.12);
 }
-
 .card .toc li:hover a::after{
-  transform: translateX(2px);
-  opacity: .8;
+  transform:translateX(2px);
+  opacity:.8;
 }
-
 /* focus dla klawiatury/AA */
 .card .toc li a:focus-visible{
-  outline: 3px solid var(--toc-accent);
-  outline-offset: 4px;
-  border-radius: 10px;
+  outline:3px solid var(--toc-accent);
+  outline-offset:4px;
+  border-radius:10px;
+}
+/* Mobilne dopasowanie */
+@media (max-width:640px){
+  .card .toc li a{ padding:12px; }
+  .card .toc li::before{
+    flex-basis:26px;
+    height:26px;
+  }
 }
 
-/* Mobilne dopasowanie */
-@media (max-width: 640px){
-  .card .toc li a{ padding: 12px; }
-  .card .toc li::before{ flex-basis: 26px; height: 26px; }
-}
 /* ====== KONTRAST TEKSTU + AKCENTY (BriefRooms: dark) ====== */
 :root{
-  --br-text-strong: #eef4f8;   /* biały, ale nie „przepalony” */
-  --br-text-body:   #d6e1e8;   /* główny kolor akapitów */
-  --br-text-mute:   #b3c2cd;   /* opisy, drobne napisy */
-  --br-link:        #86c5ff;   /* linki (niebieski, czytelny) */
-  --br-link-hover:  #aee0ff;
-  --br-accent:      #7ae0b8;   /* miękka zieleń – akcenty */
-  --br-accent-2:    #ffd166;   /* żółty do lekkiego wyróżniania */
-  --br-card-bg:     rgba(255,255,255,.055); /* karty – tło */
-  --br-card-bg-2:   rgba(255,255,255,.035); /* karty – naprzemiennie */
+  --br-text-strong:#eef4f8;   /* biały, ale nie „przepalony” */
+  --br-text-body:#d6e1e8;     /* główny kolor akapitów */
+  --br-text-mute:#b3c2cd;     /* opisy, drobne napisy */
+  --br-link:#86c5ff;          /* linki (niebieski, czytelny) */
+  --br-link-hover:#aee0ff;
+  --br-accent:#7ae0b8;        /* miękka zieleń – akcenty */
+  --br-accent-2:#ffd166;      /* żółty do lekkiego wyróżniania */
+  --br-card-bg:rgba(255,255,255,.055); /* karty – tło */
+  --br-card-bg-2:rgba(255,255,255,.035); /* karty – naprzemiennie */
 }
 
 /* Tekst bazowy */
-body { color: var(--br-text-body); }
-p, li { color: var(--br-text-body); }
-small, .sub, .lead { color: var(--br-text-mute); }
+body{ color:var(--br-text-body); }
+p, li{ color:var(--br-text-body); }
+small, .sub, .lead{ color:var(--br-text-mute); }
 
 /* Nagłówki: trochę jaśniejsze, żeby „trzymały” sekcje wzrokiem */
-h1, h2, h3 { color: var(--br-text-strong); }
-h2 { text-shadow: 0 1px 0 rgba(255,255,255,.06); }
-h3 { color: #e3edf4; }
+h1, h2, h3{ color:var(--br-text-strong); }
+h2{ text-shadow:0 1px 0 rgba(255,255,255,.06); }
+h3{ color:#e3edf4; }
 
 /* Linki czytelniejsze i z wyraźnym hoverem */
-a { color: var(--br-link); text-decoration-color: rgba(134,197,255,.5); }
-a:hover { color: var(--br-link-hover); text-decoration-color: var(--br-link-hover); }
+a{
+  color:var(--br-link);
+  text-decoration-color:rgba(134,197,255,.5);
+}
+a:hover{
+  color:var(--br-link-hover);
+  text-decoration-color:var(--br-link-hover);
+}
 
 /* Wyróżnienia w tekście – zamiast ostrej żółci delikatny akcent */
-b, strong { color: var(--br-text-strong); }
-em { color: var(--br-accent); font-style: normal; }
+b, strong{ color:var(--br-text-strong); }
+em{
+  color:var(--br-accent);
+  font-style:normal;
+}
 
 /* Karty/sekcje – subtelne urozmaicenie tła co drugą kartę */
-.card { background: var(--br-card-bg); }
-.card:nth-of-type(2n){ background: var(--br-card-bg-2); }
+.card{ background:var(--br-card-bg); }
+.card:nth-of-type(2n){ background:var(--br-card-bg-2); }
 
 /* Spis treści – zachęca do kliknięcia: jaśniejsze linki i bullets */
-#spis a { color: var(--br-link); }
-#spis a:hover { color: var(--br-link-hover); }
-#spis ol, #spis ul { 
-  --dot: var(--br-accent);
+#spis a{ color:var(--br-link); }
+#spis a:hover{ color:var(--br-link-hover); }
+#spis ol,
+#spis ul{
+  --dot:var(--br-accent);
 }
-#spis li::marker { color: var(--dot); }
+#spis li::marker{ color:var(--dot); }
 
 /* Drobne akcenty w nawiasach/etykietach, żeby rozbić monotonię */
-.badge, .label, .pill {
-  color:#0e1b25; background: var(--br-accent);
-  padding:.12rem .45rem; border-radius:.5rem;
+.badge,
+.label,
+.pill{
+  color:#0e1b25;
+  background:var(--br-accent);
+  padding:.12rem .45rem;
+  border-radius:.5rem;
 }
 
 /* Widget autofagii – spójny z prośbą o „jasnozielone” tło */
-.af-btn, .af-panel {
-  background: rgba(122,224,184,.12);
-  border-color: rgba(122,224,184,.35);
+.af-btn,
+.af-panel{
+  background:rgba(122,224,184,.12);
+  border-color:rgba(122,224,184,.35);
 }
-.af-label { color: var(--br-accent); }
-.af-sources a { color: #bfeeff; }
-.af-sources a:hover { color:#e4f7ff; }
+.af-label{ color:var(--br-accent); }
+.af-sources a{ color:#bfeeff; }
+.af-sources a:hover{ color:#e4f7ff; }
 
 /* Cytaty / callout – lekkie przełamanie kolorystyczne */
-blockquote {
-  color: #e9f1f6;
-  border-left: 3px solid var(--br-accent);
-  background: rgba(122,224,184,.06);
+blockquote{
+  color:#e9f1f6;
+  border-left:3px solid var(--br-accent);
+  background:rgba(122,224,184,.06);
 }
 
 /* === Health tiles === */
-/* === Health tiles === */
-.health-grid{ 
-  display:grid; 
-  gap:18px; 
+.health-grid{
+  display:grid;
+  gap:18px;
 }
-@media (min-width: 720px){
-  .health-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+@media (min-width:720px){
+  .health-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
 }
 
 .topic-card{
-  position:relative; 
-  display:block; 
-  text-decoration:none; 
+  position:relative;
+  display:block;
+  text-decoration:none;
   color:#e7eef9;
-  padding:18px 20px 22px; 
+  padding:18px 20px 22px;
   min-height:260px;
   border-radius:16px;
   background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
   border:1px solid rgba(255,255,255,.08);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25);
-  transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 10px 30px rgba(0,0,0,.25);
+  transition:transform .18s ease,
+             box-shadow .18s ease,
+             background .18s ease;
 }
 .topic-card:hover{
   transform:translateY(-2px);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 16px 34px rgba(0,0,0,.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 16px 34px rgba(0,0,0,.28);
   background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
 }
 .topic-card h3{
-  margin:0 0 8px; 
-  font-size:1.25rem; 
-  line-height:1.35; 
-  color:#eef4f8; 
+  margin:0 0 8px;
+  font-size:1.25rem;
+  line-height:1.35;
+  color:#eef4f8;
   letter-spacing:.1px;
 }
 .topic-card .tags{
-  margin:0 0 10px; 
-  font-size:.92rem; 
+  margin:0 0 10px;
+  font-size:.92rem;
   color:#9fc1ff;
 }
 .topic-card .blurb{
-  margin:0; 
-  max-width:50ch; 
-  color:#d6e1e8; 
+  margin:0;
+  max-width:50ch;
+  color:#d6e1e8;
   line-height:1.55;
 }
 
 /* „New” badge */
 .badge-new{
-  position:absolute; 
-  top:14px; 
+  position:absolute;
+  top:14px;
   left:14px;
-  display:inline-flex; 
-  align-items:center; 
+  display:inline-flex;
+  align-items:center;
   justify-content:center;
-  height:28px; 
-  padding:0 12px; 
+  height:28px;
+  padding:0 12px;
   border-radius:9999px;
-  font-weight:700; 
-  font-size:.85rem; 
+  font-weight:700;
+  font-size:.85rem;
   letter-spacing:.2px;
-  background:rgba(134,197,255,.18); 
-  border:1px solid rgba(134,197,255,.35); 
+  background:rgba(134,197,255,.18);
+  border:1px solid rgba(134,197,255,.35);
   color:#d7e6ff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px rgba(0,0,0,.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 6px 18px rgba(0,0,0,.22);
 }
 
 /* wyrównana kolumna tematów (np. cholesterol + inne) */
-.topic-stack{ 
-  display:flex; 
-  flex-direction:column; 
-  gap:22px; 
+.topic-stack{
+  display:flex;
+  flex-direction:column;
+  gap:22px;
 }
-
-/* ============================================
-   LIGHT ROOMS (News / Health / Geo / Science)
-   obowiązuje na wszystkich stronach poza .home
-   ============================================ */
-
-:root{
-  /* ciepły, spokojny motyw dla czytania tekstu */
-  --room-bg:            #f6f2ea;  /* tło – jasne ecru */
-  --room-surface:       #ffffff;  /* białe karty */
-  --room-surface-soft:  #f3ece2;  /* drugi odcień do przełamania */
-  --room-border:        rgba(15,23,42,.08);
-
-  --room-text:          #111827;  /* prawie czarny */
-  --room-muted:         #6b7280;  /* meta / opisy */
-  --room-heading:       #0f172a;  /* nagłówki */
-
-  --room-accent:        #2563eb;  /* spokojny niebieski */
-  --room-accent-soft:   #e3edff;  /* miękkie tło dla „pigułek” */
-}
-
-/* 1. tło i podstawowy tekst – tylko poza stroną główną */
-body:not(.home){
-  background: var(--room-bg);
-  color: var(--room-text);
-}
-
-/* 2. nagłówki i akapity */
-body:not(.home) h1,
-body:not(.home) h2,
-body:not(.home) h3{
-  color: var(--room-heading);
-}
-
-body:not(.home) p,
-body:not(.home) li{
-  color: var(--room-text);
-}
-
-body:not(.home) small,
-body:not(.home) .sub,
-body:not(.home) .lead{
-  color: var(--room-muted);
-}
-
-/* 3. linki w treści (menu zostawiamy – ma własne klasy) */
-body:not(.home) main a{
-  color: var(--room-accent);
-  text-decoration-color: rgba(37,99,235,.35);
-}
-body:not(.home) main a:hover{
-  color: #1d4ed8;
-  text-decoration-color: #1d4ed8;
-}
-
-/* 4. główne karty z treścią (news boxy, panele zdrowotne itd.) */
-body:not(.home) .card{
-  background: var(--room-surface);
-  border-radius: 22px;
-  border: 1px solid var(--room-border);
-  box-shadow:
-    0 14px 34px rgba(15,23,42,.08),
-    0 1px 0 rgba(255,255,255,.7);
-}
-
-/* jeśli są zagnieżdżone karty w środku – delikatnie inne tło */
-body:not(.home) .card .card{
-  background: var(--room-surface-soft);
-}
-
-/* 5. badge / „pigułki” źródeł (ESC/EAS, ACC, itp.) */
-body:not(.home) .badge,
-body:not(.home) .pill,
-body:not(.home) .meta-pill{
-  background: var(--room-accent-soft);
-  color: var(--room-heading);
-  border-radius: 999px;
-}
-
-/* 6. cytaty / callouty */
-body:not(.home) blockquote{
-  background: var(--room-surface-soft);
-  border-left: 4px solid var(--room-accent);
-  color: var(--room-text);
-}
-
-/* 7. stopka na jasnych stronach */
-body:not(.home) .site-footer{
-  border-top-color: rgba(15,23,42,.08);
-  background: #f0ece4;
-}
-body:not(.home) .footer-link{
-  color: #1f2937;
-}
-body:not(.home) .footer-link:hover{
-  color: #111827;
-}
-
-/* ============================================
-   Light theme for content rooms (News / Health / Geo / Science)
-   ============================================ */
-
-:root{
-  /* tło "ciepło-białe" + kolory bazowe */
-  --room-bg: #f6f2ea;          /* ciepłe, zgaszone ecru */
-  --room-surface: #ffffff;     /* białe panele */
-  --room-surface-soft: #f9f4ec;
-  --room-border: rgba(15,23,42,.06);
-
-  --room-text: #111827;        /* prawie czarny, ale miękki */
-  --room-muted: #6b7280;       /* opis, meta, daty */
-  --room-heading: #0f172a;
-
-  /* spokojny, profesjonalny akcent (niekrzykliwy niebieski) */
-  --room-accent: #2563eb;
-  --room-accent-soft: #e0edff;
-}
-
-/* Bazowe tło + tekst dla wszystkich stron bez własnego inline-style
-   (home ma swój <style> w HTML, więc pozostaje morski i ciemny). */
-body{
-  background: var(--room-bg);
-  color: var(--room-text);
-}
-
-/* Szerokość kolumny czytania (News, artykuły zdrowotne itd.) */
-main{
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 32px 16px 64px;
-}
-
-/* Główne „pudełko” z treścią:
-   - News: cały panel z nagłówkiem „Politics / World”
-   - Cholesterol: duży panel z nagłówkiem i akapitami
-
-   Nie dotykamy sekcji z drzwiami, bo ma klasę .grid. */
-main > section:not(.grid){
-  background: linear-gradient(180deg, var(--room-surface), var(--room-surface-soft));
-  border-radius: 28px;
-  border: 1px solid var(--room-border);
-  box-shadow: 0 18px 40px rgba(15,23,42,.08);
-  padding: 32px 26px 40px;
-}
-
-/* Nagłówki + podstawowy tekst */
-h1, h2, h3, h4{
-  color: var(--room-heading);
-}
-p, li{
-  color: var(--room-text);
-}
-
-/* Meta, daty, „Last ~36 hours”, dopiski podtytułów */
-.page-meta,
-small,
-.muted{
-  color: var(--room-muted);
-}
-
-/* Linki w treści (bez wpływu na menu, które ma własne klasy) */
-main a{
-  color: var(--room-accent);
-  text-decoration: none;
-}
-main a:hover{
-  color: #1d4ed8;
-  text-decoration: underline;
-}
-
-/* Typowe „karty” wewnątrz sekcji:
-   – pojedyncze newsy
-   – bloki typu „Your lipid panel, without jargon”
-   Jeśli masz inne klasy, one tylko zyskają to tło, układ się nie zmieni. */
-article,
-.section-card,
-.news-item,
-.health-block{
-  background: var(--room-surface);
-  border-radius: 20px;
-  border: 1px solid rgba(15,23,42,.05);
-  box-shadow: 0 10px 24px rgba(15,23,42,.06);
-}
-
-/* Delikatne tło dla „pigułek” (tagi typu ESC/EAS, ACC itd., jeśli mają takie klasy) */
-.tag-pill,
-.badge,
-.meta-pill{
-  background: var(--room-accent-soft);
-  color: var(--room-heading);
-}
-
-/* Tabele (np. jeśli w artykułach o zdrowiu dodasz tabelki z wynikami) */
-table{
-  border-collapse: collapse;
-  width: 100%;
-}
-table thead{
-  background: var(--room-surface-soft);
-}
-table th,
-table td{
-  border: 1px solid rgba(15,23,42,.06);
-  padding: 8px 10px;
-}
-table th{
-  font-weight: 600;
-  color: var(--room-heading);
-}
-/* === LIGHT ROOMS (News / Health / Geo / Science) — tylko poza stroną główną === */
-
-:root{
-  /* ciepłe, spokojne kolory dla „pokojów” */
-  --room-bg:            #f6f2ea;  /* ciepłe ecru w tle strony */
-  --room-surface:       #ffffff;  /* białe karty */
-  --room-surface-soft:  #f3ece2;  /* delikatnie ciemniejsze sekcje w kartach */
-  --room-border:        rgba(15,23,42,.08);
-
-  --room-text:          #111827;  /* prawie czarny, ale miękki */
-  --room-muted:         #6b7280;  /* opisy, daty, meta */
-  --room-heading:       #0f172a;  /* nagłówki */
-
-  --room-accent:        #2563eb;  /* spokojny niebieski akcent */
-  --room-accent-soft:   #e3edff;  /* jasne tło dla „pigułek” */
-}
-
-/* 1. Tło i podstawowy tekst – dla wszystkich stron, które NIE są .home */
-body:not(.home){
-  background: var(--room-bg);
-  color: var(--room-text);
-}
-
-/* 2. Nagłówki i tekst */
-body:not(.home) h1,
-body:not(.home) h2,
-body:not(.home) h3{
-  color: var(--room-heading);
-}
-
-body:not(.home) p,
-body:not(.home) li{
-  color: var(--room-text);
-}
-
-body:not(.home) small,
-body:not(.home) .sub,
-body:not(.home) .lead{
-  color: var(--room-muted);
-}
-
-/* 3. Linki w treści – spokojny niebieski, z fajnym hoverem */
-body:not(.home) main a{
-  color: var(--room-accent);
-  text-decoration-color: rgba(37,99,235,.35);
-}
-body:not(.home) main a:hover{
-  color: #1d4ed8;
-  text-decoration-color: #1d4ed8;
-}
-
-/* 4. Główne karty z treścią (news box, panele w Health itd.) */
-body:not(.home) .card{
-  background: var(--room-surface);
-  border-radius: 22px;
-  border: 1px solid var(--room-border);
-  box-shadow:
-    0 14px 34px rgba(15,23,42,.08),
-    0 1px 0 rgba(255,255,255,.7);
-}
-
-/* zagnieżdżone karty (jeśli są) trochę odcinamy od tła */
-body:not(.home) .card .card{
-  background: var(--room-surface-soft);
-}
-
-/* 5. Badges / pigułki typu ESC/EAS, ACC itd. (jeśli korzystają z tych klas) */
-body:not(.home) .badge,
-body:not(.home) .pill,
-body:not(.home) .meta-pill{
-  background: var(--room-accent-soft);
-  color: var(--room-heading);
-  border-radius: 999px;
-}
-
-/* 6. Cytaty / callouty – spokojny, czytelny box */
-body:not(.home) blockquote{
-  background: var(--room-surface-soft);
-  border-left: 4px solid var(--room-accent);
-  color: var(--room-text);
-}
-
-/* 7. Stopka na jasnych stronach */
-body:not(.home) .site-footer{
-  border-top-color: rgba(15,23,42,.08);
-  background: #f0ece4;
-}
-body:not(.home) .footer-link{
-  color: #1f2937;
-}
-body:not(.home) .footer-link:hover{
-  color: #111827;
-}
-/* === FINAL OVERRIDE: jasny motyw w pokojach (wszystko poza stroną główną) === */
-
-body:not(.home){
-  background:#f6f2ea !important;      /* ciepłe ecru */
-  color:#111827 !important;           /* ciemny, czytelny tekst */
-}
-
-/* Kolumna czytania (News, Health, Geo, Science) */
-body:not(.home) main{
-  max-width:980px;
-  margin:0 auto;
-  padding:32px 16px 64px;
-}
-
-/* Duży panel z treścią (np. „Twój lipidogram…”, „Politics / World”) */
-body:not(.home) main > section{
-  background:linear-gradient(180deg,#ffffff,#f9f4ec);
-  border-radius:28px;
-  border:1px solid rgba(15,23,42,.06);
-  box-shadow:0 18px 40px rgba(15,23,42,.08);
-  padding:32px 26px 40px;
-}
-
-/* Pojedyncze karty/boxy wewnątrz sekcji (news, bloki w Health itd.) */
-body:not(.home) .card{
-  background:#ffffff !important;
-  border-radius:20px;
-  border:1px solid rgba(15,23,42,.05);
-  box-shadow:0 10px 24px rgba(15,23,42,.06);
-  color:#111827;
-}
-
-/* Nagłówki */
-body:not(.home) h1,
-body:not(.home) h2,
-body:not(.home) h3,
-body:not(.home) h4{
-  color:#0f172a;
-}
-
-/* Zwykły tekst i listy */
-body:not(.home) p,
-body:not(.home) li{
-  color:#111827;
-}
-
-/* Meta: daty, opisy, „Last ~36 hours”, drobne dopiski */
-body:not(.home) .page-meta,
-body:not(.home) small,
-body:not(.home) .muted,
-body:not(.home) .sub,
-body:not(.home) .lead{
-  color:#6b7280;
-}
-
-/* Linki w treści (bez zmiany menu) */
-body:not(.home) main a{
-  color:#2563eb;
-  text-decoration-color:rgba(37,99,235,.35);
-}
-body:not(.home) main a:hover{
-  color:#1d4ed8;
-  text-decoration-color:#1d4ed8;
-}
-
-/* Delikatne „pigułki” (ESC/EAS, ACC itp.) */
-body:not(.home) .badge,
-body:not(.home) .pill,
-body:not(.home) .meta-pill,
-body:not(.home) .tag-pill{
-  background:#e0edff;
-  color:#0f172a;
-  border-radius:999px;
-}
-
-/* Cytaty / callouty */
-body:not(.home) blockquote{
-  background:#f3ece2;
-  border-left:4px solid #2563eb;
-  color:#111827;
-}
-
-/* Jasna stopka na stronach z artykułami */
-body:not(.home) .site-footer{
-  border-top-color:rgba(15,23,42,.08);
-  background:#f0ece4;
-}
-body:not(.home) .footer-link{
-  color:#1f2937;
-}
-body:not(.home) .footer-link:hover{
-  color:#111827;
-}
-
-
