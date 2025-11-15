@@ -12,6 +12,7 @@
   --stroke:rgba(255,255,255,.08);
   --focus:#86b7ff;
   --head-space:64px; /* odsunięcie treści od góry pod stałe logo (tylko na .home) */
+  --hotbar-h:32px;   /* wysokość paska z hot news */
 
   /* ZMIENNE DLA JASNYCH „POKOJÓW” (ROOMS / ARTYKUŁY) */
   --room-bg:#f6f2ea;             /* tło ecru */
@@ -43,7 +44,9 @@ body{
 }
 
 /* Tylko strona główna (z klasą .home) ma odsunięcie pod logo */
-body.home{ padding-top:var(--head-space); }
+body.home{
+  padding-top:calc(var(--head-space) + var(--hotbar-h));
+}
 
 a{
   color:var(--muted);
@@ -795,4 +798,87 @@ body.rooms-light .footer-link{
 }
 body.rooms-light .footer-link:hover{
   color:#111827;
+}
+/* ============================
+   HOT NEWS BAR (PL + EN, home)
+   ============================ */
+
+.br-hotbar{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  z-index:1200;
+  background:linear-gradient(90deg,#facc15,#f97316); /* żółto-pomarańczowy jak Onet, ale delikatniejszy */
+  color:#111827;
+  font-size:14px;
+  line-height:1.4;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+}
+
+.br-hotbar-inner{
+  max-width:1100px;
+  margin:0 auto;
+  padding:6px 12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.br-hotbar-label{
+  font-weight:700;
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+
+.br-hotbar-ticker{
+  flex:1;
+  overflow:hidden;
+  min-width:0;
+}
+
+.br-hotbar-track{
+  display:inline-flex;
+  gap:32px;
+  white-space:nowrap;
+  will-change:transform;
+  animation:br-ticker-scroll 40s linear infinite;
+}
+
+.br-hotbar-item{
+  color:inherit;
+  text-decoration:none;
+}
+
+.br-hotbar-item:hover{
+  text-decoration:underline;
+}
+
+/* po najechaniu myszą zatrzymujemy „taśmę” */
+.br-hotbar:hover .br-hotbar-track{
+  animation-play-state:paused;
+}
+
+.br-hotbar-time{
+  font-size:11px;
+  opacity:.85;
+  white-space:nowrap;
+}
+
+/* animacja przesuwania w lewo */
+@keyframes br-ticker-scroll{
+  0%{ transform:translateX(0); }
+  100%{ transform:translateX(-50%); }
+}
+
+/* Mobile: trochę mniejszy tekst, mniej „powietrza” */
+@media (max-width:640px){
+  .br-hotbar-inner{
+    padding:4px 8px;
+    gap:8px;
+  }
+  .br-hotbar-label{ display:none; }  /* na bardzo małych ekranach zostaw sam tekst newsów */
+  .br-hotbar-time{ font-size:10px; }
 }
