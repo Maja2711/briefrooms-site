@@ -887,19 +887,22 @@ body.rooms-light .footer-link:hover{
   .br-hotbar-time{ font-size:10px; }
 }
 /* Home: nawigacja „przyklejona” do paska HOT NEWS (PL + EN) */
+/* Home: nawigacja przyklejona do paska HOT NEWS (bez przerwy) */
 body.home .br-hotbar{
-  margin-bottom:0 !important;
+  margin-bottom:0;
 }
 
-body.home header{
-  margin-top:0 !important;
-  padding-top:0 !important;
-}
-
-/* kasujemy górne marginesy wszystkich elementów w headerze,
-   żeby nic nie „odsuwało się” od paska */
-body.home header *{
+/* Usuń górny padding/margin z pierwszego bloku treści na stronie startowej */
+body.home header,
+body.home main{
+  padding-top:0;
   margin-top:0;
+}
+
+/* Wyzeruj ewentualny margin pierwszego dziecka w headerze/main (tam siedzi nawigacja) */
+body.home header > *:first-child,
+body.home main > *:first-child{
+  margin-top:0 !important;
 }
 
 
