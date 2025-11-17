@@ -1,0 +1,100 @@
+name: Hotbar news (PL/EN)
+
+on:
+  # Uruchamiaj co 30 minut
+  schedule:
+    - cron: "*/30 * * * *"
+  # I możliwość ręcznego odpalenia z zakładki Actions
+  workflow_dispatch:
+
+# Potrzebujemy prawa do zapisu, żeby zacommitować nowe JSON-y
+permissions:
+  contents: write
+
+jobs:
+  update-hotbar:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pobierz repozytorium
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2. Python: pobierz RSS z PAP + Reuters, zapisz do .cache/news_hotbar_*.json
+      - name: Generate hotbar JSON files
+        run: |
+          python - << 'PY'
+          import json
+          import urllib.request
+          import xml.etree.ElementTree as ET
+          from datetime import datetime
+          from pathlib import Path
+
+          # --------- USTAWIENIA ---------
+          FEEDS = {
+              "pl": "https://samorzad.pap.pl/rss.xml",            # PAP (przykładowy RSS PL)
+              "en": "http://feeds.reuters.com/reuters/topNews",   # Reuters Top News (EN)
+          }
+          ITEMS_LIMIT = 5  # ile newsów na pasek
+          # ------------------------------
+
+          def fetch_rss(url, limit=5):
+              """Pobiera RSS i zwraca listę {title, url}."""
+              with urllib.request.urlopen(url, timeout=20) as resp:
+                  data = resp.read()
+
+              root = ET.fromstring(data)
+              items = []
+
+              # typowy układ: <rss><channel><item>...
+              for item in root.findall(".//item")[:limit]:
+                  title_el = item.find("title")
+                  link_el = item.find("link")
+
+                  title = (title_el.text or "").strip() if title_el is not None else ""
+                  link = (link_el.text or "").strip() if link_el is not None else ""
+
+                  if title and link:
+                      items.append({"title": title, "url": link})
+
+              return items
+
+          now = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+          cache_dir = Path(".cache")
+          cache_dir.mkdir(exist_ok=True)
+
+          for lang, url in FEEDS.items():
+              print(f"Fetching {lang} from {url} ...")
+              try:
+                  items = fetch_rss(url, limit=ITEMS_LIMIT)
+              except Exception as e:
+                  print(f"ERROR fetching {lang}: {e}")
+                  items = []
+
+              data = {
+                  "updated_at": now,
+                  "items": items,
+              }
+
+              out_path = cache_dir / f"news_hotbar_{lang}.json"
+              out_path.write_text(
+                  json.dumps(data, ensure_ascii=False, indent=2),
+                  encoding="utf-8",
+              )
+              print(f"Wrote {out_path} ({len(items)} items)")
+
+          PY
+
+      # 3. Commit + push tylko gdy pliki się zmieniły
+      - name: Commit and push if changed
+        run: |
+          # Sprawdzamy, czy w .cache są zmiany
+          if git diff --quiet .cache; then
+            echo "No changes in .cache, nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .cache/news_hotbar_*.json
+            git commit -m "chore(hotbar): update ticker news"
+            git push
+          fi
