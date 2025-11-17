@@ -4,99 +4,148 @@
   const track = document.getElementById('br-hotbar-track');
   const timeEl = document.getElementById('br-hotbar-time');
 
-  // Jeśli nie ma paska w HTML – nie robimy nic
   if (!bar || !track) return;
 
-  // Sprawdzamy, czy jesteśmy w EN czy PL
   const isEN = location.pathname.startsWith('/en/');
   const jsonUrl = isEN
     ? '/.cache/news_summaries_en.json'
     : '/.cache/news_summaries_pl.json';
 
-  // Pobieramy JSON z GitHub Pages (bez cache przeglądarki)
   fetch(jsonUrl, { cache: 'no-store' })
     .then((res) => {
-      if (!res.ok) {
-        throw new Error('HTTP ' + res.status);
-      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     })
     .then((raw) => {
-      // raw jest obiektem:
-      // { "tytuł|2025-11-07": { summary: "...", ... }, ... }
-      const allKeys = Object.keys(raw || {});
+      const keys = Object.keys(raw || {});
 
-      if (!allKeys.length) {
+      if (!keys.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // Usuwamy duble "v2|..." – bierzemy tylko pierwsze wersje
-      const baseKeys = allKeys.filter((k) => !k.startsWith('v2|'));
+      // --- Usuwamy duplikaty typu "v2|..."
+      const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
 
-      // Bierzemy ostatnie 6 nagłówków (najświeższe)
-      const selectedKeys = baseKeys.slice(-6);
+      // --- Parsujemy newsy do ujednoliconej struktury
+      const items = cleanKeys.map((k) => {
+        const parts = k.replace(/^v2\|/, '').split('|');
+        let title = parts[0] || '';
+        const date = parts[1] || '';
 
-      const items = selectedKeys
-        .map((key) => {
-          let whole = key;
+        if (title.startsWith('"') && title.endsWith('"')) {
+          title = title.slice(1, -1);
+        }
 
-          // Na wszelki wypadek – usuń "v2|" jeśli by się trafiło
-          if (whole.startsWith('v2|')) {
-            whole = whole.slice(3);
-          }
+        return { title: title.trim(), date };
+      });
 
-          // Format: TYTUŁ|YYYY-MM-DD
-          const parts = whole.split('|');
-          let title = parts[0] || '';
+      // --------------------------
+      //  PRIORYTETY NEWSÓW
+      // --------------------------
+      const catKraj = [];
+      const catWorld = [];
+      const catSport = [];
 
-          // W PL pierwszy tytuł ma czasem cudzysłów na początku/końcu
-          if (title.startsWith('"') && title.endsWith('"')) {
-            title = title.slice(1, -1);
-          }
+      items.forEach((it) => {
+        const t = it.title.toLowerCase();
 
-          title = title.trim();
-          if (!title) return null;
+        // Polska / polityka / gospodarka
+        if (
+          /polsk|sejm|rząd|premier|senat|ziobr|rpp|nbp|inflacj|straż|wojn|ukrain|gospodar/.test(t)
+        ) {
+          catKraj.push(it);
+          return;
+        }
 
-          return {
-            title,
-            url: isEN ? '/en/news.html' : '/pl/aktualnosci.html',
-          };
-        })
-        .filter(Boolean);
+        // Świat
+        if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
+          catWorld.push(it);
+          return;
+        }
 
-      // Jeśli po filtrowaniu nic nie zostało – chowamy pasek
-      if (!items.length) {
+        // Sport
+        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz/.test(t)) {
+          catSport.push(it);
+          return;
+        }
+
+        // Jeśli nic nie pasuje → Świat jako fallback
+        catWorld.push(it);
+      });
+
+      // --------------------------
+      //  BUDOWA FINALNEJ LISTY
+      // --------------------------
+      const final = [
+        ...catKraj.slice(-2),
+        ...catWorld.slice(-2),
+        ...catSport.slice(-2),
+      ];
+
+      if (!final.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // Czyścimy tor i wstawiamy linki
+      // --------------------------
+      //  Render listy do HTML
+      // --------------------------
       track.innerHTML = '';
-      items.forEach((item) => {
+      final.forEach((item) => {
         const a = document.createElement('a');
         a.className = 'br-hotbar-item';
-        a.href = item.url;
+        a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
         a.textContent = item.title;
         track.appendChild(a);
       });
 
-      // Prosta informacja o dacie aktualizacji – bierzemy datę z ostatniego klucza
-      if (timeEl && selectedKeys.length) {
-        const lastKey = selectedKeys[selectedKeys.length - 1];
-        const parts = lastKey.split('|');
-        const datePart = parts[parts.length - 1];
-
-        if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-          timeEl.textContent = isEN
-            ? 'updated: ' + datePart
-            : 'aktualizacja: ' + datePart;
-        }
+      // --------------------------
+      //  Aktualizacja daty
+      // --------------------------
+      if (timeEl && final[final.length - 1].date) {
+        timeEl.textContent = isEN
+          ? 'updated: ' + final[final.length - 1].date
+          : 'aktualizacja: ' + final[final.length - 1].date;
       }
+
+      // --------------------------
+      //  PŁYNNE PRZEWIJANIE (bez skoków!)
+      // --------------------------
+      const clone = track.cloneNode(true);
+      clone.id = 'br-hotbar-track-clone';
+      clone.classList.add('clone');
+      track.parentNode.appendChild(clone);
+
+      // Ten CSS musi być wstawiony – WSZYTKO BĘDZIE PŁYNNE
+      const style = document.createElement('style');
+      style.textContent = `
+        .br-hotbar-ticker {
+          position: relative;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+        .br-hotbar-track,
+        #br-hotbar-track-clone {
+          display: inline-flex;
+          position: absolute;
+          top: 0;
+          white-space: nowrap;
+          animation: br-scroll 30s linear infinite;
+        }
+        #br-hotbar-track-clone {
+          left: 100%;
+        }
+        @keyframes br-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-100%); }
+        }
+      `;
+      document.head.appendChild(style);
     })
     .catch((err) => {
       console.error('Hotbar error', err);
-      // Błąd pobierania → chowamy pasek
       bar.style.display = 'none';
     });
 })();
+
