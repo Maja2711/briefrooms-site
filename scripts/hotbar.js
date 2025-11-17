@@ -12,37 +12,29 @@
     : '/.cache/news_summaries_pl.json';
 
   fetch(jsonUrl, { cache: 'no-store' })
-    .then((res) => {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
+    .then((res) => res.json())
     .then((raw) => {
       const keys = Object.keys(raw || {});
-
       if (!keys.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // --- Usuwamy duplikaty typu "v2|..."
+      // Usuwamy v2|
       const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
 
-      // --- Parsowanie
+      // Zamieniamy na struktury {title, date}
       const items = cleanKeys.map((k) => {
         const parts = k.replace(/^v2\|/, '').split('|');
-        let title = parts[0] || '';
-        const date = parts[1] || '';
-
+        let title = (parts[0] || '').trim();
+        let date = parts[1] || '';
         if (title.startsWith('"') && title.endsWith('"')) {
           title = title.slice(1, -1);
         }
-
-        return { title: title.trim(), date };
+        return { title, date };
       });
 
-      // --------------------------
-      //  KATEGORYZACJA NEWSÓW
-      // --------------------------
+      // --- Kategorie ---
       const catKraj = [];
       const catWorld = [];
       const catSport = [];
@@ -50,31 +42,29 @@
       items.forEach((it) => {
         const t = it.title.toLowerCase();
 
-        // Polska / polityka / gospodarka
-        if (/(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|straz|wojna|ukraina|gospodar)/u.test(t)) {
+        // PL kraj / polityka
+        if (!isEN && /(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojna|ukrain|gospodar)/.test(t)) {
           catKraj.push(it);
           return;
         }
 
-        // Świat
-        if (/usa|uk |eu |un |euro|world|global|election|nato|germany|france/.test(t)) {
+        // EN/PL global
+        if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
           catWorld.push(it);
           return;
         }
 
-        // Sport
-        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz|ekstraklasa/.test(t)) {
+        // sport
+        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz/.test(t)) {
           catSport.push(it);
           return;
         }
 
-        // Reszta → Świat
+        // fallback → świat
         catWorld.push(it);
       });
 
-      // --------------------------
-      //  FINALNE 6 NEWSÓW
-      // --------------------------
+      // FINALNE newsy
       const final = [
         ...catKraj.slice(-2),
         ...catWorld.slice(-2),
@@ -86,17 +76,9 @@
         return;
       }
 
-      // --------------------------
-      //  Render listy
-      // --------------------------
+      // Render
       track.innerHTML = '';
-
       final.forEach((item) => {
-        // Automatyczne obcięcie bardzo długich tytułów
-        if (item.title.length > 120) {
-          item.title = item.title.slice(0, 117) + '...';
-        }
-
         const a = document.createElement('a');
         a.className = 'br-hotbar-item';
         a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
@@ -104,58 +86,35 @@
         track.appendChild(a);
       });
 
-      // --------------------------
-      //  Data aktualizacji
-      // --------------------------
-      const lastWithDate = final.find((x) => x.date) || null;
-      if (timeEl && lastWithDate) {
+      // Aktualizacja daty
+      if (timeEl && final[final.length - 1].date) {
         timeEl.textContent = isEN
-          ? 'updated: ' + lastWithDate.date
-          : 'aktualizacja: ' + lastWithDate.date;
+          ? 'updated: ' + final[final.length - 1].date
+          : 'aktualizacja: ' + final[final.length - 1].date;
       }
 
-      // --------------------------
-      //  PŁYNNE PRZEWIJANIE (bez skoków!)
-      // --------------------------
-
-      // Klon toru
+      // --- PŁYNNE PRZEWIJANIE ---
       const clone = track.cloneNode(true);
       clone.id = 'br-hotbar-track-clone';
-      clone.classList.add('clone');
       track.parentNode.appendChild(clone);
 
-      // Dynamiczne wyliczenie szerokości przewijania
-      const totalWidth = track.scrollWidth;
-      document.documentElement.style.setProperty('--scroll-width', totalWidth + 'px');
-
-      // CSS animacji — dynamiczna długość
       const style = document.createElement('style');
       style.textContent = `
-        .br-hotbar-ticker {
-          position: relative;
-          overflow: hidden;
-          white-space: nowrap;
+        .br-hotbar-ticker { position: relative; overflow: hidden; }
+        .br-hotbar-track, #br-hotbar-track-clone {
+          position: absolute; top: 0; display: inline-flex; white-space: nowrap;
+          animation: br-scroll 28s linear infinite;
         }
-        .br-hotbar-track,
-        #br-hotbar-track-clone {
-          display: inline-flex;
-          position: absolute;
-          top: 0;
-          white-space: nowrap;
-          animation: br-scroll 30s linear infinite;
-        }
-        #br-hotbar-track-clone {
-          left: var(--scroll-width);
-        }
+        #br-hotbar-track-clone { left: 100%; }
         @keyframes br-scroll {
           from { transform: translateX(0); }
-          to   { transform: translateX(calc(-1 * var(--scroll-width))); }
+          to   { transform: translateX(-100%); }
         }
       `;
       document.head.appendChild(style);
     })
     .catch((err) => {
-      console.error('Hotbar error', err);
+      console.error('Hotbar error:', err);
       bar.style.display = 'none';
     });
 })();
