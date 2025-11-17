@@ -56,7 +56,6 @@
           }
 
           title = title.trim();
-
           if (!title) return null;
 
           return {
@@ -82,10 +81,6 @@
         track.appendChild(a);
       });
 
-      // Duplikat toru do płynnego przewijania
-      const clone = track.cloneNode(true);
-      track.parentNode.appendChild(clone);
-
       // Prosta informacja o dacie aktualizacji – bierzemy datę z ostatniego klucza
       if (timeEl && selectedKeys.length) {
         const lastKey = selectedKeys[selectedKeys.length - 1];
@@ -105,4 +100,3 @@
       bar.style.display = 'none';
     });
 })();
-
