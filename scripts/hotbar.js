@@ -1,91 +1,100 @@
-(function () {
-  const lang = document.documentElement.lang || "pl";
-  const isPL = lang.startsWith("pl");
-  const jsonUrl = isPL
-    ? "/.cache/news_summaries_pl.json"
-    : "/.cache/news_summaries_en.json";
+// /scripts/hotbar.js
+// Pasek HOT NEWS bez fallbacka:
+// - jeśli JSON z newsami jest OK → wyświetla nagłówki,
+// - jeśli JSON jest pusty / błąd → pasek jest ukryty.
 
-  const track = document.getElementById("br-hotbar-track");
-  const timeEl = document.getElementById("br-hotbar-time");
+(function () {
+  // Szukamy paska
+  var bar = document.querySelector('.br-hotbar');
+  if (!bar) return;
+
+  var track  = bar.querySelector('.br-hotbar-track');
+  var timeEl = bar.querySelector('.br-hotbar-time');
 
   if (!track) return;
 
-  // Fallback gdy nie zadziała fetch / JSON jest pusty
-  const fallbackItems = isPL
-    ? [
-        {
-          title:
-            "Kongres PSL wybierze nowe władze. Kosiniak-Kamysz o roli ludowców w rządzie",
-          url: "/pl/aktualnosci.html"
-        },
-        {
-          title:
-            "Groźby pod adresem prezydenta Karola Nawrockiego. Policja bada sprawę",
-          url: "/pl/aktualnosci.html"
-        },
-        {
-          title:
-            "Tysiące osób bez prądu po przejściu Claudii. Krajobraz po burzy",
-          url: "/pl/aktualnosci.html"
-        }
-      ]
-    : [
-        {
-          title: "Key markets and geopolitics in focus today",
-          url: "/en/news.html"
-        },
-        {
-          title: "Central banks: latest moves and comments",
-          url: "/en/news.html"
-        }
-      ];
+  // Język strony (pl / en)
+  var lang = (document.documentElement.lang || 'pl').toLowerCase();
+  var isPL = lang.indexOf('pl') === 0;
 
-  function renderItems(items) {
-    track.innerHTML = "";
-    items.forEach((item) => {
-      const a = document.createElement("a");
-      a.className = "br-hotbar-item";
-      a.href =
-        item.url ||
-        (isPL ? "/pl/aktualnosci.html" : "/en/news.html");
-      a.textContent = item.title;
-      track.appendChild(a);
-    });
+  // Skąd bierzemy JSON (PL / EN)
+  // Te pliki będzie nam generował GitHub Actions
+  var jsonUrl = isPL
+    ? '/.cache/news_hotbar_pl.json'
+    : '/.cache/news_hotbar_en.json';
+
+  // Funkcja pomocnicza – całkowite ukrycie paska
+  function hideBar() {
+    bar.style.display = 'none';
   }
 
-  function renderTime(updatedAt) {
-    if (!timeEl || !updatedAt) return;
-    const d = new Date(updatedAt);
-    if (Number.isNaN(d.getTime())) return;
-    const locale = isPL ? "pl-PL" : "en-GB";
-    timeEl.textContent = d.toLocaleTimeString(locale, {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  }
-
-  // Główne pobieranie JSON-a
-  fetch(jsonUrl, { cache: "no-store" })
-    .then((res) => {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
+  // Pobranie JSON
+  fetch(jsonUrl, { cache: 'no-store' })
+    .then(function (resp) {
+      if (!resp.ok) {
+        throw new Error('HTTP ' + resp.status);
+      }
+      return resp.json();
     })
-    .then((data) => {
-      let items = [];
-
-      // Zakładany format: { updated_at, items:[{title,url,is_hot}] }
-      if (data && Array.isArray(data.items) && data.items.length) {
-        const hot = data.items.filter((it) => it.is_hot);
-        items = hot.length ? hot : data.items;
-        renderTime(data.updated_at);
-      } else {
-        items = fallbackItems;
+    .then(function (data) {
+      // Brak poprawnych danych → chowamy pasek
+      if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+        hideBar();
+        return;
       }
 
-      renderItems(items);
+      var items = data.items.slice();
+
+      // Jeśli jakieś są oznaczone is_hot = true, pokazujemy tylko je
+      var hot = items.filter(function (it) { return it && it.is_hot; });
+      if (hot.length > 0) {
+        items = hot;
+      }
+
+      // Czyścimy tor przewijania
+      track.innerHTML = '';
+
+      // Dodajemy linki
+      items.forEach(function (item) {
+        if (!item || !item.title) return;
+
+        var a = document.createElement('a');
+        a.className = 'br-hotbar-item';
+        a.textContent = item.title;
+
+        if (item.url) {
+          a.href = item.url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        } else {
+          // Domyślny URL, gdyby w JSON nie było linku
+          a.href = isPL ? '/pl/aktualnosci.html' : '/en/news.html';
+        }
+
+        track.appendChild(a);
+      });
+
+      // Po filtrze nic nie zostało → chowamy pasek
+      if (!track.children.length) {
+        hideBar();
+        return;
+      }
+
+      // Ustawiamy godzinę aktualizacji, jeśli jest w JSON
+      if (timeEl && data.updated_at) {
+        var dt = new Date(data.updated_at);
+        if (!isNaN(dt.getTime())) {
+          var hh = String(dt.getHours()).padStart(2, '0');
+          var mm = String(dt.getMinutes()).padStart(2, '0');
+          timeEl.textContent = isPL
+            ? 'Aktualizacja: ' + hh + ':' + mm
+            : 'Updated: ' + hh + ':' + mm;
+        }
+      }
     })
-    .catch(() => {
-      // Fallback przy błędzie
-      renderItems(fallbackItems);
+    .catch(function (err) {
+      console.error('Hotbar error:', err);
+      // Jakikolwiek błąd → pasek znika
+      hideBar();
     });
 })();
