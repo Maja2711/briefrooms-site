@@ -1,22 +1,19 @@
-name: Build EN News (2x daily)
+name: Build PL Aktualności + hotbar
 
 on:
   schedule:
-    # UTC times; stagger vs PL a bit
-    - cron: "15 5 * * *"
-    - cron: "15 12 * * *"
+    # czasy w UTC (05:10 i 12:10)
+    - cron: "10 5 * * *"
+    - cron: "10 12 * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
-concurrency:
-  group: news-en
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,29 +30,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Generate EN News (with AI summaries if key is set)
+      - name: Generate PL Aktualności + hotbar JSON
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: |
-          python scripts/fetch_news_en.py
-
-      - name: Sanity check (expect AI block)
-        run: |
-          if ! grep -q 'AI comment' en/news.html; then
-            echo "AI comment block not found in en/news.html"
-            exit 1
-          fi
+          python scripts/fetch_news_pl.py
+          python scripts/build_hotbar_pl.py
 
       - name: Commit & push if changed
         run: |
-          if [[ -n "$(git status --porcelain en/news.html .cache/news_summaries_en.json)" ]]; then
+          if [[ -n "$(git status --porcelain pl/aktualnosci.html .cache/news_summaries_pl.json)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add en/news.html .cache/news_summaries_en.json
-            git commit -m "chore(news-en): update (2x daily, AI summaries)"
+            git add pl/aktualnosci.html .cache/news_summaries_pl.json
+            git commit -m "chore(news-pl): update aktualnosci + hotbar"
             git push
           else
             echo "No changes."
           fi
-
