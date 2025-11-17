@@ -52,7 +52,7 @@
 
         // Polska / polityka / gospodarka
         if (
-          /polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojna|ukraina|gospodar/.test(t)
+          /polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojn|ukrain|gospodar/.test(t)
         ) {
           catKraj.push(it);
           return;
