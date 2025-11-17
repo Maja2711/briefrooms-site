@@ -1,0 +1,43 @@
+name: Build PL Hotbar News (every 30 min)
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # co 30 minut
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install feedparser requests
+
+      - name: Build PL hotbar
+        run: |
+          python scripts/build_hotbar_pl.py
+
+      - name: Commit & push
+        run: |
+          if [[ -n "$(git status --porcelain cache/news_summaries_pl.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add cache/news_summaries_pl.json
+            git commit -m "hotbar: update PL news"
+            git push
+          else
+            echo "No changes."
+          fi
