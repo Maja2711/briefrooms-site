@@ -27,7 +27,7 @@
       // --- Usuwamy duplikaty typu "v2|..."
       const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
 
-      // --- Parsujemy newsy do ujednoliconej struktury
+      // --- Parsowanie ujednolicone
       const items = cleanKeys.map((k) => {
         const parts = k.replace(/^v2\|/, '').split('|');
         let title = parts[0] || '';
@@ -50,13 +50,11 @@
       items.forEach((it) => {
         const t = it.title.toLowerCase();
 
-        // Polska / polityka / gospodarka
-if (
-  /(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straz|wojna|ukraina|gospodar)/u.test(t)
-) {
-  catKraj.push(it);
-  return;
-}
+        // Polska / polityka / gospodarka — z polskimi znakami
+        if (/(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|straz|wojna|ukraina|gospodar)/u.test(t)) {
+          catKraj.push(it);
+          return;
+        }
 
         // Świat
         if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
@@ -70,17 +68,17 @@ if (
           return;
         }
 
-        // Jeśli nic nie pasuje → Świat jako fallback
+        // fallback → świat
         catWorld.push(it);
       });
 
       // --------------------------
-      //  BUDOWA FINALNEJ LISTY
+      //  BUDOWA FINALNEJ LISTY (NAJNOWSZE)
       // --------------------------
       const final = [
-        ...catKraj.slice(-2),
-        ...catWorld.slice(-2),
-        ...catSport.slice(-2),
+        ...catKraj.slice(0, 4),
+        ...catWorld.slice(0, 4),
+        ...catSport.slice(0, 4),
       ];
 
       if (!final.length) {
@@ -110,14 +108,19 @@ if (
       }
 
       // --------------------------
-      //  PŁYNNE PRZEWIJANIE (bez skoków!)
+      //  PŁYNNE PRZEWIJANIE (bez skoków, bez duplikatów!)
       // --------------------------
+
+      // usuń stary klon, jeśli istnieje
+      const oldClone = document.getElementById('br-hotbar-track-clone');
+      if (oldClone) oldClone.remove();
+
       const clone = track.cloneNode(true);
       clone.id = 'br-hotbar-track-clone';
       clone.classList.add('clone');
       track.parentNode.appendChild(clone);
 
-      // Ten CSS musi być wstawiony – WSZYTKO BĘDZIE PŁYNNE
+      // CSS do płynnego ruchu
       const style = document.createElement('style');
       style.textContent = `
         .br-hotbar-ticker {
@@ -148,4 +151,3 @@ if (
       bar.style.display = 'none';
     });
 })();
-
