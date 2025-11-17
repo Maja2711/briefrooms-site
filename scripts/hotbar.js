@@ -18,119 +18,85 @@
     })
     .then((raw) => {
       const keys = Object.keys(raw || {});
+
       if (!keys.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // Usuwamy klucze typu "v2|..."
+      // --- Usuwamy duplikaty typu "v2|..."
       const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
 
-      // Parsujemy: "tytuł|2025-11-05" -> { title, date }
-      let items = cleanKeys.map((k) => {
+      // --- Parsowanie
+      const items = cleanKeys.map((k) => {
         const parts = k.replace(/^v2\|/, '').split('|');
-        let title = (parts[0] || '').trim();
-        const date = (parts[1] || '').trim();
+        let title = parts[0] || '';
+        const date = parts[1] || '';
 
-        // Czasem tytuł jest w cudzysłowie
         if (title.startsWith('"') && title.endsWith('"')) {
           title = title.slice(1, -1);
         }
 
-        return { title, date };
+        return { title: title.trim(), date };
       });
 
-      if (!items.length) {
-        bar.style.display = 'none';
-        return;
-      }
-
-      // Sortujemy od najnowszych (YYYY-MM-DD)
-      items.sort((a, b) => {
-        if (a.date < b.date) return 1;
-        if (a.date > b.date) return -1;
-        return 0;
-      });
-
-      // Normalizacja – usuwamy ogonki (ż -> z, ą -> a itd.)
-      const normalize = (s) => {
-        const lower = s.toLowerCase();
-        if (typeof lower.normalize === 'function') {
-          return lower
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
-        }
-        return lower;
-      };
-
-      // Heurystyki kategorii
-      const krajRe = /(polsk|sejm|senat|rzad|premier|prezydent|policj|straz|sad|prokuratur|ziobr|posl|rpp|nbp|inflacj|gospodark|budzet|zlot|kolej|torach|cpk)/;
-      const worldRe = /(usa| uk | un |euro|ue |unia europejsk|niemiec|francj|chin|rosj|ukrain|izrael|iran|nato|world|global|election)/;
-      const sportRe = /(mecz|liga|wynik|relacja|futbol|pilkarsk|siatk|koszy|skoki|wta|atp|mistrz|superpuchar|liga mistrz|liga konferencj)/;
-
+      // --------------------------
+      //  KATEGORYZACJA NEWSÓW
+      // --------------------------
       const catKraj = [];
       const catWorld = [];
       const catSport = [];
-      const seen = new Set();
 
       items.forEach((it) => {
-        if (!it.title) return;
-        if (seen.has(it.title)) return;
-        seen.add(it.title);
+        const t = it.title.toLowerCase();
 
-        const t = normalize(it.title);
-
-        if (krajRe.test(t)) {
+        // Polska / polityka / gospodarka
+        if (/(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|straz|wojna|ukraina|gospodar)/u.test(t)) {
           catKraj.push(it);
           return;
         }
-        if (worldRe.test(t)) {
+
+        // Świat
+        if (/usa|uk |eu |un |euro|world|global|election|nato|germany|france/.test(t)) {
           catWorld.push(it);
           return;
         }
-        if (sportRe.test(t)) {
+
+        // Sport
+        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz|ekstraklasa/.test(t)) {
           catSport.push(it);
           return;
         }
 
-        // Fallback – na PL stronie wrzucamy do "kraj",
-        // na EN stronie do "world"
-        if (!isEN) {
-          catKraj.push(it);
-        } else {
-          catWorld.push(it);
-        }
+        // Reszta → Świat
+        catWorld.push(it);
       });
 
-      // Budujemy finalną listę – max ~8 pozycji
-      const final = [];
-
-      // Zawsze pokazujemy 2 najnowsze ogólnie
-      for (let i = 0; i < items.length && final.length < 2; i++) {
-        final.push(items[i]);
-      }
-
-      const pushSome = (source, max) => {
-        for (let i = 0; i < source.length && final.length < 8 && i < max; i++) {
-          if (!final.includes(source[i])) {
-            final.push(source[i]);
-          }
-        }
-      };
-
-      // Dociągamy: kraj → świat → sport
-      pushSome(catKraj, 4);   // co najmniej kilka PL
-      pushSome(catWorld, 3);
-      pushSome(catSport, 3);
+      // --------------------------
+      //  FINALNE 6 NEWSÓW
+      // --------------------------
+      const final = [
+        ...catKraj.slice(-2),
+        ...catWorld.slice(-2),
+        ...catSport.slice(-2),
+      ];
 
       if (!final.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // Render HTML
+      // --------------------------
+      //  Render listy
+      // --------------------------
       track.innerHTML = '';
+
       final.forEach((item) => {
+        // Automatyczne obcięcie bardzo długich tytułów
+        if (item.title.length > 120) {
+          item.title = item.title.slice(0, 117) + '...';
+        }
+
         const a = document.createElement('a');
         a.className = 'br-hotbar-item';
         a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
@@ -138,51 +104,55 @@
         track.appendChild(a);
       });
 
-      // Duplikujemy treść w poziomie – potrzebne do płynnego loopa
-      track.innerHTML += track.innerHTML;
-
-      // Ustawiamy podstawowe style inline,
-      // żeby nie kłócić się z istniejącym CSS-em
-      const ticker = track.parentNode;
-      ticker.style.overflow = 'hidden';
-      ticker.style.whiteSpace = 'nowrap';
-
-      track.style.display = 'inline-block';
-      track.style.whiteSpace = 'nowrap';
-      track.style.animation = 'none'; // wyłączamy ewentualną animację z CSS
-
-      // Godzina / data aktualizacji – bierzemy z najnowszego
-      const latestDate = final[0].date || items[0].date;
-      if (timeEl && latestDate) {
+      // --------------------------
+      //  Data aktualizacji
+      // --------------------------
+      const lastWithDate = final.find((x) => x.date) || null;
+      if (timeEl && lastWithDate) {
         timeEl.textContent = isEN
-          ? 'updated: ' + latestDate
-          : 'aktualizacja: ' + latestDate;
+          ? 'updated: ' + lastWithDate.date
+          : 'aktualizacja: ' + lastWithDate.date;
       }
 
       // --------------------------
-      //  PŁYNNE PRZEWIJANIE (JS)
+      //  PŁYNNE PRZEWIJANIE (bez skoków!)
       // --------------------------
-      let pos = 0;
-      const speed = 40; // px na sekundę
 
-      function step(timestamp) {
-        if (!step.last) step.last = timestamp;
-        const dt = (timestamp - step.last) / 1000;
-        step.last = timestamp;
+      // Klon toru
+      const clone = track.cloneNode(true);
+      clone.id = 'br-hotbar-track-clone';
+      clone.classList.add('clone');
+      track.parentNode.appendChild(clone);
 
-        const width = track.scrollWidth / 2; // szerokość jednego „zestawu”
-        if (width > 0) {
-          pos += speed * dt;
-          if (pos >= width) {
-            pos -= width; // zawijamy bez skoku
-          }
-          ticker.scrollLeft = pos;
+      // Dynamiczne wyliczenie szerokości przewijania
+      const totalWidth = track.scrollWidth;
+      document.documentElement.style.setProperty('--scroll-width', totalWidth + 'px');
+
+      // CSS animacji — dynamiczna długość
+      const style = document.createElement('style');
+      style.textContent = `
+        .br-hotbar-ticker {
+          position: relative;
+          overflow: hidden;
+          white-space: nowrap;
         }
-
-        requestAnimationFrame(step);
-      }
-
-      requestAnimationFrame(step);
+        .br-hotbar-track,
+        #br-hotbar-track-clone {
+          display: inline-flex;
+          position: absolute;
+          top: 0;
+          white-space: nowrap;
+          animation: br-scroll 30s linear infinite;
+        }
+        #br-hotbar-track-clone {
+          left: var(--scroll-width);
+        }
+        @keyframes br-scroll {
+          from { transform: translateX(0); }
+          to   { transform: translateX(calc(-1 * var(--scroll-width))); }
+        }
+      `;
+      document.head.appendChild(style);
     })
     .catch((err) => {
       console.error('Hotbar error', err);
