@@ -51,12 +51,12 @@
         const t = it.title.toLowerCase();
 
         // Polska / polityka / gospodarka
-        if (
-          /polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojn|ukrain|gospodar/.test(t)
-        ) {
-          catKraj.push(it);
-          return;
-        }
+if (
+  /(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straz|wojna|ukraina|gospodar)/u.test(t)
+) {
+  catKraj.push(it);
+  return;
+}
 
         // Świat
         if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
