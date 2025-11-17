@@ -4,107 +4,105 @@
   const track = document.getElementById('br-hotbar-track');
   const timeEl = document.getElementById('br-hotbar-time');
 
-  // Jeśli brak paska w HTML – przerwij
+  // Jeśli nie ma paska w HTML – nie robimy nic
   if (!bar || !track) return;
 
-  // Język strony
+  // Sprawdzamy, czy jesteśmy w EN czy PL
   const isEN = location.pathname.startsWith('/en/');
-
-  // Używamy faktycznie istniejących plików
   const jsonUrl = isEN
     ? '/.cache/news_summaries_en.json'
     : '/.cache/news_summaries_pl.json';
 
+  // Pobieramy JSON z GitHub Pages (bez cache przeglądarki)
   fetch(jsonUrl, { cache: 'no-store' })
     .then((res) => {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
       return res.json();
     })
-    .then((dataObj) => {
-      if (!dataObj || typeof dataObj !== 'object') {
+    .then((raw) => {
+      // raw jest obiektem:
+      // { "tytuł|2025-11-07": { summary: "...", ... }, ... }
+      const allKeys = Object.keys(raw || {});
+
+      if (!allKeys.length) {
         bar.style.display = 'none';
         return;
       }
 
-      const entries = Object.entries(dataObj);
-      if (!entries.length) {
-        bar.style.display = 'none';
-        return;
-      }
+      // Usuwamy duble "v2|..." – bierzemy tylko pierwsze wersje
+      const baseKeys = allKeys.filter((k) => !k.startsWith('v2|'));
 
-      // 1) Wyciągamy najnowszą datę z końcówek "|2025-11-07"
-      let latestDate = null;
+      // Bierzemy ostatnie 6 nagłówków (najświeższe)
+      const selectedKeys = baseKeys.slice(-6);
 
-      for (const [key] of entries) {
-        const parts = key.split('|');
-        const dateStr = parts[parts.length - 1]; // ostatni element
+      const items = selectedKeys
+        .map((key) => {
+          let whole = key;
 
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          if (!latestDate || dateStr > latestDate) {
-            latestDate = dateStr;
-          }
-        }
-      }
-
-      // 2) Bierzemy newsy tylko z najnowszej daty
-      const MAX_ITEMS = 8;
-
-      const items = entries
-        .filter(([key]) => {
-          if (!latestDate) return true;
-          return key.endsWith(latestDate);
-        })
-        .slice(0, MAX_ITEMS)
-        .map(([key]) => {
-          const parts = key.split('|');
-
-          let headlinePart;
-
-          // Format: v2|Tytuł|Data
-          if (parts[0] === 'v2') {
-            headlinePart = parts[1];
-          } else {
-            // Format: Tytuł|Data
-            headlinePart = parts[0];
+          // Na wszelki wypadek – usuń "v2|" jeśli by się trafiło
+          if (whole.startsWith('v2|')) {
+            whole = whole.slice(3);
           }
 
-          // Usuwamy nadmiarowe cudzysłowy
-          headlinePart = headlinePart.replace(/^"+|"+$/g, '');
+          // Format: TYTUŁ|YYYY-MM-DD
+          const parts = whole.split('|');
+          let title = parts[0] || '';
 
-          return { title: headlinePart.trim() };
+          // W PL pierwszy tytuł ma czasem cudzysłów na początku/końcu
+          if (title.startsWith('"') && title.endsWith('"')) {
+            title = title.slice(1, -1);
+          }
+
+          title = title.trim();
+
+          if (!title) return null;
+
+          return {
+            title,
+            url: isEN ? '/en/news.html' : '/pl/aktualnosci.html',
+          };
         })
-        .filter((item) => item.title && item.title.length > 0);
+        .filter(Boolean);
 
+      // Jeśli po filtrowaniu nic nie zostało – chowamy pasek
       if (!items.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // 3) Tworzymy zawartość paska
+      // Czyścimy tor i wstawiamy linki
       track.innerHTML = '';
-
       items.forEach((item) => {
         const a = document.createElement('a');
         a.className = 'br-hotbar-item';
-        a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
+        a.href = item.url;
         a.textContent = item.title;
         track.appendChild(a);
       });
 
-      // 4) Duplikat do płynnego scrollu
+      // Duplikat toru do płynnego przewijania
       const clone = track.cloneNode(true);
-      clone.removeAttribute('id');
       track.parentNode.appendChild(clone);
 
-      // 5) Znacznik czasu
-      if (timeEl && latestDate) {
-        timeEl.textContent = isEN
-          ? `updated: ${latestDate}`
-          : `aktualizacja: ${latestDate}`;
+      // Prosta informacja o dacie aktualizacji – bierzemy datę z ostatniego klucza
+      if (timeEl && selectedKeys.length) {
+        const lastKey = selectedKeys[selectedKeys.length - 1];
+        const parts = lastKey.split('|');
+        const datePart = parts[parts.length - 1];
+
+        if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          timeEl.textContent = isEN
+            ? 'updated: ' + datePart
+            : 'aktualizacja: ' + datePart;
+        }
       }
     })
     .catch((err) => {
       console.error('Hotbar error', err);
+      // Błąd pobierania → chowamy pasek
       bar.style.display = 'none';
     });
 })();
+
