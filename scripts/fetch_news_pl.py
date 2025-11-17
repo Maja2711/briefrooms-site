@@ -25,7 +25,9 @@ MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
-CACHE_PATH = ".cache/news_summaries_pl.json"
+
+# Cache TYLKO dla AI-komentarzy (NIE dla hotbara!)
+AI_CACHE_PATH = ".cache/news_ai_pl.json"
 
 # Feedy do doboru newsów (PL)
 FEEDS = {
@@ -204,7 +206,7 @@ def save_cache(path: str, data: dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-CACHE = load_cache(CACHE_PATH)
+CACHE = load_cache(AI_CACHE_PATH)
 
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     """
@@ -222,7 +224,7 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
             "model": "fallback"
         }
         CACHE[cache_key] = out
-        save_cache(CACHE_PATH, CACHE)
+        save_cache(AI_CACHE_PATH, CACHE)
         return out
 
     prompt = f"""Streść po polsku w maksymalnie 2 krótkich zdaniach najważniejsze informacje z tytułu i opisu RSS poniżej.
@@ -267,7 +269,7 @@ Zasady:
 
         out = {"summary": summary, "uncertain": warn_line}
         CACHE[cache_key] = out
-        save_cache(CACHE_PATH, CACHE)
+        save_cache(AI_CACHE_PATH, CACHE)
         return out
     except Exception:
         return {
@@ -587,9 +589,11 @@ def main():
         "sport":    fetch_section("sport"),
     }
     html_str = render_html(sections)
+    os.makedirs("pl", exist_ok=True)
     with open("pl/aktualnosci.html", "w", encoding="utf-8") as f:
         f.write(html_str)
     print("✓ Wygenerowano pl/aktualnosci.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
 
 if __name__ == "__main__":
     main()
+
