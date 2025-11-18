@@ -1,43 +1,50 @@
-name: Update News Cache
+name: Build PL Aktualności (2x dziennie)
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # co 30 minut
-  workflow_dispatch:         # ręczne uruchomienie
+    # czasy w UTC
+    - cron: "10 5 * * *"
+    - cron: "10 12 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Run PL news fetcher
+      - name: Generate PL Aktualności (HTML + hotbar JSON, AI summaries if key is set)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
         run: |
           python scripts/fetch_news_pl.py
 
-      - name: Run EN news fetcher
+      - name: Commit & push if changed
         run: |
-          python scripts/fetch_news_en.py
-
-      - name: Commit & push JSON updates
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .cache/news_summaries_pl.json
-          git add .cache/news_summaries_en.json
-          git commit -m "Auto-update news cache" || echo "No changes"
-          git push
+          if [[ -n "$(git status --porcelain pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json
+            git commit -m "chore(news-pl): update (2x daily, AI summaries + hotbar)"
+            git push
+          else
+            echo "No changes."
+          fi
 
