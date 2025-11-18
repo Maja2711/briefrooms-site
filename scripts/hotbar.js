@@ -159,3 +159,4 @@
       bar.style.display = 'none';
     });
 })();
+
