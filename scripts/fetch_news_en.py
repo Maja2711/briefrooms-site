@@ -22,9 +22,14 @@ TZ = tz.gettz("Europe/London")
 # =========================
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
+HOTBAR_LIMIT = 12
+
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
-CACHE_PATH = ".cache/news_summaries_en.json"
+
+# separate AI cache + hotbar JSON
+AI_CACHE_PATH = ".cache/ai_cache_en.json"
+HOTBAR_JSON_PATH = ".cache/news_summaries_en.json"
 
 FEEDS = {
     "politics": [
@@ -203,7 +208,7 @@ def save_cache(path: str, data: dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-CACHE = load_cache(CACHE_PATH)
+CACHE = load_cache(AI_CACHE_PATH)
 
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     """
@@ -221,7 +226,7 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
             "model": "fallback"
         }
         CACHE[cache_key] = out
-        save_cache(CACHE_PATH, CACHE)
+        save_cache(AI_CACHE_PATH, CACHE)
         return out
 
     prompt = f"""Summarise in English in up to 2 short sentences the key facts from the title and RSS description below.
@@ -266,7 +271,7 @@ Rules:
 
         out = {"summary": summary, "note": note_line}
         CACHE[cache_key] = out
-        save_cache(CACHE_PATH, CACHE)
+        save_cache(AI_CACHE_PATH, CACHE)
         return out
     except Exception:
         return {
@@ -464,6 +469,47 @@ def fetch_section(section_key: str):
     return picked
 
 # =========================
+# HOTBAR JSON (for ticker)
+# =========================
+def build_hotbar_json(sections: dict) -> dict:
+    """
+    Builds:
+    {
+      "v2|Title|2025-11-17": true,
+      ...
+    }
+    consumed by /scripts/hotbar.js
+    """
+    all_items = []
+    for sec_key, items in sections.items():
+        for it in items:
+            all_items.append(it)
+
+    all_items.sort(key=lambda it: it.get("_score", 0.0), reverse=True)
+
+    out = {}
+    taken = 0
+    for it in all_items:
+        if taken >= HOTBAR_LIMIT:
+            break
+        title = (it.get("title") or "").strip()
+        if not title:
+            continue
+
+        pp = it.get("published_parsed")
+        if pp:
+            dt = datetime(*pp[:6], tzinfo=timezone.utc).astimezone(TZ)
+            dstr = dt.strftime("%Y-%m-%d")
+        else:
+            dstr = today_str()
+
+        key = f"v2|{title}|{dstr}"
+        out[key] = True
+        taken += 1
+
+    return out
+
+# =========================
 # RENDER HTML
 # =========================
 def render_html(sections: dict) -> str:
@@ -589,11 +635,20 @@ def main():
         "business": fetch_section("business"),
         "sports": fetch_section("sports"),
     }
+
+    # 1) HTML /en/news.html
     html_str = render_html(sections)
     os.makedirs("en", exist_ok=True)
     with open("en/news.html", "w", encoding="utf-8") as f:
         f.write(html_str)
-    print("✓ Generated en/news.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
+
+    # 2) JSON for hotbar
+    hotbar_data = build_hotbar_json(sections)
+    os.makedirs(os.path.dirname(HOTBAR_JSON_PATH), exist_ok=True)
+    with open(HOTBAR_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(hotbar_data, f, ensure_ascii=False, indent=2)
+
+    print("✓ Generated en/news.html +", HOTBAR_JSON_PATH, "(AI:", "ON" if AI_ENABLED else "OFF", ")")
 
 if __name__ == "__main__":
     main()
