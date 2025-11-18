@@ -1,4 +1,4 @@
-// /scripts/hotbar.js — FULL PRODUCTION VERSION
+// /scripts/hotbar.js
 (function () {
   const bar = document.querySelector('.br-hotbar');
   const track = document.getElementById('br-hotbar-track');
@@ -11,9 +11,6 @@
     ? '/.cache/news_summaries_en.json'
     : '/.cache/news_summaries_pl.json';
 
-  // ============================================================
-  // 1) POBIERANIE JSON
-  // ============================================================
   fetch(jsonUrl, { cache: 'no-store' })
     .then((res) => {
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -26,40 +23,26 @@
         return;
       }
 
-      // Upewnij się, że track jest pusty
-      track.innerHTML = '';
-
-      // ============================================================
-      // 2) USUWAMY ELEMENTY typu v2| (Twoje fetch script je czasem dodają)
-      // ============================================================
+      // Usuwamy v2|
       const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
 
-      // ============================================================
-      // 3) Parsowanie tytułu + daty
-      // ============================================================
-      const items = cleanKeys
-        .map((k) => {
-          const p = k.replace(/^v2\|/, '').split('|');
-          let title = (p[0] || '').trim();
-          const date = (p[1] || '').trim();
-
-          // Usuwamy cudzysłów
-          if (title.startsWith('"') && title.endsWith('"')) {
-            title = title.slice(1, -1);
-          }
-
-          return { title, date };
-        })
-        .filter((it) => it.title && it.title.length > 3);
+      // Zamieniamy na struktury {title, date}
+      const items = cleanKeys.map((k) => {
+        const parts = k.replace(/^v2\|/, '').split('|');
+        let title = (parts[0] || '').trim();
+        let date = parts[1] || '';
+        if (title.startsWith('"') && title.endsWith('"')) {
+          title = title.slice(1, -1);
+        }
+        return { title, date };
+      });
 
       if (!items.length) {
         bar.style.display = 'none';
         return;
       }
 
-      // ============================================================
-      // 4) KATEGORIZACJA (PL/EN osobno)
-      // ============================================================
+      // --- Kategorie ---
       const catKraj = [];
       const catWorld = [];
       const catSport = [];
@@ -67,44 +50,29 @@
       items.forEach((it) => {
         const t = it.title.toLowerCase();
 
-        if (!isEN) {
-          // PL — kraj/polityka/gospodarka
-          if (
-            /(polsk|sejm|rząd|premier|policja|straż|ziobr|rpp|nbp|inflacj|stopy|budżet|gospodar|wojn|ukrain)/u.test(t)
-          ) {
-            catKraj.push(it);
-            return;
-          }
-        } else {
-          // EN — local + global politics
-          if (
-            /(uk |britain|scotland|wales|ireland|labour|tory|sunak|starmer|downing|white house|senate|congress|election|us )/u.test(
-              t
-            )
-          ) {
-            catWorld.push(it);
-            return;
-          }
+        // PL kraj / polityka
+        if (!isEN && /(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojna|ukrain|gospodar)/.test(t)) {
+          catKraj.push(it);
+          return;
         }
 
-        // Sport PL/EN
-        if (
-          /(mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz|premier league|champions league|nba|f1|formula|tennis|match)/u.test(
-            t
-          )
-        ) {
+        // EN/PL global
+        if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
+          catWorld.push(it);
+          return;
+        }
+
+        // sport
+        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz|match|league|cup|grand prix|open/.test(t)) {
           catSport.push(it);
           return;
         }
 
-        // Fallback do Świata
+        // fallback → świat
         catWorld.push(it);
       });
 
-      // ============================================================
-      // 5) BUDOWA KOŃCOWEJ LISTY — maks 6 newsów
-      //    2x Kraj + 2x Świat + 2x Sport
-      // ============================================================
+      // FINALNE newsy (ostatnie 2 z każdej kategorii)
       const final = [
         ...catKraj.slice(-2),
         ...catWorld.slice(-2),
@@ -116,56 +84,68 @@
         return;
       }
 
-      // ============================================================
-      // 6) RENDER — WSZYSTKO DO TRACK
-      // ============================================================
+      // Render
+      track.innerHTML = '';
       final.forEach((item) => {
         const a = document.createElement('a');
-        a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
         a.className = 'br-hotbar-item';
+        a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
         a.textContent = item.title;
         track.appendChild(a);
       });
 
-      // ============================================================
-      // 7) DATA AKTUALIZACJI
-      // ============================================================
-      if (timeEl) {
-        const lastDate = final[final.length - 1].date;
-        if (lastDate) {
-          timeEl.textContent = isEN
-            ? 'updated: ' + lastDate
-            : 'aktualizacja: ' + lastDate;
-        }
+      // Aktualizacja daty
+      if (timeEl && final[final.length - 1].date) {
+        timeEl.textContent = isEN
+          ? 'updated: ' + final[final.length - 1].date
+          : 'aktualizacja: ' + final[final.length - 1].date;
       }
 
-      // ============================================================
-      // 8) ANIMACJA — CIĄGŁA, PŁYNNA, BEZ SKOKÓW
-      // ============================================================
+      // --- PŁYNNE PRZEWIJANIE ---
       const clone = track.cloneNode(true);
       clone.id = 'br-hotbar-track-clone';
-      clone.classList.add('clone');
       track.parentNode.appendChild(clone);
 
-      // CSS w runtime — zapobiega konfliktom z site.css
       const style = document.createElement('style');
       style.textContent = `
-        .br-hotbar-ticker {
-          position: relative;
-          overflow: hidden;
+        .br-hotbar { 
+          position: relative; 
+          z-index: 50;
+          background: rgba(3,19,32,.9);
+          border-bottom: 1px solid rgba(255,255,255,.12);
+          color: #e5f0ff;
+          font-size: 13px;
           white-space: nowrap;
         }
-        .br-hotbar-track,
-        #br-hotbar-track-clone {
+        .br-hotbar-ticker { 
+          position: relative; 
+          overflow: hidden; 
+          padding: 4px 0;
+        }
+        .br-hotbar-track, #br-hotbar-track-clone {
+          position: absolute; 
+          top: 0; 
+          display: inline-flex; 
+          white-space: nowrap;
+          gap: 28px;
+          animation: br-scroll 28s linear infinite;
+        }
+        #br-hotbar-track-clone { left: 100%; }
+        .br-hotbar-item {
+          text-decoration: none;
+          color: inherit;
+          padding: 0 6px;
+        }
+        .br-hotbar-item:hover {
+          text-decoration: underline;
+        }
+        #br-hotbar-time {
           position: absolute;
-          top: 0;
-          left: 0;
-          display: inline-flex;
-          white-space: nowrap;
-          animation: br-scroll 32s linear infinite;
-        }
-        #br-hotbar-track-clone {
-          left: 100%;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 11px;
+          opacity: .7;
         }
         @keyframes br-scroll {
           from { transform: translateX(0); }
@@ -175,7 +155,7 @@
       document.head.appendChild(style);
     })
     .catch((err) => {
-      console.error('HOTBAR ERROR:', err);
+      console.error('Hotbar error:', err);
       bar.style.display = 'none';
     });
 })();
