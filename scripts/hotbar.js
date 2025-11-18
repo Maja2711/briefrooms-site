@@ -23,19 +23,19 @@
         return;
       }
 
-      // Usuwamy v2|
-      const cleanKeys = keys.filter((k) => !k.startsWith('v2|'));
-
-      // Zamieniamy na struktury {title, date}
-      const items = cleanKeys.map((k) => {
-        const parts = k.replace(/^v2\|/, '').split('|');
-        let title = (parts[0] || '').trim();
-        let date = parts[1] || '';
-        if (title.startsWith('"') && title.endsWith('"')) {
-          title = title.slice(1, -1);
-        }
-        return { title, date };
-      });
+      // Zamieniamy klucze na struktury {title, date}
+      const items = keys
+        .filter((k) => typeof k === 'string' && k.includes('|'))
+        .map((k) => {
+          const parts = k.replace(/^v2\|/, '').split('|');
+          let title = (parts[0] || '').trim();
+          let date = parts[1] || '';
+          if (title.startsWith('"') && title.endsWith('"')) {
+            title = title.slice(1, -1);
+          }
+          return { title, date };
+        })
+        .filter((it) => it.title);
 
       if (!items.length) {
         bar.style.display = 'none';
