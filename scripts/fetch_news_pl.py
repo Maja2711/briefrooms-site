@@ -23,11 +23,15 @@ TZ = tz.gettz("Europe/Warsaw")
 # =========================
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
+HOTBAR_LIMIT = 12
+
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 
-# Cache TYLKO dla AI-komentarzy (NIE dla hotbara!)
-AI_CACHE_PATH = ".cache/news_ai_pl.json"
+# osobny plik na cache AI
+AI_CACHE_PATH = ".cache/ai_cache_pl.json"
+# plik, z którego czyta hotbar.js
+HOTBAR_JSON_PATH = ".cache/news_summaries_pl.json"
 
 # Feedy do doboru newsów (PL)
 FEEDS = {
@@ -361,7 +365,6 @@ def verify_note_pl(title: str, snippet: str) -> str:
     if not notes:
         return ""
 
-    # Złóż zwięzłe, jednozdaniowe ostrzeżenie (de-duplikacja)
     text = "Uwaga: " + " ".join(sorted(set(notes)))
     text = text.strip()
     if text[-1] not in ".!?…":
@@ -465,6 +468,48 @@ def fetch_section(section_key: str):
         it["ai_model"] = s.get("model","")
 
     return picked
+
+# =========================
+# HOTBAR JSON (dla paska)
+# =========================
+def build_hotbar_json(sections: dict) -> dict:
+    """
+    Buduje słownik:
+    {
+      "v2|Tytuł|2025-11-17": true,
+      ...
+    }
+    używany przez /scripts/hotbar.js
+    """
+    all_items = []
+    for sec_key, items in sections.items():
+        for it in items:
+            all_items.append(it)
+
+    # sortujemy globalnie po _score (najważniejsze na koniec listy w hotbarze)
+    all_items.sort(key=lambda it: it.get("_score", 0.0), reverse=True)
+
+    out = {}
+    taken = 0
+    for it in all_items:
+        if taken >= HOTBAR_LIMIT:
+            break
+        title = (it.get("title") or "").strip()
+        if not title:
+            continue
+
+        pp = it.get("published_parsed")
+        if pp:
+            dt = datetime(*pp[:6], tzinfo=timezone.utc).astimezone(TZ)
+            dstr = dt.strftime("%Y-%m-%d")
+        else:
+            dstr = today_str()
+
+        key = f"v2|{title}|{dstr}"
+        out[key] = True
+        taken += 1
+
+    return out
 
 # =========================
 # RENDER HTML
@@ -588,11 +633,20 @@ def main():
         "biznes":   fetch_section("biznes"),
         "sport":    fetch_section("sport"),
     }
+
+    # 1) HTML /pl/aktualnosci.html
     html_str = render_html(sections)
     os.makedirs("pl", exist_ok=True)
     with open("pl/aktualnosci.html", "w", encoding="utf-8") as f:
         f.write(html_str)
-    print("✓ Wygenerowano pl/aktualnosci.html (AI:", "ON" if AI_ENABLED else "OFF", ")")
+
+    # 2) JSON dla hotbara
+    hotbar_data = build_hotbar_json(sections)
+    os.makedirs(os.path.dirname(HOTBAR_JSON_PATH), exist_ok=True)
+    with open(HOTBAR_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(hotbar_data, f, ensure_ascii=False, indent=2)
+
+    print("✓ Wygenerowano pl/aktualnosci.html +", HOTBAR_JSON_PATH, "(AI:", "ON" if AI_ENABLED else "OFF", ")")
 
 if __name__ == "__main__":
     main()
