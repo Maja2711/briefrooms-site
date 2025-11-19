@@ -952,4 +952,77 @@ body.home main > *:first-child{
   align-items: center;
   height: 100%;
 }
+/* =========================================
+   HOTBAR FIX & ANIMACJA (POPRAWIONE)
+   ========================================= */
 
+/* 1. Kontener paska - to jest ramka, w której wszystko się dzieje */
+.br-hotbar {
+  position: relative;         /* Żeby pozycjonować elementy */
+  display: flex;
+  align-items: center;        /* Pionowe centrowanie */
+  height: 42px;               /* Stała wysokość */
+  overflow: hidden;           /* Ukrywa to, co wyjeżdża poza ekran */
+  background: #ffb23a;        /* Tło (z Twojego screena) */
+  color: #000;                /* Kolor tekstu */
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  z-index: 50;                /* Żeby był nad innymi elementami */
+}
+
+/* 2. Wewnętrzny "wózek" z tekstem */
+.br-hotbar-ticker {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; 
+  display: flex;
+  align-items: center;
+}
+
+/* 3. Element, który faktycznie się przesuwa */
+.br-hotbar-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;        /* KLUCZOWE: Tekst w jednej linii */
+  will-change: transform;     /* Optymalizacja wydajności */
+  
+  /* Domyślna animacja (JS ją nadpisze, ale to jest start) */
+  animation: ticker-scroll 40s linear infinite; 
+}
+
+/* Odstępy między newsami */
+.br-hotbar-track span, 
+.br-hotbar-track a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;             /* Lekki odstęp */
+}
+
+/* Separator (kropka) */
+.br-hotbar-track .sep {
+  margin: 0 15px;
+  opacity: 0.6;
+}
+
+/* 4. Zegar (opcjonalnie po prawej stronie na sztywno) */
+#br-hotbar-time {
+  background: rgba(0,0,0,0.1);
+  padding: 0 15px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums; /* Cyfry nie skaczą przy zmianie godziny */
+  z-index: 2;
+  box-shadow: -5px 0 10px rgba(0,0,0,0.05);
+}
+
+/* 5. DEFINICJA RUCHU - BEZ TEGO ANI RUSZ */
+@keyframes ticker-scroll {
+  0% { 
+    transform: translateX(0); 
+  }
+  100% { 
+    transform: translateX(-50%); 
+  }
+}
