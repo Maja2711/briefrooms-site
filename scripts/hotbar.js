@@ -1,162 +1,114 @@
-// /scripts/hotbar.js
-(function () {
-  const bar = document.querySelector('.br-hotbar');
-  const track = document.getElementById('br-hotbar-track');
-  const timeEl = document.getElementById('br-hotbar-time');
+/**
+ * BriefRooms Hotbar Script (v2)
+ * Obsługuje pasek "HOT NEWS" oraz zegar.
+ * Czyta dane z: /.cache/news_summaries_pl.json
+ */
 
-  if (!bar || !track) return;
+(function() {
+  const HOTBAR_URL = '/.cache/news_summaries_pl.json';
+  const TRACK_ID = 'br-hotbar-track';
+  const TIME_ID = 'br-hotbar-time';
+  
+  // Prędkość animacji (piksele na sekundę). Im mniej, tym wolniej.
+  const SPEED_PX_PER_SEC = 50; 
 
-  const isEN = location.pathname.startsWith('/en/');
-  const jsonUrl = isEN
-    ? '/.cache/news_summaries_en.json'
-    : '/.cache/news_summaries_pl.json';
+  /**
+   * 1. Obsługa zegara (czas lokalny PL)
+   */
+  function updateClock() {
+    const el = document.getElementById(TIME_ID);
+    if (!el) return;
 
-  fetch(jsonUrl, { cache: 'no-store' })
-    .then((res) => {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
-    .then((raw) => {
-      const keys = Object.keys(raw || {});
-      if (!keys.length) {
-        bar.style.display = 'none';
-        return;
-      }
-
-      // Zamieniamy klucze na struktury {title, date}
-      const items = keys
-        .filter((k) => typeof k === 'string' && k.includes('|'))
-        .map((k) => {
-          const parts = k.replace(/^v2\|/, '').split('|');
-          let title = (parts[0] || '').trim();
-          let date = parts[1] || '';
-          if (title.startsWith('"') && title.endsWith('"')) {
-            title = title.slice(1, -1);
-          }
-          return { title, date };
-        })
-        .filter((it) => it.title);
-
-      if (!items.length) {
-        bar.style.display = 'none';
-        return;
-      }
-
-      // --- Kategorie ---
-      const catKraj = [];
-      const catWorld = [];
-      const catSport = [];
-
-      items.forEach((it) => {
-        const t = it.title.toLowerCase();
-
-        // PL kraj / polityka
-        if (!isEN && /(polsk|sejm|rząd|premier|policja|ziobr|rpp|nbp|inflacj|straż|wojna|ukrain|gospodar)/.test(t)) {
-          catKraj.push(it);
-          return;
-        }
-
-        // EN/PL global
-        if (/usa|uk |eu |un |euro|world|global|election/.test(t)) {
-          catWorld.push(it);
-          return;
-        }
-
-        // sport
-        if (/mecz|liga|wynik|relacja|futbol|siatk|koszy|skoki|wta|atp|mistrz|match|league|cup|grand prix|open/.test(t)) {
-          catSport.push(it);
-          return;
-        }
-
-        // fallback → świat
-        catWorld.push(it);
-      });
-
-      // FINALNE newsy (ostatnie 2 z każdej kategorii)
-      const final = [
-        ...catKraj.slice(-2),
-        ...catWorld.slice(-2),
-        ...catSport.slice(-2),
-      ];
-
-      if (!final.length) {
-        bar.style.display = 'none';
-        return;
-      }
-
-      // Render
-      track.innerHTML = '';
-      final.forEach((item) => {
-        const a = document.createElement('a');
-        a.className = 'br-hotbar-item';
-        a.href = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
-        a.textContent = item.title;
-        track.appendChild(a);
-      });
-
-      // Aktualizacja daty
-      if (timeEl && final[final.length - 1].date) {
-        timeEl.textContent = isEN
-          ? 'updated: ' + final[final.length - 1].date
-          : 'aktualizacja: ' + final[final.length - 1].date;
-      }
-
-      // --- PŁYNNE PRZEWIJANIE ---
-      const clone = track.cloneNode(true);
-      clone.id = 'br-hotbar-track-clone';
-      track.parentNode.appendChild(clone);
-
-      const style = document.createElement('style');
-      style.textContent = `
-        .br-hotbar { 
-          position: relative; 
-          z-index: 50;
-          background: rgba(3,19,32,.9);
-          border-bottom: 1px solid rgba(255,255,255,.12);
-          color: #e5f0ff;
-          font-size: 13px;
-          white-space: nowrap;
-        }
-        .br-hotbar-ticker { 
-          position: relative; 
-          overflow: hidden; 
-          padding: 4px 0;
-        }
-        .br-hotbar-track, #br-hotbar-track-clone {
-          position: absolute; 
-          top: 0; 
-          display: inline-flex; 
-          white-space: nowrap;
-          gap: 28px;
-          animation: br-scroll 28s linear infinite;
-        }
-        #br-hotbar-track-clone { left: 100%; }
-        .br-hotbar-item {
-          text-decoration: none;
-          color: inherit;
-          padding: 0 6px;
-        }
-        .br-hotbar-item:hover {
-          text-decoration: underline;
-        }
-        #br-hotbar-time {
-          position: absolute;
-          right: 10px;
-          top: 50%;
-          transform: translateY(-50%);
-          font-size: 11px;
-          opacity: .7;
-        }
-        @keyframes br-scroll {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-100%); }
-        }
-      `;
-      document.head.appendChild(style);
-    })
-    .catch((err) => {
-      console.error('Hotbar error:', err);
-      bar.style.display = 'none';
+    const now = new Date();
+    // Formatowanie czasu: HH:MM
+    const timeString = now.toLocaleTimeString('pl-PL', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
-})();
+    el.textContent = timeString;
+  }
 
+  /**
+   * 2. Pobieranie i renderowanie paska
+   */
+  async function loadHotbar() {
+    const track = document.getElementById(TRACK_ID);
+    if (!track) return;
+
+    try {
+      // Cache-busting (?t=...) aby nie czytać starego pliku
+      const res = await fetch(`${HOTBAR_URL}?t=${Date.now()}`);
+      if (!res.ok) throw new Error('Brak pliku hotbar json');
+      
+      const data = await res.json();
+      const keys = Object.keys(data);
+
+      // Parsowanie kluczy: "v2|Tekst Wiadomości|Data"
+      // Wyciągamy tylko Tekst (index 1)
+      const messages = keys
+        .map(k => {
+          const parts = k.split('|');
+          return parts.length >= 2 ? parts[1] : null;
+        })
+        .filter(txt => txt && txt.length > 0);
+
+      if (messages.length === 0) {
+        track.innerHTML = '<span>Witamy w BriefRooms. Wybierz pokój tematyczny.</span>';
+        return;
+      }
+
+      // Budujemy HTML
+      // Używamy separatora (kropka lub +++)
+      const separator = '<span class="sep" style="margin:0 15px; opacity:0.5">•</span>';
+      
+      // Tworzymy ciągły string
+      let htmlContent = messages.map(msg => {
+        // Dodajemy style inline, aby upewnić się, że tekst nie jest ucięty
+        return `<span style="display:inline-flex; align-items:center; padding-top:1px;">${msg}</span>`;
+      }).join(separator);
+
+      // Dodajemy separator na końcu ostatniego elementu przed powtórzeniem
+      htmlContent += separator;
+
+      // Wstawiamy treść RAZ
+      track.innerHTML = htmlContent;
+
+      // DUPLIKACJA TREŚCI (dla płynnej pętli)
+      // Kopiujemy treść tyle razy, aby wypełnić ekran + zapas
+      // W najprostszym wariancie CSS 'marquee', duplikujemy całość raz.
+      track.innerHTML += htmlContent;
+
+      // Obliczanie czasu animacji
+      // Musimy poczekać chwilę aż przeglądarka przeliczy szerokość
+      requestAnimationFrame(() => {
+        const trackWidth = track.scrollWidth / 2; // Dzielimy na 2, bo zduplikowaliśmy treść
+        
+        // Jeśli treść jest krótsza niż ekran, nie animujemy (lub centrujemy)
+        // Ale tu zakładamy, że newsów jest sporo -> animacja
+        if (trackWidth > 0) {
+          const duration = trackWidth / SPEED_PX_PER_SEC;
+          
+          // Ustawiamy zmienną CSS lub styl bezpośrednio
+          track.style.animationDuration = `${duration}s`;
+          
+          // Dodajemy klasę uruchamiającą animację (jeśli nie jest dodana domyślnie)
+          track.style.animationName = 'ticker-scroll';
+          track.style.animationTimingFunction = 'linear';
+          track.style.animationIterationCount = 'infinite';
+        }
+      });
+
+    } catch (err) {
+      console.warn('Hotbar error:', err);
+      track.innerHTML = '<span>BriefRooms — krótkie podsumowania dnia.</span>';
+    }
+  }
+
+  // Start
+  document.addEventListener('DOMContentLoaded', () => {
+    updateClock();
+    setInterval(updateClock, 1000);
+    loadHotbar();
+  });
+
+})();
