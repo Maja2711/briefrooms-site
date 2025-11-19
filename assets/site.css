@@ -12,7 +12,9 @@
   --stroke:rgba(255,255,255,.08);
   --focus:#86b7ff;
   --head-space:64px; /* odsunięcie treści od góry pod stałe logo (tylko na .home) */
-  --hotbar-h:32px;   /* wysokość paska z hot news */
+  
+  /* ZAKTUALIZOWANO: wysokość paska dopasowana do nowego CSS (42px) */
+  --hotbar-h:42px;   
 
   /* ZMIENNE DLA JASNYCH „POKOJÓW” (ROOMS / ARTYKUŁY) */
   --room-bg:#f6f2ea;             /* tło ecru */
@@ -45,7 +47,7 @@ body{
 
 /* Home: tylko miejsce na pasek HOT NEWS, bez dodatkowego odstępu */
 body.home{
-  padding-top:var(--hotbar-h); /* 32px – dokładnie tyle, ile wysokość br-hotbar */
+  padding-top:var(--hotbar-h); /* 42px – dokładnie tyle, ile wysokość br-hotbar */
 }
 
 
@@ -804,91 +806,8 @@ body.rooms-light .footer-link{
 body.rooms-light .footer-link:hover{
   color:#111827;
 }
-/* ============================
-   HOT NEWS BAR (PL + EN, home)
-   ============================ */
 
-.br-hotbar{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  z-index:1200;
-  background:linear-gradient(90deg,#facc15,#f97316); /* żółto-pomarańczowy jak Onet, ale delikatniejszy */
-  color:#111827;
-  font-size:14px;
-  line-height:1.4;
-  box-shadow:0 2px 8px rgba(0,0,0,.35);
-}
-
-.br-hotbar-inner{
-  max-width:1100px;
-  margin:0 auto;
-  padding:6px 12px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.br-hotbar-label{
-  font-weight:700;
-  text-transform:uppercase;
-  font-size:11px;
-  letter-spacing:.12em;
-  white-space:nowrap;
-}
-
-.br-hotbar-ticker{
-  flex:1;
-  overflow:hidden;
-  min-width:0;
-}
-
-.br-hotbar-track{
-  display:inline-flex;
-  gap:32px;
-  white-space:nowrap;
-  will-change:transform;
-  animation:br-ticker-scroll 40s linear infinite;
-}
-
-.br-hotbar-item{
-  color:inherit;
-  text-decoration:none;
-}
-
-.br-hotbar-item:hover{
-  text-decoration:underline;
-}
-
-/* po najechaniu myszą zatrzymujemy „taśmę” */
-.br-hotbar:hover .br-hotbar-track{
-  animation-play-state:paused;
-}
-
-.br-hotbar-time{
-  font-size:11px;
-  opacity:.85;
-  white-space:nowrap;
-}
-
-/* animacja przesuwania w lewo */
-@keyframes br-ticker-scroll{
-  0%{ transform:translateX(0); }
-  100%{ transform:translateX(-50%); }
-}
-
-/* Mobile: trochę mniejszy tekst, mniej „powietrza” */
-@media (max-width:640px){
-  .br-hotbar-inner{
-    padding:4px 8px;
-    gap:8px;
-  }
-  .br-hotbar-label{ display:none; }  /* na bardzo małych ekranach zostaw sam tekst newsów */
-  .br-hotbar-time{ font-size:10px; }
-}
-/* Home: nawigacja „przyklejona” do paska HOT NEWS (PL + EN) */
-/* Home: nawigacja przyklejona do paska HOT NEWS (bez przerwy) */
+/* Home: nawigacja „przyklejona” do paska HOT NEWS */
 body.home .br-hotbar{
   margin-bottom:0;
 }
@@ -900,75 +819,31 @@ body.home main{
   margin-top:0;
 }
 
-/* Wyzeruj ewentualny margin pierwszego dziecka w headerze/main (tam siedzi nawigacja) */
+/* Wyzeruj ewentualny margin pierwszego dziecka w headerze/main */
 body.home header > *:first-child,
 body.home main > *:first-child{
   margin-top:0 !important;
 }
+
 /* =========================================
-   HOTBAR FIX & ANIMACJA
-   ========================================= */
-
-/* 1. Kontener paska - naprawa ucinania góry tekstu */
-.br-hotbar {
-  display: flex;
-  align-items: center;        /* Centrowanie pionowe */
-  min-height: 42px;           /* Minimalna wysokość */
-  overflow: hidden;           /* Ukrywa to, co wyjeżdża poza pasek */
-  line-height: 1.4;
-  padding-top: 2px;           /* Lekki margines bezpieczeństwa od góry */
-}
-
-/* 2. Wewnętrzny pasek z treścią */
-.br-hotbar-ticker {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  overflow: hidden;           /* Ważne dla maskowania przewijania */
-  flex-grow: 1;               /* Zajmuje całą dostępną przestrzeń obok zegara */
-  mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
-}
-
-/* 3. Definicja animacji przewijania */
-@keyframes ticker-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-/* 4. Element, który się przesuwa */
-.br-hotbar-track {
-  display: flex;
-  white-space: nowrap;
-  will-change: transform;
-  /* Domyślna animacja (JS i tak przeliczy prędkość, ale to jest bezpiecznik) */
-  animation: ticker-scroll 60s linear infinite; 
-}
-
-/* 5. Pojedyncze elementy w pasku (dla pewności) */
-.br-hotbar-track span, 
-.br-hotbar-track a {
-  display: inline-flex;
-  align-items: center;
-  height: 100%;
-}
-/* =========================================
-   HOTBAR FIX & ANIMACJA (POPRAWIONE)
+   HOTBAR FIX & ANIMACJA (JEDYNA POPRAWNA WERSJA)
    ========================================= */
 
 /* 1. Kontener paska - to jest ramka, w której wszystko się dzieje */
 .br-hotbar {
-  position: relative;         /* Żeby pozycjonować elementy */
+  position: fixed;            /* FIXED - żeby był przyklejony do góry */
+  top: 0; left: 0; right: 0;
   display: flex;
   align-items: center;        /* Pionowe centrowanie */
-  height: 42px;               /* Stała wysokość */
+  height: var(--hotbar-h);    /* 42px */
   overflow: hidden;           /* Ukrywa to, co wyjeżdża poza ekran */
   background: #ffb23a;        /* Tło (z Twojego screena) */
   color: #000;                /* Kolor tekstu */
   font-weight: 600;
   font-size: 14px;
   line-height: 1;
-  z-index: 50;                /* Żeby był nad innymi elementami */
+  z-index: 1200;              /* Żeby był nad innymi elementami */
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
 }
 
 /* 2. Wewnętrzny "wózek" z tekstem */
@@ -978,6 +853,10 @@ body.home main > *:first-child{
   overflow: hidden; 
   display: flex;
   align-items: center;
+  flex-grow: 1;
+  /* Efekt zanikania po bokach */
+  mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent);
 }
 
 /* 3. Element, który faktycznie się przesuwa */
@@ -989,6 +868,11 @@ body.home main > *:first-child{
   
   /* Domyślna animacja (JS ją nadpisze, ale to jest start) */
   animation: ticker-scroll 40s linear infinite; 
+}
+
+/* Po najechaniu myszą zatrzymujemy */
+.br-hotbar:hover .br-hotbar-track {
+  animation-play-state: paused;
 }
 
 /* Odstępy między newsami */
@@ -1012,7 +896,7 @@ body.home main > *:first-child{
   height: 100%;
   display: flex;
   align-items: center;
-  font-variant-numeric: tabular-nums; /* Cyfry nie skaczą przy zmianie godziny */
+  font-variant-numeric: tabular-nums; 
   z-index: 2;
   box-shadow: -5px 0 10px rgba(0,0,0,0.05);
 }
@@ -1025,4 +909,10 @@ body.home main > *:first-child{
   100% { 
     transform: translateX(-50%); 
   }
+}
+
+/* Mobile tweaks dla paska */
+@media (max-width:640px){
+  .br-hotbar{ font-size: 13px; }
+  #br-hotbar-time{ font-size: 11px; padding: 0 10px; }
 }
