@@ -6,15 +6,12 @@
   <title>BriefRooms — choose a room (EN)</title>
 
   <link rel="icon" href="/assets/favicon.svg" />
- <link rel="stylesheet" href="/assets/site.css?v=rooms2" />
+  <link rel="stylesheet" href="/assets/site.css?v=rooms3">
 
-
-  <!-- hreflang -->
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
 
-  <!-- OG / Twitter -->
   <meta property="og:title" content="BriefRooms — concise, practical summaries">
   <meta property="og:description" content="Pick a room and read short, practical briefs.">
   <meta property="og:url" content="https://briefrooms.com/en/">
@@ -31,7 +28,7 @@
       --bg1:#071e2e; --bg2:#0b2a40;
       --txt:#eaf2fb; --muted:#9ab0c5;
       --accent:#9ed2ff;
-      --door-max:170px; /* smaller doors */
+      --door-max:170px;
     }
 
     html{
@@ -118,7 +115,7 @@
       gap:12px;
       font-size:13px;
       flex-wrap:nowrap;
-      overflow-x:auto;          /* keep on one line, allow horizontal scroll on small screens */
+      overflow-x:auto;
       white-space:nowrap;
       -webkit-overflow-scrolling:touch;
     }
@@ -412,30 +409,18 @@
 
 <body class="home">
 
-   <!-- HOT NEWS BAR – PL -->
-<div class="br-hotbar">
-  <div class="br-hotbar-ticker">
-    <div id="br-hotbar-track" class="br-hotbar-track"></div>
-  </div>
-  <span id="br-hotbar-time"></span>
-</div>
-
-      <!-- Godzina ostatniej aktualizacji -->
-      <span class="br-hotbar-time" id="br-hotbar-time"></span>
+  <div class="br-hotbar">
+    <div class="br-hotbar-ticker">
+      <div id="br-hotbar-track" class="br-hotbar-track"></div>
     </div>
+    <span id="br-hotbar-time"></span>
   </div>
 
- 
-
-  <!-- TU DALEJ ZOSTAJE TWOJE ISTNIEJĄCE NAV + RESZTA STRONY -->
-
-  <!-- AI badge (bottom-left) -->
   <a href="/en/news.html" class="ai-badge" aria-label="Powered by AI – go to News">
     <span class="ai-dot"></span>
     <span class="ai-sub">Powered by AI</span>
   </a>
 
-  <!-- floating contact mail (bottom-right) -->
   <a class="floating-mail"
      href="mailto:contact@briefrooms.com?subject=Contact%20BriefRooms&body=Hello,%0D%0A%0D%0A(briefly%20describe%20your%20case)%0D%0A"
      aria-label="Send e-mail to contact@briefrooms.com">
@@ -446,7 +431,6 @@
   </a>
 
   <main>
-    <!-- top navigation -->
     <nav class="top-nav" aria-label="Main">
       <div class="top-nav-inner">
         <a href="/en/" class="top-nav-logo">
@@ -469,7 +453,6 @@
     </header>
 
     <section class="grid">
-      <!-- 1) News -->
       <a class="card" href="/en/news.html" aria-label="News">
         <div class="door">
           <span class="frame"></span>
@@ -481,7 +464,6 @@
         </div>
       </a>
 
-      <!-- 2) Health -->
       <a class="card" href="/en/health.html" aria-label="Health">
         <div class="door">
           <span class="frame"></span>
@@ -493,7 +475,6 @@
         </div>
       </a>
 
-      <!-- 3) Geopolitics -->
       <a class="card" href="/en/geopolitics.html" aria-label="Geopolitics">
         <div class="door">
           <span class="frame"></span>
@@ -505,7 +486,6 @@
         </div>
       </a>
 
-      <!-- 4) Science -->
       <a class="card" href="/en/science.html" aria-label="Science">
         <div class="door">
           <span class="frame"></span>
@@ -533,20 +513,7 @@
       <a class="footer-link" href="/en/">EN</a>
     </div>
   </footer>
-    ...
-  <footer>© BriefRooms</footer>
 
-  <!-- Hotbar: duplikowanie zawartości, żeby taśma była ciągła -->
-  <script>
-    (function(){
-      const track = document.querySelector('.br-hotbar-track');
-      if (!track) return;
-      // Duplikujemy zawartość, żeby „taśma” była ciągła
-      track.innerHTML = track.innerHTML + track.innerHTML;
-    })();
-  </script>
-</body>
-</html>
-<script src="/scripts/hotbar.js?v=2"></script>
+  <script src="/scripts/hotbar.js?v=3" defer></script>
 </body>
 </html>
