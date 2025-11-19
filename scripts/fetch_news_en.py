@@ -9,11 +9,12 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import feedparser
-from dateutil import tz
 import requests
+# dateutil jest używane przez feedparser, ale import zostawiłem na wszelki wypadek
+# from dateutil import tz # Nie jest konieczne, TZ jest UTC
 
 # =========================
-# TIMEZONE (UTC dla wersji EN jest bezpieczniejsze)
+# TIMEZONE
 # =========================
 TZ = timezone.utc
 
@@ -22,7 +23,7 @@ TZ = timezone.utc
 # =========================
 MAX_PER_SECTION = 5
 MAX_PER_HOST = 5
-HOTBAR_LIMIT = 15  # Trochę więcej newsów w pasku
+HOTBAR_LIMIT = 15
 
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
@@ -154,10 +155,12 @@ def save_cache():
 
 def ai_summarize_en(title, snippet, url):
     cache_key = f"{title.strip()}|{today_str()}"
+    fallback = ensure_full_sentence((snippet or title)[:300], 300)
+
     if cache_key in CACHE: return CACHE[cache_key]
 
     if not AI_ENABLED:
-        out = {"summary": ensure_full_sentence((snippet or title)[:300], 300), "uncertain": ""}
+        out = {"summary": fallback, "uncertain": "fallback"}
         CACHE[cache_key] = out
         return out
 
@@ -183,14 +186,25 @@ Rules:
                 "temperature": 0.2, "max_tokens": 100
             }, timeout=20
         )
-        txt = resp.json()["choices"][0]["message"]["content"].strip()
-        out = {"summary": txt, "uncertain": ""}
+        
+        # Sprawdzenie odpowiedzi (uproszczone)
+        if resp.status_code == 200 and "choices" in resp.json():
+            txt = resp.json()["choices"][0]["message"]["content"].strip()
+            out = {"summary": txt, "uncertain": ""}
+            CACHE[cache_key] = out
+            save_cache()
+            return out
+        else:
+            print(f"AI API Error Status {resp.status_code}: {resp.text[:100]}...")
+            raise Exception("API call failed")
+            
+    except Exception as e:
+        print(f"AI Error: {e}")
+        # W przypadku błędu AI zwracamy fallback
+        out = {"summary": fallback, "uncertain": "error"}
         CACHE[cache_key] = out
         save_cache()
         return out
-    except Exception as e:
-        print(f"AI Error: {e}")
-        return {"summary": title, "uncertain": ""}
 
 # =========================
 # FETCH & BUILD
@@ -199,7 +213,9 @@ def fetch_section(sec_key):
     items = []
     for url in FEEDS.get(sec_key, []):
         try:
-            d = feedparser.parse(url)
+            d = feedparser.parse(url, request_headers={'Cache-Control': 'max-age=3600'})
+            if not d.entries: continue
+            
             for e in d.entries[:20]:
                 t = e.get("title","")
                 l = e.get("link","")
@@ -211,7 +227,9 @@ def fetch_section(sec_key):
                     "title": t, "link": l, "summary_raw": re.sub("<[^<]+?>","",s),
                     "published_parsed": e.get("published_parsed")
                 })
-        except: pass
+        except Exception as ex: 
+            print(f"Error fetching {url}: {ex}")
+            pass
         
     # Score & Dedupe
     for i in items:
@@ -246,8 +264,8 @@ def build_hotbar_json(sections):
     pool.sort(key=lambda x: x["_score"], reverse=True)
     
     for item in pool[:HOTBAR_LIMIT]:
-        txt = item.get("ai_summary") or item.get("title")
-        txt = txt.replace("\n", " ").strip()
+        # Używamy ai_summary, które jest zawsze dostępne (lub jest fallbackiem)
+        txt = item.get("ai_summary", item.get("title", "")).replace("\n", " ").strip()
         if not txt: continue
         
         # Klucz v2
@@ -257,22 +275,31 @@ def build_hotbar_json(sections):
     return hotbar
 
 def render_html(sections):
-    # Prosta funkcja generująca HTML (gdybyś potrzebował pliku en/news.html)
-    # Używa stylów z assets/site.css
     
     def make_section(title, items):
         if not items: return ""
         lis = ""
         for it in items:
+            summary = it.get('ai_summary', '')
+            # Upewnienie się, że link i tytuł są dostępne
+            link = esc(it['link'])
+            title_esc = esc(it['title'])
+            summary_esc = esc(summary)
+            
             lis += f'''
             <li>
-                <a href="{esc(it['link'])}" target="_blank">
-                    <strong>{esc(it['title'])}</strong>
+                <a href="{link}" target="_blank">
+                    <strong>{title_esc}</strong>
                 </a>
-                <p style="font-size:0.9em; opacity:0.8; margin:4px 0;">{esc(it.get('ai_summary', ''))}</p>
+                <p style="font-size:0.9em; opacity:0.8; margin:4px 0;">{summary_esc}</p>
             </li>'''
         return f'<section class="card"><h2>{title}</h2><ul class="news" style="list-style:none; padding:0;">{lis}</ul></section>'
 
+    world_html = make_section("World & Politics", sections.get('world', []))
+    business_html = make_section("Business", sections.get('business', []))
+    science_html = make_section("Science", sections.get('science', []))
+    health_html = make_section("Health", sections.get('health', []))
+    
     html_content = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -281,15 +308,16 @@ def render_html(sections):
   <title>BriefRooms News (EN)</title>
   <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body class="rooms-light"> <header>
+<body class="rooms-light"> 
+<header>
     <h1>Latest Updates</h1>
     <p class="sub">Brief summaries from US, UK & World.</p>
 </header>
 <main>
-    {make_section("World & Politics", sections['world'])}
-    {make_section("Business", sections['business'])}
-    {make_section("Science", sections['science'])}
-    {make_section("Health", sections['health'])}
+    {world_html}
+    {business_html}
+    {science_html}
+    {health_html}
 </main>
 </body>
 </html>"""
@@ -299,13 +327,13 @@ def main():
     print(f"--- START EN FETCH: {datetime.now()} ---")
     sections = {}
     
-    # 1. Pobieranie sekcji (zgodnych z menu na stronie)
+    # 1. Pobieranie sekcji i AI processing
     for cat in ["world", "business", "science", "health"]:
         print(f"... fetching {cat}")
         sections[cat] = fetch_section(cat)
         
-        # AI processing
         for item in sections[cat]:
+            # item.get("summary_raw") może być puste, dlatego ai_summarize_en ma fallback
             ai = ai_summarize_en(item["title"], item["summary_raw"], item["link"])
             item["ai_summary"] = ai["summary"]
 
@@ -326,6 +354,8 @@ def main():
             f.write(html_source)
         print(f"Saved HTML: {HTML_OUTPUT_PATH}")
     except Exception as e: print(f"Err saving html: {e}")
+    
+    print(f"--- END EN FETCH: {datetime.now()} ---")
 
 if __name__ == "__main__":
     main()
