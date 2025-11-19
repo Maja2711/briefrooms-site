@@ -650,4 +650,78 @@ def main():
 
 if __name__ == "__main__":
     main()
+# ... (tu skończył się Twój kod)
 
+    """
+    out = {}
+    # Data do klucza, np. 2025-11-19
+    d_str = today_str()
+    
+    # Przechodzimy przez wszystkie sekcje
+    for sec_name, items in sections.items():
+        for item in items:
+            # Wybieramy tekst: podsumowanie AI (jeśli jest) lub tytuł
+            text = item.get("ai_summary") or item.get("title") or ""
+            text = ensure_full_sentence(text, 160)
+            
+            # Ostrzeżenie (jeśli jest) doklejamy na początku w nawiasie lub osobno
+            uncertain = item.get("ai_uncertain", "")
+            if uncertain:
+                text = f"[{uncertain}] {text}"
+
+            # Klucz w formacie: "v2|Tekst|Data" (zgodnie z tym co lubi hotbar.js)
+            # Upewniamy się, że nie ma znaków nowej linii
+            clean_text = text.replace("\n", " ").strip()
+            if not clean_text:
+                continue
+                
+            key = f"v2|{clean_text}|{d_str}"
+            out[key] = True
+
+    return out
+
+def main():
+    print(f"--- START: {datetime.now(TZ)} ---")
+    
+    # 1. Pobieranie sekcji
+    all_sections = {}
+    for sec in ["polityka", "biznes", "sport"]:
+        print(f"... pobieram sekcję: {sec}")
+        data = fetch_section(sec)
+        all_sections[sec] = data
+        print(f"    -> znaleziono {len(data)} newsów")
+
+    # 2. Zapis pełnego JSON (dla strony /aktualnosci.html itp.)
+    # Tutaj zapisujemy strukturę z podziałem na kategorie
+    FULL_JSON_PATH = ".cache/news_full_pl.json" 
+    # (Możesz zmienić ścieżkę, jeśli używasz innej dla pełnego widoku)
+    try:
+        with open(FULL_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(all_sections, f, ensure_ascii=False, indent=2)
+        print(f"Zapisano pełne dane: {FULL_JSON_PATH}")
+    except Exception as e:
+        print(f"Błąd zapisu full json: {e}")
+
+    # 3. Budowa i zapis JSON dla Hotbara (płaska struktura kluczy)
+    hotbar_data = build_hotbar_json(all_sections)
+    
+    # Limitujemy ilość wpisów w hotbarze, żeby nie był za długi
+    # (słownik nie ma kolejności w starszych py, ale w 3.7+ zachowuje insercję, 
+    #  jednak tutaj klucze są hashami treści. Możemy po prostu przyciąć ilość).
+    limited_hotbar = {}
+    for i, (k, v) in enumerate(hotbar_data.items()):
+        if i >= HOTBAR_LIMIT:
+            break
+        limited_hotbar[k] = v
+
+    try:
+        with open(HOTBAR_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(limited_hotbar, f, ensure_ascii=False, indent=2)
+        print(f"Zapisano hotbar json: {HOTBAR_JSON_PATH} (pozycji: {len(limited_hotbar)})")
+    except Exception as e:
+        print(f"Błąd zapisu hotbar json: {e}")
+
+    print("--- KONIEC ---")
+
+if __name__ == "__main__":
+    main()
