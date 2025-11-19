@@ -1,109 +1,121 @@
 /**
- * BriefRooms Hotbar Script (v3 - Multi-language Support, hardened)
- * Obsługuje pasek "HOT NEWS" oraz zegar.
- * Automatycznie wykrywa język strony (PL/EN).
+ * scripts/hotbar.js
+ * * Skrypt do pobierania i wyświetlania aktualnych nagłówków wiadomości (Hotbar).
+ * Zakłada, że nagłówki są zapisane w formacie JSON w pliku .cache/news_summaries_[lang].json
  */
 
-(function () {
-  const lang = document.documentElement.lang || 'pl';
+// Konfiguracja
+const HOTBAR_CONFIG = {
+    HOTBAR_ID: 'news-hotbar',
+    JSON_PATH_TEMPLATE: '/.cache/news_summaries_{lang}.json',
+    UPDATE_INTERVAL_MS: 15000, // Co 15 sekund
+    PAUSE_ON_HOVER_MS: 60000, // Pauza na 60 sekund po najechaniu myszą
+    MAX_ITEMS: 15 // Maksymalna liczba nagłówków do wyświetlenia
+};
 
-  const fileName =
-    lang === 'en' ? 'news_summaries_en.json' : 'news_summaries_pl.json';
+let hotbarTimer;
+let currentItems = [];
+let itemIndex = 0;
+let isHovering = false;
+let isPaused = false;
 
-  const HOTBAR_URL = `/.cache/${fileName}`;
-  const TRACK_ID = 'br-hotbar-track';
-  const TIME_ID = 'br-hotbar-time';
+// Pobiera ustawiony język dokumentu (np. 'pl', 'en')
+function getLanguage() {
+    return document.documentElement.lang || 'pl';
+}
 
-  const SPEED_PX_PER_SEC = 50;
-
-  function updateClock() {
-    const el = document.getElementById(TIME_ID);
-    if (!el) return;
-
-    const now = new Date();
-    const locale = lang === 'en' ? 'en-GB' : 'pl-PL';
-
-    const timeString = now.toLocaleTimeString(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    el.textContent = timeString;
-  }
-
-  async function loadHotbar() {
-    const track = document.getElementById(TRACK_ID);
-    if (!track) return;
-
+// Pobiera dane z pliku JSON
+async function fetchNewsData(lang) {
+    const path = HOTBAR_CONFIG.JSON_PATH_TEMPLATE.replace('{lang}', lang);
     try {
-      const res = await fetch(`${HOTBAR_URL}?t=${Date.now()}`, {
-        cache: 'no-store',
-      });
-      if (!res.ok) throw new Error(`Brak pliku: ${fileName}`);
-
-      const data = await res.json();
-      const keys = Object.keys(data || {});
-
-      const messages = keys
-        .map((k) => {
-          // klucz w formacie "v2|Message|Date" – usuwamy prefix wersji
-          const withoutVer = k.replace(/^v\d+\|/, '');
-          const parts = withoutVer.split('|');
-          if (parts.length === 1) return parts[0].trim();
-          if (parts.length >= 2) {
-            // wszystko oprócz ostatniego elementu (daty) traktujemy jako tekst
-            return parts.slice(0, -1).join('|').trim();
-          }
-          return null;
-        })
-        .filter((txt) => txt && txt.length > 0);
-
-      if (!messages.length) {
-        const msg =
-          lang === 'en'
-            ? 'Welcome to BriefRooms. Choose a room to start reading.'
-            : 'Witamy w BriefRooms. Wybierz pokój tematyczny.';
-        track.innerHTML = `<span>${msg}</span>`;
-        track.style.animation = 'none';
-        return;
-      }
-
-      const separator = '<span class="sep">•</span>';
-
-      let htmlContent = messages
-        .map(
-          (msg) =>
-            `<span style="display:inline-flex; align-items:center; padding-top:1px;">${msg}</span>`
-        )
-        .join(separator);
-
-      htmlContent += separator;
-
-      track.innerHTML = htmlContent + htmlContent;
-
-      requestAnimationFrame(() => {
-        const trackWidth = track.scrollWidth / 2;
-        if (trackWidth > 0) {
-          const duration = trackWidth / SPEED_PX_PER_SEC;
-          track.style.animationDuration = `${duration}s`;
-          track.style.animationName = 'ticker-scroll';
-          track.style.animationTimingFunction = 'linear';
-          track.style.animationIterationCount = 'infinite';
+        const response = await fetch(path, { cache: 'no-cache' });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-      });
-    } catch (err) {
-      console.warn('Hotbar error:', err);
-      const msg =
-        lang === 'en'
-          ? 'BriefRooms — concise summaries.'
-          : 'BriefRooms — krótkie podsumowania.';
-      track.innerHTML = `<span>${msg}</span>`;
-      track.style.animation = 'none';
+        const data = await response.json();
+        // Klucze w JSON to tytuły w formacie 'v2|TYTUŁ|DATA'. Wyciągamy sam TYTUŁ.
+        return Object.keys(data)
+                     .filter(key => key.startsWith('v2|'))
+                     .map(key => key.split('|')[1])
+                     .slice(0, HOTBAR_CONFIG.MAX_ITEMS);
+    } catch (e) {
+        console.error('Błąd ładowania danych Hotbar:', e);
+        return [];
     }
-  }
+}
 
-  document.addEventListener('DOMContentLoaded', () => {
-    updateClock();
-    setInterval(updateClock, 1000);
-    loadHotbar();
-  });
-})();
+// Wyświetla kolejny nagłówek
+function showNextItem() {
+    const hotbar = document.getElementById(HOTBAR_CONFIG.HOTBAR_ID);
+    if (!hotbar || isPaused || currentItems.length === 0) return;
+
+    // Pobierz bieżący nagłówek
+    const text = currentItems[itemIndex];
+    
+    // Używamy transition dla płynnego ukrycia/pojawienia
+    hotbar.style.opacity = '0';
+
+    setTimeout(() => {
+        hotbar.textContent = text;
+        hotbar.style.opacity = '1';
+        
+        // Przejście do kolejnego elementu
+        itemIndex = (itemIndex + 1) % currentItems.length;
+    }, 500); // Czas musi pasować do przejścia CSS (.hotbar-transition)
+
+    // Zaplanuj następne wyświetlenie
+    startHotbarTimer();
+}
+
+// Restartuje timer wyświetlania
+function startHotbarTimer() {
+    clearTimeout(hotbarTimer);
+    if (isPaused) return;
+    hotbarTimer = setTimeout(showNextItem, HOTBAR_CONFIG.UPDATE_INTERVAL_MS);
+}
+
+// Inicjalizacja paska
+async function initializeHotbar() {
+    const lang = getLanguage();
+    currentItems = await fetchNewsData(lang);
+    
+    const hotbar = document.getElementById(HOTBAR_CONFIG.HOTBAR_ID);
+    
+    if (currentItems.length > 0 && hotbar) {
+        // Dodanie klasy dla przejścia CSS (zakładając, że .hotbar-transition jest zdefiniowany)
+        hotbar.classList.add('hotbar-transition'); 
+        
+        // Obsługa najechania myszą
+        hotbar.addEventListener('mouseenter', () => {
+            isHovering = true;
+            clearTimeout(hotbarTimer);
+            // Pauzowanie i ustawienie timera na długą pauzę, aby użytkownik mógł przeczytać
+            isPaused = true;
+            setTimeout(() => {
+                isPaused = false;
+                if (!isHovering) {
+                    startHotbarTimer();
+                }
+            }, HOTBAR_CONFIG.PAUSE_ON_HOVER_MS);
+        });
+
+        hotbar.addEventListener('mouseleave', () => {
+            isHovering = false;
+            // Jeśli timer nie jest w trakcie długiej pauzy, zacznij od nowa
+            if (!isPaused) {
+                startHotbarTimer();
+            }
+        });
+        
+        // Wyświetl pierwszy element i uruchom pętlę
+        itemIndex = 0;
+        showNextItem();
+    } else if (hotbar) {
+         // Ukryj hotbar lub ustaw domyślny komunikat, jeśli dane są puste
+        hotbar.style.display = 'none';
+        console.log("Hotbar: Brak danych do wyświetlenia.");
+    }
+}
+
+// Uruchomienie inicjalizacji
+document.addEventListener('DOMContentLoaded', initializeHotbar);
