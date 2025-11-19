@@ -1,152 +1,178 @@
 /**
- * scripts/hotbar.js
- * * Skrypt do pobierania i wyświetlania aktualnych nagłówków wiadomości (Hotbar).
- * Zakłada, że nagłówki są zapisane w formacie JSON w pliku .cache/news_summaries_[lang].json
+ * BriefRooms Hotbar Script (v4 – PL/EN + klikalne linki)
+ * - Wykrywa język strony (PL/EN) na podstawie <html lang> i ścieżki /en/.
+ * - Czyta dane z:
+ *     /.cache/news_summaries_pl.json   (PL)
+ *     /.cache/news_summaries_en.json   (EN)
+ * - Oczekiwany format JSON:
+ *     { "v2|Some summary|2025-11-19": "https://link-do-artykulu", ... }
+ * - Buduje poziomy pasek z newsami, każdy wpis to <a href="URL">Tekst</a>.
  */
 
-// =========================
-// KONFIGURACJA
-// =========================
-const HOTBAR_CONFIG = {
-    HOTBAR_ID: 'news-hotbar',
-    JSON_PATH_TEMPLATE: '/.cache/news_summaries_{lang}.json',
-    UPDATE_INTERVAL_MS: 15000, // Co 15 sekund
-    PAUSE_ON_HOVER_MS: 60000, // Pauza na 60 sekund po najechaniu myszą
-    MAX_ITEMS: 15 // Maksymalna liczba nagłówków do wyświetlenia
-};
+(function () {
+  // ----------------------------------------
+  // USTAWIENIA PODSTAWOWE
+  // ----------------------------------------
+  const htmlLang = (document.documentElement.getAttribute('lang') || '').toLowerCase();
+  const path = window.location.pathname || '';
+  const isEN = htmlLang === 'en' || path.startsWith('/en/');
+  const lang = isEN ? 'en' : 'pl';
 
-// =========================
-// ZMIENNE STANU
-// =========================
-let hotbarTimer;
-let currentItems = [];
-let itemIndex = 0;
-let isHovering = false;
-let isPaused = false; // Flaga blokująca timer podczas długiej pauzy
+  const fileName = isEN ? 'news_summaries_en.json' : 'news_summaries_pl.json';
+  const HOTBAR_URL = `/.cache/${fileName}`;
+  const TRACK_ID = 'br-hotbar-track';
+  const TIME_ID = 'br-hotbar-time';
 
-// =========================
-// FUNKCJE POMOCNICZE
-// =========================
+  // Prędkość – piksele na sekundę (im mniejsza, tym wolniej pasek jedzie)
+  const SPEED_PX_PER_SEC = 50;
 
-// Pobiera ustawiony język dokumentu (np. 'pl', 'en')
-function getLanguage() {
-    return document.documentElement.lang || 'pl';
-}
+  // ----------------------------------------
+  // POMOCNICZE: ESCAPOWANIE HTML
+  // ----------------------------------------
+  function escapeHTML(str) {
+    return String(str || '').replace(/[&<>"']/g, function (ch) {
+      switch (ch) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+        default: return ch;
+      }
+    });
+  }
 
-// Pobiera dane z pliku JSON
-async function fetchNewsData(lang) {
-    const path = HOTBAR_CONFIG.JSON_PATH_TEMPLATE.replace('{lang}', lang);
+  function escapeAttr(str) {
+    // dla prostoty używamy tego samego escapera co dla tekstu
+    return escapeHTML(str);
+  }
+
+  // ----------------------------------------
+  // ZEGAR W PASKU (po prawej)
+  // ----------------------------------------
+  function updateClock() {
+    const el = document.getElementById(TIME_ID);
+    if (!el) return;
+
+    const now = new Date();
+    const locale = isEN ? 'en-GB' : 'pl-PL';
+
+    const timeString = now.toLocaleTimeString(locale, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    el.textContent = timeString;
+  }
+
+  // ----------------------------------------
+  // Wczytanie JSON i zbudowanie treści paska
+  // ----------------------------------------
+  async function loadHotbar() {
+    const track = document.getElementById(TRACK_ID);
+    if (!track) return;
+
     try {
-        const response = await fetch(path, { cache: 'no-cache' });
-        if (!response.ok) {
-            console.warn(`Hotbar: Plik danych nie znaleziony lub błąd statusu: ${response.status} dla ścieżki: ${path}`);
-            return [];
-        }
-        const data = await response.json();
-        // Klucze w JSON to tytuły w formacie 'v2|TYTUŁ|DATA'. Wyciągamy sam TYTUŁ.
-        return Object.keys(data)
-                     .filter(key => key.startsWith('v2|'))
-                     .map(key => key.split('|')[1])
-                     .slice(0, HOTBAR_CONFIG.MAX_ITEMS);
-    } catch (e) {
-        console.error('Hotbar: Błąd ładowania lub parsowania danych JSON:', e);
-        return [];
-    }
-}
+      const res = await fetch(`${HOTBAR_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`Hotbar HTTP ${res.status} (${fileName})`);
+      }
 
-// Restartuje timer wyświetlania
-function startHotbarTimer() {
-    clearTimeout(hotbarTimer);
-    if (isPaused) return;
-    hotbarTimer = setTimeout(showNextItem, HOTBAR_CONFIG.UPDATE_INTERVAL_MS);
-}
-
-// =========================
-// LOGIKA WYŚWIETLANIA
-// =========================
-
-// Wyświetla kolejny nagłówek
-function showNextItem() {
-    const hotbar = document.getElementById(HOTBAR_CONFIG.HOTBAR_ID);
-    
-    // Warunek wczesnego wyjścia
-    if (!hotbar || isPaused || currentItems.length === 0) {
-        if (hotbar) hotbar.style.display = 'none'; // Ukryj, jeśli nie ma treści
+      const raw = await res.json();
+      const entries = Object.entries(raw || {});
+      if (!entries.length) {
+        setFallbackMessage(track);
         return;
+      }
+
+      // Parsowanie: key = "v2|Tekst|Data", value = URL
+      const items = entries.map(([key, url]) => {
+        if (typeof key !== 'string') return null;
+
+        let safeUrl = (url || '').trim();
+        // Fallback: jeśli z jakiegoś powodu URL jest pusty
+        if (!safeUrl) {
+          safeUrl = isEN ? '/en/news.html' : '/pl/aktualnosci.html';
+        }
+
+        const parts = key.split('|');
+        let title = '';
+        let date = '';
+
+        if (parts[0] === 'v2') {
+          title = parts[1] || '';
+          date = parts[2] || '';
+        } else {
+          // legacy/fallback
+          title = parts[1] || parts[0];
+          date = parts[2] || '';
+        }
+
+        title = (title || '').trim().replace(/^"|"$/g, '');
+        if (!title) return null;
+
+        return {
+          title,
+          url: safeUrl,
+          date: date || ''
+        };
+      }).filter(Boolean);
+
+      if (!items.length) {
+        setFallbackMessage(track);
+        return;
+      }
+
+      // Separator między newsami
+      const separatorHTML = '<span class="sep">•</span>';
+
+      // Funkcja budująca jeden „pakiet” newsów (bez duplikacji)
+      function buildOnce() {
+        return items.map(item => {
+          const t = escapeHTML(item.title);
+          const u = escapeAttr(item.url);
+          const d = escapeAttr(item.date);
+          return `<a href="${u}" target="_blank" rel="noopener" data-hotbar-date="${d}">${t}</a>`;
+        }).join(separatorHTML) + separatorHTML;
+      }
+
+      // Wstawiamy dwa razy, żeby animacja mogła płynnie zapętlać
+      const once = buildOnce();
+      track.innerHTML = once + once;
+
+      // Ustawienie prędkości animacji na podstawie szerokości
+      requestAnimationFrame(function () {
+        const totalWidth = track.scrollWidth / 2; // połowa, bo treść zduplikowana
+        if (totalWidth > 0) {
+          const duration = totalWidth / SPEED_PX_PER_SEC; // sekundy
+          track.style.animationDuration = `${duration}s`;
+          track.style.animationName = 'ticker-scroll';
+          track.style.animationTimingFunction = 'linear';
+          track.style.animationIterationCount = 'infinite';
+        }
+      });
+
+    } catch (err) {
+      console.warn('Hotbar error:', err);
+      setFallbackMessage(track);
+      track.style.animation = 'none';
     }
+  }
 
-    const text = currentItems[itemIndex];
-    
-    // 1. Ukrycie z przejściem (CSS opacity)
-    hotbar.style.opacity = '0';
+  function setFallbackMessage(track) {
+    const msg = isEN
+      ? 'BriefRooms — concise summaries.'
+      : 'BriefRooms — krótkie podsumowania.';
+    track.innerHTML = `<span>${escapeHTML(msg)}</span>`;
+  }
 
-    setTimeout(() => {
-        // 2. Wyczyść zawartość i wstaw nowy tekst
-        hotbar.innerHTML = ''; // Dodatkowe czyszczenie na wypadek statycznego/brudnego HTML
-        hotbar.textContent = text;
-        
-        // 3. Odkrycie
-        hotbar.style.opacity = '1';
-        
-        // 4. Przejście do kolejnego elementu
-        itemIndex = (itemIndex + 1) % currentItems.length;
-    }, 500); // Czas musi pasować do przejścia CSS (hotbar-transition)
+  // ----------------------------------------
+  // START
+  // ----------------------------------------
+  document.addEventListener('DOMContentLoaded', function () {
+    updateClock();
+    setInterval(updateClock, 1000);
+    loadHotbar();
+  });
 
-    // Zaplanuj następne wyświetlenie
-    startHotbarTimer();
-}
-
-
-// =========================
-// INICJALIZACJA
-// =========================
-
-async function initializeHotbar() {
-    const hotbar = document.getElementById(HOTBAR_CONFIG.HOTBAR_ID);
-    if (!hotbar) return;
-    
-    // ZAWSZE czyścimy hotbar przy inicjalizacji
-    hotbar.innerHTML = ''; 
-
-    const lang = getLanguage();
-    currentItems = await fetchNewsData(lang);
-    
-    if (currentItems.length > 0) {
-        // Dodanie klasy dla przejścia CSS (jeśli używasz)
-        hotbar.classList.add('hotbar-transition'); 
-        hotbar.style.display = 'block'; // Upewnij się, że jest widoczny
-        
-        // --- Obsługa Najechania Myszą (Hover) ---
-        hotbar.addEventListener('mouseenter', () => {
-            isHovering = true;
-            clearTimeout(hotbarTimer);
-            // Pauzowanie i ustawienie timera na długą pauzę
-            isPaused = true;
-            setTimeout(() => {
-                isPaused = false;
-                if (!isHovering) {
-                    startHotbarTimer();
-                }
-            }, HOTBAR_CONFIG.PAUSE_ON_HOVER_MS);
-        });
-
-        hotbar.addEventListener('mouseleave', () => {
-            isHovering = false;
-            // Jeśli timer nie jest w trakcie długiej pauzy, zacznij od nowa
-            if (!isPaused) {
-                startHotbarTimer();
-            }
-        });
-        
-        // Wyświetl pierwszy element i uruchom pętlę
-        itemIndex = 0;
-        showNextItem();
-    } else {
-         // Ukryj hotbar, jeśli brak danych
-        hotbar.style.display = 'none';
-        console.log("Hotbar: Brak danych do wyświetlenia. Ukrywanie paska.");
-    }
-}
-
-// Uruchomienie inicjalizacji
-document.addEventListener('DOMContentLoaded', initializeHotbar);
+})();
