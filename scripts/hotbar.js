@@ -1,27 +1,37 @@
 /**
- * BriefRooms Hotbar Script (v2)
+ * BriefRooms Hotbar Script (v3 - Multi-language Support)
  * Obsługuje pasek "HOT NEWS" oraz zegar.
- * Czyta dane z: /.cache/news_summaries_pl.json
+ * Automatycznie wykrywa język strony (PL/EN).
  */
 
 (function() {
-  const HOTBAR_URL = '/.cache/news_summaries_pl.json';
+  // 1. Wykrywanie języka na podstawie tagu <html lang="xx">
+  const lang = document.documentElement.lang || 'pl';
+  
+  // 2. Wybór pliku w zależności od języka
+  const fileName = (lang === 'en') 
+    ? 'news_summaries_en.json' 
+    : 'news_summaries_pl.json';
+    
+  const HOTBAR_URL = `/.cache/${fileName}`;
   const TRACK_ID = 'br-hotbar-track';
   const TIME_ID = 'br-hotbar-time';
   
-  // Prędkość animacji (piksele na sekundę). Im mniej, tym wolniej.
+  // Prędkość animacji (piksele na sekundę).
   const SPEED_PX_PER_SEC = 50; 
 
   /**
-   * 1. Obsługa zegara (czas lokalny PL)
+   * Obsługa zegara (formatowanie zależne od języka)
    */
   function updateClock() {
     const el = document.getElementById(TIME_ID);
     if (!el) return;
 
     const now = new Date();
-    // Formatowanie czasu: HH:MM
-    const timeString = now.toLocaleTimeString('pl-PL', {
+    // Ustaw locale na podstawie wykrytego języka (pl-PL lub en-US/en-GB)
+    const locale = (lang === 'en') ? 'en-GB' : 'pl-PL';
+    
+    const timeString = now.toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit'
     });
@@ -29,22 +39,20 @@
   }
 
   /**
-   * 2. Pobieranie i renderowanie paska
+   * Pobieranie i renderowanie paska
    */
   async function loadHotbar() {
     const track = document.getElementById(TRACK_ID);
     if (!track) return;
 
     try {
-      // Cache-busting (?t=...) aby nie czytać starego pliku
       const res = await fetch(`${HOTBAR_URL}?t=${Date.now()}`);
-      if (!res.ok) throw new Error('Brak pliku hotbar json');
+      if (!res.ok) throw new Error(`Brak pliku: ${fileName}`);
       
       const data = await res.json();
       const keys = Object.keys(data);
 
-      // Parsowanie kluczy: "v2|Tekst Wiadomości|Data"
-      // Wyciągamy tylko Tekst (index 1)
+      // Parsowanie kluczy: "v2|Message|Date"
       const messages = keys
         .map(k => {
           const parts = k.split('|');
@@ -53,45 +61,34 @@
         .filter(txt => txt && txt.length > 0);
 
       if (messages.length === 0) {
-        track.innerHTML = '<span>Witamy w BriefRooms. Wybierz pokój tematyczny.</span>';
+        // Fallback message
+        const msg = (lang === 'en') 
+          ? 'Welcome to BriefRooms. Choose a room to start reading.'
+          : 'Witamy w BriefRooms. Wybierz pokój tematyczny.';
+        track.innerHTML = `<span>${msg}</span>`;
         return;
       }
 
-      // Budujemy HTML
-      // Używamy separatora (kropka lub +++)
-      const separator = '<span class="sep" style="margin:0 15px; opacity:0.5">•</span>';
+      // Separator
+      const separator = '<span class="sep">•</span>';
       
-      // Tworzymy ciągły string
+      // Budowanie HTML
       let htmlContent = messages.map(msg => {
-        // Dodajemy style inline, aby upewnić się, że tekst nie jest ucięty
-        return `<span style="display:inline-flex; align-items:center; padding-top:1px;">${msg}</span>`;
+        return `<span>${msg}</span>`;
       }).join(separator);
 
-      // Dodajemy separator na końcu ostatniego elementu przed powtórzeniem
       htmlContent += separator;
 
-      // Wstawiamy treść RAZ
+      // Wstawienie i duplikacja dla pętli
       track.innerHTML = htmlContent;
-
-      // DUPLIKACJA TREŚCI (dla płynnej pętli)
-      // Kopiujemy treść tyle razy, aby wypełnić ekran + zapas
-      // W najprostszym wariancie CSS 'marquee', duplikujemy całość raz.
       track.innerHTML += htmlContent;
 
-      // Obliczanie czasu animacji
-      // Musimy poczekać chwilę aż przeglądarka przeliczy szerokość
+      // Obliczanie animacji
       requestAnimationFrame(() => {
-        const trackWidth = track.scrollWidth / 2; // Dzielimy na 2, bo zduplikowaliśmy treść
-        
-        // Jeśli treść jest krótsza niż ekran, nie animujemy (lub centrujemy)
-        // Ale tu zakładamy, że newsów jest sporo -> animacja
+        const trackWidth = track.scrollWidth / 2;
         if (trackWidth > 0) {
           const duration = trackWidth / SPEED_PX_PER_SEC;
-          
-          // Ustawiamy zmienną CSS lub styl bezpośrednio
           track.style.animationDuration = `${duration}s`;
-          
-          // Dodajemy klasę uruchamiającą animację (jeśli nie jest dodana domyślnie)
           track.style.animationName = 'ticker-scroll';
           track.style.animationTimingFunction = 'linear';
           track.style.animationIterationCount = 'infinite';
@@ -100,7 +97,10 @@
 
     } catch (err) {
       console.warn('Hotbar error:', err);
-      track.innerHTML = '<span>BriefRooms — krótkie podsumowania dnia.</span>';
+      const msg = (lang === 'en') 
+          ? 'BriefRooms — concise summaries.'
+          : 'BriefRooms — krótkie podsumowania.';
+      track.innerHTML = `<span>${msg}</span>`;
     }
   }
 
