@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pl">
 <head>
-  <!-- PODSTAW: ŚCIEŻKI/URLE NA WŁAŚCIWE DLA TEJ STRONY -->
+  <!-- PODSTAW: ŚCIEŻKI/URLE NA TEJ STRONIE -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Inwestycje — Działy | BriefRooms</title>
@@ -27,7 +27,7 @@
   <meta property="og:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Wykres S&P 500 z zaznaczonymi strefami kupna i sprzedaży.">
+  <meta property="og:image:alt" content="S&P 500 i scenariusze rynkowe.">
   <meta property="og:site_name" content="BriefRooms">
   <meta property="og:locale" content="pl_PL">
   <meta property="article:section" content="Inwestycje">
@@ -39,7 +39,7 @@
   <meta name="twitter:title" content="Inwestycje — Działy | BriefRooms">
   <meta name="twitter:description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko i wyceny.">
   <meta name="twitter:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
-  <meta name="twitter:image:alt" content="Wykres S&P 500 z zaznaczonymi strefami kupna i sprzedaży.">
+  <meta name="twitter:image:alt" content="S&P 500 i scenariusze rynkowe.">
   <meta name="twitter:domain" content="briefrooms.com">
   <meta name="twitter:hashtags" content="inwestycje,SPX,giełda,rynek">
 
@@ -62,11 +62,11 @@
   }
   </script>
 
-  <!-- LEKKI STYL STRONY DZIAŁU (spójny z innymi kartami) -->
+  <!-- STYL STRONY DZIAŁU – JASNE TŁO + CZARNA CZCIONKA -->
   <style>
-    body.rooms-light.markets-index{
-      background:#0b1120;
-      color:#e5e7eb;
+    body.rooms-light.investments-index{
+      background:#f5eee5; /* jak w artykułach o zdrowiu */
+      color:#111827;      /* bardzo ciemny, prawie czarny tekst */
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     }
 
@@ -76,13 +76,13 @@
     }
 
     header h1{
-      color:#f9fafb;
+      color:#111827;
       font-size:1.9rem;
       margin-bottom:4px;
     }
 
     header .sub{
-      color:#9ca3af;
+      color:#111827;
       margin:0 0 4px;
     }
 
@@ -92,20 +92,21 @@
       max-width:960px;
       margin:0 auto;
       padding:0 16px 48px;
+      color:#111827;
     }
 
     .card{
-      background:radial-gradient(circle at top,#111827,#020617);
+      background:#ffffff;
       border-radius:18px;
       padding:18px 20px;
       margin:14px 0;
-      border:1px solid rgba(148,163,184,.35);
-      box-shadow:0 18px 45px rgba(15,23,42,.75);
+      border:1px solid rgba(15,23,42,.06);
+      box-shadow:0 12px 30px rgba(15,23,42,.10);
     }
 
     .card h2{
       margin:4px 0 10px;
-      color:#e5e7eb;
+      color:#111827;
       font-size:1.2rem;
     }
 
@@ -130,54 +131,59 @@
       margin:6px 0;
     }
 
+    /* Link do artykułu – jasne tło, CZARNY tekst */
     .card a{
-      display:inline-block;
-      color:#e5e7eb;
+      display:block;
       text-decoration:none;
-      padding:8px 10px;
-      border-radius:10px;
-      background:linear-gradient(135deg,rgba(15,23,42,.7),rgba(15,23,42,.2));
-      border:1px solid rgba(148,163,184,.4);
-      transition:background .2s ease,border-color .2s ease,transform .15s ease;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#f3f4f6;
+      border:1px solid #d1d5db;
+      transition:background .18s ease,border-color .18s ease,transform .12s ease,box-shadow .12s ease;
+      color:#111827;
     }
 
     .card a span.title{
+      display:block;
       font-weight:600;
+      color:#1d4ed8; /* niebieski tytuł, jak na innych stronach */
+      margin-bottom:2px;
     }
 
     .card a span.desc{
       display:block;
-      font-size:.9rem;
-      color:#9ca3af;
+      font-size:.95rem;
+      color:#111827;   /* tu była „srebrna” – teraz czarna */
       margin-top:2px;
     }
 
     .card a:hover{
-      background:linear-gradient(135deg,rgba(55,65,81,.9),rgba(15,23,42,.8));
-      border-color:#fbbf24;
+      background:#e5e7eb;
+      border-color:#9ca3af;
       transform:translateY(-1px);
+      box-shadow:0 10px 22px rgba(15,23,42,.18);
     }
 
     .back{
       margin-top:22px;
-      color:#9ca3af;
+      color:#111827;
     }
 
     .back a{
-      color:#e5e7eb;
+      color:#1d4ed8;
       text-decoration:underline;
       text-underline-offset:3px;
-      text-decoration-color:rgba(249,250,251,.5);
+      text-decoration-color:rgba(37,99,235,.5);
     }
 
     .back a:hover{
-      color:#fbbf24;
-      text-decoration-color:#fbbf24;
+      color:#1e40af;
+      text-decoration-color:#1e40af;
     }
   </style>
 </head>
 
-<body class="rooms-light markets-index">
+<body class="rooms-light investments-index">
 
 <header>
   <h1>Inwestycje</h1>
@@ -194,7 +200,7 @@
           <span class="title">Scenariusze S&amp;P 500 — 1M / 6M / 12M</span>
           <span class="desc">
             Późna faza hossy, AI, SOFR, TGA i bilans Fed — bazowe scenariusze dla S&amp;P 500
-            w trzech horyzontach czasowych, z orientacyjnymi strefami technicznymi.
+            w trzech horyzontach czasowych, na tle prognoz IMF, OECD i dużych banków inwestycyjnych.
           </span>
         </a>
       </li>
