@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pl">
 <head>
-  <!-- PODSTAW ŚCIEŻKI/URLE NA WŁAŚCIWE DLA TEGO ARTYKUŁU -->
+  <!-- PODSTAW: ŚCIEŻKI/URLE NA WŁAŚCIWE DLA TEGO ARTYKUŁU -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Scenariusze S&amp;P 500 — 1M / 6M / 12M | BriefRooms</title>
@@ -12,17 +12,17 @@
   <link rel="stylesheet" href="/assets/site.css?v=rooms3" />
 
   <!-- hreflang -->
-  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/rynki/spx-scenariusze-2026.html">
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/inwestycje/spx-scenariusze-2026.html">
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/markets/spx-scenarios-2026.html">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
 
   <!-- kanoniczny -->
-  <link rel="canonical" href="https://briefrooms.com/pl/rynki/spx-scenariusze-2026.html">
+  <link rel="canonical" href="https://briefrooms.com/pl/inwestycje/spx-scenariusze-2026.html">
 
   <!-- Open Graph -->
   <meta property="og:title" content="Scenariusze S&amp;P 500 — 1M / 6M / 12M | BriefRooms">
   <meta property="og:description" content="Późna faza hossy, AI, SOFR, TGA, bilans Fed. Scenariusze bazowe dla S&P 500 w horyzoncie 1M / 6M / 12M ze strefami technicznymi kupna i wysokich wycen.">
-  <meta property="og:url" content="https://briefrooms.com/pl/rynki/spx-scenariusze-2026.html">
+  <meta property="og:url" content="https://briefrooms.com/pl/inwestycje/spx-scenariusze-2026.html">
   <meta property="og:type" content="article">
   <meta property="og:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
   <meta property="og:image:width" content="1200">
@@ -59,7 +59,7 @@
       "logo": { "@type": "ImageObject", "url": "https://briefrooms.com/assets/favicon.svg" }
     },
     "image": "https://briefrooms.com/assets/spx-scenarios-pl-og.png",
-    "mainEntityOfPage": "https://briefrooms.com/pl/rynki/spx-scenariusze-2026.html",
+    "mainEntityOfPage": "https://briefrooms.com/pl/inwestycje/spx-scenariusze-2026.html",
     "datePublished": "2025-11-20T00:00:00+00:00",
     "dateModified":  "2025-11-20T00:00:00+00:00"
   }
@@ -246,6 +246,23 @@
     .tab-pane.active.show{
       display:block;
     }
+
+    /* Stały, normalny rozmiar wykresów */
+    .chart-box{
+      position:relative;
+      width:100%;
+      max-width:100%;
+      height:320px;
+      margin:10px 0 4px;
+    }
+    .chart-box canvas{
+      display:block;
+      width:100% !important;
+      height:100% !important;
+    }
+    @media (max-width:640px){
+      .chart-box{ height:260px; }
+    }
   </style>
 </head>
 
@@ -380,7 +397,9 @@
       Jest to wyłącznie wizualizacja scenariusza, a nie prognoza.
     </p>
 
-    <canvas id="spxChart1m" style="width: 100%; height: 320px;"></canvas>
+    <div class="chart-box">
+      <canvas id="spxChart1m"></canvas>
+    </div>
   </section>
 
   <!-- 6M -->
@@ -455,7 +474,9 @@
       nie zasłaniała głównych fragmentów wykresu.
     </p>
 
-    <canvas id="spxChart6m" style="width: 100%; height: 320px;"></canvas>
+    <div class="chart-box">
+      <canvas id="spxChart6m"></canvas>
+    </div>
   </section>
 
   <!-- 12M -->
@@ -531,7 +552,9 @@
       mocniejszy szok makro lub regulacyjny.
     </p>
 
-    <canvas id="spxChart12m" style="width: 100%; height: 320px;"></canvas>
+    <div class="chart-box">
+      <canvas id="spxChart12m"></canvas>
+    </div>
   </section>
 
   <!-- WERYFIKACJA SCENARIUSZY -->
@@ -700,7 +723,7 @@
     </ul>
   </section>
 
-  <p class="back">← <a href="/pl/rynki.html">Wróć do Rynków</a></p>
+  <p class="back">← <a href="/pl/inwestycje.html">Wróć do działu Inwestycje</a></p>
 </main>
 
 <footer>© BriefRooms</footer>
@@ -932,3 +955,4 @@
 
 </body>
 </html>
+
