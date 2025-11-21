@@ -405,9 +405,28 @@
       }
     }
   </style>
+  <style>
+  /* 5 mniejszych drzwi w jednym rzędzie – tylko EN home */
+  @media (min-width: 1024px) {
+    body.rooms-home-en section.grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 2.4rem;
+      max-width: 1200px;
+      margin: 40px auto 0;
+    }
+
+    body.rooms-home-en .card {
+      transform: scale(0.9);
+      transform-origin: center top;
+    }
+  }
+</style>
+
 </head>
 
-<body class="home">
+<body class="home rooms-home-en">
+
 
   <div class="br-hotbar">
     <div class="br-hotbar-ticker">
