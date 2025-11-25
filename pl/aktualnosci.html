@@ -8,147 +8,54 @@
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
   <style>
-  /* NOWE – tło z półkami + ogólny kolor tekstu na stronie */
-  body.news-page{
-    margin:0;
-    min-height:100vh;
-    /* PODMIEŃ URL NA SWÓJ PLIK Z TŁEM PÓŁEK */
-    background:
-      #0b1120
-      url("/assets/bg-books-shelves.jpg")
-      center top / cover
-      fixed
-      no-repeat;
-    color:#f9fafb;
-  }
+    header{ text-align:center; padding:24px 12px 6px }
+    .sub{ color:#b9c5d8 }
+    main{ max-width:980px; margin:0 auto; padding:0 16px 48px }
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:18px 20px; margin:14px 0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
+    }
+    h2{ margin:8px 0 6px; color:#d7e6ff }
+    
+    ul.news{ list-style:none; padding-left:0; }
+    ul.news li{ margin:18px 0 24px; }
+    ul.news li a{
+      display:flex; align-items:center; gap:10px;
+      color:#fdf3e3; text-decoration:none; line-height:1.25;
+    }
+    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-thumb{
+      width:78px; min-width:78px; height:54px; border-radius:14px;
+      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
+      border:1px solid rgba(255,255,255,.28);
+      display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+      gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    .news-thumb .dot{
+      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
+      border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
+    }
+    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
 
-  header{
-    text-align:center;
-    padding:24px 12px 6px;
-  }
-  .sub{
-    color:#b9c5d8;
-  }
-  main{
-    max-width:980px;
-    margin:0 auto;
-    padding:0 16px 48px;
-  }
-
-  /* KAFELKI: ciepłe, jasne tło zamiast niebieskiego / półprzezroczystego */
-  .card{
-    background:#fdf7ec; /* ciepły „papierowy” beż */
-    border:1px solid rgba(15,23,42,.08);
-    border-radius:16px;
-    padding:18px 20px;
-    margin:14px 0;
-    box-shadow:0 18px 40px rgba(15,23,42,.35);
-  }
-
-  h2{
-    margin:8px 0 6px;
-    color:#111827; /* ciemny nagłówek */
-  }
-
-  ul.news{ list-style:none; padding-left:0; }
-  ul.news li{ margin:18px 0 24px; }
-
-  ul.news li a{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    color:#111827;              /* ciemny tekst na jasnym tle */
-    text-decoration:none;
-    line-height:1.25;
-  }
-  ul.news li a:hover{
-    color:#020617;
-    text-decoration:underline;
-  }
-
-  .news-thumb{
-    width:78px;
-    min-width:78px;
-    height:54px;
-    border-radius:14px;
-    background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
-    border:1px solid rgba(15,23,42,.15);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:flex-start;
-    gap:3px;
-    padding:6px 10px 6px 12px;
-    box-shadow:0 10px 24px rgba(15,23,42,.35);
-  }
-  .news-thumb .dot{
-    width:14px;
-    height:14px;
-    border-radius:999px;
-    background:rgba(7,89,133,1);
-    border:2px solid rgba(255,255,255,.8);
-    box-shadow:0 0 8px rgba(255,255,255,.3);
-    margin-bottom:1px;
-  }
-  .news-thumb .title{
-    font-size:.56rem;
-    font-weight:700;
-    letter-spacing:.03em;
-    color:#fff;
-    line-height:1;
-  }
-  .news-thumb .sub{
-    font-size:.47rem;
-    color:rgba(244,246,255,.9);
-    line-height:1.05;
-    white-space:nowrap;
-  }
-
-  .ai-note{
-    margin:10px 0 0 88px;
-    font-size:.95rem;
-    color:#111827;
-    line-height:1.4;
-    background:#fefaf2;
-    border:1px solid rgba(15,23,42,.06);
-    padding:12px 14px;
-    border-radius:12px;
-  }
-  .ai-head{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:6px;
-    font-weight:700;
-    color:#111827;
-  }
-  .ai-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    padding:3px 8px;
-    border-radius:999px;
-    background:linear-gradient(135deg,#0ea5e9,#7c3aed);
-    font-size:.75rem;
-    color:#fff;
-    border:1px solid rgba(255,255,255,.7);
-  }
-  .ai-dot{
-    width:8px;
-    height:8px;
-    border-radius:999px;
-    background:#fff;
-    box-shadow:0 0 6px rgba(255,255,255,.7);
-  }
-  .sec{ margin-top:4px; }
-  .note{
-    color:#e5e7eb;
-    font-size:.92rem;
-  }
-</style>
-
+    .ai-note{
+      margin:10px 0 0 88px;
+      font-size:.95rem; color:#dfe7f1; line-height:1.4;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      padding:12px 14px; border-radius:12px;
+    }
+    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .sec{ margin-top:4px; }
+    .note{ color:#9fb3cb; font-size:.92rem }
+    
+  </style>
 </head>
-<body class="news-page">
+<body>
 <header>
   <h1>Aktualności</h1>
   <p class="sub">Ostatnie ~36 godzin • 2025-11-25</p>
@@ -159,68 +66,68 @@
   <h2>Polityka / Kraj</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-24/grozna-pulapka-czyhala-na-lesnej-drodze-natkneli-sie-na-ostre-prety/" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-25/jak-w-pani-doubtfire-mezczyzna-przebieral-sie-za-zmarla-matke-mial-jeden-cel/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Groźna pułapka czyhała na leśnej drodze. Natknęli się na ostre pręty</span>
+    <span class="news-text">Jak w &quot;Pani Doubtfire&quot;. Mężczyzna przebierał się za zmarłą matkę, miał jeden cel</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Na leśnej drodze w pobliżu miejscowości Przewóz (woj. lubuskie) zauważono wkręty wystające z korzeni drzew. Tak zastawiona pułapka stwarzała realne zagrożenie dla spacerowiczów i kierowców poruszających się na tym odcinku - przekazało nadleśnictwo Wymiarki. O zdarzeniu została poinformowana policja.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> 56-latek z Włoch przez trzy lata udawał swoją zmarłą matkę, by móc korzystać z jej emerytury i pobierać korzyści z jej nieruchomości. Mężczyzna nosił na sobie ubrania denatki, stosował też makijaż. Wpadł, gdy rozpoznał go urzędnik. Włoskie media ochrzciły sprawę mianem skandalu Pani Doubtfire.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/biznes/pieniadze/zle-policzony-projekt-prezydenta-minister-komentuje-st8769569?source=rss" target="_blank" rel="noopener">
+  <a href="https://konkret24.tvn24.pl/polityka/weto-marszalkowskie-czy-sejmowi-grozi-niekonstytucyjna-zamrazarka-st8768719?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">&quot;Źle policzony&quot; projekt prezydenta. Minister komentuje</span>
+    <span class="news-text">Weto marszałkowskie. Czy Sejmowi grozi &quot;niekonstytucyjna zamrażarka&quot;?</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Jest źle policzony - tak minister energii Miłosz Motyka skomentował w poniedziałek projekt dotyczący cen prądu, który prezydent Karol Nawrocki skierował do Sejmu. Według zapowiedzi po wejściu w życie regulacji gospodarstwa domowe miałyby płacić za energię elektryczną o 33 procent mniej.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Nie tylko politycy opozycji, ale i koalicji rządzącej zarzucają Włodzimierzowi Czarzastemu, że jego pomysł stosowania &quot;weta marszałkowskiego&quot; to &quot;niekonstytucyjna zamrażarka&quot;. Prawnicy potwierdzają, że ten może to budzić wątpliwości.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/polska/profesor-dudek-w-kropce-nad-i-o-prezydencie-to-trzeba-powiedziec-jasno-i-otwarcie-st8769564?source=rss" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/biznes/ze-swiata/francja-rzad-szykuje-uderzenie-w-chinskiego-giganta-shein-st8770366?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Profesor Dudek w &quot;Kropce nad i&quot; o prezydencie: to trzeba powiedzieć jasno i otwarcie</span>
+    <span class="news-text">Rząd szykuje uderzenie w chińskiego giganta</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Prezydent Karol Nawrocki jest eurosceptykiem. Jest jednym z tych polityków, którzy przygotowują, świadomie lub nie, polexit - mówił w &quot;Kropce nad i&quot; w TVN24 historyk i politolog profesor Antoni Dudek, komentując słowa głowy państwa.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Francuski rząd będzie w sądzie domagał się zawieszenia chińskiej platformy Shein na trzy miesiące - wynika z ustaleń Reutersa. Wniosek ma być zgłoszony podczas rozprawy zaplanowanej na środę.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-24/mial-nagrac-jak-plonie-marywilska-44-nastolatka-z-ukrainy-skazali-na-litwie/" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/wroclaw/trzebnica-grozil-personelowi-medycznemu-zaatakowal-dwoch-ratownikow-st8769885?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Miał nagrać, jak płonie Marywilska 44. Nastolatka z Ukrainy skazali na Litwie</span>
+    <span class="news-text">Medycy udzielali mu pomocy. &quot;Stał się wyjątkowo agresywny&quot;</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Nastoletni Danił B. został skazany przez sąd w Wilnie za podłożenie ognia w wileńskim sklepie Ikea - informuje tamtejszy portal Delfi. Tego samego mężczyznę polskie służby podejrzewają o udział w podpaleniu hali handlowej Marywilska 44 w Warszawie. Danił B.</div>
-    <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie. termin „skazany” dotyczy prawomocnego wyroku; wcześniejsze etapy to zatrzymanie, przedstawienie zarzutów lub akt oskarżenia.</div>
-  </div>
-</li>
-<li>
-  <a href="https://tvn24.pl/bialystok/bielsk-podlaski-mial-podstepem-naklonic-12-latke-do-wyslaniu-mu-nagich-zdjec-st8769507?source=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Podstępem nakłonił 12-latkę do wysłania nagich zdjęć</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Policja zatrzymała 27-latka, który jest podejrzany o nakłonienie podstępem 12-latki do wysłania mu nagich zdjęć. Usłyszał też zarzuty zmuszania jej do innych czynności seksualnych.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> 24-latek trafił do aresztu po tym, jak na szpitalnym oddziale ratunkowym w Trzebnicy (województwo dolnośląskie) groził personelowi medycznemu. Zaatakował też dwóch ratowników - uderzył w twarz i kopał.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/biznes/z-kraju/kryzys-demograficzny-wspolczynnik-dzietnosci-w-polsce-nadal-spada-st8769327?source=rss" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-25/ma-obowiazek-uznac-przelomowy-wyrok-tsue-ws-zwiazkow-jednoplciowych/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Polska ma poważny problem. Alarmujące dane</span>
+    <span class="news-text">&quot;Ma obowiązek uznać&quot;. Przełomowy wyrok TSUE ws. związków jednopłciowych</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W 2024 roku współczynnik dzietności w Polsce spadł do 1,099 z poziomu 1,158 odnotowanego rok wcześniej – wynika z danych Głównego Urzędu Statystycznego. Tymczasem zastępowalność pokoleń występuje, gdy współczynnik wynosi 2,1 dziecka na kobietę.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Państwo członkowskie ma obowiązek uznać małżeństwo dwóch obywateli UE tej samej płci legalnie zawarte w innym państwie członkowskim, w którym korzystali oni z przysługującej im swobody przemieszczania się i pobytu - twierdzi Trybunał Sprawiedliwości Unii Europejskiej.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://tvn24.pl/polska/radoslaw-sikorski-do-karola-nawrockiego-rzad-nie-upowaznil-prezydenta-st8770077?source=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Sikorski do Nawrockiego: rząd nie upoważnił prezydenta</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Karol Nawrocki wygłosił w poniedziałek w Pradze wykład, w trakcie którego opisał &quot;polski program dla Unii Europejskiej&quot;. We wtorek głos w tej sprawie, w krótkim wpisie, zabrał wicepremier Radosław Sikorski.</div>
     
   </div>
 </li>
@@ -231,6 +138,28 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
+  <a href="https://www.bankier.pl/wiadomosc/Resort-finansow-policzyl-skutki-projektu-prezydenta-Obnizka-VAT-uszczupli-budzet-9045152.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Resort finansów policzył skutki projektu prezydenta. Obniżka VAT uszczupli budżet</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Skutek obniżenia stawki VAT z 23 proc. do 5 proc. na energię elektryczną jest ujemny dla budżetu państwa i wynosi ok. 14 mld zł w warunkach 2026 r. – poinformowało Ministerstwo Finansów w odpowiedzi na pytanie PAP.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Ponad-6-na-oszczednosciach-od-Citi-Zgarnij-tez-300-zl-latwego-bonusu-9045080.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Ponad 6% na oszczędnościach od Citi. Zgarnij też 300 zł łatwego bonusu</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Coraz trudniej znaleźć dobrą promocję bankową. Wraz ze spadkiem stóp procentowych mają też promocyjne oprocentowania kont oszczędnościowych. Jednak w Citi Handlowym wciąż można upolować ponad 6% na oszczędności oraz 300 zł łatwego bonusu.</div>
+    
+  </div>
+</li>
+<li>
   <a href="https://www.bankier.pl/wiadomosc/Najlepszy-analityk-w-Polsce-Ciag-cudow-na-GPW-zdarzyl-sie-tylko-raz-Co-dalej-z-hossa-9044736.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
     <span class="news-text">Najlepszy analityk w Polsce: „Ciąg cudów na GPW zdarzył się tylko raz”. Co dalej z hossą?</span>
@@ -242,57 +171,38 @@
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Mocne-wzrosty-w-USA-pomogly-GPW-w-finale-Ukrainskie-spolki-w-cenie-9044857.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Mieszka-w-schowku-na-miotly-Biedansk-rosnie-szybciej-niz-jakakolwiek-metropolia-9045255.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Mocne wzrosty w USA pomogły GPW w finale. Ukraińskie spółki w cenie</span>
+    <span class="news-text">Mieszka w schowku na miotły. &quot;Biedańsk&quot; rośnie szybciej niż jakakolwiek metropolia</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Sygnał od przewodnika stada globalnych rynków akcji pozwolił zamknąć sesję na GPW na plusie. Chociaż indeksy w USA rosły w granicach 1-2 proc. zwyżka w Warszawie była minimalna. W grze były spółki prowadzące działalność na Ukrainie, których ceny akcji rosły w ślad z nowymi szansami na pokój.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Pan Stefan śpi na fotelu w dawnej komórce na miotły, a pani Barbara wychowuje dwuletniego synka w ośrodku kryzysowym, bo za 800 zł nie była w stanie utrzymać się z rodziną. Ich historie nie są wyjątkami, lecz częścią rosnącej „aglomeracji biedy”, o której mówi najnowszy &quot;Raport o Biedzie&quot; Szlachetnej Paczki.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Szef-KGHM-o-miedzi-podatkach-i-atomie-9044781.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Oto-najcenniejsza-moneta-Europy-Tak-jasne-ze-jest-ze-zlota-9045262.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Szef KGHM o miedzi, podatkach i atomie. „To one way ticket. Nie ma odwrotu&quot;</span>
+    <span class="news-text">Oto najcenniejsza moneta Europy. Tak, jasne, że jest ze złota</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> KGHM stoi przed koniecznością inwestowania w coraz głębsze złoża.</div>
-    <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie.</div>
-  </div>
-</li>
-<li>
-  <a href="https://www.bankier.pl/wiadomosc/Zloto-utrzyma-sie-powyzej-4000-dolarow-do-konca-2026-r-Tak-uwaza-wiekszosc-profesjonalnych-inwestorow-z-badania-amerykanskiego-banku-9044866.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Złoto utrzyma się powyżej 4000 dolarów do końca 2026 r. Tak uważa większość profesjonalnych inwestorów z badania amerykańskiego banku</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Większość globalnych zarządzających funduszami inwestycyjnymi ankietowanych przez Bank of America uważa, że cena złota, do końca 2026 roku utrzyma się powyżej 4000 dolarów za uncję. W ostatnim dniach średnie prognostyczne ceny kruszcu podnieśli analitycy dużych banków.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> W poniedziałek na aukcji w Genewie sprzedano dużą złotą
+monetę z czasów króla Hiszpanii Filipa III. Nominalna cena uzyskana podczas
+poniedziałkowej aukcji okazała się najwyższa w historii europejskiej
+numizmatyki.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/KSeF-ma-wielkie-oczy-Ksiegowi-w-strachu-przed-fakturowa-rewolucja-9044714.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Zwrot-w-sprawie-umowy-UE-Mercosur-EPL-wycofuje-wniosek-o-tryb-pilny-9045276.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">KSeF ma wielkie oczy. Księgowi w strachu przed fakturową rewolucją</span>
+    <span class="news-text">Zwrot w sprawie umowy UE–Mercosur. EPL wycofuje wniosek o tryb pilny</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Krajowy System e-Faktur budzi u księgowych olbrzymie obawy. Traktują go wręcz jako tykającą bombę, która może odpalić w najmniej spodziewanym momencie. Boją się m.in. problemów technicznych i większej odpowiedzialności związanej z potencjalnymi błędami. Co jeszcze spędza księgowym sen z powiek?</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.bankier.pl/wiadomosc/Kaufland-stanie-na-dwie-godziny-Pracownicy-zapowiadaja-protest-w-calym-kraju-9044839.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Przed świętami strajk w Kauflandzie. I to w całym kraju</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Pracownicy Kauflandu zapowiadają dwugodzinny strajk ostrzegawczy, który odbędzie się 14 grudnia 2025 roku we wszystkich marketach sieci w Polsce. Domagają się 1200 zł podwyżki dla każdego zatrudnionego oraz przestrzegania prawa pracy.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Europejska Partia Ludowa (EPL) wycofała swój wniosek w Parlamencie Europejskim o procedowanie w trybie pilnym tzw. hamulca bezpieczeństwa do umowy handlowej UE z państwami Mercosur. Miało to pozwolić na szybkie zatwierdzenie całej umowy. W efekcie do głosowania we wtorek nie doszło.</div>
     
   </div>
 </li>
@@ -303,13 +213,46 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/lewandowski-obsypany-pochwalami-wszystko-tuz-przed-meczem-ligi-mistrzow/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-25/kto-bedzie-nowym-trenerem-norwida-czestochowa-magiera-typuje-zasiegnalem-opinii-1/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Lewandowski obsypany pochwałami! Wszystko tuż przed meczem Ligi Mistrzów</span>
+    <span class="news-text">Kto będzie nowym trenerem klubu z Częstochowy? &quot;Zasięgnąłem opinii&quot;</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Trenerzy Chelsea Enzo Maresca i Barcelony Hansi Flick przed wtorkowym meczem obu drużyn w Lidze Mistrzów wypowiedzieli się m.in. na temat napastnika gości Roberta Lewandowskiego. - Jest fantastycznym piłkarzem - przyznał szkoleniowiec londyńskiej drużyny.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Nowy sezon PlusLigi rozkręca się. Jego sporym rozczarowaniem jest postawa Steam Hemarpolu Politechniki Częstochowa. Z jakimi obecnie problemami mierzy się ekipa spod Jasnej Góry i kto będzie w stanie postawić ten zespół na nogi?</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/iga-swiatek/2025-11-25/iga-swiatek-po-raz-kolejny-podbija-milionerow-jakie-bylo-pytanie/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Iga Świątek po raz kolejny podbija &quot;Milionerów&quot;! Jakie było pytanie?</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> W popularnym teleturnieju Milionerzy po raz kolejny padło pytanie dotyczące kariery Igi Świątek. Uczestniczka nie potrafiła wskazać poprawnej odpowiedzi, więc musiała poprosić o koło ratunkowe. Jej jej poszło?</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/robert-lewandowski/2025-11-25/wazny-mecz-barcelony-w-lidze-mistrzow-czy-zagraja-lewandowski-i-szczesny/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Ważny mecz Barcelony w Lidze Mistrzów! Czy zagrają Lewandowski i Szczęsny?</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Przed Barceloną ważne spotkanie w fazie ligowej Ligi Mistrzów. Duma Katalonii stanie naprzeciwko Chelsea w meczu wyjazdowym. Jak wyglądają przewidywane składy Blaugrany na to spotkanie? Czy Robert Lewandowski i Wojciech Szczęsny pojawią się na boisku?</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-25/lm-fenerbahce-benfica-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">LM: Fenerbahce - Benfica. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Fenerbahce Medicana Stambuł kontra Benfica Lizbona to spotkanie inauguracyjnej kolejki siatkarskiej Ligi Mistrzyń. Kto dobrze rozpocznie rozgrywki? Relacja live i wynik na żywo meczu Fenerbahce - Benfica na Polsatsport.pl.</div>
     
   </div>
 </li>
@@ -321,39 +264,6 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> Aluron CMC Warta Zawiercie - Barkom Każany Lwów to starcie 8. kolejki PlusLigi. Kto je wygra? Gdzie obejrzeć mecz Aluron CMC Warta Zawiercie - Barkom Każany Lwów? Transmisja spotkania Aluron CMC Warta Zawiercie - Barkom Każany Lwów we wtorek w Polsacie Sport 1, Polsacie Sport Extra 2 i online na Polsat Box Go.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/plusliga-pge-giek-skra-belchatow-jsw-jastrzebski-wegiel-gdzie-obejrzec-transmisja-tv-online/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">PlusLiga: PGE GiEK Skra Bełchatów - JSW Jastrzębski Węgiel. Gdzie obejrzeć? Transmisja TV online</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> PGE GiEK Skra Bełchatów - JSW Jastrzębski Węgiel to mecz ósmej kolejki PlusLigi. Gdzie obejrzeć spotkanie? O której godzinie? Transmisja w Polsacie Sport 1, Polsat Sport Extra 2 oraz na platformie Polsat Box Go.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/kuriozum-w-poznaniu-pilkarz-lecha-zaginal/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Kuriozum w Poznaniu. Piłkarz Lecha zaginął</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Nietypowe informacje dochodzą z Poznania. Według doniesień portalu KKSLech, w kadrze Lecha Poznań nadal brakuje Timothyego Oumy, który jeszcze nie wrócił ze zgrupowania reprezentacji Kenii. Trwają ustalenia, co dzieje się z podstawowym pomocnikiem Kolejorza.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatsport.pl/iga-swiatek/2025-11-24/tyle-zarobila-iga-swiatek-w-tym-roku-niewiarygodne-to-rekord/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Tyle zarobiła Iga Świątek w tym roku! Niewiarygodne. To rekord</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Iga Świątek od kilku dni może relaksować się po kolejnym znakomitym sezonie w jej wykonaniu. Polka zakończyła go na drugim miejscu w rankingu WTA, po drodze wygrywając m.in. legendarny Wimbledon. Dzięki temu 24-latka zarobiła kosmiczne pieniądze, chociaż lepsza pod tym względem okazała się Aryna Sabalenka.</div>
     
   </div>
 </li>
