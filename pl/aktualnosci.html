@@ -7,177 +7,58 @@
   <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, sport." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
- <style>
-  /* TŁO STRONY – półki z książkami + delikatne przyciemnienie */
-  body{
-    margin:0;
-    min-height:100vh;
-    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    background-color:#020617; /* fallback za obrazkiem */
-    background-image:
-      linear-gradient(to bottom, rgba(15,23,42,.85), rgba(15,23,42,.96)),
-      url("/assets/bg-books.jpg");
-    background-size:cover;
-    background-position:center top;
-    background-attachment:fixed;
-    color:#e5e7eb;
-  }
-
-  header{
-    text-align:center;
-    padding:24px 12px 6px;
-  }
-  header .sub{
-    color:#e5e7eb;
-  }
-
-  main{
-    max-width:980px;
-    margin:0 auto;
-    padding:0 16px 48px;
-  }
-
-  /* JASNA, CIEPŁA KARTA (Polityka/Kraj, Ekonomia, Sport) */
-  .card{
-    background:#f5eee5; /* ciepła biel/beż */
-    border:1px solid rgba(15,23,42,.08);
-    border-radius:18px;
-    padding:18px 20px;
-    margin:24px 0;
-    box-shadow:0 22px 55px rgba(15,23,42,.65);
-  }
-
-  h2{
-    margin:8px 0 6px;
-    color:#111827;
-  }
-
-  /* Lista newsów */
-  ul.news{
-    list-style:none;
-    padding-left:0;
-    margin:0;
-  }
-  ul.news li{
-    margin:18px 0 24px;
-  }
-
-  ul.news li a{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    color:#111827;
-    text-decoration:none;
-    line-height:1.25;
-  }
-  ul.news li a:hover{
-    color:#0b1120;
-    text-decoration:underline;
-  }
-
-  /* Mały „kafelek” BriefRooms powered by AI */
-  .news-thumb{
-    width:78px;
-    min-width:78px;
-    height:54px;
-    border-radius:14px;
-    background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #b45309 100%);
-    border:1px solid rgba(148,81,34,.6);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:flex-start;
-    gap:3px;
-    padding:6px 10px 6px 12px;
-    box-shadow:0 14px 30px rgba(15,23,42,.55);
-  }
-
-  .news-thumb .dot{
-    width:14px;
-    height:14px;
-    border-radius:999px;
-    background:#fb923c;
-    border:2px solid rgba(255,255,255,.8);
-    box-shadow:0 0 8px rgba(251,191,36,.7);
-    margin-bottom:1px;
-  }
-  .news-thumb .title{
-    font-size:.56rem;
-    font-weight:700;
-    letter-spacing:.03em;
-    color:#fff;
-    line-height:1;
-  }
-  .news-thumb .sub{
-    font-size:.47rem;
-    color:rgba(255,250,240,.9);
-    line-height:1.05;
-    white-space:nowrap;
-  }
-
-  /* Boks z komentarzem AI */
-  .ai-note{
-    margin:10px 0 0 88px;
-    font-size:.95rem;
-    color:#111827;
-    line-height:1.4;
-    background:#fff9f2;
-    border:1px solid rgba(15,23,42,.08);
-    padding:12px 14px;
-    border-radius:12px;
-  }
-
-  .ai-head{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:6px;
-    font-weight:700;
-    color:#111827;
-  }
-
-  .ai-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    padding:3px 8px;
-    border-radius:999px;
-    background:linear-gradient(135deg,#0ea5e9,#7c3aed);
-    font-size:.75rem;
-    color:#fff;
-    border:1px solid rgba(255,255,255,.65);
-  }
-  .ai-dot{
-    width:8px;
-    height:8px;
-    border-radius:999px;
-    background:#fff;
-    box-shadow:0 0 6px rgba(255,255,255,.7);
-  }
-
-  .note{
-    color:#e5e7eb;
-    font-size:.92rem;
-    text-align:center;
-    margin-top:14px;
-  }
-
-  @media (max-width:640px){
+  <style>
+    header{ text-align:center; padding:24px 12px 6px }
+    .sub{ color:#b9c5d8 }
+    main{ max-width:980px; margin:0 auto; padding:0 16px 48px }
     .card{
-      margin:18px 0;
-      padding:14px 16px;
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:18px 20px; margin:14px 0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
     }
-    .ai-note{
-      margin-left:0;
+    h2{ margin:8px 0 6px; color:#d7e6ff }
+    
+    ul.news{ list-style:none; padding-left:0; }
+    ul.news li{ margin:18px 0 24px; }
+    ul.news li a{
+      display:flex; align-items:center; gap:10px;
+      color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
-  }
-</style>
+    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-thumb{
+      width:78px; min-width:78px; height:54px; border-radius:14px;
+      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
+      border:1px solid rgba(255,255,255,.28);
+      display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+      gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    .news-thumb .dot{
+      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
+      border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
+    }
+    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
 
+    .ai-note{
+      margin:10px 0 0 88px;
+      font-size:.95rem; color:#dfe7f1; line-height:1.4;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      padding:12px 14px; border-radius:12px;
+    }
+    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .sec{ margin-top:4px; }
+    .note{ color:#9fb3cb; font-size:.92rem }
+    
+  </style>
 </head>
 <body>
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnie ~36 godzin • 2025-11-25</p>
+  <p class="sub">Ostatnie ~36 godzin • 2025-11-26</p>
 </header>
 <main>
 
@@ -185,68 +66,68 @@
   <h2>Polityka / Kraj</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-25/jak-w-pani-doubtfire-mezczyzna-przebieral-sie-za-zmarla-matke-mial-jeden-cel/" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/polska/piec-rzeczy-ktore-warto-wiedziec-w-srode-26-listopada-najwazniejsze-informacje-st8771697?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Jak w &quot;Pani Doubtfire&quot;. Mężczyzna przebierał się za zmarłą matkę, miał jeden cel</span>
+    <span class="news-text">Warunek Trumpa, upomnienie dla Nawrockiego, Kwiatkowski i Bury skazani</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> 56-latek z Włoch przez trzy lata udawał swoją zmarłą matkę, by móc korzystać z jej emerytury i pobierać korzyści z jej nieruchomości. Mężczyzna nosił na sobie ubrania denatki, stosował też makijaż. Wpadł, gdy rozpoznał go urzędnik. Włoskie media ochrzciły sprawę mianem skandalu Pani Doubtfire.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Donald Trump poinformował, pod jakim warunkiem spotka się z Wołodymyrem Zełenskim i Władimirem Putinem. Szef MSZ Radosław Sikorski zareagował na wykład prezydenta Karola Nawrockiego w Pradze. Sąd skazał Krzysztofa Kwiatkowskiego oraz Jana Burego. Oto pięć rzeczy, które warto wiedzieć w środę 26 listopada.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://konkret24.tvn24.pl/polityka/weto-marszalkowskie-czy-sejmowi-grozi-niekonstytucyjna-zamrazarka-st8768719?source=rss" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/gosc-wydarzen/2025-11-25/polska-nie-jest-wiarygodna-byly-szef-msz-wskazuje-na-nawrockiego/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Weto marszałkowskie. Czy Sejmowi grozi &quot;niekonstytucyjna zamrażarka&quot;?</span>
+    <span class="news-text">&quot;Polska nie jest wiarygodna&quot;. Były szef MSZ wskazuje na Nawrockiego</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Nie tylko politycy opozycji, ale i koalicji rządzącej zarzucają Włodzimierzowi Czarzastemu, że jego pomysł stosowania &quot;weta marszałkowskiego&quot; to &quot;niekonstytucyjna zamrażarka&quot;. Prawnicy potwierdzają, że ten może to budzić wątpliwości.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> - Postulaty wysuwane przez Polskę sprawiają, że nie jesteśmy obiektywnie sojusznikiem Ukrainy - stwierdził w Gościu Wydarzeń Jacek Czaputowicz. Były szef MSZ tak skomentował brak zaproszenia dla Warszawy na rozmowy pokojowe dotyczące Ukrainy.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/biznes/ze-swiata/francja-rzad-szykuje-uderzenie-w-chinskiego-giganta-shein-st8770366?source=rss" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/swiat/bloomberg-steve-witkoff-wyslannik-prezydenta-usa-donalda-trumpa-udzielal-rosjanom-rad-co-wladimir-putin-powinien-powiedziec-prezydentowi-usa-st8771630?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Rząd szykuje uderzenie w chińskiego giganta</span>
+    <span class="news-text">&quot;Zorganizujmy rozmowę&quot;. Media: Witkoff radził człowiekowi Putina</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Francuski rząd będzie w sądzie domagał się zawieszenia chińskiej platformy Shein na trzy miesiące - wynika z ustaleń Reutersa. Wniosek ma być zgłoszony podczas rozprawy zaplanowanej na środę.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Bliski współpracownik Donalda Trumpa Steve Witkoff podpowiadał Jurijowi Uszakowowi, doradcy Władimira Putina, jak rosyjski przywódca powinien rozmawiać z prezydentem USA - wynika z ustaleń Bloomberga.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/wroclaw/trzebnica-grozil-personelowi-medycznemu-zaatakowal-dwoch-ratownikow-st8769885?source=rss" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-25/polska-nie-bedzie-ofiara-jasny-glos-z-mon-o-planie-pokojowym-dla-ukrainy/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Medycy udzielali mu pomocy. &quot;Stał się wyjątkowo agresywny&quot;</span>
+    <span class="news-text">&quot;Polska nie będzie ofiarą&quot;. Jasny głos z MON o planie pokojowym dla Ukrainy</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> 24-latek trafił do aresztu po tym, jak na szpitalnym oddziale ratunkowym w Trzebnicy (województwo dolnośląskie) groził personelowi medycznemu. Zaatakował też dwóch ratowników - uderzył w twarz i kopał.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Polska i wschodnia flanka NATO nie będą ofiarami porozumienia pokojowego kończącego wojnę na Ukrainie - zapewnił wiceszef MON Paweł Zalewski, który przebywa z wizytą w Stanach Zjednoczonych. Dodał, że po stronie amerykańskiej nie ma takiego sposobu myślenia.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-25/ma-obowiazek-uznac-przelomowy-wyrok-tsue-ws-zwiazkow-jednoplciowych/" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/tvnwarszawa/okolice/nowy-zylin-sochaczew-samochod-wjechal-w-infrastrukture-przejazdu-kolejowego-uszkodzil-rogatki-i-sygnalizator-st8771533?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">&quot;Ma obowiązek uznać&quot;. Przełomowy wyrok TSUE ws. związków jednopłciowych</span>
+    <span class="news-text">Staranował rogatki i zawisł na sygnalizatorze</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Państwo członkowskie ma obowiązek uznać małżeństwo dwóch obywateli UE tej samej płci legalnie zawarte w innym państwie członkowskim, w którym korzystali oni z przysługującej im swobody przemieszczania się i pobytu - twierdzi Trybunał Sprawiedliwości Unii Europejskiej.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Pod Sochaczewem jeden z kierowców wjechał w infrastrukturę przejazdu kolejowego.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/polska/radoslaw-sikorski-do-karola-nawrockiego-rzad-nie-upowaznil-prezydenta-st8770077?source=rss" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/polska/cezary-tomczyk-w-kropce-nad-i-moge-zrobic-zaklad-z-prezydentem-karolem-nawrockim-st8771515?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Sikorski do Nawrockiego: rząd nie upoważnił prezydenta</span>
+    <span class="news-text">Cezary Tomczyk w &quot;Kropce nad i&quot;: mogę zrobić zakład z prezydentem Nawrockim</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Karol Nawrocki wygłosił w poniedziałek w Pradze wykład, w trakcie którego opisał &quot;polski program dla Unii Europejskiej&quot;. We wtorek głos w tej sprawie, w krótkim wpisie, zabrał wicepremier Radosław Sikorski.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Wiceminister obrony Cezary Tomczyk odpowiedział w &quot;Kropce nad i&quot; w TVN24 na krytykę &quot;prób centralizacji programów zbrojeniowych&quot; w ramach Unii Europejskiej przez prezydenta Karola Nawrockiego. - Jestem gotowy się założyć - oświadczył.</div>
     
   </div>
 </li>
@@ -257,24 +138,13 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
-  <a href="https://www.bankier.pl/wiadomosc/Resort-finansow-policzyl-skutki-projektu-prezydenta-Obnizka-VAT-uszczupli-budzet-9045152.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Powrocily-wyrazne-wzrosty-na-GPW-ale-nie-dla-Orlenu-Kurs-spada-juz-czwarta-sesje-z-rzedu-9045524.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Resort finansów policzył skutki projektu prezydenta. Obniżka VAT uszczupli budżet</span>
+    <span class="news-text">Powróciły wyraźne wzrosty na GPW, ale nie dla Orlenu. Kurs spada już czwartą sesję z rzędu</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Skutek obniżenia stawki VAT z 23 proc. do 5 proc. na energię elektryczną jest ujemny dla budżetu państwa i wynosi ok. 14 mld zł w warunkach 2026 r. – poinformowało Ministerstwo Finansów w odpowiedzi na pytanie PAP.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.bankier.pl/wiadomosc/Ponad-6-na-oszczednosciach-od-Citi-Zgarnij-tez-300-zl-latwego-bonusu-9045080.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Ponad 6% na oszczędnościach od Citi. Zgarnij też 300 zł łatwego bonusu</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Coraz trudniej znaleźć dobrą promocję bankową. Wraz ze spadkiem stóp procentowych mają też promocyjne oprocentowania kont oszczędnościowych. Jednak w Citi Handlowym wciąż można upolować ponad 6% na oszczędności oraz 300 zł łatwego bonusu.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Po kilku słabszych sesjach WIG20 powrócił do wyraźnych wzrostów, przekładając się tym samym na dobrą postawę indeksu szerokiego rynku przy umiarkowanie pozytywnym zachowaniu średnich i małych spółek. Motorem wzrostu WIG20 były przede wszystkim banki, ale także kurs LPP. Słabością razi kurs Orlenu.</div>
     
   </div>
 </li>
@@ -290,38 +160,48 @@
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Mieszka-w-schowku-na-miotly-Biedansk-rosnie-szybciej-niz-jakakolwiek-metropolia-9045255.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Utworza-Bank-Zlota-Koniec-z-drukowaniem-pieniedzy-bez-zabezpieczenia-9045464.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Mieszka w schowku na miotły. &quot;Biedańsk&quot; rośnie szybciej niż jakakolwiek metropolia</span>
+    <span class="news-text">Utworzą Bank Złota. „Koniec z drukowaniem pieniędzy bez zabezpieczenia”</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Pan Stefan śpi na fotelu w dawnej komórce na miotły, a pani Barbara wychowuje dwuletniego synka w ośrodku kryzysowym, bo za 800 zł nie była w stanie utrzymać się z rodziną. Ich historie nie są wyjątkami, lecz częścią rosnącej „aglomeracji biedy”, o której mówi najnowszy &quot;Raport o Biedzie&quot; Szlachetnej Paczki.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Nowy rząd Boliwii planuje utworzenie Banku Złota. Jego powstanie zapowiedział minister finansów i gospodarki w rządzie pod przywództwem prezydenta Rodrigo Paza, który dzięki wygranej w ostatnich wyborach zakończył niemal 20-letnie rządy socjalistów.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Oto-najcenniejsza-moneta-Europy-Tak-jasne-ze-jest-ze-zlota-9045262.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Zdolnosc-kredytowa-na-jakie-mieszkanie-wystarczy-9045252.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Oto najcenniejsza moneta Europy. Tak, jasne, że jest ze złota</span>
+    <span class="news-text">Hipoteki większe o salon. Na takie mieszkania pożyczają banki</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W poniedziałek na aukcji w Genewie sprzedano dużą złotą
-monetę z czasów króla Hiszpanii Filipa III. Nominalna cena uzyskana podczas
-poniedziałkowej aukcji okazała się najwyższa w historii europejskiej
-numizmatyki.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Taniejące hipoteki sprawiają, że zdolność kredytowa wspina się na kolejne szczyty. Jeśli dodamy do tego utrzymujące się na stabilnym poziomie ceny mieszkań, okaże się, że zaciągając maksymalny możliwy kredyt mieszkaniowy, będziemy mogli pozwolić sobie na lokal większy o dodatkowy pokój – wynika z danych Bankier.pl.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Zwrot-w-sprawie-umowy-UE-Mercosur-EPL-wycofuje-wniosek-o-tryb-pilny-9045276.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Dlaczego-Polacy-boja-sie-zakladac-firmy-Niepewnosc-biurokracja-i-lek-przed-porazka-9045435.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Zwrot w sprawie umowy UE–Mercosur. EPL wycofuje wniosek o tryb pilny</span>
+    <span class="news-text">Dlaczego Polacy boja się zakładać firmy? Niepewność, biurokracja i lęk przed porażką</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Europejska Partia Ludowa (EPL) wycofała swój wniosek w Parlamencie Europejskim o procedowanie w trybie pilnym tzw. hamulca bezpieczeństwa do umowy handlowej UE z państwami Mercosur. Miało to pozwolić na szybkie zatwierdzenie całej umowy. W efekcie do głosowania we wtorek nie doszło.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Tylko 3% Polaków deklaruje, że w ciągu najbliższych trzech lat planuje założenie własnego biznesu. Czego boją się pozostali? W przypadku jednych przyczyną jest otoczenie biznesowe i niepewność gospodarcza, inni mówią wprost o lęku przed porażką i niskiej wierze we własne umiejętności.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bankier.pl/wiadomosc/Ubezpieczenie-ochrony-prawnej-i-podatkowej-przeglad-oferty-rynkowej-9045476.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Firmy nie ufają fiskusowi. Ryzyko podatkowe niepokoi, ale da się je ograniczyć</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Kontrola podatkowa przestała pukać do drzwi, a stała się niewidzialnym, 
+ciągłym procesem, dzięki któremu fiskus działa coraz szybciej i 
+skuteczniej.</div>
     
   </div>
 </li>
@@ -332,68 +212,68 @@ numizmatyki.</div>
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-25/kto-bedzie-nowym-trenerem-norwida-czestochowa-magiera-typuje-zasiegnalem-opinii-1/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/liga-konferencji-legia-warszawa-sparta-praga-gdzie-obejrzec-transmisja-tv-oraz-stream-online/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Kto będzie nowym trenerem klubu z Częstochowy? &quot;Zasięgnąłem opinii&quot;</span>
+    <span class="news-text">Liga Konferencji: Legia Warszawa - Sparta Praga. Gdzie obejrzeć? Transmisja TV oraz stream online</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Nowy sezon PlusLigi rozkręca się. Jego sporym rozczarowaniem jest postawa Steam Hemarpolu Politechniki Częstochowa. Z jakimi obecnie problemami mierzy się ekipa spod Jasnej Góry i kto będzie w stanie postawić ten zespół na nogi?</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Legia Warszawa stoi przed kolejnym trudnym wyzwaniem w Lidze Konferencji UEFA. Tym razem ekipa ze stolicy zmierzy się na własnym podwórku z renomowaną Spartą Praga. Gdzie obejrzeć to spotkanie? O której godzinie? Transmisja w Polsacie Sport 1, Polsacie Sport Premium 1 oraz Polsacie Box Go.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/iga-swiatek/2025-11-25/iga-swiatek-po-raz-kolejny-podbija-milionerow-jakie-bylo-pytanie/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/liga-konferencji-rakow-czestochowa-rapid-wieden-gdzie-obejrzec-transmisja-tv-oraz-stream-online/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Iga Świątek po raz kolejny podbija &quot;Milionerów&quot;! Jakie było pytanie?</span>
+    <span class="news-text">Liga Konferencji: Raków Częstochowa - Rapid Wiedeń. Gdzie obejrzeć? Transmisja TV oraz stream online</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W popularnym teleturnieju Milionerzy po raz kolejny padło pytanie dotyczące kariery Igi Świątek. Uczestniczka nie potrafiła wskazać poprawnej odpowiedzi, więc musiała poprosić o koło ratunkowe. Jej jej poszło?</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Przed nami kolejny tydzień z emocjami związanymi z udziałem polskich drużyn w Lidze Konferencji UEFA. W czwartej serii gier Raków Częstochowa zmierzy się z Rapidem Wiedeń. Gdzie obejrzeć to spotkanie? O której godzinie? Transmisja w Polsacie Sport 2, Polsacie Sport Premium 2 oraz Polsacie Box Go.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/robert-lewandowski/2025-11-25/wazny-mecz-barcelony-w-lidze-mistrzow-czy-zagraja-lewandowski-i-szczesny/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/robert-lewandowski/2025-11-25/koszmarny-wieczor-barcelony-na-stamford-bridge-nie-pomogl-nawet-lewandowski/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Ważny mecz Barcelony w Lidze Mistrzów! Czy zagrają Lewandowski i Szczęsny?</span>
+    <span class="news-text">Koszmarny wieczór Barcelony na Stamford Bridge! Nie pomógł nawet Lewandowski</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Przed Barceloną ważne spotkanie w fazie ligowej Ligi Mistrzów. Duma Katalonii stanie naprzeciwko Chelsea w meczu wyjazdowym. Jak wyglądają przewidywane składy Blaugrany na to spotkanie? Czy Robert Lewandowski i Wojciech Szczęsny pojawią się na boisku?</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Za nami absolutny hit 5. kolejki Ligi Mistrzów. Na Stamford Bridge w Londynie ekipa Chelsea zmierzyła się z Barceloną. Lepsi okazali się gospodarze, którzy wygrali 3:0. To był fatalny wieczór dla Dumy Katalonii, w barwach której nie zabrakło Roberta Lewandowskiego. Wojciech Szczęsny cały mecz przesiedział na ławce.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-25/lm-fenerbahce-benfica-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/liga-konferencji-lech-poznan-fc-lausanne-sport-gdzie-obejrzec-transmisja-tv-oraz-stream-online/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">LM: Fenerbahce - Benfica. Relacja live i wynik na żywo</span>
+    <span class="news-text">Liga Konferencji: Lech Poznań - FC Lausanne-Sport. Gdzie obejrzeć? Transmisja TV oraz stream online</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Fenerbahce Medicana Stambuł kontra Benfica Lizbona to spotkanie inauguracyjnej kolejki siatkarskiej Ligi Mistrzyń. Kto dobrze rozpocznie rozgrywki? Relacja live i wynik na żywo meczu Fenerbahce - Benfica na Polsatsport.pl.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Lech Poznań po dwóch porażkach z rzędu w Lidze Konferencji UEFA postara się o powrót na zwycięską ścieżkę w ramach czwartej kolejki spotkań. Tym razem Kolejorz podejmie szwajcarski FC Lausanne-Sport. Gdzie obejrzeć ten mecz? O której godzinie?</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/plusliga-aluron-cmc-warta-zawiercie-barkom-kazany-lwow-transmisja-tv-i-stream-online-1/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/robert-lewandowski/2025-11-25/kolejny-klub-zglosil-sie-po-lewandowskiego-zaskakujaca-oferta/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">PlusLiga: Aluron CMC Warta Zawiercie - Barkom Każany Lwów. Transmisja TV i stream online</span>
+    <span class="news-text">Kolejny klub zgłosił się po Lewandowskiego! Zaskakująca oferta</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Aluron CMC Warta Zawiercie - Barkom Każany Lwów to starcie 8. kolejki PlusLigi. Kto je wygra? Gdzie obejrzeć mecz Aluron CMC Warta Zawiercie - Barkom Każany Lwów? Transmisja spotkania Aluron CMC Warta Zawiercie - Barkom Każany Lwów we wtorek w Polsacie Sport 1, Polsacie Sport Extra 2 i online na Polsat Box Go.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Robert Lewandowski znalazł się na radarze wielu uznanych klubów w Europie ze względu na kończący się wraz z tym sezonem jego kontrakt z Barceloną. Polak nie zamierza jednak zmieniać pracodawcy i liczy na przedłużenie umowy.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/polsat-siatcast-z-pawlem-halaba-25-11-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-25/plusliga-pge-projekt-warszawa-indykpol-azs-olsztyn-gdzie-obejrzec-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Polsat SiatCast z Pawłem Halabą - 25.11. Transmisja TV i stream online</span>
+    <span class="news-text">PlusLiga: PGE Projekt Warszawa - Indykpol AZS Olsztyn. Gdzie obejrzeć? Transmisja TV i stream online</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Przed nami kolejne wydanie Polsat SiatCast. W nim gościem Marka Magiery oraz Jakuba Bednaruka będzie zawodnik Indykpolu AZS-u Olsztyn - Paweł Halaba. Gdzie obejrzeć program? O której godzinie? Transmisja we wtorek w Polsacie Sport 1, Polsacie Box Go oraz na Polsatsport.pl.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> We środowe popołudnie PGE Projekt Warszawa zmierzy się na własnym parkiecie z Indykpol AZS-em Olsztyn. To niewątpliwie szlagier 8. kolejki PlusLigi. Gdzie obejrzeć to spotkanie? O której godzinie? Transmisja w Polsacie Sport 1, Polsacie Sport Extra 2 oraz Polsacie Box Go.</div>
     
   </div>
 </li>
