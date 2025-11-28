@@ -8,176 +8,57 @@
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
   <style>
-  /* TŁO STRONY – półki z książkami + delikatne przyciemnienie */
-  body{
-    margin:0;
-    min-height:100vh;
-    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    background-color:#020617; /* fallback za obrazkiem */
-    background-image:
-      linear-gradient(to bottom, rgba(15,23,42,.85), rgba(15,23,42,.96)),
-      url("/assets/bg-books.jpg");
-    background-size:cover;
-    background-position:center top;
-    background-attachment:fixed;
-    color:#e5e7eb;
-  }
-
-  header{
-    text-align:center;
-    padding:24px 12px 6px;
-  }
-  header .sub{
-    color:#e5e7eb;
-  }
-
-  main{
-    max-width:980px;
-    margin:0 auto;
-    padding:0 16px 48px;
-  }
-
-  /* JASNA, CIEPŁA KARTA (Polityka/Kraj, Ekonomia, Sport) */
-  .card{
-    background:#f5eee5; /* ciepła biel/beż */
-    border:1px solid rgba(15,23,42,.08);
-    border-radius:18px;
-    padding:18px 20px;
-    margin:24px 0;
-    box-shadow:0 22px 55px rgba(15,23,42,.65);
-  }
-
-  h2{
-    margin:8px 0 6px;
-    color:#111827;
-  }
-
-  /* Lista newsów */
-  ul.news{
-    list-style:none;
-    padding-left:0;
-    margin:0;
-  }
-  ul.news li{
-    margin:18px 0 24px;
-  }
-
-  ul.news li a{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    color:#111827;
-    text-decoration:none;
-    line-height:1.25;
-  }
-  ul.news li a:hover{
-    color:#0b1120;
-    text-decoration:underline;
-  }
-
-  /* Mały „kafelek” BriefRooms powered by AI */
-  .news-thumb{
-    width:78px;
-    min-width:78px;
-    height:54px;
-    border-radius:14px;
-    background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #b45309 100%);
-    border:1px solid rgba(148,81,34,.6);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:flex-start;
-    gap:3px;
-    padding:6px 10px 6px 12px;
-    box-shadow:0 14px 30px rgba(15,23,42,.55);
-  }
-
-  .news-thumb .dot{
-    width:14px;
-    height:14px;
-    border-radius:999px;
-    background:#fb923c;
-    border:2px solid rgba(255,255,255,.8);
-    box-shadow:0 0 8px rgba(251,191,36,.7);
-    margin-bottom:1px;
-  }
-  .news-thumb .title{
-    font-size:.56rem;
-    font-weight:700;
-    letter-spacing:.03em;
-    color:#fff;
-    line-height:1;
-  }
-  .news-thumb .sub{
-    font-size:.47rem;
-    color:rgba(255,250,240,.9);
-    line-height:1.05;
-    white-space:nowrap;
-  }
-
-  /* Boks z komentarzem AI */
-  .ai-note{
-    margin:10px 0 0 88px;
-    font-size:.95rem;
-    color:#111827;
-    line-height:1.4;
-    background:#fff9f2;
-    border:1px solid rgba(15,23,42,.08);
-    padding:12px 14px;
-    border-radius:12px;
-  }
-
-  .ai-head{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:6px;
-    font-weight:700;
-    color:#111827;
-  }
-
-  .ai-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    padding:3px 8px;
-    border-radius:999px;
-    background:linear-gradient(135deg,#0ea5e9,#7c3aed);
-    font-size:.75rem;
-    color:#fff;
-    border:1px solid rgba(255,255,255,.65);
-  }
-  .ai-dot{
-    width:8px;
-    height:8px;
-    border-radius:999px;
-    background:#fff;
-    box-shadow:0 0 6px rgba(255,255,255,.7);
-  }
-
-  .note{
-    color:#e5e7eb;
-    font-size:.92rem;
-    text-align:center;
-    margin-top:14px;
-  }
-
-  @media (max-width:640px){
+    header{ text-align:center; padding:24px 12px 6px }
+    .sub{ color:#b9c5d8 }
+    main{ max-width:980px; margin:0 auto; padding:0 16px 48px }
     .card{
-      margin:18px 0;
-      padding:14px 16px;
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:18px 20px; margin:14px 0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
     }
-    .ai-note{
-      margin-left:0;
+    h2{ margin:8px 0 6px; color:#d7e6ff }
+    
+    ul.news{ list-style:none; padding-left:0; }
+    ul.news li{ margin:18px 0 24px; }
+    ul.news li a{
+      display:flex; align-items:center; gap:10px;
+      color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
-  }
-</style>
+    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-thumb{
+      width:78px; min-width:78px; height:54px; border-radius:14px;
+      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
+      border:1px solid rgba(255,255,255,.28);
+      display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+      gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    .news-thumb .dot{
+      width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
+      border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
+    }
+    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
 
+    .ai-note{
+      margin:10px 0 0 88px;
+      font-size:.95rem; color:#dfe7f1; line-height:1.4;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      padding:12px 14px; border-radius:12px;
+    }
+    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+    .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
+    .sec{ margin-top:4px; }
+    .note{ color:#9fb3cb; font-size:.92rem }
+    
+  </style>
 </head>
 <body>
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnie ~36 godzin • 2025-11-27</p>
+  <p class="sub">Ostatnie ~36 godzin • 2025-11-28</p>
 </header>
 <main>
 
@@ -185,69 +66,69 @@
   <h2>Polityka / Kraj</h2>
   <ul class="news">
     <li>
-  <a href="https://tvn24.pl/biznes/moto/hiszpania-chiny-stellantis-buduje-fabryke-z-catl-rosnace-wplywy-pekinu-st8773484?source=rss" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/biznes/z-kraju/cit-dla-bankow-w-gore-jest-podpis-prezydenta-karola-nawrockiego-st8775544?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Kontrowersyjna inwestycja giganta. &quot;Rosnące wpływy Pekinu&quot;</span>
+    <span class="news-text">Podatek w górę. Jest podpis prezydenta</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Gigant motoryzacyjny Stellantis i chiński producent akumulatorów CATL rozpoczęły budowę fabryki o wartości przekraczającej cztery miliardy euro w północnej Hiszpanii. To przejaw rosnącej zależności Europy od Chin - pisze agencja informacyjna Bloomberg.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Prezydent Karol Nawrocki podpisał w czwartek ustawę o podwyżce CIT dla banków. Nowe przepisy przewidują, że stawka podatku wyniesie 30 procent w 2026 roku, 26 procent w 2027 roku i 23 procent od 2028 roku.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/swiat/dziesiatki-zabitych-setki-rannych-relacje-tych-ktorzy-przezyli-st8773573?source=rss" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-28/nie-zyje-postrzelona-gwardzistka-trump-patrzy-na-nas-z-gory/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Dziesiątki zabitych, setki rannych. Relacje tych, którzy przeżyli</span>
+    <span class="news-text">Zmarła postrzelona gwardzistka. Trump: Nie ma jej już z nami</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Co najmniej 44 osoby zginęły, a 279 uznano za zaginione w wyniku pożaru wieżowców, do którego doszło w środę w Hongkongu. Jeden z mieszkańców opowiedział Reutersowi o wielkim huku poprzedzającym pożar. Wspomniał, że zobaczył sam moment wybuchu pożaru.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Donald Trump poinformował, że nie żyje gwardzistka Sarah Beckstrom, która została postrzelona w środę w pobliżu Białego Domu w Waszyngtonie. Miała 20 lat. Prezydent USA dodał, że inny z zaatakowanych członków Gwardii Narodowej Andrew Wolfe wciąż walczy o życie.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/swiat/usa-agenci-imigracyjni-zatrzymali-matke-siostrzenca-rzeczniczki-bialego-domu-karoline-leavitt-st8773576?source=rss" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-27/podwyzszenie-podatku-cit-dla-bankow-prezydent-podjal-decyzje/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Agenci zatrzymali matkę siostrzeńca rzeczniczki Białego Domu</span>
+    <span class="news-text">Podwyższenie podatku CIT dla banków. Prezydent podjął decyzję</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Amerykańskie służby imigracyjne zatrzymały matkę bratanka rzeczniczki prasowej Białego Domu Karoline Leavitt. Twierdzą, że przebywa w kraju nielegalnie. Jej prawnik uważa, że prawo ją chroni.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Karol Nawrocki poinformował o zawetowaniu dwóch ustaw i podpisaniu 11. Sprzeciw prezydenta napotkała nowelizacja kodeksu wyborczego oraz ustawa dotycząca zmian w opodatkowaniu fundacji rodzinnych. Jednocześnie prezydent zatwierdził m.in.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://tvn24.pl/swiat/wlochy-przebieral-sie-za-zmarla-matke-aby-dostawac-jej-emeryture-st8771678?source=rss" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/kultura-i-styl/bnp-paribas-warsaw-serialcon-w-kinotece-wystartowala-druga-edycja-festiwalu-poswieconego-serialom-st8775514?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Przebierał się za zmarłą matkę, aby dostawać jej emeryturę</span>
+    <span class="news-text">Gratka dla fanów seriali. Ruszył wyjątkowy festiwal</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Ciemne włosy na karku, dłoniach i brodzie u starszej kobiety odnawiającej dowód osobisty wzbudziły podejrzenia wśród urzędników, że coś może być nie tak. Jak się okazało, 57-letni Włoch podszywał się pod swoją zmarłą matkę, żeby pobierać jej emeryturę.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Rozpoczęła się druga edycja festiwalu BNP Paribas Warsaw SerialCon. Wydarzenie to poświęcone jest wyłącznie serialom i odbywa się w warszawskiej Kinotece. Można obejrzeć najnowsze tytuły i wziąć udział w spotkaniach z twórcami.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-26/surowa-kara-dla-bylego-prezydenta-przyjmowal-gigantyczne-lapowki/" target="_blank" rel="noopener">
+  <a href="https://tvn24.pl/polska/dzieci-na-rowerach-i-hulajnogach-beda-musialy-nosic-kaski-dariusz-klimczak-zapowiedzial-karol-nawrocki-podpisal-st8775587?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Surowa kara dla byłego prezydenta. Przyjmował gigantyczne łapówki</span>
+    <span class="news-text">Obowiązkowe kaski dla dzieci. Decyzja prezydenta</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Martin Vizcarra, były prezydent Peru w latach 2018-2020, został skazany na 14 lat pozbawienia wolności. Sąd uznał go za winnego przyjęcia łapówek jeszcze przed objęciem urzędu szefa państwa. Trzech innych byłych prezydentów Peru już odbywa kary więzienia, w tym dwaj - też za korupcję.</div>
-    <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie. termin „skazany” dotyczy prawomocnego wyroku; wcześniejsze etapy to zatrzymanie, przedstawienie zarzutów lub akt oskarżenia.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Prezydent Karol Nawrocki poinformował w czwartek wieczorem, że podpisał 11 ustaw, w tym nowelizację Prawa o ruchu drogowym. Nowe przepisy między innymi nakładają obowiązek noszenia kasku przez dzieci poniżej 16. roku życia jadące rowerami lub hulajnogami.</div>
+    
   </div>
 </li>
 <li>
-  <a href="https://www.polsatnews.pl/gosc-wydarzen/2025-11-26/jak-wspolpracuja-sluzby-polski-i-ukrainy-rzad-domaga-sie-zmian/" target="_blank" rel="noopener">
+  <a href="https://www.polsatnews.pl/wiadomosc/2025-11-27/tragiczny-bilans-pozaru-w-hongkongu-dziesiatki-ofiar-setki-zaginionych/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Jak współpracują służby Polski i Ukrainy? Rząd domaga się zmian</span>
+    <span class="news-text">Tragiczny bilans pożaru w Hongkongu. Dziesiątki ofiar, setki zaginionych</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> - W każdej tego typu sprawie oczekujemy, domagamy się, że tego typu osoby będą odznaczane w systemach Unii Europejskiej - powiedział Marcin Kierwiński, pytany o fakt, iż sabotażyści z Miki zdołali wjechać do Polski, a następnie z niej uciec, choć jeden z nich był wcześniej skazany w Ukrainie.</div>
-    <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie. termin „skazany” dotyczy prawomocnego wyroku; wcześniejsze etapy to zatrzymanie, przedstawienie zarzutów lub akt oskarżenia.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Rośnie tragiczny bilans pożaru wieżowców w Hongkongu. Co najmniej 83 osoby zginęły, a 300 nadal jest uważanych za zaginione. Agencja Reutera podała, że policja zatrzymała szefów firmy budowlanej, która prowadziła renowację budynków.</div>
+    
   </div>
 </li>
   </ul>
@@ -257,68 +138,68 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
-  <a href="https://www.bankier.pl/wiadomosc/Koreanska-goraczka-inwestycyjna-ETF-y-z-dzwignia-krypto-e-sport-i-szkolenia-online-9045138.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/WIBOR-wymazany-z-umowy-kredytu-Kolejny-wyrok-tym-razem-w-Olsztynie-9046725.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Koreańska gorączka inwestycyjna. ETF-y z dźwignią, krypto e-sport i szkolenia online</span>
+    <span class="news-text">WIBOR „wymazany” z umowy kredytu. Kolejny wyrok, tym razem w Olsztynie</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Korea Południowa to kraj, w którym trading z dźwignią na rynku kryptowalut stał się formą e-sportu, inwestorzy indywidualni rozchwytują lewarowane ETF-y, a lokalna giełda przeżywa w tej chwili złote czasy. Tamtejszy regulator ma pomysł jak zapewnić bezpieczeństwo uczestnikom rynku.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Kredytobiorcy mają spłacać kredyt oprocentowany wyłącznie w oparciu o marżę i odzyskają ponad 150 tys. zł – takie rozstrzygnięcie wydał Sąd Okręgowy w Olsztynie. To jeden z niewielu jak dotąd wyroków usuwających wskaźnik WIBOR z umowy. Przyglądamy się uzasadnieniu i stanowiskom stron w sprawie.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Najwieksze-obroty-na-GPW-w-2025-r-Zagranica-wydaje-wiecej-na-akcje-PKO-BP-niz-Grupy-Orlen-9045997.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Ranking-kredytow-konsolidacyjnych-listopad-2025-r-Ranking-Bankier-pl-9046717.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Zagranica wydaje więcej na akcje PKO BP niż Grupy Orlen. Największe obroty na GPW w 2025 r.</span>
+    <span class="news-text">Zbyt wysokie raty? Sprawdź, czy opłaca się połączyć wszystkie kredyty w jeden</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W 2025 r. jesteśmy świadkami przyspieszenia hossy wspieranej przez napływ dużego zagranicznego kapitału. Średnie obroty na GPW są najwyższe w historii, a bieżący rok przyniósł także poprawę rekordu wartości dziennego handlu na polskiej giełdzie.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> W najnowszym zestawieniu Bankier.pl przyglądamy się sytuacji kredytowej małżeństwa, które spłaca kilka pożyczek gotówkowych w różnych bankach. Ich łączne zadłużenie wynosi ponad 153 tys. zł, a miesięczne obciążenie budżetu domowego sięga 4 550,80 zł.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Lokaty-terminowe-we-wrzesniu-2025-r-oprocentowanie-i-wplaty-9045980.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Banki-zaplaca-wyzszy-CIT-Prezydent-Karol-Nawrocki-podpisal-ustawe-9047069.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Wysokość wpłat na stabilnym poziomie, oprocentowanie ponownie w dół. Dane NBP o lokatach</span>
+    <span class="news-text">Banki zapłacą wyższy CIT. Prezydent Karol Nawrocki podpisał ustawę</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> We wrześniu klienci banków ponownie wpłacili na depozyty ponad 80 mld zł. Choć w porównaniu do poprzedniego miesiąca odnotowano nieznaczny spadek wysokości przekazanych środków, to w przypadku depozytów krótkoterminowych można mówić o wzroście zainteresowania.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Prezydent Karol Nawrocki podpisał ustawę podwyższającą podatek CIT dla banków - poinformowała Kancelaria Prezydenta na platformie X.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Selektywna-prohibicja-Dlaczego-stacje-paliw-nie-chca-oddac-koncesji-na-alkohol-9046043.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Zabka-otrzymala-zwrot-nadplaty-w-podatku-CIT-za-2018-r-w-wys-14-5-mln-zl-liczy-na-zwrot-za-2019-24-9047027.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">„Selektywna prohibicja”. Dlaczego stacje paliw nie chcą oddać koncesji na alkohol?</span>
+    <span class="news-text">Żabka otrzymała zwrot nadpłaty w podatku CIT za 2018 r. Teraz liczy na zwrot za 2019-24</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Polska Izba Paliw Płynnych sprzeciwia się propozycjom zakazania sprzedaży alkoholu na stacjach paliw. Według Izby, taki zakaz byłby dyskryminujący wobec jednej wybranej grupy przedsiębiorców i nie niósłby za sobą efektów w postaci poprawy bezpieczeństwa na drogach.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Żabka Polska otrzymała zwrot nadpłaty w podatku dochodowym od osób prawnych za 2018 r. w wys. 14,5 mln zł - poinformowała spółka w komunikacie.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Stopy-procentowe-NBP-jeszcze-spadna-Oto-prognozy-PZU-na-przyszly-rok-9045929.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/CD-Projekt-liczy-zyski-Orlen-chce-calosc-Energi-Czwartek-na-GPW-9046862.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Stopy procentowe NBP jeszcze spadną. Oto prognozy PZU na przyszły rok</span>
+    <span class="news-text">CD Projekt liczy zyski, Orlen chce całość Energi. Czwartek na GPW</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Łagodzenie polityki pieniężnej, obok konsumpcji i napływu środków unijnych, będzie wspierać wzrost gospodarczy Polski w 2026 r. – napisał w opublikowanym w środę komentarzu główny ekonomista PZU Jarosław Pachucki. Jego zdaniem, stopy procentowe NBP spadną do 3,5 proc. w przyszłym roku.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Czwartek na warszawskiej giełdzie odznaczał się niskimi obrotami, co można łączyć ze Świętem Dziękczynienia i wolnym dniem na Wall Street. Na Książęcej po prezentacji wyników mocno w górę poszły akcje CD Projektu. Uwagę analityków, inwestorów oraz KNF zaprzątało również wezwanie Orlenu na akcje Energi.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Nie-wiedza-czy-maja-oszczednosci-Tak-wyglada-finansowa-rzeczywistosc-wielu-Polek-9046262.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a href="https://www.bankier.pl/wiadomosc/Mozg-na-wyprzedazy-Black-Friday-Dlaczego-kupujemy-i-jak-sie-przed-tym-bronic-9046737.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">„Finansami zajmuje się mąż”. Tylko połowa Polek ma oszczędności</span>
+    <span class="news-text">Mózg na Black Friday. Prof. Gąsiorowska: Najwięcej oszczędzamy nic nie kupując</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Prawie co dziesiąta Polka (9,5 proc.) nie wie, czy posiada jakiekolwiek oszczędności, 14,3 proc. przyznaje, że nie ma ich wcale, a co trzecia kobieta nie inwestuje żadnych środków – wynika z badania platformy Raisin.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Black Friday rozciągnął się z jednego dnia na tydzień, miesiąc, a miejscami nawet cały kwartał. Sklepy krzyczą o „-70%”, „mega okazjach” i „ostatniej szansie”, a konsumenci zmęczeni inflacją i końcówką roku oraz presją zbliżających się świąt liczą, że da się wyrwać coś taniej. Ale czy faktycznie oszczędzamy?</div>
     
   </div>
 </li>
@@ -329,24 +210,46 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-26/plusliga-steam-hemarpol-politechnika-czestochowa-cuprum-stilon-gorzow-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-27/liga-konferencji-legia-warszawa-sparta-praga-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">PlusLiga: Steam Hemarpol Politechnika Częstochowa - Cuprum Stilon Gorzów. Relacja na żywo</span>
+    <span class="news-text">Liga Konferencji: Legia Warszawa - Sparta Praga. Relacja live i wynik na żywo</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Steam Hemarpol Politechnika Częstochowa - Cuprum Stilon Gorzów to spotkanie ósmej kolejki PlusLigi. Kto je wygra? Relacja live i wynik na żywo meczu Steam Hemarpol Politechnika Częstochowa - Cuprum Stilon Gorzów na Polsatsport.pl.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Legia Warszawa - Sparta Praga to mecz w ramach czwartej kolejki fazy ligowej Ligi Konferencji UEFA. Relacja live i wynik na żywo meczu Legia Warszawa - Sparta Praga na Polsatsport.pl. Początek o godzinie 21:00.</div>
     
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/liga-konferencji-lech-poznan-fc-lausanne-sport-gdzie-obejrzec-transmisja-tv-oraz-stream-online/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-27/liga-konferencji-rakow-czestochowa-rapid-wieden-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Liga Konferencji: Lech Poznań - FC Lausanne-Sport. Gdzie obejrzeć? Transmisja TV oraz stream online</span>
+    <span class="news-text">Liga Konferencji: Raków Częstochowa - Rapid Wiedeń. Relacja live i wynik na żywo</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Lech Poznań po dwóch porażkach z rzędu w Lidze Konferencji UEFA postara się o powrót na zwycięską ścieżkę w ramach czwartej kolejki spotkań. Tym razem Kolejorz podejmie szwajcarski FC Lausanne-Sport. Gdzie obejrzeć ten mecz? O której godzinie?</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Raków Częstochowa - Rapid Wiedeń to czwartkowy mecz piłkarskiej Ligi Konferencji UEFA. Relacja live i wynik na żywo na Polsatsport.pl. Początek o godzinie 18:45.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.bbc.com/sport/football/videos/cqxq87502yyo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Liverpool must &#x27;fight together&#x27; through difficult period</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Boss Arne Slot says Liverpool must &quot;fight together&quot; after Wednesday&#x27;s humiliating 4-1 defeat by PSV Eindhoven at Anfield was the Reds&#x27; ninth loss in 12 games - their worst run in 71 years.</div>
+    
+  </div>
+</li>
+<li>
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-27/liga-konferencji-lech-poznan-fc-lausanne-sport-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
+    <span class="news-text">Liga Konferencji: Lech Poznań - FC Lausanne-Sport. Relacja live i wynik na żywo</span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Lech Poznań - FC Lausanne-Sport to czwartkowy mecz piłkarskiej Ligi Konferencji UEFA. Relacja live i wynik na żywo na Polsatsport.pl. Początek o godzinie 18:45.</div>
     
   </div>
 </li>
@@ -362,35 +265,13 @@
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-26/gol-piotra-zielinskiego-w-lidze-mistrzow-polak-nie-uratowal-zespolu/" target="_blank" rel="noopener">
+  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-24/liga-konferencji-lech-poznan-fc-lausanne-sport-gdzie-obejrzec-transmisja-tv-oraz-stream-online/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Gol Piotra Zielińskiego w Lidze Mistrzów! Polak nie uratował zespołu</span>
+    <span class="news-text">Liga Konferencji: Lech Poznań - FC Lausanne-Sport. Gdzie obejrzeć? Transmisja TV oraz stream online</span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Piotr Zieliński strzelił gola w Lidze Mistrzów, a jego Inter Mediolan przegrał na wyjeździe z Atletico Madryt 1:2. Reprezentant Polski pojawił się w pierwszym składzie włoskiej ekipy i został zmieniony w 66. minucie.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-26/wlasciciel-rakowa-czestochowa-zareagowal-na-slowa-marka-papszuna-jedno-slowo-jest-kluczowe/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Właściciel Rakowa Częstochowa zareagował na słowa Marka Papszuna. Jedno słowo jest kluczowe</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Marek Papszun na konferencji prasowej potwierdził, że chciałby zostać trenerem Legii Warszawa. Głos w tej sprawie zabrał właściciel Rakowa Częstochowa - Michał Świerczewski.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2025-11-26/sa-gotowi-na-mecz-z-lechem-to-moze-okazac-sie-decydujace/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Są gotowi na mecz z Lechem. To może okazać się decydujące</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Trener piłkarzy FC Lausanne-Sport Peter Zeidler przyznał, że ma dużo szacunku dla Lecha Poznań, z którym jego zespół zagra w czwartek w meczu Ligi Konferencji. – Wygrać z Rapidem Wiedeń 4:1 to nie byle co – przyznał niemiecki szkoleniowiec.</div>
+    <div class="sec"><strong>Najważniejsze:</strong> Lech Poznań po dwóch porażkach z rzędu w Lidze Konferencji UEFA postara się o powrót na zwycięską ścieżkę w ramach czwartej kolejki spotkań. Tym razem Kolejorz podejmie szwajcarski FC Lausanne-Sport. Gdzie obejrzeć ten mecz? O której godzinie?</div>
     
   </div>
 </li>
