@@ -1070,4 +1070,158 @@ body[data-page="news"] .ai-dot{
     margin-left:0 !important;
   }
 }
+/* ==================================================
+   NEWS (Aktualności) — fallback gdy generator nadpisze <body>
+   Aktywuje się po: body[data-page="news"] LUB gdy na stronie jest ul.news
+   ================================================== */
+
+body[data-page="news"],
+body:has(ul.news){
+  background-color:#020617 !important;
+  background-image:
+    linear-gradient(to bottom, rgba(15,23,42,.85), rgba(15,23,42,.96)),
+    url("/assets/bg-books.jpg") !important;
+  background-size:cover !important;
+  background-position:center top !important;
+  background-attachment:fixed !important;
+  color:#e5e7eb !important;
+}
+
+/* Sekcje-karty na stronie newsów */
+body[data-page="news"] .card,
+body:has(ul.news) .card:has(ul.news){
+  background:#f5eee5 !important;
+  border:1px solid rgba(15,23,42,.08) !important;
+  border-radius:18px !important;
+  padding:18px 20px !important;
+  margin:24px 0 !important;
+  box-shadow:0 22px 55px rgba(15,23,42,.65) !important;
+}
+
+body[data-page="news"] h2,
+body:has(ul.news) .card:has(ul.news) > h2{
+  color:#111827 !important;
+}
+
+/* Lista newsów — bez kropek */
+body[data-page="news"] ul.news,
+body:has(ul.news) ul.news{
+  list-style:none !important;
+  padding-left:0 !important;
+  margin:0 !important;
+}
+
+body[data-page="news"] ul.news li,
+body:has(ul.news) ul.news li{
+  margin:18px 0 24px !important;
+}
+
+/* Link: thumb + tytuł */
+body[data-page="news"] ul.news li a,
+body:has(ul.news) ul.news li a{
+  display:flex !important;
+  align-items:center !important;
+  gap:10px !important;
+  color:#111827 !important;
+  text-decoration:none !important;
+  line-height:1.25 !important;
+}
+body[data-page="news"] ul.news li a:hover,
+body:has(ul.news) ul.news li a:hover{
+  color:#0b1120 !important;
+  text-decoration:underline !important;
+}
+
+/* Kafelek BriefRooms */
+body[data-page="news"] .news-thumb,
+body:has(ul.news) .news-thumb{
+  width:78px !important;
+  min-width:78px !important;
+  height:54px !important;
+  border-radius:14px !important;
+  background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #b45309 100%) !important;
+  border:1px solid rgba(148,81,34,.6) !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:flex-start !important;
+  gap:3px !important;
+  padding:6px 10px 6px 12px !important;
+  box-shadow:0 14px 30px rgba(15,23,42,.55) !important;
+}
+body[data-page="news"] .news-thumb .dot,
+body:has(ul.news) .news-thumb .dot{
+  width:14px !important;
+  height:14px !important;
+  border-radius:999px !important;
+  background:#fb923c !important;
+  border:2px solid rgba(255,255,255,.8) !important;
+  box-shadow:0 0 8px rgba(251,191,36,.7) !important;
+  margin-bottom:1px !important;
+}
+body[data-page="news"] .news-thumb .title,
+body:has(ul.news) .news-thumb .title{
+  font-size:.56rem !important;
+  font-weight:700 !important;
+  letter-spacing:.03em !important;
+  color:#fff !important;
+  line-height:1 !important;
+}
+body[data-page="news"] .news-thumb .sub,
+body:has(ul.news) .news-thumb .sub{
+  font-size:.47rem !important;
+  color:rgba(255,250,240,.9) !important;
+  line-height:1.05 !important;
+  white-space:nowrap !important;
+}
+
+/* AI boks */
+body[data-page="news"] .ai-note,
+body:has(ul.news) .ai-note{
+  margin:10px 0 0 88px !important;
+  font-size:.95rem !important;
+  color:#111827 !important;
+  line-height:1.4 !important;
+  background:#fff9f2 !important;
+  border:1px solid rgba(15,23,42,.08) !important;
+  padding:12px 14px !important;
+  border-radius:12px !important;
+}
+body[data-page="news"] .ai-head,
+body:has(ul.news) .ai-head{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  margin-bottom:6px !important;
+  font-weight:700 !important;
+  color:#111827 !important;
+}
+body[data-page="news"] .ai-badge,
+body:has(ul.news) .ai-badge{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  padding:3px 8px !important;
+  border-radius:999px !important;
+  background:linear-gradient(135deg,#0ea5e9,#7c3aed) !important;
+  font-size:.75rem !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.65) !important;
+}
+body[data-page="news"] .ai-dot,
+body:has(ul.news) .ai-dot{
+  width:8px !important;
+  height:8px !important;
+  border-radius:999px !important;
+  background:#fff !important;
+  box-shadow:0 0 6px rgba(255,255,255,.7) !important;
+}
+
+/* Mobile */
+@media (max-width:640px){
+  body[data-page="news"] .ai-note,
+  body:has(ul.news) .ai-note{
+    margin-left:0 !important;
+  }
+}
 
