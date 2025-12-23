@@ -1484,5 +1484,52 @@ body[data-page="news"] ul.news li a:hover::after{
     display:none !important;
   }
 }
+/* NEWS – wyeksponuj tytuł (link do źródła) */
+body[data-page="news"] ul.news > li > a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  text-decoration: none;
+  padding: 8px 140px 8px 0; /* miejsce na "Czytaj źródło" po prawej */
+}
+
+body[data-page="news"] ul.news > li > a .news-text {
+  font-weight: 700;
+}
+
+body[data-page="news"] ul.news > li > a:hover .news-text {
+  text-decoration: underline;
+}
+
+/* "Czytaj źródło" jako element UI dodany CSS-em (nie zniknie po regeneracji HTML) */
+@media (min-width: 720px) {
+  body[data-page="news"] ul.news > li > a::after {
+    content: "Czytaj źródło";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,.18);
+    background: rgba(255,255,255,.85);
+    font-weight: 600;
+    font-size: 13px;
+    color: #111;
+    white-space: nowrap;
+  }
+
+  body[data-page="news"] ul.news > li > a:hover::after {
+    background: #fff;
+    border-color: rgba(0,0,0,.28);
+  }
+}
+
+/* Mobile: bez przycisku po prawej (żeby nie łamało układu) */
+@media (max-width: 719px) {
+  body[data-page="news"] ul.news > li > a { padding-right: 0; }
+  body[data-page="news"] ul.news > li > a::after { content: ""; }
+}
 
 
