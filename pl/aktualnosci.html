@@ -53,10 +53,50 @@
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
     .sec{ margin-top:4px; }
     .note{ color:#9fb3cb; font-size:.92rem }
-    
+    /* Eksponowanie tytułu jako klikalnego linku */
+ul.news li a{
+  position:relative;
+  padding-right:140px; /* miejsce na przycisk po prawej */
+}
+
+.news-text{
+  font-weight:700;      /* pogrubienie tytułu */
+}
+
+/* “Czytaj źródło” jako element UI (klikany, bo w <a>) */
+@media (min-width:720px){
+  ul.news li a::after{
+    content:"Czytaj źródło";
+    position:absolute;
+    right:0;
+    top:50%;
+    transform:translateY(-50%);
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.28);
+    background:rgba(255,255,255,.10);
+    color:#fff;
+    font-weight:700;
+    font-size:.85rem;
+    text-decoration:none;
+  }
+  ul.news li a:hover::after{
+    background:rgba(255,255,255,.18);
+    border-color:rgba(255,255,255,.40);
+    text-decoration:none;
+  }
+}
+
+/* Mobile: bez przycisku (żeby nie rozjeżdżało) */
+@media (max-width:719px){
+  ul.news li a{ padding-right:0; }
+  ul.news li a::after{ content:""; }
+}
+
   </style>
 </head>
-<body>
+<body data-page="news">
+
 <header>
   <h1>Aktualności</h1>
   <p class="sub">Ostatnie ~36 godzin • 2025-12-23</p>
