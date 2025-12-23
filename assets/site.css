@@ -1427,4 +1427,61 @@ body[data-page="news"] .ai-note{
   border-left:4px solid rgba(124,58,237,.35) !important;
   background:rgba(255,249,242,.78) !important;
 }
+/* =========================
+   AKTUALNOŚCI: eksponuj link
+   ========================= */
+
+body[data-page="news"] ul.news li a{
+  position:relative !important;
+  padding-right:140px !important;   /* miejsce na „Czytaj źródło” po prawej */
+}
+
+/* tytuł linku (news-text) – pogrubienie + czytelniejszy kolor */
+body[data-page="news"] ul.news li a .news-text{
+  font-weight:800 !important;
+  color:#0b1120 !important;
+}
+
+/* delikatna sugestia „to jest link” */
+body[data-page="news"] ul.news li a:hover .news-text{
+  text-decoration:underline !important;
+}
+
+/* „Czytaj źródło” jako pill po prawej — bez zmiany HTML */
+body[data-page="news"] ul.news li a::after{
+  content:"Czytaj źródło" !important;
+  position:absolute !important;
+  right:0 !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  padding:8px 12px !important;
+  border-radius:999px !important;
+  font-size:.86rem !important;
+  font-weight:700 !important;
+
+  background:rgba(255,255,255,.85) !important;
+  border:1px solid rgba(15,23,42,.18) !important;
+  color:#0b1120 !important;
+  box-shadow:0 10px 22px rgba(15,23,42,.14) !important;
+}
+
+body[data-page="news"] ul.news li a:hover::after{
+  background:#fff !important;
+  border-color:rgba(15,23,42,.28) !important;
+}
+
+/* Mobile: nie pchaj tytułu — schowaj pill i zostaw samo pogrubienie */
+@media (max-width:640px){
+  body[data-page="news"] ul.news li a{
+    padding-right:0 !important;
+  }
+  body[data-page="news"] ul.news li a::after{
+    display:none !important;
+  }
+}
 
