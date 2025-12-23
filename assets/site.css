@@ -1377,4 +1377,54 @@ body[data-page="news"] .ai-note{
   border-left:4px solid rgba(124,58,237,.35);
   background:rgba(255,249,242,.78);
 }
+/* =========================
+   NEWS (Aktualności) – CTA + hierarchia
+   ========================= */
+
+/* 1) Tytuł ma wyglądać jak link (bez zwiększania fontu) */
+body[data-page="news"] ul.news > li > a .news-text{
+  font-weight:800 !important;
+  color:#0f172a !important;
+}
+
+/* 2) Wiersz linku ma delikatny “hover” jak klikany element */
+body[data-page="news"] ul.news > li > a{
+  border-radius:12px !important;
+  padding:8px 10px !important;
+}
+body[data-page="news"] ul.news > li > a:hover{
+  background:rgba(255,255,255,.35) !important;
+}
+
+/* 3) CTA po prawej: “Czytaj źródło” */
+body[data-page="news"] ul.news > li > a::after{
+  content:"Czytaj źródło" !important;
+  margin-left:auto !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  font-size:.82rem !important;
+  font-weight:700 !important;
+  padding:6px 10px !important;
+  border-radius:999px !important;
+  border:1px solid rgba(15,23,42,.12) !important;
+  background:rgba(255,255,255,.55) !important;
+  color:#0f172a !important;
+}
+body[data-page="news"] ul.news > li > a:hover::after{
+  background:#ffffff !important;
+  border-color:rgba(15,23,42,.18) !important;
+}
+
+/* 4) Mobile (telefon): krótszy napis, żeby nie psuł układu */
+@media (max-width:560px){
+  body[data-page="news"] ul.news > li > a::after{
+    content:"Źródło" !important;
+  }
+}
+
+/* 5) Opcja C: AI komentarz mniej agresywny wizualnie */
+body[data-page="news"] .ai-note{
+  border-left:4px solid rgba(124,58,237,.35) !important;
+  background:rgba(255,249,242,.78) !important;
+}
 
