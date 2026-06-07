@@ -599,7 +599,7 @@ def render_html(sections: dict) -> str:
   <title>Aktualności — BriefRooms</title>
   <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, sport." />
   <link rel="icon" href="/assets/favicon.svg" />
-  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/site.css?v=news5" />
   <style>
     header{{ text-align:center; padding:24px 12px 6px }}
     .sub{{ color:#b9c5d8 }}
@@ -614,7 +614,7 @@ def render_html(sections: dict) -> str:
     {extra_css}
   </style>
 </head>
-<body>
+<body data-page="news">
 <header>
   <h1>Aktualności</h1>
   <p class="sub">Ostatnie ~36 godzin • {today_str()}</p>
