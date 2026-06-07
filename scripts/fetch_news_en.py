@@ -415,7 +415,7 @@ def render_html(sections: dict) -> str:
     {extra_css}
   </style>
 </head>
-<body>
+<body data-page="news">
 <header>
   <h1>News</h1>
   <p class="sub">Last ~36 hours • {today_str()}</p>
