@@ -55,6 +55,8 @@ FEEDS = {
         "https://tvn24.pl/sport.xml",
         "https://www.pap.pl/rss.xml",
         "https://feeds.bbci.co.uk/sport/rss.xml?edition=int",
+        "https://feeds.bbci.co.uk/sport/tennis/rss.xml",
+        "https://feeds.reuters.com/reuters/sportsNews",
     ],
 }
 
