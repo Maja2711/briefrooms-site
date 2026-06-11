@@ -76,9 +76,18 @@ BOOST = {
 }
 
 BAN_PATTERNS = [
-    re.compile(r"sport|football|cricket|rugby|quiz|puzzle|crossword|review|horoscope|opinion", re.I),
-]
+    # low-value / soft content
+    re.compile(r"horoscope|celeb|quiz|sponsored|gallery|clickbait", re.I),
 
+    # lotteries / games / trivial finance-light items
+    re.compile(r"lotto|lottery|jackpot|powerball|mega millions|winning numbers|draw results", re.I),
+
+    # celebrity / entertainment / influencer noise
+    re.compile(r"celebrity|influencer|youtuber|tiktoker|reality show|showbiz", re.I),
+
+    # soft entertainment
+    re.compile(r"tv show|movie trailer|red carpet|music awards", re.I),
+]
 # =========================
 # TOKENIZATION / HELPER
 # =========================
