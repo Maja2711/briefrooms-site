@@ -365,7 +365,7 @@ def render_html(sections: dict) -> str:
     {badge()}
     <span class="news-text">{esc(it["title"])}</span>
   </a>
-  <a class="source-btn" href="{esc(it["link"])}" target="_blank" rel="noopener">Read source</a>
+ 
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
     <div class="sec"><strong>Key Takeaway:</strong> {esc(it.get("ai_summary",""))}</div>
@@ -412,7 +412,18 @@ def render_html(sections: dict) -> str:
       box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
     }}
     h2{{ margin:8px 0 6px; color:#d7e6ff }}
-    {extra_css}
+       {extra_css}
+
+    /* EN: override source CTA text */
+    body[data-page="news"] ul.news > li > a::after{{
+      content:"Read source" !important;
+    }}
+
+    @media (max-width:560px){{
+      body[data-page="news"] ul.news > li > a::after{{
+        content:"Source" !important;
+      }}
+    }}
   </style>
 </head>
 <body data-page="news">
