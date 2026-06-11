@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import os
+import sys
 import re
 import json
 import html
+
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -357,9 +358,9 @@ def render_html(sections: dict) -> str:
             '</span>'
         )
 
-   def make_li(it):
-    warn_html = f'<div class="sec"><strong>Warning:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
-    return f'''<li>
+    def make_li(it):
+        warn_html = f'<div class="sec"><strong>Warning:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
+        return f'''<li>
   <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
     <span class="news-text">{esc(it["title"])}</span>
@@ -371,7 +372,6 @@ def render_html(sections: dict) -> str:
     {warn_html}
   </div>
 </li>'''
-
     def make_section(title, items):
         lis = "\n".join(make_li(it) for it in items)
         return f"""
