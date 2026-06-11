@@ -106,7 +106,17 @@ BOOST = {
 
 # Filtry
 BAN_PATTERNS = [
+    # śmieci / rozrywka / niska wartość informacyjna
     re.compile(r"horoskop|plotk|quiz|sponsorowany|galeria|zobacz zdjęcia|clickbait", re.I),
+
+    # losowania, loterie, wyniki gier liczbowych
+    re.compile(r"lotto|lotek|eurojackpot|ekstra pensja|ekstra premia|kaskada|mini lotto|multi multi|wyniki losowania", re.I),
+
+    # celebryci / show-biznes / miękkie newsy
+    re.compile(r"gwiazda|celebryt|piosenkarz|aktor|aktorka|influencer|tiktoker|youtuber|patostreamer", re.I),
+
+    # sport/rozrywka poza sekcją sportową, jeśli trafi do polityki/kraju
+    re.compile(r"taniec z gwiazdami|the voice|serial|film|koncert", re.I),
 ]
 LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
 
