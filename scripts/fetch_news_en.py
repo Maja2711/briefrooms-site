@@ -357,14 +357,14 @@ def render_html(sections: dict) -> str:
             '</span>'
         )
 
-    def make_li(it):
-        # Poprawiona treść komunikatu dla EN
-        warn_html = f'<div class="sec"><strong>Warning:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
-        return f'''<li>
-  <a href="{esc(it["link"])}" target="_blank" rel="noopener">
+   def make_li(it):
+    warn_html = f'<div class="sec"><strong>Warning:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
+    return f'''<li>
+  <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
     {badge()}
     <span class="news-text">{esc(it["title"])}</span>
   </a>
+  <a class="source-btn" href="{esc(it["link"])}" target="_blank" rel="noopener">Read source</a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
     <div class="sec"><strong>Key Takeaway:</strong> {esc(it.get("ai_summary",""))}</div>
