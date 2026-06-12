@@ -75,8 +75,8 @@
     "expected_week_move_formula": "ATR14 * sqrt(5)",
     "favorable_multiplier": 0.9,
     "adverse_multiplier": 0.6,
-    "freeze_thresholds_at_forecast_creation": true,
-    "note": "Dynamic intraweek scenario thresholds are calculated from historical volatility and saved into each weekly forecast file when the scenario is created.",
+    "save_thresholds_at_first_active_review": true,
+    "note": "Dynamic intraweek scenario thresholds are calculated from historical volatility. The monitor saves the calculated threshold set into the weekly JSON file during the first active review of that scenario.",
     "unit_limits": {
       "eurusd": {
         "min_favorable_units": 45,
@@ -116,7 +116,7 @@
       "18:05"
     ],
     "rules_note": "These rules are for the educational model log only; they are not financial advice.",
-    "threshold_source": "dynamic_atr14_saved_in_weekly_forecast",
+    "threshold_source": "dynamic_atr14_saved_during_first_active_review",
     "favorable_move_ends_scenario": true,
     "adverse_move_ends_scenario": true,
     "model_reversal_ends_scenario": true,
