@@ -58,8 +58,8 @@ def record_model_end(
     item["scenario_end_reason_en"] = reason_en
     item["scenario_end_units"] = round(units, 2)
     item["scenario_reviewed_at"] = now_local().isoformat(timespec="seconds")
-    item.setdefault("rationale_pl", []).append(f"Scenariusz modelowy zakończony w trakcie tygodnia: {reason_pl}.")
-    item.setdefault("rationale_en", []).append(f"Model scenario ended during the week: {reason_en}.")
+    item.setdefault("rationale_pl", []).insert(0, f"Scenariusz modelowy zakończony w trakcie tygodnia: {reason_pl}. Cena: {price}. Czas: {timestamp}.")
+    item.setdefault("rationale_en", []).insert(0, f"Model scenario ended during the week: {reason_en}. Price: {price}. Time: {timestamp}.")
     calculate_result(item, cfg)
 
 
