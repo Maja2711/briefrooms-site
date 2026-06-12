@@ -1,12 +1,13 @@
 {
-  "method_version": "1.0.0",
+  "method_version": "1.1.0",
   "name": "BriefRooms Weekly Market Direction Model",
-  "language_note": "This file defines the rule-based method used for weekly directional scenarios in the Investing room. Modify this file to improve the model; do not rewrite past forecasts after results are known.",
+  "language_note": "This file defines the rule-based method used for weekly educational market scenarios in the Investing room. Modify this file to improve the model; do not rewrite past forecasts after results are known.",
   "timezone": "Europe/Warsaw",
   "market_window": {
     "forecast_day": "Sunday",
     "entry_capture": "Monday 08:00 Europe/Warsaw, captured by GitHub Actions near that time",
-    "exit_capture": "Friday evening after the weekly close, captured by GitHub Actions near 22:00 Europe/Warsaw"
+    "planned_exit_capture": "Friday evening after the weekly close, captured by GitHub Actions near 22:00 Europe/Warsaw",
+    "intraweek_review": "Tuesday to Friday, several scheduled reviews during the week; if the model rules end a scenario early, the timestamp, price and reason are saved immediately."
   },
   "instruments": [
     {
@@ -63,12 +64,34 @@
   "decision_rules": {
     "bullish_threshold": 20,
     "bearish_threshold": -20,
-    "neutral_label": "neutral/no trade",
+    "neutral_label": "neutral/no scenario",
     "max_score_abs": 100
+  },
+  "intraweek_scenario_review": {
+    "enabled": true,
+    "review_days": ["Tuesday", "Wednesday", "Thursday", "Friday"],
+    "review_times_local": ["10:05", "14:05", "18:05"],
+    "rules_note": "These rules end a model scenario early for the educational log only; they are not investment advice or an order instruction.",
+    "favorable_move_ends_scenario": true,
+    "adverse_move_ends_scenario": true,
+    "model_reversal_ends_scenario": true,
+    "model_reversal_min_abs_score": 25,
+    "thresholds": {
+      "eurusd": {
+        "favorable_pips": 90,
+        "adverse_pips": 60
+      },
+      "sp500_futures": {
+        "favorable_points": 120,
+        "adverse_points": 80
+      }
+    }
   },
   "publishing_rules": {
     "forecast_must_include_method_version": true,
     "do_not_edit_past_forecasts_after_result": true,
-    "show_educational_disclaimer": true
+    "show_educational_disclaimer": true,
+    "use_model_scenario_language_only": true,
+    "avoid_order_instruction_language": true
   }
 }
