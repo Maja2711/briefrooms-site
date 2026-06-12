@@ -1,5 +1,5 @@
 {
-  "method_version": "1.1.1",
+  "method_version": "1.2.0",
   "name": "BriefRooms Weekly Market Direction Model",
   "language_note": "This file defines the rule-based method used for weekly educational market scenarios in the Investing room. Modify this file to improve the model; do not rewrite past forecasts after results are known.",
   "timezone": "Europe/Warsaw",
@@ -67,25 +67,60 @@
     "neutral_label": "neutral/no scenario",
     "max_score_abs": 100
   },
+  "volatility_threshold_model": {
+    "enabled": true,
+    "model": "ATR14",
+    "price_history_period": "6mo",
+    "price_history_interval": "1d",
+    "expected_week_move_formula": "ATR14 * sqrt(5)",
+    "favorable_multiplier": 0.9,
+    "adverse_multiplier": 0.6,
+    "freeze_thresholds_at_forecast_creation": true,
+    "note": "Dynamic intraweek scenario thresholds are calculated from historical volatility and saved into each weekly forecast file when the scenario is created.",
+    "unit_limits": {
+      "eurusd": {
+        "min_favorable_units": 45,
+        "max_favorable_units": 140,
+        "min_adverse_units": 30,
+        "max_adverse_units": 95
+      },
+      "sp500_futures": {
+        "min_favorable_units": 70,
+        "max_favorable_units": 220,
+        "min_adverse_units": 45,
+        "max_adverse_units": 150
+      }
+    },
+    "fallback_static_thresholds": {
+      "eurusd": {
+        "favorable_units": 90,
+        "adverse_units": 60
+      },
+      "sp500_futures": {
+        "favorable_units": 120,
+        "adverse_units": 80
+      }
+    }
+  },
   "intraweek_scenario_review": {
     "enabled": true,
-    "review_days": ["Tuesday", "Wednesday", "Thursday", "Friday"],
-    "review_times_local": ["10:05", "14:05", "18:05"],
+    "review_days": [
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "review_times_local": [
+      "10:05",
+      "14:05",
+      "18:05"
+    ],
     "rules_note": "These rules are for the educational model log only; they are not financial advice.",
+    "threshold_source": "dynamic_atr14_saved_in_weekly_forecast",
     "favorable_move_ends_scenario": true,
     "adverse_move_ends_scenario": true,
     "model_reversal_ends_scenario": true,
-    "model_reversal_min_abs_score": 25,
-    "thresholds": {
-      "eurusd": {
-        "favorable_pips": 90,
-        "adverse_pips": 60
-      },
-      "sp500_futures": {
-        "favorable_points": 120,
-        "adverse_points": 80
-      }
-    }
+    "model_reversal_min_abs_score": 25
   },
   "publishing_rules": {
     "forecast_must_include_method_version": true,
