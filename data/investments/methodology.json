@@ -1,0 +1,74 @@
+{
+  "method_version": "1.0.0",
+  "name": "BriefRooms Weekly Market Direction Model",
+  "language_note": "This file defines the rule-based method used for weekly directional scenarios in the Investing room. Modify this file to improve the model; do not rewrite past forecasts after results are known.",
+  "timezone": "Europe/Warsaw",
+  "market_window": {
+    "forecast_day": "Sunday",
+    "entry_capture": "Monday 08:00 Europe/Warsaw, captured by GitHub Actions near that time",
+    "exit_capture": "Friday evening after the weekly close, captured by GitHub Actions near 22:00 Europe/Warsaw"
+  },
+  "instruments": [
+    {
+      "id": "eurusd",
+      "label_pl": "EUR/USD",
+      "label_en": "EUR/USD",
+      "symbol": "EURUSD=X",
+      "asset_class": "fx",
+      "result_unit": "pips",
+      "pip_size": 0.0001
+    },
+    {
+      "id": "sp500_futures",
+      "label_pl": "S&P 500 futures",
+      "label_en": "S&P 500 futures",
+      "symbol": "ES=F",
+      "asset_class": "equity_index_futures",
+      "result_unit": "points",
+      "point_size": 1.0
+    }
+  ],
+  "signals": {
+    "trend": {
+      "weight": 30,
+      "description": "EMA20 vs EMA50 and last close vs EMA20. Positive when the market is above its short and medium trend."
+    },
+    "momentum": {
+      "weight": 25,
+      "description": "5-day and 20-day price change. Positive when recent momentum confirms the trend."
+    },
+    "volatility_regime": {
+      "weight": 15,
+      "description": "Higher volatility reduces confidence and can shift the decision toward neutral."
+    },
+    "macro_bias": {
+      "weight": 20,
+      "description": "Manual macro override. Default 0. Can be adjusted before Sunday forecast generation."
+    },
+    "event_risk": {
+      "weight": 10,
+      "description": "Manual event-risk override. Default 0. Negative value reduces directional conviction before major risk events."
+    }
+  },
+  "manual_overrides": {
+    "eurusd": {
+      "macro_bias": 0,
+      "event_risk": 0
+    },
+    "sp500_futures": {
+      "macro_bias": 0,
+      "event_risk": 0
+    }
+  },
+  "decision_rules": {
+    "bullish_threshold": 20,
+    "bearish_threshold": -20,
+    "neutral_label": "neutral/no trade",
+    "max_score_abs": 100
+  },
+  "publishing_rules": {
+    "forecast_must_include_method_version": true,
+    "do_not_edit_past_forecasts_after_result": true,
+    "show_educational_disclaimer": true
+  }
+}
