@@ -1,0 +1,62 @@
+name: Build Investments Weekly Forecasts
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - forecast
+          - open
+          - close
+          - render
+  schedule:
+    # Sunday scenario for the coming week, around 18:05 Europe/Warsaw.
+    - cron: "5 16 * 4-10 0"
+    - cron: "5 17 * 11,12,1-3 0"
+    # Monday morning entry price capture, around 08:05 Europe/Warsaw.
+    - cron: "5 6 * 4-10 1"
+    - cron: "5 7 * 11,12,1-3 1"
+    # Friday evening exit price capture, around 22:05 Europe/Warsaw.
+    - cron: "5 20 * 4-10 5"
+    - cron: "5 21 * 11,12,1-3 5"
+
+permissions:
+  contents: write
+
+jobs:
+  build-investments-weekly:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install market data dependency
+        run: python -m pip install --upgrade pip yfinance
+
+      - name: Build weekly investments data and pages
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+        run: python scripts/investments_weekly.py --mode "$MODE"
+
+      - name: Commit generated investment updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/weekly pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "No investment forecast changes to commit."
+          else
+            git commit -m "Update weekly investments forecasts"
+            git push
+          fi
