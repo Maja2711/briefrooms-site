@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Review active BriefRooms model scenarios during the week.
-
-This writes an educational model log only. It does not provide personal financial advice.
-"""
+"""Review active BriefRooms model scenarios during the week."""
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
@@ -19,6 +16,7 @@ from investments_weekly import (
     calculate_result,
     render_pages,
 )
+from investments_thresholds import calculate_dynamic_thresholds
 
 
 def scenario_units(item: Dict[str, Any], price: float, cfg: Dict[str, Any]) -> Optional[float]:
@@ -31,11 +29,15 @@ def scenario_units(item: Dict[str, Any], price: float, cfg: Dict[str, Any]) -> O
     return (raw if direction == "long" else -raw) / unit
 
 
-def thresholds(inst_id: str, review: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
-    cfg = review.get("thresholds", {}).get(inst_id, {})
-    positive = safe_float(cfg.get("favorable_pips")) or safe_float(cfg.get("favorable_points"))
-    negative = safe_float(cfg.get("adverse_pips")) or safe_float(cfg.get("adverse_points"))
-    return positive, negative
+def thresholds(item: Dict[str, Any], cfg: Dict[str, Any], method: Dict[str, Any]) -> Tuple[Optional[float], Optional[float], bool]:
+    saved = item.get("scenario_thresholds") or {}
+    upper = safe_float(saved.get("favorable_units"))
+    lower = safe_float(saved.get("adverse_units"))
+    if upper is not None and lower is not None:
+        return upper, lower, False
+    dynamic = calculate_dynamic_thresholds(cfg, method)
+    item["scenario_thresholds"] = dynamic
+    return safe_float(dynamic.get("favorable_units")), safe_float(dynamic.get("adverse_units")), True
 
 
 def record_model_end(
@@ -99,24 +101,27 @@ def main() -> None:
         if units is None:
             continue
 
-        positive, negative = thresholds(str(inst_id), review)
-        if positive is not None and units >= positive:
+        upper, lower, threshold_saved = thresholds(item, cfg, method)
+        changed = changed or threshold_saved
+        unit_label = (item.get("scenario_thresholds") or {}).get("unit") or ("pips" if inst_id == "eurusd" else "points")
+
+        if upper is not None and units >= upper:
             record_model_end(
                 item, cfg, price, quote.timestamp, quote.source,
-                "positive_threshold",
-                "osiągnięty dodatni próg scenariusza modelowego",
-                "positive model-scenario threshold reached",
+                "upper_dynamic_threshold",
+                f"osiągnięty górny dynamiczny próg modelu ({upper} {unit_label})",
+                f"upper dynamic model threshold reached ({upper} {unit_label})",
                 units,
             )
             changed = True
             continue
 
-        if negative is not None and units <= -negative:
+        if lower is not None and units <= -lower:
             record_model_end(
                 item, cfg, price, quote.timestamp, quote.source,
-                "negative_threshold",
-                "osiągnięty ujemny próg scenariusza modelowego",
-                "negative model-scenario threshold reached",
+                "lower_dynamic_threshold",
+                f"osiągnięty dolny dynamiczny próg modelu ({lower} {unit_label})",
+                f"lower dynamic model threshold reached ({lower} {unit_label})",
                 units,
             )
             changed = True
@@ -131,7 +136,7 @@ def main() -> None:
                 item, cfg, price, quote.timestamp, quote.source,
                 "model_reversal",
                 f"świeży sygnał modelu odwrócił kierunek na {fresh_direction} przy score {fresh_score}",
-                f"fresh model signal reversed to {fresh_direction} with score {fresh_score}",
+                f"fresh model signal changed to {fresh_direction} with score {fresh_score}",
                 units,
             )
             item["fresh_reversal_direction"] = fresh_direction
