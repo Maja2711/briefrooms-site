@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Inwestycje — Działy | BriefRooms</title>
-  <meta name="description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko i wyceny. Krótkie, rzeczowe podsumowania." />
+  <meta name="description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko, wyceny oraz tygodniowe scenariusze dla EUR/USD i S&P 500 futures." />
   <link rel="icon" href="/assets/favicon.svg" />
 
   <!-- GŁÓWNY CSS Z WERSJĄ -->
@@ -21,7 +21,7 @@
 
   <!-- Open Graph -->
   <meta property="og:title" content="Inwestycje — Działy | BriefRooms">
-  <meta property="og:description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko i wyceny. Krótkie, rzeczowe podsumowania.">
+  <meta property="og:description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko, wyceny i cotygodniowy dziennik scenariuszy.">
   <meta property="og:url" content="https://briefrooms.com/pl/inwestycje.html">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
@@ -32,7 +32,7 @@
   <meta property="og:locale" content="pl_PL">
   <meta property="article:section" content="Inwestycje">
   <meta property="article:published_time" content="2025-11-20T00:00:00+00:00">
-  <meta property="article:modified_time" content="2025-11-20T00:00:00+00:00">
+  <meta property="article:modified_time" content="2026-06-12T00:00:00+00:00">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
@@ -58,128 +58,35 @@
     },
     "url": "https://briefrooms.com/pl/inwestycje.html",
     "datePublished": "2025-11-20T00:00:00+00:00",
-    "dateModified":  "2025-11-20T00:00:00+00:00"
+    "dateModified":  "2026-06-12T00:00:00+00:00"
   }
   </script>
 
   <!-- STYL STRONY DZIAŁU – JASNE TŁO + CZARNA CZCIONKA -->
   <style>
     body.rooms-light.investments-index{
-      background:#f5eee5; /* jak w artykułach o zdrowiu */
-      color:#111827;      /* bardzo ciemny, prawie czarny tekst */
+      background:#f5eee5;
+      color:#111827;
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     }
 
-    header{
-      text-align:center;
-      padding:32px 12px 16px;
-    }
-
-    header h1{
-      color:#111827;
-      font-size:1.9rem;
-      margin-bottom:4px;
-    }
-
-    header .sub{
-      color:#111827;
-      margin:0 0 4px;
-    }
-
+    header{text-align:center;padding:32px 12px 16px;}
+    header h1{color:#111827;font-size:1.9rem;margin-bottom:4px;}
+    header .sub{color:#111827;margin:0 0 4px;}
     header time.pub{ opacity:.9; }
-
-    main{
-      max-width:960px;
-      margin:0 auto;
-      padding:0 16px 48px;
-      color:#111827;
-    }
-
-    .card{
-      background:#ffffff;
-      border-radius:18px;
-      padding:18px 20px;
-      margin:14px 0;
-      border:1px solid rgba(15,23,42,.06);
-      box-shadow:0 12px 30px rgba(15,23,42,.10);
-    }
-
-    .card h2{
-      margin:4px 0 10px;
-      color:#111827;
-      font-size:1.2rem;
-    }
-
-    .card h2::before{
-      content:"";
-      display:inline-block;
-      width:8px; height:8px;
-      margin-right:10px;
-      border-radius:6px;
-      background:#fbbf24;
-      box-shadow:0 0 0 4px rgba(251,191,36,.25);
-      vertical-align:2px;
-    }
-
-    .card ul{
-      list-style:none;
-      padding-left:0;
-      margin:4px 0 0;
-    }
-
-    .card li{
-      margin:6px 0;
-    }
-
-    /* Link do artykułu – jasne tło, CZARNY tekst */
-    .card a{
-      display:block;
-      text-decoration:none;
-      padding:10px 12px;
-      border-radius:12px;
-      background:#f3f4f6;
-      border:1px solid #d1d5db;
-      transition:background .18s ease,border-color .18s ease,transform .12s ease,box-shadow .12s ease;
-      color:#111827;
-    }
-
-    .card a span.title{
-      display:block;
-      font-weight:600;
-      color:#1d4ed8; /* niebieski tytuł, jak na innych stronach */
-      margin-bottom:2px;
-    }
-
-    .card a span.desc{
-      display:block;
-      font-size:.95rem;
-      color:#111827;   /* tu była „srebrna” – teraz czarna */
-      margin-top:2px;
-    }
-
-    .card a:hover{
-      background:#e5e7eb;
-      border-color:#9ca3af;
-      transform:translateY(-1px);
-      box-shadow:0 10px 22px rgba(15,23,42,.18);
-    }
-
-    .back{
-      margin-top:22px;
-      color:#111827;
-    }
-
-    .back a{
-      color:#1d4ed8;
-      text-decoration:underline;
-      text-underline-offset:3px;
-      text-decoration-color:rgba(37,99,235,.5);
-    }
-
-    .back a:hover{
-      color:#1e40af;
-      text-decoration-color:#1e40af;
-    }
+    main{max-width:960px;margin:0 auto;padding:0 16px 48px;color:#111827;}
+    .card{background:#ffffff;border-radius:18px;padding:18px 20px;margin:14px 0;border:1px solid rgba(15,23,42,.06);box-shadow:0 12px 30px rgba(15,23,42,.10);}
+    .card h2{margin:4px 0 10px;color:#111827;font-size:1.2rem;}
+    .card h2::before{content:"";display:inline-block;width:8px;height:8px;margin-right:10px;border-radius:6px;background:#fbbf24;box-shadow:0 0 0 4px rgba(251,191,36,.25);vertical-align:2px;}
+    .card ul{list-style:none;padding-left:0;margin:4px 0 0;}
+    .card li{margin:6px 0;}
+    .card a{display:block;text-decoration:none;padding:10px 12px;border-radius:12px;background:#f3f4f6;border:1px solid #d1d5db;transition:background .18s ease,border-color .18s ease,transform .12s ease,box-shadow .12s ease;color:#111827;}
+    .card a span.title{display:block;font-weight:600;color:#1d4ed8;margin-bottom:2px;}
+    .card a span.desc{display:block;font-size:.95rem;color:#111827;margin-top:2px;}
+    .card a:hover{background:#e5e7eb;border-color:#9ca3af;transform:translateY(-1px);box-shadow:0 10px 22px rgba(15,23,42,.18);}
+    .back{margin-top:22px;color:#111827;}
+    .back a{color:#1d4ed8;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(37,99,235,.5);}
+    .back a:hover{color:#1e40af;text-decoration-color:#1e40af;}
   </style>
 </head>
 
@@ -188,31 +95,25 @@
 <header>
   <h1>Inwestycje</h1>
   <p class="sub">Wybierz temat — scenariusze rynkowe, stopy procentowe, ryzyko, wyceny.</p>
-  <p class="sub">📅 Strona działu aktualna na: <time class="pub" datetime="2025-11-20">20.11.2025</time></p>
+  <p class="sub">📅 Strona działu aktualna na: <time class="pub" datetime="2026-06-12">12.06.2026</time></p>
 </header>
 
 <main>
   <section class="card">
-    <h2>Artykuły w dziale Inwestycje</h2>
+    <h2>Artykuły i narzędzia w dziale Inwestycje</h2>
     <ul>
+      <li>
+        <a href="/pl/inwestycje/prognozy-tygodniowe.html">
+          <span class="title">Tygodniowe scenariusze — EUR/USD i S&amp;P 500 futures</span>
+          <span class="desc">Cotygodniowy dziennik modelu: scenariusz w niedzielę, cena startowa w poniedziałek rano i późniejsze rozliczenie po piątkowym zamknięciu.</span>
+        </a>
+      </li>
       <li>
         <a href="/pl/inwestycje/spx-scenariusze-2026.html">
           <span class="title">Scenariusze S&amp;P 500 — 1M / 6M / 12M</span>
-          <span class="desc">
-            Późna faza hossy, AI, SOFR, TGA i bilans Fed — bazowe scenariusze dla S&amp;P 500
-            w trzech horyzontach czasowych, na tle prognoz IMF, OECD i dużych banków inwestycyjnych.
-          </span>
+          <span class="desc">Późna faza hossy, AI, SOFR, TGA i bilans Fed — bazowe scenariusze dla S&amp;P 500 w trzech horyzontach czasowych, na tle prognoz IMF, OECD i dużych banków inwestycyjnych.</span>
         </a>
       </li>
-
-      <!-- MIEJSCE NA KOLEJNE ARTYKUŁY W DZIALE INWESTYCJE
-      <li>
-        <a href="/pl/inwestycje/kolejny-artykul.html">
-          <span class="title">Tytuł kolejnego artykułu</span>
-          <span class="desc">Krótki opis, 1–2 zdania co tam jest.</span>
-        </a>
-      </li>
-      -->
     </ul>
   </section>
 
