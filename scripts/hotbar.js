@@ -1,14 +1,17 @@
 /**
- * BriefRooms Hotbar Script (v5 – PL/EN + klikalne linki + kontakt)
- * - Wykrywa język strony (PL/EN) na podstawie <html lang> i ścieżki /en/.
- * - Czyta dane z:
- *     /.cache/news_summaries_pl.json   (PL)
- *     /.cache/news_summaries_en.json   (EN)
- * - Oczekiwany format JSON:
- *     { "v2|Some summary|2025-11-19": "https://link-do-artykulu", ... }
- * - Buduje poziomy pasek z newsami, każdy wpis to <a href="URL">Tekst</a>.
- * - Ujednolica linki kontaktowe mailto.
+ * BriefRooms Hotbar Script
+ * - PL/EN autodetection.
+ * - Reads latest summaries from /.cache/news_summaries_*.json.
+ * - Builds a continuous clickable ticker.
+ * - Keeps public contact links on contact@briefrooms.com.
  */
-
 (function () {
-  // ----------------------------------------
+  'use strict';
+
+  var CONTACT_EMAIL = 'contact@briefrooms.com';
+  var MAX_ITEMS = 12;
+  var MIN_DURATION_SECONDS = 34;
+  var PX_PER_SECOND = 58;
+
+  function getLang() {
+    var htmlLang = (document.documentElement.getAttribute('lang') || '').toLower
