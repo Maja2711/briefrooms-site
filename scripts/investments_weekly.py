@@ -597,6 +597,7 @@ def render_page(lang: str) -> str:
     <p class=\"back\">← <a href=\"{home_link}\">{html.escape(home_text)}</a></p>
   </main>
   <footer>© BriefRooms</footer>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "9adde99e330a4b0d991627986ac34246"}}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
 """
