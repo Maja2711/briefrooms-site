@@ -438,7 +438,7 @@ def render_html(sections: dict) -> str:
 <body data-page="news">
 <header>
   <h1>News</h1>
-  <p class="sub">Last ~36 hours • {today_str()}</p>
+  <p class="sub">Last updated: {today_str()}</p>
 </header>
 <main>
 {sections_html}
