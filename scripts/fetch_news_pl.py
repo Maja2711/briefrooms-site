@@ -627,7 +627,7 @@ def render_html(sections: dict) -> str:
 <body data-page="news">
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnie ~36 godzin • {today_str()}</p>
+  <p class="sub">Ostatnia aktualizacja: {today_str_pl()}
 </header>
 <main>
 {make_section("Polityka / Kraj", sections["polityka"])}
