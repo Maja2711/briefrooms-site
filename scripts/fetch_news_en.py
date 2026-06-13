@@ -446,6 +446,7 @@ def render_html(sections: dict) -> str:
 <p class="note">Automatic summary (RSS). Links lead to publishers. This page is overwritten automatically.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "9adde99e330a4b0d991627986ac34246"}}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>"""
     return html_out
