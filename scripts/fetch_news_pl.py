@@ -165,6 +165,10 @@ def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
 
+
+def today_str_pl() -> str:
+    return datetime.now(TZ).strftime("%d.%m.%Y")
+
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
 
