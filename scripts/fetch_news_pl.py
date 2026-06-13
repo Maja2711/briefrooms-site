@@ -32,6 +32,10 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 AI_CACHE_PATH = ".cache/ai_cache_pl.json"
 # plik, z którego czyta hotbar.js
 HOTBAR_JSON_PATH = ".cache/news_summaries_pl.json"
+CLOUDFLARE_WEB_ANALYTICS = (
+    "<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
+    "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
+)
 
 # Feedy do doboru newsów (PL)
 FEEDS = {
@@ -168,6 +172,14 @@ def today_str() -> str:
 
 def today_str_pl() -> str:
     return datetime.now(TZ).strftime("%d.%m.%Y")
+
+def inject_cloudflare_analytics(html_text: str) -> str:
+    if "static.cloudflareinsights.com/beacon.min.js" in html_text:
+        return html_text
+    body_close = html_text.lower().rfind("</body>")
+    if body_close != -1:
+        return html_text[:body_close] + CLOUDFLARE_WEB_ANALYTICS + "\n" + html_text[body_close:]
+    return html_text.rstrip() + "\n" + CLOUDFLARE_WEB_ANALYTICS + "\n</body>\n</html>"
 
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
@@ -643,7 +655,7 @@ def render_html(sections: dict) -> str:
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
 </body>
 </html>"""
-    return html_out
+    return inject_cloudflare_analytics(html_out)
 
 # =========================
 # MAIN

@@ -32,6 +32,10 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 AI_CACHE_PATH = ".cache/ai_cache_en.json"
 HOTBAR_JSON_PATH = ".cache/news_summaries_en.json" # To czyta hotbar.js
 HTML_OUTPUT_PATH = "en/news.html" # Generowana strona zbiorcza
+CLOUDFLARE_WEB_ANALYTICS = (
+    "<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
+    "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
+)
 
 # ŹRÓDŁA (USA + UK + Science + Health)
 FEEDS = {
@@ -131,6 +135,14 @@ def host_of(url: str) -> str:
 def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
+
+def inject_cloudflare_analytics(html_text: str) -> str:
+    if "static.cloudflareinsights.com/beacon.min.js" in html_text:
+        return html_text
+    body_close = html_text.lower().rfind("</body>")
+    if body_close != -1:
+        return html_text[:body_close] + CLOUDFLARE_WEB_ANALYTICS + "\n" + html_text[body_close:]
+    return html_text.rstrip() + "\n" + CLOUDFLARE_WEB_ANALYTICS + "\n</body>\n</html>"
 
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
@@ -448,7 +460,7 @@ def render_html(sections: dict) -> str:
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
 </body>
 </html>"""
-    return html_out
+    return inject_cloudflare_analytics(html_out)
 
 # =========================
 # MAIN

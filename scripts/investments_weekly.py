@@ -36,6 +36,10 @@ WEEKLY_DIR = REPO / "data" / "investments" / "weekly"
 PL_PAGE = REPO / "pl" / "inwestycje" / "prognozy-tygodniowe.html"
 EN_PAGE = REPO / "en" / "investing" / "weekly-forecasts.html"
 TZ = ZoneInfo("Europe/Warsaw")
+CLOUDFLARE_WEB_ANALYTICS = (
+    "<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
+    "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
+)
 
 
 @dataclass
@@ -59,6 +63,15 @@ def load_json(path: Path, default: Any) -> Any:
 def write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def inject_cloudflare_analytics(html_text: str) -> str:
+    if "static.cloudflareinsights.com/beacon.min.js" in html_text:
+        return html_text
+    body_close = html_text.lower().rfind("</body>")
+    if body_close != -1:
+        return html_text[:body_close] + CLOUDFLARE_WEB_ANALYTICS + "\n" + html_text[body_close:]
+    return html_text.rstrip() + "\n" + CLOUDFLARE_WEB_ANALYTICS + "\n</body>\n</html>"
 
 
 def week_id_from_date(dt: datetime) -> str:
@@ -550,7 +563,7 @@ def render_page(lang: str) -> str:
         else "The method is stored in data/investments/methodology.json and can be versioned and improved."
     )
 
-    return f"""<!doctype html>
+    page = f"""<!doctype html>
 <html lang=\"{lang}\">
 <head>
   <meta charset=\"utf-8\" />
@@ -600,6 +613,7 @@ def render_page(lang: str) -> str:
 </body>
 </html>
 """
+    return inject_cloudflare_analytics(page)
 
 
 def render_pages() -> None:
