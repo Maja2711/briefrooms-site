@@ -22,7 +22,7 @@ TZ = timezone.utc
 # CONFIG
 # =========================
 MAX_PER_SECTION = 5
-MAX_PER_HOST = 5
+MAX_PER_HOST = 2
 HOTBAR_LIMIT = 15 # Trochę więcej newsów w pasku
 
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
@@ -37,39 +37,149 @@ CLOUDFLARE_WEB_ANALYTICS = (
     "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
 )
 
-# ŹRÓDŁA (USA + UK + Science + Health)
+SOURCE_PROFILES = {
+    "reuters.com": {"name": "Reuters", "score": 60, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
+    "apnews.com": {"name": "AP", "score": 58, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
+    "bloomberg.com": {"name": "Bloomberg", "score": 58, "sections": {"middle_east", "asia_pacific", "business"}},
+    "bbci.co.uk": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
+    "bbc.co.uk": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
+    "bbc.com": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
+    "theguardian.com": {"name": "The Guardian", "score": 46, "sections": {"middle_east", "business", "science", "health", "sport"}},
+    "politico.com": {"name": "Politico", "score": 44, "sections": {"business"}},
+    "cnbc.com": {"name": "CNBC", "score": 42, "sections": {"business"}},
+    "federalreserve.gov": {"name": "Federal Reserve", "score": 52, "sections": {"business"}},
+    "treasury.gov": {"name": "U.S. Treasury", "score": 50, "sections": {"business"}},
+    "bls.gov": {"name": "BLS", "score": 50, "sections": {"business"}},
+    "bea.gov": {"name": "BEA", "score": 50, "sections": {"business"}},
+    "imf.org": {"name": "IMF", "score": 48, "sections": {"business"}},
+    "oecd.org": {"name": "OECD", "score": 48, "sections": {"business"}},
+    "worldbank.org": {"name": "World Bank", "score": 48, "sections": {"business"}},
+    "ecb.europa.eu": {"name": "ECB", "score": 50, "sections": {"business"}},
+    "commission.europa.eu": {"name": "European Commission", "score": 48, "sections": {"business"}},
+    "ec.europa.eu": {"name": "European Commission", "score": 48, "sections": {"business"}},
+    "who.int": {"name": "WHO", "score": 50, "sections": {"health"}},
+    "nasa.gov": {"name": "NASA", "score": 48, "sections": {"science"}},
+    "esa.int": {"name": "ESA", "score": 46, "sections": {"science"}},
+    "espn.com": {"name": "ESPN", "score": 44, "sections": {"sport"}},
+    "skysports.com": {"name": "Sky Sports", "score": 42, "sections": {"sport"}},
+    "formula1.com": {"name": "Formula1.com", "score": 44, "sections": {"sport"}},
+    "uefa.com": {"name": "UEFA", "score": 42, "sections": {"sport"}},
+    "fifa.com": {"name": "FIFA", "score": 42, "sections": {"sport"}},
+    "nba.com": {"name": "NBA", "score": 42, "sections": {"sport"}},
+    "nfl.com": {"name": "NFL", "score": 42, "sections": {"sport"}},
+    "nhl.com": {"name": "NHL", "score": 42, "sections": {"sport"}},
+    "mlb.com": {"name": "MLB", "score": 42, "sections": {"sport"}},
+    "aljazeera.com": {"name": "Al Jazeera", "score": 45, "sections": {"middle_east"}},
+    "thenationalnews.com": {"name": "The National", "score": 43, "sections": {"middle_east"}},
+    "asia.nikkei.com": {"name": "Nikkei Asia", "score": 47, "sections": {"asia_pacific"}},
+    "scmp.com": {"name": "South China Morning Post", "score": 43, "sections": {"asia_pacific"}},
+    "channelnewsasia.com": {"name": "CNA", "score": 43, "sections": {"asia_pacific"}},
+    "japantimes.co.jp": {"name": "Japan Times", "score": 42, "sections": {"asia_pacific"}},
+    "kyodonews.net": {"name": "Kyodo News", "score": 44, "sections": {"asia_pacific"}},
+    "yna.co.kr": {"name": "Yonhap", "score": 44, "sections": {"asia_pacific"}},
+}
+CATEGORY_SEGMENTS = {
+    "business", "category", "economy", "health", "home", "hub", "hubs",
+    "latest", "live", "markets", "news", "newsletter", "newsletters",
+    "opinion", "politics", "science", "sport", "sports", "tag", "tags",
+    "technology", "topic", "topics", "update", "updates", "video", "videos", "world",
+}
+ROUNDUP_OR_LIVE_RE = re.compile(
+    r"\b(live|liveblog|liveblogs|live blog|live blogs|live updates?|rolling coverage|as it happened)\b|"
+    r"minute-by-minute|minute by minute|roundup|daily briefing|newsletter|latest news|latest updates?|"
+    r"what we know|key takeaways|everything you need to know|catch up|"
+    r"morning brief|evening brief",
+    re.I,
+)
+MULTI_TOPIC_MARKER_RE = re.compile(
+    r"\b(meanwhile|separately|elsewhere|in other news|also today|at the same time|"
+    r"additionally|in a separate development|on another front)\b",
+    re.I,
+)
+SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+SPORT_TOPIC_RE = re.compile(
+    r"\b(World Cup|FIFA|UEFA|football|soccer|basketball|NBA|NFL|NHL|MLB|Formula 1|F1|Grand Prix|"
+    r"tennis|cricket|rugby|golf|match|tournament|championship|league)\b",
+    re.I,
+)
+
+# ŹRÓDŁA (regional + business + science + health + sport)
 FEEDS = {
-    "world": [
-        "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "middle_east": [
         "https://feeds.reuters.com/reuters/worldNews",
-        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-        "https://feeds.washingtonpost.com/rss/world",
+        "https://apnews.com/hub/ap-top-news?output=rss",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "http://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+        "https://www.theguardian.com/world/middleeast/rss",
         "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml",
+    ],
+    "asia_pacific": [
+        "https://feeds.reuters.com/reuters/worldNews",
+        "https://apnews.com/hub/ap-top-news?output=rss",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "http://feeds.bbci.co.uk/news/world/asia/rss.xml",
+        "https://asia.nikkei.com/rss/feed/nar",
+        "https://www.scmp.com/rss/91/feed",
+        "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511",
+        "https://www.japantimes.co.jp/news/feed/",
+        "https://english.kyodonews.net/rss/news.xml",
+        "https://en.yna.co.kr/RSS/news.xml",
     ],
     "business": [
         "http://feeds.bbci.co.uk/news/business/rss.xml",
         "https://feeds.reuters.com/reuters/businessNews",
-        "https://www.cnbc.com/id/100003/device/rss/rss.html",
+        "https://apnews.com/hub/business?output=rss",
+        "https://feeds.bloomberg.com/markets/news.rss",
+        "https://feeds.bloomberg.com/economics/news.rss",
+        "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+        "https://www.politico.com/rss/politicopicks.xml",
+        "https://home.treasury.gov/news/press-releases/rss",
+        "https://www.federalreserve.gov/feeds/press_all.xml",
+        "https://www.bls.gov/feed/news_release.rss",
+        "https://www.bea.gov/news/current-releases/rss.xml",
+        "https://www.ecb.europa.eu/rss/press.html",
+        "https://www.imf.org/en/News/RSS",
+        "https://www.oecd.org/newsroom/rss.xml",
+        "https://www.worldbank.org/en/news/all?format=rss",
     ],
     "science": [
         "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-        "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+        "https://apnews.com/hub/science?output=rss",
+        "https://www.theguardian.com/science/rss",
         "https://www.nasa.gov/rss/dyn/breaking_news.rss",
-        "https://www.sciencedaily.com/rss/top/science.xml",
+        "https://www.esa.int/rssfeed/Our_Activities/Space_News",
     ],
     "health": [
         "http://feeds.bbci.co.uk/news/health/rss.xml",
-        "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
+        "https://feeds.reuters.com/reuters/healthNews",
+        "https://apnews.com/hub/health?output=rss",
+        "https://www.theguardian.com/society/health/rss",
         "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
-        "https://www.nih.gov/news-events/feed.xml",
-    ]
+    ],
+    "sport": [
+        "http://feeds.bbci.co.uk/sport/rss.xml?edition=int",
+        "https://www.espn.com/espn/rss/news",
+        "https://www.skysports.com/rss/12040",
+        "https://feeds.reuters.com/reuters/sportsNews",
+        "https://apnews.com/hub/sports?output=rss",
+        "https://www.formula1.com/en/latest/all.xml",
+        "https://www.uefa.com/rssfeed/news/rss.xml",
+        "https://www.fifa.com/fifaplus/en/rss",
+        "https://www.nba.com/news/rss.xml",
+        "https://www.nfl.com/rss/rsslanding?searchString=home",
+        "https://www.nhl.com/rss/news.xml",
+        "https://www.mlb.com/feeds/news/rss.xml",
+    ],
 }
 
-# Słowa kluczowe do podbijania ważności (USA/UK/Global)
+# Słowa kluczowe do podbijania ważności
 BOOST = {
-    "world": [
-        (re.compile(r"US|USA|UK|China|Ukraine|Russia|G7|NATO|UN|White House|Downing St", re.I), 25),
-        (re.compile(r"breaking|live", re.I), 30),
+    "middle_east": [
+        (re.compile(r"Iran|Israel|Gaza|Palestinian|Lebanon|Syria|Iraq|Yemen|Saudi|Qatar|UAE|Hormuz|Hamas|Hezbollah|Houthis|oil", re.I), 26),
+    ],
+    "asia_pacific": [
+        (re.compile(r"China|Taiwan|Japan|South Korea|North Korea|India|Southeast Asia|South China Sea|chips|semiconductor|trade|security", re.I), 26),
     ],
     "business": [
         (re.compile(r"market|stocks|inflation|fed|rate|ECB|crypto|bitcoin|AI|tech|Nvidia|Apple|Tesla", re.I), 25),
@@ -77,7 +187,25 @@ BOOST = {
     "science": [
         (re.compile(r"space|nasa|moon|mars|climate|discovery|study|research|cancer|brain", re.I), 25),
     ],
+    "health": [
+        (re.compile(r"WHO|FDA|vaccine|drug|trial|disease|hospital|public health", re.I), 18),
+    ],
+    "sport": [
+        (re.compile(r"Formula 1|F1|World Cup|Champions League|NBA|NFL|NHL|MLB|Grand Prix|UEFA|FIFA", re.I), 24),
+    ],
 }
+MIDDLE_EAST_TOPIC_RE = re.compile(
+    r"\b(Middle East|Iran|Israel|Israeli|Gaza|Palestin(?:e|ian)|West Bank|Lebanon|Lebanese|Syria|Syrian|"
+    r"Iraq|Iraqi|Yemen|Yemeni|Saudi|Riyadh|UAE|Emirati|Qatar|Doha|Oman|Kuwait|Jordan|Egypt|Turkey|"
+    r"Hormuz|Hamas|Hezbollah|Houthi|Houthis|Red Sea|Gulf|Tehran|Jerusalem|Tel Aviv)\b",
+    re.I,
+)
+ASIA_PACIFIC_TOPIC_RE = re.compile(
+    r"\b(China|Chinese|Taiwan|Taiwanese|Japan|Japanese|South Korea|Korean|North Korea|Pyongyang|Seoul|"
+    r"India|Indian|Southeast Asia|ASEAN|South China Sea|Philippines|Vietnam|Indonesia|Thailand|Malaysia|"
+    r"Singapore|chips?|semiconductors?|trade|tariffs?|security|defen[cs]e|Pacific)\b",
+    re.I,
+)
 
 BAN_PATTERNS = [
     # low-value / soft content
@@ -115,7 +243,7 @@ def jaccard(a: set, b: set) -> float:
     union = len(a | b)
     return inter / union if union else 0.0
 
-SIMILARITY_THRESHOLD = 0.70
+SIMILARITY_THRESHOLD = 0.58
 
 # =========================
 # HELPERY
@@ -131,6 +259,144 @@ def host_of(url: str) -> str:
         return urlparse(url).netloc
     except Exception:
         return ""
+
+def clean_rss_text(text: str) -> str:
+    text = html.unescape(text or "")
+    text = re.sub(r"<[^<]+?>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+def source_profile_for(link: str, section_key: str):
+    host = host_of(link).lower().lstrip("www.")
+    for domain in sorted(SOURCE_PROFILES, key=len, reverse=True):
+        if host == domain or host.endswith("." + domain):
+            profile = SOURCE_PROFILES[domain]
+            if section_key in profile["sections"]:
+                return profile
+    return None
+
+def source_quality_score(link: str, section_key: str) -> int:
+    profile = source_profile_for(link, section_key)
+    return int(profile["score"]) if profile else 0
+
+def source_name(link: str, section_key: str) -> str:
+    profile = source_profile_for(link, section_key)
+    if profile:
+        host = host_of(link).lower().lstrip("www.")
+        if section_key == "sport" and (host.endswith("bbci.co.uk") or host.endswith("bbc.co.uk") or host.endswith("bbc.com")):
+            return "BBC Sport"
+        if section_key == "sport" and host.endswith("reuters.com"):
+            return "Reuters Sports"
+        if section_key == "sport" and host.endswith("apnews.com"):
+            return "AP Sports"
+        return profile["name"]
+    host = host_of(link).lower().lstrip("www.")
+    return host or "source"
+
+def is_allowed_host(link: str, section_key: str) -> bool:
+    return source_profile_for(link, section_key) is not None
+
+def is_concrete_article_url(link: str) -> bool:
+    try:
+        parsed = urlparse(link)
+    except Exception:
+        return False
+    path = (parsed.path or "").strip("/")
+    if not path:
+        return False
+    normalized_path = path.lower().replace("-", " ").replace("_", " ")
+    normalized_query = (parsed.query or "").lower().replace("-", " ").replace("_", " ")
+    if ROUNDUP_OR_LIVE_RE.search(normalized_path):
+        return False
+    if ROUNDUP_OR_LIVE_RE.search(normalized_query):
+        return False
+    segments = [seg.lower() for seg in path.split("/") if seg]
+    if not segments:
+        return False
+    if len(segments) == 1 and segments[0] in CATEGORY_SEGMENTS:
+        return False
+    if segments[-1] in CATEGORY_SEGMENTS:
+        return False
+    if any(seg in {"hub", "hubs", "tag", "tags", "topic", "topics", "category", "newsletter", "newsletters", "video", "videos", "newsfeed"} for seg in segments):
+        return False
+    return True
+
+def split_sentences(text: str):
+    return [s.strip() for s in SENTENCE_RE.split(clean_rss_text(text)) if s.strip()]
+
+def first_sentence(text: str) -> str:
+    sentences = split_sentences(text)
+    return sentences[0] if sentences else clean_rss_text(text)
+
+def is_roundup_or_live(title: str, summary: str, link: str) -> bool:
+    path = urlparse(link).path.replace("-", " ").replace("_", " ")
+    query = urlparse(link).query.replace("-", " ").replace("_", " ")
+    blob = " ".join([title or "", summary or "", path, query])
+    return bool(ROUNDUP_OR_LIVE_RE.search(blob))
+
+def matches_section_topic(title: str, summary: str, link: str, section_key: str) -> bool:
+    if section_key not in {"middle_east", "asia_pacific"}:
+        return True
+    path = urlparse(link).path.replace("-", " ").replace("_", " ")
+    blob = " ".join([title or "", summary or "", path])
+    if section_key == "middle_east":
+        return bool(MIDDLE_EAST_TOPIC_RE.search(blob))
+    return bool(ASIA_PACIFIC_TOPIC_RE.search(blob))
+
+def is_multitopic_summary(title: str, summary: str) -> bool:
+    text = clean_rss_text(summary)
+    if not text:
+        return False
+    sentences = split_sentences(text)
+    if len(sentences) <= 1:
+        return False
+    if len(sentences) >= 2 and MULTI_TOPIC_MARKER_RE.search(text):
+        return True
+    if len(sentences) < 3:
+        return False
+    title_tokens = tokens_en(title)
+    unrelated = 0
+    for sentence in sentences[1:]:
+        sent_tokens = tokens_en(sentence)
+        if len(sent_tokens) >= 5 and jaccard(title_tokens, sent_tokens) < 0.08:
+            unrelated += 1
+    return unrelated >= 2
+
+def topic_safe_snippet(title: str, summary: str) -> str:
+    text = clean_rss_text(summary)
+    if not text:
+        return ""
+    sentences = split_sentences(text)
+    if is_multitopic_summary(title, text):
+        return first_sentence(text)
+    if len(sentences) > 2:
+        return " ".join(sentences[:2])
+    return text
+
+def topic_tokens(title: str, summary: str):
+    return tokens_en(" ".join([title or "", first_sentence(summary or "")]))
+
+def normalize_link_for_dedupe(link: str) -> str:
+    parsed = urlparse(link or "")
+    host = parsed.netloc.lower().lstrip("www.")
+    path = (parsed.path or "").rstrip("/")
+    return f"{host}{path}"
+
+def should_keep_item(title: str, link: str, summary: str, section_key: str) -> bool:
+    if not is_allowed_host(link, section_key):
+        return False
+    if not is_concrete_article_url(link):
+        return False
+    if is_roundup_or_live(title, summary, link):
+        return False
+    if any(rx.search(title) or rx.search(summary) for rx in BAN_PATTERNS):
+        return False
+    if section_key != "sport" and SPORT_TOPIC_RE.search(" ".join([title or "", summary or "", urlparse(link).path.replace("-", " ")])):
+        return False
+    if is_multitopic_summary(title, summary):
+        return False
+    if not matches_section_topic(title, summary, link, section_key):
+        return False
+    return True
 
 def today_str() -> str:
     now = datetime.now(TZ)
@@ -168,6 +434,8 @@ def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
 
 def score_item(item, section_key: str) -> float:
     score = 0.0
+    source_score = source_quality_score(item.get("link", ""), section_key)
+    score += source_score
     published_parsed = item.get("published_parsed") or item.get("updated_parsed")
     if published_parsed:
         dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
@@ -177,9 +445,12 @@ def score_item(item, section_key: str) -> float:
     for rx, pts in BOOST.get(section_key, []):
         if rx.search(t):
             score += pts
-    # Note: Source priority logic for EN is omitted here for simplicity
+    if source_score >= 58:
+        score += 8
     if len(t) > 140:
         score -= 5
+    if not item.get("summary_raw"):
+        score -= 8
     return score
 
 # =========================
@@ -205,24 +476,86 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
-        return CACHE[cache_key]
+        cached = CACHE[cache_key]
+        cached.setdefault("key_point", cached.get("summary", ""))
+        cached.setdefault("why_it_matters", "")
+        return cached
+
+    safe_snippet = topic_safe_snippet(title, snippet)
 
     if not key:
+        key_point = ensure_full_sentence((safe_snippet or title or "")[:320], 320)
         out = {
-            "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
+            "summary": key_point,
+            "key_point": key_point,
+            "why_it_matters": "It is a single-source item selected from a priority BriefRooms feed.",
             "uncertain": "",
             "model": "fallback"
         }
         CACHE[cache_key] = out
         save_cache(AI_CACHE_PATH, CACHE)
         return out
-    
-    # ... Pełna logika AI dla EN (jak w oryginalnym kodzie) ...
-    # Zostawiamy fallback dla bezpieczeństwa.
-    return {
-        "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
-        "uncertain": ""
-    }
+
+    prompt = f"""Write a concise English comment about one concrete article.
+Use only the title and RSS description below.
+Return exactly two lines:
+Key point: ...
+Why it matters: ...
+
+Title: {title}
+RSS description: {safe_snippet}
+
+Rules:
+- Cover one topic only: the article described by this title and description.
+- Do not merge multiple news items, live updates, roundups, newsletters or broader background.
+- If the RSS description looks multi-topic, use only the title and the first sentence.
+- Be concrete, neutral and specific.
+- Do not add facts outside the title/description."""
+
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": AI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a precise news editor. Keep comments single-topic and source-bound."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.2,
+                "max_tokens": 180,
+            },
+            timeout=25,
+        )
+        resp.raise_for_status()
+        text = resp.json()["choices"][0]["message"]["content"].strip()
+        key_point = ""
+        why = ""
+        for line in [ln.strip() for ln in text.splitlines() if ln.strip()]:
+            low = line.lower()
+            if low.startswith("key point:"):
+                key_point = line.split(":", 1)[1].strip()
+            elif low.startswith("why it matters:"):
+                why = line.split(":", 1)[1].strip()
+        key_point = ensure_full_sentence(key_point or safe_snippet or title, 320)
+        why = ensure_full_sentence(why, 280)
+        out = {
+            "summary": key_point,
+            "key_point": key_point,
+            "why_it_matters": why,
+            "uncertain": ""
+        }
+        CACHE[cache_key] = out
+        save_cache(AI_CACHE_PATH, CACHE)
+        return out
+    except Exception:
+        key_point = ensure_full_sentence((safe_snippet or title or "")[:320], 320)
+        return {
+            "summary": key_point,
+            "key_point": key_point,
+            "why_it_matters": "It is a single-source item selected from a priority BriefRooms feed.",
+            "uncertain": ""
+        }
 
 # =========================
 # WARSTWA WERYFIKACJI (EN)
@@ -235,25 +568,27 @@ def verify_note_en(title: str, snippet: str) -> str:
 # =========================
 # POBIERANIE + DEDUPE
 # =========================
-def fetch_section(section_key: str):
+def fetch_section(section_key: str, excluded_links=None, excluded_topics=None):
+    excluded_links = set(excluded_links or [])
+    excluded_topics = list(excluded_topics or [])
     items = []
-    FALLBACK_URL = "/en/news.html" # <-- Link zastępczy do strony zbiorczej
 
     for feed_url in FEEDS[section_key]:
         try:
             parsed = feedparser.parse(feed_url)
             for e in parsed.entries:
                 title = e.get("title", "") or ""
-                link  = e.get("link", "") or FALLBACK_URL # <-- Zapewnienie linku
+                link  = e.get("link", "") or ""
                 if not title or not link:
                     continue
-                if any(rx.search(title) for rx in BAN_PATTERNS):
-                    continue
                 snippet = e.get("summary", "") or e.get("description", "") or ""
+                summary_raw = clean_rss_text(snippet)
+                if not should_keep_item(title, link, summary_raw, section_key):
+                    continue
                 items.append({
                     "title": title.strip(),
                     "link":  link.strip(),
-                    "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
+                    "summary_raw": topic_safe_snippet(title, summary_raw),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
         except Exception as ex:
@@ -261,20 +596,37 @@ def fetch_section(section_key: str):
 
     # Scoring, tokenizacja, deduplikacja i limitowanie (przywrócone)
     for it in items:
+        it["_source_score"] = source_quality_score(it["link"], section_key)
+        it["source_name"] = source_name(it["link"], section_key)
         it["_score"] = score_item(it, section_key)
-        it["_tok"] = tokens_en(it["title"])
+        it["_tok"] = topic_tokens(it["title"], it.get("summary_raw", ""))
 
     items.sort(key=lambda x: x["_score"], reverse=True)
 
     kept = []
     for it in items:
-        if not any(jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD for got in kept):
+        duplicate_idx = None
+        for idx, got in enumerate(kept):
+            if jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD:
+                duplicate_idx = idx
+                break
+        if duplicate_idx is None:
             kept.append(it)
+            continue
+        got = kept[duplicate_idx]
+        candidate_rank = (it.get("_source_score", 0), it.get("_score", 0), len(it.get("summary_raw", "")))
+        current_rank = (got.get("_source_score", 0), got.get("_score", 0), len(got.get("summary_raw", "")))
+        if candidate_rank > current_rank:
+            kept[duplicate_idx] = it
 
     per_host = {}
     pool = []
     for it in kept:
-        h = host_of(it["link"])
+        if normalize_link_for_dedupe(it["link"]) in excluded_links:
+            continue
+        if any(jaccard(it["_tok"], seen) >= SIMILARITY_THRESHOLD for seen in excluded_topics):
+            continue
+        h = it.get("source_name") or host_of(it["link"])
         per_host[h] = per_host.get(h, 0)
         if per_host[h] >= MAX_PER_HOST:
             continue
@@ -288,7 +640,9 @@ def fetch_section(section_key: str):
         s = ai_summarize_en(it["title"], it.get("summary_raw", ""), it["link"])
         verify = verify_note_en(it["title"], it.get("summary_raw",""))
         final_warn = verify or s.get("uncertain","")
-        it["ai_summary"] = ensure_period(s["summary"])
+        it["ai_key_point"] = ensure_period(s.get("key_point") or s.get("summary", ""))
+        it["ai_why_it_matters"] = ensure_period(s.get("why_it_matters", "")) if s.get("why_it_matters") else ""
+        it["ai_summary"] = it["ai_key_point"]
         it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s.get("model","")
 
@@ -367,29 +721,35 @@ def render_html(sections: dict) -> str:
       background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
     .sec{ margin-top:4px; }
+    .source-line{ margin:8px 0 0 88px; color:#9fb3cb; font-size:.82rem; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
-    def badge():
+    def badge(source_label: str):
+        source_label = esc(source_label or "Source")
         return (
             '<span class="news-thumb">'
             '<span class="dot"></span>'
-            '<span class="title">BriefRooms</span>'
-            '<span class="sub">powered by AI</span>'
+            f'<span class="title">{source_label}</span>'
+            '<span class="sub">Article</span>'
             '</span>'
         )
 
     def make_li(it):
         warn_html = f'<div class="sec"><strong>Warning:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
+        why_html = f'<div class="sec"><strong>Why it matters:</strong> {esc(it.get("ai_why_it_matters",""))}</div>' if it.get("ai_why_it_matters") else ""
+        raw_source = it.get("source_name") or host_of(it.get("link", "")) or "source"
+        source = esc(raw_source)
         return f'''<li>
   <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
-    {badge()}
+    {badge(raw_source)}
     <span class="news-text">{esc(it["title"])}</span>
   </a>
- 
+  <div class="source-line">Source: {source}</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key Takeaway:</strong> {esc(it.get("ai_summary",""))}</div>
+    <div class="sec"><strong>Key point:</strong> {esc(it.get("ai_key_point") or it.get("ai_summary",""))}</div>
+    {why_html}
     {warn_html}
   </div>
 </li>'''
@@ -405,10 +765,12 @@ def render_html(sections: dict) -> str:
     
     # Mapowanie na sekcje EN
     sections_map = {
-        "World News": sections["world"],
+        "Middle East": sections["middle_east"],
+        "Asia-Pacific": sections["asia_pacific"],
         "Business & Finance": sections["business"],
         "Science Discoveries": sections["science"],
         "Health & Medicine": sections["health"],
+        "Sport": sections["sport"],
     }
     
     sections_html = "\n".join(make_section(title, items) for title, items in sections_map.items())
@@ -419,7 +781,7 @@ def render_html(sections: dict) -> str:
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>News — BriefRooms</title>
-  <meta name="description" content="Automatically refreshed news summaries from the last hours: World, Business, Science, Health." />
+  <meta name="description" content="Automatically refreshed single-source news summaries: Middle East, Asia-Pacific, Business, Science, Health and Sport." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
   <style>
@@ -466,12 +828,15 @@ def render_html(sections: dict) -> str:
 # MAIN
 # =========================
 def main():
-    sections = {
-        "world": fetch_section("world"),
-        "business": fetch_section("business"),
-        "science": fetch_section("science"),
-        "health": fetch_section("health"),
-    }
+    sections = {}
+    seen_links = set()
+    seen_topics = []
+    for section_key in ("middle_east", "asia_pacific", "business", "science", "health", "sport"):
+        items = fetch_section(section_key, seen_links, seen_topics)
+        sections[section_key] = items
+        for it in items:
+            seen_links.add(normalize_link_for_dedupe(it.get("link", "")))
+            seen_topics.append(it.get("_tok", set()))
 
     # 1) HTML /en/news.html
     html_str = render_html(sections)
