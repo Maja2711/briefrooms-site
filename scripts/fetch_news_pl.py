@@ -21,8 +21,9 @@ TZ = tz.gettz("Europe/Warsaw")
 # =========================
 # KONFIG
 # =========================
-MAX_PER_SECTION = 6
-MAX_PER_HOST = 6
+MAX_PER_SECTION = 5
+MAX_PER_HOST = 2
+MAX_ITEM_AGE_DAYS = 10
 HOTBAR_LIMIT = 12
 
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
@@ -37,30 +38,65 @@ CLOUDFLARE_WEB_ANALYTICS = (
     "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
 )
 
+SOURCE_PROFILES = {
+    "pap.pl": {"name": "PAP", "score": 60, "sections": {"polityka", "biznes", "sport", "zdrowie", "nauka"}},
+    "polsatnews.pl": {"name": "Polsat News", "score": 52, "sections": {"polityka", "biznes", "sport", "zdrowie", "nauka"}},
+    "polsatsport.pl": {"name": "Polsat Sport", "score": 46, "sections": {"sport"}},
+    "tvn24.pl": {"name": "TVN24", "score": 50, "sections": {"polityka", "biznes", "sport", "zdrowie", "nauka"}},
+    "reuters.com": {"name": "Reuters", "score": 48, "sections": {"polityka", "biznes", "sport", "zdrowie", "nauka"}},
+    "bloomberg.com": {"name": "Bloomberg", "score": 46, "sections": {"polityka", "biznes", "nauka"}},
+    "gov.pl": {"name": "gov.pl", "score": 44, "sections": {"polityka", "biznes", "zdrowie", "nauka"}},
+    "stat.gov.pl": {"name": "GUS", "score": 46, "sections": {"biznes"}},
+    "nbp.pl": {"name": "NBP", "score": 46, "sections": {"biznes"}},
+    "mf.gov.pl": {"name": "Ministerstwo Finansów", "score": 44, "sections": {"biznes"}},
+}
+
 # Feedy do doboru newsów (PL)
 FEEDS = {
     "polityka": [
-        "https://tvn24.pl/najnowsze.xml",
+        "https://www.pap.pl/rss.xml",
+        "https://www.polsatnews.pl/rss/kraj.xml",
+        "https://www.polsatnews.pl/rss/polska.xml",
+        "https://www.polsatnews.pl/rss/swiat.xml",
         "https://tvn24.pl/polska.xml",
         "https://tvn24.pl/swiat.xml",
-        "https://www.polsatnews.pl/rss/wszystkie.xml",
-        "https://www.pap.pl/rss.xml",
+        "https://tvn24.pl/najnowsze.xml",
         "https://feeds.reuters.com/reuters/worldNews",
         "https://feeds.reuters.com/reuters/politicsNews",
+        "https://feeds.bloomberg.com/politics/news.rss",
     ],
     "biznes": [
-        "https://www.bankier.pl/rss/wiadomosci.xml",
-        "https://www.bankier.pl/rss/gospodarka.xml",
         "https://www.pap.pl/rss.xml",
+        "https://www.polsatnews.pl/rss/biznes.xml",
+        "https://www.polsatnews.pl/rss/kraj.xml",
+        "https://tvn24.pl/biznes.xml",
+        "https://tvn24.pl/najnowsze.xml",
         "https://feeds.reuters.com/reuters/businessNews",
+        "https://feeds.bloomberg.com/markets/news.rss",
+        "https://feeds.bloomberg.com/economics/news.rss",
+        "https://www.nbp.pl/rss/aktualnosci.xml",
     ],
     "sport": [
-        "https://www.polsatsport.pl/rss/wszystkie.xml",
-        "https://tvn24.pl/sport.xml",
         "https://www.pap.pl/rss.xml",
-        "https://feeds.bbci.co.uk/sport/rss.xml?edition=int",
-        "https://feeds.bbci.co.uk/sport/tennis/rss.xml",
+        "https://www.polsatnews.pl/rss/sport.xml",
+        "https://tvn24.pl/sport.xml",
+        "https://tvn24.pl/najnowsze.xml",
         "https://feeds.reuters.com/reuters/sportsNews",
+    ],
+    "zdrowie": [
+        "https://www.pap.pl/rss.xml",
+        "https://www.polsatnews.pl/rss/wszystkie.xml",
+        "https://tvn24.pl/zdrowie.xml",
+        "https://feeds.reuters.com/reuters/healthNews",
+    ],
+    "nauka": [
+        "https://www.pap.pl/rss.xml",
+        "https://www.polsatnews.pl/rss/nauka.xml",
+        "https://www.polsatnews.pl/rss/wszystkie.xml",
+        "https://tvn24.pl/nauka.xml",
+        "https://tvn24.pl/najnowsze.xml",
+        "https://feeds.reuters.com/reuters/scienceNews",
+        "https://feeds.bloomberg.com/technology/news.rss",
     ],
 }
 
@@ -87,10 +123,9 @@ SOURCE_PRIORITY = [
     (re.compile(r"pap\.pl", re.I), 25),
     (re.compile(r"polsatnews\.pl", re.I), 18),
     (re.compile(r"tvn24\.pl", re.I), 15),
-    (re.compile(r"bankier\.pl", re.I), 20),
     (re.compile(r"reuters\.com", re.I), 12),
-    (re.compile(r"polsatsport\.pl", re.I), 22),
-    (re.compile(r"bbc\.", re.I), 10),
+    (re.compile(r"bloomberg\.com", re.I), 12),
+    (re.compile(r"gov\.pl|stat\.gov\.pl|nbp\.pl|mf\.gov\.pl", re.I), 10),
 ]
 
 # Wzmocnienia tematyczne
@@ -104,7 +139,12 @@ BOOST = {
     ],
     "sport": [
         (re.compile(r"Iga Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Stoch|Żyła|Zyla|Reprezentacja|Legia|Raków|Rakow|Lech|Skorupski", re.I), 40),
-        (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 34),
+    ],
+    "zdrowie": [
+        (re.compile(r"zdrow|szpital|lekarz|pacjent|NFZ|lek|chorob|wirus|szczep|terapi|badanie kliniczne|WHO", re.I), 28),
+    ],
+    "nauka": [
+        (re.compile(r"nauka|badanie|odkry|kosmos|AI|sztuczna inteligencja|klimat|technolog|energia|NASA|uczelnia", re.I), 28),
     ],
 }
 
@@ -122,7 +162,57 @@ BAN_PATTERNS = [
     # sport/rozrywka poza sekcją sportową, jeśli trafi do polityki/kraju
     re.compile(r"taniec z gwiazdami|the voice|serial|film|koncert", re.I),
 ]
-LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
+ROUNDUP_OR_LIVE_RE = re.compile(
+    r"\b(live|na żywo|relacja live|relacja na żywo|wynik na żywo|minuta po minucie|transmisja)\b|"
+    r"newsletter|podsumowanie|najważniejsze informacje|co wiemy|dzień w skrócie|roundup|"
+    r"wszystko, co musisz wiedzieć|najważniejsze wydarzenia|gdzie obejrzeć|stream online|terminarz",
+    re.I,
+)
+MULTI_TOPIC_MARKER_RE = re.compile(
+    r"\b(tymczasem|jednocześnie|z kolei|w innym temacie|ponadto|oprócz tego|również dziś|w osobnej sprawie)\b",
+    re.I,
+)
+CATEGORY_SEGMENTS = {
+    "tag", "tagi", "temat", "tematy", "kategoria", "category", "rss", "wiadomosci",
+    "najnowsze", "polska", "swiat", "biznes", "sport", "zdrowie", "nauka", "live",
+}
+SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+POLITICS_TOPIC_RE = re.compile(
+    r"Polska|kraj|Sejm|Senat|prezydent|premier|rząd|minister|ustawa|wybory|koalicj|opozycj|"
+    r"\b(?:NATO|UE|USA|TK|SN)\b|Komisj[ai] Europejsk|Ukrain|Rosj|Chin|Trump|Zełensk|Putin|wojna|sankcj|"
+    r"bezpieczeństw|dyplomacj|granica|migracj|sąd|prokuratur|Trybunał|polityk|parti",
+    re.I,
+)
+BUSINESS_TOPIC_RE = re.compile(
+    r"gospodark|biznes|rynk|giełd|\b(?:GPW|WIG|NBP|RPP|PKB|CIT|PIT|VAT|ZUS|CLO|ETF)\b|inflacj|stopy|budżet|deficyt|dług|"
+    r"podat|bank|kredyt|obligacj|rentowno|energia|ropa|gaz|paliw|ceny|"
+    r"spółk|firma|przemysł|handel|eksport|import|inwestycj|private debt|rates|credit",
+    re.I,
+)
+SPORT_TOPIC_RE = re.compile(
+    r"sport|mecz|liga|piłk|tenis|siatk|koszyk|F1|Formula|Grand Prix|UFC|MMA|NBA|ATP|WTA|Le Mans|"
+    r"Lewandowski|Świątek|Swiatek|Hurkacz|Majchrzak|reprezentacj|Ekstraklas|Legia|Lech|Raków|Rakow|"
+    r"zawodnik|trener|kajakar|mistrzostw|turniej|wyścig|Panthers|Wrocław",
+    re.I,
+)
+HEALTH_TOPIC_RE = re.compile(
+    r"zdrow|szpital|lekarz|pacjent|NFZ|lek\b|leki|chorob|wirus|epidemi|szczep|terapi|"
+    r"badanie kliniczne|WHO|medyczn|farmaceut|diagnost|onkolog|serc|cukrzyc",
+    re.I,
+)
+SCIENCE_TOPIC_RE = re.compile(
+    r"nauka|badanie|odkryci|odkryli|odkryto|kosmos|NASA|ESA|technolog|\bAI\b|sztuczna inteligencja|klimat|energia|"
+    r"robot|chip|półprzewodnik|quantum|kwant|uczelnia|naukow|laborator|biotechnolog|archeolog",
+    re.I,
+)
+ACCIDENT_OR_CRIME_RE = re.compile(
+    r"wypadek|kolizj|drogow|samochod|zderzeni|katastrof|zgin|śmierć|zabój|areszt|zatrzyman|pożar|tragedi|atak|rann",
+    re.I,
+)
+SECURITY_TOPIC_RE = re.compile(
+    r"wywiad|wojna|Ukrain|Rosj|żołnierz|sankcj|atak rakiet|armia|front|dementuje|bezpieczeństw",
+    re.I,
+)
 
 # =========================
 # TOKENIZACJA / PODOBIEŃSTWO
@@ -165,6 +255,162 @@ def host_of(url: str) -> str:
     except Exception:
         return ""
 
+def clean_rss_text(text: str) -> str:
+    text = html.unescape(text or "")
+    text = re.sub(r"<[^<]+?>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+def source_profile_for(link: str, section_key: str = ""):
+    host = host_of(link).lower().lstrip("www.")
+    for domain in sorted(SOURCE_PROFILES, key=len, reverse=True):
+        if host == domain or host.endswith("." + domain):
+            profile = SOURCE_PROFILES[domain]
+            if not section_key or section_key in profile["sections"]:
+                return profile
+    return None
+
+def source_name(link: str, section_key: str = "") -> str:
+    profile = source_profile_for(link, section_key)
+    if profile:
+        return profile["name"]
+    return host_of(link).lower().lstrip("www.") or "Źródło"
+
+def source_quality_score(link: str, section_key: str) -> int:
+    profile = source_profile_for(link, section_key)
+    return int(profile["score"]) if profile else 0
+
+def is_concrete_article_url(link: str) -> bool:
+    try:
+        parsed = urlparse(link)
+    except Exception:
+        return False
+    path = (parsed.path or "").strip("/")
+    if not path:
+        return False
+    normalized_path = path.lower().replace("-", " ").replace("_", " ")
+    normalized_query = (parsed.query or "").lower().replace("-", " ").replace("_", " ")
+    if ROUNDUP_OR_LIVE_RE.search(normalized_path) or ROUNDUP_OR_LIVE_RE.search(normalized_query):
+        return False
+    segments = [seg.lower() for seg in path.split("/") if seg]
+    if not segments:
+        return False
+    if len(segments) == 1 and segments[0] in CATEGORY_SEGMENTS:
+        return False
+    if segments[-1] in CATEGORY_SEGMENTS:
+        return False
+    if any(seg in {"tag", "tagi", "temat", "tematy", "kategoria", "category", "newsletter", "live"} for seg in segments):
+        return False
+    return True
+
+def split_sentences(text: str):
+    return [s.strip() for s in SENTENCE_RE.split(clean_rss_text(text)) if s.strip()]
+
+def first_sentence(text: str) -> str:
+    sentences = split_sentences(text)
+    return sentences[0] if sentences else clean_rss_text(text)
+
+def is_roundup_or_live(title: str, summary: str, link: str) -> bool:
+    parsed = urlparse(link)
+    path = parsed.path.replace("-", " ").replace("_", " ")
+    query = parsed.query.replace("-", " ").replace("_", " ")
+    blob = " ".join([title or "", summary or "", path, query])
+    return bool(ROUNDUP_OR_LIVE_RE.search(blob))
+
+def is_multitopic_summary(title: str, summary: str) -> bool:
+    text = clean_rss_text(summary)
+    if not text:
+        return False
+    sentences = split_sentences(text)
+    if len(sentences) <= 1:
+        return False
+    if len(sentences) >= 2 and MULTI_TOPIC_MARKER_RE.search(text):
+        return True
+    if len(sentences) < 3:
+        return False
+    title_tokens = tokens_pl(title)
+    unrelated = 0
+    for sentence in sentences[1:]:
+        sent_tokens = tokens_pl(sentence)
+        if len(sent_tokens) >= 5 and jaccard(title_tokens, sent_tokens) < 0.08:
+            unrelated += 1
+    return unrelated >= 2
+
+def topic_safe_snippet(title: str, summary: str) -> str:
+    text = clean_rss_text(summary)
+    if not text:
+        return ""
+    sentences = split_sentences(text)
+    if is_multitopic_summary(title, text):
+        return first_sentence(text)
+    if len(sentences) > 2:
+        return " ".join(sentences[:2])
+    return text
+
+def topic_tokens(title: str, summary: str):
+    return tokens_pl(" ".join([title or "", first_sentence(summary or "")]))
+
+def normalize_link_for_dedupe(link: str) -> str:
+    parsed = urlparse(link or "")
+    host = parsed.netloc.lower().lstrip("www.")
+    path = (parsed.path or "").rstrip("/")
+    return f"{host}{path}"
+
+def is_recent_enough(published_parsed) -> bool:
+    if not published_parsed:
+        return True
+    try:
+        dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+    except Exception:
+        return True
+    age_days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
+    return -1 <= age_days <= MAX_ITEM_AGE_DAYS
+
+def matches_section_topic(title: str, summary: str, link: str, section_key: str) -> bool:
+    path = urlparse(link).path.replace("-", " ").replace("_", " ")
+    blob = " ".join([title or "", summary or "", path])
+    if section_key == "polityka":
+        return bool(POLITICS_TOPIC_RE.search(blob)) and not SPORT_TOPIC_RE.search(blob)
+    if section_key == "biznes":
+        return bool(BUSINESS_TOPIC_RE.search(blob)) and not (SPORT_TOPIC_RE.search(blob) or ACCIDENT_OR_CRIME_RE.search(blob))
+    if section_key == "sport":
+        return bool(SPORT_TOPIC_RE.search(blob))
+    if section_key == "zdrowie":
+        return bool(HEALTH_TOPIC_RE.search(blob)) and not (SPORT_TOPIC_RE.search(blob) or ACCIDENT_OR_CRIME_RE.search(blob))
+    if section_key == "nauka":
+        if SECURITY_TOPIC_RE.search(blob) and not re.search(r"\bAI\b|cyber|technolog|chip|półprzewodnik", blob, re.I):
+            return False
+        return bool(SCIENCE_TOPIC_RE.search(blob)) and not SPORT_TOPIC_RE.search(blob)
+    return True
+
+def dedupe_sections(sections: dict) -> dict:
+    seen = set()
+    out = {}
+    for key in ("polityka", "biznes", "sport", "zdrowie", "nauka"):
+        kept = []
+        for it in sections.get(key, []):
+            marker = normalize_link_for_dedupe(it.get("link", ""))
+            if marker in seen:
+                continue
+            seen.add(marker)
+            kept.append(it)
+        out[key] = kept
+    return out
+
+def should_keep_item(title: str, link: str, summary: str, section_key: str) -> bool:
+    if source_profile_for(link, section_key) is None:
+        return False
+    if not is_concrete_article_url(link):
+        return False
+    if is_roundup_or_live(title, summary, link):
+        return False
+    if any(rx.search(title) or rx.search(summary) for rx in BAN_PATTERNS):
+        return False
+    if is_multitopic_summary(title, summary):
+        return False
+    if not matches_section_topic(title, summary, link, section_key):
+        return False
+    return True
+
 def today_str() -> str:
     now = datetime.now(TZ)
     return now.strftime("%Y-%m-%d")
@@ -203,8 +449,17 @@ def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
         t = t[:end+1]
     return t.strip()
 
+def fallback_why_pl(title: str, snippet: str) -> str:
+    basis = first_sentence(snippet) or title
+    basis = ensure_full_sentence(basis, 190)
+    if not basis:
+        return "To ważne, bo artykuł dotyczy jednego konkretnego tematu wybranego z priorytetowego źródła."
+    return ensure_full_sentence(f"To ważne, bo artykuł pokazuje konkretny kontekst tego wątku: {basis}", 280)
+
 def score_item(item, section_key: str) -> float:
     score = 0.0
+    source_score = source_quality_score(item.get("link", ""), section_key)
+    score += source_score
     published_parsed = item.get("published_parsed") or item.get("updated_parsed")
     if published_parsed:
         dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
@@ -218,8 +473,12 @@ def score_item(item, section_key: str) -> float:
     for rx, pts in SOURCE_PRIORITY:
         if rx.search(h):
             score += pts
+    if source_score >= 50:
+        score += 8
     if len(t) > 140:
         score -= 5
+    if not item.get("summary_raw"):
+        score -= 8
     return score
 
 # =========================
@@ -242,16 +501,24 @@ CACHE = load_cache(AI_CACHE_PATH)
 
 def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
     """
-    Zwraca: {"summary": "...", "uncertain": ""} – 'uncertain' puste, gdy brak ostrzeżenia.
+    Zwraca pola dla komentarza: Najważniejsze + Dlaczego to ważne.
     """
     key = os.getenv("OPENAI_API_KEY")
     cache_key = f"{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
-        return CACHE[cache_key]
+        cached = CACHE[cache_key]
+        cached.setdefault("key_point", cached.get("summary", ""))
+        cached.setdefault("why_it_matters", fallback_why_pl(title, snippet))
+        return cached
+
+    safe_snippet = topic_safe_snippet(title, snippet)
 
     if not key:
+        key_point = ensure_full_sentence((safe_snippet or title or "")[:320], 320)
         out = {
-            "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
+            "summary": key_point,
+            "key_point": key_point,
+            "why_it_matters": fallback_why_pl(title, safe_snippet),
             "uncertain": "",
             "model": "fallback"
         }
@@ -259,13 +526,20 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
         save_cache(AI_CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Streść po polsku w maksymalnie 2 krótkich zdaniach najważniejsze informacje z tytułu i opisu RSS poniżej.
-Jeśli widać element niepewny/sporny lub łatwy do błędnej interpretacji, dodaj JEDNO krótkie zdanie zaczynające się od "Uwaga:".
-Jeśli nie ma potrzeby ostrzeżenia, NIE dodawaj tej linii.
+    prompt = f"""Napisz po polsku krótki komentarz do jednego konkretnego artykułu.
+Użyj wyłącznie tytułu i bezpośredniego opisu RSS poniżej.
+Zwróć dokładnie dwie linie:
+Najważniejsze: ...
+Dlaczego to ważne: ...
+
 Tytuł: {title}
-Opis RSS: {snippet}
+Opis RSS: {safe_snippet}
+
 Zasady:
-- Bądź zwięzły i neutralny.
+- Opisz tylko jeden temat z tego artykułu.
+- Nie mieszaj kilku newsów ani kilku wątków.
+- Jeśli opis RSS wygląda wielotematycznie, użyj tylko tytułu i pierwszego zdania opisu.
+- Bądź konkretny, zwięzły i neutralny.
 - Kończ zdania kropką.
 - Nie dopisuj faktów spoza tytułu/opisu.
 - Zwróć czysty tekst, linia po linii (bez formatowania)."""
@@ -289,23 +563,31 @@ Zasady:
         text = resp.json()["choices"][0]["message"]["content"].strip()
 
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        summary_lines, warn_line = [], ""
+        key_point, why, warn_line = "", "", ""
         for ln in lines:
             if ln.lower().startswith("uwaga:"):
                 warn_line = ln
+            elif ln.lower().startswith("najważniejsze:") or ln.lower().startswith("najwazniejsze:"):
+                key_point = ln.split(":", 1)[1].strip()
+            elif ln.lower().startswith("dlaczego to ważne:") or ln.lower().startswith("dlaczego to wazne:"):
+                why = ln.split(":", 1)[1].strip()
             else:
-                summary_lines.append(ln)
+                key_point = key_point or ln
 
-        summary = ensure_full_sentence(" ".join(summary_lines), 320)
+        summary = ensure_full_sentence(key_point or safe_snippet or title, 320)
+        why = ensure_full_sentence(why, 280) or fallback_why_pl(title, safe_snippet)
         warn_line = ensure_period(warn_line) if warn_line else ""
 
-        out = {"summary": summary, "uncertain": warn_line}
+        out = {"summary": summary, "key_point": summary, "why_it_matters": why, "uncertain": warn_line}
         CACHE[cache_key] = out
         save_cache(AI_CACHE_PATH, CACHE)
         return out
     except Exception:
+        key_point = ensure_full_sentence((safe_snippet or title or "")[:320], 320)
         return {
-            "summary": ensure_full_sentence((snippet or title)[:320], 320),
+            "summary": key_point,
+            "key_point": key_point,
+            "why_it_matters": fallback_why_pl(title, safe_snippet),
             "uncertain": ""
         }
 
@@ -412,22 +694,28 @@ def fetch_section(section_key: str):
                 link  = e.get("link", "") or ""
                 if not title or not link:
                     continue
-                if any(rx.search(title) for rx in BAN_PATTERNS):
-                    continue
                 snippet = e.get("summary", "") or e.get("description", "") or ""
+                summary_raw = clean_rss_text(snippet)
+                published_parsed = e.get("published_parsed") or e.get("updated_parsed")
+                if not is_recent_enough(published_parsed):
+                    continue
+                if not should_keep_item(title, link, summary_raw, section_key):
+                    continue
                 items.append({
                     "title": title.strip(),
                     "link":  link.strip(),
-                    "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
-                    "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
+                    "summary_raw": topic_safe_snippet(title, summary_raw),
+                    "published_parsed": published_parsed,
                 })
         except Exception as ex:
             print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
     # scoring + tokeny
     for it in items:
+        it["_source_score"] = source_quality_score(it["link"], section_key)
+        it["source_name"] = source_name(it["link"], section_key)
         it["_score"] = score_item(it, section_key)
-        it["_tok"] = tokens_pl(it["title"])
+        it["_tok"] = topic_tokens(it["title"], it.get("summary_raw", ""))
 
     # sortuj po score
     items.sort(key=lambda x: x["_score"], reverse=True)
@@ -435,32 +723,34 @@ def fetch_section(section_key: str):
     # deduplikacja semantyczna (Jaccard na tokenach tytułu)
     kept = []
     for it in items:
-        if not any(jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD for got in kept):
+        duplicate_idx = None
+        for idx, got in enumerate(kept):
+            if jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD:
+                duplicate_idx = idx
+                break
+        if duplicate_idx is None:
             kept.append(it)
+            continue
+        got = kept[duplicate_idx]
+        candidate_rank = (it.get("_source_score", 0), it.get("_score", 0), len(it.get("summary_raw", "")))
+        current_rank = (got.get("_source_score", 0), got.get("_score", 0), len(got.get("summary_raw", "")))
+        if candidate_rank > current_rank:
+            kept[duplicate_idx] = it
 
     # limit na host + total
     per_host = {}
     pool = []
     for it in kept:
-        h = host_of(it["link"])
+        h = it.get("source_name") or host_of(it["link"])
         per_host[h] = per_host.get(h, 0)
         if per_host[h] >= MAX_PER_HOST:
             continue
         per_host[h] += 1
         pool.append(it)
 
-    # SPORT: LIVE + dywersyfikacja dyscyplin
+    # SPORT: dywersyfikacja dyscyplin, bez liveblogów i relacji minutowych
     if section_key == "sport":
         picked = []
-        # 1) do 2 wpisów LIVE lub z PL gwiazdami
-        for it in pool:
-            t = it["title"]
-            if LIVE_RE.search(t) or re.search(r"Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Stoch|Żyła|Zyla|Legia|Raków|Rakow|Lech", t, re.I):
-                picked.append(it)
-                if len(picked) >= 2:
-                    break
-
-        # 2) dywersyfikacja
         def tag(t):
             t=t.lower()
             if any(k in t for k in ["tenis","wimbledon","us open","australian open"]): return "tenis"
@@ -470,10 +760,8 @@ def fetch_section(section_key: str):
             if any(k in t for k in ["f1","formula","grand prix"]): return "f1"
             return "inne"
 
-        seen_tags = {tag(x["title"]) for x in picked}
+        seen_tags = set()
         for it in pool:
-            if it in picked: 
-                continue
             tg = tag(it["title"])
             if tg not in seen_tags:
                 picked.append(it); seen_tags.add(tg)
@@ -494,7 +782,9 @@ def fetch_section(section_key: str):
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
         verify = verify_note_pl(it["title"], it.get("summary_raw",""))
         final_warn = verify or s.get("uncertain","")
-        it["ai_summary"] = ensure_period(s["summary"])
+        it["ai_key_point"] = ensure_period(s.get("key_point") or s.get("summary", ""))
+        it["ai_why_it_matters"] = ensure_period(s.get("why_it_matters", "")) if s.get("why_it_matters") else ""
+        it["ai_summary"] = it["ai_key_point"]
         it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s.get("model","")
 
@@ -550,64 +840,81 @@ def build_hotbar_json(sections: dict) -> dict:
 def render_html(sections: dict) -> str:
     extra_css = """
     ul.news{ list-style:none; padding-left:0; }
-    ul.news li{ margin:18px 0 24px; }
-    ul.news li a{
+    ul.news li{ margin:13px 0 18px; }
+    ul.news li .news-main-link{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
-    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    ul.news li .news-main-link:hover{ color:#ffffff; text-decoration:underline; }
     .news-thumb{
-      width:78px; min-width:78px; height:54px; border-radius:14px;
-      background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
-      border:1px solid rgba(255,255,255,.28);
+      width:78px; min-width:78px; height:50px; border-radius:12px;
+      background:linear-gradient(135deg,#f59e0b 0%,#d97706 48%,#1f2937 100%);
+      border:1px solid rgba(255,255,255,.22);
       display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
-      gap:3px; padding:6px 10px 6px 12px; box-shadow:0 10px 24px rgba(0,0,0,.35);
+      gap:3px; padding:6px 9px 6px 11px; box-shadow:0 10px 22px rgba(0,0,0,.32);
     }
     .news-thumb .dot{
       width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
       border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
     }
-    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
-    .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-thumb .title{ font-size:.58rem; font-weight:800; letter-spacing:0; color:#fff; line-height:1.05; }
+    .news-thumb .sub{ font-size:.48rem; color:rgba(244,246,255,.86); line-height:1.05; white-space:nowrap; }
+    .news-text{
+      font-size:1.02rem; font-weight:720; letter-spacing:0; color:#fff7ed;
+    }
+    .source-line{
+      margin:5px 0 0 88px; color:#9fb3cb; font-size:.82rem; line-height:1.3;
+    }
 
     .ai-note{
-      margin:10px 0 0 88px;
-      font-size:.95rem; color:#dfe7f1; line-height:1.4;
+      margin:8px 0 0 88px;
+      font-size:.92rem; color:#dfe7f1; line-height:1.38;
       background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
-      padding:12px 14px; border-radius:12px;
+      padding:10px 12px; border-radius:10px;
     }
-    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
+    .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:5px; font-weight:700; color:#fdf3e3; }
     .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.73rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
-    .sec{ margin-top:4px; }
+    .sec{ margin-top:3px; }
+    .empty-note{ color:#9fb3cb; margin:10px 0 4px; font-size:.92rem; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
-    def badge():
+    def badge(source):
         return (
             '<span class="news-thumb">'
             '<span class="dot"></span>'
-            '<span class="title">BriefRooms</span>'
-            '<span class="sub">powered by AI</span>'
+            f'<span class="title">{esc(source)}</span>'
+            '<span class="sub">Źródło</span>'
             '</span>'
         )
 
     def make_li(it):
+        source = it.get("source_name") or source_name(it.get("link", ""))
         warn_html = f'<div class="sec"><strong>Uwaga:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
+        why_html = f'<div class="sec"><strong>Dlaczego to ważne:</strong> {esc(it.get("ai_why_it_matters",""))}</div>' if it.get("ai_why_it_matters") else ""
         return f'''<li>
-  <a href="{esc(it["link"])}" target="_blank" rel="noopener">
-    {badge()}
+  <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
+    {badge(source)}
     <span class="news-text">{esc(it["title"])}</span>
   </a>
+  <div class="source-line">Źródło: {esc(source)}</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_summary",""))}</div>
+    <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_key_point") or it.get("ai_summary",""))}</div>
+    {why_html}
     {warn_html}
   </div>
 </li>'''
 
     def make_section(title, items):
+        if not items:
+            return f"""
+<section class="card">
+  <h2>{esc(title)}</h2>
+  <p class="empty-note">Brak pojedynczych artykułów spełniających kryteria w tej aktualizacji.</p>
+</section>"""
         lis = "\n".join(make_li(it) for it in items)
         return f"""
 <section class="card">
@@ -623,7 +930,7 @@ def render_html(sections: dict) -> str:
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Aktualności — BriefRooms</title>
-  <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, sport." />
+  <meta name="description" content="Automatycznie odświeżane aktualności BriefRooms: polityka i kraj, ekonomia i biznes, sport, zdrowie oraz nauka." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=news5" />
   <style>
@@ -643,12 +950,14 @@ def render_html(sections: dict) -> str:
 <body data-page="news">
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnia aktualizacja: {today_str_pl()}
+  <p class="sub">Ostatnia aktualizacja: {today_str_pl()}</p>
 </header>
 <main>
-{make_section("Polityka / Kraj", sections["polityka"])}
-{make_section("Ekonomia / Biznes", sections["biznes"])}
+{make_section("Polityka/Kraj", sections["polityka"])}
+{make_section("Ekonomia/Biznes", sections["biznes"])}
 {make_section("Sport", sections["sport"])}
+{make_section("Zdrowie", sections["zdrowie"])}
+{make_section("Nauka", sections["nauka"])}
 
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
@@ -665,7 +974,10 @@ def main():
         "polityka": fetch_section("polityka"),
         "biznes":   fetch_section("biznes"),
         "sport":    fetch_section("sport"),
+        "zdrowie":  fetch_section("zdrowie"),
+        "nauka":    fetch_section("nauka"),
     }
+    sections = dedupe_sections(sections)
 
     # 1) HTML /pl/aktualnosci.html
     html_str = render_html(sections)
