@@ -38,14 +38,14 @@ CLOUDFLARE_WEB_ANALYTICS = (
 )
 
 SOURCE_PROFILES = {
-    "reuters.com": {"name": "Reuters", "score": 60, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
-    "apnews.com": {"name": "AP", "score": 58, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
-    "bloomberg.com": {"name": "Bloomberg", "score": 58, "sections": {"middle_east", "asia_pacific", "business"}},
-    "bbci.co.uk": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
-    "bbc.co.uk": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
-    "bbc.com": {"name": "BBC News", "score": 50, "sections": {"middle_east", "asia_pacific", "business", "science", "health", "sport"}},
-    "theguardian.com": {"name": "The Guardian", "score": 46, "sections": {"middle_east", "business", "science", "health", "sport"}},
-    "politico.com": {"name": "Politico", "score": 44, "sections": {"business"}},
+    "reuters.com": {"name": "Reuters", "score": 60, "sections": {"world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "apnews.com": {"name": "AP", "score": 58, "sections": {"world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "bloomberg.com": {"name": "Bloomberg", "score": 58, "sections": {"world", "asia_pacific", "europe", "middle_east", "business"}},
+    "bbci.co.uk": {"name": "BBC News", "score": 50, "sections": {"world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "bbc.co.uk": {"name": "BBC News", "score": 50, "sections": {"world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "bbc.com": {"name": "BBC News", "score": 50, "sections": {"world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "theguardian.com": {"name": "The Guardian", "score": 46, "sections": {"world", "europe", "middle_east", "business", "science", "health", "sport"}},
+    "politico.com": {"name": "Politico", "score": 44, "sections": {"world", "europe", "business"}},
     "cnbc.com": {"name": "CNBC", "score": 42, "sections": {"business"}},
     "federalreserve.gov": {"name": "Federal Reserve", "score": 52, "sections": {"business"}},
     "treasury.gov": {"name": "U.S. Treasury", "score": 50, "sections": {"business"}},
@@ -55,6 +55,9 @@ SOURCE_PROFILES = {
     "oecd.org": {"name": "OECD", "score": 48, "sections": {"business"}},
     "worldbank.org": {"name": "World Bank", "score": 48, "sections": {"business"}},
     "ecb.europa.eu": {"name": "ECB", "score": 50, "sections": {"business"}},
+    "commission.europa.eu": {"name": "European Commission", "score": 48, "sections": {"europe", "business"}},
+    "ec.europa.eu": {"name": "European Commission", "score": 48, "sections": {"europe", "business"}},
+    "nato.int": {"name": "NATO", "score": 48, "sections": {"europe"}},
     "who.int": {"name": "WHO", "score": 50, "sections": {"health"}},
     "nasa.gov": {"name": "NASA", "score": 48, "sections": {"science"}},
     "esa.int": {"name": "ESA", "score": 46, "sections": {"science"}},
@@ -104,14 +107,13 @@ SPORT_TOPIC_RE = re.compile(
 
 # ŹRÓDŁA (regional + business + science + health + sport)
 FEEDS = {
-    "middle_east": [
+    "world": [
+        "http://feeds.bbci.co.uk/news/world/rss.xml",
         "https://feeds.reuters.com/reuters/worldNews",
         "https://apnews.com/hub/ap-top-news?output=rss",
         "https://feeds.bloomberg.com/politics/news.rss",
-        "http://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
-        "https://www.theguardian.com/world/middleeast/rss",
-        "https://www.aljazeera.com/xml/rss/all.xml",
-        "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml",
+        "https://www.theguardian.com/world/rss",
+        "https://www.politico.com/rss/politicopicks.xml",
     ],
     "asia_pacific": [
         "https://feeds.reuters.com/reuters/worldNews",
@@ -124,6 +126,25 @@ FEEDS = {
         "https://www.japantimes.co.jp/news/feed/",
         "https://english.kyodonews.net/rss/news.xml",
         "https://en.yna.co.kr/RSS/news.xml",
+    ],
+    "europe": [
+        "https://feeds.reuters.com/reuters/worldNews",
+        "https://apnews.com/hub/ap-top-news?output=rss",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "http://feeds.bbci.co.uk/news/world/europe/rss.xml",
+        "https://www.theguardian.com/world/europe-news/rss",
+        "https://www.politico.com/rss/politicopicks.xml",
+        "https://www.nato.int/cps/en/natohq/news.xml",
+        "https://commission.europa.eu/node/126/rss_en",
+    ],
+    "middle_east": [
+        "https://feeds.reuters.com/reuters/worldNews",
+        "https://apnews.com/hub/ap-top-news?output=rss",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "http://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
+        "https://www.theguardian.com/world/middleeast/rss",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml",
     ],
     "business": [
         "http://feeds.bbci.co.uk/news/business/rss.xml",
@@ -174,11 +195,17 @@ FEEDS = {
 
 # Słowa kluczowe do podbijania ważności
 BOOST = {
-    "middle_east": [
-        (re.compile(r"Iran|Israel|Gaza|Palestinian|Lebanon|Syria|Iraq|Yemen|Saudi|Qatar|UAE|Hormuz|Hamas|Hezbollah|Houthis|oil", re.I), 26),
+    "world": [
+        (re.compile(r"US|USA|China|Russia|Ukraine|G7|G20|NATO|UN|White House|trade|war|security|sanctions|climate", re.I), 24),
     ],
     "asia_pacific": [
         (re.compile(r"China|Taiwan|Japan|South Korea|North Korea|India|Southeast Asia|South China Sea|chips|semiconductor|trade|security", re.I), 26),
+    ],
+    "europe": [
+        (re.compile(r"Europe|EU|European Union|NATO|Ukraine|Russia|UK|France|Germany|Poland|Brussels|Kyiv|Moscow|sanctions|security", re.I), 26),
+    ],
+    "middle_east": [
+        (re.compile(r"Iran|Israel|Gaza|Palestinian|Lebanon|Syria|Iraq|Yemen|Saudi|Qatar|UAE|Hormuz|Hamas|Hezbollah|Houthis|oil", re.I), 26),
     ],
     "business": [
         (re.compile(r"market|stocks|inflation|fed|rate|ECB|crypto|bitcoin|AI|tech|Nvidia|Apple|Tesla", re.I), 25),
@@ -204,6 +231,12 @@ ASIA_PACIFIC_TOPIC_RE = re.compile(
     r"\b(China|Chinese|Taiwan|Taiwanese|Japan|Japanese|South Korea|Korean|North Korea|Pyongyang|Seoul|"
     r"India|Indian|Southeast Asia|ASEAN|South China Sea|Philippines|Vietnam|Indonesia|Thailand|Malaysia|"
     r"Singapore|chips?|semiconductors?|trade|tariffs?|security|defen[cs]e|Pacific)\b",
+    re.I,
+)
+EUROPE_TOPIC_RE = re.compile(
+    r"\b(Europe|European|EU|European Union|Eurozone|NATO|Ukraine|Ukrainian|Russia|Russian|Kyiv|Moscow|"
+    r"UK|Britain|British|France|French|Germany|German|Poland|Polish|Italy|Spain|Brussels|Baltic|"
+    r"sanctions?|defen[cs]e|security|migration)\b",
     re.I,
 )
 
@@ -368,13 +401,17 @@ def normalize_link_for_dedupe(link: str) -> str:
     return f"{host}{path}"
 
 def matches_section_topic(title: str, summary: str, link: str, section_key: str) -> bool:
-    if section_key not in {"middle_east", "asia_pacific"}:
+    if section_key not in {"world", "asia_pacific", "europe", "middle_east"}:
+        return True
+    if section_key == "world":
         return True
     path = urlparse(link).path.replace("-", " ").replace("_", " ")
     blob = " ".join([title or "", summary or "", path])
-    if section_key == "middle_east":
-        return bool(MIDDLE_EAST_TOPIC_RE.search(blob))
-    return bool(ASIA_PACIFIC_TOPIC_RE.search(blob))
+    if section_key == "asia_pacific":
+        return bool(ASIA_PACIFIC_TOPIC_RE.search(blob))
+    if section_key == "europe":
+        return bool(EUROPE_TOPIC_RE.search(blob))
+    return bool(MIDDLE_EAST_TOPIC_RE.search(blob))
 
 def should_keep_item(title: str, link: str, summary: str, section_key: str) -> bool:
     if source_profile_for(link, section_key) is None:
@@ -708,11 +745,13 @@ def render_html(sections: dict) -> str:
     
     # Mapowanie na sekcje EN
     sections_map = {
-        "Middle East": sections["middle_east"],
+        "World News": sections["world"],
         "Asia-Pacific": sections["asia_pacific"],
-        "Business & Finance": sections["business"],
-        "Science Discoveries": sections["science"],
-        "Health & Medicine": sections["health"],
+        "Europe": sections["europe"],
+        "Middle East": sections["middle_east"],
+        "Business": sections["business"],
+        "Science": sections["science"],
+        "Health": sections["health"],
         "Sport": sections["sport"],
     }
     
@@ -724,7 +763,7 @@ def render_html(sections: dict) -> str:
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>News — BriefRooms</title>
-  <meta name="description" content="Automatically refreshed single-source news summaries: Middle East, Asia-Pacific, Business, Science, Health and Sport." />
+  <meta name="description" content="Automatically refreshed single-source news summaries: World News, Asia-Pacific, Europe, Middle East, Business, Science, Health and Sport." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css" />
   <style>
@@ -774,7 +813,7 @@ def main():
     sections = {}
     seen_links = set()
     seen_topics = []
-    for section_key in ("middle_east", "asia_pacific", "business", "science", "health", "sport"):
+    for section_key in ("world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"):
         items = fetch_section(section_key, seen_links, seen_topics)
         sections[section_key] = items
         for it in items:
