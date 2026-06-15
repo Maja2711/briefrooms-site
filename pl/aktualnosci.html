@@ -21,11 +21,11 @@
     
     ul.news{ list-style:none; padding-left:0; }
     ul.news li{ margin:18px 0 24px; }
-    ul.news li a{
+    .news-main-link{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
-    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-main-link:hover{ color:#ffffff; text-decoration:underline; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
       background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
@@ -37,8 +37,11 @@
       width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
       border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
     }
-    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .title{ max-width:58px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.54rem; font-weight:700; letter-spacing:0; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-title-wrap{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .news-text{ font-weight:700; }
+    .source-line{ color:#9fb3cb; font-size:.88rem; }
 
     .ai-note{
       margin:10px 0 0 88px;
@@ -48,9 +51,11 @@
     }
     .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
     .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+      background:rgba(255,255,255,.07); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.16); }
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
     .sec{ margin-top:4px; }
+    .read-source{ display:inline-flex; margin-top:10px; color:#f8c97a; text-decoration:none; font-weight:700; }
+    .read-source:hover{ color:#ffffff; text-decoration:underline; }
     .note{ color:#9fb3cb; font-size:.92rem }
     
   </style>
@@ -66,69 +71,99 @@
   <h2>Polityka / Kraj</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2026-06-15/chwilowe-zacmienie-kosztowalo-21-latke-zycie-ustalenia-po-tragedii-na-bungee/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">&quot;Chwilowe zaćmienie&quot; kosztowało 21-latkę życie. Ustalenia po tragicznym skoku</span>
+  <a class="news-main-link" href="https://www.polsatnews.pl/gosc-wydarzen/2026-06-15/prezydentowi-potrzeba-doswiadczenia-rzecznik-rzadu-wbija-szpilke-nawrockiemu/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">&quot;Prezydentowi potrzeba doświadczenia&quot;. Rzecznik rządu wbija szpilkę Nawrockiemu</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> - Być może Nawrockiemu jeszcze potrzeba trochę doświadczenia - powiedział rzecznik rządu Adam Szłapka, komentując krytyczną wypowiedź prezydenta w USA pod adresem rządu. - Warto prezydentowi przypominać, że za granicą obowiązuje zasada: o Polsce mówimy tylko dobrze - dodał.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
+    
+    <a class="read-source" href="https://www.polsatnews.pl/gosc-wydarzen/2026-06-15/prezydentowi-potrzeba-doswiadczenia-rzecznik-rzadu-wbija-szpilke-nawrockiemu/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/izraelski-minister-ben-gwir-z-zakazem-wjazdu-do-schengen-sikorski-optyczna-wiekszosc/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Izraelski minister Ben Gwir z zakazem wjazdu do Schengen? Sikorski: Optyczna większość</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Szef MSZ Radosław Sikorski ocenił, że wśród jego unijnych odpowiedników była optyczna większość za nałożeniem sankcji na izraelskiego ministra Itamara Ben Gwira. - Polska już zabroniła mu wjazdu do naszego kraju. To technicznie rzecz biorąc oznacza, że powinien nie mieć wstępu do strefy Schengen - dodał.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
+    
+    <a class="read-source" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/izraelski-minister-ben-gwir-z-zakazem-wjazdu-do-schengen-sikorski-optyczna-wiekszosc/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/spotkanie-prezydenta-z-szefem-mon-tematem-rozmow-amerykanscy-zolnierze-w-polsce/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Spotkanie prezydenta z szefem MON. Tematem rozmów amerykańscy żołnierze w Polsce</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> - Po powrocie z USA prezydent Karol Nawrocki zaprosi wicepremiera Władysława Kosiniaka-Kamysza na spotkanie - przekazał szef Biura Polityki Międzynarodowej w KPRP Marcin Przydacz. Jak dodał, prezydent podzieli się z szefem MON informacjami, które uzyskał na temat amerykańskiej obecności w Polsce.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
+    
+    <a class="read-source" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/spotkanie-prezydenta-z-szefem-mon-tematem-rozmow-amerykanscy-zolnierze-w-polsce/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/ekspert-porownal-armie-krajowa-do-upa-krrit-zada-wyjasnien/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Ekspert porównał Armię Krajową do UPA. KRRiT żąda wyjaśnień</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> KRRiT oczekuje wyjaśnień po tym, jak w programie TVP Info publicysta i historyk Kazimierz Wóycicki porównał Armię Krajową do UPA. Kwestie dotyczące pamięci narodowej i faktów historycznych wymagają szczególnej wrażliwości oraz staranności, której zabrakło w audycji - oceniła przewodnicząca Rady Agnieszka Glapiak.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
+    
+    <a class="read-source" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/ekspert-porownal-armie-krajowa-do-upa-krrit-zada-wyjasnien/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/15-latka-trafila-do-szpitala-tuz-po-porodzie-policja-odnalazla-zwloki-noworodka/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">15-latka trafiła do szpitala tuż po porodzie. Policja odnalazła zwłoki noworodka</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Do szpitala w Krośnie trafiła 15-latka, której stan wskazywał, że niedawno urodziła. Nastolatka była bez dziecka. - Do miejsca jej zamieszkania skierowano służby, które znalazły zwłoki dziecka - przekazała rzeczniczka prasowa Prokuratury Okręgowej w Krośnie Marta Kolendowska-Matejczuk.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
+    
+    <a class="read-source" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/15-latka-trafila-do-szpitala-tuz-po-porodzie-policja-odnalazla-zwloki-noworodka/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/chwilowe-zacmienie-kosztowalo-21-latke-zycie-ustalenia-po-tragedii-na-bungee/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">&quot;Chwilowe zaćmienie&quot; kosztowało 21-latkę życie. Ustalenia po tragicznym skoku</span>
+      <span class="source-line">Źródło: Polsat News</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> 21-latka, która zginęła podczas rope jump w Brazylii, to Maria Eduarda Rodrigues. Według śledczych została wypuszczona bez przypięcia sprzętu zabezpieczającego. Instruktorzy tłumaczyli, że podczas przygotowań mieli chwilowe zaćmienie i zapomnieli o linach. Media ustaliły, czym zajmowała się młoda kobieta.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.</div>
     <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie.</div>
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2026-06-15/burze-to-nie-wszystko-wydano-kolejne-ostrzezenia-pogodowe/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Burze to nie wszystko. Wydano kolejne ostrzeżenia pogodowe</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Instytut Meteorologii i Gospodarki Wodnej wydał ostrzeżenia pierwszego stopnia przed burzami dla siedmiu województw na północy kraju. W wielu nadmorskich powiatach obowiązują również alerty przed silnym wiatrem.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://tvn24.pl/polska/polska-nie-przekazala-jeszcze-ukrainie-mig-ow-wiceszef-mon-cezary-tomczyk-wyjasnia-st9096777?source=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Polska nie przekazała jeszcze Ukrainie myśliwców MiG. Wiceszef MON wyjaśnia</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Ukraina nie otrzymała jeszcze od Polski samolotów bojowych MiG-29, ponieważ nie została &quot;dopięta&quot; sprawa transferu ukraińskich technologii dronowych - powiedział wiceszef MON Cezary Tomczyk. Kijów miał je przekazać polskiemu wojsku w zamian za maszyny.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2026-06-15/akcesja-ukrainy-do-ue-wegry-wskazaly-podstawowy-warunek-dla-kijowa/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Akcesja Ukrainy do UE. Węgry wskazały &quot;podstawowy warunek&quot; dla Kijowa</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Anita Orban wskazała podstawowy warunek procesu integracji europejskiej Ukrainy z perspektywy Węgier. Budapeszt zastrzega, że jeśli Kijów nie zrealizuje porozumienia o węgierskiej mniejszości, negocjacje Ukrainy z UE będą automatycznie zatrzymane.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://www.polsatnews.pl/wiadomosc/2026-06-15/wydali-100-tysiecy-na-wesele-ile-wrocilo-w-kopertach-polacy-szczerze-o-slubnych-finansach/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Zapłacili 100 tysięcy za wesele, ile wróciło w kopertach? Polacy o ślubnych wydatkach</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Wesele na 100 osób w polskim mieście potrafi dziś kosztować nawet ponad 100 tysięcy złotych, czyli tyle, ile wkład własny przy zakupie mieszkania. Czy te pieniądze wracają w kopertach? Wyznania nowożeńców pokazują, że to loteria.</div>
-    
-  </div>
-</li>
-<li>
-  <a href="https://tvn24.pl/biznes/tech/wielka-brytania-chce-zakazac-dzieciom-mediow-spolecznosciowych-keir-starmer-mowi-o-przelomie-st9096626?source=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Brytyjski premier zapowiada zakaz. Dzieci poniżej 16 lat bez social mediów</span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Brytyjski premier Keir Starmer zapowiedział w poniedziałek wprowadzenie zakazu korzystania z mediów społecznościowych przez osoby poniżej 16. roku życia. Restrykcje mają objąć także platformy gamingowe i streamingowe, jeśli umożliwiają dzieciom kontakt z nieznajomymi.</div>
-    
+    <a class="read-source" href="https://www.polsatnews.pl/wiadomosc/2026-06-15/chwilowe-zacmienie-kosztowalo-21-latke-zycie-ustalenia-po-tragedii-na-bungee/" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
   </ul>
@@ -138,69 +173,99 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
-  <a href="https://www.bankier.pl/wiadomosc/Niedobory-paliwa-w-Rosji-Kryzys-na-stacjach-i-decyzja-Kremla-9151223.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Niedobory paliwa w Rosji. Kryzys na stacjach i decyzja Kremla</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Lata-2025-2030-moga-okazac-sie-okresem-przyspieszonej-transformacji-ochrony-zdrowia-w-CEE-Synektik-9151443.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Cyfrowa rewolucja w szpitalach. Raport Synektik zapowiada medyczny boom</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Rosyjskie władze zezwoliły niektórym rafineriom na produkcję benzyny i oleju napędowego o niższych parametrach środowiskowych na rynek krajowy ze względu na niedobory paliwa - poinformowała w poniedziałek agencja Reutera, powołując się na rosyjskie media.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Lata 2025–2030 mogą okazać się okresem przyspieszonej transformacji ochrony zdrowia w Europie Środkowo-Wschodniej - podał Synektik w raporcie „Przyszłość automatyzacji ochrony zdrowia w Europie Środkowo-Wschodniej 2030”. Kluczowe strategie wdrażane w 2026 r.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Lata-2025-2030-moga-okazac-sie-okresem-przyspieszonej-transformacji-ochrony-zdrowia-w-CEE-Synektik-9151443.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Pakiet-CPN-po-nowemu-Ekonomisci-prognozuja-wzrost-cen-paliw-9151149.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Pakiet CPN po nowemu. Ekonomiści prognozują wzrost cen paliw</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Rada-UE-i-Parlament-Europejski-podpisaly-w-poniedzialek-porozumienie-o-nowych-prawach-pasazerow-linii-lotniczych-9151693.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Historyczne porozumienie po 13 latach. UE drastycznie zaostrza prawa pasażerów linii lotniczych</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Przedłużenie pakietu CPN z wyłączeniem obniżki akcyzy przełoży się na wzrost cen detalicznych paliw o ponad 4 proc. i przełoży się na wzrost inflacji w czerwcu i lipcu - wynika z szacunków ekonomistów: PKO BP i Erste Bank Polska.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Rada UE i Parlament Europejski po 13 latach negocjacji podpisały w poniedziałek porozumienie wzmacniające prawa pasażerów linii lotniczych, w tym ułatwiające im staranie się o odszkodowanie w sytuacji opóźnienia lub odwołania lotu i zabraniające praktyk, jak rozsadzanie rodzica z dzieckiem.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Rada-UE-i-Parlament-Europejski-podpisaly-w-poniedzialek-porozumienie-o-nowych-prawach-pasazerow-linii-lotniczych-9151693.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Ranking-kredytow-hipotecznych-czerwiec-2026-najlepsze-kredyty-hipoteczne-9150313.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Pozorne ruchy w hipotekach, tańszego kredytu na razie brak</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Przelom-w-Brukseli-UE-otwiera-pierwszy-klaster-negocjacyjny-z-Ukraina-i-Moldawia-9151692.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Przełom w Brukseli. UE otwiera pierwszy klaster negocjacyjny z Ukrainą i Mołdawią</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Ten, kto obniżał oprocentowanie przed miesiącem, teraz proponuje wyższe stawki. I vice versa. Na rynku kredytów hipotecznych ze stałym oprocentowaniem trwa „taniec w miejscu”. Są jednak także dobre wiadomości dla kredytobiorców.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Unia Europejska otworzyła w poniedziałek pierwszy tzw. klaster negocjacyjny z Ukrainą. Nastąpiło to cztery lata od momentu nadania temu krajowi przez Wspólnotę statusu kandydata, a dwa - od rozpoczęcia rozmów akcesyjnych. Tego dnia UE otworzy również pierwszy klaster z Mołdawią.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Przelom-w-Brukseli-UE-otwiera-pierwszy-klaster-negocjacyjny-z-Ukraina-i-Moldawia-9151692.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Uwalniaja-kapital-na-rozwoj-Miliardy-euro-plyna-takze-do-polskich-firm-9150976.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Uwalniają kapitał na rozwój. Miliardy euro płyną także do polskich firm</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Rewolucja-w-Czechach-Rzad-likwiduje-abonament-i-obcina-budzet-mediow-publicznych-9151679.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Rewolucja w Czechach. Rząd likwiduje abonament i obcina budżet mediów publicznych</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Dla przeciętnego Kowalskiego „sekurytyzacja” może brzmieć jak abstrakcyjne pojęcie z podręczników bankowości. Tymczasem to właśnie ten mechanizm finansowy sprawia, że lokalna firma dostaje tańszy kredyt na nową linię produkcyjną czy instalację magazynu energii.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Czeski rząd zatwierdził w poniedziałek projekt ustawy, która odchodzi od finansowania mediów publicznych z opłat abonamentowych i zamienia je na dotację z budżetu państwa.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Rewolucja-w-Czechach-Rzad-likwiduje-abonament-i-obcina-budzet-mediow-publicznych-9151679.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Dagmara-Brzezinska-nowa-szefowa-Google-w-Polsce-Wielki-transfer-z-InPostu-9151400.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Dagmara Brzezińska nową szefową Google w Polsce. Wielki transfer z InPostu?</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Trump-potwierdza-w-Waszyngtonie-Dodatkowe-5-tysiecy-zolnierzy-USA-trafi-do-Polski-9151664.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Trump potwierdza w Waszyngtonie: Dodatkowe 5 tysięcy żołnierzy USA trafi do Polski</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Dagmara Brzezińska zostanie nową szefową Google w Polsce - podało Google Polska na platformie LinkedIn.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Publiczne zapewnienie Donalda Trumpa o dodatkowych 5 tys. żołnierzy amerykańskich w Polsce zostało podtrzymane - poinformował szef Biura Polityki Międzynarodowej KPRP Marcin Przydacz. Był to jeden z tematów rozmów prezydenta Karola Nawrockiego z prezydentem USA w Waszyngtonie.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Trump-potwierdza-w-Waszyngtonie-Dodatkowe-5-tysiecy-zolnierzy-USA-trafi-do-Polski-9151664.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bankier.pl/wiadomosc/Koniec-dominacji-Allegro-TikTok-Shop-wlasnie-zadebiutowal-w-Polsce-9151361.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Koniec dominacji Allegro? TikTok Shop właśnie zadebiutował w Polsce</span>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Magyar-spelnia-obietnice-Wegierski-premier-bedzie-mogl-rzadzic-maksymalnie-8-lat-9151656.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Magyar spełnia obietnicę. Węgierski premier będzie mógł rządzić maksymalnie 8 lat</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Wielka rewolucja w polskim e-commerce stała się faktem. TikTok Shop oficjalnie wystartował w Polsce. Gigant technologiczny oficjalnie wchodzi na nasz rynek i rzuca wyzwanie tradycyjnym platformom zakupowym.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Węgierski parlament przyjął w poniedziałek zmiany w zapisach konstytucji, które wprowadzają limit czasu, przez jaki premier może sprawować swoją funkcję – ma on wynosić osiem lat, czyli dwie kadencje – poinformowała agencja AFP.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych.</div>
     
+    <a class="read-source" href="https://www.bankier.pl/wiadomosc/Magyar-spelnia-obietnice-Wegierski-premier-bedzie-mogl-rzadzic-maksymalnie-8-lat-9151656.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
   </ul>
@@ -210,69 +275,163 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2026-06-15/atp-w-londynie-zielinskijohnson-leheckamensik-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">ATP w Londynie: Zieliński/Johnson - Lehecka/Mensik. Relacja live i wynik na żywo</span>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/ofsajd/radoslaw-piesiewicz-pominal-kacpra-tomasiaka-jest-reakcja-ojca-skoczka/8881nh6" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Przegląd Sportowy</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Radosław Piesiewicz pominął Kacpra Tomasiaka. Jest reakcja ojca skoczka</span>
+      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Jan Zieliński/Luke Johnson - Jiri Lehecka/Jakub Mensik to spotkanie pierwszej rundy turnieju ATP w Londynie. Relacja live i wynik na żywo meczu Jan Zieliński/Luke Johnson - Jiri Lehecka/Jakub Mensik na Polsatsport.pl.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Radosław Piesiewicz dotrzymał obietnicy i poinformował, że polscy medaliści olimpijscy z Mediolanu i Cortiny otrzymali zaległe wypłaty za medale wywalczone na tej imprezie czterolecia. W swoim przemówieniu podziękował za cierpliwość Pawłowi Wąskowi i Władimirowi Semirunnijowi, przy czym pominął Kacpra Tomasiaka.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
     
+    <a class="read-source" href="https://przegladsportowy.onet.pl/ofsajd/radoslaw-piesiewicz-pominal-kacpra-tomasiaka-jest-reakcja-ojca-skoczka/8881nh6" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2026-06-15/orlen-basket-liga-orlen-zastal-zielona-gora-legia-warszawa-transmisja-tv-i-stream-online-1/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">ORLEN Basket Liga: Orlen Zastal Zielona Góra - Legia Warszawa. Transmisja TV i stream online</span>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/radoslaw-piesiewicz-przeglosowany-walne-zgromadzenie-pkol-u-zakonczylo-sie-sukcesem-opozycji/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Radosław Piesiewicz przegłosowany. Walne Zgromadzenie PKOl-u zakończyło się sukcesem opozycji</span>
+      <span class="source-line">Źródło: Polsat Sport</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Legia Warszawa po porażce w pierwszym meczu finałowej rywalizacji z Orlen Zastalem Zielona Góra wygrała dwa kolejne spotkania. Kto zwycięży czwarte starcie? Gdzie obejrzeć mecz Zastal - Legia? Transmisja w Polsacie Sport 1, Polsacie Sport Extra 4 oraz na platformie Polsat Box Go.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> 117 delegatów Polskiego Komitetu Olimpijskiego powiedziało dość! Prezes Radosław Piesiewicz został wezwany do złożenia dymisji.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
     
+    <a class="read-source" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/radoslaw-piesiewicz-przeglosowany-walne-zgromadzenie-pkol-u-zakonczylo-sie-sukcesem-opozycji/" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2026-06-14/usa-wlochy-relacja-live-wynik-na-zywo-liga-narodow-siatkowka/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Liga Narodów siatkarzy: USA - Włochy. Relacja live i wynik na żywo</span>
+  <a class="news-main-link" href="https://sport.tvp.pl/93814728/mateusz-klich-w-roli-mundialowego-reportera-wideo" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">TVP Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Mateusz Klich w roli mundialowego reportera! [WIDEO]</span>
+      <span class="source-line">Źródło: TVP Sport</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Stany Zjednoczone zagrają z Włochami w meczu Ligi Narodów siatkarzy. Kiedy i o której godzinie zostanie rozegrane to spotkanie? Kto wygra? Relacja na żywo i wynik meczu USA - Włochy na Polsatsport.pl.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Mateusz Klich jest wysłannikiem TVP Sport na piłkarskie mistrzostwa świata. Były reprezentant Polski w USA zmierzył się z kolejnym nowym zadaniem. Przygotował sondę z tamtejszymi kibicami. Sprawdźcie efekty w naszym wideo!</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
     
+    <a class="read-source" href="https://sport.tvp.pl/93814728/mateusz-klich-w-roli-mundialowego-reportera-wideo" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2026-06-14/wta-w-berlinie-magdalena-frech-shuai-zhang-relacja-live-i-wynik-na-zywo/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">WTA w Berlinie: Magdalena Fręch - Shuai Zhang. Relacja live i wynik na żywo</span>
+  <a class="news-main-link" href="https://www.bbc.com/sport/football/articles/c4gy0lgp1v9o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BBC Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Taking a leaf from Arsenal&#x27;s playbook - Tuchel&#x27;s set-piece plan</span>
+      <span class="source-line">Źródło: BBC Sport</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Magdalena Fręch - Shuai Zhang to finałowy mecz kwalifikacji do tegorocznej edycji turnieju WTA w Berlinie. Relacja live i wynik na żywo meczu Magdalena Fręch - Shuai Zhang na Polsatsport.pl.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Arsenal are set-piece masters, with prominent figures in England&#x27;s World Cup squad, so it is understandable that Thomas Tuchel will look to play to the Premier League champions&#x27; strengths.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
     
+    <a class="read-source" href="https://www.bbc.com/sport/football/articles/c4gy0lgp1v9o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.polsatsport.pl/wiadomosc/2026-06-14/polsat-sport-talk-15-06-transmisja-tv-i-stream-online/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">Polsat Sport Talk - 15.06. Transmisja TV i stream online</span>
+  <a class="news-main-link" href="https://sportowefakty.wp.pl/inne/1256697/piesiewicz-milczal-cztery-godziny-na-koniec-zaskoczyl-a-na-sali-okrzyki-targowic" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">SportoweFakty WP</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Piesiewicz milczał cztery godziny. Na koniec zaskoczył. A na sali okrzyki: &quot;Targowica&quot;</span>
+      <span class="source-line">Źródło: SportoweFakty WP</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Gościem Przemysława Iwańczyka w poniedziałkowym podcaście Polsat Sport Talk będzie profesorka UEW i prezeska Fundacji Marka Polska Think Tank, dr hab. Barbara Mróz-Gorgoń.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> - Jesteście jak Targowica. Chcecie wywieźć dobrego prezesa na taczce - krzyczał wicemistrz olimpijski, Tadeusz Mytnik. Awantura przeciwników ze stronnikami prezesa Radosława Piesiewicza podczas Walnego Zgromadzenia PKOl-u trwała ponad cztery godziny.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To temat sportowy z wiarygodnego źródła, który pomaga śledzić najważniejsze rozstrzygnięcia i ich kontekst.</div>
     
+    <a class="read-source" href="https://sportowefakty.wp.pl/inne/1256697/piesiewicz-milczal-cztery-godziny-na-koniec-zaskoczyl-a-na-sali-okrzyki-targowic" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
 <li>
-  <a href="https://www.bbc.com/sport/tennis/articles/cewpevz8w1ko?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BriefRooms</span><span class="sub">powered by AI</span></span>
-    <span class="news-text">How to follow Queen&#x27;s live on the BBC as men&#x27;s tournament starts</span>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/mistrzostwa-swiata-2026-grupa-h-tak-wyglada-tabela/y2mbtzj" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Przegląd Sportowy</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Mistrzostwa świata 2026. Grupa H. Tak wygląda tabela</span>
+      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> How to follow the men&#x27;s HSBC Championships at Queen&#x27;s live on the BBC.</div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Oto tabela grupy H na MŚ 2026. Grają w niej Hiszpania, Urugwaj, Arabia Saudyjska oraz Republika Zielonego Przylądka.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
     
+    <a class="read-source" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/mistrzostwa-swiata-2026-grupa-h-tak-wyglada-tabela/y2mbtzj" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://sport.tvp.pl/93819201/reprezentacja-polski-siatkarek-gotowa-na-turniej-ligi-narodow-w-bangkoku-stefano-lavarini-dokonal-trzech-zmian" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">TVP Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Reprezentacja Polski siatkarek gotowa na turniej Ligi Narodów w Bangkoku. Stefano Lavarini dokonał trzech zmian</span>
+      <span class="source-line">Źródło: TVP Sport</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Reprezentacja Polski siatkarek gotowa na turniej Ligi Narodów w Bangkoku.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To temat sportowy z wiarygodnego źródła, który pomaga śledzić najważniejsze rozstrzygnięcia i ich kontekst.</div>
+    
+    <a class="read-source" href="https://sport.tvp.pl/93819201/reprezentacja-polski-siatkarek-gotowa-na-turniej-ligi-narodow-w-bangkoku-stefano-lavarini-dokonal-trzech-zmian" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/katastrofa-hiszpanii-na-ms-2026-530-tysieczny-kraj-dokonal-historycznego-wyczynu/qhssclb" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Przegląd Sportowy</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Katastrofa Hiszpanii na MŚ 2026. 530-tysięczny kraj dokonał historycznego wyczynu</span>
+      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Największa sensacja mistrzostw świata. Hiszpanie stracili punkty z absolutnym debiutantem — Republiką Zielonego Przylądka (0:0). Przez pierwsze 30 minut... napastnik mistrzów Europy nawet nie dotknął piłki!</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
+    <div class="sec"><strong>Uwaga:</strong> Uwaga: brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie.</div>
+    <a class="read-source" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/katastrofa-hiszpanii-na-ms-2026-530-tysieczny-kraj-dokonal-historycznego-wyczynu/qhssclb" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/pierwszy-taki-mecz-w-historii-mundialu-chodzi-o-sedziowanie/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Pierwszy taki mecz w historii mundialu! Chodzi o sędziowanie</span>
+      <span class="source-line">Źródło: Polsat Sport</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Amerykanka Tori Penso będzie w czwartek arbitrem głównym meczu piłkarskich mistrzostw świata Czechy - Republika Południowej Afryki. Liniowymi będą jej rodaczki Brooke May i Kathryn Nesbitt. Po raz pierwszy w historii spotkanie mundialu poprowadzą trzy kobiety z tego samego kraju.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
+    
+    <a class="read-source" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/pierwszy-taki-mecz-w-historii-mundialu-chodzi-o-sedziowanie/" target="_blank" rel="noopener">Czytaj źródło</a>
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/japonscy-kibice-znowu-zachwycili-swiat-tak-to-powinno-wygladac/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Japońscy kibice znowu zachwycili świat! Tak to powinno wyglądać</span>
+      <span class="source-line">Źródło: Polsat Sport</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Przy okazji praktycznie każdej dużej piłkarskiej imprezy fani z całego świata zachwycają się wysoką kulturą osobistą japońskich kibiców. Nie inaczej jest podczas trwających obecnie mistrzostw świata.</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej.</div>
+    
+    <a class="read-source" href="https://www.polsatsport.pl/wiadomosc/2026-06-15/japonscy-kibice-znowu-zachwycili-swiat-tak-to-powinno-wygladac/" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>
   </ul>
