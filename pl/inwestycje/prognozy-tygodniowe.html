@@ -16,6 +16,17 @@
     .lead{font-size:1.06rem;line-height:1.55;max-width:850px;margin:0 auto;color:#1f2937;}
     .notice,.week-card{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.10);margin:16px 0;padding:18px 20px;}
     .notice strong{color:#92400e;}
+    .price-panel{background:#111827;color:#f9fafb;border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.18);margin:16px 0;padding:18px 20px;}
+    .price-panel h2{margin:.1rem 0 1rem;}
+    .price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}
+    .price-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px;}
+    .price-card h3{margin:.1rem 0 .7rem;color:#bfdbfe;}
+    .price-card dl{display:grid;gap:8px;margin:0;}
+    .price-card div{border-top:1px solid rgba(255,255,255,.12);padding-top:8px;}
+    .price-card div:first-child{border-top:0;padding-top:0;}
+    .price-card dt{color:#cbd5e1;}
+    .price-card dd{color:#fff;}
+    .price-card p{color:#fcd34d;margin:.7rem 0 0;}
     .week-head{border-bottom:1px solid #e5e7eb;margin-bottom:14px;padding-bottom:10px;}
     .week-head h2{margin:.1rem 0 .25rem;}
     .week-head p{margin:.2rem 0;color:#4b5563;}
@@ -39,8 +50,29 @@
     <section class="notice">
       <p><strong>Uwaga:</strong> To jest analiza edukacyjna i dziennik skuteczności modelu. Nie jest to rekomendacja inwestycyjna, porada finansowa ani oferta zawarcia transakcji.</p>
       <p>Metoda jest zapisana w pliku data/investments/methodology.json i może być wersjonowana oraz ulepszana. <a href="/data/investments/methodology.json">methodology.json</a> · <a href="/data/investments/method_changelog.md">changelog</a></p>
-      <p>Ostatnia aktualizacja strony: 2026-06-12 23:46 CEST</p>
+      <p>Ostatnia aktualizacja strony: 2026-06-15 19:48 CEST</p>
     </section>
+      <section class="price-panel">
+        <h2>Bieżące ceny do wyceny pozycji</h2>
+        <div class="price-grid">
+          <div class="price-card">
+            <h3>EUR/USD</h3>
+            <dl>
+              <div><dt>Bieżąca cena EUR/USD</dt><dd>1.16036</dd></div>
+              <div><dt>Ostatnia aktualizacja ceny</dt><dd>2026-06-15 19:47 UTC+02:00</dd></div>
+              <div><dt>Źródło ceny</dt><dd>Yahoo Finance:EURUSD=X:chart:1d:1m</dd></div>
+            </dl>
+          </div>
+          <div class="price-card">
+            <h3>S&amp;P 500 futures</h3>
+            <dl>
+              <div><dt>Bieżąca cena S&amp;P 500 futures</dt><dd>7 641.50</dd></div>
+              <div><dt>Ostatnia aktualizacja ceny</dt><dd>2026-06-15 19:38 UTC+02:00</dd></div>
+              <div><dt>Źródło ceny</dt><dd>Yahoo Finance:ES=F:chart:1d:1m</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
 
       <section class="week-card">
         <div class="week-head">
@@ -48,7 +80,7 @@
           <p>Tydzień: 2026-06-08 — 2026-06-12</p>
           <p>Prognoza utworzona: — · metoda v1.2.0</p>
         </div>
-        
+
         <article class="forecast-instrument">
           <h3>EUR/USD</h3>
           <dl class="metrics">
@@ -56,12 +88,13 @@
             <div><dt>Score</dt><dd>0</dd></div>
             <div><dt>Pewność</dt><dd>0%</dd></div>
             <div><dt>Otwarcie</dt><dd>—</dd></div>
-            <div><dt>Zamknięcie</dt><dd>1.15727</dd></div>
-            <div><dt>Wynik</dt><dd>w trakcie / — / —</dd></div>
+            <div><dt>Zamknięcie</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>Brak transakcji</dd></div>
+            <div><dt>Wynik</dt><dd>—</dd></div>
           </dl>
           <ul class="rationale"><li>Brak prognozy niedzielnej — zapis techniczny ceny dla archiwum.</li></ul>
         </article>
-    
+
         <article class="forecast-instrument">
           <h3>S&amp;P 500 futures</h3>
           <dl class="metrics">
@@ -69,14 +102,15 @@
             <div><dt>Score</dt><dd>0</dd></div>
             <div><dt>Pewność</dt><dd>0%</dd></div>
             <div><dt>Otwarcie</dt><dd>—</dd></div>
-            <div><dt>Zamknięcie</dt><dd>7 436.25</dd></div>
-            <div><dt>Wynik</dt><dd>w trakcie / — / —</dd></div>
+            <div><dt>Zamknięcie</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>Brak transakcji</dd></div>
+            <div><dt>Wynik</dt><dd>—</dd></div>
           </dl>
           <ul class="rationale"><li>Brak prognozy niedzielnej — zapis techniczny ceny dla archiwum.</li></ul>
         </article>
-    
+
       </section>
-            
+
     <p class="back">← <a href="/pl/inwestycje.html">Wróć do Inwestycji</a></p>
   </main>
   <footer>© BriefRooms</footer>

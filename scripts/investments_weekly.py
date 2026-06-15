@@ -20,9 +20,11 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 try:
@@ -33,6 +35,7 @@ except Exception:  # pragma: no cover - GitHub Action installs it
 REPO = Path(__file__).resolve().parents[1]
 METHOD_PATH = REPO / "data" / "investments" / "methodology.json"
 WEEKLY_DIR = REPO / "data" / "investments" / "weekly"
+LIVE_PRICE_PATH = REPO / "data" / "investments" / "live_prices.json"
 PL_PAGE = REPO / "pl" / "inwestycje" / "prognozy-tygodniowe.html"
 EN_PAGE = REPO / "en" / "investing" / "weekly-forecasts.html"
 TZ = ZoneInfo("Europe/Warsaw")
@@ -56,9 +59,16 @@ def load_json(path: Path, default: Any) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_json(path: Path, data: Any) -> None:
+def write_text_lf(path: Path, content: str) -> None:
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    content = "\n".join(line.rstrip() for line in content.split("\n"))
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+
+
+def write_json(path: Path, data: Any) -> None:
+    write_text_lf(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
 def week_id_from_date(dt: datetime) -> str:
@@ -126,10 +136,48 @@ def download_close_series(symbol: str, period: str = "6mo", interval: str = "1d"
         return []
 
 
+def get_yahoo_chart_price(symbol: str) -> PricePoint:
+    stamp = now_local().isoformat(timespec="seconds")
+    encoded = quote(symbol, safe="")
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range=1d&interval=1m"
+    try:
+        req = Request(url, headers={"User-Agent": "BriefRooms/1.0"})
+        with urlopen(req, timeout=12) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        result = (payload.get("chart", {}).get("result") or [None])[0]
+        if not result:
+            return PricePoint(None, stamp, f"Yahoo Finance:{symbol}", "empty chart response")
+
+        meta = result.get("meta", {})
+        timestamps = result.get("timestamp") or []
+        quote_data = ((result.get("indicators", {}).get("quote") or [{}])[0]).get("close") or []
+        for ts, close in reversed(list(zip(timestamps, quote_data))):
+            price = safe_float(close)
+            if price is not None:
+                price_ts = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(TZ).isoformat(timespec="seconds")
+                return PricePoint(price, price_ts, f"Yahoo Finance:{symbol}:chart:1d:1m")
+
+        regular = safe_float(meta.get("regularMarketPrice"))
+        if regular is not None:
+            market_ts = safe_float(meta.get("regularMarketTime"))
+            price_ts = (
+                datetime.fromtimestamp(market_ts, tz=timezone.utc).astimezone(TZ).isoformat(timespec="seconds")
+                if market_ts else stamp
+            )
+            return PricePoint(regular, price_ts, f"Yahoo Finance:{symbol}:regularMarketPrice")
+        return PricePoint(None, stamp, f"Yahoo Finance:{symbol}", "no usable live price")
+    except Exception as exc:
+        return PricePoint(None, stamp, f"Yahoo Finance:{symbol}", str(exc))
+
+
 def get_current_price(symbol: str) -> PricePoint:
+    yahoo = get_yahoo_chart_price(symbol)
+    if yahoo.price is not None:
+        return yahoo
+
     stamp = now_local().isoformat(timespec="seconds")
     if yf is None:
-        return PricePoint(None, stamp, "yfinance", "yfinance unavailable")
+        return PricePoint(None, stamp, "Yahoo Finance/yfinance", yahoo.note or "yfinance unavailable")
     # Prefer a recent intraday quote; fall back to latest daily close.
     for period, interval in [("5d", "5m"), ("1mo", "1d")]:
         try:
@@ -150,7 +198,8 @@ def get_current_price(symbol: str) -> PricePoint:
                 return PricePoint(safe_float(close.iloc[-1]), stamp, f"yfinance:{symbol}:{period}:{interval}")
         except Exception as exc:
             last_error = str(exc)
-    return PricePoint(None, stamp, "yfinance", locals().get("last_error", "no price"))
+    note = locals().get("last_error") or yahoo.note or "no price"
+    return PricePoint(None, stamp, "Yahoo Finance/yfinance", note)
 
 
 def ema(values: List[float], span: int) -> List[float]:
@@ -335,6 +384,56 @@ def make_forecast() -> Path:
     return path
 
 
+def capture_live_prices() -> Dict[str, Any]:
+    method = load_json(METHOD_PATH, {})
+    existing = load_json(LIVE_PRICE_PATH, {"prices": {}})
+    old_prices = existing.get("prices", {}) if isinstance(existing, dict) else {}
+    now_stamp = now_local().isoformat(timespec="seconds")
+    out: Dict[str, Any] = {
+        "updated_at": now_stamp,
+        "prices": {},
+    }
+
+    for inst in method.get("instruments", []):
+        inst_id = inst.get("id")
+        symbol = inst.get("symbol")
+        if not inst_id or not symbol:
+            continue
+        prev = old_prices.get(inst_id, {}) if isinstance(old_prices, dict) else {}
+        pp = get_current_price(symbol)
+        if pp.price is not None:
+            out["prices"][inst_id] = {
+                "price": pp.price,
+                "timestamp": pp.timestamp,
+                "source": pp.source,
+                "fresh": True,
+                "note": pp.note,
+            }
+        elif prev.get("price") is not None:
+            kept = dict(prev)
+            kept["fresh"] = False
+            kept["last_attempt_at"] = pp.timestamp
+            kept["note"] = pp.note or "brak świeżej ceny"
+            out["prices"][inst_id] = kept
+        else:
+            out["prices"][inst_id] = {
+                "price": None,
+                "timestamp": pp.timestamp,
+                "source": pp.source,
+                "fresh": False,
+                "note": pp.note or "brak świeżej ceny",
+            }
+
+    write_json(LIVE_PRICE_PATH, out)
+    return out
+
+
+def load_live_prices(refresh: bool = False) -> Dict[str, Any]:
+    if refresh:
+        return capture_live_prices()
+    return load_json(LIVE_PRICE_PATH, {"prices": {}})
+
+
 def calculate_result(item: Dict[str, Any], inst_cfg: Dict[str, Any]) -> None:
     entry = safe_float(item.get("entry_price"))
     exit_ = safe_float(item.get("exit_price"))
@@ -357,6 +456,21 @@ def calculate_result(item: Dict[str, Any], inst_cfg: Dict[str, Any]) -> None:
         item["result"] = "profit"
     else:
         item["result"] = "loss"
+
+
+def strategy_move(entry: float, mark: float, direction: str, inst_cfg: Dict[str, Any]) -> Tuple[float, Optional[float]]:
+    unit_size = safe_float(inst_cfg.get("pip_size")) or safe_float(inst_cfg.get("point_size")) or 1.0
+    raw = mark - entry
+    strategy_raw = raw if direction == "long" else -raw
+    value = round(strategy_raw / unit_size, 2)
+    percent = round((strategy_raw / entry) * 100.0, 4) if entry else None
+    return value, percent
+
+
+def result_from_move(value: float) -> str:
+    if abs(value) < 0.05:
+        return "flat"
+    return "profit" if value > 0 else "loss"
 
 
 def capture_prices(kind: str) -> Optional[Path]:
@@ -455,6 +569,94 @@ def result_label(result: Optional[str], lang: str) -> str:
     return labels[lang].get(result, str(result))
 
 
+def timestamp_label(ts: Any) -> str:
+    if not ts:
+        return "—"
+    text = str(ts)
+    try:
+        return datetime.fromisoformat(text).strftime("%Y-%m-%d %H:%M %Z")
+    except Exception:
+        return text
+
+
+def live_record(live_prices: Dict[str, Any], inst_id: str) -> Dict[str, Any]:
+    prices = live_prices.get("prices", {}) if isinstance(live_prices, dict) else {}
+    rec = prices.get(inst_id, {}) if isinstance(prices, dict) else {}
+    return rec if isinstance(rec, dict) else {}
+
+
+def no_fresh_price_label(lang: str) -> str:
+    return "brak świeżej ceny" if lang == "pl" else "no fresh price"
+
+
+def position_status_label(state: str, lang: str) -> str:
+    labels = {
+        "pl": {
+            "neutral": "Brak transakcji",
+            "planned": "Planowana pozycja",
+            "open": "Pozycja otwarta",
+            "closed": "Pozycja zamknięta",
+        },
+        "en": {
+            "neutral": "No trade",
+            "planned": "Planned position",
+            "open": "Open position",
+            "closed": "Position closed",
+        },
+    }
+    return labels[lang][state]
+
+
+def position_state(item: Dict[str, Any]) -> str:
+    direction = item.get("direction")
+    entry = safe_float(item.get("entry_price"))
+    exit_ = safe_float(item.get("exit_price"))
+    if direction == "neutral":
+        return "neutral"
+    if direction in {"long", "short"} and entry is None:
+        return "planned"
+    if direction in {"long", "short"} and entry is not None and exit_ is not None:
+        return "closed"
+    if direction in {"long", "short"} and entry is not None:
+        return "open"
+    return "neutral"
+
+
+def result_display(item: Dict[str, Any], inst_cfg: Dict[str, Any], live_prices: Dict[str, Any], lang: str) -> Tuple[str, str]:
+    state = position_state(item)
+    unit = "pips" if item.get("instrument_id") == "eurusd" else ("pkt" if lang == "pl" else "pts")
+
+    if state == "neutral":
+        return position_status_label("neutral", lang), "—"
+    if state == "planned":
+        pending = "jeszcze nierozliczony" if lang == "pl" else "not settled yet"
+        return position_status_label("planned", lang), pending
+
+    entry = safe_float(item.get("entry_price"))
+    direction = item.get("direction")
+    if entry is None or direction not in {"long", "short"}:
+        return position_status_label("neutral", lang), "—"
+
+    if state == "closed":
+        exit_ = safe_float(item.get("exit_price"))
+        if exit_ is None:
+            return position_status_label("closed", lang), "—"
+        value, pct = strategy_move(entry, exit_, direction, inst_cfg)
+        result = item.get("result") or result_from_move(value)
+        pct_txt = "—" if pct is None else f"{pct:+.2f}%"
+        return position_status_label("closed", lang), f"{result_label(result, lang)} / {value:+.2f} {unit} / {pct_txt}"
+
+    rec = live_record(live_prices, str(item.get("instrument_id", "")))
+    live_price = safe_float(rec.get("price"))
+    if live_price is None:
+        return position_status_label("open", lang), no_fresh_price_label(lang)
+    value, pct = strategy_move(entry, live_price, direction, inst_cfg)
+    pct_txt = "—" if pct is None else f"{pct:+.2f}%"
+    label = "w trakcie / wycena bieżąca" if lang == "pl" else "open / live mark"
+    freshness = "" if rec.get("fresh", False) else (" / ostatnia zapisana cena" if lang == "pl" else " / last saved price")
+    return position_status_label("open", lang), f"{label}{freshness} / {value:+.2f} {unit} / {pct_txt}"
+
+
 def load_weeklies() -> List[Dict[str, Any]]:
     if not WEEKLY_DIR.exists():
         return []
@@ -467,18 +669,15 @@ def load_weeklies() -> List[Dict[str, Any]]:
     return items
 
 
-def render_instrument_card(item: Dict[str, Any], lang: str) -> str:
+def render_instrument_card(item: Dict[str, Any], lang: str, inst_cfg: Dict[str, Any], live_prices: Dict[str, Any]) -> str:
     label = html.escape(item.get("label_pl" if lang == "pl" else "label_en", item.get("symbol", "")))
     direction = html.escape(direction_label(item.get("direction", "neutral"), lang))
     score = html.escape(str(item.get("score", "—")))
     conf = item.get("confidence")
     conf_txt = "—" if conf is None else f"{float(conf) * 100:.0f}%"
-    result = html.escape(result_label(item.get("result"), lang))
-    unit = "pips" if item.get("instrument_id") == "eurusd" else ("pkt" if lang == "pl" else "pts")
-    res_val = item.get("result_value")
-    res_txt = "—" if res_val is None else f"{res_val:+.2f} {unit}"
-    pct = item.get("result_percent")
-    pct_txt = "—" if pct is None else f"{pct:+.2f}%"
+    state = position_state(item)
+    status, result = result_display(item, inst_cfg, live_prices, lang)
+    exit_display = format_price(item.get("exit_price")) if state == "closed" else "—"
     rationale = item.get("rationale_pl" if lang == "pl" else "rationale_en", [])
     rationale_html = "".join(f"<li>{html.escape(str(x))}</li>" for x in rationale[:5])
     return f"""
@@ -489,16 +688,66 @@ def render_instrument_card(item: Dict[str, Any], lang: str) -> str:
             <div><dt>Score</dt><dd>{score}</dd></div>
             <div><dt>{'Pewność' if lang == 'pl' else 'Confidence'}</dt><dd>{html.escape(conf_txt)}</dd></div>
             <div><dt>{'Otwarcie' if lang == 'pl' else 'Entry'}</dt><dd>{format_price(item.get('entry_price'))}</dd></div>
-            <div><dt>{'Zamknięcie' if lang == 'pl' else 'Exit'}</dt><dd>{format_price(item.get('exit_price'))}</dd></div>
-            <div><dt>{'Wynik' if lang == 'pl' else 'Result'}</dt><dd>{result} / {html.escape(res_txt)} / {html.escape(pct_txt)}</dd></div>
+            <div><dt>{'Zamknięcie' if lang == 'pl' else 'Exit'}</dt><dd>{exit_display}</dd></div>
+            <div><dt>Status</dt><dd>{html.escape(status)}</dd></div>
+            <div><dt>{'Wynik' if lang == 'pl' else 'Result'}</dt><dd>{html.escape(result)}</dd></div>
           </dl>
           <ul class=\"rationale\">{rationale_html}</ul>
         </article>
     """
 
 
+def render_live_price_panel(method: Dict[str, Any], live_prices: Dict[str, Any], lang: str) -> str:
+    title = "Bieżące ceny do wyceny pozycji" if lang == "pl" else "Current prices for position marks"
+    cards = []
+    for inst in method.get("instruments", []):
+        inst_id = inst.get("id", "")
+        label = inst.get("label_pl" if lang == "pl" else "label_en", inst.get("symbol", inst_id))
+        rec = live_record(live_prices, inst_id)
+        price = safe_float(rec.get("price"))
+        price_label = format_price(price) if price is not None else no_fresh_price_label(lang)
+        if price is not None and not rec.get("fresh", False):
+            price_label += " (" + ("ostatnia zapisana cena" if lang == "pl" else "last saved price") + ")"
+        updated = timestamp_label(rec.get("timestamp") or rec.get("last_attempt_at"))
+        source = rec.get("source") or "—"
+        note = rec.get("note") or ""
+
+        if inst_id == "eurusd":
+            price_dt = "Bieżąca cena EUR/USD" if lang == "pl" else "Current EUR/USD price"
+        elif inst_id == "sp500_futures":
+            price_dt = "Bieżąca cena S&P 500 futures" if lang == "pl" else "Current S&P 500 futures price"
+        else:
+            price_dt = f"{'Bieżąca cena' if lang == 'pl' else 'Current price'} {label}"
+
+        card_lines = [
+            '          <div class="price-card">',
+            f"            <h3>{html.escape(str(label))}</h3>",
+            "            <dl>",
+            f"              <div><dt>{html.escape(price_dt)}</dt><dd>{html.escape(price_label)}</dd></div>",
+            f"              <div><dt>{'Ostatnia aktualizacja ceny' if lang == 'pl' else 'Last price update'}</dt><dd>{html.escape(updated)}</dd></div>",
+            f"              <div><dt>{'Źródło ceny' if lang == 'pl' else 'Price source'}</dt><dd>{html.escape(str(source))}</dd></div>",
+            "            </dl>",
+        ]
+        if note and price is None:
+            card_lines.append(f"            <p>{html.escape(str(note))}</p>")
+        card_lines.append("          </div>")
+        cards.append("\n".join(card_lines))
+
+    return "\n".join([
+        '      <section class="price-panel">',
+        f"        <h2>{html.escape(title)}</h2>",
+        '        <div class="price-grid">',
+        "\n".join(cards),
+        "        </div>",
+        "      </section>",
+    ])
+
+
 def render_page(lang: str) -> str:
     assert lang in {"pl", "en"}
+    method_cfg = load_json(METHOD_PATH, {})
+    live_prices = load_live_prices()
+    cfg_by_id = {x.get("id"): x for x in method_cfg.get("instruments", [])}
     weeks = load_weeklies()
     title = "Tygodniowe prognozy — EUR/USD i S&P 500 futures" if lang == "pl" else "Weekly forecasts — EUR/USD and S&P 500 futures"
     desc = (
@@ -518,14 +767,17 @@ def render_page(lang: str) -> str:
             start = html.escape(str(week.get("forecast_for_week_start", "")))
             end = html.escape(str(week.get("forecast_for_week_end", "")))
             created = html.escape(str(week.get("forecast_created_at") or "—"))
-            method = html.escape(str(week.get("method_version", "—")))
-            instruments = "".join(render_instrument_card(x, lang) for x in week.get("instruments", []))
+            method_version = html.escape(str(week.get("method_version", "—")))
+            instruments = "".join(
+                render_instrument_card(x, lang, cfg_by_id.get(x.get("instrument_id"), {}), live_prices)
+                for x in week.get("instruments", [])
+            )
             sections.append(f"""
       <section class=\"week-card\">
         <div class=\"week-head\">
           <h2>{week_id}</h2>
           <p>{'Tydzień' if lang == 'pl' else 'Week'}: {start} — {end}</p>
-          <p>{'Prognoza utworzona' if lang == 'pl' else 'Forecast created'}: {created} · {'metoda' if lang == 'pl' else 'method'} v{method}</p>
+          <p>{'Prognoza utworzona' if lang == 'pl' else 'Forecast created'}: {created} · {'metoda' if lang == 'pl' else 'method'} v{method_version}</p>
         </div>
         {instruments}
       </section>
@@ -568,6 +820,17 @@ def render_page(lang: str) -> str:
     .lead{{font-size:1.06rem;line-height:1.55;max-width:850px;margin:0 auto;color:#1f2937;}}
     .notice,.week-card{{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.10);margin:16px 0;padding:18px 20px;}}
     .notice strong{{color:#92400e;}}
+    .price-panel{{background:#111827;color:#f9fafb;border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.18);margin:16px 0;padding:18px 20px;}}
+    .price-panel h2{{margin:.1rem 0 1rem;}}
+    .price-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}}
+    .price-card{{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px;}}
+    .price-card h3{{margin:.1rem 0 .7rem;color:#bfdbfe;}}
+    .price-card dl{{display:grid;gap:8px;margin:0;}}
+    .price-card div{{border-top:1px solid rgba(255,255,255,.12);padding-top:8px;}}
+    .price-card div:first-child{{border-top:0;padding-top:0;}}
+    .price-card dt{{color:#cbd5e1;}}
+    .price-card dd{{color:#fff;}}
+    .price-card p{{color:#fcd34d;margin:.7rem 0 0;}}
     .week-head{{border-bottom:1px solid #e5e7eb;margin-bottom:14px;padding-bottom:10px;}}
     .week-head h2{{margin:.1rem 0 .25rem;}}
     .week-head p{{margin:.2rem 0;color:#4b5563;}}
@@ -593,6 +856,7 @@ def render_page(lang: str) -> str:
       <p>{html.escape(methodology_text)} <a href=\"/data/investments/methodology.json\">methodology.json</a> · <a href=\"/data/investments/method_changelog.md\">changelog</a></p>
       <p>{'Ostatnia aktualizacja strony' if lang == 'pl' else 'Page last updated'}: {html.escape(updated)}</p>
     </section>
+{render_live_price_panel(method_cfg, live_prices, lang)}
 {body_sections}
     <p class=\"back\">← <a href=\"{home_link}\">{html.escape(home_text)}</a></p>
   </main>
@@ -603,11 +867,13 @@ def render_page(lang: str) -> str:
 """
 
 
-def render_pages() -> None:
+def render_pages(refresh_live: bool = True) -> None:
+    if refresh_live:
+        capture_live_prices()
     PL_PAGE.parent.mkdir(parents=True, exist_ok=True)
     EN_PAGE.parent.mkdir(parents=True, exist_ok=True)
-    PL_PAGE.write_text(render_page("pl"), encoding="utf-8")
-    EN_PAGE.write_text(render_page("en"), encoding="utf-8")
+    write_text_lf(PL_PAGE, render_page("pl"))
+    write_text_lf(EN_PAGE, render_page("en"))
 
 
 def auto_mode() -> None:
