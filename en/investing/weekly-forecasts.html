@@ -16,6 +16,17 @@
     .lead{font-size:1.06rem;line-height:1.55;max-width:850px;margin:0 auto;color:#1f2937;}
     .notice,.week-card{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.10);margin:16px 0;padding:18px 20px;}
     .notice strong{color:#92400e;}
+    .price-panel{background:#111827;color:#f9fafb;border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.18);margin:16px 0;padding:18px 20px;}
+    .price-panel h2{margin:.1rem 0 1rem;}
+    .price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}
+    .price-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px;}
+    .price-card h3{margin:.1rem 0 .7rem;color:#bfdbfe;}
+    .price-card dl{display:grid;gap:8px;margin:0;}
+    .price-card div{border-top:1px solid rgba(255,255,255,.12);padding-top:8px;}
+    .price-card div:first-child{border-top:0;padding-top:0;}
+    .price-card dt{color:#cbd5e1;}
+    .price-card dd{color:#fff;}
+    .price-card p{color:#fcd34d;margin:.7rem 0 0;}
     .week-head{border-bottom:1px solid #e5e7eb;margin-bottom:14px;padding-bottom:10px;}
     .week-head h2{margin:.1rem 0 .25rem;}
     .week-head p{margin:.2rem 0;color:#4b5563;}
@@ -39,44 +50,29 @@
     <section class="notice">
       <p><strong>Note:</strong> This is educational market analysis and a model-performance log. It is not investment advice, financial advice or an offer to trade.</p>
       <p>The method is stored in data/investments/methodology.json and can be versioned and improved. <a href="/data/investments/methodology.json">methodology.json</a> · <a href="/data/investments/method_changelog.md">changelog</a></p>
-      <p>Page last updated: 2026-06-15 14:38 CEST</p>
+      <p>Page last updated: 2026-06-15 19:48 CEST</p>
     </section>
-
-      <section class="week-card">
-        <div class="week-head">
-          <h2>2026-W25</h2>
-          <p>Week: 2026-06-15 — 2026-06-19</p>
-          <p>Forecast created: 2026-06-14T19:38:41+02:00 · method v1.2.0</p>
+      <section class="price-panel">
+        <h2>Current prices for position marks</h2>
+        <div class="price-grid">
+          <div class="price-card">
+            <h3>EUR/USD</h3>
+            <dl>
+              <div><dt>Current EUR/USD price</dt><dd>1.16036</dd></div>
+              <div><dt>Last price update</dt><dd>2026-06-15 19:47 UTC+02:00</dd></div>
+              <div><dt>Price source</dt><dd>Yahoo Finance:EURUSD=X:chart:1d:1m</dd></div>
+            </dl>
+          </div>
+          <div class="price-card">
+            <h3>S&amp;P 500 futures</h3>
+            <dl>
+              <div><dt>Current S&amp;P 500 futures price</dt><dd>7 641.50</dd></div>
+              <div><dt>Last price update</dt><dd>2026-06-15 19:38 UTC+02:00</dd></div>
+              <div><dt>Price source</dt><dd>Yahoo Finance:ES=F:chart:1d:1m</dd></div>
+            </dl>
+          </div>
         </div>
-        
-        <article class="forecast-instrument">
-          <h3>EUR/USD</h3>
-          <dl class="metrics">
-            <div><dt>Direction</dt><dd>Short / bearish</dd></div>
-            <div><dt>Score</dt><dd>-32</dd></div>
-            <div><dt>Confidence</dt><dd>32%</dd></div>
-            <div><dt>Entry</dt><dd>1.16131</dd></div>
-            <div><dt>Exit</dt><dd>—</dd></div>
-            <div><dt>Result</dt><dd>open / — / —</dd></div>
-          </dl>
-          <ul class="rationale"><li>Model v1.2.0 indicates: bearish scenario.</li><li>Trend: EMA20 is below EMA50; last price is below EMA20.</li><li>Momentum: 5 days -0.34%, 20 days -0.77%.</li><li>Volatility is neutral versus recent weeks.</li><li>This is an educational scenario, not investment advice.</li></ul>
-        </article>
-    
-        <article class="forecast-instrument">
-          <h3>S&amp;P 500 futures</h3>
-          <dl class="metrics">
-            <div><dt>Direction</dt><dd>Neutral / no trade</dd></div>
-            <div><dt>Score</dt><dd>0</dd></div>
-            <div><dt>Confidence</dt><dd>0%</dd></div>
-            <div><dt>Entry</dt><dd>7 589.00</dd></div>
-            <div><dt>Exit</dt><dd>—</dd></div>
-            <div><dt>Result</dt><dd>open / — / —</dd></div>
-          </dl>
-          <ul class="rationale"><li>Model v1.2.0 indicates: neutral / no trade.</li><li>Trend: EMA20 is above EMA50; last price is below EMA20.</li><li>Momentum: 5 days +0.47%, 20 days -1.20%.</li><li>Volatility is neutral versus recent weeks.</li><li>This is an educational scenario, not investment advice.</li></ul>
-        </article>
-    
       </section>
-            
 
       <section class="week-card">
         <div class="week-head">
@@ -84,7 +80,7 @@
           <p>Week: 2026-06-08 — 2026-06-12</p>
           <p>Forecast created: — · method v1.2.0</p>
         </div>
-        
+
         <article class="forecast-instrument">
           <h3>EUR/USD</h3>
           <dl class="metrics">
@@ -92,12 +88,13 @@
             <div><dt>Score</dt><dd>0</dd></div>
             <div><dt>Confidence</dt><dd>0%</dd></div>
             <div><dt>Entry</dt><dd>—</dd></div>
-            <div><dt>Exit</dt><dd>1.15727</dd></div>
-            <div><dt>Result</dt><dd>open / — / —</dd></div>
+            <div><dt>Exit</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>No trade</dd></div>
+            <div><dt>Result</dt><dd>—</dd></div>
           </dl>
           <ul class="rationale"><li>No Sunday forecast — technical price capture for the archive.</li></ul>
         </article>
-    
+
         <article class="forecast-instrument">
           <h3>S&amp;P 500 futures</h3>
           <dl class="metrics">
@@ -105,14 +102,15 @@
             <div><dt>Score</dt><dd>0</dd></div>
             <div><dt>Confidence</dt><dd>0%</dd></div>
             <div><dt>Entry</dt><dd>—</dd></div>
-            <div><dt>Exit</dt><dd>7 436.25</dd></div>
-            <div><dt>Result</dt><dd>open / — / —</dd></div>
+            <div><dt>Exit</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>No trade</dd></div>
+            <div><dt>Result</dt><dd>—</dd></div>
           </dl>
           <ul class="rationale"><li>No Sunday forecast — technical price capture for the archive.</li></ul>
         </article>
-    
+
       </section>
-            
+
     <p class="back">← <a href="/en/investing.html">Back to Investing</a></p>
   </main>
   <footer>© BriefRooms</footer>
