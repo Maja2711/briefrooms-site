@@ -23,6 +23,12 @@ TZ = tz.gettz("Europe/Warsaw")
 # =========================
 MAX_PER_SECTION = 6
 MAX_PER_HOST = 6
+SECTION_LIMITS = {
+    "sport": 10,
+}
+SECTION_MAX_PER_HOST = {
+    "sport": 3,
+}
 HOTBAR_LIMIT = 12
 
 AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
@@ -32,11 +38,11 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 AI_CACHE_PATH = ".cache/ai_cache_pl.json"
 # plik, z którego czyta hotbar.js
 HOTBAR_JSON_PATH = ".cache/news_summaries_pl.json"
+
 CLOUDFLARE_WEB_ANALYTICS = (
     "<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
     "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
 )
-
 # Feedy do doboru newsów (PL)
 FEEDS = {
     "polityka": [
@@ -55,12 +61,22 @@ FEEDS = {
         "https://feeds.reuters.com/reuters/businessNews",
     ],
     "sport": [
+        {"url": "https://www.pap.pl/rss.xml", "source": "PAP Sport"},
         "https://www.polsatsport.pl/rss/wszystkie.xml",
-        "https://tvn24.pl/sport.xml",
-        "https://www.pap.pl/rss.xml",
+        {"url": "https://sport.tvp.pl/rss", "source": "TVP Sport"},
+        {"url": "https://przegladsportowy.onet.pl/.feed", "source": "Przegląd Sportowy / Onet Sport"},
+        {"url": "https://sportowefakty.wp.pl/rss.xml", "source": "SportoweFakty WP"},
+        {"url": "https://eurosport.tvn24.pl/rss.xml", "source": "Eurosport Polska"},
+        {"url": "https://www.laczynaspilka.pl/rss", "source": "PZPN / Łączy nas piłka"},
+        {"url": "https://www.atptour.com/en/news/rss-feed", "source": "ATP Tour"},
+        {"url": "https://www.wtatennis.com/rss", "source": "WTA"},
+        {"url": "https://www.fifa.com/fifaplus/en/rss", "source": "FIFA"},
+        {"url": "https://www.uefa.com/rssfeed/news/rss.xml", "source": "UEFA"},
         "https://feeds.bbci.co.uk/sport/rss.xml?edition=int",
         "https://feeds.bbci.co.uk/sport/tennis/rss.xml",
         "https://feeds.reuters.com/reuters/sportsNews",
+        {"url": "https://apnews.com/hub/apf-sports?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss", "source": "AP Sports"},
+        {"url": "https://www.espn.com/espn/rss/news", "source": "ESPN"},
     ],
 }
 
@@ -89,9 +105,46 @@ SOURCE_PRIORITY = [
     (re.compile(r"tvn24\.pl", re.I), 15),
     (re.compile(r"bankier\.pl", re.I), 20),
     (re.compile(r"reuters\.com", re.I), 12),
+    (re.compile(r"sport\.tvp\.pl", re.I), 23),
     (re.compile(r"polsatsport\.pl", re.I), 22),
+    (re.compile(r"przegladsportowy\.onet\.pl|sport\.onet\.pl", re.I), 22),
+    (re.compile(r"sportowefakty\.wp\.pl", re.I), 22),
+    (re.compile(r"eurosport\.tvn24\.pl", re.I), 21),
+    (re.compile(r"laczynaspilka\.pl|pzpn\.pl", re.I), 21),
+    (re.compile(r"atptour\.com|wtatennis\.com|fifa\.com|uefa\.com", re.I), 18),
+    (re.compile(r"apnews\.com", re.I), 14),
+    (re.compile(r"espn\.", re.I), 12),
     (re.compile(r"bbc\.", re.I), 10),
 ]
+
+SOURCE_NAME_RULES = [
+    (re.compile(r"pap\.pl", re.I), "PAP Sport"),
+    (re.compile(r"polsatsport\.pl", re.I), "Polsat Sport"),
+    (re.compile(r"sport\.tvp\.pl", re.I), "TVP Sport"),
+    (re.compile(r"przegladsportowy\.onet\.pl|sport\.onet\.pl", re.I), "Przegląd Sportowy / Onet Sport"),
+    (re.compile(r"sportowefakty\.wp\.pl", re.I), "SportoweFakty WP"),
+    (re.compile(r"eurosport\.tvn24\.pl", re.I), "Eurosport Polska"),
+    (re.compile(r"laczynaspilka\.pl|pzpn\.pl", re.I), "PZPN / Łączy nas piłka"),
+    (re.compile(r"atptour\.com", re.I), "ATP Tour"),
+    (re.compile(r"wtatennis\.com", re.I), "WTA"),
+    (re.compile(r"fifa\.com", re.I), "FIFA"),
+    (re.compile(r"uefa\.com", re.I), "UEFA"),
+    (re.compile(r"reuters\.com", re.I), "Reuters Sports"),
+    (re.compile(r"apnews\.com", re.I), "AP Sports"),
+    (re.compile(r"bbc\.", re.I), "BBC Sport"),
+    (re.compile(r"espn\.", re.I), "ESPN"),
+    (re.compile(r"tvn24\.pl", re.I), "TVN24"),
+    (re.compile(r"polsatnews\.pl", re.I), "Polsat News"),
+    (re.compile(r"bankier\.pl", re.I), "Bankier.pl"),
+]
+
+SOURCE_BADGE_SHORT = {
+    "Przegląd Sportowy / Onet Sport": "Przegląd Sportowy",
+    "PZPN / Łączy nas piłka": "Łączy nas piłka",
+    "Eurosport Polska": "Eurosport",
+    "Reuters Sports": "Reuters",
+    "AP Sports": "AP",
+}
 
 # Wzmocnienia tematyczne
 BOOST = {
@@ -103,8 +156,8 @@ BOOST = {
         (re.compile(r"NBP|RPP|PKB|inflacja|stopy|obligacj|kredyt|VAT|CIT|PIT|GPW|WIG|paliw|energia|MWh", re.I), 28),
     ],
     "sport": [
-        (re.compile(r"Iga Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Stoch|Żyła|Zyla|Reprezentacja|Legia|Raków|Rakow|Lech|Skorupski", re.I), 40),
-        (re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I), 34),
+        (re.compile(r"Polska|Polacy|Polki|Polak|Polka|polski|polska|polscy|reprezentacja Polski|kadry Polski|biało-czerwoni", re.I), 22),
+        (re.compile(r"mistrzostwa świata|mistrzostwa Europy|igrzyska|Grand Slam|ATP|WTA|FIFA World Cup|UEFA|Liga Mistrzów", re.I), 20),
     ],
 }
 
@@ -122,7 +175,43 @@ BAN_PATTERNS = [
     # sport/rozrywka poza sekcją sportową, jeśli trafi do polityki/kraju
     re.compile(r"taniec z gwiazdami|the voice|serial|film|koncert", re.I),
 ]
-LIVE_RE = re.compile(r"(LIVE|na żywo|relacja live|transmisja)", re.I)
+LIVE_RE = re.compile(r"\b(live|na żywo|relacja live|wynik na żywo|minuta po minucie)\b", re.I)
+SPORT_REJECT_RE = re.compile(
+    r"\b(live|na żywo|relacja live|wynik na żywo|minuta po minucie|newsletter|typy|kursy|transmisja|stream online|gdzie oglądać|gdzie obejrzeć|program tv|zapowiedź transmisji)\b",
+    re.I,
+)
+SPORT_ROUNDUP_RE = re.compile(
+    r"\b(najważniejsze informacje|sportowy skrót|podsumowanie dnia|co dziś|dzień w sporcie|transfery live|plotki transferowe|wyniki meczów|wyniki i skróty|terminarz)\b",
+    re.I,
+)
+URL_REJECT_RE = re.compile(
+    r"/(tag|tags|temat|tematy|kategoria|category|newsletter|liveblog|liveblogs|program-tv)(/|$)|relacja-live|wynik-na-zywo|wyniki-na-zywo|live-stream|transmisja-na-zywo|stream-online|gdzie-obejrzec",
+    re.I,
+)
+SPORT_SOURCE_HOST_RE = re.compile(
+    r"polsatsport\.pl|sport\.tvp\.pl|przegladsportowy\.onet\.pl|sportowefakty\.wp\.pl|eurosport\.tvn24\.pl|laczynaspilka\.pl|pzpn\.pl|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com|reuters\.com|apnews\.com|bbc\.|espn\.",
+    re.I,
+)
+SPORT_TOPIC_RE = re.compile(
+    r"mecz|turniej|liga|finał|półfinał|ćwierćfinał|awans|medal|rekord|mistrzostw|igrzysk|tenis|ATP|WTA|Grand Slam|FIFA|UEFA|piłk|siatk|koszyk|hokej|F1|Formula 1|Grand Prix|lekkoatlety|olimpij|reprezentacja|klub|zawodnik|zawodniczka|trener|ranking",
+    re.I,
+)
+POLISH_SPORT_RE = re.compile(
+    r"\b(Polska|Polacy|Polki|Polak|Polka|polski|polska|polscy|polskie|reprezentacja Polski|kadra Polski|kadry Polski|biało-czerwoni|biało-czerwone)\b",
+    re.I,
+)
+HIGH_RESULT_RE = re.compile(
+    r"\b(wygrywa|wygrał|wygrała|wygrali|zwycięstwo|zwycięża|pokonał|pokonała|pokonali|awans|awansuje|finał|finale|półfinał|tytuł|mistrz|mistrzostwo|medal|złoto|srebro|brąz|rekord|triumf|wins|beats|final|title|medal|record|qualifies|advances)\b",
+    re.I,
+)
+MAJOR_EVENT_RE = re.compile(
+    r"mistrzostwa świata|mistrzostw świata|mistrzostwa Europy|mistrzostw Europy|igrzyska|olimpijskie|FIFA World Cup|World Cup|Euro 20\d{2}|Grand Slam|Liga Mistrzów|Champions League",
+    re.I,
+)
+TENNIS_EVENT_RE = re.compile(r"\b(tenis|ATP|WTA|Grand Slam|Wimbledon|Roland Garros|US Open|Australian Open)\b", re.I)
+NATIONAL_TEAM_RE = re.compile(r"reprezentacja Polski|kadra Polski|kadry Polski|biało-czerwoni|biało-czerwone", re.I)
+CORE_POLISH_SPORT_RE = re.compile(r"piłk|siatk|olimpij|sporty olimpijskie", re.I)
+GLOBAL_SPORT_RE = re.compile(r"\b(F1|Formula 1|Grand Prix|NBA|NHL|lekkoatlety|Premier League|La Liga|Serie A|Bundesliga|Liga Mistrzów|Champions League)\b", re.I)
 
 # =========================
 # TOKENIZACJA / PODOBIEŃSTWO
@@ -173,14 +262,6 @@ def today_str() -> str:
 def today_str_pl() -> str:
     return datetime.now(TZ).strftime("%d.%m.%Y")
 
-def inject_cloudflare_analytics(html_text: str) -> str:
-    if "static.cloudflareinsights.com/beacon.min.js" in html_text:
-        return html_text
-    body_close = html_text.lower().rfind("</body>")
-    if body_close != -1:
-        return html_text[:body_close] + CLOUDFLARE_WEB_ANALYTICS + "\n" + html_text[body_close:]
-    return html_text.rstrip() + "\n" + CLOUDFLARE_WEB_ANALYTICS + "\n</body>\n</html>"
-
 def esc(s: str) -> str:
     return html.escape(s or "", quote=True)
 
@@ -203,6 +284,98 @@ def ensure_full_sentence(text: str, max_chars: int = 320) -> str:
         t = t[:end+1]
     return t.strip()
 
+def feed_url(feed):
+    return feed.get("url") if isinstance(feed, dict) else feed
+
+def feed_source(feed):
+    return feed.get("source", "") if isinstance(feed, dict) else ""
+
+def source_name_for(link: str, fallback: str = "", section_key: str = "") -> str:
+    if fallback:
+        return fallback
+    h = host_of(link)
+    for rx, name in SOURCE_NAME_RULES:
+        if rx.search(h):
+            if name == "PAP Sport" and section_key != "sport":
+                return "PAP"
+            return name
+    return h.replace("www.", "") or "Źródło"
+
+def source_badge_for(source: str) -> str:
+    return SOURCE_BADGE_SHORT.get(source, source)
+
+def is_sport_related(title: str, snippet: str, link: str, source: str = "") -> bool:
+    if source and source != "PAP Sport":
+        return True
+    if SPORT_SOURCE_HOST_RE.search(host_of(link)):
+        return True
+    return bool(SPORT_TOPIC_RE.search(f"{title} {snippet}"))
+
+def is_rejected_item(section_key: str, title: str, snippet: str, link: str, source: str = "") -> bool:
+    text = f"{title} {snippet}"
+    if any(rx.search(text) for rx in BAN_PATTERNS):
+        return True
+    path = urlparse(link).path or "/"
+    if path in ("", "/") or URL_REJECT_RE.search(path):
+        return True
+    if section_key == "sport":
+        if len([seg for seg in path.split("/") if seg]) <= 1:
+            return True
+        if not is_sport_related(title, snippet, link, source):
+            return True
+        if SPORT_REJECT_RE.search(text) or SPORT_ROUNDUP_RE.search(text) or LIVE_RE.search(path):
+            return True
+    return False
+
+def sport_priority_points(title: str, snippet: str, link: str) -> int:
+    text = f"{title} {snippet}"
+    points = 0
+    if POLISH_SPORT_RE.search(text) and HIGH_RESULT_RE.search(text):
+        points += 5
+    if MAJOR_EVENT_RE.search(text):
+        points += 5
+    if TENNIS_EVENT_RE.search(text) and POLISH_SPORT_RE.search(text):
+        points += 4
+    if NATIONAL_TEAM_RE.search(text) or CORE_POLISH_SPORT_RE.search(text):
+        points += 4
+    if GLOBAL_SPORT_RE.search(text):
+        points += 3
+    return points
+
+def sport_tag(title: str, snippet: str = "") -> str:
+    t = f"{title} {snippet}".lower()
+    if re.search(r"tenis|atp|wta|grand slam|wimbledon|roland garros|us open|australian open", t):
+        return "tenis"
+    if re.search(r"piłk|football|fifa|uefa|liga mistrzów|champions league|world cup", t):
+        return "pilka"
+    if re.search(r"siatk|volleyball|liga narodów", t):
+        return "siatkowka"
+    if re.search(r"\bf1\b|formula 1|grand prix", t):
+        return "f1"
+    if re.search(r"koszyk|nba", t):
+        return "kosz"
+    if re.search(r"hokej|nhl", t):
+        return "hokej"
+    if re.search(r"lekkoatlety|athletics", t):
+        return "lekkoatletyka"
+    if re.search(r"igrzysk|olimpij|olympic", t):
+        return "olimpijskie"
+    return "inne"
+
+def why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
+    text = f"{title} {snippet}"
+    if section_key == "sport":
+        if POLISH_SPORT_RE.search(text) and HIGH_RESULT_RE.search(text):
+            return "To ważny wynik z polskiej perspektywy, bo może wpływać na prestiż, ranking, awans albo pozycję reprezentacji, klubu lub zawodnika."
+        if MAJOR_EVENT_RE.search(text):
+            return "To wydarzenie wysokiej rangi, więc jego wynik porządkuje szerszy obraz rywalizacji międzynarodowej."
+        if TENNIS_EVENT_RE.search(text):
+            return "Tenisowe turnieje ATP, WTA i Grand Slam szybko zmieniają rankingi oraz układ kolejnych rund."
+        return "To temat sportowy z wiarygodnego źródła, który pomaga śledzić najważniejsze rozstrzygnięcia i ich kontekst."
+    if section_key == "biznes":
+        return "Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych."
+    return "To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli."
+
 def score_item(item, section_key: str) -> float:
     score = 0.0
     published_parsed = item.get("published_parsed") or item.get("updated_parsed")
@@ -214,6 +387,8 @@ def score_item(item, section_key: str) -> float:
     for rx, pts in BOOST.get(section_key, []):
         if rx.search(t):
             score += pts
+    if section_key == "sport":
+        score += sport_priority_points(t, item.get("summary_raw", ""), item.get("link", "")) * 8
     h = host_of(item.get("link", "") or "")
     for rx, pts in SOURCE_PRIORITY:
         if rx.search(h):
@@ -240,18 +415,22 @@ def save_cache(path: str, data: dict):
 
 CACHE = load_cache(AI_CACHE_PATH)
 
-def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
+def ai_summarize_pl(title: str, snippet: str, url: str, section_key: str = "") -> dict:
     """
-    Zwraca: {"summary": "...", "uncertain": ""} – 'uncertain' puste, gdy brak ostrzeżenia.
+    Zwraca: {"summary": "...", "why": "...", "uncertain": ""} - 'uncertain' puste, gdy brak ostrzeżenia.
     """
     key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"{norm_title(title)}|{today_str()}"
+    cache_key = f"v3|{norm_title(title)}|{today_str()}"
     if cache_key in CACHE:
-        return CACHE[cache_key]
+        cached = CACHE[cache_key]
+        if "why" not in cached:
+            cached["why"] = why_it_matters_pl(section_key, title, snippet)
+        return cached
 
     if not key:
         out = {
             "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
+            "why": why_it_matters_pl(section_key, title, snippet),
             "uncertain": "",
             "model": "fallback"
         }
@@ -259,16 +438,19 @@ def ai_summarize_pl(title: str, snippet: str, url: str) -> dict:
         save_cache(AI_CACHE_PATH, CACHE)
         return out
 
-    prompt = f"""Streść po polsku w maksymalnie 2 krótkich zdaniach najważniejsze informacje z tytułu i opisu RSS poniżej.
-Jeśli widać element niepewny/sporny lub łatwy do błędnej interpretacji, dodaj JEDNO krótkie zdanie zaczynające się od "Uwaga:".
-Jeśli nie ma potrzeby ostrzeżenia, NIE dodawaj tej linii.
+    prompt = f"""Napisz po polsku krótki komentarz do newsa z tytułu i opisu RSS.
+Zwróć dokładnie dwie obowiązkowe linie i opcjonalnie trzecią:
+Najważniejsze: jedno krótkie zdanie z sednem informacji.
+Dlaczego to ważne: jedno krótkie zdanie o znaczeniu albo konsekwencji tej informacji.
+Uwaga: jedno krótkie zdanie tylko wtedy, gdy widać element niepewny, sporny lub łatwy do błędnej interpretacji.
+
 Tytuł: {title}
 Opis RSS: {snippet}
 Zasady:
 - Bądź zwięzły i neutralny.
 - Kończ zdania kropką.
 - Nie dopisuj faktów spoza tytułu/opisu.
-- Zwróć czysty tekst, linia po linii (bez formatowania)."""
+- Nie używaj formatowania Markdown."""
 
     try:
         resp = requests.post(
@@ -289,23 +471,30 @@ Zasady:
         text = resp.json()["choices"][0]["message"]["content"].strip()
 
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        summary_lines, warn_line = [], ""
+        summary_lines, why_lines, warn_line = [], [], ""
         for ln in lines:
-            if ln.lower().startswith("uwaga:"):
+            low = ln.lower()
+            if low.startswith("najważniejsze:"):
+                summary_lines.append(ln.split(":", 1)[1].strip())
+            elif low.startswith("dlaczego to ważne:"):
+                why_lines.append(ln.split(":", 1)[1].strip())
+            elif low.startswith("uwaga:"):
                 warn_line = ln
             else:
                 summary_lines.append(ln)
 
         summary = ensure_full_sentence(" ".join(summary_lines), 320)
+        why = ensure_full_sentence(" ".join(why_lines), 260) or why_it_matters_pl(section_key, title, snippet)
         warn_line = ensure_period(warn_line) if warn_line else ""
 
-        out = {"summary": summary, "uncertain": warn_line}
+        out = {"summary": summary, "why": ensure_period(why), "uncertain": warn_line}
         CACHE[cache_key] = out
         save_cache(AI_CACHE_PATH, CACHE)
         return out
     except Exception:
         return {
             "summary": ensure_full_sentence((snippet or title)[:320], 320),
+            "why": why_it_matters_pl(section_key, title, snippet),
             "uncertain": ""
         }
 
@@ -404,25 +593,31 @@ def verify_note_pl(title: str, snippet: str) -> str:
 # =========================
 def fetch_section(section_key: str):
     items = []
-    for feed_url in FEEDS[section_key]:
+    for feed in FEEDS[section_key]:
+        f_url = feed_url(feed)
+        f_source = feed_source(feed)
         try:
-            parsed = feedparser.parse(feed_url)
+            parsed = feedparser.parse(f_url)
             for e in parsed.entries:
                 title = e.get("title", "") or ""
                 link  = e.get("link", "") or ""
                 if not title or not link:
                     continue
-                if any(rx.search(title) for rx in BAN_PATTERNS):
-                    continue
                 snippet = e.get("summary", "") or e.get("description", "") or ""
+                clean_snippet = re.sub("<[^<]+?>", "", snippet).strip()
+                source_name = source_name_for(link, f_source, section_key)
+                if is_rejected_item(section_key, title, clean_snippet, link, source_name):
+                    continue
                 items.append({
                     "title": title.strip(),
                     "link":  link.strip(),
-                    "summary_raw": re.sub("<[^<]+?>", "", snippet).strip(),
+                    "source_name": source_name,
+                    "source_badge": source_badge_for(source_name),
+                    "summary_raw": clean_snippet,
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
         except Exception as ex:
-            print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
+            print(f"[WARN] RSS error: {f_url} -> {ex}", file=sys.stderr)
 
     # scoring + tokeny
     for it in items:
@@ -441,60 +636,60 @@ def fetch_section(section_key: str):
     # limit na host + total
     per_host = {}
     pool = []
+    host_limit = SECTION_MAX_PER_HOST.get(section_key, MAX_PER_HOST)
     for it in kept:
         h = host_of(it["link"])
         per_host[h] = per_host.get(h, 0)
-        if per_host[h] >= MAX_PER_HOST:
+        if per_host[h] >= host_limit:
             continue
         per_host[h] += 1
         pool.append(it)
 
-    # SPORT: LIVE + dywersyfikacja dyscyplin
+    limit = SECTION_LIMITS.get(section_key, MAX_PER_SECTION)
+
+    # SPORT: dywersyfikacja źródeł i dyscyplin bez stałych nazwisk
     if section_key == "sport":
         picked = []
-        # 1) do 2 wpisów LIVE lub z PL gwiazdami
-        for it in pool:
-            t = it["title"]
-            if LIVE_RE.search(t) or re.search(r"Świątek|Swiatek|Hurkacz|Lewandowski|Zielińsk|Zielinsk|Stoch|Żyła|Zyla|Legia|Raków|Rakow|Lech", t, re.I):
-                picked.append(it)
-                if len(picked) >= 2:
-                    break
 
-        # 2) dywersyfikacja
-        def tag(t):
-            t=t.lower()
-            if any(k in t for k in ["tenis","wimbledon","us open","australian open"]): return "tenis"
-            if any(k in t for k in ["piłka nożna","ekstraklasa","liga konferencji","liga europy","mecz","legia","lech","raków","rakow"]): return "pilka"
-            if any(k in t for k in ["siatkówka","siatkar"]): return "siatkowka"
-            if any(k in t for k in ["koszykówka","nba"]): return "kosz"
-            if any(k in t for k in ["f1","formula","grand prix"]): return "f1"
-            return "inne"
+        def add_item(it):
+            if it in picked or len(picked) >= limit:
+                return False
+            picked.append(it)
+            return True
 
-        seen_tags = {tag(x["title"]) for x in picked}
+        seen_sources = set()
         for it in pool:
-            if it in picked: 
-                continue
-            tg = tag(it["title"])
-            if tg not in seen_tags:
-                picked.append(it); seen_tags.add(tg)
-                if len(picked) >= MAX_PER_SECTION: 
-                    break
-
-        # 3) domknij do limitu
-        for it in pool:
-            if len(picked) >= MAX_PER_SECTION: 
+            src = it.get("source_name", "")
+            if src and src not in seen_sources and add_item(it):
+                seen_sources.add(src)
+            if len(picked) >= limit:
                 break
-            if it not in picked:
-                picked.append(it)
+
+        seen_tags = {sport_tag(x["title"], x.get("summary_raw", "")) for x in picked}
+        for it in pool:
+            if it in picked:
+                continue
+            tg = sport_tag(it["title"], it.get("summary_raw", ""))
+            if tg not in seen_tags:
+                add_item(it)
+                seen_tags.add(tg)
+            if len(picked) >= limit:
+                break
+
+        for it in pool:
+            if len(picked) >= limit:
+                break
+            add_item(it)
     else:
-        picked = pool[:MAX_PER_SECTION]
+        picked = pool[:limit]
 
     # AI + weryfikacja (ostrzeżenie tylko przy realnym powodzie)
     for it in picked:
-        s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"])
+        s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"], section_key)
         verify = verify_note_pl(it["title"], it.get("summary_raw",""))
         final_warn = verify or s.get("uncertain","")
         it["ai_summary"] = ensure_period(s["summary"])
+        it["ai_why"] = ensure_period(s.get("why") or why_it_matters_pl(section_key, it["title"], it.get("summary_raw", "")))
         it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s.get("model","")
 
@@ -551,11 +746,11 @@ def render_html(sections: dict) -> str:
     extra_css = """
     ul.news{ list-style:none; padding-left:0; }
     ul.news li{ margin:18px 0 24px; }
-    ul.news li a{
+    .news-main-link{
       display:flex; align-items:center; gap:10px;
       color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
-    ul.news li a:hover{ color:#ffffff; text-decoration:underline; }
+    .news-main-link:hover{ color:#ffffff; text-decoration:underline; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
       background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
@@ -567,8 +762,11 @@ def render_html(sections: dict) -> str:
       width:14px; height:14px; border-radius:999px; background:rgba(7,89,133,1);
       border:2px solid rgba(255,255,255,.6); box-shadow:0 0 8px rgba(255,255,255,.3); margin-bottom:1px;
     }
-    .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
+    .news-thumb .title{ max-width:58px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.54rem; font-weight:700; letter-spacing:0; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-title-wrap{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .news-text{ font-weight:700; }
+    .source-line{ color:#9fb3cb; font-size:.88rem; }
 
     .ai-note{
       margin:10px 0 0 88px;
@@ -578,32 +776,40 @@ def render_html(sections: dict) -> str:
     }
     .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-weight:700; color:#fdf3e3; }
     .ai-badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px;
-      background:linear-gradient(135deg,#0ea5e9,#7c3aed); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.35); }
+      background:rgba(255,255,255,.07); font-size:.75rem; color:#fff; border:1px solid rgba(255,255,255,.16); }
     .ai-dot{ width:8px; height:8px; border-radius:999px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.7); }
     .sec{ margin-top:4px; }
+    .read-source{ display:inline-flex; margin-top:10px; color:#f8c97a; text-decoration:none; font-weight:700; }
+    .read-source:hover{ color:#ffffff; text-decoration:underline; }
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
-    def badge():
+    def badge(source: str):
         return (
             '<span class="news-thumb">'
             '<span class="dot"></span>'
-            '<span class="title">BriefRooms</span>'
-            '<span class="sub">powered by AI</span>'
+            f'<span class="title">{esc(source_badge_for(source))}</span>'
+            '<span class="sub">źródło</span>'
             '</span>'
         )
 
     def make_li(it):
+        source = it.get("source_name") or source_name_for(it.get("link", ""))
         warn_html = f'<div class="sec"><strong>Uwaga:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
         return f'''<li>
-  <a href="{esc(it["link"])}" target="_blank" rel="noopener">
-    {badge()}
-    <span class="news-text">{esc(it["title"])}</span>
+  <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
+    {badge(source)}
+    <span class="news-title-wrap">
+      <span class="news-text">{esc(it["title"])}</span>
+      <span class="source-line">Źródło: {esc(source)}</span>
+    </span>
   </a>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI komentarz</span></div>
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_summary",""))}</div>
+    <div class="sec"><strong>Dlaczego to ważne:</strong> {esc(it.get("ai_why",""))}</div>
     {warn_html}
+    <a class="read-source" href="{esc(it["link"])}" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>'''
 
@@ -653,9 +859,10 @@ def render_html(sections: dict) -> str:
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "9adde99e330a4b0d991627986ac34246"}}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>"""
-    return inject_cloudflare_analytics(html_out)
+    return html_out
 
 # =========================
 # MAIN
