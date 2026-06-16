@@ -16,6 +16,298 @@
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
+ /* ===== Glass / jelly / luminous 3D doors — PL + EN ===== */
+
+@media (min-width: 1051px){
+
+  .room-grid{
+    gap: 16px;
+  }
+
+  .room-door{
+    position: relative;
+    min-height: 225px;
+    border-radius: 24px;
+    padding: 18px 12px 15px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.115), rgba(255,255,255,.035));
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow:
+      0 20px 46px rgba(0,0,0,.24),
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 -18px 30px rgba(255,255,255,.025);
+    backdrop-filter: blur(20px) saturate(155%);
+    -webkit-backdrop-filter: blur(20px) saturate(155%);
+    transition:
+      transform .22s ease,
+      box-shadow .22s ease,
+      border-color .22s ease;
+  }
+
+  .room-door:hover{
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,.22);
+    box-shadow:
+      0 26px 62px rgba(0,0,0,.30),
+      inset 0 1px 0 rgba(255,255,255,.18),
+      inset 0 -18px 30px rgba(255,255,255,.03);
+  }
+
+  .room-door::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.14), transparent 28%),
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,.18), transparent 38%);
+  }
+
+  .portal{
+    position:absolute;
+    left:14px;
+    right:14px;
+    top:12px;
+    bottom:13px;
+    border-radius:70px 70px 16px 16px;
+    transform: perspective(780px) rotateX(5deg);
+    border: 1px solid rgba(255,255,255,.22);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.045));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 34px rgba(56,214,201,.12);
+    overflow:hidden;
+  }
+
+  .portal::before{
+    content:"";
+    position:absolute;
+    inset:9px 9px 12px;
+    border-radius:58px 58px 12px 12px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.36) 0%,
+        rgba(255,255,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      inset -16px 0 28px rgba(0,0,0,.15),
+      inset 14px 0 22px rgba(255,255,255,.055);
+  }
+
+  .portal::after{
+    content:"";
+    position:absolute;
+    left:15px;
+    right:15px;
+    top:10px;
+    height:34%;
+    border-radius:48px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0));
+    filter: blur(1px);
+    opacity:.92;
+  }
+
+  .room-content{
+    position:relative;
+    z-index:2;
+    width:100%;
+    text-align:center;
+    padding-top:108px;
+  }
+
+  .room-icon{
+    font-size:26px;
+    margin-bottom:10px;
+    text-shadow:
+      0 0 12px currentColor,
+      0 0 24px currentColor;
+  }
+
+  .room-door h3{
+    margin:0 0 6px;
+    font-size:15px;
+  }
+
+  .room-door small{
+    display:inline-block;
+    padding:3px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:900;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.085);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.13),
+      0 0 14px rgba(255,255,255,.04);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .room-door p{
+    display:block;
+    margin:8px 0 0;
+    min-height:34px;
+    font-size:11px;
+    line-height:1.32;
+    color:#b8c7d6;
+  }
+
+  .open{
+    display:inline-block;
+    margin-top:8px;
+    font-size:12px;
+    font-weight:900;
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 18px currentColor;
+  }
+
+  /* 1. Aktualności / News — cyan */
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .room-icon,
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) small,
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .open{
+    color:#55f4e8;
+  }
+
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(85,244,232,.24);
+  }
+
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(100,255,245,.38) 0%,
+        rgba(100,255,245,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 2. Geopolityka / Geopolitics — gold */
+  .geo .room-icon,
+  .geo small,
+  .geo .open{
+    color:#ffc14d;
+  }
+
+  .geo .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(255,193,77,.25);
+  }
+
+  .geo .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,205,96,.38) 0%,
+        rgba(255,205,96,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 3. Zdrowie / Health — green */
+  .health .room-icon,
+  .health small,
+  .health .open{
+    color:#7df4a4;
+  }
+
+  .health .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(125,244,164,.24);
+  }
+
+  .health .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(125,244,164,.36) 0%,
+        rgba(125,244,164,.15) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 4. Nauka / Science — blue */
+  .science .room-icon,
+  .science small,
+  .science .open{
+    color:#64baff;
+  }
+
+  .science .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(100,186,255,.25);
+  }
+
+  .science .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(100,186,255,.38) 0%,
+        rgba(100,186,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 5. Inwestycje / Investments — violet */
+  .invest .room-icon,
+  .invest small,
+  .invest .open{
+    color:#d58cff;
+  }
+
+  .invest .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 40px rgba(213,140,255,.27);
+  }
+
+  .invest .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(213,140,255,.38) 0%,
+        rgba(213,140,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+}
   <style>
     :root{--bg:#06131f;--line:rgba(255,255,255,.12);--txt:#eef7ff;--muted:#9fb2c8;--teal:#38d6c9;--teal2:#15978f;--blue:#49a8ff;--green:#6fe08e;--orange:#f2a319;--purple:#b46cff;--glass:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.04))}
     *{box-sizing:border-box}html{background:#06131f;scroll-behavior:smooth}body{margin:0;color:var(--txt);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1000px 520px at 12% -10%,rgba(46,214,201,.18),transparent 58%),radial-gradient(900px 620px at 86% 16%,rgba(73,168,255,.13),transparent 58%),linear-gradient(180deg,#06131f 0%,#071827 46%,#081522 100%);min-height:100vh;overflow-x:hidden}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,.85),transparent 82%)}a{color:inherit}.page{max-width:1360px;margin:0 auto;padding:24px 24px 44px;position:relative;z-index:1}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 0 18px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:16px;text-decoration:none}.logo{font-size:26px;line-height:1;font-weight:900;letter-spacing:-.035em}.trust-pill{font-size:11px;color:var(--teal);border:1px solid rgba(56,214,201,.28);background:rgba(56,214,201,.08);padding:7px 12px;border-radius:999px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}.nav{display:flex;align-items:center;gap:20px;color:#d9e7f5;font-size:14px}.nav a{opacity:.88;text-decoration:none}.nav a:hover{opacity:1;color:#fff}.icon-btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:#eaf6ff;border-radius:13px;min-height:38px;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:800;font-size:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(14px)}
