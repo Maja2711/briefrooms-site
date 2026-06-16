@@ -56,10 +56,17 @@ PUBLIC_POLICY_RE = re.compile(
 )
 HEALTH_RE = re.compile(r"\b(zdrow|szpital|lekarz|pacjent|chorob|zakaż|szczep|lek|nfz|who|epidem|profilaktyk)\b", re.I)
 SCIENCE_RE = re.compile(r"\b(nauk|badani|kosmos|nasa|esa|planeta|galakty|technolog|ai|sztuczna inteligencja|odkryc)\b", re.I)
-SPORT_RE = re.compile(r"\b(mecz|wynik|liga|turniej|siatkar|piłkar|tenis|finał|mundial|sport|bramka|wygral|wygrała|pokonał)\b", re.I)
+SPORT_RE = re.compile(r"\b(mecz|wynik|liga|turniej|siatkar|piłkar|tenis|finał|mundial|sport|bramka|wygral|wygrała|wygrał|pokonał|pokonała|awans|runda|set|gem)\b", re.I)
+
+ROUND_RE = re.compile(
+    r"\b(finał|półfinał|ćwierćfinał|1/8 finału|1/16 finału|pierwsza runda|druga runda|trzecia runda|czwarta runda|runda grupowa|mecz grupowy|baraż|kwalifikacj[aei]|eliminacj[aei]|play-off|playoff)\b",
+    re.I,
+)
+RESULT_RE = re.compile(r"\b\d{1,2}\s*[:–-]\s*\d{1,2}\b|\b\d{1,2}\s*:\s*\d{1,2}\b")
+SET_RESULT_RE = re.compile(r"\b\d{1,2}:\d{1,2},\s*\d{1,2}:\d{1,2}(?:,\s*\d{1,2}:\d{1,2})?\b")
 
 GENERIC_BAD_WHY_RE = re.compile(
-    r"(może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych|wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli|to istotne, bo wpływa na decyzje publiczne)",
+    r"(może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych|wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli|to istotne, bo wpływa na decyzje publiczne|warto sprawdzić w źródle|warto wejść do źródła|znaczenie zależy od tabeli, formy drużyny albo kontekstu turnieju|sam fakt jest punktem wyjścia|jego wartość zależy od tego)",
     re.I,
 )
 
@@ -72,74 +79,127 @@ def _clip_sentence(text: str, limit: int = 330) -> str:
     return base.ensure_period(cut)
 
 
+def _first_match(pattern: re.Pattern, text: str) -> str:
+    m = pattern.search(text or "")
+    return m.group(0).strip() if m else ""
+
+
+def _extract_competition(text: str) -> str:
+    patterns = [
+        r"\b(Liga Narodów|Wimbledon|Roland Garros|US Open|Australian Open|Liga Mistrzów|Ekstraklasa|Mundial|Euro|Puchar Polski|Tour de France)\b",
+        r"\b([A-ZŁŚŻŹĆŃÓ][\wąćęłńóśźż-]+(?:\s+[A-ZŁŚŻŹĆŃÓ][\wąćęłńóśźż-]+){0,3})\b",
+    ]
+    for pat in patterns:
+        m = re.search(pat, text or "")
+        if m:
+            val = m.group(1).strip()
+            if len(val) > 2 and val.lower() not in {"to", "dlaczego", "najważniejsze"}:
+                return val
+    return ""
+
+
+def sport_context_why_pl(title: str, snippet: str) -> str:
+    """Wyciąga możliwie konkretny sens sportowego newsa z tytułu i opisu RSS."""
+    text = re.sub(r"\s+", " ", f"{title} {snippet}".strip())
+    round_name = _first_match(ROUND_RE, text)
+    score = _first_match(SET_RESULT_RE, text) or _first_match(RESULT_RE, text)
+    competition = _extract_competition(text)
+
+    details = []
+    if round_name:
+        details.append(f"etap: {round_name}")
+    if score:
+        details.append(f"wynik: {score}")
+    if competition:
+        details.append(f"kontekst: {competition}")
+
+    if details:
+        return (
+            "Sedno sportowe: " + ", ".join(details) + ". "
+            "To pozwala od razu ocenić, czy news dotyczy awansu, odpadnięcia, zmiany presji przed kolejnym spotkaniem albo potwierdzenia aktualnej formy."
+        )
+
+    # Bez halucynowania: gdy RSS nie zawiera rundy/wyniku, mówimy konkretnie, czego brakuje, zamiast odsyłać czytelnika.
+    return (
+        "Sedno sportowe trzeba czytać przez fakty z nagłówka i krótkiego opisu: kto grał, jaki był wynik i na jakim etapie rywalizacji. "
+        "Jeśli RSS nie podaje rundy lub rezultatu, brief nie powinien ich dopowiadać na siłę."
+    )
+
+
 def context_why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
-    """Zwraca konkretny, kontekstowy komentarz. Bez pustych sloganów."""
+    """Zwraca konkretny, kontekstowy komentarz. Bez pustych sloganów i bez odsyłania do źródła."""
     text = f"{title} {snippet}"
 
     if section_key == "sport" or SPORT_RE.search(text):
-        return (
-            "To jest informacja wynikowa: jej znaczenie zależy od tabeli, formy drużyny albo kontekstu turnieju. "
-            "Warto sprawdzić w źródle, czy wynik zmienia układ rywalizacji, awans lub presję na kolejny mecz."
-        )
+        return sport_context_why_pl(title, snippet)
 
     if PUBLIC_PERSON_RE.search(text):
         return (
-            "Ten news jest ważny nie jako sygnał gospodarczy, lecz jako element kontroli życia publicznego. "
-            "Pokazuje, jakie dochody, majątek albo przywileje mają osoby pełniące funkcje publiczne i czy odpowiada to oczekiwaniom przejrzystości."
+            "Sedno sprawy dotyczy przejrzystości życia publicznego: czy ujawnione dochody, majątek lub przywileje osoby publicznej są proporcjonalne do pełnionej funkcji i jasne dla obywateli. "
+            "To nie jest sygnał makroekonomiczny, tylko test zaufania do standardów jawności."
         )
 
     if LOCAL_INCIDENT_RE.search(text):
         return (
-            "Znaczenie tej informacji jest lokalne i instytucjonalne: chodzi o bezpieczeństwo, procedury oraz reakcję służb lub władz. "
-            "Najważniejsze pytanie brzmi, czy zdarzenie jest odosobnione, czy pokazuje szerszy problem organizacyjny."
+            "Najważniejszy kontekst to bezpieczeństwo i odpowiedzialność instytucji: kto zareagował, jakie procedury zadziałały i czy zdarzenie wskazuje na szerszą lukę organizacyjną. "
+            "Taki news warto oceniać przez skutki dla mieszkańców, a nie przez ogólne hasła gospodarcze."
         )
 
     if FUEL_ENERGY_RE.search(text):
         return (
-            "To ma bezpośrednie znaczenie dla codziennych kosztów, bo paliwa i energia szybko przenoszą się na budżety domowe oraz koszty transportu. "
-            "Warto patrzeć nie tylko na samą cenę, ale też na to, czy zmiana jest jednorazowa, czy zaczyna trwalszy trend."
+            "Tu kluczowy jest kanał kosztowy: paliwa i energia szybko wpływają na rachunki domowe, transport oraz marże firm. "
+            "Najważniejsze jest, czy opisywana zmiana wygląda na jednorazowy skok, czy początek trwalszego trendu cenowego."
         )
 
     if section_key == "biznes" and MACRO_ECON_RE.search(text):
         return (
-            "To jest sygnał makroekonomiczny: może zmieniać ocenę inflacji, popytu, kosztów firm albo przyszłych decyzji banku centralnego. "
-            "Kluczowe jest porównanie danych z oczekiwaniami rynku, a nie sama pojedyncza liczba."
+            "To jest informacja makro: trzeba ją czytać przez wpływ na inflację, popyt, koszty firm i możliwe decyzje banku centralnego. "
+            "Największe znaczenie ma różnica między danymi a oczekiwaniami, bo to ona zwykle porusza rynek."
         )
 
     if PUBLIC_POLICY_RE.search(text):
         return (
-            "To ważne, bo za decyzją publiczną zwykle idą realne koszty, obowiązki albo prawa obywateli. "
-            "Dobra ocena wymaga sprawdzenia, kogo zmiana obejmie, kiedy wejdzie w życie i kto za nią zapłaci."
+            "Sedno leży w praktycznych skutkach decyzji publicznej: kogo obejmuje zmiana, od kiedy działa i kto ponosi jej koszt. "
+            "Dobre podsumowanie powinno pokazać mechanizm, a nie tylko sam fakt przyjęcia lub zapowiedzi regulacji."
         )
 
     if HEALTH_RE.search(text):
         return (
-            "W zdrowiu publicznym znaczenie newsa zależy od skali zjawiska i rekomendacji instytucji, nie od samego nagłówka. "
-            "Warto sprawdzić, czy informacja zmienia zalecenia dla pacjentów, lekarzy albo systemu ochrony zdrowia."
+            "W zdrowiu najważniejsze są skala zjawiska, grupa ryzyka i to, czy informacja zmienia realne zalecenia dla pacjentów lub lekarzy. "
+            "Komentarz powinien oddzielać ostrzeżenie systemowe od pojedynczego przypadku."
         )
 
     if SCIENCE_RE.search(text):
         return (
-            "To ważne, jeśli odkrycie lub badanie zmienia dotychczasowe rozumienie problemu, a nie tylko brzmi efektownie w nagłówku. "
-            "Najlepiej oceniać je przez metodę, źródło i to, czy wyniki zostały potwierdzone niezależnie."
+            "W newsie naukowym liczy się nie efektowność nagłówka, tylko metoda, źródło danych i stopień potwierdzenia wyniku. "
+            "Dobra esencja powinna wskazać, co odkrycie zmienia w rozumieniu tematu i czego jeszcze nie przesądza."
         )
 
     if section_key == "polityka":
         return (
-            "Znaczenie tej informacji polega na tym, czy odsłania mechanizm działania instytucji, konflikt interesów albo zmianę układu politycznego. "
-            "Sam fakt jest punktem wyjścia; ważniejsze jest, jakie decyzje lub konsekwencje może uruchomić."
+            "Najważniejsze jest to, jaki mechanizm polityczny odsłania news: zmianę układu sił, konflikt interesów, decyzję instytucji albo problem odpowiedzialności. "
+            "Komentarz powinien pokazać możliwą konsekwencję, a nie powtarzać sam nagłówek."
         )
 
     if section_key == "biznes":
         return (
-            "To warto śledzić, jeśli pokazuje zmianę w zachowaniu firm, konsumentów albo regulatora. "
-            "Najważniejsze jest oddzielenie pojedynczej ciekawostki od informacji, która może zmienić decyzje rynku."
+            "W biznesie znaczenie newsa zależy od tego, czy pokazuje zmianę zachowania firm, klientów, regulatora lub kosztów działalności. "
+            "Esencją jest wskazanie mechanizmu: co konkretnie może zmienić decyzje uczestników rynku."
         )
 
     return (
-        "To jest krótki sygnał informacyjny: jego wartość zależy od tego, czy pomaga zrozumieć większy proces, czy jest tylko pojedynczym zdarzeniem. "
-        "Warto wejść do źródła i sprawdzić szczegóły, zanim wyciągnie się szersze wnioski."
+        "Esencja powinna wynikać z samego newsa: kto podjął decyzję, kogo ona dotyczy i jaka jest bezpośrednia konsekwencja. "
+        "Jeśli z tytułu i opisu nie da się tego ustalić, komentarz powinien być ostrożny i nie dopisywać sztucznego znaczenia."
     )
+
+
+def why_is_useful(why: str) -> bool:
+    why = re.sub(r"\s+", " ", (why or "").strip())
+    if len(why) < 55:
+        return False
+    if GENERIC_BAD_WHY_RE.search(why):
+        return False
+    return True
 
 
 def likely_english_item(item: dict) -> bool:
@@ -182,7 +242,8 @@ def translate_english_item_to_polish(item: dict, section_key: str) -> dict | Non
     if cache_key in base.CACHE:
         cached = base.CACHE[cache_key]
         if cached.get("title_pl") and cached.get("summary"):
-            cached["why"] = context_why_it_matters_pl(section_key, cached.get("title_pl", title), snippet)
+            if not why_is_useful(cached.get("why", "")):
+                cached["why"] = context_why_it_matters_pl(section_key, cached.get("title_pl", title), snippet)
             return cached
 
     prompt = f"""Przetłumacz i opracuj po polsku anglojęzyczny news do polskiej wersji BriefRooms.
@@ -190,7 +251,7 @@ Zwróć wyłącznie poprawny JSON bez Markdown:
 {{
   "title_pl": "krótki tytuł po polsku, maksymalnie 110 znaków",
   "summary": "jedno lub dwa krótkie zdania po polsku z sednem informacji",
-  "why": "jedno lub dwa krótkie zdania po polsku z konkretnym kontekstem, bez ogólników",
+  "why": "jedno lub dwa krótkie zdania po polsku z konkretną esencją: co z tego wynika, dla kogo i na jakim etapie sprawy. Nie odsyłaj do źródła.",
   "uncertain": "opcjonalna krótka uwaga po polsku albo pusty string"
 }}
 
@@ -198,7 +259,9 @@ Zasady:
 - Wszystko, co zobaczy użytkownik, musi być po polsku.
 - Nie zostawiaj angielskiego tytułu.
 - Nie dopisuj faktów spoza tytułu i opisu RSS.
+- Komentarz 'Dlaczego to ważne' ma być esencją artykułu, nie instrukcją typu 'sprawdź w źródle'.
 - Nie używaj pustych sloganów typu: wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.
+- Jeśli news sportowy zawiera rundę, wynik, etap turnieju, zawodnika lub drużynę — użyj tych konkretów w komentarzu.
 - Jeśli news dotyczy osoby publicznej i jej majątku/dochodów, znaczenie opisz przez przejrzystość życia publicznego.
 - Jeśli news jest lokalnym incydentem, opisz znaczenie przez procedury, bezpieczeństwo i reakcję instytucji.
 
@@ -215,7 +278,7 @@ Opis RSS: {snippet}
             json={
                 "model": base.AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON. Komentarz musi być konkretny dla danego newsa."},
+                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON. Komentarz musi podawać esencję newsa, a nie odsyłać czytelnika do źródła."},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
@@ -232,7 +295,7 @@ Opis RSS: {snippet}
         summary = base.ensure_full_sentence(str(data.get("summary", "")).replace("Najważniejsze:", "").strip(), 360)
         why_ai = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 340)
         why_rule = context_why_it_matters_pl(section_key, title_pl or title, snippet)
-        why = why_rule if (not why_ai or GENERIC_BAD_WHY_RE.search(why_ai)) else why_ai
+        why = why_ai if why_is_useful(why_ai) else why_rule
         uncertain = base.ensure_period(str(data.get("uncertain", "")).strip()) if data.get("uncertain") else ""
 
         if still_looks_english(title_pl) or still_looks_english(summary) or still_looks_english(why):
@@ -243,7 +306,7 @@ Opis RSS: {snippet}
             "summary": base.ensure_period(summary),
             "why": _clip_sentence(why, 340),
             "uncertain": uncertain,
-            "model": f"{base.AI_MODEL}-hybrid-pl-v3",
+            "model": f"{base.AI_MODEL}-hybrid-pl-v4",
         }
         base.CACHE[cache_key] = out
         base.save_cache(base.AI_CACHE_PATH, base.CACHE)
@@ -270,9 +333,10 @@ def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str 
     summary = (out.get("summary") or "").replace("Najważniejsze:", "").strip()
     out["summary"] = base.ensure_period(summary) if summary else base.ensure_period(base.ensure_full_sentence(snippet or title, 300))
 
-    # Always replace the old generic/fallback WHY with our contextual editor note.
-    out["why"] = _clip_sentence(context_why_it_matters_pl(section_key, title, snippet), 340)
-    out["model"] = (out.get("model") or "") + "+contextual-why-v3"
+    why_ai = (out.get("why") or "").replace("Dlaczego to ważne:", "").strip()
+    why_rule = context_why_it_matters_pl(section_key, title, snippet)
+    out["why"] = _clip_sentence(why_ai if why_is_useful(why_ai) else why_rule, 340)
+    out["model"] = (out.get("model") or "") + "+contextual-why-v4"
     return out
 
 
