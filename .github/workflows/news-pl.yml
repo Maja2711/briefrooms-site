@@ -10,6 +10,7 @@ on:
     paths:
       - "scripts/fetch_news_pl.py"
       - "scripts/fetch_news_pl_hybrid.py"
+      - "scripts/fetch_news_pl_deep.py"
       - ".github/workflows/news-pl.yml"
 
 permissions:
@@ -34,12 +35,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Generate PL Aktualności (hybrid PL content + hotbar JSON)
+      - name: Generate PL Aktualności (deep contextual PL content + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: |
-          python scripts/fetch_news_pl_hybrid.py
+          python scripts/fetch_news_pl_deep.py
 
       - name: Commit & push if changed
         run: |
@@ -47,7 +48,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json
-            git commit -m "chore(news-pl): update hybrid PL news"
+            git commit -m "chore(news-pl): update deep contextual PL news"
             git push
           else
             echo "No changes."
