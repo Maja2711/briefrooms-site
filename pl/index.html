@@ -3,275 +3,88 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BriefRooms — najważniejsze tematy dnia bez szumu</title>
-  <meta name="description" content="BriefRooms: krótkie, rzeczowe briefy z pięciu pokoi wiedzy — aktualności, geopolityka, zdrowie, nauka i inwestycje. Ze źródłami i kontekstem." />
+  <title>BriefRooms — bieżące briefy z linkami do źródeł</title>
+  <meta name="description" content="BriefRooms: aktualne briefy z najważniejszych tematów dnia. Krótko, rzeczowo, ze zdjęciami i linkami do oryginalnych artykułów." />
   <link rel="icon" href="/assets/favicon.svg" />
-  <link rel="stylesheet" href="/assets/site.css?v=rooms3" />
+  <link rel="stylesheet" href="/assets/site.css?v=live1" />
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/" />
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/" />
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
-  <meta property="og:title" content="BriefRooms — najważniejsze tematy dnia bez szumu" />
-  <meta property="og:description" content="5 pokoi wiedzy. Jeden szybki briefing. Krótko, rzeczowo i ze źródłami." />
+  <meta property="og:title" content="BriefRooms — bieżące briefy z linkami do źródeł" />
+  <meta property="og:description" content="Aktualne tematy dnia. Krótko, rzeczowo, ze zdjęciem i linkiem do źródła." />
   <meta property="og:url" content="https://briefrooms.com/pl/" />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://briefrooms.com/assets/og-cover.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="BriefRooms — najważniejsze tematy dnia bez szumu" />
-  <meta name="twitter:description" content="5 pokoi wiedzy. Jeden szybki briefing. Krótko, rzeczowo i ze źródłami." />
-  <meta name="twitter:image" content="https://briefrooms.com/assets/og-cover.jpg" />
-
   <style>
-    :root{
-      --bg:#06131f;
-      --panel:#0b2133;
-      --panel2:#0f2a40;
-      --line:rgba(255,255,255,.10);
-      --txt:#eef7ff;
-      --muted:#9fb2c8;
-      --muted2:#6f879e;
-      --teal:#38d6c9;
-      --teal2:#15978f;
-      --blue:#49a8ff;
-      --green:#6fe08e;
-      --orange:#f2a319;
-      --purple:#b46cff;
-      --radius:22px;
-      --shadow:0 24px 80px rgba(0,0,0,.38);
-    }
-
-    *{box-sizing:border-box}
-    html{background:#06131f; scroll-behavior:smooth}
-    body{
-      margin:0;
-      color:var(--txt);
-      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-      background:
-        radial-gradient(1000px 520px at 12% -10%, rgba(46,214,201,.18), transparent 58%),
-        radial-gradient(900px 620px at 86% 16%, rgba(73,168,255,.13), transparent 58%),
-        linear-gradient(180deg,#06131f 0%,#071827 46%,#081522 100%);
-      min-height:100vh;
-    }
-    body:before{
-      content:"";
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      background-image:linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
-      background-size:44px 44px;
-      mask-image:linear-gradient(180deg, rgba(0,0,0,.85), transparent 82%);
-    }
-    a{color:inherit}
-    .page{max-width:1220px; margin:0 auto; padding:26px 24px 32px; position:relative; z-index:1}
-
-    .top{
-      display:flex; align-items:center; justify-content:space-between; gap:20px;
-      padding:0 0 22px; border-bottom:1px solid var(--line);
-    }
-    .brand{display:flex; align-items:center; gap:18px; text-decoration:none}
-    .logo{font-size:27px; line-height:1; font-weight:850; letter-spacing:-.03em}
-    .trust-pill{font-size:11px; color:var(--teal); border:1px solid rgba(56,214,201,.22); background:rgba(56,214,201,.07); padding:7px 12px; border-radius:999px; white-space:nowrap}
-    .nav{display:flex; align-items:center; gap:22px; color:#d9e7f5; font-size:14px}
-    .nav a{opacity:.88; text-decoration:none}
-    .nav a:hover{opacity:1; color:#fff}
-    .top-actions{display:flex; align-items:center; gap:10px}
-    .icon-btn,.newsletter{border:1px solid var(--line); background:rgba(255,255,255,.035); color:#eaf6ff; border-radius:13px; min-height:40px; padding:0 13px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-weight:700; font-size:13px}
-    .newsletter{background:linear-gradient(135deg, rgba(56,214,201,.95), rgba(21,151,143,.88)); color:#042227; border-color:rgba(56,214,201,.5); padding:0 18px}
-
-    .layout{display:grid; grid-template-columns:minmax(0,1fr) 355px; gap:28px}
-    .hero{
-      display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:34px; align-items:center;
-      padding:62px 0 54px; border-bottom:1px solid var(--line);
-    }
-    .eyebrow{color:var(--teal); font-weight:800; font-size:14px; margin:0 0 24px}
-    h1{font-size:clamp(42px,6vw,64px); line-height:1.08; letter-spacing:-.055em; margin:0 0 24px; max-width:720px}
-    .lead{font-size:19px; line-height:1.55; color:#bfd0e0; margin:0 0 28px; max-width:680px}
-    .hero-actions{display:flex; gap:14px; flex-wrap:wrap}
-    .btn{display:inline-flex; align-items:center; gap:10px; min-height:48px; padding:0 24px; border-radius:999px; text-decoration:none; font-weight:850; border:1px solid var(--line); background:rgba(255,255,255,.035)}
-    .btn.primary{background:linear-gradient(135deg, var(--teal), var(--teal2)); color:#042227; border-color:rgba(56,214,201,.45); box-shadow:0 18px 50px rgba(21,151,143,.28)}
-    .summary-card{border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.025)); border-radius:28px; padding:26px 24px; box-shadow:var(--shadow)}
-    .summary-card h2{font-size:22px; margin:0 0 22px}
-    .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding-bottom:20px; border-bottom:1px solid var(--line); margin-bottom:20px}
-    .stat b{display:block; color:var(--teal); font-size:28px; line-height:1}
-    .stat span{display:block; color:#a9bbcb; font-size:12px; margin-top:8px}
-    .summary-card p{color:#c8d6e4; line-height:1.55; margin:0}
-
-    .side{border-left:1px solid var(--line); padding-left:28px; padding-top:32px}
-    .section-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px}
-    .section-head h2{font-size:22px; margin:0; letter-spacing:-.02em}
-    .section-head p{color:var(--muted); margin:6px 0 0; font-size:13px}
-    .more{font-size:13px; color:var(--teal); text-decoration:none; font-weight:800; white-space:nowrap}
-
-    .twitter-feed{display:grid; gap:14px}
-    .tweet{border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025)); border-radius:18px; padding:18px; box-shadow:0 14px 42px rgba(0,0,0,.22)}
-    .tweet-top{display:flex; align-items:center; gap:12px; margin-bottom:14px}
-    .avatar{width:46px; height:46px; border-radius:999px; display:grid; place-items:center; font-weight:900; background:linear-gradient(135deg,#104a87,#1b71c9); border:1px solid rgba(255,255,255,.18); box-shadow:0 10px 28px rgba(0,0,0,.28)}
-    .who .avatar{background:linear-gradient(135deg,#1391d2,#5bbdff)}
-    .nato .avatar{background:linear-gradient(135deg,#113d84,#245cc7)}
-    .ecb .avatar{background:linear-gradient(135deg,#13358a,#caa531)}
-    .tweet-name{font-weight:900; display:flex; gap:6px; align-items:center}.check{color:#38a7ff}.handle{color:#8fa4b8; font-size:13px; margin-top:2px}
-    .tweet-text{font-size:15px; line-height:1.45; color:#dce9f5; margin:0 0 12px}.tweet-text a{color:var(--teal); text-decoration:none}
-    .tweet-meta{display:flex; justify-content:space-between; color:#8fa4b8; font-size:13px}.tweet-meta span{display:flex; gap:6px; align-items:center}
-    .tweet-button{display:flex; justify-content:center; margin-top:14px; padding:12px; border:1px solid var(--line); border-radius:14px; color:#c7d7e8; text-decoration:none; font-weight:800; font-size:13px}
-
-    .content{padding-top:34px}.brief-grid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:22px}
-    .brief-card{min-height:300px; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025)); display:flex; flex-direction:column; box-shadow:0 14px 44px rgba(0,0,0,.18); text-decoration:none}
-    .thumb{height:138px; position:relative; background:radial-gradient(circle at 25% 15%, rgba(56,214,201,.32), transparent 40%), linear-gradient(135deg,#0d344a,#081827); overflow:hidden}
-    .thumb img{width:100%; height:100%; object-fit:cover; display:block; filter:saturate(.9) contrast(1.02)}
-    .thumb:after{content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 20%,rgba(6,19,31,.55) 100%)}
-    .tag{position:absolute; z-index:2; left:12px; top:12px; border-radius:9px; padding:6px 9px; font-size:11px; font-weight:900; background:rgba(56,214,201,.18); color:#82fff5; border:1px solid rgba(56,214,201,.25)}
-    .brief-body{padding:16px 15px 14px; display:flex; flex-direction:column; gap:10px; flex:1}.brief-title{font-size:18px; line-height:1.18; margin:0; letter-spacing:-.02em}.brief-desc{font-size:13px; line-height:1.48; color:#aebfd0; margin:0; flex:1}.brief-time{font-size:12px; color:#8ca0b2; display:flex; justify-content:space-between}
-    .center-row{text-align:center; margin:18px 0 34px}.soft-btn{display:inline-flex; border:1px solid var(--line); border-radius:13px; padding:13px 26px; text-decoration:none; color:#dce9f5; font-weight:850; background:rgba(255,255,255,.025)}
-
-    .rooms{padding:0 0 34px; border-bottom:1px solid var(--line); margin-bottom:28px}
-    .room-grid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px}
-    .room-door{position:relative; min-height:238px; border:1px solid var(--line); border-radius:16px; overflow:hidden; padding:20px 12px 14px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; text-decoration:none; background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)); box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 16px 44px rgba(0,0,0,.20)}
-    .portal{position:absolute; left:17px; right:17px; top:13px; bottom:14px; border-radius:72px 72px 12px 12px; transform:perspective(520px) rotateX(3deg); background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 0 0 3px rgba(0,0,0,.16), inset 0 18px 50px rgba(255,255,255,.06), 0 0 34px rgba(56,214,201,.08)}
-    .portal:before{content:""; position:absolute; inset:12px 11px 15px; border-radius:58px 58px 9px 9px; background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(0,0,0,.18) 45%,rgba(0,0,0,.42)); box-shadow:inset -12px 0 28px rgba(0,0,0,.32), inset 12px 0 18px rgba(255,255,255,.035)}
-    .portal:after{content:""; position:absolute; left:22px; right:22px; bottom:8px; height:10px; border-radius:999px; background:rgba(0,0,0,.32); filter:blur(2px)}
-    .room-content{position:relative; z-index:2; width:100%; text-align:center}.room-icon{font-size:30px; margin-bottom:14px; color:var(--teal)}.room-door h3{margin:0 0 7px; font-size:17px}.room-door small{display:inline-block; color:var(--teal); background:rgba(56,214,201,.09); padding:3px 8px; border-radius:999px; font-weight:850}.room-door p{font-size:12px; color:#b0c0d0; line-height:1.35; min-height:48px}.open{font-size:13px; color:var(--teal); font-weight:900}
-    .geo .room-icon,.geo small,.geo .open{color:var(--orange)}.geo .portal{box-shadow:0 0 35px rgba(242,163,25,.13), inset 0 0 0 3px rgba(0,0,0,.16)}
-    .health .room-icon,.health small,.health .open{color:var(--green)}.science .room-icon,.science small,.science .open{color:var(--blue)}.invest .room-icon,.invest small,.invest .open{color:var(--purple)}
-
-    .radar{padding-bottom:22px}.radar-grid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px}.radar-card{border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)); padding:16px; min-height:150px}.radar-card time{font-size:12px; color:#7890a7}.radar-card h3{font-size:17px; line-height:1.2; margin:14px 0 8px}.radar-card p{font-size:13px; line-height:1.45; color:#aebfd0; margin:0 0 10px}.source{font-size:12px; color:#7f95aa}
-
-    .why{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; margin-top:26px; padding:24px 0 8px; border-top:1px solid var(--line)}.why-item{display:flex; gap:13px; color:#c2d2e2}.why-ico{width:36px; height:36px; border-radius:12px; background:rgba(255,255,255,.06); display:grid; place-items:center; color:var(--teal); border:1px solid var(--line); flex:0 0 auto}.why-item b{display:block; color:#f2f8ff; font-size:14px}.why-item span{display:block; color:#91a6ba; font-size:12px; line-height:1.35; margin-top:2px}
-    footer{display:flex; align-items:center; justify-content:space-between; gap:14px; border-top:1px solid var(--line); margin-top:26px; padding-top:20px; color:#7f93a8; font-size:12px}.foot-links{display:flex; gap:22px}.foot-links a{text-decoration:none; color:#90a3b6}
-    .fallback-art{display:grid; place-items:center; height:100%; color:rgba(255,255,255,.7); font-weight:900; font-size:34px}
-
-    @media (max-width:1050px){.layout{grid-template-columns:1fr}.side{border-left:0; padding-left:0; padding-top:6px}.hero{grid-template-columns:1fr}.brief-grid,.radar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.nav{display:none}}
-    @media (max-width:680px){.page{padding:18px 14px 28px}.top{align-items:flex-start}.trust-pill{display:none}.newsletter{display:none}h1{font-size:42px}.lead{font-size:16px}.brief-grid,.radar-grid,.room-grid,.why{grid-template-columns:1fr}.room-door{min-height:220px}.summary-card{padding:20px}.stats{gap:8px}.layout{gap:8px}}
+    :root{--bg:#06131f;--panel:#0b2133;--line:rgba(255,255,255,.10);--txt:#eef7ff;--muted:#9fb2c8;--teal:#38d6c9;--teal2:#15978f;--blue:#49a8ff;--green:#6fe08e;--orange:#f2a319;--purple:#b46cff;--shadow:0 24px 80px rgba(0,0,0,.38)}
+    *{box-sizing:border-box} html{background:#06131f;scroll-behavior:smooth} body{margin:0;color:var(--txt);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1000px 520px at 12% -10%,rgba(46,214,201,.18),transparent 58%),radial-gradient(900px 620px at 86% 16%,rgba(73,168,255,.13),transparent 58%),linear-gradient(180deg,#06131f 0%,#071827 46%,#081522 100%);min-height:100vh} body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(180deg,rgba(0,0,0,.85),transparent 82%)} a{color:inherit}.page{max-width:1220px;margin:0 auto;padding:26px 24px 32px;position:relative;z-index:1}.top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 0 22px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:18px;text-decoration:none}.logo{font-size:27px;line-height:1;font-weight:850;letter-spacing:-.03em}.trust-pill{font-size:11px;color:var(--teal);border:1px solid rgba(56,214,201,.22);background:rgba(56,214,201,.07);padding:7px 12px;border-radius:999px;white-space:nowrap}.nav{display:flex;align-items:center;gap:22px;color:#d9e7f5;font-size:14px}.nav a{opacity:.88;text-decoration:none}.nav a:hover{opacity:1;color:#fff}.top-actions{display:flex;align-items:center;gap:10px}.icon-btn{border:1px solid var(--line);background:rgba(255,255,255,.035);color:#eaf6ff;border-radius:13px;min-height:40px;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:700;font-size:13px}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) 355px;gap:28px}.hero{padding:66px 0 58px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--teal);font-weight:850;font-size:14px;margin:0 0 24px}.live-strip{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 24px}.live-pill{border:1px solid rgba(56,214,201,.22);background:rgba(56,214,201,.07);color:#9ffff6;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800}.live-pill.muted{color:#c5d5e4;border-color:var(--line);background:rgba(255,255,255,.035)}h1{font-size:clamp(42px,6vw,70px);line-height:1.06;letter-spacing:-.058em;margin:0 0 24px;max-width:830px}.lead{font-size:20px;line-height:1.55;color:#bfd0e0;margin:0 0 30px;max-width:780px}.hero-actions{display:flex;gap:14px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;text-decoration:none;font-weight:850;border:1px solid var(--line);background:rgba(255,255,255,.035)}.btn.primary{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#042227;border-color:rgba(56,214,201,.45);box-shadow:0 18px 50px rgba(21,151,143,.28)}
+    .side{border-left:1px solid var(--line);padding-left:28px;padding-top:32px}.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}.section-head h2{font-size:22px;margin:0;letter-spacing:-.02em}.section-head p{color:var(--muted);margin:6px 0 0;font-size:13px}.more{font-size:13px;color:var(--teal);text-decoration:none;font-weight:850;white-space:nowrap}.source-feed{display:grid;gap:14px}.source-card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));border-radius:18px;padding:18px;text-decoration:none;box-shadow:0 14px 42px rgba(0,0,0,.22)}.source-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}.avatar{width:46px;height:46px;border-radius:999px;display:grid;place-items:center;font-weight:900;background:linear-gradient(135deg,#104a87,#1b71c9);border:1px solid rgba(255,255,255,.18);box-shadow:0 10px 28px rgba(0,0,0,.28)}.who .avatar{background:linear-gradient(135deg,#1391d2,#5bbdff)}.nato .avatar{background:linear-gradient(135deg,#113d84,#245cc7)}.ecb .avatar{background:linear-gradient(135deg,#13358a,#caa531)}.source-name{font-weight:900;display:flex;gap:6px;align-items:center}.check{color:#38a7ff}.handle{color:#8fa4b8;font-size:13px;margin-top:2px}.source-copy{font-size:14px;line-height:1.5;color:#dce9f5;margin:0}.source-copy span{color:var(--teal);font-weight:850}
+    .content{padding-top:34px}.brief-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:22px}.brief-card{min-height:330px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));display:flex;flex-direction:column;box-shadow:0 14px 44px rgba(0,0,0,.18);text-decoration:none}.thumb{height:142px;position:relative;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.32),transparent 40%),linear-gradient(135deg,#0d344a,#081827);overflow:hidden}.thumb img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.94) contrast(1.03)}.thumb:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 20%,rgba(6,19,31,.58) 100%)}.tag{position:absolute;z-index:2;left:12px;top:12px;border-radius:9px;padding:6px 9px;font-size:11px;font-weight:900;background:rgba(56,214,201,.18);color:#82fff5;border:1px solid rgba(56,214,201,.25)}.brief-body{padding:16px 15px 14px;display:flex;flex-direction:column;gap:10px;flex:1}.brief-title{font-size:18px;line-height:1.18;margin:0;letter-spacing:-.02em}.brief-desc{font-size:13px;line-height:1.48;color:#aebfd0;margin:0;flex:1}.brief-source{font-size:12px;color:#88a0b6;display:flex;justify-content:space-between;gap:10px;align-items:center}.brief-source b{color:#dce9f5}.brief-link{color:var(--teal);font-weight:900}.center-row{text-align:center;margin:18px 0 34px}.soft-btn{display:inline-flex;border:1px solid var(--line);border-radius:13px;padding:13px 26px;text-decoration:none;color:#dce9f5;font-weight:850;background:rgba(255,255,255,.025)}
+    .rooms{padding:0 0 34px;border-bottom:1px solid var(--line);margin-bottom:28px}.room-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}.room-door{position:relative;min-height:238px;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:20px 12px 14px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;text-decoration:none;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 16px 44px rgba(0,0,0,.20)}.portal{position:absolute;left:17px;right:17px;top:13px;bottom:14px;border-radius:72px 72px 12px 12px;transform:perspective(520px) rotateX(3deg);background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 0 0 3px rgba(0,0,0,.16),inset 0 18px 50px rgba(255,255,255,.06),0 0 34px rgba(56,214,201,.08)}.portal:before{content:"";position:absolute;inset:12px 11px 15px;border-radius:58px 58px 9px 9px;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(0,0,0,.18) 45%,rgba(0,0,0,.42));box-shadow:inset -12px 0 28px rgba(0,0,0,.32),inset 12px 0 18px rgba(255,255,255,.035)}.portal:after{content:"";position:absolute;left:22px;right:22px;bottom:8px;height:10px;border-radius:999px;background:rgba(0,0,0,.32);filter:blur(2px)}.room-content{position:relative;z-index:2;width:100%;text-align:center}.room-icon{font-size:30px;margin-bottom:14px;color:var(--teal)}.room-door h3{margin:0 0 7px;font-size:17px}.room-door small{display:inline-block;color:var(--teal);background:rgba(56,214,201,.09);padding:3px 8px;border-radius:999px;font-weight:850}.room-door p{font-size:12px;color:#b0c0d0;line-height:1.35;min-height:48px}.open{font-size:13px;color:var(--teal);font-weight:900}.geo .room-icon,.geo small,.geo .open{color:var(--orange)}.geo .portal{box-shadow:0 0 35px rgba(242,163,25,.13),inset 0 0 0 3px rgba(0,0,0,.16)}.health .room-icon,.health small,.health .open{color:var(--green)}.science .room-icon,.science small,.science .open{color:var(--blue)}.invest .room-icon,.invest small,.invest .open{color:var(--purple)}
+    .radar{padding-bottom:22px}.radar-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.radar-card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));padding:16px;min-height:160px;text-decoration:none;display:flex;flex-direction:column}.radar-card time{font-size:12px;color:#7890a7}.radar-card h3{font-size:17px;line-height:1.2;margin:14px 0 8px}.radar-card p{font-size:13px;line-height:1.45;color:#aebfd0;margin:0 0 10px;flex:1}.source{font-size:12px;color:#7f95aa}.source b{color:#dce9f5}.why{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:26px;padding:24px 0 8px;border-top:1px solid var(--line)}.why-item{display:flex;gap:13px;color:#c2d2e2}.why-ico{width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.06);display:grid;place-items:center;color:var(--teal);border:1px solid var(--line);flex:0 0 auto}.why-item b{display:block;color:#f2f8ff;font-size:14px}.why-item span{display:block;color:#91a6ba;font-size:12px;line-height:1.35;margin-top:2px}footer{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid var(--line);margin-top:26px;padding-top:20px;color:#7f93a8;font-size:12px}.foot-links{display:flex;gap:22px}.foot-links a{text-decoration:none;color:#90a3b6}.fallback-art{display:grid;place-items:center;height:100%;color:rgba(255,255,255,.7);font-weight:900;font-size:34px}
+    @media (max-width:1050px){.layout{grid-template-columns:1fr}.side{border-left:0;padding-left:0;padding-top:6px}.brief-grid,.radar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.nav{display:none}}
+    @media (max-width:680px){.page{padding:18px 14px 28px}.top{align-items:flex-start}.trust-pill{display:none}h1{font-size:42px}.lead{font-size:16px}.brief-grid,.radar-grid,.room-grid,.why{grid-template-columns:1fr}.room-door{min-height:220px}.layout{gap:8px}}
   </style>
 </head>
 <body>
   <div class="page">
     <header class="top">
-      <a class="brand" href="/pl/" aria-label="BriefRooms — strona główna">
-        <span class="logo">BRIEFROOMS</span>
-        <span class="trust-pill">AI-assisted • Human-reviewed</span>
-      </a>
-      <nav class="nav" aria-label="Główna nawigacja">
-        <a href="/pl/aktualnosci.html">Aktualności</a>
-        <a href="/pl/geopolityka.html">Geopolityka</a>
-        <a href="/pl/zdrowie.html">Zdrowie</a>
-        <a href="/pl/nauka.html">Nauka</a>
-        <a href="/pl/inwestycje.html">Inwestycje</a>
-        <a href="/pl/o-projekcie.html">O nas</a>
-      </nav>
-      <div class="top-actions">
-        <a class="icon-btn" href="/en/" aria-label="English version">EN</a>
-        <a class="newsletter" href="mailto:contact@briefrooms.com?subject=Newsletter%20BriefRooms">Newsletter 10 min</a>
-      </div>
+      <a class="brand" href="/pl/" aria-label="BriefRooms — strona główna"><span class="logo">BRIEFROOMS</span><span class="trust-pill">AI-assisted • Human-reviewed</span></a>
+      <nav class="nav" aria-label="Główna nawigacja"><a href="/pl/aktualnosci.html">Aktualności</a><a href="/pl/geopolityka.html">Geopolityka</a><a href="/pl/zdrowie.html">Zdrowie</a><a href="/pl/nauka.html">Nauka</a><a href="/pl/inwestycje.html">Inwestycje</a><a href="/pl/o-projekcie.html">O nas</a></nav>
+      <div class="top-actions"><a class="icon-btn" href="/en/" aria-label="English version">EN</a></div>
     </header>
-
     <div class="layout">
       <main>
         <section class="hero" aria-labelledby="hero-title">
-          <div>
-            <p class="eyebrow">Poranny briefing</p>
-            <h1 id="hero-title">5 pokoi wiedzy.<br>Jeden szybki briefing.</h1>
-            <p class="lead">Najważniejsze aktualności, zdrowie, geopolityka, nauka i inwestycje — krótko, rzeczowo, ze źródłami.</p>
-            <div class="hero-actions">
-              <a class="btn primary" href="/pl/aktualnosci.html">Czytaj dzisiejszy briefing →</a>
-              <a class="btn" href="#pokoje">Wybierz pokój</a>
-            </div>
-          </div>
-          <aside class="summary-card" aria-label="Dziś w skrócie">
-            <h2>Dziś w skrócie</h2>
-            <div class="stats">
-              <div class="stat"><b id="stat-briefs">18</b><span>briefów</span></div>
-              <div class="stat"><b>5</b><span>pokoi</span></div>
-              <div class="stat"><b>3 min</b><span>do źródła</span></div>
-            </div>
-            <p>Najpierw sedno. Potem źródło. Na końcu kontekst i możliwe konsekwencje.</p>
-          </aside>
+          <div class="live-strip"><span class="live-pill">Bieżące informacje</span><span class="live-pill muted" id="updated-at">Aktualizacja: wczytywanie…</span><span class="live-pill muted">Zdjęcia z artykułów</span></div>
+          <p class="eyebrow">Poranny briefing</p>
+          <h1 id="hero-title">Najważniejsze tematy dnia. Krótko i ze źródłem.</h1>
+          <p class="lead">BriefRooms pokazuje aktualne briefy z najnowszych artykułów: najpierw sedno, potem zdjęcie i link do oryginalnego źródła.</p>
+          <div class="hero-actions"><a class="btn primary" href="#latest-title">Zobacz najnowsze briefy →</a><a class="btn" href="#live-radar">Przejdź do Live Radar</a></div>
         </section>
-
         <section class="content" aria-labelledby="latest-title">
-          <div class="section-head">
-            <div><h2 id="latest-title">Najnowsze briefy</h2><p>Układ polecany, jeżeli chcesz szybko zrozumieć, co się dzieje.</p></div>
-            <a class="more" href="/pl/aktualnosci.html">Zobacz wszystkie →</a>
-          </div>
+          <div class="section-head"><div><h2 id="latest-title">Najnowsze briefy</h2><p>Każda karta prowadzi do krótkiego briefu oraz zawiera link do artykułu źródłowego.</p></div><a class="more" href="/pl/aktualnosci.html">Wszystkie aktualności →</a></div>
           <div id="latest-briefs" class="brief-grid"></div>
-          <div class="center-row"><a class="soft-btn" href="/pl/aktualnosci.html">Zobacz wszystkie briefy →</a></div>
+          <div class="center-row"><a class="soft-btn" href="/pl/aktualnosci.html">Zobacz wszystkie aktualności →</a></div>
         </section>
-
         <section id="pokoje" class="rooms" aria-labelledby="rooms-title">
-          <div class="section-head">
-            <div><h2 id="rooms-title">Pokoje — wybierz temat</h2><p>Pięć pokoi wiedzy. Każdy z własnym rytmem i głębią.</p></div>
-          </div>
+          <div class="section-head"><div><h2 id="rooms-title">Pokoje — wybierz temat</h2><p>Pięć wejść do bieżących tematów. Każdy pokój ma własny rytm i głębię.</p></div></div>
           <div class="room-grid">
             <a class="room-door" href="/pl/aktualnosci.html"><span class="portal"></span><span class="room-content"><span class="room-icon">▤</span><h3>Aktualności</h3><small>Dziś</small><p>Najważniejsze newsy dnia, skrócone do sedna.</p><span class="open">Otwórz →</span></span></a>
-            <a class="room-door geo" href="/pl/geopolityka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">◎</span><h3>Geopolityka</h3><small>4 analizy</small><p>Scenariusze, mapa interesów, konsekwencje.</p><span class="open">Otwórz →</span></span></a>
-            <a class="room-door health" href="/pl/zdrowie.html"><span class="portal"></span><span class="room-content"><span class="room-icon">♡</span><h3>Zdrowie</h3><small>2 przewodniki</small><p>Praktyczne progi, badania i decyzje zdrowotne.</p><span class="open">Otwórz →</span></span></a>
-            <a class="room-door science" href="/pl/nauka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">⚗</span><h3>Nauka</h3><small>2 tezy</small><p>Odkrycia i technologie bez akademickiego szumu.</p><span class="open">Otwórz →</span></span></a>
-            <a class="room-door invest" href="/pl/inwestycje.html"><span class="portal"></span><span class="room-content"><span class="room-icon">↗</span><h3>Inwestycje</h3><small>2 narzędzia</small><p>Ryzyko, stopy, scenariusze rynkowe.</p><span class="open">Otwórz →</span></span></a>
+            <a class="room-door geo" href="/pl/geopolityka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">◎</span><h3>Geopolityka</h3><small>Analizy</small><p>Scenariusze, mapa interesów, konsekwencje.</p><span class="open">Otwórz →</span></span></a>
+            <a class="room-door health" href="/pl/zdrowie.html"><span class="portal"></span><span class="room-content"><span class="room-icon">♡</span><h3>Zdrowie</h3><small>Praktycznie</small><p>Badania, ryzyka i decyzje zdrowotne.</p><span class="open">Otwórz →</span></span></a>
+            <a class="room-door science" href="/pl/nauka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">⚗</span><h3>Nauka</h3><small>Odkrycia</small><p>Technologie i odkrycia bez akademickiego szumu.</p><span class="open">Otwórz →</span></span></a>
+            <a class="room-door invest" href="/pl/inwestycje.html"><span class="portal"></span><span class="room-content"><span class="room-icon">↗</span><h3>Inwestycje</h3><small>Rynek</small><p>Ryzyko, stopy, scenariusze rynkowe.</p><span class="open">Otwórz →</span></span></a>
           </div>
         </section>
-
-        <section class="radar" aria-labelledby="radar-title">
-          <div class="section-head"><div><h2 id="radar-title">Live Radar — sygnały dnia</h2><p>Zmiany, które mogą mieć znaczenie w ciągu najbliższych godzin.</p></div><a class="more" href="/pl/aktualnosci.html">Zobacz pełny radar →</a></div>
-          <div id="live-radar" class="radar-grid"></div>
+        <section id="live-radar" class="radar" aria-labelledby="radar-title">
+          <div class="section-head"><div><h2 id="radar-title">Live Radar — konkretne artykuły</h2><p>Sygnały dnia prowadzą do briefu i dalej do pełnego artykułu źródłowego.</p></div><a class="more" href="/pl/aktualnosci.html">Zobacz pełny radar →</a></div>
+          <div id="live-radar-list" class="radar-grid"></div>
         </section>
-
-        <section class="why" aria-label="Dlaczego BriefRooms">
-          <div class="why-item"><span class="why-ico">◇</span><div><b>Zaufane źródła</b><span>Link do publikacji i danych przy każdym briefie.</span></div></div>
-          <div class="why-item"><span class="why-ico">⌁</span><div><b>Zawsze ze źródłem</b><span>Nie tylko nagłówek, ale kierunek do dokumentu.</span></div></div>
-          <div class="why-item"><span class="why-ico">◷</span><div><b>Twój czas to 10 minut</b><span>Sedno teraz, kontekst kiedy potrzebujesz.</span></div></div>
-          <div class="why-item"><span class="why-ico">☷</span><div><b>Dla wymagających</b><span>Dziennikarze, analitycy, liderzy i ciekawi świata.</span></div></div>
-        </section>
+        <section class="why" aria-label="Dlaczego BriefRooms"><div class="why-item"><span class="why-ico">◇</span><div><b>Aktualne źródła</b><span>RSS i artykuły źródłowe zamiast statycznych przykładów.</span></div></div><div class="why-item"><span class="why-ico">⌁</span><div><b>Zdjęcie z artykułu</b><span>Miniatura pochodzi z RSS lub metadanych og:image.</span></div></div><div class="why-item"><span class="why-ico">◷</span><div><b>Krótki brief</b><span>Najpierw sedno, potem link do pełnej publikacji.</span></div></div><div class="why-item"><span class="why-ico">☷</span><div><b>Bez udawania źródeł</b><span>Każdy wpis kieruje do konkretnego adresu URL.</span></div></div></section>
       </main>
-
       <aside class="side" aria-labelledby="twitter-title">
-        <div class="section-head"><h2 id="twitter-title">Sygnały z Twittera</h2><a class="more" href="https://x.com" target="_blank" rel="noopener">Zobacz wszystkie →</a></div>
-        <div class="twitter-feed">
-          <article class="tweet"><div class="tweet-top"><div class="avatar">NASA</div><div><div class="tweet-name">NASA <span class="check">✓</span></div><div class="handle">@NASA · 32 min</div></div></div><p class="tweet-text">Nowe obserwacje JWST: czarna dziura w centrum galaktyki M87* wykazuje niespodziewaną zmienność. <a href="https://x.com/NASA" target="_blank" rel="noopener">nasa.gov/feature/m87</a></p><div class="tweet-meta"><span>💬 126</span><span>↻ 412</span><span>♡ 1.1K</span><span>▱</span></div></article>
-          <article class="tweet who"><div class="tweet-top"><div class="avatar">WHO</div><div><div class="tweet-name">WHO <span class="check">✓</span></div><div class="handle">@WHO · 1 godz.</div></div></div><p class="tweet-text">Wzrost zachorowań w kilku regionach. Przypominamy o szczepieniach i podstawowych zasadach ochrony. <a href="https://x.com/WHO" target="_blank" rel="noopener">who.int</a></p><div class="tweet-meta"><span>💬 98</span><span>↻ 276</span><span>♡ 742</span><span>▱</span></div></article>
-          <article class="tweet nato"><div class="tweet-top"><div class="avatar">NATO</div><div><div class="tweet-name">NATO <span class="check">✓</span></div><div class="handle">@NATO · 2 godz.</div></div></div><p class="tweet-text">Sojusznicy uzgodnili zwiększenie zdolności obronnych wschodniej flanki. Wspólne ćwiczenia jesienią. <a href="https://x.com/NATO" target="_blank" rel="noopener">nato.int</a></p><div class="tweet-meta"><span>💬 64</span><span>↻ 189</span><span>♡ 612</span><span>▱</span></div></article>
-          <article class="tweet ecb"><div class="tweet-top"><div class="avatar">ECB</div><div><div class="tweet-name">ECB <span class="check">✓</span></div><div class="handle">@ecb · 3 godz.</div></div></div><p class="tweet-text">Stabilizacja inflacji w strefie euro. Decyzje dotyczące stóp procentowych uzależnione od napływających danych. <a href="https://x.com/ecb" target="_blank" rel="noopener">ecb.europa.eu</a></p><div class="tweet-meta"><span>💬 42</span><span>↻ 128</span><span>♡ 381</span><span>▱</span></div></article>
-          <a class="tweet-button" href="https://x.com" target="_blank" rel="noopener">Zobacz więcej sygnałów →</a>
+        <div class="section-head"><div><h2 id="twitter-title">Wybrane źródła X</h2><p>Profile do monitorowania. Bez udawanych tweetów.</p></div></div>
+        <div class="source-feed">
+          <a class="source-card" href="https://x.com/NASA" target="_blank" rel="noopener"><div class="source-top"><div class="avatar">NASA</div><div><div class="source-name">NASA <span class="check">✓</span></div><div class="handle">@NASA</div></div></div><p class="source-copy">Nauka i kosmos. <span>Otwórz najnowsze wpisy →</span></p></a>
+          <a class="source-card who" href="https://x.com/WHO" target="_blank" rel="noopener"><div class="source-top"><div class="avatar">WHO</div><div><div class="source-name">WHO <span class="check">✓</span></div><div class="handle">@WHO</div></div></div><p class="source-copy">Zdrowie publiczne. <span>Otwórz najnowsze wpisy →</span></p></a>
+          <a class="source-card nato" href="https://x.com/NATO" target="_blank" rel="noopener"><div class="source-top"><div class="avatar">NATO</div><div><div class="source-name">NATO <span class="check">✓</span></div><div class="handle">@NATO</div></div></div><p class="source-copy">Bezpieczeństwo i geopolityka. <span>Otwórz najnowsze wpisy →</span></p></a>
+          <a class="source-card ecb" href="https://x.com/ecb" target="_blank" rel="noopener"><div class="source-top"><div class="avatar">ECB</div><div><div class="source-name">ECB <span class="check">✓</span></div><div class="handle">@ecb</div></div></div><p class="source-copy">Stopy, inflacja i polityka monetarna. <span>Otwórz najnowsze wpisy →</span></p></a>
         </div>
       </aside>
     </div>
-
-    <footer>
-      <span>© 2026 BriefRooms</span>
-      <nav class="foot-links" aria-label="Stopka"><a href="/pl/o-projekcie.html">O nas</a><a href="mailto:contact@briefrooms.com">Kontakt</a><a href="/en/">EN</a></nav>
-    </footer>
+    <footer><span>© 2026 BriefRooms</span><nav class="foot-links" aria-label="Stopka"><a href="/pl/o-projekcie.html">O nas</a><a href="mailto:contact@briefrooms.com">Kontakt</a><a href="/en/">EN</a></nav></footer>
   </div>
-
 <script>
-const fallbackBriefs = [
-  {category:'Polityka / kraj', title:'Rozmowa Zełenski–Trump', summary:'Co ustalono, co jest pewne, czego jeszcze nie wiemy.', source:'Źródło', link:'/pl/aktualnosci.html', image:''},
-  {category:'Ekonomia', title:'Finansowa poduszka Polaków', summary:'Najważniejsza liczba, źródło i konsekwencje dla rynku.', source:'Źródło', link:'/pl/aktualnosci.html', image:''},
-  {category:'Sport', title:'Lewandowski i przyszłość kadry', summary:'Krótki status, cytat, możliwe scenariusze.', source:'Źródło', link:'/pl/aktualnosci.html', image:''},
-  {category:'Nauka', title:'Egzoplaneta w strefie życia', summary:'Nowe dowody na obecność atmosfery i wody.', source:'Źródło', link:'/pl/nauka.html', image:''}
-];
-const fallbackRadar = [
-  {category:'Ekonomia', title:'Inflacja CPI w USA niższa od oczekiwań', summary:'Dane makro mogą zmienić oczekiwania rynku.', source:'BLS.gov', link:'/pl/aktualnosci.html'},
-  {category:'Geopolityka', title:'Rozmowy pokojowe wznowione', summary:'Kolejna runda rozmów zaplanowana po południu.', source:'Reuters', link:'/pl/aktualnosci.html'},
-  {category:'Nauka', title:'Start misji kosmicznej ESA', summary:'Mapowanie biomasy Ziemi z orbity.', source:'ESA', link:'/pl/nauka.html'},
-  {category:'Zdrowie', title:'Nowa rekomendacja dot. szczepień', summary:'Aktualizacja zaleceń na sezon letni.', source:'WHO', link:'/pl/zdrowie.html'}
-];
-function esc(s){return String(s||'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+const fallbackBriefs=[{category:'Aktualności',title:'Wczytywanie bieżących briefów…',summary:'Za chwilę pojawią się karty z aktualnego pliku home_brief.json.',source:'BriefRooms',link:'/pl/aktualnosci.html',image:'',time:'teraz'}];
+function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function art(category){return `<div class="fallback-art">${esc((category||'BR').slice(0,2).toUpperCase())}</div>`}
-function renderBriefs(items){
-  const root=document.getElementById('latest-briefs');
-  root.innerHTML=items.slice(0,4).map(it=>`<a class="brief-card" href="${esc(it.link)}" target="${String(it.link||'').startsWith('http')?'_blank':'_self'}" rel="noopener"><div class="thumb">${it.image?`<img src="${esc(it.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.thumb').innerHTML=art('${esc(it.category)}')">`:art(it.category)}<span class="tag">${esc(it.category||'Brief')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(it.title)}</h3><p class="brief-desc">${esc(it.summary||it.why||'Krótki kontekst i źródło do sprawdzenia.')}</p><span class="brief-time"><span>${esc(it.time||'dzisiaj')}</span><span>▱</span></span></div></a>`).join('');
-}
-function renderRadar(items){
-  document.getElementById('live-radar').innerHTML=items.slice(0,4).map((it,i)=>`<a class="radar-card" href="${esc(it.link)}" target="${String(it.link||'').startsWith('http')?'_blank':'_self'}" rel="noopener" style="text-decoration:none"><time>${esc(it.time||((i+1)*12+' min temu'))}</time><h3>${esc(it.title)}</h3><p>${esc(it.summary||'Krótki sygnał dnia z linkiem do źródła.')}</p><div class="source">Źródło: ${esc(it.source||'źródło')} ↗</div></a>`).join('');
-}
-async function loadHome(){
-  renderBriefs(fallbackBriefs); renderRadar(fallbackRadar);
-  try{
-    const r=await fetch('/pl/home_brief.json?v=' + Date.now(), {cache:'no-store'});
-    if(!r.ok) return;
-    const data=await r.json();
-    if(Array.isArray(data.latest) && data.latest.length) renderBriefs(data.latest);
-    if(Array.isArray(data.radar) && data.radar.length) renderRadar(data.radar);
-    if(data.count) document.getElementById('stat-briefs').textContent=data.count;
-  }catch(e){/* fallback zostaje */}
-}
+function briefUrl(it){const u=String(it.link||'');return `/pl/brief.html?u=${encodeURIComponent(u)}`;}
+function renderBriefs(items){const root=document.getElementById('latest-briefs');root.innerHTML=items.slice(0,4).map(it=>`<a class="brief-card" href="${briefUrl(it)}"><div class="thumb">${it.image?`<img src="${esc(it.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.thumb').innerHTML=art('${esc(it.category)}')">`:art(it.category)}<span class="tag">${esc(it.category||'Brief')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(it.title)}</h3><p class="brief-desc">${esc(it.summary||it.why||'Krótki brief i link do źródła.')}</p><span class="brief-source"><b>${esc(it.source||'Źródło')}</b><span class="brief-link">Czytaj brief →</span></span></div></a>`).join('');}
+function renderRadar(items){document.getElementById('live-radar-list').innerHTML=items.slice(0,4).map((it,i)=>`<a class="radar-card" href="${briefUrl(it)}"><time>${esc(it.time||((i+1)*12+' min temu'))}</time><h3>${esc(it.title)}</h3><p>${esc(it.summary||'Krótki sygnał dnia z linkiem do źródła.')}</p><div class="source">Źródło: <b>${esc(it.source||'źródło')}</b> · Czytaj brief →</div></a>`).join('');}
+async function loadHome(){renderBriefs(fallbackBriefs);renderRadar(fallbackBriefs);try{const r=await fetch('/pl/home_brief.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const data=await r.json();if(data.updated_at){document.getElementById('updated-at').textContent='Aktualizacja: '+new Date(data.updated_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'});}if(Array.isArray(data.latest)&&data.latest.length)renderBriefs(data.latest);if(Array.isArray(data.radar)&&data.radar.length)renderRadar(data.radar);}catch(e){document.getElementById('updated-at').textContent='Aktualizacja: brak danych';}}
 loadHome();
 </script>
 <script src="/scripts/hotbar.js?v=3" defer></script>
