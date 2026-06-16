@@ -2,13 +2,13 @@ name: Build EN News (12x daily)
 
 on:
   schedule:
-    # UTC time — every 2 hours = 12x daily
     - cron: "10 */2 * * *"
   workflow_dispatch: {}
   push:
     branches: [main]
     paths:
       - "scripts/fetch_news_en.py"
+      - "scripts/fetch_news_en_context.py"
       - ".github/workflows/news-en.yml"
 
 permissions:
@@ -33,14 +33,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Generate EN News (HTML + hotbar JSON, AI summaries if key is set)
+      - name: Generate EN News
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: |
-          python scripts/fetch_news_en.py
+          python scripts/fetch_news_en_context.py
 
-      - name: Commit & push if changed
+      - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
