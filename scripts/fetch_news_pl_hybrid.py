@@ -3,14 +3,12 @@
 """
 Hybrid PL news builder for BriefRooms.
 
-Rule for Polish version:
+Rules for Polish version:
 - user-facing content must be Polish;
 - Polish sources are rendered normally;
 - English sources may be used only when their visible title and AI comment are translated/summarized in Polish;
-- if OPENAI_API_KEY is not available or translation fails, English-language items are filtered out.
-
-This wrapper reuses scripts/fetch_news_pl.py and patches only the language/translation layer,
-so existing layout, scoring, filtering, hotbar and HTML generation stay intact.
+- if OPENAI_API_KEY is not available or translation fails, English-language items are filtered out;
+- "Dlaczego to ważne" must be contextual, not a repeated generic slogan.
 """
 
 import json
@@ -19,8 +17,6 @@ import re
 import sys
 from urllib.parse import urlparse
 
-# Import the existing generator as a module.
-# It is in the same directory when executed as: python scripts/fetch_news_pl_hybrid.py
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
@@ -28,7 +24,7 @@ if SCRIPT_DIR not in sys.path:
 import fetch_news_pl as base  # noqa: E402
 
 EN_HOST_RE = re.compile(
-    r"(reuters\.com|bbc\.|apnews\.com|espn\.|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com)",
+    r"(reuters\.com|bbc\.|apnews\.com|espn\.|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com|bloomberg\.com|theguardian\.com|nytimes\.com|cnbc\.com|nasa\.gov|esa\.int|who\.int)",
     re.I,
 )
 PL_CHARS_RE = re.compile(r"[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]")
@@ -41,83 +37,112 @@ COMMON_PL_RE = re.compile(
     re.I,
 )
 
-# --- Context classification for sensible Polish comments --------------------
 MACRO_ECON_RE = re.compile(
-    r"\b(inflacja|nbp|rpp|stopy procentowe|pkb|bezrobocie|płace|wynagrodzenia|ceny paliw|benzyn|diesl|energia|prąd|gaz|kredyt|raty|obligacj|deficyt|budżet|podat|zus|gospodark|handel|eksport|import|kurs walut|złoty|euro|dolar|giełd|wig|spółk|firm|rynek pracy)\b",
+    r"\b(inflacja|nbp|rpp|stopy procentowe|pkb|bezrobocie|płace|wynagrodzenia|ceny paliw|benzyn|diesl|energia|prąd|gaz|kredyt|raty|obligacj|deficyt|budżet|podat|zus|gospodark|handel|eksport|import|kurs walut|złoty|euro|dolar|giełd|wig|spółk|firm|rynek pracy|sprzedaż detaliczna|produkcja przemysłowa)\b",
     re.I,
 )
+FUEL_ENERGY_RE = re.compile(r"\b(paliw|benzyn|diesl|ropa|gaz|prąd|energia|ceny maksymalne|taryf)\b", re.I)
 PUBLIC_PERSON_RE = re.compile(
     r"\b(oświadczen|majątek|emerytur|uposażen|pensj|wynagrodzen|dieta poselska|poseł|posłanka|senator|minister|prezydent|radny|radna|polityk|macierewicz|morawiecki|tusk|kaczyński|trzaskowski|nawrocki|duda)\b",
     re.I,
 )
 LOCAL_INCIDENT_RE = re.compile(
-    r"\b(wypadek|zderzenie|kolizja|atak|incydent|zatrzyman|areszt|śledztw|prokuratur|policj|straż|sąd|wyrok|zarzut|sesji rady|rada miasta|hulajnod|autobus|pożar)\b",
+    r"\b(wypadek|zderzenie|kolizja|atak|incydent|zatrzyman|areszt|śledztw|prokuratur|policj|straż|sąd|wyrok|zarzut|sesji rady|rada miasta|hulajnod|autobus|pożar|napad|awaria)\b",
     re.I,
 )
 PUBLIC_POLICY_RE = re.compile(
-    r"\b(ustawa|projekt ustawy|rozporządzenie|sejm|senat|rząd|ministerstwo|budżet państwa|świadczenie|emerytury|waloryzacj|składk|program|dopłat|refundacj)\b",
+    r"\b(ustawa|projekt ustawy|rozporządzenie|sejm|senat|rząd|ministerstwo|budżet państwa|świadczenie|emerytury|waloryzacj|składk|program|dopłat|refundacj|limity|zakaz|regulacj)\b",
     re.I,
 )
-GENERIC_MACRO_WHY_RE = re.compile(
-    r"może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych",
+HEALTH_RE = re.compile(r"\b(zdrow|szpital|lekarz|pacjent|chorob|zakaż|szczep|lek|nfz|who|epidem|profilaktyk)\b", re.I)
+SCIENCE_RE = re.compile(r"\b(nauk|badani|kosmos|nasa|esa|planeta|galakty|technolog|ai|sztuczna inteligencja|odkryc)\b", re.I)
+SPORT_RE = re.compile(r"\b(mecz|wynik|liga|turniej|siatkar|piłkar|tenis|finał|mundial|sport|bramka|wygral|wygrała|pokonał)\b", re.I)
+
+GENERIC_BAD_WHY_RE = re.compile(
+    r"(może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych|wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli|to istotne, bo wpływa na decyzje publiczne)",
     re.I,
 )
-GENERIC_PUBLIC_WHY_RE = re.compile(
-    r"wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli",
-    re.I,
-)
+
+
+def _clip_sentence(text: str, limit: int = 330) -> str:
+    text = re.sub(r"\s+", " ", (text or "").strip())
+    if len(text) <= limit:
+        return base.ensure_period(text)
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return base.ensure_period(cut)
 
 
 def context_why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
-    """Dobiera sensowny komentarz do typu newsa. Nie używa ogólników makro do newsów indywidualnych."""
+    """Zwraca konkretny, kontekstowy komentarz. Bez pustych sloganów."""
     text = f"{title} {snippet}"
 
-    if section_key == "sport":
-        return _original_why_it_matters_pl(section_key, title, snippet)
+    if section_key == "sport" or SPORT_RE.search(text):
+        return (
+            "To jest informacja wynikowa: jej znaczenie zależy od tabeli, formy drużyny albo kontekstu turnieju. "
+            "Warto sprawdzić w źródle, czy wynik zmienia układ rywalizacji, awans lub presję na kolejny mecz."
+        )
 
     if PUBLIC_PERSON_RE.search(text):
         return (
-            "To ważne z perspektywy przejrzystości życia publicznego: pokazuje dochody, majątek albo decyzje osób pełniących funkcje publiczne. "
-            "Nie jest to jednak samo w sobie sygnał makroekonomiczny."
+            "Ten news jest ważny nie jako sygnał gospodarczy, lecz jako element kontroli życia publicznego. "
+            "Pokazuje, jakie dochody, majątek albo przywileje mają osoby pełniące funkcje publiczne i czy odpowiada to oczekiwaniom przejrzystości."
         )
 
     if LOCAL_INCIDENT_RE.search(text):
         return (
-            "To informacja lokalna lub społeczna: jej znaczenie dotyczy bezpieczeństwa, odpowiedzialności instytucji albo reakcji władz. "
-            "Nie należy jej automatycznie łączyć z cenami, firmami ani rynkiem pracy."
+            "Znaczenie tej informacji jest lokalne i instytucjonalne: chodzi o bezpieczeństwo, procedury oraz reakcję służb lub władz. "
+            "Najważniejsze pytanie brzmi, czy zdarzenie jest odosobnione, czy pokazuje szerszy problem organizacyjny."
         )
 
-    if PUBLIC_POLICY_RE.search(text):
+    if FUEL_ENERGY_RE.search(text):
         return (
-            "To ważne, bo dotyczy decyzji publicznych, przepisów albo działań instytucji państwa. "
-            "Takie sprawy mogą wpływać na obywateli, budżet lub sposób działania administracji."
+            "To ma bezpośrednie znaczenie dla codziennych kosztów, bo paliwa i energia szybko przenoszą się na budżety domowe oraz koszty transportu. "
+            "Warto patrzeć nie tylko na samą cenę, ale też na to, czy zmiana jest jednorazowa, czy zaczyna trwalszy trend."
         )
 
     if section_key == "biznes" and MACRO_ECON_RE.search(text):
         return (
-            "To ważne gospodarczo, bo może wpływać na koszty życia, decyzje firm, raty kredytów, ceny energii, paliw albo nastroje na rynku."
+            "To jest sygnał makroekonomiczny: może zmieniać ocenę inflacji, popytu, kosztów firm albo przyszłych decyzji banku centralnego. "
+            "Kluczowe jest porównanie danych z oczekiwaniami rynku, a nie sama pojedyncza liczba."
         )
 
-    if section_key == "biznes":
+    if PUBLIC_POLICY_RE.search(text):
         return (
-            "To ważne dla czytelników gospodarczych, jeśli pokazuje decyzje firm, regulacje, finanse publiczne albo zachowania konsumentów. "
-            "Komentarz powinien wynikać z treści newsa, a nie z automatycznego schematu makro."
+            "To ważne, bo za decyzją publiczną zwykle idą realne koszty, obowiązki albo prawa obywateli. "
+            "Dobra ocena wymaga sprawdzenia, kogo zmiana obejmie, kiedy wejdzie w życie i kto za nią zapłaci."
+        )
+
+    if HEALTH_RE.search(text):
+        return (
+            "W zdrowiu publicznym znaczenie newsa zależy od skali zjawiska i rekomendacji instytucji, nie od samego nagłówka. "
+            "Warto sprawdzić, czy informacja zmienia zalecenia dla pacjentów, lekarzy albo systemu ochrony zdrowia."
+        )
+
+    if SCIENCE_RE.search(text):
+        return (
+            "To ważne, jeśli odkrycie lub badanie zmienia dotychczasowe rozumienie problemu, a nie tylko brzmi efektownie w nagłówku. "
+            "Najlepiej oceniać je przez metodę, źródło i to, czy wyniki zostały potwierdzone niezależnie."
         )
 
     if section_key == "polityka":
         return (
-            "To ważne jako element obserwacji życia publicznego: pokazuje decyzje, konflikty, działania instytucji albo zachowanie osób publicznych. "
-            "Znaczenie tej informacji zależy od dalszego kontekstu i źródła."
+            "Znaczenie tej informacji polega na tym, czy odsłania mechanizm działania instytucji, konflikt interesów albo zmianę układu politycznego. "
+            "Sam fakt jest punktem wyjścia; ważniejsze jest, jakie decyzje lub konsekwencje może uruchomić."
+        )
+
+    if section_key == "biznes":
+        return (
+            "To warto śledzić, jeśli pokazuje zmianę w zachowaniu firm, konsumentów albo regulatora. "
+            "Najważniejsze jest oddzielenie pojedynczej ciekawostki od informacji, która może zmienić decyzje rynku."
         )
 
     return (
-        "To ważne, jeśli pomaga zrozumieć bieżący kontekst wydarzenia i wskazuje, co warto sprawdzić w źródle. "
-        "Komentarz nie powinien dopisywać wpływu makro, jeśli nie wynika on z treści newsa."
+        "To jest krótki sygnał informacyjny: jego wartość zależy od tego, czy pomaga zrozumieć większy proces, czy jest tylko pojedynczym zdarzeniem. "
+        "Warto wejść do źródła i sprawdzić szczegóły, zanim wyciągnie się szersze wnioski."
     )
 
 
 def likely_english_item(item: dict) -> bool:
-    """Conservative language/source detection for PL page hygiene."""
     title = item.get("title", "") or ""
     snippet = item.get("summary_raw", "") or ""
     link = item.get("link", "") or ""
@@ -130,12 +155,10 @@ def likely_english_item(item: dict) -> bool:
         return False
     en_hits = len(COMMON_EN_RE.findall(text))
     pl_hits = len(COMMON_PL_RE.findall(text))
-    # If there are clear English markers and no Polish markers, treat as English.
     return en_hits >= 2 and pl_hits == 0
 
 
 def still_looks_english(text: str) -> bool:
-    """Reject AI output that still looks like an English headline/comment."""
     t = (text or "").strip()
     if not t:
         return True
@@ -147,7 +170,6 @@ def still_looks_english(text: str) -> bool:
 
 
 def translate_english_item_to_polish(item: dict, section_key: str) -> dict | None:
-    """Return Polish user-facing fields for an English source item, or None if unsafe."""
     key = os.getenv("OPENAI_API_KEY")
     if not key:
         return None
@@ -156,19 +178,19 @@ def translate_english_item_to_polish(item: dict, section_key: str) -> dict | Non
     snippet = item.get("summary_raw", "") or ""
     source = item.get("source_name", "") or "źródło"
 
-    cache_key = f"hybrid-pl-v2|{base.norm_title(title)}|{base.today_str()}"
+    cache_key = f"hybrid-pl-v3|{base.norm_title(title)}|{base.today_str()}"
     if cache_key in base.CACHE:
         cached = base.CACHE[cache_key]
-        if cached.get("title_pl") and cached.get("summary") and cached.get("why"):
+        if cached.get("title_pl") and cached.get("summary"):
             cached["why"] = context_why_it_matters_pl(section_key, cached.get("title_pl", title), snippet)
             return cached
 
     prompt = f"""Przetłumacz i opracuj po polsku anglojęzyczny news do polskiej wersji BriefRooms.
-Zwróć wyłącznie poprawny JSON bez Markdown, w formacie:
+Zwróć wyłącznie poprawny JSON bez Markdown:
 {{
   "title_pl": "krótki tytuł po polsku, maksymalnie 110 znaków",
-  "summary": "Najważniejsze: jedno lub dwa krótkie zdania po polsku z sednem informacji",
-  "why": "Dlaczego to ważne: dwa krótkie zdania po polsku z kontekstem i konsekwencją",
+  "summary": "jedno lub dwa krótkie zdania po polsku z sednem informacji",
+  "why": "jedno lub dwa krótkie zdania po polsku z konkretnym kontekstem, bez ogólników",
   "uncertain": "opcjonalna krótka uwaga po polsku albo pusty string"
 }}
 
@@ -176,10 +198,9 @@ Zasady:
 - Wszystko, co zobaczy użytkownik, musi być po polsku.
 - Nie zostawiaj angielskiego tytułu.
 - Nie dopisuj faktów spoza tytułu i opisu RSS.
-- Zachowaj neutralny, rzeczowy ton.
-- Jeśli opis RSS jest krótki, nie zmyślaj szczegółów.
-- Nie używaj ogólnika makroekonomicznego przy newsie o jednej osobie, lokalnym incydencie albo sporcie.
-- Jeśli news dotyczy osoby publicznej i jej majątku/dochodów, znaczenie opisz przez przejrzystość życia publicznego, nie przez ceny albo rynek pracy.
+- Nie używaj pustych sloganów typu: wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.
+- Jeśli news dotyczy osoby publicznej i jej majątku/dochodów, znaczenie opisz przez przejrzystość życia publicznego.
+- Jeśli news jest lokalnym incydentem, opisz znaczenie przez procedury, bezpieczeństwo i reakcję instytucji.
 
 Sekcja: {section_key}
 Źródło: {source}
@@ -194,11 +215,11 @@ Opis RSS: {snippet}
             json={
                 "model": base.AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON i dobierasz komentarz do typu newsa."},
+                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON. Komentarz musi być konkretny dla danego newsa."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.12,
-                "max_tokens": 460,
+                "temperature": 0.2,
+                "max_tokens": 520,
             },
             timeout=30,
         )
@@ -207,16 +228,11 @@ Opis RSS: {snippet}
         raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S).strip()
         data = json.loads(raw)
 
-        title_pl = base.ensure_full_sentence(str(data.get("title_pl", "")).strip(), 130)
-        # Headline should not necessarily end with a period.
-        title_pl = title_pl.rstrip(".")
+        title_pl = base.ensure_full_sentence(str(data.get("title_pl", "")).strip(), 130).rstrip(".")
         summary = base.ensure_full_sentence(str(data.get("summary", "")).replace("Najważniejsze:", "").strip(), 360)
-        why_ai = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 320)
+        why_ai = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 340)
         why_rule = context_why_it_matters_pl(section_key, title_pl or title, snippet)
-        if GENERIC_MACRO_WHY_RE.search(why_ai) or GENERIC_PUBLIC_WHY_RE.search(why_ai):
-            why = why_rule
-        else:
-            why = why_ai or why_rule
+        why = why_rule if (not why_ai or GENERIC_BAD_WHY_RE.search(why_ai)) else why_ai
         uncertain = base.ensure_period(str(data.get("uncertain", "")).strip()) if data.get("uncertain") else ""
 
         if still_looks_english(title_pl) or still_looks_english(summary) or still_looks_english(why):
@@ -225,9 +241,9 @@ Opis RSS: {snippet}
         out = {
             "title_pl": title_pl,
             "summary": base.ensure_period(summary),
-            "why": base.ensure_period(why),
+            "why": _clip_sentence(why, 340),
             "uncertain": uncertain,
-            "model": f"{base.AI_MODEL}-hybrid-pl",
+            "model": f"{base.AI_MODEL}-hybrid-pl-v3",
         }
         base.CACHE[cache_key] = out
         base.save_cache(base.AI_CACHE_PATH, base.CACHE)
@@ -238,46 +254,25 @@ Opis RSS: {snippet}
 
 
 _original_source_badge_for = base.source_badge_for
-
-
-def source_badge_for_hybrid(source: str) -> str:
-    """Keep small source badges short even when source line contains the hybrid note."""
-    return _original_source_badge_for((source or "").split(" · ", 1)[0])
-
-
-_original_why_it_matters_pl = base.why_it_matters_pl
 _original_ai_summarize_pl = base.ai_summarize_pl
 _original_fetch_section = base.fetch_section
 
 
-def why_it_matters_pl_hybrid(section_key: str, title: str, snippet: str) -> str:
-    return context_why_it_matters_pl(section_key, title, snippet)
+def source_badge_for_hybrid(source: str) -> str:
+    return _original_source_badge_for((source or "").split(" · ", 1)[0])
 
 
 def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str = "") -> dict:
-    """Post-process summaries so cached/AI fallback comments do not use irrelevant macro boilerplate."""
     out = _original_ai_summarize_pl(title, snippet, url, section_key)
     if not isinstance(out, dict):
         out = {}
-    why = out.get("why", "") or ""
-    rule_why = context_why_it_matters_pl(section_key, title, snippet)
-    text = f"{title} {snippet}"
-    mismatch = False
 
-    if GENERIC_MACRO_WHY_RE.search(why):
-        mismatch = True
-    if GENERIC_PUBLIC_WHY_RE.search(why):
-        mismatch = True
-    if PUBLIC_PERSON_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
-        mismatch = True
-    if LOCAL_INCIDENT_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
-        mismatch = True
-    if not why.strip():
-        mismatch = True
+    summary = (out.get("summary") or "").replace("Najważniejsze:", "").strip()
+    out["summary"] = base.ensure_period(summary) if summary else base.ensure_period(base.ensure_full_sentence(snippet or title, 300))
 
-    if mismatch:
-        out["why"] = base.ensure_period(rule_why)
-        out["model"] = (out.get("model") or "") + "+context-guard"
+    # Always replace the old generic/fallback WHY with our contextual editor note.
+    out["why"] = _clip_sentence(context_why_it_matters_pl(section_key, title, snippet), 340)
+    out["model"] = (out.get("model") or "") + "+contextual-why-v3"
     return out
 
 
@@ -291,7 +286,6 @@ def fetch_section_hybrid(section_key: str):
 
         translated = translate_english_item_to_polish(it, section_key)
         if not translated:
-            # PL page must not show English user-facing content.
             continue
 
         original_source = it.get("source_name", "Źródło")
@@ -307,9 +301,7 @@ def fetch_section_hybrid(section_key: str):
     return out
 
 
-# Patch the base module and reuse its main().
 base.source_badge_for = source_badge_for_hybrid
-base.why_it_matters_pl = why_it_matters_pl_hybrid
 base.ai_summarize_pl = ai_summarize_pl_hybrid
 base.fetch_section = fetch_section_hybrid
 
