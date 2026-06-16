@@ -44,12 +44,17 @@ jobs:
 
       - name: Commit & push if changed
         run: |
-          if [[ -n "$(git status --porcelain pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json
-            git commit -m "chore(news-pl): update deep contextual PL news"
-            git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Dodaj tylko to, co faktycznie istnieje. Brak pliku cache nie może wywalać workflow.
+          git add -A pl/aktualnosci.html .cache || true
+
+          if git diff --cached --quiet; then
+            echo "No PL news changes to commit."
           else
-            echo "No changes."
+            git commit -m "chore(news-pl): update deep contextual PL news"
+            # Zabezpieczenie przed odrzuceniem push, gdy main zmienił się w międzyczasie.
+            git pull --rebase origin main
+            git push
           fi
