@@ -69,36 +69,51 @@ GENERIC_PUBLIC_WHY_RE = re.compile(
 
 
 def context_why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
-    """Return a context-aware why-it-matters sentence, avoiding macro boilerplate for individual stories."""
+    """Dobiera sensowny komentarz do typu newsa. Nie używa ogólników makro do newsów indywidualnych."""
     text = f"{title} {snippet}"
 
     if section_key == "sport":
-        return base.why_it_matters_pl(section_key, title, snippet)
+        return _original_why_it_matters_pl(section_key, title, snippet)
 
-    if PUBLIC_PERSON_RE.search(text) and not MACRO_ECON_RE.search(text):
+    if PUBLIC_PERSON_RE.search(text):
         return (
-            "To ważne z perspektywy przejrzystości życia publicznego: pokazuje, jakie dochody i majątek mają osoby pełniące funkcje publiczne, "
-            "ale nie jest to samo w sobie sygnał makroekonomiczny."
+            "To ważne z perspektywy przejrzystości życia publicznego: pokazuje dochody, majątek albo decyzje osób pełniących funkcje publiczne. "
+            "Nie jest to jednak samo w sobie sygnał makroekonomiczny."
         )
 
-    if LOCAL_INCIDENT_RE.search(text) and not MACRO_ECON_RE.search(text):
+    if LOCAL_INCIDENT_RE.search(text):
         return (
-            "To przede wszystkim informacja lokalna lub społeczna: jej znaczenie dotyczy bezpieczeństwa, odpowiedzialności instytucji albo reakcji władz, "
-            "a nie szerokiego wpływu na ceny czy rynek pracy."
+            "To informacja lokalna lub społeczna: jej znaczenie dotyczy bezpieczeństwa, odpowiedzialności instytucji albo reakcji władz. "
+            "Nie należy jej automatycznie łączyć z cenami, firmami ani rynkiem pracy."
         )
 
     if PUBLIC_POLICY_RE.search(text):
         return (
-            "To ważne, bo dotyczy decyzji publicznych i zasad działania państwa, które mogą wpływać na obywateli, budżet lub sposób funkcjonowania instytucji."
+            "To ważne, bo dotyczy decyzji publicznych, przepisów albo działań instytucji państwa. "
+            "Takie sprawy mogą wpływać na obywateli, budżet lub sposób działania administracji."
         )
 
     if section_key == "biznes" and MACRO_ECON_RE.search(text):
-        return "To ważne, bo może wpływać na ceny, koszty życia, decyzje firm, raty kredytów albo nastroje na rynku."
+        return (
+            "To ważne gospodarczo, bo może wpływać na koszty życia, decyzje firm, raty kredytów, ceny energii, paliw albo nastroje na rynku."
+        )
 
     if section_key == "biznes":
-        return "To ważne dla czytelników gospodarczych, jeśli pokazuje decyzje firm, finanse publiczne, regulacje albo zachowania konsumentów — bez automatycznego dopisywania wpływu makro."
+        return (
+            "To ważne dla czytelników gospodarczych, jeśli pokazuje decyzje firm, regulacje, finanse publiczne albo zachowania konsumentów. "
+            "Komentarz powinien wynikać z treści newsa, a nie z automatycznego schematu makro."
+        )
 
-    return base.why_it_matters_pl(section_key, title, snippet)
+    if section_key == "polityka":
+        return (
+            "To ważne jako element obserwacji życia publicznego: pokazuje decyzje, konflikty, działania instytucji albo zachowanie osób publicznych. "
+            "Znaczenie tej informacji zależy od dalszego kontekstu i źródła."
+        )
+
+    return (
+        "To ważne, jeśli pomaga zrozumieć bieżący kontekst wydarzenia i wskazuje, co warto sprawdzić w źródle. "
+        "Komentarz nie powinien dopisywać wpływu makro, jeśli nie wynika on z treści newsa."
+    )
 
 
 def likely_english_item(item: dict) -> bool:
