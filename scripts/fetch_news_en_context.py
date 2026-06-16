@@ -4,8 +4,10 @@
 Contextual EN news builder for BriefRooms.
 
 This wrapper keeps the existing EN feed selection/rendering logic from
-scripts/fetch_news_en.py, but replaces generic "Why it matters" text with a
-context-aware editorial note, mirroring the improved PL model.
+scripts/fetch_news_en.py, but:
+- removes low-value weather items;
+- shows "Why it matters" only when it adds concrete value;
+- avoids generic slogans and source-checking filler.
 """
 
 import os
@@ -27,8 +29,7 @@ MACRO_ECON_RE = re.compile(
 )
 FUEL_ENERGY_RE = re.compile(r"\b(oil|gasoline|petrol|diesel|natural gas|electricity|energy prices?|power bills?|fuel)\b", re.I)
 PUBLIC_PERSON_RE = re.compile(
-    r"\b(wealth|net worth|salary|pension|allowance|expenses?|assets?|disclosure|minister|president|prime minister|"
-    r"lawmaker|mp|senator|mayor|governor|public official|politician|ethics|conflict of interest)\b",
+    r"\b(wealth|net worth|salary|pension|allowance|expenses?|assets?|disclosure|ethics|conflict of interest)\b",
     re.I,
 )
 LOCAL_INCIDENT_RE = re.compile(
@@ -43,115 +44,138 @@ PUBLIC_POLICY_RE = re.compile(
 )
 HEALTH_RE = re.compile(r"\b(health|hospital|doctor|patient|disease|infection|vaccine|drug|medicine|trial|who|cdc|fda|outbreak|public health)\b", re.I)
 SCIENCE_RE = re.compile(r"\b(science|study|research|space|nasa|esa|planet|galaxy|climate|technology|ai|artificial intelligence|discovery|experiment)\b", re.I)
-SPORT_RE = re.compile(r"\b(match|game|score|league|tournament|championship|world cup|football|soccer|tennis|basketball|nba|nfl|nhl|mlb|f1|formula 1|grand prix|wins?|beats?|defeats?)\b", re.I)
+SPORT_RE = re.compile(r"\b(match|game|score|league|tournament|championship|world cup|football|soccer|tennis|basketball|nba|nfl|nhl|mlb|f1|formula 1|grand prix|wins?|beats?|defeats?|qualifies?|advances?)\b", re.I)
 GEOPOLITICS_RE = re.compile(
     r"\b(war|ceasefire|sanctions?|nato|security|defen[cs]e|missile|drone|border|summit|treaty|"
     r"iran|israel|gaza|ukraine|russia|china|taiwan|north korea|south china sea)\b",
     re.I,
 )
+WEATHER_RE = re.compile(
+    r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
+    re.I,
+)
+ROUND_RE = re.compile(r"\b(final|semi-final|semifinal|quarter-final|quarterfinal|round of 16|round of 32|first round|second round|third round|group stage|play-off|playoff|qualifier|qualifying)\b", re.I)
+SCORE_RE = re.compile(r"\b\d{1,2}\s*[:–-]\s*\d{1,2}\b|\b\d{1,2}-\d{1,2}\b")
 GENERIC_BAD_WHY_RE = re.compile(
     r"\b(single-source item selected from a priority BriefRooms feed|selected from a priority feed|"
     r"it matters because it affects public decisions, safety or daily life|"
-    r"it may affect prices, companies, jobs or household decisions)\b",
+    r"it may affect prices, companies, jobs or household decisions|"
+    r"the source should be checked|useful follow-up|whether the result changes ranking, pressure or tactical expectations|"
+    r"accountability story rather than a macroeconomic signal|expectations of transparency)\b",
     re.I,
 )
 
 
+_original_fetch_section = base.fetch_section
+_original_render_html = base.render_html
+
+
 def _clip_sentence(text: str, limit: int = 360) -> str:
     text = re.sub(r"\s+", " ", (text or "").strip())
+    if not text:
+        return ""
     if len(text) <= limit:
         return base.ensure_period(text)
     cut = text[:limit].rsplit(" ", 1)[0]
     return base.ensure_period(cut)
 
 
+def is_weather_item(title: str, snippet: str) -> bool:
+    return bool(WEATHER_RE.search(f"{title} {snippet}"))
+
+
+def why_is_useful_en(why: str) -> bool:
+    why = re.sub(r"\s+", " ", (why or "").strip())
+    if not why or len(why) < 60:
+        return False
+    if GENERIC_BAD_WHY_RE.search(why):
+        return False
+    return True
+
+
 def context_why_it_matters_en(section_key: str, title: str, snippet: str) -> str:
-    """Return a concrete, contextual EN editorial note. No generic slogans."""
+    """Return a concrete EN editorial note only when it adds useful article-level value. Empty string = omit line."""
     text = f"{title} {snippet}"
 
+    if is_weather_item(title, snippet):
+        return ""
+
     if section_key == "sport" or SPORT_RE.search(text):
-        return (
-            "This is a results-and-form signal: its importance depends on the table, qualification picture or momentum around the next fixture. "
-            "The useful follow-up is whether the result changes ranking, pressure or tactical expectations."
-        )
-
-    if PUBLIC_PERSON_RE.search(text):
-        return (
-            "This matters as an accountability story rather than a macroeconomic signal. "
-            "It points to how public figures disclose income, assets or privileges, and whether those facts meet expectations of transparency."
-        )
-
-    if LOCAL_INCIDENT_RE.search(text):
-        return (
-            "The significance is local and institutional: the key issue is safety, procedure and how authorities respond. "
-            "The important question is whether this is an isolated event or evidence of a broader operational weakness."
-        )
+        facts = []
+        round_name = ROUND_RE.search(text)
+        score = SCORE_RE.search(text)
+        if round_name:
+            facts.append(f"stage: {round_name.group(0)}")
+        if score:
+            facts.append(f"score/result: {score.group(0)}")
+        if facts:
+            return "Sports takeaway: " + ", ".join(facts) + ". The significance is the direct consequence shown in the item: result, qualification, elimination, table position or next round."
+        return ""
 
     if FUEL_ENERGY_RE.search(text):
         return (
-            "Energy and fuel stories matter because they pass quickly into transport costs, household bills and business margins. "
-            "The key is whether this is a one-off price move or the beginning of a wider cost trend."
+            "The concrete channel is cost: fuel and energy prices can quickly affect transport, household bills and business margins. "
+            "The key distinction is whether the item describes a one-off move or a broader cost trend."
         )
 
     if section_key == "business" and MACRO_ECON_RE.search(text):
         return (
-            "This is a macro signal: it can change expectations for inflation, demand, company costs or central-bank policy. "
-            "What matters most is the gap between the data and market expectations, not the headline number alone."
+            "This is a macro signal: it matters through inflation, demand, company costs or central-bank expectations. "
+            "The market impact usually depends on the gap between the data and what investors expected."
         )
 
     if PUBLIC_POLICY_RE.search(text):
         return (
-            "This matters because policy decisions usually create concrete costs, rights or obligations for citizens and institutions. "
-            "The practical test is who is affected, when the rule starts and who pays for it."
-        )
-
-    if section_key in {"world", "asia_pacific", "europe", "middle_east"} and GEOPOLITICS_RE.search(text):
-        return (
-            "This is important as a geopolitical signal: it may shift alliances, risk perception or negotiating leverage. "
-            "The next thing to watch is whether leaders, militaries or markets treat it as escalation, de-escalation or positioning."
+            "The practical consequence is the core: who is affected, when the rule starts and who pays or benefits. "
+            "That mechanism is more useful than a generic statement that policy matters."
         )
 
     if HEALTH_RE.search(text):
         return (
-            "In health stories, the importance depends on scale, evidence and whether guidance changes for patients, doctors or public systems. "
-            "The headline should be checked against the source, the population affected and the strength of the recommendation."
+            "For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. "
+            "That separates a system-level warning from a single case."
         )
 
     if SCIENCE_RE.search(text):
         return (
-            "This matters if the finding changes how a problem is understood, not merely because it sounds striking. "
-            "The useful checks are the method, the source and whether the result has independent confirmation."
+            "For science news, the useful context is method, source and confirmation. "
+            "The key is what the finding changes in understanding the topic, not just the striking headline."
         )
 
-    if section_key == "business":
+    if section_key in {"world", "asia_pacific", "europe", "middle_east"} and GEOPOLITICS_RE.search(text):
         return (
-            "This is worth watching if it reveals a change in company behaviour, consumer demand or regulatory pressure. "
-            "The key is separating a one-off corporate story from information that can change market decisions."
+            "This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. "
+            "The concrete value is the shift in behaviour by governments, militaries or markets."
         )
 
-    return (
-        "This is a news signal whose value depends on whether it explains a wider process or only a single event. "
-        "The source should be checked for details before drawing broader conclusions."
-    )
-
-
-_original_fetch_section = base.fetch_section
+    # Omit low-value generic why for ordinary politics, public-person and incident items.
+    return ""
 
 
 def fetch_section_contextual(section_key: str, excluded_links=None, excluded_topics=None):
     items = _original_fetch_section(section_key, excluded_links, excluded_topics)
+    filtered = []
     for it in items:
         title = it.get("title", "") or ""
         snippet = it.get("summary_raw", "") or it.get("ai_key_point", "") or ""
+        if is_weather_item(title, snippet):
+            continue
         why = context_why_it_matters_en(section_key, title, snippet)
-        it["ai_why_it_matters"] = _clip_sentence(why, 360)
-        it["ai_model"] = ((it.get("ai_model") or "") + "+contextual-why-en-v1").strip("+")
-        if GENERIC_BAD_WHY_RE.search(it.get("ai_why_it_matters", "")):
-            it["ai_why_it_matters"] = _clip_sentence(context_why_it_matters_en(section_key, title, snippet), 360)
-    return items
+        it["ai_why_it_matters"] = _clip_sentence(why, 360) if why_is_useful_en(why) else ""
+        it["ai_model"] = ((it.get("ai_model") or "") + "+contextual-why-en-v2").strip("+")
+        filtered.append(it)
+    return filtered
+
+
+def render_html_contextual(sections: dict) -> str:
+    html = _original_render_html(sections)
+    # Remove empty Why-it-matters rows if the base renderer still created the label.
+    html = re.sub(r"\n\s*<div class=\"sec\"><strong>Why it matters:</strong>\s*</div>", "", html)
+    return html
 
 
 base.fetch_section = fetch_section_contextual
+base.render_html = render_html_contextual
 
 if __name__ == "__main__":
     base.main()
