@@ -31,6 +31,298 @@
     @media (max-width:1300px){.page{max-width:1180px}.layout{grid-template-columns:minmax(0,1fr) 340px;gap:26px}.brief-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.radar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.room-door{min-height:250px}}
     @media (max-width:1050px){.layout{grid-template-columns:1fr}.side{border-left:0;padding-left:0;padding-top:10px}.brief-grid,.radar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.nav{display:none}.center-row{display:block}.why{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media (max-width:680px){.page{padding:18px 14px 28px}.top{align-items:flex-start}.trust-pill{display:none}h1{font-size:40px}.lead{font-size:16px}.brief-grid,.radar-grid,.room-grid,.why{grid-template-columns:1fr}.room-door{min-height:240px}.layout{gap:8px}.footer{display:block}}
+ /* ===== Glass / jelly / luminous 3D doors — PL + EN ===== */
+
+@media (min-width: 1051px){
+
+  .room-grid{
+    gap: 16px;
+  }
+
+  .room-door{
+    position: relative;
+    min-height: 225px;
+    border-radius: 24px;
+    padding: 18px 12px 15px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.115), rgba(255,255,255,.035));
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow:
+      0 20px 46px rgba(0,0,0,.24),
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 -18px 30px rgba(255,255,255,.025);
+    backdrop-filter: blur(20px) saturate(155%);
+    -webkit-backdrop-filter: blur(20px) saturate(155%);
+    transition:
+      transform .22s ease,
+      box-shadow .22s ease,
+      border-color .22s ease;
+  }
+
+  .room-door:hover{
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,.22);
+    box-shadow:
+      0 26px 62px rgba(0,0,0,.30),
+      inset 0 1px 0 rgba(255,255,255,.18),
+      inset 0 -18px 30px rgba(255,255,255,.03);
+  }
+
+  .room-door::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.14), transparent 28%),
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,.18), transparent 38%);
+  }
+
+  .portal{
+    position:absolute;
+    left:14px;
+    right:14px;
+    top:12px;
+    bottom:13px;
+    border-radius:70px 70px 16px 16px;
+    transform: perspective(780px) rotateX(5deg);
+    border: 1px solid rgba(255,255,255,.22);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.045));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 34px rgba(56,214,201,.12);
+    overflow:hidden;
+  }
+
+  .portal::before{
+    content:"";
+    position:absolute;
+    inset:9px 9px 12px;
+    border-radius:58px 58px 12px 12px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,255,255,.36) 0%,
+        rgba(255,255,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      inset -16px 0 28px rgba(0,0,0,.15),
+      inset 14px 0 22px rgba(255,255,255,.055);
+  }
+
+  .portal::after{
+    content:"";
+    position:absolute;
+    left:15px;
+    right:15px;
+    top:10px;
+    height:34%;
+    border-radius:48px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0));
+    filter: blur(1px);
+    opacity:.92;
+  }
+
+  .room-content{
+    position:relative;
+    z-index:2;
+    width:100%;
+    text-align:center;
+    padding-top:108px;
+  }
+
+  .room-icon{
+    font-size:26px;
+    margin-bottom:10px;
+    text-shadow:
+      0 0 12px currentColor,
+      0 0 24px currentColor;
+  }
+
+  .room-door h3{
+    margin:0 0 6px;
+    font-size:15px;
+  }
+
+  .room-door small{
+    display:inline-block;
+    padding:3px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:900;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.085);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.13),
+      0 0 14px rgba(255,255,255,.04);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .room-door p{
+    display:block;
+    margin:8px 0 0;
+    min-height:34px;
+    font-size:11px;
+    line-height:1.32;
+    color:#b8c7d6;
+  }
+
+  .open{
+    display:inline-block;
+    margin-top:8px;
+    font-size:12px;
+    font-weight:900;
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 18px currentColor;
+  }
+
+  /* 1. Aktualności / News — cyan */
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .room-icon,
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) small,
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .open{
+    color:#55f4e8;
+  }
+
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(85,244,232,.24);
+  }
+
+  .room-door:not(.geo):not(.health):not(.science):not(.invest) .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(100,255,245,.38) 0%,
+        rgba(100,255,245,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 2. Geopolityka / Geopolitics — gold */
+  .geo .room-icon,
+  .geo small,
+  .geo .open{
+    color:#ffc14d;
+  }
+
+  .geo .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(255,193,77,.25);
+  }
+
+  .geo .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255,205,96,.38) 0%,
+        rgba(255,205,96,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 3. Zdrowie / Health — green */
+  .health .room-icon,
+  .health small,
+  .health .open{
+    color:#7df4a4;
+  }
+
+  .health .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(125,244,164,.24);
+  }
+
+  .health .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(125,244,164,.36) 0%,
+        rgba(125,244,164,.15) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 4. Nauka / Science — blue */
+  .science .room-icon,
+  .science small,
+  .science .open{
+    color:#64baff;
+  }
+
+  .science .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 38px rgba(100,186,255,.25);
+  }
+
+  .science .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(100,186,255,.38) 0%,
+        rgba(100,186,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+
+  /* 5. Inwestycje / Investments — violet */
+  .invest .room-icon,
+  .invest small,
+  .invest .open{
+    color:#d58cff;
+  }
+
+  .invest .portal{
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 0 0 2px rgba(255,255,255,.045),
+      0 18px 38px rgba(0,0,0,.24),
+      0 0 40px rgba(213,140,255,.27);
+  }
+
+  .invest .portal::before{
+    background:
+      linear-gradient(
+        180deg,
+        rgba(213,140,255,.38) 0%,
+        rgba(213,140,255,.16) 17%,
+        rgba(255,255,255,.055) 32%,
+        rgba(10,27,42,.28) 64%,
+        rgba(6,17,29,.58) 100%
+      );
+  }
+}
   </style>
 </head>
 <body>
