@@ -924,6 +924,237 @@
     grid-template-columns:1fr !important;
   }
 } 
+ /* ===== GLASS / 3D UPGRADE FOR DOORS ===== */
+
+.rooms .room-door{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.045)) !important;
+  border:1px solid rgba(255,255,255,.22) !important;
+  box-shadow:
+    0 28px 72px rgba(0,0,0,.42),
+    0 8px 24px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -24px 36px rgba(255,255,255,.03) !important;
+  backdrop-filter:blur(22px) saturate(185%) !important;
+  -webkit-backdrop-filter:blur(22px) saturate(185%) !important;
+  transform:translateZ(0) !important;
+}
+
+.rooms .room-door:hover{
+  transform:translateY(-6px) scale(1.01) !important;
+  box-shadow:
+    0 34px 88px rgba(0,0,0,.48),
+    0 10px 28px rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,.26),
+    inset 0 -24px 36px rgba(255,255,255,.04) !important;
+}
+
+.rooms .room-door::before{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 30%),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.28), rgba(255,255,255,0) 46%),
+    linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,0) 25%, rgba(255,255,255,.04) 60%, rgba(255,255,255,0)) !important;
+}
+
+.rooms .portal{
+  border:1px solid rgba(255,255,255,.26) !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.04)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 20px 46px rgba(0,0,0,.34) !important;
+  transform:perspective(1000px) rotateX(5deg) !important;
+}
+
+.rooms .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.58) 0%,
+      rgba(255,255,255,.28) 16%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 24px 0 34px rgba(255,255,255,.05),
+    inset -20px 0 30px rgba(0,0,0,.16),
+    inset 0 -18px 24px rgba(0,0,0,.10) !important;
+}
+
+.rooms .portal::after{
+  left:18px !important;
+  right:18px !important;
+  top:10px !important;
+  height:40% !important;
+  border-radius:56px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.52), rgba(255,255,255,.08) 48%, rgba(255,255,255,0)) !important;
+  opacity:1 !important;
+  filter:blur(.5px) !important;
+}
+
+.rooms .room-title{
+  text-shadow:
+    0 2px 18px rgba(0,0,0,.55),
+    0 0 8px rgba(255,255,255,.10) !important;
+}
+
+.rooms .room-desc{
+  color:#d6e5f1 !important;
+}
+
+.rooms .open{
+  text-shadow:
+    0 0 14px currentColor,
+    0 0 28px currentColor,
+    0 0 42px currentColor !important;
+}
+
+/* ===== stronger glow / brighter colors per door ===== */
+
+/* Aktualności */
+.rooms .room-door.news .room-icon,
+.rooms .room-door.news .room-pill,
+.rooms .room-door.news .open{
+  color:#63fff4 !important;
+}
+.rooms .room-door.news .portal{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 22px 48px rgba(0,0,0,.34),
+    0 0 18px rgba(99,255,244,.26),
+    0 0 44px rgba(99,255,244,.44),
+    0 0 72px rgba(99,255,244,.18) !important;
+}
+.rooms .room-door.news .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(99,255,244,.62) 0%,
+      rgba(99,255,244,.26) 18%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+}
+
+/* Geopolityka */
+.rooms .room-door.geo .room-icon,
+.rooms .room-door.geo .room-pill,
+.rooms .room-door.geo .open{
+  color:#ffd15e !important;
+}
+.rooms .room-door.geo .portal{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 22px 48px rgba(0,0,0,.34),
+    0 0 18px rgba(255,209,94,.26),
+    0 0 44px rgba(255,209,94,.44),
+    0 0 72px rgba(255,209,94,.18) !important;
+}
+.rooms .room-door.geo .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,209,94,.64) 0%,
+      rgba(255,209,94,.26) 18%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+}
+
+/* Zdrowie */
+.rooms .room-door.health .room-icon,
+.rooms .room-door.health .room-pill,
+.rooms .room-door.health .open{
+  color:#86ffb7 !important;
+}
+.rooms .room-door.health .portal{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 22px 48px rgba(0,0,0,.34),
+    0 0 18px rgba(134,255,183,.26),
+    0 0 44px rgba(134,255,183,.44),
+    0 0 72px rgba(134,255,183,.18) !important;
+}
+.rooms .room-door.health .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(134,255,183,.62) 0%,
+      rgba(134,255,183,.26) 18%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+}
+
+/* Nauka */
+.rooms .room-door.science .room-icon,
+.rooms .room-door.science .room-pill,
+.rooms .room-door.science .open{
+  color:#7fc8ff !important;
+}
+.rooms .room-door.science .portal{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 22px 48px rgba(0,0,0,.34),
+    0 0 18px rgba(127,200,255,.26),
+    0 0 44px rgba(127,200,255,.44),
+    0 0 72px rgba(127,200,255,.18) !important;
+}
+.rooms .room-door.science .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(127,200,255,.62) 0%,
+      rgba(127,200,255,.26) 18%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+}
+
+/* Inwestycje */
+.rooms .room-door.invest .room-icon,
+.rooms .room-door.invest .room-pill,
+.rooms .room-door.invest .open{
+  color:#e1a2ff !important;
+}
+.rooms .room-door.invest .portal{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 0 0 2px rgba(255,255,255,.06),
+    inset 0 -10px 20px rgba(0,0,0,.08),
+    0 22px 48px rgba(0,0,0,.34),
+    0 0 18px rgba(225,162,255,.28),
+    0 0 46px rgba(225,162,255,.46),
+    0 0 76px rgba(225,162,255,.20) !important;
+}
+.rooms .room-door.invest .portal::before{
+  background:
+    linear-gradient(
+      180deg,
+      rgba(225,162,255,.64) 0%,
+      rgba(225,162,255,.26) 18%,
+      rgba(255,255,255,.10) 32%,
+      rgba(10,22,38,.38) 68%,
+      rgba(4,12,22,.84) 100%
+    ) !important;
+}   
   </style>
 </head>
 <body>
