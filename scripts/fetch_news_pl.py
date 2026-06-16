@@ -809,7 +809,6 @@ def render_html(sections: dict) -> str:
     <div class="sec"><strong>Najważniejsze:</strong> {esc(it.get("ai_summary",""))}</div>
     <div class="sec"><strong>Dlaczego to ważne:</strong> {esc(it.get("ai_why",""))}</div>
     {warn_html}
-    <a class="read-source" href="{esc(it["link"])}" target="_blank" rel="noopener">Czytaj źródło</a>
   </div>
 </li>'''
 
