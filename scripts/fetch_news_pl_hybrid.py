@@ -264,8 +264,8 @@ def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str 
     text = f"{title} {snippet}"
     mismatch = False
 
-    if GENERIC_MACRO_WHY_RE.search(why) and not MACRO_ECON_RE.search(text):
-        mismatch = True
+    if GENERIC_MACRO_WHY_RE.search(why):
+    mismatch = True
     if PUBLIC_PERSON_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
         mismatch = True
     if LOCAL_INCIDENT_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
