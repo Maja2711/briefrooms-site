@@ -41,6 +41,65 @@ COMMON_PL_RE = re.compile(
     re.I,
 )
 
+# --- Context classification for sensible Polish comments --------------------
+MACRO_ECON_RE = re.compile(
+    r"\b(inflacja|nbp|rpp|stopy procentowe|pkb|bezrobocie|płace|wynagrodzenia|ceny paliw|benzyn|diesl|energia|prąd|gaz|kredyt|raty|obligacj|deficyt|budżet|podat|zus|gospodark|handel|eksport|import|kurs walut|złoty|euro|dolar|giełd|wig|spółk|firm|rynek pracy)\b",
+    re.I,
+)
+PUBLIC_PERSON_RE = re.compile(
+    r"\b(oświadczen|majątek|emerytur|uposażen|pensj|wynagrodzen|dieta poselska|poseł|posłanka|senator|minister|prezydent|radny|radna|polityk|macierewicz|morawiecki|tusk|kaczyński|trzaskowski|nawrocki|duda)\b",
+    re.I,
+)
+LOCAL_INCIDENT_RE = re.compile(
+    r"\b(wypadek|zderzenie|kolizja|atak|incydent|zatrzyman|areszt|śledztw|prokuratur|policj|straż|sąd|wyrok|zarzut|sesji rady|rada miasta|hulajnod|autobus|pożar)\b",
+    re.I,
+)
+PUBLIC_POLICY_RE = re.compile(
+    r"\b(ustawa|projekt ustawy|rozporządzenie|sejm|senat|rząd|ministerstwo|budżet państwa|świadczenie|emerytury|waloryzacj|składk|program|dopłat|refundacj)\b",
+    re.I,
+)
+GENERIC_MACRO_WHY_RE = re.compile(
+    r"może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych",
+    re.I,
+)
+GENERIC_PUBLIC_WHY_RE = re.compile(
+    r"wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli",
+    re.I,
+)
+
+
+def context_why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
+    """Return a context-aware why-it-matters sentence, avoiding macro boilerplate for individual stories."""
+    text = f"{title} {snippet}"
+
+    if section_key == "sport":
+        return base.why_it_matters_pl(section_key, title, snippet)
+
+    if PUBLIC_PERSON_RE.search(text) and not MACRO_ECON_RE.search(text):
+        return (
+            "To ważne z perspektywy przejrzystości życia publicznego: pokazuje, jakie dochody i majątek mają osoby pełniące funkcje publiczne, "
+            "ale nie jest to samo w sobie sygnał makroekonomiczny."
+        )
+
+    if LOCAL_INCIDENT_RE.search(text) and not MACRO_ECON_RE.search(text):
+        return (
+            "To przede wszystkim informacja lokalna lub społeczna: jej znaczenie dotyczy bezpieczeństwa, odpowiedzialności instytucji albo reakcji władz, "
+            "a nie szerokiego wpływu na ceny czy rynek pracy."
+        )
+
+    if PUBLIC_POLICY_RE.search(text):
+        return (
+            "To ważne, bo dotyczy decyzji publicznych i zasad działania państwa, które mogą wpływać na obywateli, budżet lub sposób funkcjonowania instytucji."
+        )
+
+    if section_key == "biznes" and MACRO_ECON_RE.search(text):
+        return "To ważne, bo może wpływać na ceny, koszty życia, decyzje firm, raty kredytów albo nastroje na rynku."
+
+    if section_key == "biznes":
+        return "To ważne dla czytelników gospodarczych, jeśli pokazuje decyzje firm, finanse publiczne, regulacje albo zachowania konsumentów — bez automatycznego dopisywania wpływu makro."
+
+    return base.why_it_matters_pl(section_key, title, snippet)
+
 
 def likely_english_item(item: dict) -> bool:
     """Conservative language/source detection for PL page hygiene."""
@@ -82,10 +141,11 @@ def translate_english_item_to_polish(item: dict, section_key: str) -> dict | Non
     snippet = item.get("summary_raw", "") or ""
     source = item.get("source_name", "") or "źródło"
 
-    cache_key = f"hybrid-pl-v1|{base.norm_title(title)}|{base.today_str()}"
+    cache_key = f"hybrid-pl-v2|{base.norm_title(title)}|{base.today_str()}"
     if cache_key in base.CACHE:
         cached = base.CACHE[cache_key]
         if cached.get("title_pl") and cached.get("summary") and cached.get("why"):
+            cached["why"] = context_why_it_matters_pl(section_key, cached.get("title_pl", title), snippet)
             return cached
 
     prompt = f"""Przetłumacz i opracuj po polsku anglojęzyczny news do polskiej wersji BriefRooms.
@@ -103,6 +163,8 @@ Zasady:
 - Nie dopisuj faktów spoza tytułu i opisu RSS.
 - Zachowaj neutralny, rzeczowy ton.
 - Jeśli opis RSS jest krótki, nie zmyślaj szczegółów.
+- Nie używaj ogólnika makroekonomicznego przy newsie o jednej osobie, lokalnym incydencie albo sporcie.
+- Jeśli news dotyczy osoby publicznej i jej majątku/dochodów, znaczenie opisz przez przejrzystość życia publicznego, nie przez ceny albo rynek pracy.
 
 Sekcja: {section_key}
 Źródło: {source}
@@ -117,11 +179,11 @@ Opis RSS: {snippet}
             json={
                 "model": base.AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON."},
+                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON i dobierasz komentarz do typu newsa."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.15,
-                "max_tokens": 420,
+                "temperature": 0.12,
+                "max_tokens": 460,
             },
             timeout=30,
         )
@@ -134,7 +196,12 @@ Opis RSS: {snippet}
         # Headline should not necessarily end with a period.
         title_pl = title_pl.rstrip(".")
         summary = base.ensure_full_sentence(str(data.get("summary", "")).replace("Najważniejsze:", "").strip(), 360)
-        why = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 320)
+        why_ai = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 320)
+        why_rule = context_why_it_matters_pl(section_key, title_pl or title, snippet)
+        if GENERIC_MACRO_WHY_RE.search(why_ai) or GENERIC_PUBLIC_WHY_RE.search(why_ai):
+            why = why_rule
+        else:
+            why = why_ai or why_rule
         uncertain = base.ensure_period(str(data.get("uncertain", "")).strip()) if data.get("uncertain") else ""
 
         if still_looks_english(title_pl) or still_looks_english(summary) or still_looks_english(why):
@@ -163,7 +230,38 @@ def source_badge_for_hybrid(source: str) -> str:
     return _original_source_badge_for((source or "").split(" · ", 1)[0])
 
 
+_original_why_it_matters_pl = base.why_it_matters_pl
+_original_ai_summarize_pl = base.ai_summarize_pl
 _original_fetch_section = base.fetch_section
+
+
+def why_it_matters_pl_hybrid(section_key: str, title: str, snippet: str) -> str:
+    return context_why_it_matters_pl(section_key, title, snippet)
+
+
+def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str = "") -> dict:
+    """Post-process summaries so cached/AI fallback comments do not use irrelevant macro boilerplate."""
+    out = _original_ai_summarize_pl(title, snippet, url, section_key)
+    if not isinstance(out, dict):
+        out = {}
+    why = out.get("why", "") or ""
+    rule_why = context_why_it_matters_pl(section_key, title, snippet)
+    text = f"{title} {snippet}"
+    mismatch = False
+
+    if GENERIC_MACRO_WHY_RE.search(why) and not MACRO_ECON_RE.search(text):
+        mismatch = True
+    if PUBLIC_PERSON_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
+        mismatch = True
+    if LOCAL_INCIDENT_RE.search(text) and GENERIC_MACRO_WHY_RE.search(why):
+        mismatch = True
+    if not why.strip():
+        mismatch = True
+
+    if mismatch:
+        out["why"] = base.ensure_period(rule_why)
+        out["model"] = (out.get("model") or "") + "+context-guard"
+    return out
 
 
 def fetch_section_hybrid(section_key: str):
@@ -194,6 +292,8 @@ def fetch_section_hybrid(section_key: str):
 
 # Patch the base module and reuse its main().
 base.source_badge_for = source_badge_for_hybrid
+base.why_it_matters_pl = why_it_matters_pl_hybrid
+base.ai_summarize_pl = ai_summarize_pl_hybrid
 base.fetch_section = fetch_section_hybrid
 
 if __name__ == "__main__":
