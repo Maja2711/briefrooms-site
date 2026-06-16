@@ -5,6 +5,12 @@ on:
     # czasy w UTC — co 2 godziny = 12x dziennie
     - cron: "10 */2 * * *"
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fetch_news_pl.py"
+      - "scripts/fetch_news_pl_hybrid.py"
+      - ".github/workflows/news-pl.yml"
 
 permissions:
   contents: write
@@ -28,12 +34,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Generate PL Aktualności (HTML + hotbar JSON, AI summaries if key is set)
+      - name: Generate PL Aktualności (hybrid PL content + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: |
-          python scripts/fetch_news_pl.py
+          python scripts/fetch_news_pl_hybrid.py
 
       - name: Commit & push if changed
         run: |
@@ -41,9 +47,8 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add pl/aktualnosci.html .cache/news_summaries_pl.json .cache/ai_cache_pl.json
-            git commit -m "chore(news-pl): update (2x daily, AI summaries + hotbar)"
+            git commit -m "chore(news-pl): update hybrid PL news"
             git push
           else
             echo "No changes."
           fi
-
