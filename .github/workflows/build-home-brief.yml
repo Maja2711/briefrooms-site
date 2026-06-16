@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/build_home_brief_pl.py"
+      - "scripts/build_home_brief_en.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "*/30 * * * *"
@@ -31,11 +32,14 @@ jobs:
       - name: Build Polish homepage brief JSON
         run: python scripts/build_home_brief_pl.py
 
-      - name: Commit updated homepage brief
+      - name: Build English homepage brief JSON
+        run: python scripts/build_home_brief_en.py
+
+      - name: Commit updated homepage brief data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pl/home_brief.json
+          git add pl/home_brief.json en/home_brief.json
           if git diff --cached --quiet; then
             echo "No homepage brief changes to commit."
           else
