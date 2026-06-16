@@ -38,7 +38,7 @@ SECTION_TABS_CSS = """
     html{ scroll-behavior:smooth; }
     .section-tabs{
       position:sticky; top:0; z-index:20;
-      display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;
       margin:8px auto 18px; padding:10px 12px;
       background:rgba(8,15,30,.72); backdrop-filter:blur(14px);
       border:1px solid rgba(255,255,255,.10); border-radius:999px;
@@ -50,6 +50,17 @@ SECTION_TABS_CSS = """
       color:#fdf3e3; text-decoration:none; font-weight:800; letter-spacing:.01em;
       background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
     }
+    .section-tabs .brand-link{
+      min-width:auto; gap:8px; padding:8px 14px 8px 10px;
+      background:linear-gradient(135deg, rgba(248,201,122,.30), rgba(255,255,255,.08));
+      border-color:rgba(248,201,122,.46); color:#fff; box-shadow:0 8px 22px rgba(0,0,0,.20);
+    }
+    .section-tabs .brand-mark{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:28px; height:28px; border-radius:10px;
+      color:#101827; background:linear-gradient(135deg,#f8c97a,#fff1c7);
+      font-weight:950; letter-spacing:-.05em;
+    }
     .section-tabs a:hover,
     .section-tabs a:focus-visible{
       background:rgba(248,201,122,.18); border-color:rgba(248,201,122,.42); color:#fff;
@@ -59,11 +70,13 @@ SECTION_TABS_CSS = """
     @media (max-width:640px){
       .section-tabs{ border-radius:22px; justify-content:stretch; }
       .section-tabs a{ flex:1 1 30%; min-width:auto; padding:9px 10px; font-size:.92rem; }
+      .section-tabs .brand-link{ flex:1 1 100%; justify-content:center; }
     }
 """
 
 SECTION_TABS_HTML = """
 <nav class="section-tabs" aria-label="Sekcje aktualności">
+  <a class="brand-link" href="/pl/" aria-label="BriefRooms — strona startowa"><span class="brand-mark">BR</span><span>BriefRooms</span></a>
   <a href="#polityka">Polityka</a>
   <a href="#ekonomia">Ekonomia</a>
   <a href="#sport">Sport</a>
