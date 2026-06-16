@@ -1,0 +1,44 @@
+name: Build homepage brief
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build_home_brief_pl.py"
+      - ".github/workflows/build-home-brief.yml"
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  build-home-brief:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip feedparser requests
+
+      - name: Build Polish homepage brief JSON
+        run: python scripts/build_home_brief_pl.py
+
+      - name: Commit updated homepage brief
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/home_brief.json
+          if git diff --cached --quiet; then
+            echo "No homepage brief changes to commit."
+          else
+            git commit -m "Update homepage live brief data"
+            git push
+          fi
