@@ -8,10 +8,15 @@ from typing import Any, Dict, Optional, Tuple
 import investments_weekly as base
 
 EURUSD_NOTIONAL = 10_000.0
+SP500_NOTIONAL = 10_000.0
 
 
 def eurusd_notional(item: Dict[str, Any], cfg: Dict[str, Any]) -> float:
     return base.safe_float(item.get("notional_eur")) or base.safe_float(cfg.get("notional_eur")) or EURUSD_NOTIONAL
+
+
+def sp500_notional(item: Dict[str, Any], cfg: Dict[str, Any]) -> float:
+    return base.safe_float(item.get("notional_usd")) or base.safe_float(cfg.get("notional_usd")) or SP500_NOTIONAL
 
 
 def money(value: Optional[float], currency: str = "USD") -> str:
@@ -26,8 +31,12 @@ def trade_metrics(item: Dict[str, Any], mark: Optional[float], cfg: Dict[str, An
     move, pct = base.strategy_move(entry, mark, direction, cfg)
     if item.get("instrument_id") == "eurusd":
         notional = eurusd_notional(item, cfg)
-        return {"available": True, "value": move * notional, "currency": "USD", "units": move / 0.0001, "unit_pl": "pipsów", "unit_en": "pips", "pct": pct, "notional": notional}
-    return {"available": True, "value": move, "currency": None, "units": move, "unit_pl": "pkt", "unit_en": "pts", "pct": pct, "notional": None}
+        return {"available": True, "value": move * notional, "currency": "USD", "units": move / 0.0001, "unit_pl": "pipsów", "unit_en": "pips", "pct": pct, "notional": notional, "notional_currency": "EUR"}
+    if item.get("instrument_id") == "sp500_futures":
+        notional = sp500_notional(item, cfg)
+        pct_value = (pct or 0.0) / 100.0 * notional
+        return {"available": True, "value": pct_value, "currency": "USD", "units": move, "unit_pl": "pkt", "unit_en": "pts", "pct": pct, "notional": notional, "notional_currency": "USD"}
+    return {"available": True, "value": move, "currency": None, "units": move, "unit_pl": "pkt", "unit_en": "pts", "pct": pct, "notional": None, "notional_currency": None}
 
 
 def calculate_result(item: Dict[str, Any], cfg: Dict[str, Any]) -> None:
@@ -40,6 +49,8 @@ def calculate_result(item: Dict[str, Any], cfg: Dict[str, Any]) -> None:
     item.update({"result_value": value, "result_percent": res.get("pct"), "result_units": res.get("units"), "result": "flat" if value is not None and abs(value) < 0.05 else "profit" if value is not None and value > 0 else "loss"})
     if item.get("instrument_id") == "eurusd":
         item.update({"notional_eur": res.get("notional"), "result_currency": "USD"})
+    if item.get("instrument_id") == "sp500_futures":
+        item.update({"notional_usd": res.get("notional"), "result_currency": "USD"})
 
 
 def dir_text(item: Dict[str, Any], lang: str) -> str:
@@ -102,7 +113,12 @@ def render_instrument_card(item: Dict[str, Any], week: Dict[str, Any], lang: str
     live_txt, live_state = pnl_text(item, current, cfg, lang)
     final_txt, final_state = pnl_text(item, close_price, cfg, lang) if close_price is not None else (close_txt, "neutral")
     move_txt, move_state = market_move(current, open_price, item, lang)
-    nominal = f"{eurusd_notional(item, cfg):,.0f} EUR".replace(",", " ") if inst_id == "eurusd" else ("bez nominalu — wynik w punktach" if lang == "pl" else "no notional — result in points")
+    if inst_id == "eurusd":
+        nominal = f"{eurusd_notional(item, cfg):,.0f} EUR".replace(",", " ")
+    elif inst_id == "sp500_futures":
+        nominal = f"{sp500_notional(item, cfg):,.0f} USD".replace(",", " ")
+    else:
+        nominal = "bez nominalu — wynik w punktach" if lang == "pl" else "no notional — result in points"
     status = "Pozycja zamknięta i rozliczona" if close_price is not None and lang == "pl" else "Position closed and settled" if close_price is not None else "Pozycja otwarta" if open_price is not None and lang == "pl" else "Position open" if open_price is not None else "Pozycja zaplanowana" if lang == "pl" else "Position planned"
     direction = str(item.get("direction") or "neutral")
     dir_class = {"long": "positive", "short": "negative"}.get(direction, "neutral")
@@ -140,7 +156,7 @@ def render_page(lang: str) -> str:
     live_prices = base.load_json(base.LIVE_PRICE_PATH, {"prices": {}})
     cfg = {x.get("id"): x for x in method.get("instruments", [])}
     title = "Inwestycje — pozycje tygodniowe" if lang == "pl" else "Investing — weekly positions"
-    desc = "Prosty widok: kierunek pozycji, cena otwarcia, cena zamknięcia oraz zysk lub strata. Dla EUR/USD pozycja edukacyjna ma nominał 10 000 EUR." if lang == "pl" else "Simple view: direction, opening price, closing price and profit or loss. EUR/USD uses a EUR 10,000 notional."
+    desc = "Prosty widok: kierunek pozycji, cena otwarcia, cena zamknięcia oraz zysk lub strata. Dla EUR/USD nominał 10 000 EUR, dla S&P 500 futures 10 000 USD." if lang == "pl" else "Simple view: direction, opening price, closing price and profit or loss. EUR/USD uses a EUR 10,000 notional; S&P 500 futures uses a USD 10,000 notional."
     weeks = []
     for week in base.load_weeklies()[:20]:
         cards = "".join(render_instrument_card(x, week, lang, cfg.get(x.get("instrument_id"), {}), live_prices) for x in week.get("instruments", []))
@@ -148,7 +164,9 @@ def render_page(lang: str) -> str:
     legal = "Treści mają charakter informacyjny i edukacyjny. Nie są rekomendacją inwestycyjną ani poradą finansową." if lang == "pl" else "Content is informational and educational. It is not investment advice or a financial recommendation."
     home = "/pl/inwestycje.html" if lang == "pl" else "/en/investing.html"
     back = "Wróć do Inwestycji" if lang == "pl" else "Back to Investing"
-    return f"<!doctype html><html lang='{lang}'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{html.escape(title)} | BriefRooms</title><meta name='description' content='{html.escape(desc)}'><link rel='icon' href='/assets/favicon.svg'><link rel='stylesheet' href='/assets/site.css?v=rooms3'><style>{css()}</style></head><body><header><span class='pill'>EUR/USD: 10 000 EUR</span><h1>{html.escape(title)}</h1><p class='lead'>{html.escape(desc)}</p></header><main><section class='notice'><p><b>{'Prosty widok' if lang == 'pl' else 'Simple view'}:</b> {'Pokazujemy kierunek, otwarcie, zamknięcie, nominał oraz zysk/stratę. Nie pokazujemy wewnętrznych pól modelu typu score i pewność.' if lang == 'pl' else 'We show direction, open, close, notional and profit/loss. Internal model fields such as score and confidence are hidden.'}</p></section>{render_live_price_panel(method, live_prices, lang)}{''.join(weeks)}<p>← <a href='{home}'>{html.escape(back)}</a></p><section class='legal'><p>{html.escape(legal)}</p></section></main><footer style='text-align:center;color:#64748b;padding:24px'>© BriefRooms</footer></body></html>"
+    pill = "EUR/USD: 10 000 EUR · S&P 500: 10 000 USD" if lang == "pl" else "EUR/USD: EUR 10,000 · S&P 500: USD 10,000"
+    simple_note = "Pokazujemy kierunek, otwarcie, zamknięcie, nominał oraz zysk/stratę. Nie pokazujemy wewnętrznych pól modelu typu score i pewność." if lang == "pl" else "We show direction, open, close, notional and profit/loss. Internal model fields such as score and confidence are hidden."
+    return f"<!doctype html><html lang='{lang}'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{html.escape(title)} | BriefRooms</title><meta name='description' content='{html.escape(desc)}'><link rel='icon' href='/assets/favicon.svg'><link rel='stylesheet' href='/assets/site.css?v=rooms3'><style>{css()}</style></head><body><header><span class='pill'>{html.escape(pill)}</span><h1>{html.escape(title)}</h1><p class='lead'>{html.escape(desc)}</p></header><main><section class='notice'><p><b>{'Prosty widok' if lang == 'pl' else 'Simple view'}:</b> {html.escape(simple_note)}</p></section>{render_live_price_panel(method, live_prices, lang)}{''.join(weeks)}<p>← <a href='{home}'>{html.escape(back)}</a></p><section class='legal'><p>{html.escape(legal)}</p></section></main><footer style='text-align:center;color:#64748b;padding:24px'>© BriefRooms</footer></body></html>"
 
 
 def patch_base() -> None:
