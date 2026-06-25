@@ -1,0 +1,55 @@
+name: Build User-Friendly Investments Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "render"
+        type: choice
+        options:
+          - auto
+          - forecast
+          - open
+          - close
+          - render
+  schedule:
+    # Run shortly after the base investments workflow and publish the user-friendly view.
+    - cron: "29 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  build-user-friendly-investments:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install market data dependency
+        run: python -m pip install --upgrade pip yfinance
+
+      - name: Build user-friendly investments pages
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'render' }}
+        run: python scripts/investments_user_friendly.py --mode "$MODE"
+
+      - name: Commit generated user-friendly investment pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json data/investments/weekly pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "No user-friendly investment page changes to commit."
+          else
+            git commit -m "Update user-friendly investments pages"
+            git push
+          fi
