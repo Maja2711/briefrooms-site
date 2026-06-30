@@ -38,7 +38,24 @@
       "result": null,
       "result_value": null,
       "result_percent": null,
-      "entry_source": "Yahoo Finance:EURUSD=X:chart:1d:1m"
+      "entry_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
+      "scenario_thresholds": {
+        "source": "dynamic_atr14",
+        "model": "ATR14",
+        "period": "6mo",
+        "interval": "1d",
+        "formula": "ATR14 * sqrt(5)",
+        "atr14_price": 0.006735,
+        "expected_week_move_price": 0.015059,
+        "favorable_multiplier": 0.9,
+        "adverse_multiplier": 0.6,
+        "favorable_units_raw": 135.54,
+        "adverse_units_raw": 90.36,
+        "favorable_units": 135.54,
+        "adverse_units": 90.36,
+        "unit": "pips",
+        "minmax_applied": false
+      }
     },
     {
       "instrument_id": "sp500_futures",
@@ -50,12 +67,14 @@
       "confidence": 0.06,
       "signals": {},
       "rationale_pl": [
+        "Scenariusz modelowy zakończony w trakcie tygodnia: świeży sygnał modelu odwrócił kierunek na long przy score 32. Cena: 7516.0. Czas: 2026-06-30T13:06:52+02:00.",
         "Model v1.2.0 wskazuje: short / spadek.",
         "Trend: EMA20 powyżej EMA50; ostatnia cena poniżej EMA20.",
         "Momentum: 5 dni -1.42%, 20 dni -2.37%.",
         "Zmienność neutralna względem ostatnich tygodni."
       ],
       "rationale_en": [
+        "Model scenario ended during the week: fresh model signal changed to long with score 32. Price: 7516.0. Time: 2026-06-30T13:06:52+02:00.",
         "Model v1.2.0 indicates: short / bearish.",
         "Trend: EMA20 is above EMA50; last price is below EMA20.",
         "Momentum: 5 days -1.42%, 20 days -2.37%.",
@@ -63,12 +82,38 @@
       ],
       "entry_price": 7401.75,
       "entry_captured_at": "2026-06-29T00:07:09+02:00",
-      "exit_price": null,
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
-      "entry_source": "Yahoo Finance:ES=F:regularMarketPrice"
+      "exit_price": 7516.0,
+      "exit_captured_at": "2026-06-30T13:06:52+02:00",
+      "result": "loss",
+      "result_value": -114.25,
+      "result_percent": -1.5436,
+      "entry_source": "Yahoo Finance:ES=F:regularMarketPrice",
+      "scenario_thresholds": {
+        "source": "dynamic_atr14",
+        "model": "ATR14",
+        "period": "6mo",
+        "interval": "1d",
+        "formula": "ATR14 * sqrt(5)",
+        "atr14_price": 109.915702,
+        "expected_week_move_price": 245.778981,
+        "favorable_multiplier": 0.9,
+        "adverse_multiplier": 0.6,
+        "favorable_units_raw": 221.2,
+        "adverse_units_raw": 147.47,
+        "favorable_units": 220.0,
+        "adverse_units": 147.47,
+        "unit": "points",
+        "minmax_applied": true
+      },
+      "exit_source": "Yahoo Finance:ES=F:chart:1d:1m",
+      "scenario_status": "ended_intraweek",
+      "scenario_end_reason": "model_reversal",
+      "scenario_end_reason_pl": "świeży sygnał modelu odwrócił kierunek na long przy score 32",
+      "scenario_end_reason_en": "fresh model signal changed to long with score 32",
+      "scenario_end_units": -114.25,
+      "scenario_reviewed_at": "2026-06-30T13:16:57+02:00",
+      "fresh_reversal_direction": "long",
+      "fresh_reversal_score": 32
     }
   ]
 }
