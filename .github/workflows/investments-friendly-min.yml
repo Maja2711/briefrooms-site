@@ -46,7 +46,6 @@ jobs:
           import json, math
           from pathlib import Path
           from datetime import datetime
-          ROOT=Path('.')
           def load(p,d):
               try: return json.loads(Path(p).read_text(encoding='utf-8'))
               except Exception: return d
@@ -104,6 +103,16 @@ jobs:
                   row['items'].append({'instrument_id':inst,'scenario_grade_v2':q})
               save(p,w); report['weeks'].append(row)
           save('data/investments/scenario_grades.json',report)
+          PY
+      - name: Use exit price for closed positions in renderer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/investments_friendly_min.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('    live_txt, live_state = pnl_text(item, current, cfg, lang)\n    final_txt, final_state = pnl_text(item, close_price, cfg, lang) if close_price is not None else (close_txt, "neutral")', '    display_mark = close_price if close_price is not None else current\n    live_txt, live_state = pnl_text(item, display_mark, cfg, lang)\n    final_txt, final_state = pnl_text(item, close_price, cfg, lang) if close_price is not None else (close_txt, "neutral")')
+          s = s.replace('        current = base.safe_float(rec.get("price"))\n        txt, state = pnl_text(item, current, inst_cfg, lang)', '        current = base.safe_float(rec.get("price"))\n        close_price = base.safe_float(item.get("exit_price"))\n        txt, state = pnl_text(item, close_price if close_price is not None else current, inst_cfg, lang)')
+          p.write_text(s, encoding='utf-8')
           PY
       - name: Build pages
         env:
