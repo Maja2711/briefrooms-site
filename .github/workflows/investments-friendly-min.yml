@@ -109,6 +109,27 @@ jobs:
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'render' }}
         run: python scripts/investments_friendly_min.py --mode "$MODE"
+      - name: Simplify public investment view
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          style = """<style id=\"briefrooms-simple-invest-view\">
+          .instrument .lesson{display:none!important}
+          .instrument .grid .metric:nth-child(5),
+          .instrument .grid .metric:nth-child(6),
+          .instrument .grid .metric:nth-child(7),
+          .instrument .grid .metric:nth-child(11){display:none!important}
+          .instrument .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+          .instrument .metric.big dd{font-size:1.25rem!important;line-height:1.35!important}
+          .summary.panel + .summary.panel{display:none!important}
+          @media(max-width:780px){.instrument .grid{grid-template-columns:1fr!important}}
+          </style>"""
+          for path in [Path('pl/inwestycje/prognozy-tygodniowe.html'), Path('en/investing/weekly-forecasts.html')]:
+              text = path.read_text(encoding='utf-8')
+              if 'briefrooms-simple-invest-view' not in text:
+                  text = text.replace('</head>', style + '\n</head>')
+              path.write_text(text, encoding='utf-8')
+          PY
       - name: Commit pages
         run: |
           git config user.name "github-actions[bot]"
