@@ -9,6 +9,7 @@ import investments_weekly as base
 
 EURUSD_NOTIONAL = 10_000.0
 SP500_NOTIONAL = 10_000.0
+BTC_NOTIONAL = 10_000.0
 
 
 def effective_direction(item: Dict[str, Any]) -> str:
@@ -27,6 +28,10 @@ def sp500_notional(item: Dict[str, Any], cfg: Dict[str, Any]) -> float:
     return base.safe_float(item.get("notional_usd")) or base.safe_float(cfg.get("notional_usd")) or SP500_NOTIONAL
 
 
+def btc_notional(item: Dict[str, Any], cfg: Dict[str, Any]) -> float:
+    return base.safe_float(item.get("notional_usd")) or base.safe_float(cfg.get("notional_usd")) or BTC_NOTIONAL
+
+
 def money(value: Optional[float], currency: str = "USD") -> str:
     return "—" if value is None else f"{value:+,.2f} {currency}".replace(",", " ")
 
@@ -37,13 +42,18 @@ def trade_metrics(item: Dict[str, Any], mark: Optional[float], cfg: Dict[str, An
     if entry is None or mark is None:
         return {"available": False}
     move, pct = base.strategy_move(entry, mark, direction, cfg)
-    if item.get("instrument_id") == "eurusd":
+    inst_id = item.get("instrument_id")
+    if inst_id == "eurusd":
         notional = eurusd_notional(item, cfg)
         return {"available": True, "value": move * notional, "currency": "USD", "units": move / 0.0001, "unit_pl": "pipsów", "unit_en": "pips", "pct": pct, "notional": notional, "notional_currency": "EUR"}
-    if item.get("instrument_id") == "sp500_futures":
+    if inst_id == "sp500_futures":
         notional = sp500_notional(item, cfg)
         pct_value = (pct or 0.0) / 100.0 * notional
         return {"available": True, "value": pct_value, "currency": "USD", "units": move, "unit_pl": "pkt", "unit_en": "pts", "pct": pct, "notional": notional, "notional_currency": "USD"}
+    if inst_id == "btcusd":
+        notional = btc_notional(item, cfg)
+        pct_value = (pct or 0.0) / 100.0 * notional
+        return {"available": True, "value": pct_value, "currency": "USD", "units": move, "unit_pl": "USD ruchu BTC", "unit_en": "BTC move USD", "pct": pct, "notional": notional, "notional_currency": "USD"}
     return {"available": True, "value": move, "currency": None, "units": move, "unit_pl": "pkt", "unit_en": "pts", "pct": pct, "notional": None, "notional_currency": None}
 
 
@@ -55,14 +65,17 @@ def calculate_result(item: Dict[str, Any], cfg: Dict[str, Any]) -> None:
     item.update({"result_value": value, "result_percent": res.get("pct"), "result_units": res.get("units"), "result": "flat" if value is not None and abs(value) < 0.05 else "profit" if value is not None and value > 0 else "loss"})
     if item.get("instrument_id") == "eurusd":
         item.update({"notional_eur": res.get("notional"), "result_currency": "USD", "effective_direction": effective_direction(item)})
-    if item.get("instrument_id") == "sp500_futures":
+    if item.get("instrument_id") in {"sp500_futures", "btcusd"}:
         item.update({"notional_usd": res.get("notional"), "result_currency": "USD", "effective_direction": effective_direction(item)})
 
 
 def dir_text(item: Dict[str, Any], lang: str) -> str:
     direction = effective_direction(item)
-    if item.get("instrument_id") == "eurusd":
+    inst_id = item.get("instrument_id")
+    if inst_id == "eurusd":
         labels = {"pl": {"long": "Kup EUR / sprzedaj USD", "short": "Sprzedaj EUR / kup USD"}, "en": {"long": "Buy EUR / sell USD", "short": "Sell EUR / buy USD"}}
+    elif inst_id == "btcusd":
+        labels = {"pl": {"long": "Kup BTC / sprzedaj USD", "short": "Sprzedaj BTC / kup USD"}, "en": {"long": "Buy BTC / sell USD", "short": "Sell BTC / buy USD"}}
     else:
         labels = {"pl": {"long": "Pozycja na wzrost", "short": "Pozycja na spadek"}, "en": {"long": "Upside position", "short": "Downside position"}}
     return labels[lang][direction]
@@ -81,7 +94,7 @@ def pnl_text(item: Dict[str, Any], mark: Optional[float], cfg: Dict[str, Any], l
     unit = res.get("unit_pl" if lang == "pl" else "unit_en")
     value = base.safe_float(res.get("value"))
     if res.get("currency"):
-        return f"{money(value, str(res.get('currency')))} · {units:+.1f} {unit} · {pct:+.2f}%", tone(value)
+        return f"{money(value, str(res.get('currency')))} · {units:+,.1f} {unit} · {pct:+.2f}%".replace(",", " "), tone(value)
     return f"{units:+.1f} {unit} · {pct:+.2f}%", tone(value)
 
 
@@ -94,6 +107,8 @@ def market_move(current: Optional[float], open_price: Optional[float], item: Dic
     pct = delta / open_price * 100 if open_price else 0.0
     if item.get("instrument_id") == "eurusd":
         text = f"{delta:+.5f} · {delta / 0.0001:+.1f} pipsów · {pct:+.2f}%" if lang == "pl" else f"{delta:+.5f} · {delta / 0.0001:+.1f} pips · {pct:+.2f}%"
+    elif item.get("instrument_id") == "btcusd":
+        text = f"{delta:+,.2f} USD · {pct:+.2f}%".replace(",", " ")
     else:
         text = f"{delta:+.2f} pkt · {pct:+.2f}%" if lang == "pl" else f"{delta:+.2f} pts · {pct:+.2f}%"
     return text, tone(delta)
@@ -109,6 +124,8 @@ def position_notional(item: Dict[str, Any], cfg: Dict[str, Any], lang: str) -> s
         return f"{eurusd_notional(item, cfg):,.0f} EUR".replace(",", " ")
     if item.get("instrument_id") == "sp500_futures":
         return f"{sp500_notional(item, cfg):,.0f} USD".replace(",", " ")
+    if item.get("instrument_id") == "btcusd":
+        return f"{btc_notional(item, cfg):,.0f} USD".replace(",", " ")
     return "—"
 
 
@@ -210,7 +227,7 @@ def render_summary_panel(weeks: List[Dict[str, Any]], cfg: Dict[str, Dict[str, A
 
 
 def css() -> str:
-    return """body{margin:0;background:#f4f7fb;color:#0f172a;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}header,main{max-width:1180px;margin:auto;padding:0 20px}header{padding-top:42px}h1{font-size:clamp(2rem,4vw,3.4rem);letter-spacing:-.04em}.lead{color:#475569;line-height:1.6;max-width:850px}.pill{display:inline-flex;padding:8px 12px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-weight:900}.notice,.panel,.week{background:#fff;border:1px solid #dbe4ee;border-radius:24px;box-shadow:0 20px 55px #0f172a14;margin:20px 0;padding:22px}.prices,.cards,.summary-current{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.price-card,.instrument,.summary-card{background:#fbfdff;border:1px solid #dbe4ee;border-radius:20px;padding:18px}.instrument.positive{border-top:6px solid #16a34a}.instrument.negative{border-top:6px solid #dc2626}.instrument.neutral{border-top:6px solid #64748b}.head,.price,.summary-top{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start}.head p{margin:0 0 6px;color:#2563eb;font-size:.75rem;font-weight:900;text-transform:uppercase}.head h3{margin:0}.head b{border-radius:999px;padding:9px 12px;background:#e0f2fe;color:#075985}.price{grid-template-columns:1.2fr .8fr;margin:18px 0}.price>div,.metric,.summary-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:13px}.summary h2{margin-top:0}.summary h3{margin:18px 0 10px}.summary-kpi strong{display:block;font-size:1.65rem;margin-top:6px}.summary-card dt{color:#64748b;font-size:.72rem;font-weight:900;text-transform:uppercase}.summary-card dd{margin:6px 0;font-weight:850}.summary-card p{font-weight:900;margin:8px 0 0}.price span,dt{display:block;color:#64748b;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.price strong{display:block;font-size:clamp(1.5rem,3vw,2.7rem);margin:6px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}.metric.big{box-shadow:inset 0 0 0 1px #bfdbfe}.positive, .metric.positive dd{color:#166534}.negative, .metric.negative dd{color:#991b1b}.neutral, .metric.neutral dd{color:#075985}dd{margin:6px 0 0;font-weight:850;overflow-wrap:anywhere}.history{margin-top:18px;border:1px solid #dbe4ee;border-radius:16px;padding:12px;background:#fbfdff}.history summary{cursor:pointer;font-weight:900;color:#075985}.history-scroll{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;border-bottom:1px solid #e2e8f0;padding:10px 8px;font-size:.92rem}th{color:#64748b;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em}.legal{color:#64748b;font-size:.85rem;border-top:1px solid #dbe4ee;margin-top:28px;padding-top:16px}@media(max-width:850px){header,main{padding:0 14px}.prices,.cards,.price,.grid,.head,.summary-top,.summary-current{grid-template-columns:1fr}.notice,.panel,.week{padding:16px;border-radius:18px}}"""
+    return """body{margin:0;background:#f4f7fb;color:#0f172a;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}header,main{max-width:1180px;margin:auto;padding:0 20px}header{padding-top:42px}h1{font-size:clamp(2rem,4vw,3.4rem);letter-spacing:-.04em}.lead{color:#475569;line-height:1.6;max-width:850px}.pill{display:inline-flex;padding:8px 12px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-weight:900}.notice,.panel,.week{background:#fff;border:1px solid #dbe4ee;border-radius:24px;box-shadow:0 20px 55px #0f172a14;margin:20px 0;padding:22px}.prices,.cards,.summary-current{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.price-card,.instrument,.summary-card{background:#fbfdff;border:1px solid #dbe4ee;border-radius:20px;padding:18px}.instrument.positive{border-top:6px solid #16a34a}.instrument.negative{border-top:6px solid #dc2626}.instrument.neutral{border-top:6px solid #64748b}.head,.price,.summary-top{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start}.head p{margin:0 0 6px;color:#2563eb;font-size:.75rem;text-transform:uppercase;font-weight:900}.head h3{margin:0}.head b{border-radius:999px;padding:9px 12px;background:#e0f2fe;color:#075985}.price{grid-template-columns:1.2fr .8fr;margin:18px 0}.price>div,.metric,.summary-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:13px}.summary h2{margin-top:0}.summary h3{margin:18px 0 10px}.summary-kpi strong{display:block;font-size:1.65rem;margin-top:6px}.summary-card dt{color:#64748b;font-size:.72rem;font-weight:900;text-transform:uppercase}.summary-card dd{margin:6px 0;font-weight:850}.summary-card p{font-weight:900;margin:8px 0 0}.price span,dt{display:block;color:#64748b;font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.price strong{display:block;font-size:clamp(1.5rem,3vw,2.7rem);margin:6px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}.metric.big{box-shadow:inset 0 0 0 1px #bfdbfe}.positive, .metric.positive dd{color:#166534}.negative, .metric.negative dd{color:#991b1b}.neutral, .metric.neutral dd{color:#075985}dd{margin:6px 0 0;font-weight:850;overflow-wrap:anywhere}.history{margin-top:18px;border:1px solid #dbe4ee;border-radius:16px;padding:12px;background:#fbfdff}.history summary{cursor:pointer;font-weight:900;color:#075985}.history-scroll{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;border-bottom:1px solid #e2e8f0;padding:10px 8px;font-size:.92rem}th{color:#64748b;text-transform:uppercase;font-size:.72rem;letter-spacing:.05em}.legal{color:#64748b;font-size:.85rem;border-top:1px solid #dbe4ee;margin-top:28px;padding-top:16px}@media(max-width:850px){header,main{padding:0 14px}.prices,.cards,.price,.grid,.head,.summary-top,.summary-current{grid-template-columns:1fr}.notice,.panel,.week{padding:16px;border-radius:18px}}"""
 
 
 def render_page(lang: str) -> str:
@@ -219,7 +236,7 @@ def render_page(lang: str) -> str:
     cfg = {x.get("id"): x for x in method.get("instruments", [])}
     weeks = base.load_weeklies()[:20]
     title = "Inwestycje — pozycje tygodniowe" if lang == "pl" else "Investing — weekly positions"
-    desc = "Prosty widok: zawsze otwarta pozycja, cena otwarcia, cena zamknięcia oraz zysk lub strata. EUR/USD: 10 000 EUR, S&P 500 futures: 10 000 USD." if lang == "pl" else "Simple view: always an open position, opening price, closing price and profit or loss. EUR/USD: EUR 10,000; S&P 500 futures: USD 10,000."
+    desc = "Prosty widok: zawsze otwarta pozycja, cena otwarcia, cena zamknięcia oraz zysk lub strata. EUR/USD: 10 000 EUR, S&P 500 futures: 10 000 USD, BTC/USD: 10 000 USD." if lang == "pl" else "Simple view: always an open position, opening price, closing price and profit or loss. EUR/USD: EUR 10,000; S&P 500 futures: USD 10,000; BTC/USD: USD 10,000."
     week_sections = []
     for week in weeks:
         cards = "".join(render_instrument_card(x, week, lang, cfg.get(x.get("instrument_id"), {}), live_prices) for x in week.get("instruments", []))
@@ -227,7 +244,7 @@ def render_page(lang: str) -> str:
     legal = "Treści mają charakter informacyjny i edukacyjny. Nie są rekomendacją inwestycyjną ani poradą finansową." if lang == "pl" else "Content is informational and educational. It is not investment advice or a financial recommendation."
     home = "/pl/inwestycje.html" if lang == "pl" else "/en/investing.html"
     back = "Wróć do Inwestycji" if lang == "pl" else "Back to Investing"
-    pill = "EUR/USD: 10 000 EUR · S&P 500: 10 000 USD" if lang == "pl" else "EUR/USD: EUR 10,000 · S&P 500: USD 10,000"
+    pill = "EUR/USD: 10 000 EUR · S&P 500: 10 000 USD · BTC/USD: 10 000 USD" if lang == "pl" else "EUR/USD: EUR 10,000 · S&P 500: USD 10,000 · BTC/USD: USD 10,000"
     simple_note = "Zawsze pokazujemy pozycję long albo short. Nie pokazujemy użytkownikowi wewnętrznych pól modelu typu score i pewność." if lang == "pl" else "We always show a long or short position. Internal model fields such as score and confidence are hidden."
     return f"<!doctype html><html lang='{lang}'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{html.escape(title)} | BriefRooms</title><meta name='description' content='{html.escape(desc)}'><link rel='icon' href='/assets/favicon.svg'><link rel='stylesheet' href='/assets/site.css?v=rooms3'><style>{css()}</style></head><body><header><span class='pill'>{html.escape(pill)}</span><h1>{html.escape(title)}</h1><p class='lead'>{html.escape(desc)}</p></header><main>{render_summary_panel(weeks, cfg, live_prices, lang)}<section class='notice'><p><b>{'Zasada widoku' if lang == 'pl' else 'View rule'}:</b> {html.escape(simple_note)}</p></section>{render_live_price_panel(method, live_prices, lang)}{''.join(week_sections)}<p>← <a href='{home}'>{html.escape(back)}</a></p><section class='legal'><p>{html.escape(legal)}</p></section></main><footer style='text-align:center;color:#64748b;padding:24px'>© BriefRooms</footer></body></html>"
 
