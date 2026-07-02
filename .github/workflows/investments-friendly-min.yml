@@ -58,6 +58,17 @@ jobs:
       - name: Normalize SL TP exits globally
         run: python scripts/normalize_sl_tp_exits.py || true
 
+      - name: Intraweek re-entry after stop loss
+        run: python scripts/investments_reentry_engine.py || true
+
+      - name: Build internal data after re-entry
+        env:
+          MODE: render
+        run: python scripts/investments_friendly_min.py --mode "$MODE"
+
+      - name: Normalize SL TP exits after re-entry
+        run: python scripts/normalize_sl_tp_exits.py || true
+
       - name: Render simple public investment pages
         run: python scripts/render_simple_investments.py
 
@@ -65,7 +76,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/learning data/investments/macro_events.json data/investments/scenario_grades.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json data/investments/weekly data/investments/learning data/investments/macro_events.json data/investments/scenario_grades.json data/investments/reentry_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No changes"
           else
