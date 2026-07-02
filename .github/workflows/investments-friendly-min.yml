@@ -114,9 +114,15 @@ jobs:
           s = s.replace('        current = base.safe_float(rec.get("price"))\n        txt, state = pnl_text(item, current, inst_cfg, lang)', '        current = base.safe_float(rec.get("price"))\n        close_price = base.safe_float(item.get("exit_price"))\n        txt, state = pnl_text(item, close_price if close_price is not None else current, inst_cfg, lang)')
           p.write_text(s, encoding='utf-8')
           PY
-      - name: Build pages
+      - name: Initial build pages
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'render' }}
+        run: python scripts/investments_friendly_min.py --mode "$MODE"
+      - name: Normalize SL TP exits globally
+        run: python scripts/normalize_sl_tp_exits.py || true
+      - name: Final build pages
+        env:
+          MODE: render
         run: python scripts/investments_friendly_min.py --mode "$MODE"
       - name: Simplify public investment view
         run: |
