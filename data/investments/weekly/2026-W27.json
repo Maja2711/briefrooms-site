@@ -100,14 +100,14 @@
       "confidence": 0.06,
       "signals": {},
       "rationale_pl": [
-        "Scenariusz modelowy zakończony w trakcie tygodnia: świeży sygnał modelu odwrócił kierunek na long przy score 32. Cena: 7516.0. Czas: 2026-06-30T13:06:52+02:00.",
+        "Scenariusz modelowy zakończony w trakcie tygodnia: cena naruszyła zapisany stop loss. Wynik liczony po poziomie SL, późniejsza cena zostaje tylko ceną obserwowaną.",
         "Model v1.2.0 wskazuje: short / spadek.",
         "Trend: EMA20 powyżej EMA50; ostatnia cena poniżej EMA20.",
         "Momentum: 5 dni -1.42%, 20 dni -2.37%.",
         "Zmienność neutralna względem ostatnich tygodni."
       ],
       "rationale_en": [
-        "Model scenario ended during the week: fresh model signal changed to long with score 32. Price: 7516.0. Time: 2026-06-30T13:06:52+02:00.",
+        "Model scenario ended during the week: price breached the saved stop loss. Result is calculated at the SL level; the later price remains only the observed price.",
         "Model v1.2.0 indicates: short / bearish.",
         "Trend: EMA20 is above EMA50; last price is below EMA20.",
         "Momentum: 5 days -1.42%, 20 days -2.37%.",
@@ -115,11 +115,12 @@
       ],
       "entry_price": 7401.75,
       "entry_captured_at": "2026-06-29T00:07:09+02:00",
-      "exit_price": 7516.0,
+      "exit_price": 7485.42,
+      "exit_observed_price": 7516.0,
       "exit_captured_at": "2026-06-30T13:06:52+02:00",
       "result": "loss",
-      "result_value": -114.25,
-      "result_percent": -1.5436,
+      "result_value": -113.04083494,
+      "result_percent": -1.1304,
       "entry_source": "Yahoo Finance:ES=F:regularMarketPrice",
       "notional_usd": 10000,
       "result_currency": "USD",
@@ -141,11 +142,12 @@
         "minmax_applied": true
       },
       "exit_source": "Yahoo Finance:ES=F:chart:1d:1m",
+      "exit_execution_model": "planned_sl_tp_level",
       "scenario_status": "ended_intraweek",
-      "scenario_end_reason": "model_reversal",
-      "scenario_end_reason_pl": "świeży sygnał modelu odwrócił kierunek na long przy score 32",
-      "scenario_end_reason_en": "fresh model signal changed to long with score 32",
-      "scenario_end_units": -114.25,
+      "scenario_end_reason": "stop_loss",
+      "scenario_end_reason_pl": "cena naruszyła zapisany stop loss",
+      "scenario_end_reason_en": "price breached the saved stop loss",
+      "scenario_end_units": -83.67,
       "scenario_reviewed_at": "2026-06-30T13:16:57+02:00",
       "fresh_reversal_direction": "long",
       "fresh_reversal_score": 32,
@@ -164,15 +166,19 @@
         "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; poziomy zapisujemy przy pozycji, żeby później porównać plan z wynikiem.",
         "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; levels are saved with the position so the plan can be reviewed against the outcome."
       },
-      "risk_status": "closed_week",
+      "risk_status": "stop_loss_hit",
       "risk_review": {
         "last_review_at": "2026-07-02T20:57:02+02:00",
         "last_review_price": 7506.0,
         "last_review_source": "Yahoo Finance:ES=F:chart:1d:1m",
         "live_pnl_usd": -140.85,
-        "observation_pl": "Cena wzrosła do strefy stop loss — scenariusz uznany za błędny.",
-        "observation_en": "Price rose to the stop-loss zone — scenario marked wrong."
-      }
+        "observation_pl": "Cena wzrosła do strefy stop loss. Wynik modelowy liczony jest po zapisanym poziomie SL, a późniejsza cena zostaje tylko ceną obserwowaną.",
+        "observation_en": "Price rose to the stop-loss zone. Model result is calculated at the saved SL level; the later price remains only the observed price."
+      },
+      "exit_reason": "stop_loss",
+      "risk_exit_type": "stop_loss",
+      "result_units": -83.67,
+      "effective_direction": "short"
     },
     {
       "instrument_id": "btcusd",
