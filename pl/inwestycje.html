@@ -1,127 +1,437 @@
 <!doctype html>
 <html lang="pl">
 <head>
-  <!-- PODSTAW: ŚCIEŻKI/URLE NA TEJ STRONIE -->
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Inwestycje — Działy | BriefRooms</title>
-  <meta name="description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko, wyceny oraz tygodniowe scenariusze dla EUR/USD i S&P 500 futures." />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inwestycje — BriefRooms</title>
+  <meta name="description" content="Scenariusze rynkowe, stopy procentowe, ryzyko i wyceny w dziale Inwestycje." />
   <link rel="icon" href="/assets/favicon.svg" />
-
-  <!-- GŁÓWNY CSS Z WERSJĄ -->
-  <link rel="stylesheet" href="/assets/site.css?v=rooms3" />
-
-  <!-- hreflang -->
-  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/inwestycje.html">
-  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/investing.html">
-  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
-
-  <!-- kanoniczny -->
-  <link rel="canonical" href="https://briefrooms.com/pl/inwestycje.html">
-
-  <!-- Open Graph -->
-  <meta property="og:title" content="Inwestycje — Działy | BriefRooms">
-  <meta property="og:description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko, wyceny i cotygodniowy dziennik scenariuszy.">
-  <meta property="og:url" content="https://briefrooms.com/pl/inwestycje.html">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="S&P 500 i scenariusze rynkowe.">
-  <meta property="og:site_name" content="BriefRooms">
-  <meta property="og:locale" content="pl_PL">
-  <meta property="article:section" content="Inwestycje">
-  <meta property="article:published_time" content="2025-11-20T00:00:00+00:00">
-  <meta property="article:modified_time" content="2026-06-12T00:00:00+00:00">
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Inwestycje — Działy | BriefRooms">
-  <meta name="twitter:description" content="Wybierz temat z działu Inwestycje: scenariusze rynkowe, stopy procentowe, ryzyko i wyceny.">
-  <meta name="twitter:image" content="https://briefrooms.com/assets/spx-scenarios-pl-og.png?v=1">
-  <meta name="twitter:image:alt" content="S&P 500 i scenariusze rynkowe.">
-  <meta name="twitter:domain" content="briefrooms.com">
-  <meta name="twitter:hashtags" content="inwestycje,SPX,giełda,rynek">
-
-  <!-- Structured data (WebPage – strona działu) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "name": "Inwestycje — Działy",
-    "description": "Strona działu Inwestycje na BriefRooms – lista krótkich, rzeczowych podsumowań o rynkach i inwestowaniu.",
-    "inLanguage": "pl-PL",
-    "publisher": {
-      "@type": "Organization",
-      "name": "BriefRooms",
-      "logo": { "@type": "ImageObject", "url": "https://briefrooms.com/assets/favicon.svg" }
-    },
-    "url": "https://briefrooms.com/pl/inwestycje.html",
-    "datePublished": "2025-11-20T00:00:00+00:00",
-    "dateModified":  "2026-06-12T00:00:00+00:00"
-  }
-  </script>
-
-  <!-- STYL STRONY DZIAŁU – JASNE TŁO + CZARNA CZCIONKA -->
+  <link rel="stylesheet" href="/assets/site.css?v=invest-room-1" />
   <style>
-    body.rooms-light.investments-index{
-      background:#f5eee5;
-      color:#111827;
-      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    :root{
+      --bg:#06131f;
+      --bg2:#081826;
+      --panel:rgba(255,255,255,.06);
+      --panel-strong:rgba(255,255,255,.09);
+      --line:rgba(255,255,255,.12);
+      --txt:#eef7ff;
+      --muted:#9fb2c8;
+      --teal:#38d6c9;
+      --teal2:#15978f;
+      --blue:#49a8ff;
+      --violet:#b46cff;
+      --shadow:0 24px 80px rgba(0,0,0,.38);
     }
 
-    header{text-align:center;padding:32px 12px 16px;}
-    header h1{color:#111827;font-size:1.9rem;margin-bottom:4px;}
-    header .sub{color:#111827;margin:0 0 4px;}
-    header time.pub{ opacity:.9; }
-    main{max-width:960px;margin:0 auto;padding:0 16px 48px;color:#111827;}
-    .card{background:#ffffff;border-radius:18px;padding:18px 20px;margin:14px 0;border:1px solid rgba(15,23,42,.06);box-shadow:0 12px 30px rgba(15,23,42,.10);}
-    .card h2{margin:4px 0 10px;color:#111827;font-size:1.2rem;}
-    .card h2::before{content:"";display:inline-block;width:8px;height:8px;margin-right:10px;border-radius:6px;background:#fbbf24;box-shadow:0 0 0 4px rgba(251,191,36,.25);vertical-align:2px;}
-    .card ul{list-style:none;padding-left:0;margin:4px 0 0;}
-    .card li{margin:6px 0;}
-    .card a{display:block;text-decoration:none;padding:10px 12px;border-radius:12px;background:#f3f4f6;border:1px solid #d1d5db;transition:background .18s ease,border-color .18s ease,transform .12s ease,box-shadow .12s ease;color:#111827;}
-    .card a span.title{display:block;font-weight:600;color:#1d4ed8;margin-bottom:2px;}
-    .card a span.desc{display:block;font-size:.95rem;color:#111827;margin-top:2px;}
-    .card a:hover{background:#e5e7eb;border-color:#9ca3af;transform:translateY(-1px);box-shadow:0 10px 22px rgba(15,23,42,.18);}
-    .back{margin-top:22px;color:#111827;}
-    .back a{color:#1d4ed8;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(37,99,235,.5);}
-    .back a:hover{color:#1e40af;text-decoration-color:#1e40af;}
+    *{box-sizing:border-box}
+    html{background:var(--bg);scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--txt);
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(1000px 520px at 12% -10%, rgba(46,214,201,.18), transparent 58%),
+        radial-gradient(900px 620px at 86% 16%, rgba(73,168,255,.13), transparent 58%),
+        linear-gradient(180deg, #06131f 0%, #071827 46%, #081522 100%);
+      min-height:100vh;
+      overflow-x:hidden;
+      position:relative;
+    }
+
+    /* Grid + digital chart glow */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size:44px 44px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,.9), transparent 85%);
+    }
+
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.18;
+      background-repeat:no-repeat;
+      background-position:
+        left 6% bottom 14%,
+        right 8% top 20%,
+        center 70%;
+      background-size:
+        420px 180px,
+        380px 160px,
+        100% 100%;
+      background-image:
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 180'><polyline fill='none' stroke='%2338d6c9' stroke-width='3' points='0,140 35,120 70,128 105,90 140,102 175,70 210,84 245,56 280,68 315,44 350,58 385,35 420,46'/><polyline fill='none' stroke='%2349a8ff' stroke-width='2' points='0,150 35,146 70,132 105,136 140,118 175,123 210,108 245,112 280,95 315,98 350,82 385,86 420,74'/></svg>"),
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 380 160'><polyline fill='none' stroke='%23b46cff' stroke-width='3' points='0,120 28,115 56,90 84,100 112,74 140,80 168,60 196,64 224,54 252,40 280,49 308,32 336,38 380,20'/></svg>");
+    }
+
+    a{color:inherit;text-decoration:none}
+
+    .page{
+      max-width:1280px;
+      margin:0 auto;
+      padding:24px 24px 44px;
+      position:relative;
+      z-index:1;
+    }
+
+    .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      padding:0 0 18px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      text-decoration:none;
+    }
+
+    .logo{
+      font-size:26px;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:-.035em;
+    }
+
+    .trust-pill{
+      font-size:11px;
+      color:var(--teal);
+      border:1px solid rgba(56,214,201,.28);
+      background:rgba(56,214,201,.08);
+      padding:7px 12px;
+      border-radius:999px;
+      white-space:nowrap;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .nav{
+      display:flex;
+      align-items:center;
+      gap:20px;
+      color:#d9e7f5;
+      font-size:14px;
+    }
+    .nav a{opacity:.88}
+    .nav a:hover{opacity:1;color:#fff}
+
+    .icon-btn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.05);
+      color:#eaf6ff;
+      border-radius:13px;
+      min-height:38px;
+      padding:0 13px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      font-size:13px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter:blur(14px);
+    }
+
+    .hero{
+      padding:42px 0 24px;
+      border-bottom:1px solid var(--line);
+      margin-bottom:28px;
+      text-align:center;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid rgba(180,108,255,.25);
+      background:rgba(180,108,255,.08);
+      color:#ddbaff;
+      border-radius:999px;
+      padding:8px 14px;
+      font-size:12px;
+      font-weight:900;
+      margin-bottom:16px;
+    }
+
+    h1{
+      font-size:clamp(38px,5vw,64px);
+      line-height:1.03;
+      letter-spacing:-.055em;
+      margin:0 0 14px;
+    }
+
+    .lead{
+      max-width:840px;
+      margin:0 auto;
+      color:#bfd0e0;
+      font-size:20px;
+      line-height:1.55;
+    }
+
+    .tools{
+      margin-top:34px;
+    }
+
+    .section-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .section-head h2{
+      margin:0;
+      font-size:28px;
+      letter-spacing:-.03em;
+    }
+
+    .section-head p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .tool-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:18px;
+    }
+
+    .tool-card{
+      position:relative;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:24px;
+      padding:22px 22px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      box-shadow:
+        0 18px 44px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter:blur(18px) saturate(150%);
+      -webkit-backdrop-filter:blur(18px) saturate(150%);
+      overflow:hidden;
+      transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .tool-card:hover{
+      transform:translateY(-4px);
+      border-color:rgba(56,214,201,.28);
+      box-shadow:
+        0 24px 54px rgba(0,0,0,.28),
+        inset 0 1px 0 rgba(255,255,255,.10);
+    }
+
+    .tool-card::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at top right, rgba(56,214,201,.16), transparent 30%),
+        radial-gradient(circle at bottom left, rgba(73,168,255,.10), transparent 30%);
+    }
+
+    .tool-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom:14px;
+      position:relative;
+      z-index:1;
+    }
+
+    .tool-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius:999px;
+      padding:7px 11px;
+      font-size:11px;
+      font-weight:900;
+      color:#93fff7;
+      background:rgba(56,214,201,.12);
+      border:1px solid rgba(56,214,201,.24);
+    }
+
+    .tool-arrow{
+      color:var(--teal);
+      font-weight:900;
+      font-size:14px;
+      white-space:nowrap;
+    }
+
+    .tool-title{
+      position:relative;
+      z-index:1;
+      font-size:28px;
+      line-height:1.15;
+      letter-spacing:-.03em;
+      margin:0 0 12px;
+      color:#f5fbff;
+    }
+
+    .tool-desc{
+      position:relative;
+      z-index:1;
+      margin:0 0 16px;
+      font-size:16px;
+      line-height:1.55;
+      color:#bfd0e0;
+    }
+
+    .tool-meta{
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    .meta-pill{
+      display:inline-flex;
+      align-items:center;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05);
+      border-radius:999px;
+      padding:7px 11px;
+      font-size:12px;
+      color:#dce9f5;
+    }
+
+    .back-link{
+      display:inline-flex;
+      margin-top:24px;
+      color:var(--teal);
+      font-weight:900;
+      text-decoration:none;
+    }
+
+    footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      border-top:1px solid var(--line);
+      margin-top:36px;
+      padding-top:20px;
+      color:#7f93a8;
+      font-size:12px;
+    }
+
+    .foot-links{display:flex;gap:22px}
+    .foot-links a{color:#90a3b6}
+
+    @media (max-width:980px){
+      .tool-grid{grid-template-columns:1fr}
+      .nav{display:none}
+    }
+
+    @media (max-width:680px){
+      .page{padding:18px 14px 28px}
+      .top{align-items:flex-start}
+      .trust-pill{display:none}
+      .tool-title{font-size:24px}
+      .lead{font-size:17px}
+      footer{display:block}
+      .foot-links{margin-top:10px}
+    }
   </style>
 </head>
+<body>
+  <div class="page">
+    <header class="top">
+      <a class="brand" href="/pl/" aria-label="BriefRooms — strona główna">
+        <span class="logo">BRIEFROOMS</span>
+        <span class="trust-pill">AI-assisted • Human-reviewed</span>
+      </a>
 
-<body class="rooms-light investments-index">
+      <nav class="nav" aria-label="Główna nawigacja">
+        <a href="/pl/aktualnosci.html">Aktualności</a>
+        <a href="/pl/geopolityka.html">Geopolityka</a>
+        <a href="/pl/zdrowie.html">Zdrowie</a>
+        <a href="/pl/nauka.html">Nauka</a>
+        <a href="/pl/inwestycje.html">Inwestycje</a>
+        <a href="/pl/o-projekcie.html">O nas</a>
+      </nav>
 
-<header>
-  <h1>Inwestycje</h1>
-  <p class="sub">Wybierz temat — scenariusze rynkowe, stopy procentowe, ryzyko, wyceny.</p>
-  <p class="sub">📅 Strona działu aktualna na: <time class="pub" datetime="2026-06-12">12.06.2026</time></p>
-</header>
+      <a class="icon-btn" href="/en/" aria-label="English version">EN</a>
+    </header>
 
-<main>
-  <section class="card">
-    <h2>Artykuły i narzędzia w dziale Inwestycje</h2>
-    <ul>
-      <li>
-        <a href="/pl/inwestycje/prognozy-tygodniowe.html">
-          <span class="title">Tygodniowe scenariusze — EUR/USD i S&amp;P 500 futures</span>
-          <span class="desc">Cotygodniowy dziennik modelu: scenariusz w niedzielę, cena startowa w poniedziałek rano i późniejsze rozliczenie po piątkowym zamknięciu.</span>
+    <section class="hero">
+      <div class="eyebrow">⚡ Pokój rynkowy</div>
+      <h1>Inwestycje</h1>
+      <p class="lead">
+        Scenariusze rynkowe, stopy procentowe, ryzyko i wyceny.
+        Wybierz temat i przejdź do konkretnego narzędzia lub analizy.
+      </p>
+    </section>
+
+    <section class="tools" aria-labelledby="tools-title">
+      <div class="section-head">
+        <div>
+          <h2 id="tools-title">Artykuły i narzędzia w dziale Inwestycje</h2>
+          <p>Wybierz scenariusz, horyzont lub tygodniowy dziennik pozycji.</p>
+        </div>
+      </div>
+
+      <div class="tool-grid">
+        <a class="tool-card" href="/pl/inwestycje/prognozy-tygodniowe.html">
+          <div class="tool-top">
+            <span class="tool-badge">Tygodniowy model</span>
+            <span class="tool-arrow">Otwórz →</span>
+          </div>
+          <h3 class="tool-title">Tygodniowe scenariusze — EUR/USD i S&amp;P 500 futures</h3>
+          <p class="tool-desc">
+            Cotygodniowy dziennik pozycji: scenariusz startowy, cena otwarcia,
+            bieżący wynik pozycji i końcowe rozliczenie po zamknięciu tygodnia.
+          </p>
+          <div class="tool-meta">
+            <span class="meta-pill">EUR/USD</span>
+            <span class="meta-pill">S&amp;P 500 futures</span>
+            <span class="meta-pill">pozycje edukacyjne</span>
+          </div>
         </a>
-      </li>
-      <li>
-        <a href="/pl/inwestycje/spx-scenariusze-2026.html">
-          <span class="title">Scenariusze S&amp;P 500 — 1M / 6M / 12M</span>
-          <span class="desc">Późna faza hossy, AI, SOFR, TGA i bilans Fed — bazowe scenariusze dla S&amp;P 500 w trzech horyzontach czasowych, na tle prognoz IMF, OECD i dużych banków inwestycyjnych.</span>
+
+        <a class="tool-card" href="/pl/inwestycje/scenariusze-sp500.html">
+          <div class="tool-top">
+            <span class="tool-badge">Horyzonty 1M / 6M / 12M</span>
+            <span class="tool-arrow">Otwórz →</span>
+          </div>
+          <h3 class="tool-title">Scenariusze S&amp;P 500 — 1M / 6M / 12M</h3>
+          <p class="tool-desc">
+            Bazowe scenariusze dla indeksu S&amp;P 500 na trzech horyzontach
+            czasowych, z uwzględnieniem stóp procentowych, płynności, ryzyka
+            recesji i wycen rynkowych.
+          </p>
+          <div class="tool-meta">
+            <span class="meta-pill">S&amp;P 500</span>
+            <span class="meta-pill">makro</span>
+            <span class="meta-pill">wyceny</span>
+          </div>
         </a>
-      </li>
-    </ul>
-  </section>
+      </div>
 
-  <p class="back">← <a href="/pl/">Wróć na stronę wyboru pokoi</a></p>
-</main>
+      <a class="back-link" href="/pl/">← Wróć na stronę wyboru pokoi</a>
+    </section>
 
-<footer>© BriefRooms</footer>
-
-<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
+    <footer>
+      <span>© 2026 BriefRooms</span>
+      <nav class="foot-links" aria-label="Stopka">
+        <a href="/pl/o-projekcie.html">O nas</a>
+        <a href="mailto:contact@briefrooms.com">Kontakt</a>
+        <a href="/en/">EN</a>
+      </nav>
+    </footer>
+  </div>
 </body>
 </html>
