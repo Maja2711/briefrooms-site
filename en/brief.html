@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BriefRooms — article brief</title>
-  <meta name="description" content="A fuller article brief with context, summary and a link to the original source." />
+  <meta name="description" content="Article summary with a link to the original source." />
   <link rel="icon" href="/assets/favicon.svg" />
-  <link rel="stylesheet" href="/assets/site.css?v=en-brief-2" />
+  <link rel="stylesheet" href="/assets/site.css?v=en-brief-3" />
   <style>
     :root{--bg:#06131f;--line:rgba(255,255,255,.10);--txt:#eef7ff;--muted:#9fb2c8;--teal:#38d6c9;--teal2:#15978f;--shadow:0 24px 80px rgba(0,0,0,.38)}
     *{box-sizing:border-box}html{background:#06131f}body{margin:0;color:var(--txt);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1000px 520px at 12% -10%,rgba(46,214,201,.18),transparent 58%),linear-gradient(180deg,#06131f 0%,#071827 70%,#081522 100%);min-height:100vh}.page{max-width:1020px;margin:0 auto;padding:28px 24px 42px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--line)}.logo{font-size:27px;line-height:1;font-weight:850;letter-spacing:-.03em;text-decoration:none;color:#fff}.back{border:1px solid var(--line);background:rgba(255,255,255,.035);color:#eaf6ff;border-radius:999px;min-height:40px;padding:0 16px;display:inline-flex;align-items:center;text-decoration:none;font-weight:800;font-size:13px}.card{margin-top:44px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border-radius:28px;overflow:hidden;box-shadow:var(--shadow)}.image{height:360px;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.32),transparent 40%),linear-gradient(135deg,#0d344a,#081827);position:relative;overflow:hidden}.image img{width:100%;height:100%;object-fit:cover;display:block}.image:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(6,19,31,.65) 100%)}.fallback{height:100%;display:grid;place-items:center;font-size:52px;font-weight:900;color:rgba(255,255,255,.65)}.body{padding:32px}.tag{display:inline-flex;border:1px solid rgba(56,214,201,.25);background:rgba(56,214,201,.10);color:#8ffff6;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:900;margin-bottom:18px}h1{font-size:clamp(34px,5vw,52px);line-height:1.06;letter-spacing:-.045em;margin:0 0 24px}.brief-blocks{display:grid;gap:16px;margin:24px 0 28px}.brief-block{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);border-radius:18px;padding:18px 18px 17px}.brief-block h2{font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:#8ffff6;margin:0 0 10px}.brief-block p{margin:0;color:#c9d8e7;font-size:16px;line-height:1.62}.meta{display:flex;gap:12px;flex-wrap:wrap;color:#91a6ba;font-size:14px;margin-bottom:28px}.cta{display:flex;gap:14px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:0 22px;border-radius:999px;text-decoration:none;font-weight:850;border:1px solid var(--line);background:rgba(255,255,255,.035);color:#eaf6ff}.btn.primary{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#042227;border-color:rgba(56,214,201,.45);box-shadow:0 18px 50px rgba(21,151,143,.28)}.empty{padding:46px;color:#c9d8e7}@media(max-width:680px){.page{padding:20px 14px 34px}.image{height:230px}.body{padding:22px}.brief-block p{font-size:15px}}
@@ -21,28 +21,16 @@ function getUrl(){return new URLSearchParams(location.search).get('u')||''}
 function hostFromUrl(link){try{return new URL(link).hostname.replace('www.','')}catch(e){return 'Source'}}
 function cleanSentence(text){text=String(text||'').replace(/\s+/g,' ').trim();if(!text)return '';return /[.!?…]$/.test(text)?text:text+'.';}
 function splitSentences(text){return String(text||'').replace(/\s+/g,' ').match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)?.map(s=>cleanSentence(s)).filter(Boolean)||[];}
-function categoryAngle(category){
-  const c=String(category||'').toLowerCase();
-  if(c.includes('business')||c.includes('market')||c.includes('economy'))return 'For the reader, the key question is whether this is hard data, a market reaction, a policy signal or a broader economic trend.';
-  if(c.includes('politic')||c.includes('geopolitic'))return 'Its significance depends on whether the source describes an actual institutional decision, a political statement or a reaction from the parties involved.';
-  if(c.includes('sport'))return 'The important context is the timing, the participants, the stakes and whether the information changes expectations for the next event.';
-  if(c.includes('science'))return 'It is worth separating the finding itself from possible applications, because a research result does not always mean an immediate practical change.';
-  if(c.includes('health'))return 'The key point is whether the article reports new data, guidance, a public-health risk or wider context for patients and institutions.';
-  return 'The key is to separate confirmed facts from interpretation and understand which part of the information is genuinely new.';
-}
-function buildMain(item,source,category){
+function buildSummary(item){
   const base=item.full_brief||item.details||item.summary||item.why||'Open the source to read the full article.';
-  const sentences=splitSentences(base);
-  const out=[];
-  if(sentences[0])out.push(sentences[0]);
-  if(sentences[1])out.push(sentences[1]);
-  else out.push(`The source publication in ${source} provides the main fact or event behind this brief.`);
-  out.push(categoryAngle(category));
-  out.push('This short brief organizes the topic and explains why opening the full article may be useful if you need figures, quotes or exact source details.');
-  return out.slice(0,4).join(' ');
+  const sentences=splitSentences(base).filter(s=>{
+    const low=s.toLowerCase();
+    return !low.includes('briefrooms') && !low.includes('source publication') && !low.includes('full source text') && !low.includes('open the full article') && !low.includes('in practice');
+  });
+  return sentences.slice(0,4).join(' ');
 }
-function makeBriefSections(item,link){const source=item.source||hostFromUrl(link);const category=item.category||'Brief';const title=item.title||'Article brief';const main=buildMain(item,source,category);const context=`This topic comes from the ${category} category and is based on the source publication: ${source}. The brief is an editorial summary of the main information, while the full text remains in the original source.`;return {source,category,title,main,context};}
-function render(item){const app=document.getElementById('app');const link=item.link||getUrl();const b=makeBriefSections(item,link);app.innerHTML=`<div class="image">${item.image?`<img src="${esc(item.image)}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.image').innerHTML=art('${esc(b.category)}')">`:art(b.category)}</div><div class="body"><span class="tag">${esc(b.category)}</span><h1>${esc(b.title)}</h1><div class="brief-blocks"><section class="brief-block"><h2>Core point</h2><p>${esc(b.main)}</p></section><section class="brief-block"><h2>Context</h2><p>${esc(b.context)}</p></section></div><div class="meta"><span>Source: <b>${esc(b.source)}</b></span><span>${esc(item.time||'today')}</span></div><div class="cta"><a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">Open source article ↗</a><a class="btn" href="/en/">Back to BriefRooms</a></div></div>`}
+function makeBriefSections(item,link){const source=item.source||hostFromUrl(link);const category=item.category||'Brief';const title=item.title||'Article brief';const main=buildSummary(item);return {source,category,title,main};}
+function render(item){const app=document.getElementById('app');const link=item.link||getUrl();const b=makeBriefSections(item,link);app.innerHTML=`<div class="image">${item.image?`<img src="${esc(item.image)}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.image').innerHTML=art('${esc(b.category)}')">`:art(b.category)}</div><div class="body"><span class="tag">${esc(b.category)}</span><h1>${esc(b.title)}</h1><div class="brief-blocks"><section class="brief-block"><h2>Core point</h2><p>${esc(b.main)}</p></section></div><div class="meta"><span>Source: <b>${esc(b.source)}</b></span><span>${esc(item.time||'today')}</span></div><div class="cta"><a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">Open source article ↗</a><a class="btn" href="/en/">Back to BriefRooms</a></div></div>`}
 async function load(){const u=getUrl();try{const r=await fetch('/en/home_brief.json?v='+Date.now(),{cache:'no-store'});if(r.ok){const data=await r.json();const all=[...(data.latest||[]),...(data.radar||[])];const item=all.find(x=>String(x.link)===u);if(item){render(item);return;}}}catch(e){}render({title:'Article brief',summary:'This item was not found in the current home_brief.json file. You can still open the original source directly.',link:u,category:'Source',source:u?hostFromUrl(u):'Source'});}
 load();
 </script>
