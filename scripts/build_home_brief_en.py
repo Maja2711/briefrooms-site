@@ -10,44 +10,21 @@ TIMEOUT = 8
 HEADERS = {"User-Agent": "BriefRoomsBot/1.0 (+https://briefrooms.com)"}
 
 FEEDS = {
-    "World / news": [
-        "https://feeds.bbci.co.uk/news/world/rss.xml",
-        "https://www.theguardian.com/world/rss",
-        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-    ],
-    "Business / markets": [
-        "https://feeds.bbci.co.uk/news/business/rss.xml",
-        "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-        "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
-    ],
-    "Science": [
-        "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-        "https://www.nasa.gov/news-release/feed/",
-        "https://www.esa.int/rssfeed/Our_Activities/Space_Science",
-        "https://www.sciencedaily.com/rss/top/science.xml",
-    ],
-    "Health": [
-        "https://feeds.bbci.co.uk/news/health/rss.xml",
-        "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
-        "https://www.nih.gov/news-events/news-releases/rss.xml",
-        "https://www.cdc.gov/media/rss.htm",
-    ],
-    "Technology": [
-        "https://feeds.bbci.co.uk/news/technology/rss.xml",
-        "https://www.theverge.com/rss/index.xml",
-        "https://www.wired.com/feed/rss",
-    ],
+    "World / news": ["https://feeds.bbci.co.uk/news/world/rss.xml", "https://www.theguardian.com/world/rss", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"],
+    "Business / markets": ["https://feeds.bbci.co.uk/news/business/rss.xml", "https://www.cnbc.com/id/100003114/device/rss/rss.html", "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"],
+    "Science": ["https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "https://www.nasa.gov/news-release/feed/", "https://www.esa.int/rssfeed/Our_Activities/Space_Science", "https://www.sciencedaily.com/rss/top/science.xml"],
+    "Health": ["https://feeds.bbci.co.uk/news/health/rss.xml", "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml", "https://www.nih.gov/news-events/news-releases/rss.xml", "https://www.cdc.gov/media/rss.htm"],
+    "Technology": ["https://feeds.bbci.co.uk/news/technology/rss.xml", "https://www.theverge.com/rss/index.xml", "https://www.wired.com/feed/rss"],
 }
 
 SOURCE_NAMES = [
-    ("bbc.", "BBC"), ("theguardian.com", "The Guardian"), ("nytimes.com", "The New York Times"),
-    ("cnbc.com", "CNBC"), ("marketwatch.com", "MarketWatch"), ("wsj.com", "WSJ"),
-    ("dj.com", "WSJ"), ("nasa.gov", "NASA"), ("esa.int", "ESA"),
-    ("sciencedaily.com", "ScienceDaily"), ("who.int", "WHO"), ("nih.gov", "NIH"),
-    ("cdc.gov", "CDC"), ("theverge.com", "The Verge"), ("wired.com", "WIRED"),
+    ("bbc.", "BBC"), ("theguardian.com", "The Guardian"), ("nytimes.com", "The New York Times"), ("cnbc.com", "CNBC"),
+    ("marketwatch.com", "MarketWatch"), ("wsj.com", "WSJ"), ("dj.com", "WSJ"), ("nasa.gov", "NASA"), ("esa.int", "ESA"),
+    ("sciencedaily.com", "ScienceDaily"), ("who.int", "WHO"), ("nih.gov", "NIH"), ("cdc.gov", "CDC"), ("theverge.com", "The Verge"), ("wired.com", "WIRED"),
 ]
 
-BAN = re.compile("horoscope|quiz|gallery|sponsored|lottery|gossip|live blog", re.I)
+BAN = re.compile("horoscope|quiz|gallery|sponsored|lottery|gossip|live blog|coupon code|promo code|deals for", re.I)
+NOISE = re.compile("cookie|cookies|advertisement|subscribe|newsletter|privacy|sign in|log in|read more|related", re.I)
 
 
 def clean_text(value, max_len=190):
@@ -56,6 +33,10 @@ def clean_text(value, max_len=190):
     value = re.sub(r"\s+", " ", value).strip()
     if len(value) <= max_len:
         return value
+    cut = value[: max_len + 1]
+    end = max(cut.rfind("."), cut.rfind("!"), cut.rfind("?"))
+    if end > 80:
+        return cut[: end + 1].strip()
     return value[:max_len].rsplit(" ", 1)[0].strip() + "…"
 
 
@@ -65,6 +46,54 @@ def source_name(url):
         if needle in host:
             return name
     return host or "Source"
+
+
+def ensure_period(text):
+    text = re.sub(r"\s+", " ", (text or "").strip())
+    return text + "." if text and text[-1] not in ".!?…" else text
+
+
+def sentence_list(text):
+    text = clean_text(text, 2400).replace("…", ".")
+    parts = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
+    out = []
+    for p in parts:
+        p = ensure_period(p)
+        if len(p) >= 35 and not NOISE.search(p):
+            out.append(p)
+    return out
+
+
+def summary_3_4(text, max_len=620):
+    sents = sentence_list(text)[:4]
+    if not sents:
+        return ensure_period(clean_text(text, max_len))
+    return clean_text(" ".join(sents), max_len)
+
+
+def html_to_article_text(raw):
+    raw = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>|<noscript[\s\S]*?</noscript>", " ", raw, flags=re.I)
+    paras = re.findall(r"<p[^>]*>([\s\S]*?)</p>", raw, flags=re.I)
+    cleaned = []
+    for p in paras[:24]:
+        t = clean_text(p, 900)
+        if len(t) >= 45 and not NOISE.search(t):
+            cleaned.append(t)
+        if len(cleaned) >= 7:
+            break
+    return " ".join(cleaned)
+
+
+def article_excerpt(url):
+    if not url.startswith("http"):
+        return ""
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        if not r.ok:
+            return ""
+        return html_to_article_text(r.text[:260000])
+    except Exception:
+        return ""
 
 
 def image_from_entry(entry, link):
@@ -91,10 +120,7 @@ def image_from_article(url):
         text = requests.get(url, headers=HEADERS, timeout=TIMEOUT).text[:160000]
     except Exception:
         return ""
-    patterns = [
-        r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']',
-        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']',
-    ]
+    patterns = [r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']']
     for pattern in patterns:
         match = re.search(pattern, text, re.I)
         if match:
@@ -115,10 +141,12 @@ def timestamp(entry):
 def make_item(entry, category):
     title = clean_text(entry.get("title", ""), 92)
     link = entry.get("link", "")
-    summary = clean_text(entry.get("summary", "") or entry.get("description", "") or title, 150)
+    summary_raw = entry.get("summary", "") or entry.get("description", "") or title
+    summary = clean_text(summary_raw, 150)
     if not title or not link or BAN.search(title + " " + summary):
         return None
-    return {"category": category, "title": title, "summary": summary, "source": source_name(link), "link": link, "image": image_from_entry(entry, link), "time": "today", "ts": timestamp(entry)}
+    details = summary_3_4(article_excerpt(link) or summary_raw, 620)
+    return {"category": category, "title": title, "summary": summary, "details": details or summary, "source": source_name(link), "link": link, "image": image_from_entry(entry, link), "time": "today", "ts": timestamp(entry)}
 
 
 def collect_items():
