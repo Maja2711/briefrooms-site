@@ -33,13 +33,13 @@
       ],
       "entry_price": 1.1389521360397339,
       "entry_captured_at": "2026-06-26T23:29:00+02:00",
-      "exit_price": null,
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 1.1436413526535034,
+      "exit_captured_at": "2026-07-02T20:56:06+02:00",
+      "result": "loss",
+      "result_value": -46.89216613769531,
+      "result_percent": -0.4117,
       "entry_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
-      "notional_eur": 10000,
+      "notional_eur": 10000.0,
       "result_currency": "USD",
       "scenario_thresholds": {
         "source": "dynamic_atr14",
@@ -57,7 +57,36 @@
         "adverse_units": 90.36,
         "unit": "pips",
         "minmax_applied": false
-      }
+      },
+      "risk_plan": {
+        "model_version": "risk-learning-1.0",
+        "generated_at": "2026-07-02T20:57:02+02:00",
+        "direction": "short",
+        "stop_loss_price": 1.14272,
+        "take_profit_price": 1.1333,
+        "stop_loss_units": 37.71,
+        "take_profit_units": 56.57,
+        "risk_usd": 37.71,
+        "potential_reward_usd": 56.57,
+        "reward_to_risk": 1.5,
+        "threshold_source": "dynamic_close_to_close_volatility_20d",
+        "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; poziomy zapisujemy przy pozycji, żeby później porównać plan z wynikiem.",
+        "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; levels are saved with the position so the plan can be reviewed against the outcome."
+      },
+      "risk_status": "stop_loss_hit",
+      "risk_review": {
+        "last_review_at": "2026-07-02T20:57:02+02:00",
+        "last_review_price": 1.1436413526535034,
+        "last_review_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
+        "live_pnl_usd": -46.89,
+        "observation_pl": "Cena wzrosła do strefy stop loss — scenariusz uznany za błędny.",
+        "observation_en": "Price rose to the stop-loss zone — scenario marked wrong."
+      },
+      "exit_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
+      "exit_reason": "stop_loss",
+      "risk_exit_type": "stop_loss",
+      "result_units": -46.89216613769531,
+      "effective_direction": "short"
     },
     {
       "instrument_id": "sp500_futures",
@@ -117,7 +146,31 @@
       "scenario_end_units": -114.25,
       "scenario_reviewed_at": "2026-06-30T13:16:57+02:00",
       "fresh_reversal_direction": "long",
-      "fresh_reversal_score": 32
+      "fresh_reversal_score": 32,
+      "risk_plan": {
+        "model_version": "risk-learning-1.0",
+        "generated_at": "2026-07-02T20:57:02+02:00",
+        "direction": "short",
+        "stop_loss_price": 7485.42,
+        "take_profit_price": 7276.25,
+        "stop_loss_units": 83.67,
+        "take_profit_units": 125.5,
+        "risk_usd": 113.04,
+        "potential_reward_usd": 169.55,
+        "reward_to_risk": 1.5,
+        "threshold_source": "dynamic_close_to_close_volatility_20d",
+        "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; poziomy zapisujemy przy pozycji, żeby później porównać plan z wynikiem.",
+        "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; levels are saved with the position so the plan can be reviewed against the outcome."
+      },
+      "risk_status": "closed_week",
+      "risk_review": {
+        "last_review_at": "2026-07-02T20:57:02+02:00",
+        "last_review_price": 7506.0,
+        "last_review_source": "Yahoo Finance:ES=F:chart:1d:1m",
+        "live_pnl_usd": -140.85,
+        "observation_pl": "Cena wzrosła do strefy stop loss — scenariusz uznany za błędny.",
+        "observation_en": "Price rose to the stop-loss zone — scenario marked wrong."
+      }
     },
     {
       "instrument_id": "btcusd",
@@ -146,7 +199,8 @@
       "result_value": null,
       "result_percent": null,
       "notional_usd": 10000,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "risk_status": "pending_entry"
     }
   ]
 }
