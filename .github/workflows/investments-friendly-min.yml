@@ -26,126 +26,42 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install dependency
         run: python -m pip install --upgrade pip yfinance
+
       - name: Update macro data
         run: python scripts/investments_macro_monitor.py || true
+
       - name: Update EURUSD MA research
         run: python scripts/eurusd_ma_timeframe_research.py || true
+
       - name: Update market factor research
         run: python scripts/market_factor_research.py || true
+
       - name: Update model data
         run: python scripts/investments_advanced_learning.py || true
-      - name: Scenario grade engine v2
-        run: |
-          python - <<'PY'
-          import json, math
-          from pathlib import Path
-          from datetime import datetime
-          def load(p,d):
-              try: return json.loads(Path(p).read_text(encoding='utf-8'))
-              except Exception: return d
-          def save(p,x):
-              Path(p).parent.mkdir(parents=True,exist_ok=True)
-              Path(p).write_text(json.dumps(x,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          def fl(x):
-              try:
-                  y=float(x); return y if math.isfinite(y) else None
-              except Exception: return None
-          def side(it):
-              r=str(it.get('direction') or it.get('effective_direction') or '')
-              if r in ('long','short'): return r
-              s=fl(it.get('score'))
-              return 'short' if s is not None and s<0 else 'long'
-          def opp(a,b): return (a,b) in (('long','short'),('short','long'))
-          factors=load('data/investments/learning/market_factor_research.json',{})
-          ma=load('data/investments/learning/eurusd_ma_timeframe_research.json',{})
-          macro=load('data/investments/macro_events.json',{})
-          txt=' '.join((str(e.get('title',''))+' '+str(e.get('summary',''))) for e in (macro.get('events') or [])[:12]).lower() if isinstance(macro,dict) else ''
-          event_alert=sum(1 for k in ('cpi','inflation','nfp','fomc','powell','ecb','fed') if k in txt)>=2
-          ma_final=str(((ma.get('combined') or {}).get('final_signal')) or '') if isinstance(ma,dict) else ''
-          ma_dir='long' if 'long' in ma_final else 'short' if 'short' in ma_final else 'neutral'
-          report={'model_version':'scenario-grade-engine-2.0','updated_at':datetime.utcnow().isoformat(timespec='seconds')+'Z','weeks':[]}
-          for p in sorted(Path('data/investments/weekly').glob('*.json'), reverse=True)[:3]:
-              w=load(p,{})
-              row={'week_id':w.get('week_id'),'items':[]}
-              for it in w.get('instruments',[]):
-                  inst=str(it.get('instrument_id') or '')
-                  d=side(it); score=35.0; conflicts=0; reasons=[]
-                  rec=((factors.get('results') or {}).get(inst) or {}) if isinstance(factors,dict) else {}
-                  brace=fl(rec.get('brace_score')) or 0.0
-                  bdir='long' if brace>18 else 'short' if brace<-18 else 'neutral'
-                  reasons.append(f'BRACE {bdir} {brace:+.1f}')
-                  if bdir==d: score+=min(22,abs(brace)*0.35)
-                  elif opp(bdir,d): score-=min(30,abs(brace)*0.55); conflicts+=1
-                  else: score-=4
-                  if inst=='eurusd':
-                      reasons.append(f'MA30/60/100 {ma_dir}')
-                      if ma_dir==d: score+=18
-                      elif opp(ma_dir,d): score-=28; conflicts+=1
-                      else: score-=3
-                  if event_alert: score-=14
-                  reasons.append('event alert' if event_alert else 'event clear')
-                  rr=fl((it.get('risk_plan') or {}).get('reward_to_risk'))
-                  if rr is not None and rr<1.1: score-=12; reasons.append('RR weak')
-                  if rr is not None and rr>=1.5: score+=8; reasons.append('RR ok')
-                  if conflicts>=2 or score<=-20: grade,state,weight='D','paused',0.0
-                  elif event_alert and score<25: grade,state,weight='C','cautious',0.35
-                  elif conflicts==1 or score<15: grade,state,weight='C','cautious',0.35
-                  elif score>=55: grade,state,weight='A','primary',1.0
-                  else: grade,state,weight='B','primary',0.75
-                  q={'model_version':'scenario-grade-engine-2.0','updated_at':datetime.utcnow().isoformat(timespec='seconds')+'Z','grade':grade,'state':state,'weight':weight,'score':round(max(-100,min(100,score)),2),'direction':d,'conflicts':conflicts,'event_alert':event_alert,'reason':' / '.join(reasons),'legend_pl':'A/B: scenariusz główny; C: ostrożnie; D: pauza.','legend_en':'A/B: primary; C: cautious; D: paused.'}
-                  it['scenario_grade_v2']=q
-                  row['items'].append({'instrument_id':inst,'scenario_grade_v2':q})
-              save(p,w); report['weeks'].append(row)
-          save('data/investments/scenario_grades.json',report)
-          PY
-      - name: Use exit price for closed positions in renderer
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/investments_friendly_min.py')
-          s = p.read_text(encoding='utf-8')
-          s = s.replace('    live_txt, live_state = pnl_text(item, current, cfg, lang)\n    final_txt, final_state = pnl_text(item, close_price, cfg, lang) if close_price is not None else (close_txt, "neutral")', '    display_mark = close_price if close_price is not None else current\n    live_txt, live_state = pnl_text(item, display_mark, cfg, lang)\n    final_txt, final_state = pnl_text(item, close_price, cfg, lang) if close_price is not None else (close_txt, "neutral")')
-          s = s.replace('        current = base.safe_float(rec.get("price"))\n        txt, state = pnl_text(item, current, inst_cfg, lang)', '        current = base.safe_float(rec.get("price"))\n        close_price = base.safe_float(item.get("exit_price"))\n        txt, state = pnl_text(item, close_price if close_price is not None else current, inst_cfg, lang)')
-          p.write_text(s, encoding='utf-8')
-          PY
-      - name: Initial build pages
+
+      - name: Internal scenario grade engine
+        run: python scripts/scenario_grade_engine.py || python scripts/grade_engine.py || true
+
+      - name: Build internal investment data
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'render' }}
         run: python scripts/investments_friendly_min.py --mode "$MODE"
+
       - name: Normalize SL TP exits globally
         run: python scripts/normalize_sl_tp_exits.py || true
-      - name: Final build pages
-        env:
-          MODE: render
-        run: python scripts/investments_friendly_min.py --mode "$MODE"
-      - name: Simplify public investment view
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          style = """<style id=\"briefrooms-simple-invest-view\">
-          .instrument .lesson{display:none!important}
-          .instrument .grid .metric:nth-child(5),
-          .instrument .grid .metric:nth-child(6),
-          .instrument .grid .metric:nth-child(7),
-          .instrument .grid .metric:nth-child(11){display:none!important}
-          .instrument .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-          .instrument .metric.big dd{font-size:1.25rem!important;line-height:1.35!important}
-          .summary.panel + .summary.panel{display:none!important}
-          @media(max-width:780px){.instrument .grid{grid-template-columns:1fr!important}}
-          </style>"""
-          for path in [Path('pl/inwestycje/prognozy-tygodniowe.html'), Path('en/investing/weekly-forecasts.html')]:
-              text = path.read_text(encoding='utf-8')
-              if 'briefrooms-simple-invest-view' not in text:
-                  text = text.replace('</head>', style + '\n</head>')
-              path.write_text(text, encoding='utf-8')
-          PY
-      - name: Commit pages
+
+      - name: Render simple public investment pages
+        run: python scripts/render_simple_investments.py
+
+      - name: Commit investment updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -153,6 +69,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Update pages"
+            git commit -m "Update investment pages"
             git push
           fi
