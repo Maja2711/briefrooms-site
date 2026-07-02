@@ -145,6 +145,13 @@ def hit_status(item: Dict[str, Any], current: Optional[float]) -> Tuple[str, str
     return "open", "Pozycja jest otwarta; analizujemy, czy cena zbliża się do SL albo TP.", "Position remains open; price is reviewed versus SL and TP."
 
 
+def planned_exit_price(item: Dict[str, Any], status: str, fallback: float) -> float:
+    plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
+    key = "take_profit_price" if status == "take_profit_hit" else "stop_loss_price"
+    planned = base.safe_float(plan.get(key))
+    return planned if planned is not None else fallback
+
+
 def review_item(week: Dict[str, Any], item: Dict[str, Any], cfg: Dict[str, Any], method: Dict[str, Any], live_prices: Dict[str, Any]) -> bool:
     inst_id = str(item.get("instrument_id") or "")
     entry = base.safe_float(item.get("entry_price"))
@@ -169,9 +176,12 @@ def review_item(week: Dict[str, Any], item: Dict[str, Any], cfg: Dict[str, Any],
         "observation_en": note_en,
     }
     if status in {"take_profit_hit", "stop_loss_hit"} and base.safe_float(item.get("exit_price")) is None and current is not None:
-        item["exit_price"] = current
+        exit_mark = planned_exit_price(item, status, current)
+        item["exit_price"] = exit_mark
+        item["exit_observed_price"] = current
         item["exit_captured_at"] = rec.get("current_price_updated_at") or rec.get("timestamp") or base.now_local().isoformat(timespec="seconds")
         item["exit_source"] = rec.get("source") or "Yahoo Finance"
+        item["exit_execution_model"] = "planned_sl_tp_level"
         item["exit_reason"] = "take_profit" if status == "take_profit_hit" else "stop_loss"
         item["risk_exit_type"] = item["exit_reason"]
         try:
