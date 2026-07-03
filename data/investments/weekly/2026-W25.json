@@ -49,11 +49,11 @@
       ],
       "entry_price": 1.16130530834198,
       "entry_captured_at": "2026-06-15T14:38:25+02:00",
-      "exit_price": 1.1460003852844238,
+      "exit_price": 1.15565,
       "exit_captured_at": "2026-06-18T13:55:49+02:00",
-      "result": "flat",
-      "result_value": 0.015304923057556152,
-      "result_percent": 1.3179,
+      "result": "gain",
+      "result_value": 56.55308342,
+      "result_percent": 0.487,
       "entry_source": "yfinance:EURUSD=X:5d:5m",
       "scenario_thresholds": {
         "source": "dynamic_atr14",
@@ -94,15 +94,21 @@
         "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; poziomy zapisujemy przy pozycji, żeby później porównać plan z wynikiem.",
         "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; levels are saved with the position so the plan can be reviewed against the outcome."
       },
-      "risk_status": "closed_week",
+      "risk_status": "take_profit_hit",
       "risk_review": {
         "last_review_at": "2026-07-02T20:57:02+02:00",
         "last_review_price": 1.1436413526535034,
         "last_review_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
         "live_pnl_usd": 176.64,
-        "observation_pl": "Cena dotarła do take profit — scenariusz zrealizował zakładany ruch.",
-        "observation_en": "Price reached take profit — scenario delivered the planned move."
-      }
+        "observation_pl": "Cena naruszyła take profit. Wynik modelowy liczony jest po zapisanym poziomie TP, a późniejsza cena pozostaje tylko ceną obserwowaną.",
+        "observation_en": "Price breached take profit. Model result is calculated at the saved TP level; the later price is only the observed price."
+      },
+      "exit_observed_price": 1.1460003852844238,
+      "exit_reason": "take_profit",
+      "risk_exit_type": "take_profit",
+      "exit_execution_model": "planned_sl_tp_level",
+      "result_units": 56.55308342,
+      "result_currency": "USD"
     },
     {
       "instrument_id": "sp500_futures",
