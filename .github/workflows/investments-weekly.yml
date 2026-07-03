@@ -15,7 +15,6 @@ on:
           - close
           - render
   schedule:
-    # Refresh live prices and rebuild PL/EN forecast pages every hour.
     - cron: "17 * * * *"
 
 permissions:
@@ -37,16 +36,25 @@ jobs:
       - name: Install market data dependency
         run: python -m pip install --upgrade pip yfinance
 
-      - name: Build weekly investments data and pages
+      - name: Build weekly investment data internally
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
         run: python scripts/investments_weekly.py --mode "$MODE"
+
+      - name: Normalize SL TP exits globally
+        run: python scripts/normalize_sl_tp_exits.py || true
+
+      - name: Intraweek re-entry after stop loss
+        run: python scripts/investments_reentry_engine.py || true
+
+      - name: Render simple public investment pages
+        run: python scripts/render_simple_investments.py
 
       - name: Commit generated investment updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json data/investments/weekly data/investments/reentry_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No investment forecast changes to commit."
           else
