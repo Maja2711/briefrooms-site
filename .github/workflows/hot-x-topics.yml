@@ -21,6 +21,8 @@ jobs:
           python-version: "3.11"
 
       - name: Update Hot X topics
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
         run: python scripts/update_hot_x_topics.py
 
       - name: Commit Hot X topics
