@@ -7,7 +7,8 @@ This wrapper keeps the existing EN feed selection/rendering logic from
 scripts/fetch_news_en.py, but:
 - removes low-value weather items;
 - shows "Why it matters" only when it adds concrete value;
-- avoids generic slogans and source-checking filler.
+- avoids generic slogans and source-checking filler;
+- adds a BRs section navigation bar for the EN News room.
 """
 
 import os
@@ -68,6 +69,73 @@ GENERIC_BAD_WHY_RE = re.compile(
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
+
+
+NEWS_TABS_CSS = """
+    html{ scroll-behavior:smooth; }
+    .section-tabs{
+      position:sticky; top:0; z-index:20;
+      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;
+      margin:8px auto 18px; padding:10px 12px;
+      background:rgba(8,15,30,.72); backdrop-filter:blur(14px);
+      border:1px solid rgba(255,255,255,.10); border-radius:999px;
+      box-shadow:0 10px 28px rgba(0,0,0,.28);
+    }
+    .section-tabs a{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:96px; padding:9px 14px; border-radius:999px;
+      color:#fdf3e3; text-decoration:none; font-weight:800; letter-spacing:.01em;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      white-space:nowrap;
+    }
+    .section-tabs .brand-link{
+      min-width:auto; gap:0; padding:8px 14px;
+      background:linear-gradient(135deg, rgba(248,201,122,.30), rgba(255,255,255,.08));
+      border-color:rgba(248,201,122,.46); color:#fff; box-shadow:0 8px 22px rgba(0,0,0,.20);
+    }
+    .section-tabs .brand-mark{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:34px; height:28px; border-radius:10px;
+      color:#101827; background:linear-gradient(135deg,#f8c97a,#fff1c7,#38d6c9);
+      font-weight:950; letter-spacing:-.08em;
+    }
+    .section-tabs a:hover,
+    .section-tabs a:focus-visible{
+      background:rgba(248,201,122,.18); border-color:rgba(248,201,122,.42); color:#fff;
+      outline:none; transform:translateY(-1px);
+    }
+    section.card{ scroll-margin-top:92px; }
+    @media (max-width:760px){
+      .section-tabs{ border-radius:22px; justify-content:stretch; }
+      .section-tabs a{ flex:1 1 31%; min-width:auto; padding:9px 10px; font-size:.88rem; }
+      .section-tabs .brand-link{ flex:1 1 100%; justify-content:center; }
+    }
+"""
+
+NEWS_TABS_HTML = """
+<nav class="section-tabs" aria-label="News sections">
+  <a class="brand-link" href="/en/" aria-label="BRs — home"><span class="brand-mark">BRs</span></a>
+  <a href="#world-news">World News</a>
+  <a href="#asia-pacific">Asia-Pacific</a>
+  <a href="#europe">Europe</a>
+  <a href="#middle-east">Middle East</a>
+  <a href="#business">Business</a>
+  <a href="#science">Science</a>
+  <a href="#health">Health</a>
+  <a href="#sport">Sport</a>
+</nav>
+"""
+
+SECTION_IDS = {
+    "World News": "world-news",
+    "Asia-Pacific": "asia-pacific",
+    "Europe": "europe",
+    "Middle East": "middle-east",
+    "Business": "business",
+    "Science": "science",
+    "Health": "health",
+    "Sport": "sport",
+}
 
 
 def _clip_sentence(text: str, limit: int = 360) -> str:
@@ -167,10 +235,25 @@ def fetch_section_contextual(section_key: str, excluded_links=None, excluded_top
     return filtered
 
 
+def add_news_tabs_en(html: str) -> str:
+    if "class=\"section-tabs\"" not in html:
+        html = html.replace("</style>", NEWS_TABS_CSS + "\n  </style>", 1)
+        html = html.replace("<main>\n", "<main>\n" + NEWS_TABS_HTML + "\n", 1)
+
+    for title, section_id in SECTION_IDS.items():
+        html = html.replace(
+            f'<section class="card">\n  <h2>{title}</h2>',
+            f'<section class="card" id="{section_id}">\n  <h2>{title}</h2>',
+            1,
+        )
+    return html
+
+
 def render_html_contextual(sections: dict) -> str:
     html = _original_render_html(sections)
     # Remove empty Why-it-matters rows if the base renderer still created the label.
     html = re.sub(r"\n\s*<div class=\"sec\"><strong>Why it matters:</strong>\s*</div>", "", html)
+    html = add_news_tabs_en(html)
     return html
 
 
