@@ -37,7 +37,7 @@ for path in FILES:
     html = path.read_text(encoding='utf-8')
     original = html
     html = html.replace('<span class="ai-dot"></span><span>AI-assisted</span>', '<span class="ai-dot"></span><span class="ai-text">AI</span>')
-    html = html.replace("<span class=\"ai-dot\"></span><span>Wspomagane przez AI</span>", "<span class=\"ai-dot\"></span><span class=\"ai-text\">AI</span>")
+    html = html.replace('<span class="ai-dot"></span><span>Wspomagane przez AI</span>', '<span class="ai-dot"></span><span class="ai-text">AI</span>')
     if 'dataset.aiToggleReady' not in html:
         html = html.replace('</body>', SCRIPT + '\n</body>')
     if html != original:
