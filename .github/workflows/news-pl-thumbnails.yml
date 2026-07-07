@@ -80,8 +80,12 @@ jobs:
           css = '''
               .news-thumb.has-image{padding:0!important;overflow:hidden!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;align-items:stretch!important;justify-content:stretch!important;}
               .news-thumb.has-image img{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;}
+              .news-thumb:not(.has-image){width:96px!important;min-width:96px!important;height:58px!important;padding:7px 8px!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:2px!important;}
+              .news-thumb:not(.has-image) .dot{display:none!important;}
+              .news-thumb:not(.has-image) .title{display:block!important;max-width:86px!important;width:86px!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip!important;color:#06111f!important;font-size:10px!important;font-weight:950!important;line-height:1.08!important;text-shadow:0 1px 0 rgba(255,255,255,.35)!important;}
+              .news-thumb:not(.has-image) .sub{display:block!important;color:rgba(6,17,31,.72)!important;font-size:8px!important;font-weight:800!important;line-height:1!important;}
           '''
-          if '.news-thumb.has-image' not in text:
+          if '.news-thumb:not(.has-image)' not in text:
               text = text.replace('</style>', css + '\n  </style>', 1)
 
           pattern = re.compile(r'(<a class="news-main-link" href="([^"]+)"[^>]*>\s*)<span class="news-thumb">\s*<span class="dot"></span>\s*<span class="title">.*?</span>\s*<span class="sub">źródło</span>\s*</span>', re.S)
