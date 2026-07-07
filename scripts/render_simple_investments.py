@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-# Public weekly pages now update visible current prices client-side from
-# /data/investments/room_quotes.json, the same shared quote file used by the
-# Investing room. Do not overwrite those pages with stale rendered prices.
+import runpy
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+TARGET = ROOT / "scripts" / "render_weekly_public_pages.py"
 
 if __name__ == "__main__":
-    print("Skipped static weekly render: public pages use shared live room_quotes.json")
+    runpy.run_path(str(TARGET), run_name="__main__")
