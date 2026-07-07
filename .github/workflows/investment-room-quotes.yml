@@ -1,0 +1,36 @@
+name: Update Investment Room Quotes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "12 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-investment-room-quotes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Update investment room quotes from Stooq
+        run: python scripts/update_investment_room_quotes.py
+
+      - name: Commit investment room quotes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/room_quotes.json
+          if git diff --cached --quiet; then
+            echo "No investment room quote changes"
+          else
+            git commit -m "Update investment room quotes"
+            git push
+          fi
