@@ -20,10 +20,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Update Hot X topics
+      - name: Update Hot X topics with matched images
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-        run: python scripts/update_hot_x_topics.py
+        run: python scripts/build_hot_x_en.py
 
       - name: Commit Hot X topics
         run: |
