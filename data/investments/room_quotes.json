@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-07-07T19:34:05+02:00",
+  "updated_at": "2026-07-07T19:51:14+02:00",
   "source": "Stooq.pl q/l CSV; Yahoo/live_prices fallback for FX/index/crypto if Stooq is unavailable",
-  "refresh": "FX/index/crypto: every 15 minutes. Bond yields: 10:00, 13:00, 17:00 Europe/Warsaw.",
+  "refresh": "FX/index/crypto/bond yields: every 15 minutes.",
   "pl_bond_key": "pl10y",
   "en_bond_key": "us10y",
   "quotes": {
@@ -15,10 +15,10 @@
       "unit": "",
       "source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
       "symbol": "eurusd",
-      "close": 1.1427265405654907,
+      "close": 1.142987847328186,
       "change_percent": null,
       "date": "2026-07-07",
-      "time": "19:33:31",
+      "time": "19:50:31",
       "fallback_reason": "Stooq quote unavailable in this run; using live_prices fallback",
       "attempts": [
         {
@@ -43,10 +43,10 @@
       "unit": "",
       "source": "Yahoo Finance:ES=F:chart:1d:1m",
       "symbol": "sp500_futures",
-      "close": 7567.5,
+      "close": 7569.0,
       "change_percent": null,
       "date": "2026-07-07",
-      "time": "19:23:52",
+      "time": "19:41:06",
       "fallback_reason": "Stooq quote unavailable in this run; using live_prices fallback",
       "attempts": [
         {
@@ -100,8 +100,9 @@
           "source_url": "https://stooq.pl/q/l/?s=10YPLY.B&f=sd2t2ohlcv&h&e=csv"
         }
       ],
-      "bond_update_policy": "Europe/Warsaw 10:00, 13:00, 17:00",
-      "bond_update_status": "kept_previous_outside_slot_19:00_Warsaw"
+      "bond_update_policy": "every 15 minutes with investment room quote workflow",
+      "bond_update_status": "kept_previous_bond_table_not_found",
+      "bond_last_attempt_at": "2026-07-07T19:51:07+02:00"
     },
     "us10y": {
       "key": "us10y",
@@ -132,8 +133,9 @@
           "source_url": "https://stooq.pl/q/l/?s=10YUSY.B&f=sd2t2ohlcv&h&e=csv"
         }
       ],
-      "bond_update_policy": "Europe/Warsaw 10:00, 13:00, 17:00",
-      "bond_update_status": "kept_previous_outside_slot_19:00_Warsaw"
+      "bond_update_policy": "every 15 minutes with investment room quote workflow",
+      "bond_update_status": "kept_previous_bond_table_not_found",
+      "bond_last_attempt_at": "2026-07-07T19:51:07+02:00"
     },
     "btcusd": {
       "key": "btcusd",
@@ -145,10 +147,10 @@
       "unit": "",
       "source": "Yahoo Finance:BTC-USD:chart:1d:1m",
       "symbol": "btcusd",
-      "close": 64079.08984375,
+      "close": 64079.859375,
       "change_percent": null,
       "date": "2026-07-07",
-      "time": "19:33:48",
+      "time": "19:51:05",
       "fallback_reason": "Stooq quote unavailable in this run; using live_prices fallback",
       "attempts": [
         {
@@ -171,20 +173,15 @@
   },
   "bond_schedule": {
     "timezone": "Europe/Warsaw",
-    "hours": [
-      10,
-      13,
-      17
-    ],
-    "last_attempt_slot": "2026-07-07T17",
-    "last_attempt_at": "2026-07-07T17:19:07+02:00",
-    "last_attempt_result": "bond_table_not_found",
-    "current_run": "2026-07-07T19:33:53+02:00",
-    "current_run_status": "bond_quotes_kept_previous_outside_update_slot"
+    "frequency": "every 15 minutes",
+    "last_attempt_at": "2026-07-07T19:51:07+02:00",
+    "last_attempt_result": "kept_previous",
+    "pl10y_updated": false,
+    "us10y_updated": false
   },
   "bond_table_import": {
     "source": "https://stooq.pl/t/?i=536",
-    "policy": "Update bond yields only at 10:00, 13:00 and 17:00 Europe/Warsaw; other instruments keep 15-minute refresh.",
+    "policy": "Update bond yields on every 15-minute investment-room quote workflow run, same as FX/index/crypto.",
     "updated_this_run": false,
     "pl10y": false,
     "us10y": false
