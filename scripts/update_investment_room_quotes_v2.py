@@ -8,14 +8,28 @@ import sys
 import urllib.request
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "investments" / "room_quotes.json"
-BOND_TABLE_URL = "https://stooq.pl/t/?i=536"
 WARSAW = ZoneInfo("Europe/Warsaw")
 BOND_KEYS = ("pl10y", "us10y")
+
+BOND_SOURCES = {
+    "pl10y": {
+        "url": "https://tradingeconomics.com/poland/government-bond-yield",
+        "row": "Poland 10Y",
+        "symbol": "PL10Y",
+        "source": "Trading Economics: Poland 10Y",
+    },
+    "us10y": {
+        "url": "https://tradingeconomics.com/united-states/government-bond-yield",
+        "row": "US 10Y",
+        "symbol": "US10Y",
+        "source": "Trading Economics: US 10Y",
+    },
+}
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import update_investment_room_quotes as base  # noqa: E402
@@ -24,19 +38,11 @@ import update_investment_room_quotes as base  # noqa: E402
 def to_float(text: Any) -> Optional[float]:
     try:
         s = str(text).replace("%", "").replace("+", "").replace(" ", "").replace(",", ".").strip()
-        if not s or s in {"-", "—"}:
+        if not s or s in {"-", "—", "-.---"}:
             return None
         return float(s)
     except Exception:
         return None
-
-
-def clean(cell: str) -> str:
-    cell = re.sub(r"<script[\s\S]*?</script>", " ", cell, flags=re.I)
-    cell = re.sub(r"<style[\s\S]*?</style>", " ", cell, flags=re.I)
-    cell = re.sub(r"<[^>]+>", " ", cell)
-    cell = html.unescape(cell)
-    return re.sub(r"\s+", " ", cell).strip()
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -46,49 +52,80 @@ def load_json(path: Path) -> Dict[str, Any]:
         return {}
 
 
-def fetch_bond_table() -> str:
-    req = urllib.request.Request(BOND_TABLE_URL, headers={"User-Agent": "BriefRoomsQuotes/1.5"})
-    with urllib.request.urlopen(req, timeout=16) as r:
+def fetch_text(url: str) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 BriefRoomsQuotes/2.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=18) as r:
         raw = r.read()
-    for enc in ("utf-8", "cp1250", "iso-8859-2"):
-        try:
-            return raw.decode(enc)
-        except Exception:
-            pass
     return raw.decode("utf-8", errors="ignore")
 
 
-def find_bond(symbol: str, key: str, data: Dict[str, Any], table_text: str, now: datetime) -> bool:
-    wanted = symbol.upper()
-    for row in re.findall(r"<tr[^>]*>([\s\S]*?)</tr>", table_text, flags=re.I):
-        if wanted.lower() not in row.lower():
-            continue
-        cells = [clean(x) for x in re.findall(r"<td[^>]*>([\s\S]*?)</td>", row, flags=re.I)]
-        if len(cells) < 6:
-            continue
-        idx = next((i for i, c in enumerate(cells) if wanted in c.upper()), 0)
-        close = to_float(cells[idx + 2] if len(cells) > idx + 2 else None)
-        change_pct = to_float(cells[idx + 3] if len(cells) > idx + 3 else None)
-        change_val = to_float(cells[idx + 4] if len(cells) > idx + 4 else None)
-        stamp = cells[idx + 5] if len(cells) > idx + 5 else ""
-        if close is None:
-            continue
-        quote = data.setdefault("quotes", {}).setdefault(key, {})
-        quote.update({
-            "source": "Stooq.pl bond table",
-            "symbol": symbol.lower(),
-            "close": close,
-            "change_percent": change_pct,
-            "change_value": change_val,
-            "date": data.get("updated_at", now.isoformat(timespec="seconds"))[:10],
-            "time": stamp,
-            "source_url": BOND_TABLE_URL,
-            "bond_update_policy": "every 15 minutes with investment room quote workflow",
-            "bond_last_attempt_at": now.isoformat(timespec="seconds"),
-            "bond_update_status": "updated_this_run",
-        })
-        return True
-    return False
+def clean_text(markup: str) -> str:
+    text = re.sub(r"<script[\s\S]*?</script>", " ", markup, flags=re.I)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def parse_te_bond(text: str, row_name: str) -> Optional[Tuple[float, Optional[float], str]]:
+    # Example after HTML cleanup:
+    # Bonds Yield Day Month Year Date Poland 10Y 5.36 0.083% -0.510% -0.005% Jul/07
+    row_re = re.compile(
+        rf"{re.escape(row_name)}\s+([0-9]+(?:\.[0-9]+)?)\s+([+-]?[0-9]+(?:\.[0-9]+)?)%\s+[+-]?[0-9]+(?:\.[0-9]+)?%\s+[+-]?[0-9]+(?:\.[0-9]+)?%\s+([A-Za-z]{{3}}/\d{{2}})",
+        re.I,
+    )
+    m = row_re.search(text)
+    if m:
+        close = to_float(m.group(1))
+        day_change = to_float(m.group(2))
+        if close is not None:
+            return close, day_change, m.group(3)
+
+    # Fallback to the narrative sentence if the table format changes.
+    value_match = re.search(r"Bond Yield\s+(?:rose|fell|increased|decreased)\s+to\s+([0-9]+(?:\.[0-9]+)?)%", text, re.I)
+    change_match = re.search(r"marking a\s+([0-9]+(?:\.[0-9]+)?)\s+percentage points\s+(increase|decrease)", text, re.I)
+    date_match = re.search(r"on\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})", text)
+    if value_match:
+        close = to_float(value_match.group(1))
+        day_change = None
+        if change_match:
+            day_change = to_float(change_match.group(1))
+            if day_change is not None and change_match.group(2).lower() == "decrease":
+                day_change = -day_change
+        return close, day_change, date_match.group(1) if date_match else ""
+    return None
+
+
+def update_bond(data: Dict[str, Any], key: str, now: datetime) -> bool:
+    cfg = BOND_SOURCES[key]
+    text = clean_text(fetch_text(cfg["url"]))
+    parsed = parse_te_bond(text, cfg["row"])
+    if not parsed:
+        return False
+    close, day_change, date_label = parsed
+    quote = data.setdefault("quotes", {}).setdefault(key, {})
+    quote.update({
+        "source": cfg["source"],
+        "symbol": cfg["symbol"],
+        "close": close,
+        "change_percent": day_change,
+        "change_value": day_change,
+        "date": now.date().isoformat(),
+        "time": now.strftime("%H:%M"),
+        "source_url": cfg["url"],
+        "source_date_label": date_label,
+        "bond_update_policy": "every 15 minutes with investment room quote workflow",
+        "bond_last_attempt_at": now.isoformat(timespec="seconds"),
+        "bond_update_status": "updated_this_run",
+    })
+    quote.pop("fallback_reason", None)
+    return True
 
 
 def preserve_previous_bonds(data: Dict[str, Any], previous: Dict[str, Any], now: datetime, reason: str) -> None:
@@ -121,42 +158,43 @@ def main() -> None:
     base.main()
 
     data = load_json(OUT)
-    ok_pl = False
-    ok_us = False
-    error = ""
+    ok = {"pl10y": False, "us10y": False}
+    errors: Dict[str, str] = {}
 
-    try:
-        table = fetch_bond_table()
-        ok_pl = find_bond("10YPLY.B", "pl10y", data, table, now)
-        ok_us = find_bond("10YUSY.B", "us10y", data, table, now)
-        if not (ok_pl or ok_us):
-            preserve_previous_bonds(data, previous, now, "kept_previous_bond_table_not_found")
-    except Exception as exc:
-        error = str(exc)
+    for key in BOND_KEYS:
+        try:
+            ok[key] = update_bond(data, key, now)
+        except Exception as exc:
+            errors[key] = str(exc)
+            print(f"WARNING {key} bond update failed: {exc}")
+
+    if not any(ok.values()):
         preserve_previous_bonds(data, previous, now, "kept_previous_bond_fetch_error")
-        print(f"WARNING bond table import failed: {exc}")
+    elif not all(ok.values()):
+        preserve_previous_bonds(data, previous, now, "kept_previous_partial_bond_update")
 
+    data["source"] = "Stooq/Yahoo for FX/index/crypto; Trading Economics for PL/US 10Y bond yields"
+    data["refresh"] = "FX/index/crypto/bond yields: every 15 minutes."
     data["bond_schedule"] = {
         "timezone": "Europe/Warsaw",
         "frequency": "every 15 minutes",
         "last_attempt_at": now.isoformat(timespec="seconds"),
-        "last_attempt_result": "updated" if (ok_pl or ok_us) else "kept_previous",
-        "pl10y_updated": ok_pl,
-        "us10y_updated": ok_us,
+        "last_attempt_result": "updated" if any(ok.values()) else "kept_previous",
+        "pl10y_updated": ok["pl10y"],
+        "us10y_updated": ok["us10y"],
     }
-    if error:
-        data["bond_schedule"]["last_error"] = error
-
+    if errors:
+        data["bond_schedule"]["last_errors"] = errors
     data["bond_table_import"] = {
-        "source": BOND_TABLE_URL,
+        "source": "Trading Economics government-bond-yield pages",
         "policy": "Update bond yields on every 15-minute investment-room quote workflow run, same as FX/index/crypto.",
-        "updated_this_run": ok_pl or ok_us,
-        "pl10y": ok_pl,
-        "us10y": ok_us,
+        "updated_this_run": any(ok.values()),
+        "pl10y": ok["pl10y"],
+        "us10y": ok["us10y"],
     }
-    data["refresh"] = "FX/index/crypto/bond yields: every 15 minutes."
+
     OUT.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Bond table import: every_15m PL={ok_pl} US={ok_us}")
+    print(f"Bond update: every_15m PL={ok['pl10y']} US={ok['us10y']}")
 
 
 if __name__ == "__main__":
