@@ -2,11 +2,21 @@ name: Update Investment Room Quotes
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update_investment_room_quotes.py"
+      - "scripts/update_investment_room_quotes_v2.py"
+      - ".github/workflows/investment-room-quotes.yml"
   schedule:
     - cron: "*/15 * * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: investment-room-quotes
+  cancel-in-progress: false
 
 jobs:
   update-investment-room-quotes:
