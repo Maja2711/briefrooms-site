@@ -13,7 +13,7 @@
 </head>
 <body>
   <div class="page">
-    <header class="top"><a class="brand" href="/pl/" aria-label="BriefRooms — strona główna"><span class="logo">BRIEFROOMS</span><span class="ai-badge" aria-label="AI-assisted"><span class="ai-dot"></span><span>AI-assisted</span></span></a><nav class="nav" aria-label="Główna nawigacja"><a href="/pl/aktualnosci.html">Aktualności</a><a href="/pl/geopolityka.html">Geopolityka</a><a href="/pl/zdrowie.html">Zdrowie</a><a href="/pl/nauka.html">Nauka</a><a href="/pl/inwestycje.html">Inwestycje</a><a href="/pl/o-projekcie.html">O nas</a></nav><a class="lang" href="/en/">EN</a></header>
+    <header class="top"><a class="brand" href="/pl/" aria-label="BriefRooms — strona główna"><span class="logo">BRIEFROOMS</span><span class="ai-badge" aria-label="AI-assisted"><span class="ai-dot"></span><span class="ai-text">AI</span></span></a><nav class="nav" aria-label="Główna nawigacja"><a href="/pl/aktualnosci.html">Aktualności</a><a href="/pl/geopolityka.html">Geopolityka</a><a href="/pl/zdrowie.html">Zdrowie</a><a href="/pl/nauka.html">Nauka</a><a href="/pl/inwestycje.html">Inwestycje</a><a href="/pl/o-projekcie.html">O nas</a></nav><a class="lang" href="/en/">EN</a></header>
     <div class="layout"><main><section class="main-head"><span class="pill" id="updated-at">Aktualizacja: 6.07.2026</span><div class="section-head"><div><h1>Najnowsze briefy</h1><p>Rozszerzony strumień na stronie głównej: więcej kart ze zdjęciem, krótkim komentarzem i linkiem do źródła.</p></div><a class="more" href="#latest-briefs">Więcej briefów ↓</a></div></section><section><div id="latest-briefs" class="brief-grid"></div></section><section class="rooms"><div class="section-head"><div><h2>Pokoje — wybierz temat</h2><p>Pięć wejść do bieżących tematów.</p></div></div><div class="room-grid"><a class="room-door news" href="/pl/aktualnosci.html"><span class="portal"></span><span class="room-content"><span class="room-icon">▤</span><span class="room-title">Aktualności</span><span class="room-pill">Dziś</span><span class="room-desc">Najważniejsze newsy dnia, skrócone do sedna.</span><span class="open">Otwórz →</span></span></a><a class="room-door geo" href="/pl/geopolityka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">◎</span><span class="room-title">Geopolityka</span><span class="room-pill">Analiza</span><span class="room-desc">Władza, interesy i konsekwencje.</span><span class="open">Otwórz →</span></span></a><a class="room-door health" href="/pl/zdrowie.html"><span class="portal"></span><span class="room-content"><span class="room-icon">♡</span><span class="room-title">Zdrowie</span><span class="room-pill">Praktycznie</span><span class="room-desc">Zdrowie publiczne i kontekst medyczny.</span><span class="open">Otwórz →</span></span></a><a class="room-door science" href="/pl/nauka.html"><span class="portal"></span><span class="room-content"><span class="room-icon">⚗</span><span class="room-title">Nauka</span><span class="room-pill">Odkrycia</span><span class="room-desc">Badania i technologia bez szumu.</span><span class="open">Otwórz →</span></span></a><a class="room-door invest" href="/pl/inwestycje.html"><span class="portal"></span><span class="room-content"><span class="room-icon">↗</span><span class="room-title">Inwestycje</span><span class="room-pill">Rynki</span><span class="room-desc">Stopy, ryzyko i scenariusze rynkowe.</span><span class="open">Otwórz →</span></span></a></div></section></main><aside class="side"><div class="section-head"><div><h2>Hot X topics</h2><p>Konkretne tematy z ekonomii, polityki i krypto z miniaturami oraz linkami X.</p></div></div><div class="source-feed"></div></aside></div><footer><span>© 2026 BriefRooms</span><nav class="foot-links"><a href="/pl/">Start</a><a href="mailto:contact@briefrooms.com">Kontakt</a><a href="/en/">EN</a></nav></footer></div>
 <script>
 const fallbackBriefs=[{category:'Aktualności',title:'Wczytywanie najnowszych briefów…',summary:'Za chwilę pojawią się karty z aktualnego pliku home_brief.json.',source:'BriefRooms',link:'/pl/',image:'',time:'teraz'}];
@@ -28,5 +28,34 @@ loadHome();
 </script>
 <script src="/scripts/hotbar.js?v=3" defer></script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token":"9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
+
+<script>
+(function(){
+  function setupAiBadge(){
+    document.querySelectorAll('.ai-badge').forEach(function(badge){
+      if(badge.dataset.aiToggleReady==='1')return;
+      var text=badge.querySelector('.ai-text') || badge.querySelector('span:last-child');
+      if(!text)return;
+      badge.dataset.aiToggleReady='1';
+      badge.dataset.expanded='0';
+      badge.setAttribute('role','button');
+      badge.setAttribute('tabindex','0');
+      badge.setAttribute('aria-label','AI-assisted');
+      badge.style.cursor='pointer';
+      text.classList.add('ai-text');
+      text.textContent='AI';
+      function toggle(){
+        var expanded=badge.dataset.expanded==='1';
+        badge.dataset.expanded=expanded?'0':'1';
+        text.textContent=expanded?'AI':'AI-assisted';
+      }
+      badge.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();toggle();});
+      badge.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupAiBadge);else setupAiBadge();
+})();
+</script>
+
 </body>
 </html>
