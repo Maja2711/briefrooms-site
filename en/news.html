@@ -65,6 +65,46 @@
         content:"Source" !important;
       }
     }
+  
+    html{ scroll-behavior:smooth; }
+    .section-tabs{
+      position:sticky; top:0; z-index:20;
+      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;
+      margin:8px auto 18px; padding:10px 12px;
+      background:rgba(8,15,30,.72); backdrop-filter:blur(14px);
+      border:1px solid rgba(255,255,255,.10); border-radius:999px;
+      box-shadow:0 10px 28px rgba(0,0,0,.28);
+    }
+    .section-tabs a{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:96px; padding:9px 14px; border-radius:999px;
+      color:#fdf3e3; text-decoration:none; font-weight:800; letter-spacing:.01em;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      white-space:nowrap;
+    }
+    .section-tabs .brand-link{
+      min-width:auto; gap:0; padding:8px 14px;
+      background:linear-gradient(135deg, rgba(248,201,122,.30), rgba(255,255,255,.08));
+      border-color:rgba(248,201,122,.46); color:#fff; box-shadow:0 8px 22px rgba(0,0,0,.20);
+    }
+    .section-tabs .brand-mark{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:34px; height:28px; border-radius:10px;
+      color:#101827; background:linear-gradient(135deg,#f8c97a,#fff1c7,#38d6c9);
+      font-weight:950; letter-spacing:-.08em;
+    }
+    .section-tabs a:hover,
+    .section-tabs a:focus-visible{
+      background:rgba(248,201,122,.18); border-color:rgba(248,201,122,.42); color:#fff;
+      outline:none; transform:translateY(-1px);
+    }
+    section.card{ scroll-margin-top:92px; }
+    @media (max-width:760px){
+      .section-tabs{ border-radius:22px; justify-content:stretch; }
+      .section-tabs a{ flex:1 1 31%; min-width:auto; padding:9px 10px; font-size:.88rem; }
+      .section-tabs .brand-link{ flex:1 1 100%; justify-content:center; }
+    }
+
   </style>
 </head>
 <body data-page="news">
@@ -74,200 +114,200 @@
 </header>
 <main>
 
-<section class="card">
+<nav class="section-tabs" aria-label="News sections">
+  <a class="brand-link" href="/en/" aria-label="BRs — home"><span class="brand-mark">BRs</span></a>
+  <a href="#world-news">World News</a>
+  <a href="#asia-pacific">Asia-Pacific</a>
+  <a href="#europe">Europe</a>
+  <a href="#middle-east">Middle East</a>
+  <a href="#business">Business</a>
+  <a href="#science">Science</a>
+  <a href="#health">Health</a>
+  <a href="#sport">Sport</a>
+</nav>
+
+
+<section class="card" id="world-news">
   <h2>World News</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/iranian-missile-hits-qatari-lng-ship-in-strait-testing-us-talks" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/china-s-icbm-tests-point-to-new-normal-rattling-the-pacific" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Qatari LNG Ship Struck in Strait of Hormuz, Testing US Talks</span>
+    <span class="news-text">China’s ICBM Tests Point to New Normal Rattling the Pacific</span>
   </a>
   <div class="source-line">Source: Bloomberg</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> A laden liquefied natural gas carrier was hit by a projectile near the Omani coast as it exited the Strait of Hormuz, a fresh attack that will fuel unease among shipowners and test a US-Iran agreement intended to halt attacks in the waterway.</div>
-    <div class="sec"><strong>Why it matters:</strong> The concrete channel is cost: fuel and energy prices can quickly affect transport, household bills and business margins. The key distinction is whether the item describes a one-off move or a broader cost trend.</div>
+    <div class="sec"><strong>Key point:</strong> China’s test this week of a submarine-fired ballistic missile may mark the beginning of more regular Pacific launches as the country advances its arsenal for delivering nuclear warheads, unsettling governments already wary of Beijing’s military buildup.</div>
+    
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/iran-missiles-hit-ships-in-strait-axios-says-testing-us-talks" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/us-is-really-invested-in-keeping-troops-in-europe-latvia-says" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Iran Missiles Reportedly Hit Ships in Hormuz, Testing US Talks</span>
+    <span class="news-text">US Is ‘Really Invested’ in Keeping Troops in Europe, Latvia Says</span>
   </a>
   <div class="source-line">Source: Bloomberg</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Iran fired at least two missiles at commercial ships transiting the Strait of Hormuz on Monday night, Axios reported, testing a late-June deal with the US to halt attacks as the two sides work toward a peace agreement.</div>
+    <div class="sec"><strong>Key point:</strong> The US has “really invested interest” to keep its troops in Europe, Latvian Foreign Minister Baiba Braze said as NATO allies await the outcome of Washington’s review of its military presence on the continent.</div>
     <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c1myyyyjvx5o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c5yz3770yg8o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Charlie Kirk&#x27;s family attends hearing for suspect charged with his murder</span>
+    <span class="news-text">Woman suspected of Monaco bomb attack found dead in Ukraine</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The hearing will decide whether Tyler Robinson will stand trial in the shooting death of Kirk, a key Trump ally.</div>
+    <div class="sec"><strong>Key point:</strong> Police had been hunting Anastasiia Berezovska after a Ukrainian millionaire was injured in the blast.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c2eylx1jj9ko?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
+    <span class="news-text">Explosions injure 18 in Damascus during Macron&#x27;s visit</span>
+  </a>
+  <div class="source-line">Source: BBC News</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> As reports of the blasts came in, state television said the Syrian president had welcomed Macron at the presidential palace.</div>
+    
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.theguardian.com/business/2026/jul/07/cost-of-living-poll-groceries-gas" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
+    <span class="news-text">Half of Americans struggle to afford groceries and gas, exclusive poll finds</span>
+  </a>
+  <div class="source-line">Source: The Guardian</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> About 57% of polled Americans also believe economy is worsening in grim portrait of cost of living crisis, according to Harris survey for the Guardian Ninety-five per cent of Americans believe the US is suffering an affordability crisis, as many report trouble with the rising cost of groceries and gas, according to an.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card" id="asia-pacific">
+  <h2>Asia-Pacific</h2>
+  <ul class="news">
+    <li>
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/india-objection-to-whatsapp-username-switch-gets-somalia-backing" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
+    <span class="news-text">India Objection to WhatsApp Username Switch Gets Somalia Backing</span>
+  </a>
+  <div class="source-line">Source: Bloomberg</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Somalia joined India in objecting to Meta Platforms Inc.’s planned WhatsApp username feature, citing security concerns in a country that’s been battling Islamist militants for two decades.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/mexico-military-efforts-in-sinaloa-fail-to-curb-fentanyl-trade-report-says" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
+    <span class="news-text">Mexico Military Might Fails to Curb Fentanyl Trade, Report Says</span>
+  </a>
+  <div class="source-line">Source: Bloomberg</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Mexico’s military deployment to the state at the heart of the country’s drug trade has failed to curb fentanyl exports and bring down the homicide rate among young people, according to a report.</div>
     <div class="sec"><strong>Why it matters:</strong> For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. That separates a system-level warning from a single case.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c9d227e5zj6o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c872ngz405xo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Zelensky to press Nato for air defence systems after intense Russian strikes</span>
+    <span class="news-text">India&#x27;s landmark Ram temple overhauls board after alleged theft of donations</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Ukrainian president will use the Nato meeting in Turkey to argue he needs more interceptor missiles.</div>
+    <div class="sec"><strong>Key point:</strong> Questions have been raised over alleged theft of cash, valuable jewellery, gold and silver offered by devotees.</div>
+    
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.scmp.com/news/china/diplomacy/article/3359741/latest-us-political-divide-emerges-age-gap-over-whether-china-cause-concern?utm_source=rss_feed" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">South China Morning Post</span><span class="sub">Article</span></span>
+    <span class="news-text">Latest US political divide emerges: the age gap over whether China is cause for concern</span>
+  </a>
+  <div class="source-line">Source: South China Morning Post</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> A significant generational gap over China is emerging in the United States, with younger Americans significantly less likely to see Beijing as a cause for concern, according to a new survey.</div>
     <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/07/nato-braces-for-difficult-summit-as-trump-puts-pressure-on-spending" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
-    <span class="news-text">Nato braces for difficult summit as Trump puts pressure on spending</span>
+  <a class="news-main-link" href="https://www.scmp.com/week-asia/economics/article/3359736/beyond-payments-india-aims-architect-indonesias-digital-future?utm_source=rss_feed" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">South China Morning Post</span><span class="sub">Article</span></span>
+    <span class="news-text">Beyond payments: India aims to architect Indonesia’s digital future</span>
   </a>
-  <div class="source-line">Source: The Guardian</div>
+  <div class="source-line">Source: South China Morning Post</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Meeting of 32 member states comes at crucial time for alliance after tensions with US over Iran and Greenland Nato leaders will gather in Ankara on Tuesday after a turbulent six months.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    <div class="sec"><strong>Key point:</strong> India’s wildly popular digital payments system, which began as a way for people to send money instantly by phone, could help the country turn one of its biggest domestic technology successes into a tool of diplomacy, analysts say.</div>
+    <div class="sec"><strong>Why it matters:</strong> For science news, the useful context is method, source and confirmation. The key is what the finding changes in understanding the topic, not just the striking headline.</div>
     
   </div>
 </li>
   </ul>
 </section>
 
-<section class="card">
-  <h2>Asia-Pacific</h2>
-  <ul class="news">
-    <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/modi-prabowo-to-sign-india-indonesia-defense-pact-deepen-ties" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Modi, Prabowo to Sign India-Indonesia Defense Pact</span>
-  </a>
-  <div class="source-line">Source: Bloomberg</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Indian Prime Minister Narendra Modi and Indonesian President Prabowo Subianto are set to sign defense and other deals on Tuesday as the leaders of two of the world’s four most populous nations aim to strengthen strategic ties.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/australia-slams-china-test-of-nuclear-capable-missile-in-pacific" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Australia Slams China Test of Nuclear-Capable Missile in Pacific</span>
-  </a>
-  <div class="source-line">Source: Bloomberg</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Senior Australian officials criticized China’s decision to test-fire an intercontinental ballistic missile from a nuclear submarine in the Pacific Ocean, describing it as “destabilizing” and expressing concern to Beijing.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c33y0n1v1xjo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">China sentences official to death for taking $325m in bribes</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The 69-year-old helped companies secure valuable contracts in exchange for money, a court heard.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cvgl8dlxjd3o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Can China repeat its EV success with robotaxis?</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> China&#x27;s self-driving car firms have been given a headstart by the country&#x27;s EV supply chain as they expand globally.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://en.yna.co.kr/view/AEN20260707006500315" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Yonhap</span><span class="sub">Article</span></span>
-    <span class="news-text">Twin pandas enjoy last birthday party before returning to China</span>
-  </a>
-  <div class="source-line">Source: Yonhap</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> YONGIN, South Korea, July 7 (Yonhap) --- A birthday party was thrown Tuesday for...</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-  </ul>
-</section>
-
-<section class="card">
+<section class="card" id="europe">
   <h2>Europe</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-06/uk-urged-to-reverse-freeze-on-student-loan-repayment-threshold" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/uk-poland-see-progress-over-new-european-defense-financing-tool" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">UK Urged to Reverse Freeze on Student Loan Repayment Threshold</span>
+    <span class="news-text">UK, Poland See Progress Over New European Defense Financing Tool</span>
   </a>
   <div class="source-line">Source: Bloomberg</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The UK government should reverse a decision to freeze the earnings level at which graduates begin repaying their student loans, an influential panel of lawmakers said.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-06/uk-boosts-powers-on-state-linked-attacks-with-fast-tracked-law" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">UK Boosts Powers on State-Linked Attacks With Fast-Tracked Law</span>
-  </a>
-  <div class="source-line">Source: Bloomberg</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The UK Parliament passed a new law giving the government more power to crack down on groups linked to hostile foreign states.</div>
-    <div class="sec"><strong>Why it matters:</strong> The practical consequence is the core: who is affected, when the rule starts and who pays or benefits. That mechanism is more useful than a generic statement that policy matters.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/07/europe-faces-up-to-prospect-us-may-be-unable-to-arm-nato-allies" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
-    <span class="news-text">Europe faces up to prospect US may be unable to arm Nato allies</span>
-  </a>
-  <div class="source-line">Source: The Guardian</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Wars in Iran and Ukraine have expended stockpiles of sought-after missiles, leaving gap in military resources There are growing concerns in Europe that the US defence industrial base is no longer providing the weapons pledged to Nato allies with US stockpiles depleted owing to the conflicts in Ukraine and Iran, leaving.</div>
+    <div class="sec"><strong>Key point:</strong> The UK, Poland, Netherlands, and Finland said they were making “significant progress” over a joint defense financing initiative aimed at creating cost-efficiencies during a massive military build-up to deal with escalating security threats from Russia.</div>
     <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cewqqnd7zdwo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/nato-touts-defense-deals-to-show-trump-it-is-stepping-up" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
+    <span class="news-text">NATO Touts Defense Deals to Show Trump It Is Stepping Up</span>
+  </a>
+  <div class="source-line">Source: Bloomberg</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> NATO allies unveiled $12 billion in key defense industry deals to buy next-generation drones, surveillance planes and military aircraft — and convince US President Donald Trump that Europe is heeding his spending demands.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cn7558gdvjro?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Ukraine warns of interceptor missile shortage as 23 killed in Kyiv region</span>
+    <span class="news-text">Jordan Bardella: The &#x27;blank canvas&#x27; who could be France&#x27;s youngest president</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> President Zelensky says Sunday&#x27;s &quot;massive Russian attack&quot; on Kyiv consisted of 68 missiles and 351 strike drones.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    <div class="sec"><strong>Key point:</strong> Now president of National Rally, Bardella could become the party&#x27;s candidate for next year&#x27;s presidential election if Marine Le Pen is barred.</div>
+    <div class="sec"><strong>Why it matters:</strong> For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. That separates a system-level warning from a single case.</div>
     
   </div>
 </li>
@@ -284,73 +324,86 @@
     
   </div>
 </li>
-  </ul>
-</section>
-
-<section class="card">
-  <h2>Middle East</h2>
-  <ul class="news">
-    <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-06/macron-becomes-first-eu-leader-to-visit-syria-since-assad-s-fall" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Macron Becomes First EU Leader to Visit Syria Since Assad’s Fall</span>
-  </a>
-  <div class="source-line">Source: Bloomberg</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> French President Emmanuel Macron is on a two-day visit to Syria, making him the first European Union leader to visit the war-torn country since the fall of the Assad regime in late 2024.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c1eyyyl8ye0o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Israeli police officer filmed throwing stun grenade into car in West Bank</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Israel&#x27;s police force says the officer acted &quot;not in accordance with procedure&quot; and that it has opened an investigation.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/crlwwwyy70do?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Headteacher among four killed in deadliest Israeli attack on Lebanon since latest ceasefire</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Three women and one man were travelling in a car after visiting their family home, Lebanese state media reported.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/06/british-charity-friends-of-yeshivat-shavei-illegal-settlement-hebron" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.theguardian.com/world/gallery/2026/jul/07/wildfires-southern-europe-in-pictures" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
-    <span class="news-text">UK charity funding school at heart of illegal Israeli settlement expansion</span>
+    <span class="news-text">Wildfires in southern Europe wreak havoc – in pictures</span>
   </a>
   <div class="source-line">Source: The Guardian</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Friends of Yeshivat Shavei Hevron sent nearly £200,000 to school in Hebron – where Israel has been accused of imposing apartheid – between 2019 and 2024 A British charity is funding a religious school at the heart of expansion plans for the illegal Israeli settlement in the Palestinian city of Hebron.</div>
+    <div class="sec"><strong>Key point:</strong> Wildfires raged across southern Europe, forcing thousands of people to evacuate their homes and prompting officials to ban spectators from a stage of the storied Tour de France cycling race Continue reading...</div>
+    <div class="sec"><strong>Why it matters:</strong> The practical consequence is the core: who is affected, when the rule starts and who pays or benefits. That mechanism is more useful than a generic statement that policy matters.</div>
+    
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card" id="middle-east">
+  <h2>Middle East</h2>
+  <ul class="news">
+    <li>
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/netanyahu-vows-israel-will-keep-occupying-lebanon-syria-gaza" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
+    <span class="news-text">Netanyahu Vows Israel Will Keep Occupying Lebanon, Syria, Gaza</span>
+  </a>
+  <div class="source-line">Source: Bloomberg</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Israeli Prime Minister Benjamin Netanyahu said last week that among the most important lessons from the 2023 Hamas attack was “having buffer zones inside enemy territory — not inside our territory.</div>
     <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.aljazeera.com/news/2026/7/6/macron-arrives-in-syria-for-talks-ahead-of-nato-summit-in-turkiye?traffic_source=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/iranian-missile-hits-qatari-lng-ship-in-strait-testing-us-talks" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
+    <span class="news-text">Qatari LNG Ship Struck in Strait of Hormuz, Testing US Talks</span>
+  </a>
+  <div class="source-line">Source: Bloomberg</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> A laden liquefied natural gas carrier was hit by a projectile near the Omani coast as it exited the Strait of Hormuz, a fresh attack that will fuel unease among shipowners and test a US-Iran agreement intended to halt attacks in the waterway.</div>
+    <div class="sec"><strong>Why it matters:</strong> The concrete channel is cost: fuel and energy prices can quickly affect transport, household bills and business margins. The key distinction is whether the item describes a one-off move or a broader cost trend.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/07/israeli-officer-stun-grenade-car-west-bank" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
+    <span class="news-text">Israeli officer shown throwing stun grenade into car during West Bank raid</span>
+  </a>
+  <div class="source-line">Source: The Guardian</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Border police officer under investigation after CCTV footage shows him shouting at car’s occupants and throwing device Israeli police have opened an investigation after CCTV footage showed a border police officer throwing a stun grenade into a car carrying young Palestinians during a raid on the Qalandiya refugee camp.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.aljazeera.com/news/2026/7/7/what-is-the-new-gaza-administration-as-hamas-dissolves-government?traffic_source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Al Jazeera</span><span class="sub">Article</span></span>
-    <span class="news-text">Macron arrives in Syria for talks ahead of NATO summit in Turkiye</span>
+    <span class="news-text">What is the new Gaza administration as Hamas dissolves government?</span>
   </a>
   <div class="source-line">Source: Al Jazeera</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The French president is the first leader from western Europe to visit Syria since the overthrow of Bashar al-Assad.</div>
+    <div class="sec"><strong>Key point:</strong> The NCAG will oversee civilian affairs such as health and education, as well as security.</div>
+    <div class="sec"><strong>Why it matters:</strong> For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. That separates a system-level warning from a single case.</div>
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.aljazeera.com/economy/2026/7/7/after-iran-war-upheaval-global-shipping-eyes-return-to-status-quo?traffic_source=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Al Jazeera</span><span class="sub">Article</span></span>
+    <span class="news-text">After Iran war upheaval, global shipping eyes return to status quo</span>
+  </a>
+  <div class="source-line">Source: Al Jazeera</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Industry known for its resilience is likely to emerge from war relatively unchanged, analysts say.</div>
     <div class="sec"><strong>Why it matters:</strong> This is useful as a geopolitical signal if it changes leverage, escalation risk, alliances or negotiating room. The concrete value is the shift in behaviour by governments, militaries or markets.</div>
     
   </div>
@@ -358,32 +411,32 @@
   </ul>
 </section>
 
-<section class="card">
+<section class="card" id="business">
   <h2>Business</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/japan-s-kiuchi-says-government-isn-t-pushing-for-low-rates" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/mag-7-loses-market-swagger-as-ai-trade-spreads-beyond-behemoths" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Japan Isn’t Pushing for Low Interest Rates, Growth Minister Says</span>
+    <span class="news-text">Mag 7 Loses Market Swagger as AI Trade Spreads Beyond Behemoths</span>
   </a>
   <div class="source-line">Source: Bloomberg</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Media reports that claim Prime Minister Sanae Takaichi’s administration is attempting to keep interest rates low and weaken fiscal improvement efforts aren’t accurate at all, according to Japan’s Growth Strategy Minister Minoru Kiuchi.</div>
+    <div class="sec"><strong>Key point:</strong> For years, the Magnificent Seven tech giants commanded investors’ attention, dominating the S&amp;P 500 Index and determining which way the overall stock market was headed. Those days are over.</div>
     <div class="sec"><strong>Why it matters:</strong> This is a macro signal: it matters through inflation, demand, company costs or central-bank expectations. The market impact usually depends on the gap between the data and what investors expected.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/philippine-inflation-cools-further-in-relief-for-central-bank" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bloomberg.com/news/articles/2026-07-07/britain-needs-100-billion-a-year-to-stabilize-public-debt-obr-watchdog-says" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bloomberg</span><span class="sub">Article</span></span>
-    <span class="news-text">Philippines Says Inflation Pressure Still Strong After June Data</span>
+    <span class="news-text">Britain Needs £100 Billion a Year to Stabilize Public Debt, Watchdog Says</span>
   </a>
   <div class="source-line">Source: Bloomberg</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Philippine inflation eased for a second month, but the central bank said consumer price pressures remain strong and is prepared to take further monetary action to ensure that it returns to target.</div>
-    <div class="sec"><strong>Why it matters:</strong> This is a macro signal: it matters through inflation, demand, company costs or central-bank expectations. The market impact usually depends on the gap between the data and what investors expected.</div>
+    <div class="sec"><strong>Key point:</strong> Andy Burnham faces a £100 billion ($134 billion) challenge if he wants to put Britain’s public finances on a sustainable path, the government’s fiscal watchdog warned.</div>
+    
     
   </div>
 </li>
@@ -401,22 +454,9 @@
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c4gymkg9lr2o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Robots available for rent: But what can they do?</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Robotics tech is changing fast, so for many it makes sense to rent a robot.</div>
-    
-    
-  </div>
-</li>
-<li>
   <a class="news-main-link" href="https://www.cnbc.com/2026/07/07/trump-nato-turkey-russia-ukraine-spending.html" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">CNBC</span><span class="sub">Article</span></span>
-    <span class="news-text">Trump heads to Turkey as NATO is strained by Russian attacks, U.S. impatience</span>
+    <span class="news-text">Trump arrives in Turkey as NATO is strained by Russian attacks, U.S. impatience</span>
   </a>
   <div class="source-line">Source: CNBC</div>
   <div class="ai-note">
@@ -426,10 +466,23 @@
     
   </div>
 </li>
+<li>
+  <a class="news-main-link" href="https://www.cnbc.com/2026/07/07/cnbc-housing-market-survey-balanced-market.html" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">CNBC</span><span class="sub">Article</span></span>
+    <span class="news-text">Far more real estate agents now report seeing a balanced market, CNBC Housing Market Survey finds</span>
+  </a>
+  <div class="source-line">Source: CNBC</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> Agents who reported at least one price cut to active listings dropped dramatically from prior surveys.</div>
+    <div class="sec"><strong>Why it matters:</strong> This is a macro signal: it matters through inflation, demand, company costs or central-bank expectations. The market impact usually depends on the gap between the data and what investors expected.</div>
+    
+  </div>
+</li>
   </ul>
 </section>
 
-<section class="card">
+<section class="card" id="science">
   <h2>Science</h2>
   <ul class="news">
     <li>
@@ -485,46 +538,46 @@
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.theguardian.com/education/2026/jul/06/learning-another-language-appears-to-slow-brain-ageing-scientists-say" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">The Guardian</span><span class="sub">Article</span></span>
-    <span class="news-text">Learning another language appears to slow brain ageing, scientists say</span>
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cm200kxg3zlo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
+    <span class="news-text">Slug sleuths on the trail of gorging gastropods</span>
   </a>
-  <div class="source-line">Source: The Guardian</div>
+  <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Study finds those who speak two languages have brains that appear around six years younger than those who speak one Learning another language could slow ageing in the brain by up to 13 years, according to research.</div>
-    <div class="sec"><strong>Why it matters:</strong> For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. That separates a system-level warning from a single case.</div>
+    <div class="sec"><strong>Key point:</strong> How predicting slugs&#x27; behaviour is helping farmers and their crops.</div>
+    
     
   </div>
 </li>
   </ul>
 </section>
 
-<section class="card">
+<section class="card" id="health">
   <h2>Health</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/ckg0921y8kdo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cvg49lq1jw6o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Why some African nations are turning down Trump aid money</span>
+    <span class="news-text">Public to be asked who should pay for social care as part of major review</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Trump administration sees the aid as more transactional - but some say it is not a fair trade.</div>
-    
+    <div class="sec"><strong>Key point:</strong> Baroness Louise Casey, who is leading the review, has called the current system &quot;impossible&quot;.</div>
+    <div class="sec"><strong>Why it matters:</strong> For health news, the useful context is scale, risk group and whether guidance changes for patients, doctors or public systems. That separates a system-level warning from a single case.</div>
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/ckg018w1r02o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c4gyy8jdn3eo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC News</span><span class="sub">Article</span></span>
-    <span class="news-text">Women face hidden fertility ceiling despite donor eggs</span>
+    <span class="news-text">Two tests GPs can soon offer to help spot endometriosis</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Age-related changes in the womb lining may be the cause and could be treatable in the future, say experts.</div>
+    <div class="sec"><strong>Key point:</strong> Experts hope they will be a game-changer and cut the nine-year or longer diagnosis waits patients can currently face.</div>
     
     
   </div>
@@ -558,45 +611,58 @@
   </ul>
 </section>
 
-<section class="card">
+<section class="card" id="sport">
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/c3vyyq1kg5go?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/cvg55yl9xj4o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC Sport</span><span class="sub">Article</span></span>
-    <span class="news-text">Ronaldo&#x27;s World Cup career ends in tears as &#x27;pandering&#x27; Martinez departs</span>
+    <span class="news-text">Messi v Salah: A World Cup meeting of two national icons</span>
   </a>
   <div class="source-line">Source: BBC Sport</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> BBC Sport looks at the end of Cristiano Ronaldo&#x27;s World Cup career as he fails to win football&#x27;s biggest prize.</div>
+    <div class="sec"><strong>Key point:</strong> Mohamed Salah and Lionel Messi will meet in the last 16 of the World Cup on Tuesday with their nations&#x27; hopes resting firmly on their shoulders.</div>
     
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/cyv00rzd3lpo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/formula1/articles/c30y2r72dg6o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">BBC Sport</span><span class="sub">Article</span></span>
-    <span class="news-text">Spain&#x27;s World Cup challenge built on record-breaking historic defence</span>
+    <span class="news-text">Safety car finish and Verstappen&#x27;s future - F1 Q&amp;A</span>
   </a>
   <div class="source-line">Source: BBC Sport</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> If Spain are to get their hands on the World Cup trophy again, they may have their defence, rather than their attack, to thank.</div>
+    <div class="sec"><strong>Key point:</strong> BBC Sport F1 correspondent Andrew Benson answers your latest questions after the British Grand Prix at Silverstone.</div>
     
     
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.skysports.com/f1/news/12040/13560978/british-gp-martin-brundle-on-immense-silverstone-2026-charles-leclercs-win-and-a-safety-car-rule-hed-change" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.skysports.com/football/news/12040/13561192/overturn-this-belgium-mock-usa-after-world-cup-exit" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Sky Sports</span><span class="sub">Article</span></span>
-    <span class="news-text">Brundle&#x27;s verdict on &#x27;immense&#x27; British GP - but the F1 rule he&#x27;d change</span>
+    <span class="news-text">&#x27;Overturn this&#x27; - Belgium mock Trump and FIFA after USA World Cup exit</span>
   </a>
   <div class="source-line">Source: Sky Sports</div>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Silverstone&#x27;s British Grand Prix 2026 was an immense event, and it could have been truly epic without a regulation which I have been complaining about for years.</div>
+    <div class="sec"><strong>Key point:</strong> Belgium players appeared to mock US President Donald Trump and FIFA after eliminating co-hosts USA from the World Cup.</div>
     
+    
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.skysports.com/rugby-union/news/12040/13561218/nations-championship-england-call-up-emmanuel-iyogun-and-chandler-cunningham-south-to-replace-injured-cadan-murley-beno-obano" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Sky Sports</span><span class="sub">Article</span></span>
+    <span class="news-text">Murley injury compounds England&#x27;s back-three selection headache</span>
+  </a>
+  <div class="source-line">Source: Sky Sports</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
+    <div class="sec"><strong>Key point:</strong> England have called up Emmanuel Iyogun and Chandler Cunningham-South to replace Cadan Murley and Beno Obano, both of whom suffered injuries in the 45-21 defeat to South Africa in Johannesburg.</div>
+    <div class="sec"><strong>Why it matters:</strong> Sports takeaway: score/result: 45-21. The significance is the direct consequence shown in the item: result, qualification, elimination, table position or next round.</div>
     
   </div>
 </li>
@@ -610,19 +676,6 @@
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
     <div class="sec"><strong>Key point:</strong> All-Star Sale brings you MLB.</div>
     
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.skysports.com/football/united-states-of-america-vs-belgium/report/549859" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Sky Sports</span><span class="sub">Article</span></span>
-    <span class="news-text">Balogun reprieve ends in anti-climax as Belgium dump USA out</span>
-  </a>
-  <div class="source-line">Source: Sky Sports</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Folarin Balogun&#x27;s red card reprieve appeared to hinder rather than help his country as an out-of-sorts USA side were thrashed 4-1 by Belgium to end the co-hosts&#x27; World Cup dreams.</div>
-    <div class="sec"><strong>Why it matters:</strong> Sports takeaway: score/result: 4-1. The significance is the direct consequence shown in the item: result, qualification, elimination, table position or next round.</div>
     
   </div>
 </li>
