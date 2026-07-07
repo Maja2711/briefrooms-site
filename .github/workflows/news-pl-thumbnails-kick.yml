@@ -1,0 +1,112 @@
+name: Kick PL news thumbnails
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/news-pl-thumbnails-kick.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install feedparser
+
+      - name: Patch thumbnails
+        run: |
+          python - <<'PY'
+          import html, re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import feedparser
+
+          page = Path('pl/aktualnosci.html')
+          feeds = [
+            'https://tvn24.pl/najnowsze.xml',
+            'https://tvn24.pl/polska.xml',
+            'https://tvn24.pl/swiat.xml',
+            'https://www.polsatnews.pl/rss/wszystkie.xml',
+            'https://www.bankier.pl/rss/wiadomosci.xml',
+            'https://www.bankier.pl/rss/gospodarka.xml',
+            'https://www.polsatsport.pl/rss/wszystkie.xml',
+            'https://sport.tvp.pl/rss',
+            'https://przegladsportowy.onet.pl/.feed',
+            'https://sportowefakty.wp.pl/rss.xml',
+            'https://eurosport.tvn24.pl/rss.xml'
+          ]
+
+          def entry_image(entry, feed_url):
+              for key in ('media_thumbnail','media_content'):
+                  media = entry.get(key) or []
+                  if isinstance(media, dict):
+                      media = [media]
+                  for item in media:
+                      src = (item or {}).get('url')
+                      if src:
+                          return urljoin(feed_url, src)
+              for enc in entry.get('enclosures') or []:
+                  src = (enc or {}).get('href') or (enc or {}).get('url')
+                  kind = ((enc or {}).get('type') or '').lower()
+                  if src and kind.startswith('image/'):
+                      return urljoin(feed_url, src)
+              return ''
+
+          images = {}
+          for feed in feeds:
+              parsed = feedparser.parse(feed)
+              for entry in parsed.entries:
+                  link = (entry.get('link') or '').strip()
+                  if link and link not in images:
+                      img = entry_image(entry, feed)
+                      if img:
+                          images[link] = img
+
+          text = page.read_text(encoding='utf-8')
+          css = '''
+              .news-thumb.has-image{padding:0!important;overflow:hidden!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;align-items:stretch!important;justify-content:stretch!important;}
+              .news-thumb.has-image img{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;}
+          '''
+          if '.news-thumb.has-image' not in text:
+              text = text.replace('</style>', css + '\n  </style>', 1)
+
+          pattern = re.compile(r'(<a class="news-main-link" href="([^"]+)"[^>]*>\s*)<span class="news-thumb">\s*<span class="dot"></span>\s*<span class="title">.*?</span>\s*<span class="sub">źródło</span>\s*</span>', re.S)
+
+          def repl(match):
+              link = html.unescape(match.group(2))
+              img = images.get(link, '')
+              if not img:
+                  return match.group(0)
+              return match.group(1) + '<span class="news-thumb has-image"><img src="' + html.escape(img, quote=True) + '" alt="" loading="lazy"></span>'
+
+          text = pattern.sub(repl, text)
+          page.write_text(text, encoding='utf-8', newline='\n')
+          print('RSS image candidates:', len(images))
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pl/aktualnosci.html
+          if git diff --cached --quiet; then
+            echo "No thumbnail changes."
+          else
+            git commit -m "chore(news-pl): add article thumbnails"
+            git pull --rebase origin main
+            git push
+          fi
