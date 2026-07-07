@@ -5,16 +5,18 @@ import html
 import json
 import re
 import sys
+import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "investments" / "room_quotes.json"
 WARSAW = ZoneInfo("Europe/Warsaw")
 BOND_KEYS = ("pl10y", "us10y")
+MARKET_YAHOO = {"eurusd": "EURUSD=X", "sp500": "ES=F", "btcusd": "BTC-USD"}
 
 BOND_SOURCES = {
     "pl10y": {
@@ -38,7 +40,7 @@ import update_investment_room_quotes as base  # noqa: E402
 def to_float(text: Any) -> Optional[float]:
     try:
         s = str(text).replace("%", "").replace("+", "").replace(" ", "").replace(",", ".").strip()
-        if not s or s in {"-", "—", "-.---"}:
+        if not s or s in {"-", "—", "-.---", "None", "null"}:
             return None
         return float(s)
     except Exception:
@@ -56,7 +58,7 @@ def fetch_text(url: str) -> str:
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 BriefRoomsQuotes/2.0",
+            "User-Agent": "Mozilla/5.0 BriefRoomsQuotes/2.1",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
     )
@@ -74,8 +76,6 @@ def clean_text(markup: str) -> str:
 
 
 def parse_te_bond(text: str, row_name: str) -> Optional[Tuple[float, Optional[float], str]]:
-    # Example after HTML cleanup:
-    # Bonds Yield Day Month Year Date Poland 10Y 5.36 0.083% -0.510% -0.005% Jul/07
     row_re = re.compile(
         rf"{re.escape(row_name)}\s+([0-9]+(?:\.[0-9]+)?)\s+([+-]?[0-9]+(?:\.[0-9]+)?)%\s+[+-]?[0-9]+(?:\.[0-9]+)?%\s+[+-]?[0-9]+(?:\.[0-9]+)?%\s+([A-Za-z]{{3}}/\d{{2}})",
         re.I,
@@ -87,7 +87,6 @@ def parse_te_bond(text: str, row_name: str) -> Optional[Tuple[float, Optional[fl
         if close is not None:
             return close, day_change, m.group(3)
 
-    # Fallback to the narrative sentence if the table format changes.
     value_match = re.search(r"Bond Yield\s+(?:rose|fell|increased|decreased)\s+to\s+([0-9]+(?:\.[0-9]+)?)%", text, re.I)
     change_match = re.search(r"marking a\s+([0-9]+(?:\.[0-9]+)?)\s+percentage points\s+(increase|decrease)", text, re.I)
     date_match = re.search(r"on\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})", text)
@@ -128,6 +127,59 @@ def update_bond(data: Dict[str, Any], key: str, now: datetime) -> bool:
     return True
 
 
+def valid_points(timestamps: List[Any], closes: List[Any]) -> List[Tuple[int, float]]:
+    out: List[Tuple[int, float]] = []
+    for ts, close in zip(timestamps, closes):
+        price = to_float(close)
+        try:
+            its = int(ts)
+        except Exception:
+            continue
+        if price is not None:
+            out.append((its, price))
+    return out
+
+
+def update_market_change(data: Dict[str, Any], key: str, yahoo_symbol: str, now: datetime) -> bool:
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(yahoo_symbol, safe='')}?range=1d&interval=1m"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 BriefRoomsQuotes/2.1"})
+    with urllib.request.urlopen(req, timeout=14) as r:
+        payload = json.loads(r.read().decode("utf-8"))
+    result = (payload.get("chart", {}).get("result") or [None])[0]
+    if not result:
+        return False
+    quote_block = (result.get("indicators", {}).get("quote") or [{}])[0]
+    points = valid_points(result.get("timestamp") or [], quote_block.get("close") or [])
+    meta = result.get("meta", {}) or {}
+    if not points:
+        current = to_float(meta.get("regularMarketPrice"))
+        open_price = to_float(meta.get("regularMarketOpen") or meta.get("previousClose") or meta.get("chartPreviousClose"))
+        stamp = now
+    else:
+        open_price = points[0][1]
+        current = points[-1][1]
+        stamp = datetime.fromtimestamp(points[-1][0], tz=timezone.utc).astimezone(WARSAW)
+    if current is None or open_price in (None, 0):
+        return False
+    change_percent = (current - open_price) / open_price * 100.0
+    quote = data.setdefault("quotes", {}).setdefault(key, {})
+    quote.update({
+        "close": current,
+        "open": open_price,
+        "change_percent": change_percent,
+        "change_value": current - open_price,
+        "date": stamp.date().isoformat(),
+        "time": stamp.strftime("%H:%M:%S"),
+        "source": f"Yahoo Finance:{yahoo_symbol}:chart:1d:1m",
+        "source_url": url,
+        "market_change_policy": "change from first 1-minute price in the current Yahoo 1d chart",
+        "market_change_last_attempt_at": now.isoformat(timespec="seconds"),
+        "market_change_status": "updated_this_run",
+    })
+    quote.pop("fallback_reason", None)
+    return True
+
+
 def preserve_previous_bonds(data: Dict[str, Any], previous: Dict[str, Any], now: datetime, reason: str) -> None:
     quotes = data.setdefault("quotes", {})
     previous_quotes = previous.get("quotes", {}) if isinstance(previous, dict) else {}
@@ -158,43 +210,60 @@ def main() -> None:
     base.main()
 
     data = load_json(OUT)
-    ok = {"pl10y": False, "us10y": False}
+    ok_bonds = {"pl10y": False, "us10y": False}
+    ok_markets = {key: False for key in MARKET_YAHOO}
     errors: Dict[str, str] = {}
+
+    for key, yahoo_symbol in MARKET_YAHOO.items():
+        try:
+            ok_markets[key] = update_market_change(data, key, yahoo_symbol, now)
+        except Exception as exc:
+            errors[f"market_{key}"] = str(exc)
+            print(f"WARNING {key} market change update failed: {exc}")
 
     for key in BOND_KEYS:
         try:
-            ok[key] = update_bond(data, key, now)
+            ok_bonds[key] = update_bond(data, key, now)
         except Exception as exc:
-            errors[key] = str(exc)
+            errors[f"bond_{key}"] = str(exc)
             print(f"WARNING {key} bond update failed: {exc}")
 
-    if not any(ok.values()):
+    if not any(ok_bonds.values()):
         preserve_previous_bonds(data, previous, now, "kept_previous_bond_fetch_error")
-    elif not all(ok.values()):
+    elif not all(ok_bonds.values()):
         preserve_previous_bonds(data, previous, now, "kept_previous_partial_bond_update")
 
-    data["source"] = "Stooq/Yahoo for FX/index/crypto; Trading Economics for PL/US 10Y bond yields"
+    data["source"] = "Yahoo for FX/index/crypto with intraday change; Trading Economics for PL/US 10Y bond yields"
     data["refresh"] = "FX/index/crypto/bond yields: every 15 minutes."
+    data["market_change_schedule"] = {
+        "timezone": "Europe/Warsaw",
+        "frequency": "every 15 minutes",
+        "last_attempt_at": now.isoformat(timespec="seconds"),
+        "eurusd_updated": ok_markets["eurusd"],
+        "sp500_updated": ok_markets["sp500"],
+        "btcusd_updated": ok_markets["btcusd"],
+    }
     data["bond_schedule"] = {
         "timezone": "Europe/Warsaw",
         "frequency": "every 15 minutes",
         "last_attempt_at": now.isoformat(timespec="seconds"),
-        "last_attempt_result": "updated" if any(ok.values()) else "kept_previous",
-        "pl10y_updated": ok["pl10y"],
-        "us10y_updated": ok["us10y"],
+        "last_attempt_result": "updated" if any(ok_bonds.values()) else "kept_previous",
+        "pl10y_updated": ok_bonds["pl10y"],
+        "us10y_updated": ok_bonds["us10y"],
     }
     if errors:
-        data["bond_schedule"]["last_errors"] = errors
+        data["quote_update_errors"] = errors
     data["bond_table_import"] = {
         "source": "Trading Economics government-bond-yield pages",
         "policy": "Update bond yields on every 15-minute investment-room quote workflow run, same as FX/index/crypto.",
-        "updated_this_run": any(ok.values()),
-        "pl10y": ok["pl10y"],
-        "us10y": ok["us10y"],
+        "updated_this_run": any(ok_bonds.values()),
+        "pl10y": ok_bonds["pl10y"],
+        "us10y": ok_bonds["us10y"],
     }
 
     OUT.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Bond update: every_15m PL={ok['pl10y']} US={ok['us10y']}")
+    print(f"Market change: EUR={ok_markets['eurusd']} SPX={ok_markets['sp500']} BTC={ok_markets['btcusd']}")
+    print(f"Bond update: every_15m PL={ok_bonds['pl10y']} US={ok_bonds['us10y']}")
 
 
 if __name__ == "__main__":
