@@ -51,15 +51,15 @@ SECTION_TABS_CSS = """
       background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
     }
     .section-tabs .brand-link{
-      min-width:auto; gap:8px; padding:8px 14px 8px 10px;
+      min-width:auto; gap:0; padding:8px 14px;
       background:linear-gradient(135deg, rgba(248,201,122,.30), rgba(255,255,255,.08));
       border-color:rgba(248,201,122,.46); color:#fff; box-shadow:0 8px 22px rgba(0,0,0,.20);
     }
     .section-tabs .brand-mark{
       display:inline-flex; align-items:center; justify-content:center;
-      width:28px; height:28px; border-radius:10px;
+      width:34px; height:28px; border-radius:10px;
       color:#101827; background:linear-gradient(135deg,#f8c97a,#fff1c7);
-      font-weight:950; letter-spacing:-.05em;
+      font-weight:950; letter-spacing:-.08em;
     }
     .section-tabs a:hover,
     .section-tabs a:focus-visible{
@@ -76,7 +76,7 @@ SECTION_TABS_CSS = """
 
 SECTION_TABS_HTML = """
 <nav class="section-tabs" aria-label="Sekcje aktualności">
-  <a class="brand-link" href="/pl/" aria-label="BriefRooms — strona startowa"><span class="brand-mark">BR</span><span>BriefRooms</span></a>
+  <a class="brand-link" href="/pl/" aria-label="BRs — strona startowa"><span class="brand-mark">BRs</span></a>
   <a href="#polityka">Polityka</a>
   <a href="#ekonomia">Ekonomia</a>
   <a href="#sport">Sport</a>
@@ -129,6 +129,12 @@ def _add_section_tabs(html: str) -> str:
     if "class=\"section-tabs\"" not in html:
         html = html.replace("</style>", SECTION_TABS_CSS + "\n  </style>")
         html = html.replace("<main>\n", "<main>\n" + SECTION_TABS_HTML + "\n", 1)
+
+    # Permanent brand-mark normalization if an older cached template is used.
+    html = html.replace(
+        '<a class="brand-link" href="/pl/" aria-label="BriefRooms — strona startowa"><span class="brand-mark">BR</span><span>BriefRooms</span></a>',
+        '<a class="brand-link" href="/pl/" aria-label="BRs — strona startowa"><span class="brand-mark">BRs</span></a>',
+    )
 
     html = html.replace(
         '<section class="card">\n  <h2>Polityka / Kraj</h2>',
