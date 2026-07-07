@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "investments" / "room_quotes.json"
 BOND_TABLE_URL = "https://stooq.pl/t/?i=536"
 WARSAW = ZoneInfo("Europe/Warsaw")
-BOND_UPDATE_HOURS_WARSAW = {10, 13, 17}
 BOND_KEYS = ("pl10y", "us10y")
 
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -48,7 +47,7 @@ def load_json(path: Path) -> Dict[str, Any]:
 
 
 def fetch_bond_table() -> str:
-    req = urllib.request.Request(BOND_TABLE_URL, headers={"User-Agent": "BriefRoomsQuotes/1.4"})
+    req = urllib.request.Request(BOND_TABLE_URL, headers={"User-Agent": "BriefRoomsQuotes/1.5"})
     with urllib.request.urlopen(req, timeout=16) as r:
         raw = r.read()
     for enc in ("utf-8", "cp1250", "iso-8859-2"):
@@ -59,7 +58,7 @@ def fetch_bond_table() -> str:
     return raw.decode("utf-8", errors="ignore")
 
 
-def find_bond(symbol: str, key: str, data: Dict[str, Any], table_text: str) -> bool:
+def find_bond(symbol: str, key: str, data: Dict[str, Any], table_text: str, now: datetime) -> bool:
     wanted = symbol.upper()
     for row in re.findall(r"<tr[^>]*>([\s\S]*?)</tr>", table_text, flags=re.I):
         if wanted.lower() not in row.lower():
@@ -81,35 +80,28 @@ def find_bond(symbol: str, key: str, data: Dict[str, Any], table_text: str) -> b
             "close": close,
             "change_percent": change_pct,
             "change_value": change_val,
-            "date": data.get("updated_at", "")[:10],
+            "date": data.get("updated_at", now.isoformat(timespec="seconds"))[:10],
             "time": stamp,
             "source_url": BOND_TABLE_URL,
-            "bond_update_policy": "Europe/Warsaw 10:00, 13:00, 17:00",
+            "bond_update_policy": "every 15 minutes with investment room quote workflow",
+            "bond_last_attempt_at": now.isoformat(timespec="seconds"),
+            "bond_update_status": "updated_this_run",
         })
         return True
     return False
 
 
-def current_slot(now: datetime) -> str:
-    return now.strftime("%Y-%m-%dT%H")
-
-
-def should_update_bonds(previous: Dict[str, Any], now: datetime) -> bool:
-    if now.hour not in BOND_UPDATE_HOURS_WARSAW:
-        return False
-    last_slot = str(previous.get("bond_schedule", {}).get("last_success_slot") or "")
-    return last_slot != current_slot(now)
-
-
-def preserve_previous_bonds(data: Dict[str, Any], previous: Dict[str, Any], now: datetime) -> None:
+def preserve_previous_bonds(data: Dict[str, Any], previous: Dict[str, Any], now: datetime, reason: str) -> None:
     quotes = data.setdefault("quotes", {})
     previous_quotes = previous.get("quotes", {}) if isinstance(previous, dict) else {}
     for key in BOND_KEYS:
         old = previous_quotes.get(key)
         if isinstance(old, dict) and old.get("close") not in (None, "", 0, "0"):
-            quotes[key] = old
-            quotes[key]["bond_update_policy"] = "Europe/Warsaw 10:00, 13:00, 17:00"
-            quotes[key]["bond_update_status"] = f"kept_previous_outside_slot_{now.hour:02d}:00_Warsaw"
+            kept = dict(old)
+            kept["bond_update_policy"] = "every 15 minutes with investment room quote workflow"
+            kept["bond_last_attempt_at"] = now.isoformat(timespec="seconds")
+            kept["bond_update_status"] = reason
+            quotes[key] = kept
 
 
 def refresh_live_prices() -> None:
@@ -129,49 +121,42 @@ def main() -> None:
     base.main()
 
     data = load_json(OUT)
-    do_bond_update = should_update_bonds(previous, now)
     ok_pl = False
     ok_us = False
+    error = ""
 
-    if do_bond_update:
+    try:
         table = fetch_bond_table()
-        ok_pl = find_bond("10YPLY.B", "pl10y", data, table)
-        ok_us = find_bond("10YUSY.B", "us10y", data, table)
-        if ok_pl or ok_us:
-            data["bond_schedule"] = {
-                "timezone": "Europe/Warsaw",
-                "hours": [10, 13, 17],
-                "last_success_slot": current_slot(now),
-                "last_success_at": now.isoformat(timespec="seconds"),
-            }
-        else:
-            data["bond_schedule"] = {
-                "timezone": "Europe/Warsaw",
-                "hours": [10, 13, 17],
-                "last_attempt_slot": current_slot(now),
-                "last_attempt_at": now.isoformat(timespec="seconds"),
-                "last_attempt_result": "bond_table_not_found",
-            }
-    else:
-        preserve_previous_bonds(data, previous, now)
-        data["bond_schedule"] = {
-            **(previous.get("bond_schedule", {}) if isinstance(previous, dict) else {}),
-            "timezone": "Europe/Warsaw",
-            "hours": [10, 13, 17],
-            "current_run": now.isoformat(timespec="seconds"),
-            "current_run_status": "bond_quotes_kept_previous_outside_update_slot",
-        }
+        ok_pl = find_bond("10YPLY.B", "pl10y", data, table, now)
+        ok_us = find_bond("10YUSY.B", "us10y", data, table, now)
+        if not (ok_pl or ok_us):
+            preserve_previous_bonds(data, previous, now, "kept_previous_bond_table_not_found")
+    except Exception as exc:
+        error = str(exc)
+        preserve_previous_bonds(data, previous, now, "kept_previous_bond_fetch_error")
+        print(f"WARNING bond table import failed: {exc}")
+
+    data["bond_schedule"] = {
+        "timezone": "Europe/Warsaw",
+        "frequency": "every 15 minutes",
+        "last_attempt_at": now.isoformat(timespec="seconds"),
+        "last_attempt_result": "updated" if (ok_pl or ok_us) else "kept_previous",
+        "pl10y_updated": ok_pl,
+        "us10y_updated": ok_us,
+    }
+    if error:
+        data["bond_schedule"]["last_error"] = error
 
     data["bond_table_import"] = {
         "source": BOND_TABLE_URL,
-        "policy": "Update bond yields only at 10:00, 13:00 and 17:00 Europe/Warsaw; other instruments keep 15-minute refresh.",
-        "updated_this_run": do_bond_update and (ok_pl or ok_us),
+        "policy": "Update bond yields on every 15-minute investment-room quote workflow run, same as FX/index/crypto.",
+        "updated_this_run": ok_pl or ok_us,
         "pl10y": ok_pl,
         "us10y": ok_us,
     }
-    data["refresh"] = "FX/index/crypto: every 15 minutes. Bond yields: 10:00, 13:00, 17:00 Europe/Warsaw."
+    data["refresh"] = "FX/index/crypto/bond yields: every 15 minutes."
     OUT.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Bond table import: update_slot={do_bond_update} PL={ok_pl} US={ok_us}")
+    print(f"Bond table import: every_15m PL={ok_pl} US={ok_us}")
 
 
 if __name__ == "__main__":
