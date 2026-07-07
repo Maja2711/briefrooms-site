@@ -1,0 +1,37 @@
+name: Patch Homepage Story Dedupe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_home_story_dedupe.py"
+      - ".github/workflows/patch-home-story-dedupe.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-home-dedupe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Patch home brief builders and current JSON
+        run: python scripts/patch_home_story_dedupe.py
+      - name: Commit homepage story dedupe
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/build_home_brief_pl.py scripts/build_home_brief_en.py pl/home_brief.json en/home_brief.json
+          if git diff --cached --quiet; then
+            echo "No dedupe changes."
+          else
+            git commit -m "Deduplicate homepage stories"
+            git pull --rebase origin main
+            git push
+          fi
