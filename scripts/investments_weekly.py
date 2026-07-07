@@ -272,6 +272,28 @@ def clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
+def entry_thresholds(inst_id: str, method: Dict[str, Any]) -> Tuple[int, int]:
+    rules = method.get("decision_rules", {}) if isinstance(method, dict) else {}
+    per_inst = (rules.get("entry_thresholds", {}) or {}).get(inst_id, {})
+    long_threshold = safe_float(per_inst.get("long"))
+    short_threshold = safe_float(per_inst.get("short"))
+    if long_threshold is None:
+        long_threshold = safe_float(rules.get("bullish_threshold")) or 25
+    if short_threshold is None:
+        raw = safe_float(rules.get("bearish_threshold"))
+        short_threshold = raw if raw is not None else -25
+    return int(long_threshold), int(short_threshold)
+
+
+def direction_from_score(score: int, inst_id: str, method: Dict[str, Any]) -> str:
+    long_threshold, short_threshold = entry_thresholds(inst_id, method)
+    if score >= long_threshold:
+        return "long"
+    if score <= short_threshold:
+        return "short"
+    return "neutral"
+
+
 def forecast_instrument(inst: Dict[str, Any], method: Dict[str, Any]) -> Dict[str, Any]:
     closes = download_close_series(inst["symbol"])
     if len(closes) < 55:
@@ -290,7 +312,7 @@ def forecast_instrument(inst: Dict[str, Any], method: Dict[str, Any]) -> Dict[st
         macro_bias = safe_float(overrides.get("macro_bias", 0)) or 0
         event_risk = safe_float(overrides.get("event_risk", 0)) or 0
         score = int(round(clip((15 if ema20 > ema50 else -15) + (15 if last > ema20 else -15) + ret5 * 3.0 + ret20 * 0.8 + macro_bias + event_risk, -100, 100)))
-        direction = "long" if score > 0 else "short" if score < 0 else "neutral"
+        direction = direction_from_score(score, inst["id"], method)
         trend_text_pl = f"EMA20 {'powyżej' if ema20 > ema50 else 'poniżej'} EMA50; ostatnia cena {'powyżej' if last > ema20 else 'poniżej'} EMA20"
         trend_text_en = f"EMA20 is {'above' if ema20 > ema50 else 'below'} EMA50; last price is {'above' if last > ema20 else 'below'} EMA20"
     return {
@@ -306,13 +328,13 @@ def forecast_instrument(inst: Dict[str, Any], method: Dict[str, Any]) -> Dict[st
             f"Model v{method.get('method_version')} wskazuje: {direction_label(direction, 'pl').lower()}.",
             f"Trend: {trend_text_pl}.",
             f"Momentum: 5 dni {ret5:+.2f}%, 20 dni {ret20:+.2f}%.",
-            "Zmienność neutralna względem ostatnich tygodni.",
+            f"Próg v1.4.0: long od {entry_thresholds(inst["id"], method)[0]}, short od {entry_thresholds(inst["id"], method)[1]}; słabszy sygnał = neutral/no-trade.",
         ],
         "rationale_en": [
             f"Model v{method.get('method_version')} indicates: {direction_label(direction, 'en').lower()}.",
             f"Trend: {trend_text_en}.",
             f"Momentum: 5 days {ret5:+.2f}%, 20 days {ret20:+.2f}%.",
-            "Volatility is neutral versus recent weeks.",
+            f"v1.4.0 threshold: long from {entry_thresholds(inst["id"], method)[0]}, short from {entry_thresholds(inst["id"], method)[1]}; weaker signal = neutral/no-trade.",
         ],
         "entry_price": None,
         "entry_captured_at": None,

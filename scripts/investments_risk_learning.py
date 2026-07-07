@@ -43,6 +43,12 @@ def notional(item: Dict[str, Any], cfg: Dict[str, Any]) -> Tuple[float, str]:
     return base.safe_float(item.get("notional_usd")) or base.safe_float(cfg.get("notional_usd")) or 10_000.0, "USD"
 
 
+def volatility_unit(inst_id: str, method: Dict[str, Any]) -> str:
+    model = method.get("volatility_threshold_model", {}) if isinstance(method, dict) else {}
+    cfg = (model.get("instrument_volatility_units", {}) or {}).get(inst_id, {})
+    return str(cfg.get("unit") or ("percent" if inst_id == "btcusd" else "pips" if inst_id == "eurusd" else "points"))
+
+
 def pnl_usd(inst_id: str, entry: float, mark: float, side: str, item: Dict[str, Any], cfg: Dict[str, Any]) -> float:
     move = (mark - entry) if side == "long" else (entry - mark)
     n, _ = notional(item, cfg)
@@ -78,18 +84,22 @@ def clipped_units(inst_id: str, method: Dict[str, Any], favorable: float, advers
 def volatility_units(symbol: str, inst_id: str, cfg: Dict[str, Any], method: Dict[str, Any]) -> Tuple[float, float, str]:
     model = method.get("volatility_threshold_model", {}) if isinstance(method, dict) else {}
     closes = base.download_close_series(symbol, str(model.get("price_history_period") or "6mo"))
+    mode = volatility_unit(inst_id, method)
     u_size = unit_size(inst_id, cfg)
     if len(closes) >= 22:
-        diffs = [abs(closes[i] - closes[i - 1]) / u_size for i in range(1, len(closes))]
+        if mode == "percent":
+            diffs = [abs(closes[i] / closes[i - 1] - 1.0) * 100 for i in range(1, len(closes)) if closes[i - 1]]
+        else:
+            diffs = [abs(closes[i] - closes[i - 1]) / u_size for i in range(1, len(closes))]
         daily_units = sum(diffs[-20:]) / min(20, len(diffs))
         expected_week = daily_units * math.sqrt(5)
         fav_mult = base.safe_float(model.get("favorable_multiplier")) or 0.9
         adv_mult = base.safe_float(model.get("adverse_multiplier")) or 0.6
         fav, adv = clipped_units(inst_id, method, expected_week * fav_mult, expected_week * adv_mult)
-        return fav, adv, "dynamic_close_to_close_volatility_20d"
+        return fav, adv, f"dynamic_close_to_close_volatility_20d_{mode}"
     fallback = (model.get("fallback_static_thresholds", {}) or {}).get(inst_id, {})
     fav, adv = clipped_units(inst_id, method, base.safe_float(fallback.get("favorable_units")) or 90, base.safe_float(fallback.get("adverse_units")) or 60)
-    return fav, adv, "fallback_static_thresholds"
+    return fav, adv, f"fallback_static_thresholds_{mode}"
 
 
 def risk_plan(item: Dict[str, Any], cfg: Dict[str, Any], method: Dict[str, Any], entry: float) -> Dict[str, Any]:
@@ -98,8 +108,13 @@ def risk_plan(item: Dict[str, Any], cfg: Dict[str, Any], method: Dict[str, Any],
     u_size = unit_size(inst_id, cfg)
     symbol = str(item.get("symbol") or cfg.get("symbol") or "")
     tp_units, sl_units, source = volatility_units(symbol, inst_id, cfg, method)
-    tp_delta = tp_units * u_size
-    sl_delta = sl_units * u_size
+    mode = volatility_unit(inst_id, method)
+    if mode == "percent":
+        tp_delta = entry * tp_units / 100.0
+        sl_delta = entry * sl_units / 100.0
+    else:
+        tp_delta = tp_units * u_size
+        sl_delta = sl_units * u_size
     if side == "long":
         tp_price, sl_price = entry + tp_delta, entry - sl_delta
     else:
@@ -118,8 +133,9 @@ def risk_plan(item: Dict[str, Any], cfg: Dict[str, Any], method: Dict[str, Any],
         "potential_reward_usd": round(reward, 2),
         "reward_to_risk": round(reward / risk, 2) if risk else None,
         "threshold_source": source,
-        "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; poziomy zapisujemy przy pozycji, żeby później porównać plan z wynikiem.",
-        "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; levels are saved with the position so the plan can be reviewed against the outcome.",
+        "volatility_unit": volatility_unit(inst_id, method),
+        "rule_pl": "SL i TP są liczone z ostatniej zmienności i ograniczone limitami metody; dla BTC wartości są procentowe, dla EUR/USD w pipsach, dla S&P 500 w punktach.",
+        "rule_en": "SL and TP are calculated from recent volatility and clipped by method limits; BTC uses percent, EUR/USD uses pips, S&P 500 uses points.",
     }
 
 

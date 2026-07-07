@@ -24,8 +24,13 @@ def scenario_units(item: Dict[str, Any], price: float, cfg: Dict[str, Any]) -> O
     direction = item.get("direction")
     if entry is None or direction not in {"long", "short"}:
         return None
-    unit = safe_float(cfg.get("pip_size")) or safe_float(cfg.get("point_size")) or 1.0
+    inst_id = item.get("instrument_id") or cfg.get("id")
+    unit_name = ((item.get("scenario_thresholds") or {}).get("unit") or cfg.get("result_unit") or "")
     raw = price - entry
+    if inst_id == "btcusd" or unit_name == "percent":
+        move = (raw / entry) * 100 if entry else 0.0
+        return move if direction == "long" else -move
+    unit = safe_float(cfg.get("pip_size")) or safe_float(cfg.get("point_size")) or 1.0
     return (raw if direction == "long" else -raw) / unit
 
 
