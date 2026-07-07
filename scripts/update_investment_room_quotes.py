@@ -19,8 +19,8 @@ STOOQ_URL = "https://stooq.pl/q/l/?s={symbol}&f=sd2t2ohlcv&h&e=csv"
 INSTRUMENTS = {
     "eurusd": {"symbols": ["eurusd", "eurusd.pl"], "live_key": "eurusd", "label_pl": "EUR/USD", "label_en": "EUR/USD", "kind_pl": "FX", "kind_en": "FX", "decimals": 5, "unit": ""},
     "sp500": {"symbols": ["spx", "^spx", "es.f", "es.f.us"], "live_key": "sp500_futures", "label_pl": "S&P 500", "label_en": "S&P 500", "kind_pl": "Indeks", "kind_en": "Index", "decimals": 2, "unit": ""},
-    "pl10y": {"symbols": ["10pl.b", "pl10y", "10ply.b", "pln10y", "pl10yt", "pl10y.b"], "live_key": "", "label_pl": "PL 10Y", "label_en": "PL 10Y", "kind_pl": "Polskie obligacje 10Y · rentowność", "kind_en": "Polish 10Y bonds · yield", "decimals": 3, "unit": "%"},
-    "us10y": {"symbols": ["10usy.b", "us10y", "10us.b", "ust10y", "us10yt", "us10y.b"], "live_key": "", "label_pl": "US 10Y", "label_en": "US 10Y", "kind_pl": "Amerykańskie obligacje 10Y · rentowność", "kind_en": "US 10Y bonds · yield", "decimals": 3, "unit": "%"},
+    "pl10y": {"symbols": ["10yply.b", "10YPLY.B"], "live_key": "", "label_pl": "PL 10Y", "label_en": "PL 10Y", "kind_pl": "Polskie obligacje 10Y · rentowność", "kind_en": "Polish 10Y bonds · yield", "decimals": 3, "unit": "%"},
+    "us10y": {"symbols": ["10yusy.b", "10YUSY.B"], "live_key": "", "label_pl": "US 10Y", "label_en": "US 10Y", "kind_pl": "Amerykańskie obligacje 10Y · rentowność", "kind_en": "US 10Y bonds · yield", "decimals": 3, "unit": "%"},
     "btcusd": {"symbols": ["btcusd", "btc.v", "xbtusd"], "live_key": "btcusd", "label_pl": "BTC/USD", "label_en": "BTC/USD", "kind_pl": "Krypto", "kind_en": "Crypto", "decimals": 2, "unit": ""},
 }
 
@@ -105,7 +105,7 @@ def main() -> None:
     previous = load_json(OUT, {})
     live = load_json(LIVE, {}).get("prices", {})
     quotes = {key: quote_for(key, cfg, previous, live) for key, cfg in INSTRUMENTS.items()}
-    payload = {"updated_at": now_iso(), "source": "Stooq.pl q/l CSV; Yahoo/live_prices fallback for FX/index/crypto if Stooq is unavailable", "refresh": "hourly workflow; pages fetch this JSON without cache", "pl_bond_key": "pl10y", "en_bond_key": "us10y", "quotes": quotes}
+    payload = {"updated_at": now_iso(), "source": "Stooq.pl q/l CSV; Yahoo/live_prices fallback for FX/index/crypto if Stooq is unavailable", "refresh": "15-minute workflow; pages fetch this JSON without cache", "pl_bond_key": "pl10y", "en_bond_key": "us10y", "quotes": quotes}
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Updated {OUT}")
 
