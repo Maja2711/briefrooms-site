@@ -1,0 +1,34 @@
+name: Remove homepage bottom info
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/remove_home_bottom_info.py"
+      - ".github/workflows/homepage-bottom-cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Remove bottom info from homepages
+        run: python scripts/remove_home_bottom_info.py
+      - name: Commit homepage cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/index.html en/index.html
+          if git diff --cached --quiet; then
+            echo "No homepage changes."
+          else
+            git commit -m "Remove homepage bottom info blocks"
+            git push
+          fi
