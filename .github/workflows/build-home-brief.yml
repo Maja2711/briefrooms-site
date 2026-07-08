@@ -10,6 +10,7 @@ on:
       - "scripts/read_and_summarize_articles.py"
       - "scripts/enforce_brief_length.py"
       - "scripts/remove_urgent_badge_categories.py"
+      - "scripts/hide_urgent_home_labels.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "*/30 * * * *"
@@ -56,11 +57,14 @@ jobs:
       - name: Remove visible urgent badge categories
         run: python scripts/remove_urgent_badge_categories.py
 
+      - name: Patch homepage renderers
+        run: python scripts/hide_urgent_home_labels.py
+
       - name: Commit updated homepage brief data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pl/home_brief.json en/home_brief.json .cache || true
+          git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html .cache || true
           if git diff --cached --quiet; then
             echo "No homepage brief changes to commit."
           else
