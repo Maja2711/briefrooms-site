@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/build_home_brief_pl.py"
       - "scripts/build_home_brief_en.py"
+      - "scripts/enforce_brief_length.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "*/30 * * * *"
@@ -38,6 +39,9 @@ jobs:
       - name: Build English homepage brief JSON
         run: python scripts/build_home_brief_en.py
 
+      - name: Enforce article brief methodology
+        run: python scripts/enforce_brief_length.py
+
       - name: Commit updated homepage brief data
         run: |
           git config user.name "github-actions[bot]"
@@ -47,5 +51,6 @@ jobs:
             echo "No homepage brief changes to commit."
           else
             git commit -m "Update homepage live brief data"
+            git pull --rebase origin main
             git push
           fi
