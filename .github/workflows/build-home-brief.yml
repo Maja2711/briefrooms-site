@@ -9,6 +9,7 @@ on:
       - "scripts/build_home_brief_en.py"
       - "scripts/read_and_summarize_articles.py"
       - "scripts/enforce_brief_length.py"
+      - "scripts/remove_urgent_badge_categories.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "*/30 * * * *"
@@ -51,6 +52,9 @@ jobs:
 
       - name: Enforce article brief methodology
         run: python scripts/enforce_brief_length.py
+
+      - name: Remove visible urgent badge categories
+        run: python scripts/remove_urgent_badge_categories.py
 
       - name: Commit updated homepage brief data
         run: |
