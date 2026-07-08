@@ -7,7 +7,7 @@ Rule: first try to read the article body from the source URL, then summarise onl
 what is present in that source material. Never pad with generic sentences about
 category, source, or where to read more. The final comment must read like normal
 language: no broken opening fragments, no leading currency symbols, no clipped
-sentence starts.
+sentence starts, no orphan reporting verbs such as "Dodał, że".
 """
 
 from __future__ import annotations
@@ -41,13 +41,22 @@ BOILERPLATE = re.compile(
     r"briefrooms|pełnego tekstu źródłowego|publikacja źródłowa|otwórz pełny artykuł|"
     r"źródłem wpisu jest|najważniejszy sygnał.*kategorii|artykuł dotyczy tematu|"
     r"pełne tło i szczegóły|source publication|full source text|open the full article|"
+    r"skom(entuj|entował|entowała|entowali|entowała)|powiedz|napisz|wyślij|fotonews|pap\b|"
+    r"grzegorz krzyżewski|autor:|oprac\.|redakcja|czytaj także|zobacz także|"
     r"the source is|the main signal belongs to|this article is about|full context and supporting details",
     re.I,
 )
 BAD_START = re.compile(
     r"^(?:[.,;:!?%‰/\\)\]}]|zł\b|tys\.\b|mln\b|mld\b|proc\.\b|usd\b|eur\b|pln\b|"
-    r"and\b|or\b|but\b|because\b|which\b|that\b|za\b|dla\b|oraz\b|a\b|i\b)"
-    ,
+    r"and\b|or\b|but\b|because\b|which\b|that\b|za\b|dla\b|oraz\b|a\b|i\b|"
+    r"dodał\b|dodała\b|dodali\b|zaznaczył\b|zaznaczyła\b|podkreślił\b|podkreśliła\b|"
+    r"powiedział\b|powiedziała\b|stwierdził\b|stwierdziła\b|ocenił\b|oceniła\b|wskazał\b|wskazała\b|"
+    r"skomentuj\b|skomentował\b|skomentowała\b|powiedz\b|napisz\b)",
+    re.I,
+)
+BAD_FRAGMENT = re.compile(
+    r"\bm\.\s+[A-ZĄĆĘŁŃÓŚŹŻ]|[A-ZĄĆĘŁŃÓŚŹŻ]{3,}\s+[A-ZĄĆĘŁŃÓŚŹŻ]{3,}\s*/\s*FOTONEWS|"
+    r"\bPAP\b|\bFOTONEWS\b|\bautor\b|\boprac\.\b|\bczytaj także\b|\bzobacz także\b",
     re.I,
 )
 GOOD_START = re.compile(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9\"„'’]")
@@ -79,7 +88,7 @@ def logical_sentence(sentence: str) -> bool:
     sentence = clean(sentence)
     if len(sentence) < 45:
         return False
-    if BAD_START.search(sentence):
+    if BAD_START.search(sentence) or BAD_FRAGMENT.search(sentence):
         return False
     if not GOOD_START.search(sentence):
         return False
@@ -151,7 +160,7 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not article_text:
         return ""
-    key = hashlib.sha256(f"article-brief-v2-logical-start|{lang}|{link}|{title}|{article_text[:1200]}".encode("utf-8")).hexdigest()[:48]
+    key = hashlib.sha256(f"article-brief-v3-coherence|{lang}|{link}|{title}|{article_text[:1200]}".encode("utf-8")).hexdigest()[:48]
     cached = cache.get(key)
     if isinstance(cached, dict) and cached.get("summary"):
         return cached["summary"]
@@ -159,18 +168,22 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         prompt = (
             "Przeczytaj tekst artykułu i zrób streszczenie do BriefRooms. "
             "Zwróć wyłącznie JSON {\"full_brief\":\"...\"}. "
-            "Zasady: 3-6 zdań; tylko sens i fakty z tekstu; prosto i logicznie; "
-            "każde zdanie ma zaczynać się normalnym podmiotem albo pełną informacją, nigdy od symbolu, waluty, urwanego fragmentu ani środka zdania; "
-            "zero ogólników o kategorii, źródle lub tym, gdzie czytać więcej; nie dopisuj faktów spoza artykułu.\n\n"
+            "Zasady: 3-6 zdań; tylko sens i fakty z tekstu; prosto, logicznie i gramatycznie. "
+            "Każde zdanie musi być samodzielne: czytelnik ma rozumieć kto/co zrobił bez znajomości poprzedniego zdania. "
+            "Nie zaczynaj od: Dodał, Dodała, Zaznaczył, Powiedział, Skomentuj, symbolu, waluty, urwanego fragmentu ani środka zdania. "
+            "Nie kopiuj podpisów, nazwisk autorów, FOTONEWS, PAP, poleceń redakcyjnych ani fragmentów UI. "
+            "Zero ogólników o kategorii, źródle lub tym, gdzie czytać więcej; nie dopisuj faktów spoza artykułu.\n\n"
             f"Tytuł: {title}\nTekst artykułu:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
     else:
         prompt = (
             "Read the article text and write a BriefRooms summary. "
             "Return only JSON {\"full_brief\":\"...\"}. "
-            "Rules: 3-6 sentences; only the meaning and facts from the text; simple and logical; "
-            "every sentence must start with a normal subject or complete fact, never with a symbol, currency, clipped fragment or mid-sentence phrase; "
-            "no generic category/source/read-more filler; do not add unsupported facts.\n\n"
+            "Rules: 3-6 sentences; only the meaning and facts from the text; simple, logical and grammatical. "
+            "Every sentence must stand alone: the reader must understand who/what did something without relying on the previous sentence. "
+            "Do not start with orphan reporting verbs, symbols, currencies, editorial commands or clipped fragments. "
+            "Do not copy bylines, photo credits, wire labels, editorial commands or UI fragments. "
+            "No generic category/source/read-more filler; do not add unsupported facts.\n\n"
             f"Title: {title}\nArticle text:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
     try:
@@ -222,8 +235,8 @@ def process(path: Path, lang: str, cache: dict) -> bool:
                 item["article_text_chars"] = len(article_text)
                 changed = True
     data["brief_methodology"] = {
-        "pl": "Zasada: najpierw przeczytać dostępny tekst artykułu, potem streścić jego sens. Komentarz ma być prosty i logiczny. Zdanie nie może zaczynać się od symbolu, waluty, urwanego fragmentu ani środka zdania.",
-        "en": "Rule: first read the available article text, then summarise its meaning. The comment must be simple and logical. A sentence must not start with a symbol, currency, clipped fragment or mid-sentence phrase.",
+        "pl": "Zasada: najpierw przeczytać dostępny tekst artykułu, potem streścić jego sens. Komentarz ma być prosty, logiczny, gramatyczny i samodzielny zdaniowo. Nie może zaczynać się od urwanego czasownika typu „Dodał”, od symbolu, waluty, polecenia redakcyjnego ani środka zdania.",
+        "en": "Rule: first read the available article text, then summarise its meaning. The comment must be simple, logical, grammatical and sentence-complete. It must not start with orphan reporting verbs, symbols, currencies, editorial commands or clipped fragments.",
     }
     if changed:
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
