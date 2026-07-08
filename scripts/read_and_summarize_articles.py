@@ -5,7 +5,9 @@ Read source articles and create meaning-only 3-6 sentence BriefRooms summaries.
 
 Rule: first try to read the article body from the source URL, then summarise only
 what is present in that source material. Never pad with generic sentences about
-category, source, or where to read more.
+category, source, or where to read more. The final comment must read like normal
+language: no broken opening fragments, no leading currency symbols, no clipped
+sentence starts.
 """
 
 from __future__ import annotations
@@ -17,7 +19,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 
@@ -43,6 +44,13 @@ BOILERPLATE = re.compile(
     r"the source is|the main signal belongs to|this article is about|full context and supporting details",
     re.I,
 )
+BAD_START = re.compile(
+    r"^(?:[.,;:!?%‰/\\)\]}]|zł\b|tys\.\b|mln\b|mld\b|proc\.\b|usd\b|eur\b|pln\b|"
+    r"and\b|or\b|but\b|because\b|which\b|that\b|za\b|dla\b|oraz\b|a\b|i\b)"
+    ,
+    re.I,
+)
+GOOD_START = re.compile(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9\"„'’]")
 
 
 def load_cache() -> dict:
@@ -67,6 +75,19 @@ def clean(text: str, limit: int | None = None) -> str:
     return text
 
 
+def logical_sentence(sentence: str) -> bool:
+    sentence = clean(sentence)
+    if len(sentence) < 45:
+        return False
+    if BAD_START.search(sentence):
+        return False
+    if not GOOD_START.search(sentence):
+        return False
+    if NOISE.search(sentence) or BOILERPLATE.search(sentence):
+        return False
+    return True
+
+
 def split_sentences(text: str) -> list[str]:
     text = clean(text).replace("…", ".")
     out = []
@@ -74,7 +95,7 @@ def split_sentences(text: str) -> list[str]:
         sentence = clean(part)
         if sentence and sentence[-1] not in ".!?":
             sentence += "."
-        if len(sentence) >= 45 and not NOISE.search(sentence) and not BOILERPLATE.search(sentence):
+        if logical_sentence(sentence):
             out.append(sentence)
     return out
 
@@ -93,14 +114,11 @@ def unique(sentences: list[str]) -> list[str]:
 def extract_article_text(raw_html: str) -> str:
     raw_html = str(raw_html or "")[:500000]
     raw_html = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>|<noscript[\s\S]*?</noscript>", " ", raw_html, flags=re.I)
-
-    # Prefer explicit article/main regions if available.
     blocks = []
     for pat in (r"<article[^>]*>([\s\S]*?)</article>", r"<main[^>]*>([\s\S]*?)</main>"):
         blocks.extend(re.findall(pat, raw_html, flags=re.I))
     if not blocks:
         blocks = [raw_html]
-
     paras = []
     for block in blocks[:3]:
         for p in re.findall(r"<p[^>]*>([\s\S]*?)</p>", block, flags=re.I)[:80]:
@@ -133,40 +151,33 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not article_text:
         return ""
-    key = hashlib.sha256(f"article-brief-v1|{lang}|{link}|{title}|{article_text[:1200]}".encode("utf-8")).hexdigest()[:48]
+    key = hashlib.sha256(f"article-brief-v2-logical-start|{lang}|{link}|{title}|{article_text[:1200]}".encode("utf-8")).hexdigest()[:48]
     cached = cache.get(key)
     if isinstance(cached, dict) and cached.get("summary"):
         return cached["summary"]
-
     if lang == "pl":
         prompt = (
             "Przeczytaj tekst artykułu i zrób streszczenie do BriefRooms. "
             "Zwróć wyłącznie JSON {\"full_brief\":\"...\"}. "
-            "Zasady: 3-6 zdań; tylko sens i fakty z tekstu; zero ogólników o kategorii, źródle lub tym, gdzie czytać więcej; "
-            "nie dopisuj faktów spoza artykułu; po polsku; naturalnie i konkretnie.\n\n"
+            "Zasady: 3-6 zdań; tylko sens i fakty z tekstu; prosto i logicznie; "
+            "każde zdanie ma zaczynać się normalnym podmiotem albo pełną informacją, nigdy od symbolu, waluty, urwanego fragmentu ani środka zdania; "
+            "zero ogólników o kategorii, źródle lub tym, gdzie czytać więcej; nie dopisuj faktów spoza artykułu.\n\n"
             f"Tytuł: {title}\nTekst artykułu:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
     else:
         prompt = (
             "Read the article text and write a BriefRooms summary. "
             "Return only JSON {\"full_brief\":\"...\"}. "
-            "Rules: 3-6 sentences; only the meaning and facts from the text; no generic category/source/read-more filler; "
-            "do not add unsupported facts; write naturally and concretely in English.\n\n"
+            "Rules: 3-6 sentences; only the meaning and facts from the text; simple and logical; "
+            "every sentence must start with a normal subject or complete fact, never with a symbol, currency, clipped fragment or mid-sentence phrase; "
+            "no generic category/source/read-more filler; do not add unsupported facts.\n\n"
             f"Title: {title}\nArticle text:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": AI_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a strict news editor. Summarise only what is in the provided article text and return valid JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-                "max_tokens": 520,
-            },
+            json={"model": AI_MODEL, "messages": [{"role": "system", "content": "You are a strict news editor. Summarise only what is in the provided article text and return valid JSON."}, {"role": "user", "content": prompt}], "temperature": 0.1, "max_tokens": 520},
             timeout=35,
         )
         resp.raise_for_status()
@@ -207,13 +218,12 @@ def process(path: Path, lang: str, cache: dict) -> bool:
                     item["summary_basis"] = "article_text"
                     changed = True
             else:
-                # No title-only summary and no filler. Keep RSS-derived fields only.
                 item["summary_basis"] = "rss_only_insufficient_article_text"
                 item["article_text_chars"] = len(article_text)
                 changed = True
     data["brief_methodology"] = {
-        "pl": "Zasada: najpierw przeczytać dostępny tekst artykułu, potem streścić jego sens. Jeśli tekst artykułu jest niedostępny lub zbyt krótki, nie wolno dopisywać zdań z samego tytułu ani ogólników.",
-        "en": "Rule: first read the available article text, then summarise its meaning. If the article text is unavailable or too short, do not add title-only sentences or generic filler.",
+        "pl": "Zasada: najpierw przeczytać dostępny tekst artykułu, potem streścić jego sens. Komentarz ma być prosty i logiczny. Zdanie nie może zaczynać się od symbolu, waluty, urwanego fragmentu ani środka zdania.",
+        "en": "Rule: first read the available article text, then summarise its meaning. The comment must be simple and logical. A sentence must not start with a symbol, currency, clipped fragment or mid-sentence phrase.",
     }
     if changed:
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
