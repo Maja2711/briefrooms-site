@@ -3,10 +3,10 @@
 """
 BriefRooms editorial methodology for article briefs.
 
-Article-level comments shown on /pl/brief.html and /en/brief.html must not be
-one-sentence teasers. The full brief should contain 3-6 sentences that reflect
-only the available source material: title, RSS summary, extracted article text
-and source metadata. Do not add unsupported facts.
+Main rule: extract the sense of the source article and summarise it. Article
+briefs should contain 3-6 source-derived sentences when enough source material
+is available. Do not pad the brief with generic category/source/meta sentences.
+Do not add unsupported facts.
 """
 
 from __future__ import annotations
@@ -22,7 +22,10 @@ FILES = [
 
 BOILERPLATE = re.compile(
     r"briefrooms|pełnego tekstu źródłowego|publikacja źródłowa|otwórz pełny artykuł|"
-    r"source publication|full source text|open the full article|homepage skip|accessibility help|more menu|search bbc",
+    r"źródłem wpisu jest|najważniejszy sygnał z materiału mieści się w kategorii|"
+    r"artykuł dotyczy tematu:|pełne tło i szczegóły są w artykule źródłowym|"
+    r"source publication|full source text|open the full article|homepage skip|accessibility help|more menu|search bbc|"
+    r"the source is|the main signal belongs to the|this article is about:|full context and supporting details are in the original article",
     re.I,
 )
 
@@ -60,43 +63,10 @@ def unique(sentences: list[str]) -> list[str]:
 
 
 def build_full_brief(item: dict, lang: str) -> str:
-    title = clean(item.get("title") or "")
-    source = clean(item.get("source") or ("Źródło" if lang == "pl" else "Source"))
-    category = clean(item.get("category") or ("Brief" if lang == "en" else "Brief"))
     material = " ".join(clean(item.get(k) or "") for k in ("full_brief", "details", "summary", "why"))
     sentences = unique(split_sentences(material))
-
-    # If the publisher feed gives only a short abstract, still show a proper
-    # article brief, but keep every sentence tied to visible source material.
-    if title and len(sentences) < 3:
-        if lang == "pl":
-            fallback = [
-                f"Artykuł dotyczy tematu: {title}.",
-                f"Najważniejszy sygnał z materiału mieści się w kategorii {category}.",
-                f"Źródłem wpisu jest {source}, a pełne tło i szczegóły są w artykule źródłowym.",
-            ]
-        else:
-            fallback = [
-                f"This article is about: {title}.",
-                f"The main signal belongs to the {category} category.",
-                f"The source is {source}; the full context and supporting details are in the original article.",
-            ]
-        sentences = unique(sentences + fallback)
-
-    if not sentences:
-        if lang == "pl":
-            sentences = [
-                "Ten brief wymaga otwarcia artykułu źródłowego.",
-                "Aktualny plik danych nie zawiera wystarczającego opisu z kanału źródłowego.",
-                "BriefRooms nie dopisuje faktów, których nie ma w materiale wejściowym.",
-            ]
-        else:
-            sentences = [
-                "This brief requires opening the original source article.",
-                "The current data file does not contain enough source description.",
-                "BriefRooms does not add facts that are not present in the input material.",
-            ]
-
+    # No generic padding. If the feed has only one or two real sentences, keep
+    # only those until the generator can extract a richer source text.
     return " ".join(sentences[:6])
 
 
@@ -108,13 +78,16 @@ def process_file(path: Path, lang: str) -> bool:
     for section in ("latest", "radar"):
         for item in data.get(section, []) or []:
             full = build_full_brief(item, lang)
-            if item.get("full_brief") != full:
+            if full and item.get("full_brief") != full:
                 item["full_brief"] = full
+                changed = True
+            elif not full and item.get("full_brief"):
+                item.pop("full_brief", None)
                 changed = True
     if changed:
         data["brief_methodology"] = {
-            "pl": "Brief artykułu ma mieć co najmniej 3 i maksymalnie 6 zdań. Ma oddawać treść dostępnego materiału źródłowego i nie dopisywać faktów spoza tekstu.",
-            "en": "Article briefs must contain at least 3 and at most 6 sentences. They must reflect the available source material and must not add unsupported facts.",
+            "pl": "Jedna zasada: wyciągnąć sens z artykułu i zrobić podsumowanie. Brief ma mieć 3–6 zdań, gdy dostępny materiał źródłowy na to pozwala. Nie wolno dopisywać ogólników o kategorii, źródle ani pełnym artykule.",
+            "en": "One rule: extract the meaning of the article and summarise it. The brief should contain 3–6 sentences when the available source material supports it. Do not add generic category, source or full-article filler.",
         }
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return changed
@@ -124,7 +97,7 @@ def main() -> None:
     changed = False
     for path, lang in FILES:
         changed = process_file(path, lang) or changed
-    print("Brief length methodology applied" if changed else "Brief length methodology already satisfied")
+    print("Brief meaning-only methodology applied" if changed else "Brief methodology already satisfied")
 
 
 if __name__ == "__main__":
