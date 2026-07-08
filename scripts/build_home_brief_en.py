@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Build /en/home_brief.json with stricter editorial quality.
+# Build /en/home_brief.json with stricter editorial quality and urgent-news priority.
 from __future__ import annotations
 
 import html
@@ -18,16 +18,25 @@ TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
 MAX_ITEMS = 12
 
+# "Breaking" is first on purpose: publisher-marked urgent/breaking items get first chance and extra score.
 FEEDS = {
+    "Breaking": [
+        "https://news.google.com/rss/search?q=" + quote_plus('("breaking" OR "urgent" OR "alert" OR "just in") (Reuters OR AP OR BBC OR CNBC OR Guardian)') + "&hl=en&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=" + quote_plus('("breaking news" OR "urgent") Ukraine Russia NATO China Iran oil Fed inflation markets') + "&hl=en&gl=US&ceid=US:en",
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://apnews.com/hub/ap-top-news?output=rss",
+    ],
     "World / news": [
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://www.theguardian.com/world/rss",
+        "https://apnews.com/hub/ap-top-news?output=rss",
         "https://news.google.com/rss/search?q=" + quote_plus("Reuters world geopolitics NATO oil sanctions") + "&hl=en&gl=US&ceid=US:en",
     ],
     "Business / markets": [
         "https://feeds.bbci.co.uk/news/business/rss.xml",
         "https://www.cnbc.com/id/100003114/device/rss/rss.html",
         "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+        "https://apnews.com/hub/business?output=rss",
         "https://news.google.com/rss/search?q=" + quote_plus("Reuters markets Fed inflation rates stocks oil crypto") + "&hl=en&gl=US&ceid=US:en",
     ],
     "Technology": [
@@ -44,19 +53,21 @@ FEEDS = {
         "https://feeds.bbci.co.uk/news/health/rss.xml",
         "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
         "https://www.nih.gov/news-events/news-releases/rss.xml",
+        "https://apnews.com/hub/health?output=rss",
     ],
 }
 
 SOURCE_NAMES = [
-    ("reuters.com", "Reuters"), ("bbc.", "BBC"), ("theguardian.com", "The Guardian"), ("nytimes.com", "The New York Times"),
+    ("reuters.com", "Reuters"), ("apnews.com", "AP"), ("bbc.", "BBC"), ("theguardian.com", "The Guardian"), ("nytimes.com", "The New York Times"),
     ("cnbc.com", "CNBC"), ("marketwatch.com", "MarketWatch"), ("wsj.com", "WSJ"), ("dj.com", "WSJ"),
     ("nasa.gov", "NASA"), ("esa.int", "ESA"), ("who.int", "WHO"), ("nih.gov", "NIH"), ("cdc.gov", "CDC"),
     ("theverge.com", "The Verge"), ("wired.com", "WIRED"),
 ]
-SOURCE_WEIGHT = {"Reuters": 42, "BBC": 26, "WSJ": 25, "CNBC": 22, "The Guardian": 20, "WHO": 18, "NASA": 16, "ESA": 16, "The Verge": 15}
+SOURCE_WEIGHT = {"Reuters": 42, "AP": 38, "BBC": 26, "WSJ": 25, "CNBC": 22, "The Guardian": 20, "WHO": 18, "NASA": 16, "ESA": 16, "The Verge": 15}
 BAN = re.compile(r"horoscope|quiz|gallery|sponsored|lottery|gossip|live blog|coupon code|promo code|deals for|watch live|interview preview|will be a guest|tv programme", re.I)
 NOISE = re.compile(r"cookie|cookies|advertisement|subscribe|newsletter|privacy|sign in|log in|read more|related|photo credit|all rights reserved", re.I)
 LOW_VALUE = re.compile(r"will be a guest|watch live|programme|preview interview|read full transcript", re.I)
+URGENT = re.compile(r"\b(breaking|breaking news|urgent|alert|just in|developing|flash|latest:)\b|^\s*(breaking|urgent|alert|just in)\s*[:\-–—]", re.I)
 IMPORTANT = re.compile(r"war|nato|ukraine|russia|china|iran|middle east|oil|gas|sanctions|tariffs|inflation|rates|fed|ecb|stocks|bond|dollar|recession|cyber|attack|health|ai|chips|crypto|bitcoin|election", re.I)
 IMG_META = re.compile(r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', re.I)
 IMG_META_ALT = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']', re.I)
@@ -81,6 +92,10 @@ def clean_text(value, max_len=190):
 def ensure_period(text):
     text = re.sub(r"\s+", " ", (text or "").strip())
     return text + "." if text and text[-1] not in ".!?…" else text
+
+
+def is_urgent_text(*parts):
+    return bool(URGENT.search(" ".join(str(p or "") for p in parts)))
 
 
 def source_name(url, raw=""):
@@ -157,7 +172,7 @@ def image_from_article(url):
 
 def fallback_image(category):
     color = "38d6c9"
-    if "world" in category.lower(): color = "ffd15e"
+    if "world" in category.lower() or "breaking" in category.lower(): color = "ffd15e"
     if "health" in category.lower(): color = "86ffb7"
     if "science" in category.lower(): color = "7fc8ff"
     label = html.escape(category[:18] or "Brief")
@@ -195,9 +210,10 @@ def timestamp(entry):
 def quality_score(item):
     text = f"{item.get('title','')} {item.get('summary','')} {item.get('details','')}"
     score = SOURCE_WEIGHT.get(item.get("source", ""), 10)
+    if item.get("urgent") or is_urgent_text(text): score += 90
     if IMPORTANT.search(text): score += 35
     if item.get("image") and not str(item.get("image", "")).startswith("data:image"): score += 8
-    if item.get("category") in {"World / news", "Business / markets", "Technology", "Health"}: score += 8
+    if item.get("category") in {"Breaking", "World / news", "Business / markets", "Technology", "Health"}: score += 8
     if BAN.search(text) or LOW_VALUE.search(text): score -= 100
     if len(clean_text(item.get("summary", ""), 500)) < 60: score -= 15
     return score
@@ -212,11 +228,25 @@ def make_item(entry, category):
         return None
     article_text = article_excerpt(link)
     source = source_name(link, f"{title} {rss_summary}")
+    urgent = category == "Breaking" or is_urgent_text(title, rss_summary, article_text)
+    shown_category = "Breaking" if urgent else category
     summary = editorial_summary(article_text, rss_summary, title)
     details = details_summary(article_text, summary)
     if BAN.search(f"{title} {summary} {details}") or LOW_VALUE.search(f"{title} {summary} {details}"):
         return None
-    item = {"category": category, "title": title, "summary": summary, "details": details, "source": source, "link": link, "image": image_from_entry(entry, link, category), "time": "today", "ts": timestamp(entry)}
+    item = {
+        "category": shown_category,
+        "title": title,
+        "summary": summary,
+        "details": details,
+        "source": source,
+        "link": link,
+        "image": image_from_entry(entry, link, shown_category),
+        "time": "today",
+        "urgent": urgent,
+        "priority_reason": "publisher_marked_breaking" if urgent else "standard_importance",
+        "ts": timestamp(entry),
+    }
     item["quality_score"] = quality_score(item)
     if item["quality_score"] < 15:
         return None
@@ -226,12 +256,13 @@ def make_item(entry, category):
 def collect_items():
     seen, items = set(), []
     for category, urls in FEEDS.items():
+        per_feed_limit = 28 if category == "Breaking" else 18
         for url in urls:
             try:
                 feed = feedparser.parse(url)
             except Exception:
                 continue
-            for entry in feed.entries[:18]:
+            for entry in feed.entries[:per_feed_limit]:
                 item = make_item(entry, category)
                 if not item:
                     continue
@@ -240,7 +271,7 @@ def collect_items():
                     continue
                 seen.add(key)
                 items.append(item)
-    items.sort(key=lambda x: (x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
+    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
     return items
 
 
@@ -252,7 +283,6 @@ def strip_internal(items):
         copy.pop("quality_score", None)
         result.append(copy)
     return result
-
 
 
 # STORY_DEDUPE_V4: remove multiple cards about the same underlying story.
@@ -345,7 +375,15 @@ def build_payload(items):
         seen.add(item["link"])
         if len(latest) >= MAX_ITEMS:
             break
-    return {"language": "en", "updated_at": datetime.now().astimezone().isoformat(timespec="minutes"), "quality_mode": "important-news-v4-same-story-dedupe", "count": len(latest), "latest": strip_internal(latest), "radar": []}
+    return {
+        "language": "en",
+        "updated_at": datetime.now().astimezone().isoformat(timespec="minutes"),
+        "quality_mode": "important-news-v5-breaking-priority-same-story-dedupe",
+        "urgent_methodology": "Publisher-marked Breaking, Urgent, Alert, Just in, Developing or similar items are collected first and receive priority over standard items, unless they are liveblogs, programme previews or low-value content.",
+        "count": len(latest),
+        "latest": strip_internal(latest),
+        "radar": [],
+    }
 
 
 def main():
@@ -353,7 +391,7 @@ def main():
     payload = build_payload(collect_items())
     with open(OUT_PATH, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
-    print(f"Generated {OUT_PATH}: {len(payload['latest'])} important briefs, radar removed")
+    print(f"Generated {OUT_PATH}: {len(payload['latest'])} important briefs, urgent priority enabled")
 
 
 if __name__ == "__main__":
