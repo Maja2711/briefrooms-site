@@ -4,6 +4,8 @@
 
 Rules:
 - homepage is for important news, not low-value programme announcements;
+- priority is given to items explicitly marked by publishers as urgent/breaking
+  ("Pilne", "alert", "z ostatniej chwili", etc.);
 - prefer PAP/Reuters/Stooq/Bankier-style factual wires and market/news sources;
 - always provide an image, using an editorial placeholder only as fallback;
 - summaries must be short, clean and readable, not raw RSS/Twitter/photo-credit text.
@@ -31,7 +33,14 @@ AI_CACHE_PATH = ".cache/home_brief_pl_ai.json"
 MAX_ITEMS = 12
 
 # Direct feeds + Google News RSS searches that often surface PAP/Reuters/Stooq/Bankier items.
+# "Pilne" is first on purpose: publishers' urgent/breaking labels get first chance and extra score.
 FEEDS = {
+    "Pilne": [
+        "https://news.google.com/rss/search?q=" + quote_plus('("pilne" OR "z ostatniej chwili" OR "alert" OR "ważne") (PAP OR Reuters OR TVN24 OR Polsat News OR Bankier OR Stooq)') + "&hl=pl&gl=PL&ceid=PL:pl",
+        "https://news.google.com/rss/search?q=" + quote_plus('("Pilne" OR "Alert") Ukraina Rosja NATO USA Chiny Iran ropa inflacja stopy giełda') + "&hl=pl&gl=PL&ceid=PL:pl",
+        "https://tvn24.pl/najnowsze.xml",
+        "https://www.polsatnews.pl/rss/wszystkie.xml",
+    ],
     "Wiadomości": [
         "https://www.pap.pl/rss.xml",
         "https://tvn24.pl/najnowsze.xml",
@@ -95,6 +104,11 @@ PHOTO_CREDIT = re.compile(
 MOJIBAKE = re.compile(r"[ÅÄÂÃâ€™â€œâ€\x9c\x9d\x80\x99]")
 IMG_META = re.compile(r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', re.I)
 IMG_META_ALT = re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']', re.I)
+URGENT = re.compile(
+    r"\b(pilne|alert|ważne|z ostatniej chwili|wiadomość z ostatniej chwili|breaking|urgent|just in|flash)\b|"
+    r"^\s*(pilne|alert|ważne)\s*[:\-–—]",
+    re.I,
+)
 IMPORTANT = re.compile(
     r"wojna|nato|ukraina|rosja|trump|usa|chiny|iran|ormuz|ropa|gaz|sankcj|cła|"
     r"inflacj|stopy|fed|ecb|nbp|giełd|złoty|dolar|rentowno|recesj|pkb|"
@@ -147,7 +161,7 @@ def clean_text(value: str, max_len: int = 190) -> str:
     value = re.sub(r"https?://\S+", " ", value)
     value = re.sub(r"\s*/\s*/\s*", " / ", value)
     value = PHOTO_CREDIT.sub("", value).strip()
-    value = re.sub(r"^@[A-Z0-9_]+\s*/\s*(?:Twitter|X)?\s*", "", value, flags=re.I)
+    value = re.sub(r"^@?[A-Z0-9_]+\s*/\s*(?:Twitter|X)?\s*", "", value, flags=re.I)
     value = re.sub(r"\b(PRZYŚLIJ|PRZESLIJ|PRZEŚLIJ)\b[\s\S]*$", "", value, flags=re.I)
     value = re.sub(r"\s+", " ", value).strip(" -–—·•/\t\n\r")
     if len(value) <= max_len:
@@ -162,6 +176,10 @@ def clean_text(value: str, max_len: int = 190) -> str:
 def ensure_period(text: str) -> str:
     text = re.sub(r"\s+", " ", (text or "").strip())
     return text + "." if text and text[-1] not in ".!?…" else text
+
+
+def is_urgent_text(*parts: str) -> bool:
+    return bool(URGENT.search(" ".join(str(p or "") for p in parts)))
 
 
 def source_name(url: str, raw: str = "") -> str:
@@ -219,7 +237,7 @@ def article_excerpt(url: str) -> str:
 
 def fallback_image(category: str, title: str) -> str:
     color = "38d6c9"
-    if "geo" in category.lower() or "wiadomo" in category.lower(): color = "ffd15e"
+    if "geo" in category.lower() or "wiadomo" in category.lower() or "pilne" in category.lower(): color = "ffd15e"
     if "zdrow" in category.lower(): color = "86ffb7"
     if "nauk" in category.lower(): color = "7fc8ff"
     label = html.escape(category[:18] or "Brief")
@@ -278,7 +296,7 @@ def ai_summary(title: str, category: str, source: str, text: str, link: str) -> 
     if not api_key:
         return ""
     prompt = f"""Zredaguj krótki opis do karty BriefRooms. Zwróć wyłącznie JSON: {{"summary":"..."}}.
-Zasady: po polsku; 1–2 proste zdania; maks. 230 znaków; sedno sprawy; bez surowych nicków typu @MON_GOV_PL; bez zapowiedzi programu/wywiadu; nie dopisuj faktów spoza tekstu.
+Zasady: po polsku; 1–2 proste zdania; maks. 230 znaków; sedno sprawy; jeśli tekst jest oznaczony jako Pilne/Alert, zachowaj wagę informacji, ale nie twórz sensacji; bez surowych nicków typu @MON_GOV_PL; bez zapowiedzi programu/wywiadu; nie dopisuj faktów spoza tekstu.
 Kategoria: {category}
 Źródło: {source}
 Tytuł: {title}
@@ -329,6 +347,8 @@ def details_summary(text: str, fallback: str) -> str:
 
 def assign_category(original: str, title: str, summary: str) -> str:
     text = f"{title} {summary}".lower()
+    if original == "Pilne":
+        return "Pilne"
     if re.search(r"nato|ukrain|rosj|wojn|patriot|ormuz|iran|usa|trump|chiny|sankcj|cła|okręt|obron", text):
         return "Geopolityka"
     if re.search(r"nfz|szpital|zdrow|lek|epidem|pacjent", text):
@@ -354,11 +374,13 @@ def quality_score(item: dict) -> int:
     text = f"{item.get('title','')} {item.get('summary','')} {item.get('details','')}"
     src = item.get("source", "")
     score = SOURCE_WEIGHT.get(src, 10)
+    if item.get("urgent") or is_urgent_text(text):
+        score += 90
     if IMPORTANT.search(text):
         score += 35
     if item.get("image") and not str(item.get("image", "")).startswith("data:image"):
         score += 8
-    if item.get("category") in {"Geopolityka", "Ekonomia", "Zdrowie"}:
+    if item.get("category") in {"Pilne", "Geopolityka", "Ekonomia", "Zdrowie"}:
         score += 10
     if LOW_VALUE.search(text) or BAN.search(text):
         score -= 100
@@ -380,7 +402,10 @@ def make_item(entry, category: str) -> dict | None:
         return None
     article_text = article_excerpt(link)
     source = source_name(link, f"{title} {rss_summary}")
+    urgent = category == "Pilne" or is_urgent_text(title, rss_summary, article_text)
     category = assign_category(category, title, article_text or rss_summary)
+    if urgent:
+        category = "Pilne"
     summary = editorial_summary(title, article_text, rss_summary, category, source, link)
     details = details_summary(article_text, summary)
     if BAN.search(f"{title} {summary} {details}") or LOW_VALUE.search(f"{title} {summary} {details}"):
@@ -394,6 +419,8 @@ def make_item(entry, category: str) -> dict | None:
         "link": link,
         "image": entry_image(entry, link, category, title),
         "time": "dzisiaj",
+        "urgent": urgent,
+        "priority_reason": "publisher_marked_urgent" if urgent else "standard_importance",
         "ts": entry_timestamp(entry),
     }
     item["quality_score"] = quality_score(item)
@@ -405,13 +432,14 @@ def make_item(entry, category: str) -> dict | None:
 def collect_items() -> list[dict]:
     seen, items = set(), []
     for category, feeds in FEEDS.items():
+        per_feed_limit = 28 if category == "Pilne" else 18
         for feed_url in feeds:
             try:
                 parsed = feedparser.parse(feed_url)
             except Exception as ex:
                 print(f"[WARN] feed failed {feed_url}: {ex}", file=sys.stderr)
                 continue
-            for entry in parsed.entries[:18]:
+            for entry in parsed.entries[:per_feed_limit]:
                 item = make_item(entry, category)
                 if not item:
                     continue
@@ -420,8 +448,8 @@ def collect_items() -> list[dict]:
                     continue
                 seen.add(norm)
                 items.append(item)
-    # Score first, recency second. This prevents low-value fresh interviews from beating major news.
-    items.sort(key=lambda x: (x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
+    # Priority order: publisher-marked urgent first, then score, then recency.
+    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
     return items
 
 
@@ -433,7 +461,6 @@ def strip_internal(items: list[dict]) -> list[dict]:
         x.pop("quality_score", None)
         out.append(x)
     return out
-
 
 
 # STORY_DEDUPE_V4: remove multiple cards about the same underlying story.
@@ -530,7 +557,8 @@ def build_payload(items: list[dict]) -> dict:
     return {
         "language": "pl",
         "updated_at": datetime.now().astimezone().isoformat(timespec="minutes"),
-        "quality_mode": "important-news-v4-same-story-dedupe",
+        "quality_mode": "important-news-v5-urgent-priority-same-story-dedupe",
+        "urgent_methodology": "Najpierw pobierane i punktowane są wpisy oznaczone przez wydawców jako Pilne, Alert, Ważne, Z ostatniej chwili, Breaking lub podobne. Takie newsy dostają priorytet przed zwykłymi wpisami, o ile nie są liveblogiem, zapowiedzią programu ani treścią niskiej wartości.",
         "count": len(latest),
         "latest": strip_internal(latest),
         "radar": [],
@@ -542,7 +570,7 @@ def main():
     payload = build_payload(collect_items())
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
-    print(f"✓ Wygenerowano {OUT_PATH}: {len(payload['latest'])} ważnych briefów, radar usunięty")
+    print(f"✓ Wygenerowano {OUT_PATH}: {len(payload['latest'])} ważnych briefów, priorytet pilnych newsów aktywny")
 
 
 if __name__ == "__main__":
