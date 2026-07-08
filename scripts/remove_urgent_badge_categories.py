@@ -103,12 +103,12 @@ def classify_pl(item: dict) -> str:
     text = text_of(item)
     if re.search(r"nato|ukrain|rosj|wojn|patriot|ormuz|iran|usa|trump|chiny|sankcj|cła|okręt|obron|budanow|bbn|zacharowa", text):
         return "Geopolityka"
+    if re.search(r"inflacj|stopy|giełd|gield|bank|ropa|gaz|złoty|dolar|pkb|spółk|rynek|walmart|prom|port|inwest|etf|akcj|obligacj|walut", text):
+        return "Ekonomia"
     if re.search(r"nfz|szpital|zdrow|lek|epidem|pacjent|lekarz|medyk|ortoped|anestezjolog", text):
         return "Zdrowie"
     if re.search(r"nauk|badani|kosmos|technolog|ai|sztuczn|atom|elektrown", text):
         return "Nauka"
-    if re.search(r"inflacj|stopy|giełd|bank|ropa|gaz|złoty|dolar|pkb|spółk|rynek|walmart|prom|port|inwest|etf", text):
-        return "Ekonomia"
     return "Aktualności"
 
 
@@ -137,17 +137,19 @@ def process(path: Path, lang: str) -> bool:
             for key, limit in (("title", 120), ("summary", 260), ("details", 700), ("full_brief", 1200), ("source", 80), ("category", 60)):
                 changed = clean_field(item, key, lang, limit) or changed
             cat = str(item.get("category") or "")
-            if cat.lower() in {"pilne", "breaking", "urgent", "alert"}:
-                item["category"] = classify_pl(item) if lang == "pl" else classify_en(item)
-                item["urgent"] = True
+            if cat.lower() in {"pilne", "breaking", "urgent", "alert"} or item.get("urgent"):
+                new_cat = classify_pl(item) if lang == "pl" else classify_en(item)
+                if item.get("category") != new_cat:
+                    item["category"] = new_cat
+                    changed = True
+                item["urgent"] = bool(item.get("urgent", True))
                 item["priority_reason"] = item.get("priority_reason") or "publisher_marked_urgent"
-                changed = True
     data["urgent_display_methodology"] = (
         "Pilne/Breaking jest sygnałem priorytetu w sortowaniu, ale nie jest pokazywane jako etykieta na zdjęciu karty. Karta pokazuje realną kategorię redakcyjną tematu."
         if lang == "pl"
         else "Urgent/Breaking is used as a ranking signal, but it is not shown as the photo badge. The card shows the real editorial category."
     )
-    data["text_sanitizer"] = "mojibake-repair-and-logical-sentence-filter-v1"
+    data["text_sanitizer"] = "mojibake-repair-and-logical-sentence-filter-v2"
     if changed:
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return changed
