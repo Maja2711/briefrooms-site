@@ -24,4 +24,16 @@ async function loadHome(){renderBriefs(fallbackBriefs);try{const r=await fetch('
 loadHome();
 </script>
 <script src="/scripts/hotbar.js?v=10" defer></script>
+<script>
+(function(){
+  function hide(){
+    document.querySelectorAll('.brief-card .tag').forEach(function(el){
+      var t=(el.textContent||'').trim().toLowerCase();
+      if(t==='pilne'||t==='breaking'||t==='urgent'||t==='alert') el.remove();
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hide);else hide();
+  setInterval(hide,250);
+})();
+</script>
 </body></html>

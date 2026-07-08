@@ -25,4 +25,16 @@ async function loadHome(){renderBriefs(fallbackBriefs);try{const r=await fetch('
 function hot(){const feed=document.querySelector('.source-feed');if(!feed)return;fetch('/data/hot_tweets.json?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():{items:[]}).then(data=>{feed.innerHTML=(data.items||[]).map(item=>{const title=item.title_pl||item.title_en||'';const sum=item.summary_pl||item.summary_en||'';const label=item.label_pl||item.label_en||'';const url=item.tweet_url||item.search_url||'https://x.com/explore';const img=item.image?'<div class="tweet-img"><img src="'+esc(item.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></div>':'';return '<a class="source-card hot-tweet" href="'+esc(url)+'" target="_blank" rel="noopener">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3><p>'+esc(sum)+'</p><span>Otwórz na X →</span></a>'}).join('')})}
 loadHome();hot();
 </script>
+<script>
+(function(){
+  function hide(){
+    document.querySelectorAll('.brief-card .tag').forEach(function(el){
+      var t=(el.textContent||'').trim().toLowerCase();
+      if(t==='pilne'||t==='breaking'||t==='urgent'||t==='alert') el.remove();
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hide);else hide();
+  setInterval(hide,250);
+})();
+</script>
 </body></html>
