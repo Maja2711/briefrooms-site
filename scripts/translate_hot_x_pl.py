@@ -16,7 +16,8 @@ from pathlib import Path
 PATH = Path("data/hot_tweets.json")
 EN_LEFT = re.compile(
     r"\b(the|with|despite|yields|steady|tensions|eyes on|study shows|market news|trade with|bond|crypto stash|tops|"
-    r"supports|trading|stablecoins|second-round|inflation fears|ruling party|Reuters|London|Berlin|Frankfurt|June|July)\b",
+    r"supports|trading|stablecoins|second-round|inflation fears|ruling party|Reuters|London|Berlin|Frankfurt|June|July|"
+    r"seeks public input|regulatory framework|public consultation)\b",
     re.I,
 )
 WIRE_PREFIX = re.compile(r"^(?:By\s+[A-Z][^–—-]{2,120}\s+)?(?:LONDON|BERLIN|FRANKFURT|NEW YORK|WASHINGTON|BRUSSELS),?\s+(?:Jan|Feb|Mar|Apr|May|Jun|June|Jul|July|Aug|Sep|Oct|Nov|Dec)[^–—-]{0,40}\s+\(Reuters\)\s*[-–—]\s*", re.I)
@@ -33,6 +34,10 @@ EXACT = {
     "Japan's ruling party supports crypto ETF trading, yen-based stablecoins": (
         "Japonia: partia rządząca popiera ETF-y krypto i stablecoiny w jenie",
         "Temat dotyczy propozycji japońskiej partii rządzącej, aby stworzyć ramy dla handlu ETF-ami opartymi na kryptowalutach i promować stablecoiny powiązane z jenem.",
+    ),
+    "SEC Seeks Public Input on New Crypto ETF Regulatory Framework": (
+        "SEC konsultuje nowe zasady dla ETF-ów krypto",
+        "Amerykańska SEC zbiera opinie rynku na temat nowych ram regulacyjnych dla ETF-ów krypto. Dyskusja na X dotyczy tego, jak przepisy mogą wpłynąć na inwestowanie w aktywa cyfrowe.",
     ),
     "Euro Zone Bond Yields Steady as Middle East Tensions Ease, Eyes on ECB": (
         "Rentowności obligacji strefy euro stabilne; rynek patrzy na ECB",
@@ -67,6 +72,11 @@ def fallback(item: dict) -> tuple[str, str]:
         return (
             "Handel i napięcia celne w centrum dyskusji",
             "Temat na X dotyczy relacji handlowych, ceł i możliwych decyzji politycznych. Link prowadzi do bieżącej dyskusji wokół tego newsa.",
+        )
+    if "sec" in blob and ("etf" in blob or "regulatory" in blob or "framework" in blob):
+        return (
+            "SEC i regulacje ETF-ów krypto",
+            "Temat na X dotyczy konsultacji regulacyjnych SEC wokół ETF-ów krypto. Link prowadzi do bieżącej dyskusji wokół tego newsa.",
         )
     if "crypto" in blob or "bitcoin" in blob or "stablecoin" in blob or "etf" in blob:
         return (
