@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/build_home_brief_pl.py"
       - "scripts/build_home_brief_en.py"
+      - "scripts/read_and_summarize_articles.py"
       - "scripts/enforce_brief_length.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
@@ -37,7 +38,16 @@ jobs:
         run: python scripts/build_home_brief_pl.py
 
       - name: Build English homepage brief JSON
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
         run: python scripts/build_home_brief_en.py
+
+      - name: Read source articles and summarise meaning
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+        run: python scripts/read_and_summarize_articles.py
 
       - name: Enforce article brief methodology
         run: python scripts/enforce_brief_length.py
