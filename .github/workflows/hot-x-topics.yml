@@ -9,6 +9,7 @@ on:
     paths:
       - "scripts/build_hot_x_en.py"
       - "scripts/update_hot_x_topics.py"
+      - "scripts/translate_hot_x_pl.py"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -32,6 +33,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: python scripts/build_hot_x_en.py
+
+      - name: Final PL language gate for Hot X
+        run: python scripts/translate_hot_x_pl.py
 
       - name: Commit Hot X topics
         run: |
