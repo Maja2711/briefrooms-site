@@ -6,7 +6,7 @@ BriefRooms editorial methodology for article briefs.
 One rule: extract the sense of the source article and summarise it. Article
 briefs should contain 3-6 source-derived sentences when enough source material
 is available. Do not pad the brief with generic category/source/meta sentences.
-Do not add unsupported facts.
+Do not build a brief from the title alone. Do not add unsupported facts.
 """
 
 from __future__ import annotations
@@ -62,25 +62,12 @@ def unique(sentences: list[str]) -> list[str]:
     return out
 
 
-def title_sense(item: dict, lang: str) -> list[str]:
-    title = clean(item.get("title") or "")
-    text = clean(" ".join(str(item.get(k) or "") for k in ("title", "summary", "details")))
-    if lang == "pl" and re.search(r"chersoń", text, re.I) and re.search(r"rosjanie.*bronią", text, re.I):
-        return [
-            "Materiał wskazuje, że sytuacja wokół Chersonia zmieniła układ działań wojennych.",
-            "Według tytułu opartego na Reutersie Rosjanie mają tam przechodzić do obrony.",
-            "Sednem sprawy jest zmiana inicjatywy: zamiast rosyjskiego natarcia opis dotyczy obrony zajmowanych pozycji.",
-        ]
-    return []
-
-
 def build_full_brief(item: dict, lang: str) -> str:
     material = " ".join(clean(item.get(k) or "") for k in ("full_brief", "details", "summary", "why"))
     sentences = unique(split_sentences(material))
-    if len(sentences) < 3:
-        sentences = unique(sentences + title_sense(item, lang))
-    # No generic padding. If the feed has only one or two real sentences, keep
-    # only those until the generator can extract a richer source text.
+    # No generic padding and no title-only fallback. If the article text was not
+    # readable and the feed gives too little material, keep only real source text
+    # until the reader can extract a richer article body.
     return " ".join(sentences[:6])
 
 
@@ -100,8 +87,8 @@ def process_file(path: Path, lang: str) -> bool:
                 changed = True
     if changed:
         data["brief_methodology"] = {
-            "pl": "Jedna zasada: wyciągnąć sens z artykułu i zrobić podsumowanie. Brief ma mieć 3–6 zdań, gdy dostępny materiał źródłowy na to pozwala. Nie wolno dopisywać ogólników o kategorii, źródle ani pełnym artykule.",
-            "en": "One rule: extract the meaning of the article and summarise it. The brief should contain 3–6 sentences when the available source material supports it. Do not add generic category, source or full-article filler.",
+            "pl": "Jedna zasada: przeczytać dostępny tekst artykułu i streścić jego sens. Brief ma mieć 3–6 zdań, gdy materiał źródłowy na to pozwala. Nie wolno budować komentarza z samego tytułu ani dopisywać ogólników o kategorii, źródle czy pełnym artykule.",
+            "en": "One rule: read the available article text and summarise its meaning. The brief should contain 3–6 sentences when the source material supports it. Do not build comments from the title alone or add generic category, source or full-article filler.",
         }
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return changed
