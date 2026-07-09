@@ -23,7 +23,7 @@ function renderBriefs(items){document.getElementById('latest-briefs').innerHTML=
 async function loadHome(){renderBriefs(fallbackBriefs);try{const r=await fetch('/en/home_brief.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const data=await r.json();if(data.updated_at){document.getElementById('updated-at').textContent='Update: '+new Date(data.updated_at).toLocaleDateString('en-GB',{dateStyle:'short'});}const latest=Array.isArray(data.latest)?data.latest:[];const radar=Array.isArray(data.radar)?data.radar:[];const combined=uniqueByLink([...latest,...radar]);if(combined.length)renderBriefs(combined);}catch(e){document.getElementById('updated-at').textContent='Update: no data';}}
 loadHome();
 </script>
-<script src="/scripts/hotbar.js?v=10" defer></script>
+
 <script>
 (function(){
   function hide(){
