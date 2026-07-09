@@ -2,7 +2,8 @@
 """Static quality guard for generated BriefRooms pages.
 
 Runs after manual fixes or automated generators. It removes generic AI boilerplate
-from already-generated news HTML and makes home pages readable without JS.
+from already-generated news HTML, makes home pages readable without JS, and keeps
+Hot X links clearly described as X source links.
 """
 from pathlib import Path
 import re
@@ -62,9 +63,10 @@ def fix_home_pl() -> None:
     fallback = '''<a class="brief-card" href="/pl/aktualnosci.html"><div class="thumb"><div class="fallback-art">BR</div><span class="tag">Aktualności</span></div><div class="brief-body"><h3 class="brief-title">Najnowsze briefy odświeżają się automatycznie</h3><p class="brief-desc">Otwórz pokój Aktualności, żeby zobaczyć aktualne briefy z linkami do źródeł. Karty uzupełnią się po wczytaniu home_brief.json.</p><span class="brief-source"><b>BriefRooms</b><span class="brief-link">Otwórz aktualności →</span></span></div></a>'''
     html = html.replace('Aktualizacja: ładowanie…', 'Aktualizacja: najnowsze briefy')
     html = html.replace('<div id="latest-briefs" class="brief-grid"></div>', f'<div id="latest-briefs" class="brief-grid">{fallback}</div>')
+    html = html.replace('Otwórz na X →', 'Źródło na X →')
     if html != before:
         write(path, html)
-        print(f"fixed no-JS fallback in {path}")
+        print(f"fixed no-JS/hot-x labels in {path}")
 
 
 def main() -> None:
