@@ -10,6 +10,7 @@ on:
       - "scripts/build_hot_x_en.py"
       - "scripts/update_hot_x_topics.py"
       - "scripts/translate_hot_x_pl.py"
+      - "scripts/hot_x_post_guard.py"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -36,6 +37,11 @@ jobs:
 
       - name: Final PL language gate for Hot X
         run: python scripts/translate_hot_x_pl.py
+
+      - name: Prefer full X post text and source links
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+        run: python scripts/hot_x_post_guard.py
 
       - name: Commit Hot X topics
         run: |
