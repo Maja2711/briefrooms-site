@@ -11,6 +11,7 @@ on:
       - "scripts/update_hot_x_topics.py"
       - "scripts/translate_hot_x_pl.py"
       - "scripts/hot_x_post_guard.py"
+      - "scripts/hot_x_force_x_api.py"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -37,6 +38,11 @@ jobs:
 
       - name: Final PL language gate for Hot X
         run: python scripts/translate_hot_x_pl.py
+
+      - name: Fetch exact X posts directly
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+        run: python scripts/hot_x_force_x_api.py
 
       - name: Prefer full X post text and source links
         env:
