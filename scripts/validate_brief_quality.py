@@ -30,12 +30,16 @@ REPLACEMENTS = {
 }
 MOJIBAKE = re.compile(r"[ÅÄÃÂâ€\x80-\x9f]")
 BROKEN_PL = re.compile(
-    r"\b(?:rz du|mwi|m wi|koz w|bd\b|b d|obowi zek|rozwi za|dotycz cych|"
-    r"wiadcze|p ac|kilkadziesi t|przed ministr\b|ochron zdrowia|szukanie koz w|"
-    r"zosta y|zosta o|przekaza a|podkre li|mo liwo|g os|ród o|w ród|"
+    r"\b(?:wygl da|zatrzyma si|wy cznie|w rod|poinformowa|wyl dowaniu|znajdowa si|ju wcze?niej|"
+    r"katarczyk\w*|zaznaczy, e|zostaa|wysana|zgodnie z prob|caej|za czam|zdjcie|przesiad si|"
+    r"pokadzie|ktrej|wrci|stanw|rdo|moliwo|operacj|przewodnicz cy|wyjani|zagraaj cym|yciu|"
+    r"dziaania|urzd\w*|poudniow\w*|ledztw\w*|konkretw|projektw|aktw|caociow\w*|zupenie|"
+    r"wiadcze|mo liwo|tumaczy|rnych|dostpn\w*|okrelenie|wraenie|e mamy|jak alternatyw|udowodnienie, e|"
+    r"co dziaa|mudna droga|probwki|zwierztach|ludziach|porwnawcze|wyleczony t metod|"
+    r"rz du|mwi|m wi|koz w|bd\b|b d|obowi zek|rozwi za|dotycz cych|p ac|kilkadziesi t|"
+    r"przed ministr\b|ochron zdrowia|szukanie koz w|zosta y|zosta o|przekaza a|podkre li|g os|w ród|"
     r"niektrz|take nie|tak e|takze niektr|poko sie|pok osie|pokłosie ultimatum postawionego|"
-    r"odpowiada za konkretne sytuacje w konkretnych szpitalach|"
-    r"Å|Ä|Ã|Â|â)\b",
+    r"odpowiada za konkretne sytuacje w konkretnych szpitalach|Å|Ä|Ã|Â|â)\b",
     re.I,
 )
 BAD_START_PL = re.compile(
@@ -55,6 +59,8 @@ BAD_FRAGMENT = re.compile(
     r"the source is|full context|main signal belongs",
     re.I,
 )
+PL_MARKS = re.compile(r"[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]")
+PL_WORDS = re.compile(r"\b(?:że|się|który|która|które|źródło|zdjęcie|został|została|mógł|może|również|już|wcześniej)\b", re.I)
 
 
 def repair(text: str) -> str:
@@ -65,13 +71,25 @@ def repair(text: str) -> str:
     return out
 
 
+def looks_broken_pl(text: str) -> bool:
+    s = repair(text)
+    if BROKEN_PL.search(s):
+        return True
+    # Long Polish article text without a single Polish diacritic is usually a stripped/decoded body, not publishable Polish.
+    if len(s) > 180 and not PL_MARKS.search(s) and re.search(r"\b(jest|oraz|któ|kt|przez|zosta|będzie|polsk|prezydent|szpital|minister|rynek)\b", s, re.I):
+        return True
+    # Many short Polish words with missing diacritics: "si", "e", "ktre", "rdo".
+    bad_tokens = len(re.findall(r"\b(?:si|e|ktre|ktra|ktry|rdo|ju|te|moe|bdzie|wicej|zosta|zostaa|jeli)\b", s, re.I))
+    return bad_tokens >= 3
+
+
 def split_sentences(text: str) -> list[str]:
     text = repair(text).replace("…", ".")
     parts = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
     out = []
     for part in parts:
         s = repair(part)
-        if s and s[-1] not in ".!?":
+        if s and s[-1] not in ".!?:":
             s += "."
         if s:
             out.append(s)
@@ -85,7 +103,7 @@ def sentence_ok(sentence: str, lang: str) -> bool:
     if MOJIBAKE.search(s) or BAD_FRAGMENT.search(s):
         return False
     if lang == "pl":
-        if BROKEN_PL.search(s) or BAD_START_PL.search(s):
+        if looks_broken_pl(s) or BAD_START_PL.search(s):
             return False
         if not re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9„\"'’]", s):
             return False
@@ -98,6 +116,8 @@ def sentence_ok(sentence: str, lang: str) -> bool:
 
 
 def clean_sentences(text: str, lang: str) -> list[str]:
+    if lang == "pl" and looks_broken_pl(text):
+        return []
     good = []
     seen = set()
     for s in split_sentences(text):
@@ -132,7 +152,6 @@ def process(path: Path, lang: str) -> bool:
                         item[plain_key] = fixed
                         changed = True
 
-            # Homepage card summary may be short, but it still must be clean.
             if isinstance(item.get("summary"), str):
                 cleaned = clean_comment(item["summary"], lang, max_sentences=2, min_sentences=1)
                 if cleaned:
@@ -143,7 +162,6 @@ def process(path: Path, lang: str) -> bool:
                     item.pop("summary", None)
                     changed = True
 
-            # Article-page text must be a real comment: 3-6 clean sentences.
             for key in ("details", "full_brief"):
                 old = item.get(key)
                 if not isinstance(old, str):
@@ -163,7 +181,7 @@ def process(path: Path, lang: str) -> bool:
                 item["comment_quality_status"] = "no_clean_article_comment_available"
                 changed = True
     data["comment_quality_gate"] = {
-        "pl": "Przed publikacją komentarz jest sprawdzany. Komentarz pod artykułem musi mieć 3–6 zdań, być gramatyczny, logiczny i zrozumiały. Jeśli zawiera krzaki kodowania, urwane polskie słowa, fragmenty redakcyjne, nielogiczny początek albo mniej niż 3 czyste zdania, nie jest wklejany.",
+        "pl": "Przed publikacją komentarz jest sprawdzany. Komentarz pod artykułem musi mieć 3–6 zdań, być gramatyczny, logiczny i zrozumiały. Jeśli zawiera krzaki kodowania, brakujące polskie znaki, urwane polskie słowa, fragmenty redakcyjne, nielogiczny początek albo mniej niż 3 czyste zdania, nie jest wklejany.",
         "en": "Before publication, every article comment is checked. It must have 3–6 sentences and be grammatical, logical and understandable. If it contains mojibake, clipped words, editorial fragments, an illogical start or fewer than 3 clean sentences, it is not inserted.",
         "min_article_sentences": MIN_ARTICLE_SENTENCES,
         "max_article_sentences": MAX_ARTICLE_SENTENCES,
