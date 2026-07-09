@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 """Hot X post quality guard.
 
-Visible rule:
-- If a real X post is available, show the full post when it is short.
-- If the post is long, show a concise summary/excerpt.
-- Keep the public card linked to the concrete X post whenever possible.
-- If no concrete post is available, keep an exact X search link and show a useful
-  source/news summary instead of generic filler.
+Rule for real X posts:
+- Keep the exact post text 1:1 in x_post_text_raw / x_post_text.
+- Do not translate, clean, strip t.co links, normalize whitespace or summarize it.
+- The front-end decides whether to collapse/expand long text, but the stored text
+  remains complete.
 """
 from __future__ import annotations
 
@@ -20,25 +19,20 @@ from pathlib import Path
 from typing import Any
 
 PATH = Path("data/hot_tweets.json")
-SHORT_POST_LIMIT = 520
-LONG_SUMMARY_LIMIT = 360
-TCO_RE = re.compile(r"https?://t\.co/\S+", re.I)
-WS_RE = re.compile(r"\s+")
 GENERIC_RE = re.compile(r"rotating hot x topic|rotacyjny hot x topic|monitorowany jest konkretny news|pełny wątek otwiera link", re.I)
 WIRE_RE = re.compile(r"^(?:By\s+[A-Z][^–—-]{2,120}\s+)?(?:LONDON|BERLIN|FRANKFURT|NEW YORK|WASHINGTON|BRUSSELS|SAN FRANCISCO),?\s+(?:Jan|Feb|Mar|Apr|May|Jun|June|Jul|July|Aug|Sep|Oct|Nov|Dec)[^–—-]{0,60}\s+\(Reuters\)\s*[-–—]\s*", re.I)
+WS_RE = re.compile(r"\s+")
 
 
-def clean(text: str) -> str:
+def clean_source_text(text: str) -> str:
     text = str(text or "").replace("\u2060", " ")
     text = re.sub(r"<[^>]+>", " ", text)
-    text = TCO_RE.sub("", text)
     text = WIRE_RE.sub("", text)
-    text = WS_RE.sub(" ", text).strip(" -–—")
-    return text
+    return WS_RE.sub(" ", text).strip(" -–—")
 
 
-def clip(text: str, limit: int) -> str:
-    text = clean(text)
+def clip(text: str, limit: int = 360) -> str:
+    text = clean_source_text(text)
     if len(text) <= limit:
         return text
     return text[: limit - 1].rsplit(" ", 1)[0].rstrip(".,;: ") + "…"
@@ -64,7 +58,7 @@ def fetch_x_texts(ids: list[str]) -> dict[str, str]:
     })
     req = urllib.request.Request(
         "https://api.x.com/2/tweets?" + params,
-        headers={"Authorization": f"Bearer {token}", "User-Agent": "BriefRoomsHotXPostGuard/1.0"},
+        headers={"Authorization": f"Bearer {token}", "User-Agent": "BriefRoomsHotXPostGuard/2.0"},
     )
     try:
         with urllib.request.urlopen(req, timeout=25) as r:
@@ -76,26 +70,12 @@ def fetch_x_texts(ids: list[str]) -> dict[str, str]:
     for t in data.get("data") or []:
         text = ((t.get("note_tweet") or {}).get("text") or t.get("text") or "")
         if text:
-            out[str(t.get("id"))] = clean(text)
+            out[str(t.get("id"))] = str(text)
     return out
 
 
 def blob(item: dict[str, Any]) -> str:
     return " ".join(str(item.get(k, "")) for k in ("title_en", "summary_en", "label_en", "category")).lower()
-
-
-def polish_title(item: dict[str, Any]) -> str:
-    label = str(item.get("label_pl") or item.get("category") or "temat").lower()
-    if item.get("tweet_url"):
-        return f"Post z X: {label}"
-    return pl_source_title(item)
-
-
-def english_title(item: dict[str, Any]) -> str:
-    label = str(item.get("label_en") or item.get("category") or "topic")
-    if item.get("tweet_url"):
-        return f"X post: {label}"
-    return str(item.get("title_en") or item.get("title_pl") or f"X topic: {label}")
 
 
 def pl_source_title(item: dict[str, Any]) -> str:
@@ -130,40 +110,34 @@ def pl_source_summary(item: dict[str, Any], en_summary: str) -> str:
         return "Streszczenie źródła/X: Temat dotyczy rynku krypto, przepływów, regulacji lub nastrojów wokół głównych aktywów cyfrowych. Link prowadzi do źródeł na X."
     if "china" in b or "tariff" in b or "trade" in b:
         return "Streszczenie źródła/X: Temat dotyczy handlu, ceł lub relacji gospodarczych z Chinami. Link prowadzi do bieżących źródeł i dyskusji na X."
-    label = str(item.get("label_pl") or "temat").lower()
     if en_summary:
         return f"Streszczenie źródła/X: {en_summary}"
+    label = str(item.get("label_pl") or "temat").lower()
     return f"Streszczenie źródła/X: monitorowany jest konkretny temat z kategorii {label}. Link prowadzi do źródła lub dokładnego wyszukiwania na X."
 
 
-def set_x_post_comment(item: dict[str, Any], post_text: str) -> None:
-    post = clean(post_text)
-    if not post:
-        return
-    item["x_post_text"] = post
-    item["title_en"] = english_title(item)
-    item["title_pl"] = polish_title(item)
-    if len(post) <= SHORT_POST_LIMIT:
-        item["summary_en"] = f"X post: {post}"
-        item["summary_pl"] = f"Post z X — oryginał: {post}"
-        item["hot_x_comment_mode"] = "full_x_post"
-    else:
-        excerpt = clip(post, LONG_SUMMARY_LIMIT)
-        item["summary_en"] = f"Summary of X post: {excerpt}"
-        item["summary_pl"] = f"Streszczenie posta z X: {excerpt}"
-        item["hot_x_comment_mode"] = "x_post_summary"
+def set_exact_x_post(item: dict[str, Any], raw_post: str) -> None:
+    # Exact copy only: no cleanup, no trimming, no translation.
+    item["x_post_text_raw"] = raw_post
+    item["x_post_text"] = raw_post
+    label_en = str(item.get("label_en") or "X")
+    label_pl = str(item.get("label_pl") or "X").lower()
+    item["title_en"] = f"X post: {label_en}"
+    item["title_pl"] = f"Post z X: {label_pl}"
+    item["summary_en"] = raw_post
+    item["summary_pl"] = raw_post
+    item["hot_x_comment_mode"] = "exact_full_x_post"
+    item["hot_x_source_rule"] = "tweet_url_is_primary_source"
     item["source_en"] = item.get("source_en") or "X"
     item["source_pl"] = item.get("source_pl") or "X"
-    item["hot_x_source_rule"] = "tweet_url_is_primary_source"
 
 
 def set_x_search_comment(item: dict[str, Any]) -> None:
-    summary_en = clean(item.get("summary_en") or "")
-    title_en = clean(item.get("title_en") or "")
+    summary_en = clean_source_text(item.get("summary_en") or "")
+    title_en = clean_source_text(item.get("title_en") or "")
     if not summary_en or GENERIC_RE.search(summary_en):
         summary_en = title_en
     summary_en = clip(summary_en, 360)
-
     item["title_pl"] = pl_source_title(item)
     item["summary_pl"] = pl_source_summary(item, summary_en)
     item["summary_en"] = "Summary: " + re.sub(r"^Summary:\s*", "", summary_en, flags=re.I)
@@ -184,20 +158,20 @@ def process() -> bool:
     fetched = fetch_x_texts(tweet_ids(items))
 
     for item in items:
-        post = clean(item.get("x_post_text") or "")
-        if not post:
+        raw_post = str(item.get("x_post_text_raw") or item.get("x_post_text") or "")
+        if not raw_post:
             url = str(item.get("tweet_url") or "")
             m = re.search(r"/status/(\d+)", url)
             if m:
-                post = fetched.get(m.group(1), "") or clean(item.get("summary_en") or "")
-        if item.get("tweet_url") and post:
-            set_x_post_comment(item, post)
+                raw_post = fetched.get(m.group(1), "")
+        if item.get("tweet_url") and raw_post:
+            set_exact_x_post(item, raw_post)
         else:
             set_x_search_comment(item)
 
-    data["method_pl"] = "Hot X: priorytetem jest pełny tekst posta z X, jeśli jest dostępny i niedługi. Przy dłuższym poście pokazujemy streszczenie. Karta prowadzi do posta na X albo do dokładnego wyszukiwania źródła na X."
-    data["method_en"] = "Hot X: the full X post is prioritized when available and short. Longer posts are summarized. The card links to the X post or an exact X source search."
-    data["hot_x_comment_policy"] = "prefer_full_x_post_else_summary_else_exact_x_search"
+    data["method_pl"] = "Hot X: jeśli jest konkretny post z X, zapisujemy i pokazujemy pełny tekst 1:1. Długi post jest zwinięty wizualnie, ale po kliknięciu Rozwiń cały post użytkownik czyta całość. Bez konkretnego posta pokazujemy dokładny link do źródła na X."
+    data["method_en"] = "Hot X: if a concrete X post is available, the full text is stored and shown 1:1. Long posts are visually collapsed, but Expand full post reveals the complete text. Without a concrete post, an exact X source link is shown."
+    data["hot_x_comment_policy"] = "exact_full_x_post_1to1_else_x_source_search"
 
     after = json.dumps(data, ensure_ascii=False, sort_keys=True)
     if after != before:
@@ -207,4 +181,4 @@ def process() -> bool:
 
 
 if __name__ == "__main__":
-    print("Hot X comments/source links updated" if process() else "Hot X comments already OK")
+    print("Hot X exact post text applied" if process() else "Hot X already OK")
