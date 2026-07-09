@@ -14,16 +14,14 @@
   function labels(){
     var pl = lang() === 'pl';
     return {
-      source: pl ? 'Źródło na X →' : 'Source on X →',
+      source: pl ? 'Szukaj tego na X →' : 'Search this on X →',
       expand: pl ? 'Rozwiń cały post' : 'Expand full post',
       original: pl ? 'Post z X — oryginał' : 'X post — original',
-      summary: pl ? 'Streszczenie źródła/X' : 'Source/X summary'
+      summary: pl ? 'Streszczenie tematu / X' : 'Topic / X summary'
     };
   }
 
   function exactPostText(item){
-    // This is intentionally not cleaned, rewritten, translated, summarized or normalized.
-    // It must remain the X text as received from the data pipeline.
     return String(item.x_post_text_raw || item.x_post_text || '');
   }
 
@@ -36,13 +34,10 @@
     var exact = exactPostText(item);
     if(exact){
       if(exact.length > 420){
-        return '<p class="hot-x-mode">'+esc(L.original)+'</p>'+
-          '<p class="hot-x-text">'+esc(previewText(exact, 420))+'</p>'+
-          '<details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
+        return '<p class="hot-x-mode">'+esc(L.original)+'</p>'+ '<p class="hot-x-text">'+esc(previewText(exact, 420))+'</p>'+ '<details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
       }
       return '<p class="hot-x-mode">'+esc(L.original)+'</p><pre class="hot-x-full hot-x-short">'+esc(exact)+'</pre>';
     }
-
     var isPl = lang() === 'pl';
     var summary = String((isPl ? item.summary_pl : item.summary_en) || item.summary_pl || item.summary_en || '');
     return '<p class="hot-x-mode">'+esc(L.summary)+'</p><p class="hot-x-text">'+esc(summary)+'</p>';
@@ -56,13 +51,10 @@
     feed.innerHTML = (items || []).map(function(item){
       var title = String((isPl ? item.title_pl : item.title_en) || item.title_pl || item.title_en || 'Hot X');
       var label = String((isPl ? item.label_pl : item.label_en) || item.label_pl || item.label_en || 'X');
-      var url = String(item.tweet_url || item.search_url || 'https://x.com/explore');
+      var url = String(item.tweet_url || item.search_url || 'https://x.com/search?q=BriefRooms&src=typed_query&f=top');
       var img = item.image ? '<div class="tweet-img"><img src="'+esc(item.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></div>' : '';
       return '<article class="source-card hot-tweet hot-x-card">'+
-        '<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+
-        renderText(item, L)+
-        '<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(L.source)+'</a>'+
-      '</article>';
+        '<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+ renderText(item, L)+ '<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(L.source)+'</a>'+ '</article>';
     }).join('');
   }
 
