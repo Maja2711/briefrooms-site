@@ -3,7 +3,7 @@
 
 Runs after manual fixes or automated generators. It removes generic AI boilerplate
 from already-generated news HTML, makes home pages readable without JS, and keeps
-Hot X rendered by the exact-post renderer.
+Hot X rendered only by the exact-post renderer.
 """
 from pathlib import Path
 import re
@@ -36,6 +36,8 @@ def strip_generic_news(path: str, why_label: str) -> None:
 
 
 def inject_hot_x_renderer(html: str) -> str:
+    html = html.replace('loadHome();hot();', 'loadHome();')
+    html = html.replace('<script src="/scripts/hotbar.js?v=10" defer></script>', '')
     if HOT_X_SCRIPT in html:
         return html
     if '</body>' in html:
