@@ -14,10 +14,10 @@
   function labels(){
     var pl = lang() === 'pl';
     return {
-      source: pl ? 'Szukaj tego na X →' : 'Search this on X →',
+      source: pl ? 'Szukaj na X →' : 'Search on X →',
       expand: pl ? 'Rozwiń cały post' : 'Expand full post',
       original: pl ? 'Post z X — oryginał' : 'X post — original',
-      summary: pl ? 'Streszczenie tematu / X' : 'Topic / X summary'
+      summary: pl ? 'Co sprawdzić na X' : 'What to check on X'
     };
   }
 
