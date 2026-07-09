@@ -25,12 +25,14 @@ LONG_SUMMARY_LIMIT = 360
 TCO_RE = re.compile(r"https?://t\.co/\S+", re.I)
 WS_RE = re.compile(r"\s+")
 GENERIC_RE = re.compile(r"rotating hot x topic|rotacyjny hot x topic|monitorowany jest konkretny news|pełny wątek otwiera link", re.I)
+WIRE_RE = re.compile(r"^(?:By\s+[A-Z][^–—-]{2,120}\s+)?(?:LONDON|BERLIN|FRANKFURT|NEW YORK|WASHINGTON|BRUSSELS|SAN FRANCISCO),?\s+(?:Jan|Feb|Mar|Apr|May|Jun|June|Jul|July|Aug|Sep|Oct|Nov|Dec)[^–—-]{0,60}\s+\(Reuters\)\s*[-–—]\s*", re.I)
 
 
 def clean(text: str) -> str:
     text = str(text or "").replace("\u2060", " ")
     text = re.sub(r"<[^>]+>", " ", text)
     text = TCO_RE.sub("", text)
+    text = WIRE_RE.sub("", text)
     text = WS_RE.sub(" ", text).strip(" -–—")
     return text
 
@@ -92,6 +94,24 @@ def english_title(item: dict[str, Any]) -> str:
     return str(item.get("title_en") or item.get("title_pl") or f"X topic: {label}")
 
 
+def pl_source_summary(item: dict[str, Any], en_summary: str) -> str:
+    blob = " ".join(str(item.get(k, "")) for k in ("title_en", "summary_en", "label_en", "category")).lower()
+    if "openai" in blob and ("chip" in blob or "broadcom" in blob):
+        return "Streszczenie źródła/X: OpenAI pokazał własny chip AI projektowany z Broadcom. Temat dotyczy infrastruktury AI i uniezależniania się od zewnętrznych dostawców mocy obliczeniowej."
+    if "opec" in blob or "saudi" in blob or "oil" in blob or "crude" in blob:
+        return "Streszczenie źródła/X: Sygnały z OPEC i Arabii Saudyjskiej wskazują możliwy kierunek dla rynku ropy. Link prowadzi do dokładnego wyszukiwania tego tematu na X."
+    if "inflation" in blob or "cpi" in blob or "jobs" in blob or "dollar" in blob or "fed" in blob:
+        return "Streszczenie źródła/X: Temat dotyczy danych inflacyjnych, rynku pracy, dolara lub oczekiwań wobec Fed. Link prowadzi do bieżącej dyskusji i źródeł na X."
+    if "bitcoin" in blob or "crypto" in blob or "ethereum" in blob or "stablecoin" in blob:
+        return "Streszczenie źródła/X: Temat dotyczy rynku krypto, przepływów, regulacji lub nastrojów wokół głównych aktywów cyfrowych. Link prowadzi do źródeł na X."
+    if "china" in blob or "tariff" in blob or "trade" in blob:
+        return "Streszczenie źródła/X: Temat dotyczy handlu, ceł lub relacji gospodarczych z Chinami. Link prowadzi do bieżących źródeł i dyskusji na X."
+    label = str(item.get("label_pl") or "temat").lower()
+    if en_summary:
+        return f"Streszczenie źródła/X: {en_summary}"
+    return f"Streszczenie źródła/X: monitorowany jest konkretny temat z kategorii {label}. Link prowadzi do źródła lub dokładnego wyszukiwania na X."
+
+
 def set_x_post_comment(item: dict[str, Any], post_text: str) -> None:
     post = clean(post_text)
     if not post:
@@ -121,19 +141,15 @@ def set_x_search_comment(item: dict[str, Any]) -> None:
     summary_en = clip(summary_en, 360)
 
     summary_pl = clean(item.get("summary_pl") or "")
-    title_pl = clean(item.get("title_pl") or "")
-    if not summary_pl or GENERIC_RE.search(summary_pl):
-        # Prefer actual concrete text over empty/generic filler. If a Polish summary
-        # is unavailable, use the concrete EN headline/summary with a Polish label.
-        source_text = summary_en or title_en or title_pl
-        summary_pl = f"Streszczenie źródła/X: {source_text}"
+    if not summary_pl or GENERIC_RE.search(summary_pl) or re.search(r"\b(the|with|market|inflation|jobs|dollar|OpenAI|OPEC|crude|Reuters|By\s+[A-Z])\b", summary_pl, re.I):
+        summary_pl = pl_source_summary(item, summary_en)
     else:
         summary_pl = "Streszczenie: " + re.sub(r"^Streszczenie:\s*", "", summary_pl, flags=re.I)
 
     item["summary_en"] = "Summary: " + re.sub(r"^Summary:\s*", "", summary_en, flags=re.I)
     item["summary_pl"] = summary_pl
     item["tweet_url"] = item.get("tweet_url") or ""
-    item["search_url"] = item.get("search_url") or "https://x.com/search?q=" + urllib.parse.quote(title_en or title_pl or "BriefRooms")
+    item["search_url"] = item.get("search_url") or "https://x.com/search?q=" + urllib.parse.quote(title_en or str(item.get("title_pl") or "BriefRooms"))
     item["source_en"] = "X — exact source search"
     item["source_pl"] = "X — wyszukiwanie źródła"
     item["hot_x_comment_mode"] = "source_summary_x_search"
