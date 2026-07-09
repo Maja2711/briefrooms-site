@@ -49,7 +49,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if [[ -n "$(git status --porcelain en/news.html .cache/news_summaries_en.json .cache/ai_cache_en.json)" ]]; then
             git add en/news.html .cache/news_summaries_en.json .cache/ai_cache_en.json
-            git commit -m "chore(news-en): update contextual EN news"
+            git commit -m "chore(news-en): update plain-summary EN news"
+            git pull --rebase origin main
             git push
           else
             echo "No EN news changes to commit."
