@@ -35,7 +35,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install feedparser python-dateutil requests
 
-      - name: Generate PL Aktualności (deep contextual PL content + hotbar JSON)
+      - name: Generate PL Aktualności (plain summaries + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
@@ -53,7 +53,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No PL news changes to commit."
           else
-            git commit -m "chore(news-pl): update deep contextual PL news"
+            git commit -m "chore(news-pl): update plain-summary PL news"
             # Zabezpieczenie przed odrzuceniem push, gdy main zmienił się w międzyczasie.
             git pull --rebase origin main
             git push
