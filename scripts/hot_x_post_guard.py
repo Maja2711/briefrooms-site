@@ -80,11 +80,15 @@ def fetch_x_texts(ids: list[str]) -> dict[str, str]:
     return out
 
 
+def blob(item: dict[str, Any]) -> str:
+    return " ".join(str(item.get(k, "")) for k in ("title_en", "summary_en", "label_en", "category")).lower()
+
+
 def polish_title(item: dict[str, Any]) -> str:
     label = str(item.get("label_pl") or item.get("category") or "temat").lower()
     if item.get("tweet_url"):
         return f"Post z X: {label}"
-    return str(item.get("title_pl") or item.get("title_en") or f"Temat z X: {label}")
+    return pl_source_title(item)
 
 
 def english_title(item: dict[str, Any]) -> str:
@@ -94,17 +98,37 @@ def english_title(item: dict[str, Any]) -> str:
     return str(item.get("title_en") or item.get("title_pl") or f"X topic: {label}")
 
 
+def pl_source_title(item: dict[str, Any]) -> str:
+    b = blob(item)
+    if "openai" in b and ("chip" in b or "broadcom" in b):
+        return "OpenAI pokazuje własny chip AI"
+    if "opec" in b or "saudi" in b or "oil" in b or "crude" in b:
+        return "OPEC i sygnał dla rynku ropy"
+    if "ai rally" in b or ("cpi" in b and "jobs" in b):
+        return "USA: CPI i rynek pracy testem dla rajdu AI"
+    if "inflation" in b or "cpi" in b or "jobs" in b or "dollar" in b or "fed" in b:
+        return "Inflacja, rynek pracy i reakcja dolara"
+    if "bitcoin" in b or "crypto" in b or "ethereum" in b or "stablecoin" in b:
+        return "Rynek krypto: najważniejszy temat z X"
+    if "china" in b or "tariff" in b or "trade" in b:
+        return "Handel, cła i Chiny w centrum dyskusji"
+    label = str(item.get("label_pl") or "temat").lower()
+    return f"Temat z X: {label}"
+
+
 def pl_source_summary(item: dict[str, Any], en_summary: str) -> str:
-    blob = " ".join(str(item.get(k, "")) for k in ("title_en", "summary_en", "label_en", "category")).lower()
-    if "openai" in blob and ("chip" in blob or "broadcom" in blob):
+    b = blob(item)
+    if "openai" in b and ("chip" in b or "broadcom" in b):
         return "Streszczenie źródła/X: OpenAI pokazał własny chip AI projektowany z Broadcom. Temat dotyczy infrastruktury AI i uniezależniania się od zewnętrznych dostawców mocy obliczeniowej."
-    if "opec" in blob or "saudi" in blob or "oil" in blob or "crude" in blob:
+    if "opec" in b or "saudi" in b or "oil" in b or "crude" in b:
         return "Streszczenie źródła/X: Sygnały z OPEC i Arabii Saudyjskiej wskazują możliwy kierunek dla rynku ropy. Link prowadzi do dokładnego wyszukiwania tego tematu na X."
-    if "inflation" in blob or "cpi" in blob or "jobs" in blob or "dollar" in blob or "fed" in blob:
+    if "ai rally" in b or ("cpi" in b and "jobs" in b):
+        return "Streszczenie źródła/X: Po słabym raporcie z rynku pracy inwestorzy patrzą na dane CPI z USA. Temat dotyczy reakcji rynku akcji, spółek technologicznych i rajdu AI."
+    if "inflation" in b or "cpi" in b or "jobs" in b or "dollar" in b or "fed" in b:
         return "Streszczenie źródła/X: Temat dotyczy danych inflacyjnych, rynku pracy, dolara lub oczekiwań wobec Fed. Link prowadzi do bieżącej dyskusji i źródeł na X."
-    if "bitcoin" in blob or "crypto" in blob or "ethereum" in blob or "stablecoin" in blob:
+    if "bitcoin" in b or "crypto" in b or "ethereum" in b or "stablecoin" in b:
         return "Streszczenie źródła/X: Temat dotyczy rynku krypto, przepływów, regulacji lub nastrojów wokół głównych aktywów cyfrowych. Link prowadzi do źródeł na X."
-    if "china" in blob or "tariff" in blob or "trade" in blob:
+    if "china" in b or "tariff" in b or "trade" in b:
         return "Streszczenie źródła/X: Temat dotyczy handlu, ceł lub relacji gospodarczych z Chinami. Link prowadzi do bieżących źródeł i dyskusji na X."
     label = str(item.get("label_pl") or "temat").lower()
     if en_summary:
@@ -140,14 +164,9 @@ def set_x_search_comment(item: dict[str, Any]) -> None:
         summary_en = title_en
     summary_en = clip(summary_en, 360)
 
-    summary_pl = clean(item.get("summary_pl") or "")
-    if not summary_pl or GENERIC_RE.search(summary_pl) or re.search(r"\b(the|with|market|inflation|jobs|dollar|OpenAI|OPEC|crude|Reuters|By\s+[A-Z])\b", summary_pl, re.I):
-        summary_pl = pl_source_summary(item, summary_en)
-    else:
-        summary_pl = "Streszczenie: " + re.sub(r"^Streszczenie:\s*", "", summary_pl, flags=re.I)
-
+    item["title_pl"] = pl_source_title(item)
+    item["summary_pl"] = pl_source_summary(item, summary_en)
     item["summary_en"] = "Summary: " + re.sub(r"^Summary:\s*", "", summary_en, flags=re.I)
-    item["summary_pl"] = summary_pl
     item["tweet_url"] = item.get("tweet_url") or ""
     item["search_url"] = item.get("search_url") or "https://x.com/search?q=" + urllib.parse.quote(title_en or str(item.get("title_pl") or "BriefRooms"))
     item["source_en"] = "X — exact source search"
