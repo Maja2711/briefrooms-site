@@ -17,7 +17,7 @@
       source: pl ? 'Otwórz post na X →' : 'Open X post →',
       expand: pl ? 'Rozwiń cały post' : 'Expand full post',
       original: pl ? 'Post z X — oryginał' : 'X post — original',
-      summary: pl ? 'Opis redakcyjny' : 'Editorial note'
+      summary: pl ? 'Brief' : 'Brief'
     };
   }
 
@@ -38,9 +38,7 @@
     var exact = exactPostText(item);
     if(exact){
       if(exact.length > 420){
-        return '<p class="hot-x-mode">'+esc(L.original)+'</p>'+
-          '<p class="hot-x-text">'+esc(previewText(exact, 420))+'</p>'+
-          '<details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
+        return '<p class="hot-x-mode">'+esc(L.original)+'</p>'+ '<p class="hot-x-text">'+esc(previewText(exact, 420))+'</p>'+ '<details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
       }
       return '<p class="hot-x-mode">'+esc(L.original)+'</p><pre class="hot-x-full hot-x-short">'+esc(exact)+'</pre>';
     }
@@ -64,8 +62,7 @@
       var label = String((isPl ? item.label_pl : item.label_en) || item.label_pl || item.label_en || 'X');
       var url = String(item.tweet_url || '');
       var img = item.image ? '<div class="tweet-img"><img src="'+esc(item.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></div>' : '';
-      return '<article class="source-card hot-tweet hot-x-card">'+
-        '<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+ renderText(item, L)+ '<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(L.source)+'</a>'+ '</article>';
+      return '<article class="source-card hot-tweet hot-x-card">'+ '<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+ renderText(item, L)+ '<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(L.source)+'</a>'+ '</article>';
     }).join('');
   }
 
