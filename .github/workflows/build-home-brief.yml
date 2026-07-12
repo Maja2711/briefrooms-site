@@ -11,6 +11,7 @@ on:
       - "scripts/enforce_brief_length.py"
       - "scripts/remove_urgent_badge_categories.py"
       - "scripts/validate_brief_quality.py"
+      - "scripts/dedupe_home_brief_stories.py"
       - "scripts/hide_urgent_home_labels.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
@@ -60,6 +61,9 @@ jobs:
 
       - name: Final comment quality gate
         run: python scripts/validate_brief_quality.py
+
+      - name: Final same-story dedupe gate
+        run: python scripts/dedupe_home_brief_stories.py
 
       - name: Patch homepage renderers
         run: python scripts/hide_urgent_home_labels.py
