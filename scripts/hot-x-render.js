@@ -14,15 +14,26 @@
   function labels(){
     var pl = lang() === 'pl';
     return {
-      source: pl ? 'Otwórz post na X →' : 'Open X post →',
+      post: pl ? 'Otwórz post na X →' : 'Open X post →',
+      search: pl ? 'Otwórz temat na X →' : 'Open topic on X →',
       expand: pl ? 'Rozwiń cały post' : 'Expand full post',
       original: pl ? 'Post z X — oryginał' : 'X post — original',
-      summary: pl ? 'Brief' : 'Brief'
+      summary: 'Brief'
     };
   }
 
   function isConcreteXPost(url){
     return /^https?:\/\/(?:x\.com|twitter\.com)\/[^\/\s]+\/status\/\d+/i.test(String(url || ''));
+  }
+
+  function isXSearch(url){
+    return /^https?:\/\/(?:x\.com|twitter\.com)\/(?:search|explore)(?:\?|\/|$)/i.test(String(url || ''));
+  }
+
+  function itemUrl(item){
+    if(isConcreteXPost(item && item.tweet_url)) return String(item.tweet_url);
+    if(isXSearch(item && item.search_url)) return String(item.search_url);
+    return '';
   }
 
   function exactPostText(item){
@@ -38,7 +49,7 @@
     var exact = exactPostText(item);
     if(exact){
       if(exact.length > 420){
-        return '<p class="hot-x-mode">'+esc(L.original)+'</p>'+ '<p class="hot-x-text">'+esc(previewText(exact, 420))+'</p>'+ '<details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
+        return '<p class="hot-x-mode">'+esc(L.original)+'</p><p class="hot-x-text">'+esc(previewText(exact, 420))+'</p><details class="hot-x-details"><summary>'+esc(L.expand)+'</summary><pre class="hot-x-full">'+esc(exact)+'</pre></details>';
       }
       return '<p class="hot-x-mode">'+esc(L.original)+'</p><pre class="hot-x-full hot-x-short">'+esc(exact)+'</pre>';
     }
@@ -47,23 +58,53 @@
     return '<p class="hot-x-mode">'+esc(L.summary)+'</p><p class="hot-x-text">'+esc(summary)+'</p>';
   }
 
+  function usableItems(items){
+    var isPl = lang() === 'pl';
+    return (items || []).filter(function(item){
+      var title = String((isPl ? item.title_pl : item.title_en) || item.title_pl || item.title_en || '').trim();
+      var summary = String((isPl ? item.summary_pl : item.summary_en) || item.summary_pl || item.summary_en || '').trim();
+      return !!itemUrl(item) && !!title && !!summary;
+    });
+  }
+
   function render(items){
     var feed = document.querySelector('.source-feed');
-    if(!feed) return;
-    var visible = (items || []).filter(function(item){ return isConcreteXPost(item.tweet_url); });
-    if(!visible.length){
-      feed.innerHTML = '';
-      return;
-    }
+    if(!feed) return false;
+    var visible = usableItems(items);
+    if(!visible.length) return false;
+
     var L = labels();
     var isPl = lang() === 'pl';
     feed.innerHTML = visible.map(function(item){
-      var title = String((isPl ? item.title_pl : item.title_en) || item.title_pl || item.title_en || 'Post z X');
+      var title = String((isPl ? item.title_pl : item.title_en) || item.title_pl || item.title_en || (isPl ? 'Temat z X' : 'Topic from X'));
       var label = String((isPl ? item.label_pl : item.label_en) || item.label_pl || item.label_en || 'X');
-      var url = String(item.tweet_url || '');
+      var url = itemUrl(item);
+      var sourceLabel = isConcreteXPost(url) ? L.post : L.search;
       var img = item.image ? '<div class="tweet-img"><img src="'+esc(item.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></div>' : '';
-      return '<article class="source-card hot-tweet hot-x-card">'+ '<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+ renderText(item, L)+ '<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(L.source)+'</a>'+ '</article>';
+      return '<article class="source-card hot-tweet hot-x-card"><a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+img+'<div class="tweet-kicker">'+esc(label)+'</div><h3>'+esc(title)+'</h3></a>'+renderText(item,L)+'<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(sourceLabel)+'</a></article>';
     }).join('');
+    return true;
+  }
+
+  function cacheKey(){
+    return 'briefrooms_hot_x_last_good_v2_'+lang();
+  }
+
+  function saveLastGood(items){
+    try{
+      var good = usableItems(items);
+      if(good.length) localStorage.setItem(cacheKey(), JSON.stringify(good));
+    }catch(e){}
+  }
+
+  function loadLastGood(){
+    try{
+      var raw = localStorage.getItem(cacheKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){
+      return [];
+    }
   }
 
   function addCss(){
@@ -77,10 +118,26 @@
 
   function load(){
     addCss();
+    var cached = loadLastGood();
     fetch('/data/hot_tweets.json?v='+Date.now(), {cache:'no-store'})
-      .then(function(r){ return r.ok ? r.json() : {items:[]}; })
-      .then(function(data){ render(data.items || []); })
-      .catch(function(){ render([]); });
+      .then(function(r){
+        if(!r.ok) throw new Error('Hot X HTTP '+r.status);
+        return r.json();
+      })
+      .then(function(data){
+        var items = Array.isArray(data.items) ? data.items : [];
+        if(render(items)){
+          saveLastGood(items);
+          return;
+        }
+        // Never erase the section. Keep the last known good cards or the
+        // server-rendered cards already present in the page.
+        if(cached.length) render(cached);
+      })
+      .catch(function(){
+        // A failed update must not blank the column.
+        if(cached.length) render(cached);
+      });
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
