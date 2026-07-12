@@ -12,6 +12,9 @@ on:
       - "scripts/build_hot_x_en.py"
       - "scripts/update_hot_x_topics.py"
       - "scripts/translate_hot_x_pl.py"
+      - "scripts/validate_hot_x_feed.py"
+      - "scripts/patch_hot_x_loader.py"
+      - "scripts/hot-x-render.js"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -33,6 +36,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Save last known good Hot X feed
+        run: python scripts/validate_hot_x_feed.py --backup
+
       - name: Update Hot X automatically
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
@@ -43,11 +49,17 @@ jobs:
       - name: Final Polish-language gate
         run: python scripts/translate_hot_x_pl.py
 
+      - name: Validate and preserve last-good Hot X cards
+        run: python scripts/validate_hot_x_feed.py --validate
+
+      - name: Load resilient Hot X renderer
+        run: python scripts/patch_hot_x_loader.py
+
       - name: Commit updated Hot X data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_tweets.json .cache || true
+          git add data/hot_tweets.json .cache pl/index.html en/index.html || true
           if git diff --cached --quiet; then
             echo "No Hot X changes to commit."
           else
