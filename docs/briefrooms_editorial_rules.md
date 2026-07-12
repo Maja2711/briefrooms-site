@@ -13,12 +13,13 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 3. Każde zdanie zaczyna się pełną informacją albo normalnym podmiotem.
 4. Nie zaczyna się od urwanego czasownika typu „Dodał”, „Zaznaczył”, „Powiedział”, „Wskazał”.
 5. Nie zawiera krzaków kodowania ani urwanych polskich słów, np. „rz du”, „mwi”, „koz w”, „obowi zek”, „rozwi za”, „Å”, „Ä”, „Ã”, „Â”, „â”.
-6. Nie zawiera poleceń redakcyjnych, podpisów, źródeł zdjęć ani elementów UI, np. „Skomentuj”, „FOTONEWS”, „PAP”, „czytaj także”, „zobacz także”.
+6. Nie zawiera poleceń redakcyjnych, nazwisk autorów, podpisów, źródeł zdjęć ani elementów UI, np. „Agnieszka Loosen /”, „Skomentuj”, „FOTONEWS”, „PAP”, „czytaj także”, „zobacz także”.
 7. Nie zawiera ogólników typu „źródłem wpisu jest”, „pełne tło jest w artykule” ani zdań o kategorii zamiast sensu tekstu.
 8. Jeśli tekst nie przejdzie kontroli jakości, komentarz nie jest publikowany. Nie wolno zastępować go krótkim, niegramatycznym albo tytułowym streszczeniem.
+9. News bez pełnego komentarza spełniającego powyższe warunki nie może być pokazany na stronie głównej. Usuwamy całą kartę, a nie publikujemy pusty lub pozorny brief.
 
 ## Strona główna
-Krótki opis na karcie może być krótszy, ale musi być czytelny i bez błędów kodowania. Pełny komentarz po kliknięciu w brief podlega ostrzejszej kontroli 3–6 zdań.
+Krótki opis na karcie jest tworzony z pierwszych zdań zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.
 
 ## Duplikaty tematów
 Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko jedną kartę, nawet jeśli opisują je dwa różne źródła i prowadzą do dwóch różnych linków. Drugi link nie tworzy nowego briefu, jeśli sedno sprawy jest takie samo.
