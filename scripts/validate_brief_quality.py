@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Final quality gate before publishing BriefRooms comments.
+"""Final editorial gate for BriefRooms article comments.
 
-Saved editorial rule:
-- Read the available article text first.
-- Publish only a coherent, grammatical, article-derived comment.
-- Article-page comments must have at least 3 clean sentences and at most 6.
-- Do not publish mojibake, broken Polish, clipped words, orphan reporting verbs,
-  editorial fragments, or short unclear comments.
-- If a comment does not pass, reject it instead of showing a worse fallback.
+Permanent rule:
+- a homepage news card is publishable only when it has a coherent article-derived
+  comment containing 3-6 clean sentences;
+- bylines, photo credits, clipped fragments, broken encoding and vague orphan
+  sentences are removed before publication;
+- the card summary is rebuilt from the accepted full comment;
+- if no publishable comment remains, the entire news card is removed. A short
+  headline/RSS fragment must never be used as the article-page comment.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 FILES = [(Path("pl/home_brief.json"), "pl"), (Path("en/home_brief.json"), "en")]
 MIN_ARTICLE_SENTENCES = 3
 MAX_ARTICLE_SENTENCES = 6
+MAX_VISIBLE_ITEMS = 12
 
 REPLACEMENTS = {
     "Å": "ł", "Å": "Ł", "Å¼": "ż", "Å»": "Ż", "Åº": "ź", "Å¹": "Ź",
@@ -31,84 +32,86 @@ REPLACEMENTS = {
 MOJIBAKE = re.compile(r"[ÅÄÃÂâ€\x80-\x9f]")
 BROKEN_PL = re.compile(
     r"\b(?:wygl da|zatrzyma si|wy cznie|w rod|poinformowa|wyl dowaniu|znajdowa si|ju wcze?niej|"
-    r"katarczyk\w*|zaznaczy, e|zostaa|wysana|zgodnie z prob|caej|za czam|zdjcie|przesiad si|"
-    r"pokadzie|ktrej|wrci|stanw|rdo|moliwo|operacj|przewodnicz cy|wyjani|zagraaj cym|yciu|"
-    r"dziaania|urzd\w*|poudniow\w*|ledztw\w*|konkretw|projektw|aktw|caociow\w*|zupenie|"
-    r"wiadcze|mo liwo|tumaczy|rnych|dostpn\w*|okrelenie|wraenie|e mamy|jak alternatyw|udowodnienie, e|"
-    r"co dziaa|mudna droga|probwki|zwierztach|ludziach|porwnawcze|wyleczony t metod|"
-    r"rz du|mwi|m wi|koz w|bd\b|b d|obowi zek|rozwi za|dotycz cych|p ac|kilkadziesi t|"
-    r"przed ministr\b|ochron zdrowia|szukanie koz w|zosta y|zosta o|przekaza a|podkre li|g os|w ród|"
-    r"niektrz|take nie|tak e|takze niektr|poko sie|pok osie|pokłosie ultimatum postawionego|"
-    r"odpowiada za konkretne sytuacje w konkretnych szpitalach|Å|Ä|Ã|Â|â)\b",
+    r"zaznaczy, e|zostaa|wysana|zgodnie z prob|caej|za czam|zdjcie|przesiad si|pokadzie|ktrej|"
+    r"wrci|stanw|rdo|moliwo|operacj|przewodnicz cy|wyjani|zagraaj cym|yciu|dziaania|urzd\w*|"
+    r"poudniow\w*|ledztw\w*|konkretw|projektw|aktw|caociow\w*|zupenie|wiadcze|mo liwo|"
+    r"tumaczy|rnych|dostpn\w*|okrelenie|wraenie|e mamy|jak alternatyw|udowodnienie, e|co dziaa|"
+    r"mudna droga|probwki|zwierztach|ludziach|porwnawcze|wyleczony t metod|rz du|mwi|m wi|"
+    r"koz w|bd\b|b d|obowi zek|rozwi za|dotycz cych|p ac|kilkadziesi t|przed ministr\b|"
+    r"ochron zdrowia|szukanie koz w|zosta y|zosta o|przekaza a|podkre li|g os|w ród|niektrz|"
+    r"take nie|tak e|takze niektr|poko sie|pok osie|pokłosie ultimatum postawionego|Å|Ä|Ã|Â|â)\b",
     re.I,
 )
 BAD_START_PL = re.compile(
     r"^(?:[.,;:!?%‰/\\)\]}]|zł\b|tys\.\b|mln\b|mld\b|proc\.\b|za\b|dla\b|oraz\b|a\b|i\b|"
     r"dodał\b|dodała\b|dodali\b|zaznaczył\b|zaznaczyła\b|powiedział\b|powiedziała\b|"
-    r"stwierdził\b|stwierdziła\b|ocenił\b|oceniła\b|wskazał\b|wskazała\b|skomentuj\b)",
+    r"stwierdził\b|stwierdziła\b|ocenił\b|oceniła\b|wskazał\b|wskazała\b|skomentuj\b|"
+    r"jak podkreślono\b|jak zaznaczono\b|jak poinformowano\b|jak przekazano\b|"
+    r"placówka zaznaczyła\b)",
     re.I,
 )
 BAD_START_EN = re.compile(
     r"^(?:[.,;:!?%‰/\\)\]}]|and\b|or\b|but\b|because\b|which\b|that\b|usd\b|eur\b|gbp\b|"
-    r"he added\b|she added\b|they added\b|he said\b|she said\b)",
+    r"he added\b|she added\b|they added\b|he said\b|she said\b|according to him\b|according to her\b)",
     re.I,
 )
 BAD_FRAGMENT = re.compile(
     r"fotonews|autor:|oprac\.|czytaj także|zobacz także|skom(entuj|entował|entowała)|"
     r"homepage skip|image source|image caption|pełne tło|źródłem wpisu|najważniejszy sygnał|"
-    r"the source is|full context|main signal belongs",
+    r"the source is|full context|main signal belongs|shutterstock|(?:^|\s)pap(?:\s|$)",
     re.I,
 )
+# Typical publisher byline/photo-credit fragments, e.g. "Agnieszka Loosen / ...".
+BYLINE_PL = re.compile(
+    r"^(?:(?:[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]+|[A-ZĄĆĘŁŃÓŚŹŻ]\.)(?:\s+|$)){2,5}\s*/+",
+    re.I,
+)
+BYLINE_EN = re.compile(r"^(?:By\s+)?(?:[A-Z][a-z-]+\s+){1,4}[A-Z][a-z-]+\s*/+", re.I)
 PL_MARKS = re.compile(r"[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]")
-PL_WORDS = re.compile(r"\b(?:że|się|który|która|które|źródło|zdjęcie|został|została|mógł|może|również|już|wcześniej)\b", re.I)
 
 
 def repair(text: str) -> str:
     out = str(text or "")
     for bad, good in REPLACEMENTS.items():
         out = out.replace(bad, good)
-    out = re.sub(r"\s+", " ", out).strip()
-    return out
+    return re.sub(r"\s+", " ", out).strip(" -–—·•/\t\n\r")
 
 
 def looks_broken_pl(text: str) -> bool:
     s = repair(text)
     if BROKEN_PL.search(s):
         return True
-    # Long Polish article text without a single Polish diacritic is usually a stripped/decoded body, not publishable Polish.
-    if len(s) > 180 and not PL_MARKS.search(s) and re.search(r"\b(jest|oraz|któ|kt|przez|zosta|będzie|polsk|prezydent|szpital|minister|rynek)\b", s, re.I):
+    if len(s) > 180 and not PL_MARKS.search(s) and re.search(
+        r"\b(jest|oraz|przez|zosta|będzie|polsk|prezydent|szpital|minister|rynek)\b", s, re.I
+    ):
         return True
-    # Many short Polish words with missing diacritics: "si", "e", "ktre", "rdo".
-    bad_tokens = len(re.findall(r"\b(?:si|e|ktre|ktra|ktry|rdo|ju|te|moe|bdzie|wicej|zosta|zostaa|jeli)\b", s, re.I))
+    bad_tokens = len(re.findall(r"\b(?:si|e|ktre|ktra|ktry|rdo|ju|te|moe|bdzie|wicej|zostaa|jeli)\b", s, re.I))
     return bad_tokens >= 3
 
 
 def split_sentences(text: str) -> list[str]:
     text = repair(text).replace("…", ".")
-    parts = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
-    out = []
-    for part in parts:
-        s = repair(part)
-        if s and s[-1] not in ".!?:":
-            s += "."
-        if s:
-            out.append(s)
+    out: list[str] = []
+    for part in re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text):
+        sentence = repair(part)
+        if sentence and sentence[-1] not in ".!?":
+            sentence += "."
+        if sentence:
+            out.append(sentence)
     return out
 
 
 def sentence_ok(sentence: str, lang: str) -> bool:
     s = repair(sentence)
-    if len(s) < 45:
-        return False
-    if MOJIBAKE.search(s) or BAD_FRAGMENT.search(s):
+    if len(s) < 45 or MOJIBAKE.search(s) or BAD_FRAGMENT.search(s):
         return False
     if lang == "pl":
-        if looks_broken_pl(s) or BAD_START_PL.search(s):
+        if BYLINE_PL.search(s) or BAD_START_PL.search(s) or looks_broken_pl(s):
             return False
         if not re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9„\"'’]", s):
             return False
     else:
-        if BAD_START_EN.search(s):
+        if BYLINE_EN.search(s) or BAD_START_EN.search(s):
             return False
         if not re.match(r"^[A-Z0-9\"'’]", s):
             return False
@@ -116,25 +119,28 @@ def sentence_ok(sentence: str, lang: str) -> bool:
 
 
 def clean_sentences(text: str, lang: str) -> list[str]:
-    if lang == "pl" and looks_broken_pl(text):
-        return []
-    good = []
-    seen = set()
-    for s in split_sentences(text):
-        if not sentence_ok(s, lang):
+    good: list[str] = []
+    seen: set[str] = set()
+    # A single bad sentence must not destroy the remaining good article text.
+    for sentence in split_sentences(text):
+        if not sentence_ok(sentence, lang):
             continue
-        key = re.sub(r"\W+", "", s.lower())[:110]
+        key = re.sub(r"\W+", "", sentence.lower())[:110]
         if key and key not in seen:
             seen.add(key)
-            good.append(s)
+            good.append(sentence)
     return good
 
 
-def clean_comment(text: str, lang: str, max_sentences: int, min_sentences: int) -> str:
-    good = clean_sentences(text, lang)
-    if len(good) < min_sentences:
-        return ""
-    return " ".join(good[:max_sentences])
+def publishable_comment(item: dict, lang: str) -> str:
+    for key in ("full_brief", "details"):
+        value = item.get(key)
+        if not isinstance(value, str):
+            continue
+        sentences = clean_sentences(value, lang)
+        if len(sentences) >= MIN_ARTICLE_SENTENCES:
+            return " ".join(sentences[:MAX_ARTICLE_SENTENCES])
+    return ""
 
 
 def process(path: Path, lang: str) -> bool:
@@ -142,61 +148,52 @@ def process(path: Path, lang: str) -> bool:
         return False
     data = json.loads(path.read_text(encoding="utf-8"))
     changed = False
-    rejected = 0
+    rejected: list[dict] = []
+
     for section in ("latest", "radar"):
-        for item in data.get(section, []) or []:
-            for plain_key in ("title", "source", "category"):
-                if isinstance(item.get(plain_key), str):
-                    fixed = repair(item[plain_key])
-                    if fixed != item[plain_key]:
-                        item[plain_key] = fixed
-                        changed = True
+        old_items = data.get(section, []) or []
+        kept: list[dict] = []
+        for item in old_items:
+            for key in ("title", "source", "category"):
+                if isinstance(item.get(key), str):
+                    item[key] = repair(item[key])
 
-            if isinstance(item.get("summary"), str):
-                cleaned = clean_comment(item["summary"], lang, max_sentences=2, min_sentences=1)
-                if cleaned:
-                    if cleaned != item["summary"]:
-                        item["summary"] = cleaned
-                        changed = True
-                else:
-                    item.pop("summary", None)
-                    changed = True
+            comment = publishable_comment(item, lang)
+            if not comment:
+                rejected.append({"source": item.get("source", ""), "title": item.get("title", "")})
+                continue
 
-            for key in ("details", "full_brief"):
-                old = item.get(key)
-                if not isinstance(old, str):
-                    continue
-                cleaned = clean_comment(old, lang, max_sentences=MAX_ARTICLE_SENTENCES, min_sentences=MIN_ARTICLE_SENTENCES)
-                if cleaned:
-                    if cleaned != old:
-                        item[key] = cleaned
-                        changed = True
-                else:
-                    item.pop(key, None)
-                    item["comment_quality_status"] = "rejected_before_publish"
-                    rejected += 1
-                    changed = True
+            item["full_brief"] = comment
+            item["details"] = comment
+            comment_sentences = split_sentences(comment)
+            item["summary"] = " ".join(comment_sentences[:2])
+            item["comment_quality_status"] = "passed_3_to_6_sentences"
+            kept.append(item)
 
-            if not item.get("full_brief") and not item.get("details"):
-                item["comment_quality_status"] = "no_clean_article_comment_available"
-                changed = True
+        kept = kept[:MAX_VISIBLE_ITEMS]
+        if kept != old_items:
+            data[section] = kept
+            changed = True
+
+    data["count"] = len(data.get("latest", []) or [])
     data["comment_quality_gate"] = {
-        "pl": "Przed publikacją komentarz jest sprawdzany. Komentarz pod artykułem musi mieć 3–6 zdań, być gramatyczny, logiczny i zrozumiały. Jeśli zawiera krzaki kodowania, brakujące polskie znaki, urwane polskie słowa, fragmenty redakcyjne, nielogiczny początek albo mniej niż 3 czyste zdania, nie jest wklejany.",
-        "en": "Before publication, every article comment is checked. It must have 3–6 sentences and be grammatical, logical and understandable. If it contains mojibake, clipped words, editorial fragments, an illogical start or fewer than 3 clean sentences, it is not inserted.",
+        "pl": "Karta jest publikowana tylko wtedy, gdy posiada logiczny, gramatyczny komentarz złożony z 3–6 zdań. Nazwiska autorów, podpisy zdjęć, urwane fragmenty i RSS-owe strzępy są usuwane. Jeśli po kontroli nie ma pełnego komentarza, cały news jest usuwany ze strony.",
+        "en": "A card is published only when it has a coherent, grammatical 3–6 sentence comment. Bylines, photo credits, clipped fragments and RSS scraps are removed. If no full comment remains, the whole news item is removed.",
         "min_article_sentences": MIN_ARTICLE_SENTENCES,
         "max_article_sentences": MAX_ARTICLE_SENTENCES,
-        "rejected_count": rejected,
+        "rejected_count": len(rejected),
+        "rejected_examples": rejected[:8],
+        "headline_or_short_summary_fallback": "forbidden",
     }
-    if changed:
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return changed
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return True
 
 
 def main() -> None:
     changed = False
     for path, lang in FILES:
         changed = process(path, lang) or changed
-    print("Brief quality gate applied" if changed else "Brief comments already passed quality gate")
+    print("Brief quality gate applied; unpublishable cards removed" if changed else "Brief quality gate unchanged")
 
 
 if __name__ == "__main__":
