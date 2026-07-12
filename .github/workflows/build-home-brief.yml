@@ -13,7 +13,7 @@ on:
       - "scripts/validate_brief_quality.py"
       - "scripts/dedupe_home_brief_stories.py"
       - "scripts/hide_urgent_home_labels.py"
-      - "scripts/patch_pl_brief_runtime_quality.py"
+      - "scripts/patch_brief_comment_source.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "*/30 * * * *"
@@ -69,14 +69,14 @@ jobs:
       - name: Patch homepage renderers
         run: python scripts/hide_urgent_home_labels.py
 
-      - name: Patch PL article runtime quality
-        run: python scripts/patch_pl_brief_runtime_quality.py
+      - name: Keep one approved comment source
+        run: python scripts/patch_brief_comment_source.py
 
       - name: Commit updated homepage brief data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html .cache || true
+          git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html .cache || true
           if git diff --cached --quiet; then
             echo "No homepage brief changes to commit."
           else
