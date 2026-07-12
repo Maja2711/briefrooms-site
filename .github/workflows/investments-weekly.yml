@@ -16,6 +16,14 @@ on:
           - render
   schedule:
     - cron: "17 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/investments_weekly.py"
+      - "scripts/close_overdue_weekly_positions.py"
+      - "scripts/render_weekly_public_pages.py"
+      - "scripts/render_simple_investments.py"
+      - ".github/workflows/investments-weekly.yml"
 
 permissions:
   contents: write
@@ -41,11 +49,17 @@ jobs:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
         run: python scripts/investments_weekly.py --mode "$MODE"
 
+      - name: Close overdue weekly positions
+        run: python scripts/close_overdue_weekly_positions.py
+
       - name: Normalize SL TP exits globally
         run: python scripts/normalize_sl_tp_exits.py || true
 
       - name: Intraweek re-entry after stop loss
         run: python scripts/investments_reentry_engine.py || true
+
+      - name: Close overdue weekly positions after risk checks
+        run: python scripts/close_overdue_weekly_positions.py
 
       - name: Render simple public investment pages
         run: python scripts/render_simple_investments.py
@@ -59,5 +73,6 @@ jobs:
             echo "No investment forecast changes to commit."
           else
             git commit -m "Update weekly investments forecasts"
+            git pull --rebase origin main
             git push
           fi
