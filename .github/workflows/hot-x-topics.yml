@@ -2,21 +2,56 @@ name: Update Hot X Topics
 
 on:
   workflow_dispatch:
+  schedule:
+    # Three times daily. GitHub cron uses UTC: 05:17, 13:17 and 21:17.
+    - cron: "17 5,13,21 * * *"
   push:
     branches: [main]
     paths:
-      - "data/hot_tweets.json"
-      - "scripts/hot-x-render.js"
+      - "scripts/update_hot_x_3x_daily.py"
+      - "scripts/build_hot_x_en.py"
+      - "scripts/update_hot_x_topics.py"
+      - "scripts/translate_hot_x_pl.py"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: hot-x-update
+  cancel-in-progress: true
 
 jobs:
-  hot-x-curated-mode:
+  update-hot-x-topics:
     runs-on: ubuntu-latest
     steps:
-      - name: Curated Hot X mode
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Update Hot X automatically
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+        run: python scripts/update_hot_x_3x_daily.py
+
+      - name: Final Polish-language gate
+        run: python scripts/translate_hot_x_pl.py
+
+      - name: Commit updated Hot X data
         run: |
-          echo "Hot X is curated manually in data/hot_tweets.json."
-          echo "This workflow no longer overwrites selected X links or editorial descriptions."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/hot_tweets.json .cache || true
+          if git diff --cached --quiet; then
+            echo "No Hot X changes to commit."
+          else
+            git commit -m "Update Hot X topics"
+            git pull --rebase origin main
+            git push
+          fi
