@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """Make article pages use the same approved full_brief as homepage cards.
 
-The server-side quality gate is the only editorial validator. The browser must
-not run a second, different validator that can reject a comment already marked
-as passed_3_to_6_sentences.
+Version 2: the server-side quality gate is the only editorial validator. The
+browser must not run a second, different validator that can reject a comment
+already marked as passed_3_to_6_sentences.
 """
 from pathlib import Path
 
