@@ -20,5 +20,8 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 ## Strona główna
 Krótki opis na karcie może być krótszy, ale musi być czytelny i bez błędów kodowania. Pełny komentarz po kliknięciu w brief podlega ostrzejszej kontroli 3–6 zdań.
 
+## Duplikaty tematów
+Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko jedną kartę, nawet jeśli opisują je dwa różne źródła i prowadzą do dwóch różnych linków. Drugi link nie tworzy nowego briefu, jeśli sedno sprawy jest takie samo.
+
 ## Pilne / Breaking
 „Pilne” i „Breaking” są tylko sygnałem priorytetu sortowania. Nie pokazujemy ich jako etykiety na zdjęciu karty.
