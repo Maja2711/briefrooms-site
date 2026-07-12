@@ -32,3 +32,5 @@ Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko j
 3. W wersji PL wszystkie widoczne tytuły i opisy muszą być po polsku; angielski tekst nie może zostać użyty jako fallback.
 4. W wersji EN tytuły i opisy pozostają po angielsku.
 5. Jedno realne zdarzenie może pojawić się w Hot X tylko raz.
+6. Aktualizacja nie może wyczyścić całej sekcji. Jeżeli nowe dane są puste, uszkodzone albo nie mają poprawnego linku do posta lub wyszukiwania X, pozostają ostatnie poprawne karty.
+7. Jeśli nowy przebieg dostarczy mniej niż trzy poprawne karty, brakujące miejsca są uzupełniane ostatnimi poprawnymi kartami, zamiast zostawiać pustą kolumnę.
