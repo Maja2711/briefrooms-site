@@ -52,8 +52,8 @@ function usefulSentence(s){
 }
 function uniqueSentences(list){const seen=new Set();const out=[];for(const s of list){const k=s.toLowerCase().replace(/\W+/g,'').slice(0,90);if(k&&!seen.has(k)){seen.add(k);out.push(s)}}return out;}
 function cleanArticleComment(text){if(brokenPolish(text))return '';const s=uniqueSentences(splitSentences(text||'').filter(usefulSentence));return s.length>=3?s.slice(0,6).join(' '):'';}
-function cleanShortSummary(text){const s=cleanSentence(text||'');return s && !brokenPolish(s) ? s : '';}
-function buildSummary(item){return cleanArticleComment(item.full_brief)||cleanArticleComment(item.details)||cleanShortSummary(item.summary)||'Komentarz nie przeszedł kontroli jakości. Otwórz artykuł źródłowy, aby przeczytać pełny tekst u wydawcy.';}
+function approvedComment(item){const text=normalizeText(item.full_brief||item.details||'');const count=(text.replace(/…/g,'.').match(/[^.!?]+[.!?]+/g)||[]).length;return String(item.comment_quality_status||'').startsWith('passed_')&&count>=3&&count<=6?text:'';}
+function buildSummary(item){return approvedComment(item)||'Ten wpis nie ma zatwierdzonego komentarza i nie powinien być widoczny jako karta BriefRooms.';}
 function visibleCategory(cat){const c=repairMojibake(cat||'Brief');return /^(pilne|breaking|urgent|alert)$/i.test(c)?'Aktualności':c;}
 function makeBriefSections(item,link){
   const source=repairMojibake(item.source||hostFromUrl(link));
