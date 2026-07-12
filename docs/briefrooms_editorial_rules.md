@@ -25,3 +25,10 @@ Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko j
 
 ## Pilne / Breaking
 „Pilne” i „Breaking” są tylko sygnałem priorytetu sortowania. Nie pokazujemy ich jako etykiety na zdjęciu karty.
+
+## Hot X
+1. Sekcja Hot X jest aktualizowana automatycznie trzy razy dziennie.
+2. Każdy przebieg ma pobierać nowe tematy albo konkretne posty z X, a nie tylko ponownie zapisywać stare dane.
+3. W wersji PL wszystkie widoczne tytuły i opisy muszą być po polsku; angielski tekst nie może zostać użyty jako fallback.
+4. W wersji EN tytuły i opisy pozostają po angielsku.
+5. Jedno realne zdarzenie może pojawić się w Hot X tylko raz.
