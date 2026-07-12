@@ -98,10 +98,9 @@ def strong_event_key(item: dict) -> str:
     if "lindsey_graham" in ent and "death" in ev:
         return "person_death:lindsey_graham"
     if "mogilno_hospital" in ent and "hospital_scandal" in ev:
-        return "local_hospital:m在ogilno".replace("在", "")
+        return "local_hospital:mogilno"
     if "electric_scooter_teen" in ent and "accident" in ev:
         return "accident:electric_scooter_teen"
-    # General event key for named entities when the event type is also shared.
     useful_ent = sorted(e for e in ent if e not in {"donald_trump"})
     useful_ev = sorted(ev)
     if useful_ent and useful_ev:
@@ -112,39 +111,32 @@ def strong_event_key(item: dict) -> str:
 def same_story(a: dict, b: dict) -> bool:
     if a.get("link") and a.get("link") == b.get("link"):
         return True
-
     ak, bk = strong_event_key(a), strong_event_key(b)
     if ak and ak == bk:
         return True
-
     ae, be = entities(a), entities(b)
     av, bv = events(a), events(b)
     at, bt = tokens(a), tokens(b)
     if not at or not bt:
         return False
-
     overlap = len(at & bt) / max(1, min(len(at), len(bt)))
     shared_entities = ae & be
     shared_events = av & bv
-
     if shared_entities and shared_events and overlap >= 0.28:
         return True
     if shared_entities and overlap >= 0.42:
         return True
     if overlap >= 0.62:
         return True
-
     la, lb = link_tokens(a.get("link", "")), link_tokens(b.get("link", ""))
     if la and lb:
         link_overlap = len(la & lb) / max(1, min(len(la), len(lb)))
         if link_overlap >= 0.5 and (shared_entities or shared_events or overlap >= 0.25):
             return True
-
     return False
 
 
 def item_rank(item: dict) -> tuple[int, int, int]:
-    # Keep the stronger/currently earlier editorial card when duplicates collide.
     title = str(item.get("title") or "")
     details = str(item.get("details") or item.get("full_brief") or item.get("summary") or "")
     img = str(item.get("image") or "")
