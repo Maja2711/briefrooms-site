@@ -33,11 +33,11 @@
       ],
       "entry_price": 1.1440337896347046,
       "entry_captured_at": "2026-07-03T23:29:00+02:00",
-      "exit_price": "week_in_progress",
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 1.1419435739517212,
+      "exit_captured_at": "2026-07-10T23:29:00+02:00",
+      "result": "profit",
+      "result_value": 20.9,
+      "result_percent": 0.1827,
       "entry_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
       "scenario_thresholds": {
         "source": "dynamic_atr14",
@@ -55,7 +55,14 @@
         "adverse_units": 95.0,
         "unit": "pips",
         "minmax_applied": true
-      }
+      },
+      "exit_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
+      "exit_reason": "scheduled_week_close",
+      "exit_execution_model": "automatic_week_close_after_deadline",
+      "result_currency": "USD",
+      "result_units": 20.9022,
+      "effective_direction": "short",
+      "close_quality_status": "closed_after_week_deadline"
     },
     {
       "instrument_id": "sp500_futures",
@@ -80,11 +87,11 @@
       ],
       "entry_price": 7553.75,
       "entry_captured_at": "2026-07-06T00:05:22+02:00",
-      "exit_price": "week_in_progress",
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 7620.25,
+      "exit_captured_at": "2026-07-10T22:59:59+02:00",
+      "result": "profit",
+      "result_value": 88.04,
+      "result_percent": 0.8804,
       "entry_source": "Yahoo Finance:ES=F:chart:1d:1m",
       "scenario_thresholds": {
         "source": "dynamic_atr14",
@@ -102,7 +109,14 @@
         "adverse_units": 125.38,
         "unit": "points",
         "minmax_applied": false
-      }
+      },
+      "exit_source": "Yahoo Finance:ES=F:regularMarketPrice",
+      "exit_reason": "scheduled_week_close",
+      "exit_execution_model": "automatic_week_close_after_deadline",
+      "result_currency": "USD",
+      "result_units": 66.5,
+      "effective_direction": "long",
+      "close_quality_status": "closed_after_week_deadline"
     },
     {
       "instrument_id": "btcusd",
@@ -127,11 +141,11 @@
       ],
       "entry_price": 63158.87890625,
       "entry_captured_at": "2026-07-06T00:15:22+02:00",
-      "exit_price": "week_in_progress",
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 63940.98046875,
+      "exit_captured_at": "2026-07-12T13:43:21+02:00",
+      "result": "profit",
+      "result_value": 123.83,
+      "result_percent": 1.2383,
       "entry_source": "Yahoo Finance:BTC-USD:chart:1d:1m",
       "scenario_thresholds": {
         "source": "dynamic_atr14",
@@ -149,7 +163,19 @@
         "adverse_units": 2400.0,
         "unit": "percent",
         "minmax_applied": true
-      }
+      },
+      "exit_source": "Yahoo Finance:BTC-USD:chart:1d:1m",
+      "exit_reason": "scheduled_week_close",
+      "exit_execution_model": "automatic_week_close_after_deadline",
+      "result_currency": "USD",
+      "result_units": 782.1016,
+      "effective_direction": "long",
+      "close_quality_status": "closed_after_week_deadline"
     }
-  ]
+  ],
+  "weekly_close_audit": {
+    "status": "applied",
+    "checked_at": "2026-07-12T13:43:30+02:00",
+    "rule": "Positions with non-numeric exit_price are closed after market_window.exit_target_local / forecast_for_week_end."
+  }
 }
