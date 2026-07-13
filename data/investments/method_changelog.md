@@ -1,5 +1,26 @@
 # BriefRooms Investing Method Changelog
 
+## v2.0.0 — frozen forecasts, real volatility input and validation gate
+
+The legacy prototype was audited and replaced for new forecasts.
+
+Main corrections:
+
+- the forecast is frozen before the trading week and receives a SHA-256 audit hash,
+- only directional signals can receive an entry; neutral scenarios never have entry or exit prices,
+- entry is the first available 5-minute bar at or after Monday 08:00 Europe/Warsaw,
+- scheduled close is the first available 5-minute bar at or after Friday 22:00 Europe/Warsaw,
+- current prices are not used as late substitutes for missed entry or close timestamps,
+- volatility is used in the signal score and in SL/TP distances frozen before entry,
+- trend, momentum and breakout require two-of-three directional agreement,
+- signal strength is not described as a probability,
+- when SL and TP are both inside one 5-minute bar, the model records stop loss first as the conservative assumption,
+- re-entry after stop loss is disabled,
+- closed v2 weeks are sealed by a hash manifest and cannot be silently rewritten,
+- a fixed-rule five-year validation is run with saved transaction-cost assumptions.
+
+The first v2 historical validation did not support opening new EUR/USD or BTC/USD positions. Both instruments are disabled instead of tuning parameters after seeing the result. S&P 500 futures remains enabled only for provisional paper trading and still requires a separate live paper-trading sample before the model may be described as validated.
+
 ## v1.1.0 — intraweek model-scenario review
 
 Added a rule-based intraweek review layer for the educational market log.
