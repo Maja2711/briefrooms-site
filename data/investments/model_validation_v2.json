@@ -1,8 +1,10 @@
 {
   "model_version": "2.0.0",
-  "generated_at": "2026-07-13T11:12:30+02:00",
+  "daily_review_policy_version": "1.0.0",
+  "generated_at": "2026-07-13T11:38:11+02:00",
   "validation_status": "not_yet_validated",
   "warning": "Historical validation is not a guarantee of future performance and is not used to optimise the saved thresholds.",
+  "daily_review_backtest_assumption": "Daily thesis review is approximated with each completed Monday-Thursday daily close; live execution uses the last completed 5-minute bar after 23:00 Europe/Warsaw.",
   "aggregate_trades": 314,
   "requirements": {
     "aggregate_closed_trades": 150,
@@ -19,11 +21,17 @@
       "wins": 46,
       "losses": 64,
       "win_rate": 0.4182,
-      "mean_net_return_percent": -0.0782,
-      "median_net_return_percent": -0.2754,
-      "profit_factor": 0.7992,
-      "annualized_weekly_sharpe": -0.6994,
-      "maximum_drawdown_percent": -9.3982
+      "mean_net_return_percent": -0.0737,
+      "median_net_return_percent": -0.2181,
+      "profit_factor": 0.8085,
+      "annualized_weekly_sharpe": -0.6609,
+      "maximum_drawdown_percent": -9.3982,
+      "exit_reasons": {
+        "stop_loss": 43,
+        "scheduled_week_close": 49,
+        "take_profit": 17,
+        "daily_directional_invalidation": 1
+      }
     },
     {
       "instrument_id": "sp500_futures",
@@ -36,7 +44,12 @@
       "median_net_return_percent": 0.1413,
       "profit_factor": 1.1498,
       "annualized_weekly_sharpe": 0.4262,
-      "maximum_drawdown_percent": -13.0679
+      "maximum_drawdown_percent": -13.0679,
+      "exit_reasons": {
+        "scheduled_week_close": 61,
+        "stop_loss": 43,
+        "take_profit": 15
+      }
     },
     {
       "instrument_id": "btcusd",
@@ -49,7 +62,12 @@
       "median_net_return_percent": -0.7356,
       "profit_factor": 0.8595,
       "annualized_weekly_sharpe": -0.459,
-      "maximum_drawdown_percent": -46.0239
+      "maximum_drawdown_percent": -46.0239,
+      "exit_reasons": {
+        "stop_loss": 30,
+        "scheduled_week_close": 40,
+        "take_profit": 15
+      }
     }
   ]
 }
