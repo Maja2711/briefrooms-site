@@ -1,0 +1,25 @@
+{
+  "policy_version": "1.0.0",
+  "enabled": true,
+  "timezone": "Europe/Warsaw",
+  "review_time_local": "23:00",
+  "review_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  "maximum_reviews_per_calendar_day": 1,
+  "rules": {
+    "confirmed_opposite_signal": "Close when the fresh model produces a full signal opposite to the open scenario.",
+    "directional_invalidation": {
+      "long": "Close when fresh score is <= -15 and at least two signal groups are negative.",
+      "short": "Close when fresh score is >= 15 and at least two signal groups are positive."
+    },
+    "data_quality_failure": "Keep the scenario open; never close only because fresh data are unavailable.",
+    "execution_price": "Use the last completed 5-minute bar at or before the daily review.",
+    "same_week_reentry": false,
+    "sl_tp_monitoring": "Independent SL/TP checks remain active and can close earlier."
+  },
+  "audit": {
+    "record_every_review": true,
+    "record_keep_decision": true,
+    "record_close_reason": true,
+    "report_path": "data/investments/daily_review_report.json"
+  }
+}
