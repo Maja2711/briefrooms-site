@@ -3,7 +3,9 @@
 """Apply per-instrument validation policy to model v2 forecasts.
 
 An instrument that failed the fixed-rule historical test is forced to neutral
-before the entry window. Existing legacy weeks are never rewritten by this gate.
+before the entry window. An already opened position is not rewritten or deleted:
+it is marked as grandfathered and remains subject to SL/TP and the once-daily
+position review. Closed and legacy weeks are never rewritten by this gate.
 """
 from __future__ import annotations
 
@@ -44,11 +46,25 @@ def main() -> None:
             cfg = policy.get(inst_id, {})
             enabled = bool(cfg.get("enabled_for_new_positions", False))
             if enabled:
-                item["validation_gate"] = "enabled_for_paper_trading"
+                if item.get("validation_gate") != "enabled_for_paper_trading":
+                    item["validation_gate"] = "enabled_for_paper_trading"
+                    changed = True
                 continue
-            if item.get("entry_price") is not None:
-                raise SystemExit(f"Refusing to disable {inst_id} after entry was already recorded")
+
             reason = str(cfg.get("validation_gate_reason") or "instrument_not_validated")
+            if item.get("entry_price") is not None:
+                # Do not rewrite an existing position after entry. Block only new
+                # positions and keep managing this one through saved exit rules.
+                marker = "grandfathered_existing_position_no_new_entries"
+                if item.get("validation_gate") != marker:
+                    item["validation_gate"] = marker
+                    item["validation_gate_reason"] = reason
+                    item["validation_gate_note"] = "Existing position preserved; no new entries allowed. SL/TP and daily model review remain active."
+                    changed = True
+                continue
+
+            if item.get("direction") == "neutral" and item.get("validation_gate") == reason:
+                continue
             item["pre_gate_direction"] = item.get("direction")
             item["pre_gate_score"] = item.get("score")
             item["direction"] = "neutral"
