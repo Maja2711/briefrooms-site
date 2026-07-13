@@ -1,13 +1,17 @@
 {
-  "method_version": "1.4.0",
+  "method_version": "2.0.0",
   "name": "BriefRooms Weekly Market Direction Model",
-  "language_note": "This file defines the rule-based method used for weekly educational market scenarios in the Investing room. Version 1.4.0 adds instrument-specific entry thresholds, neutral/no-trade for weak signals and consistent volatility units. Do not rewrite past forecasts after results are known.",
+  "model_status": "paper_trading_rule_based_not_investment_advice",
+  "language_note": "Version 2.0.0 replaces the unvalidated prototype. Forecasts are frozen before the week, neutral signals never receive entries, volatility is an actual model input, entry and exit timestamps are reconstructed from fixed target windows, and closed history is not rewritten.",
   "timezone": "Europe/Warsaw",
   "market_window": {
     "forecast_day": "Sunday",
-    "entry_capture": "Monday 08:00 Europe/Warsaw, captured by GitHub Actions near that time",
-    "planned_exit_capture": "Friday evening after the weekly close, captured by GitHub Actions near 22:00 Europe/Warsaw",
-    "intraweek_review": "Tuesday to Friday, around 10:05, 14:05 and 18:05 Europe/Warsaw; if saved model rules are triggered, the timestamp, price, data source and reason are saved immediately."
+    "entry_target": "Monday 08:00 Europe/Warsaw",
+    "entry_latest": "Monday 10:00 Europe/Warsaw",
+    "planned_exit": "Friday 22:00 Europe/Warsaw",
+    "entry_execution": "first available 5-minute bar at or after the fixed target",
+    "scheduled_exit_execution": "first available 5-minute bar at or after the fixed target",
+    "same_bar_sl_tp_rule": "stop_loss_first_conservative"
   },
   "instruments": [
     {
@@ -44,149 +48,114 @@
       "result_currency": "USD"
     }
   ],
-  "signals": {
-    "trend": {
-      "weight": 30,
-      "description": "EMA20 vs EMA50 and last close vs EMA20. Positive when the market is above its short and medium trend."
+  "signal_model": {
+    "minimum_daily_closes": 260,
+    "trend_components": {
+      "ema20_vs_ema50_normalized_by_atr14": 20,
+      "last_close_vs_ema20_normalized_by_atr14": 10
     },
-    "momentum": {
-      "weight": 25,
-      "description": "5-day and 20-day price change. Positive when recent momentum confirms the trend."
+    "momentum_components": {
+      "five_day_return_normalized_by_realized_volatility": 15,
+      "twenty_day_return_normalized_by_realized_volatility": 20
+    },
+    "breakout_component": {
+      "position_in_prior_55_day_range": 15
     },
     "volatility_regime": {
-      "weight": 15,
-      "description": "Higher volatility reduces confidence and can shift the decision toward neutral."
+      "input": "annualized 20-day volatility divided by annualized 60-day volatility",
+      "rule": "high volatility scales down the directional score instead of adding directional points"
     },
-    "macro_bias": {
-      "weight": 20,
-      "description": "Manual macro override. Default 0. Can be adjusted before Sunday forecast generation."
-    },
-    "event_risk": {
-      "weight": 10,
-      "description": "Manual event-risk override. Default 0. Negative value reduces directional conviction before major risk events."
-    }
+    "agreement_rule": "at least two of trend, momentum and breakout groups must agree with the direction",
+    "manual_override_rule": "manual macro overrides are ignored unless timestamped before forecast creation and explicitly marked valid for the forecast week",
+    "confidence_definition": "heuristic signal strength only; never a probability of success"
   },
   "manual_overrides": {
     "eurusd": {
       "macro_bias": 0,
-      "event_risk": 0
+      "event_risk_penalty": 0,
+      "valid_for_week": "",
+      "set_at": null
     },
     "sp500_futures": {
       "macro_bias": 0,
-      "event_risk": 0
+      "event_risk_penalty": 0,
+      "valid_for_week": "",
+      "set_at": null
     },
     "btcusd": {
       "macro_bias": 0,
-      "event_risk": 0
+      "event_risk_penalty": 0,
+      "valid_for_week": "",
+      "set_at": null
     }
   },
   "decision_rules": {
-    "neutral_label": "neutral/no scenario",
-    "max_score_abs": 100,
+    "neutral_label": "neutral/no-trade",
     "entry_thresholds": {
       "eurusd": {
-        "long": 25,
-        "short": -25,
-        "rule": "Open a weekly EUR/USD scenario only when score is >= +25 or <= -25; otherwise neutral/no-trade."
+        "long": 35,
+        "short": -35
       },
       "sp500_futures": {
-        "long": 25,
-        "short": -35,
-        "rule": "S&P 500 has an upward structural bias; weak shorts are ignored unless score <= -35."
+        "long": 35,
+        "short": -42
       },
       "btcusd": {
-        "long": 35,
-        "short": -35,
-        "rule": "BTC/USD requires a stronger signal because volatility and regime shifts are higher."
+        "long": 45,
+        "short": -45
       }
     }
   },
-  "volatility_threshold_model": {
-    "enabled": true,
-    "model": "instrument_specific_atr14_v1_4_0",
-    "price_history_period": "6mo",
-    "price_history_interval": "1d",
-    "expected_week_move_formula": "ATR14 * sqrt(5)",
-    "favorable_multiplier": 0.9,
-    "adverse_multiplier": 0.6,
-    "save_thresholds_at_first_active_review": true,
-    "note": "v1.4.0: EUR/USD thresholds are in pips, S&P 500 futures thresholds are in points, BTC/USD thresholds are in percent.",
+  "risk_model": {
+    "source": "ATR14 multiplied by square root of five and frozen at forecast time",
+    "stop_atr_week_multiplier": 0.55,
+    "take_atr_week_multiplier": 0.9,
+    "same_bar_rule": "stop loss first when both SL and TP are inside one 5-minute bar",
+    "reentry_after_stop_loss": false,
     "unit_limits": {
       "eurusd": {
-        "min_favorable_units": 45,
-        "max_favorable_units": 140,
-        "min_adverse_units": 30,
-        "max_adverse_units": 95
+        "min_stop_units": 35,
+        "max_stop_units": 95,
+        "min_take_units": 55,
+        "max_take_units": 150
       },
       "sp500_futures": {
-        "min_favorable_units": 80,
-        "max_favorable_units": 240,
-        "min_adverse_units": 50,
-        "max_adverse_units": 160
+        "min_stop_units": 55,
+        "max_stop_units": 170,
+        "min_take_units": 85,
+        "max_take_units": 260
       },
       "btcusd": {
-        "min_favorable_units": 6.0,
-        "max_favorable_units": 9.0,
-        "min_adverse_units": 3.5,
-        "max_adverse_units": 5.0
-      }
-    },
-    "fallback_static_thresholds": {
-      "eurusd": {
-        "favorable_units": 90,
-        "adverse_units": 60
-      },
-      "sp500_futures": {
-        "favorable_units": 140,
-        "adverse_units": 90
-      },
-      "btcusd": {
-        "favorable_units": 7.0,
-        "adverse_units": 4.0
-      }
-    },
-    "instrument_volatility_units": {
-      "eurusd": {
-        "unit": "pips",
-        "model": "ATR14_price_to_pips"
-      },
-      "sp500_futures": {
-        "unit": "points",
-        "model": "ATR14_points"
-      },
-      "btcusd": {
-        "unit": "percent",
-        "model": "ATR14_percent_of_last_close"
+        "min_stop_units": 3.5,
+        "max_stop_units": 6.0,
+        "min_take_units": 5.5,
+        "max_take_units": 9.5
       }
     }
   },
-  "intraweek_scenario_review": {
-    "enabled": true,
-    "review_days": [
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday"
-    ],
-    "review_times_local": [
-      "10:05",
-      "14:05",
-      "18:05"
-    ],
-    "rules_note": "These rules are for the educational model log only; they are not financial advice.",
-    "threshold_source": "dynamic_atr14_saved_during_first_active_review",
-    "favorable_move_ends_scenario": true,
-    "adverse_move_ends_scenario": true,
-    "model_reversal_ends_scenario": true,
-    "model_reversal_min_abs_score": 25
+  "validation": {
+    "status": "requires_out_of_sample_and_paper_trading_evidence",
+    "transaction_cost_assumptions": {
+      "eurusd_round_trip_pips": 1.5,
+      "sp500_futures_round_trip_points": 1.0,
+      "btcusd_round_trip_percent": 0.2
+    },
+    "minimum_requirements_before_claiming_validation": {
+      "aggregate_closed_trades": 150,
+      "minimum_trades_per_instrument": 40,
+      "positive_net_expectancy_after_costs": true,
+      "profit_factor_above": 1.05,
+      "maximum_drawdown_below_percent": 20
+    }
   },
   "publishing_rules": {
     "forecast_must_include_method_version": true,
-    "do_not_edit_past_forecasts_after_result": true,
+    "forecast_must_include_hash": true,
+    "do_not_edit_closed_history": true,
+    "do_not_open_neutral_scenarios": true,
+    "do_not_use_current_price_as_late_entry_or_late_close_fallback": true,
     "show_educational_disclaimer": true,
     "use_model_scenario_language_only": true,
-    "avoid_order_instruction_language": true,
-    "hide_internal_model_fields_on_public_cards": true,
-    "show_user_friendly_position_fields": true
+    "avoid_order_instruction_language": true
   }
 }
