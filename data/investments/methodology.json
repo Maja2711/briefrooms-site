@@ -1,7 +1,7 @@
 {
   "method_version": "2.0.0",
   "name": "BriefRooms Weekly Market Direction Model",
-  "model_status": "paper_trading_rule_based_not_investment_advice",
+  "model_status": "paper_trading_only_sp500_provisional",
   "language_note": "Version 2.0.0 replaces the unvalidated prototype. Forecasts are frozen before the week, neutral signals never receive entries, volatility is an actual model input, entry and exit timestamps are reconstructed from fixed target windows, and closed history is not rewritten.",
   "timezone": "Europe/Warsaw",
   "market_window": {
@@ -23,7 +23,9 @@
       "result_unit": "pips",
       "pip_size": 0.0001,
       "notional_eur": 10000,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "enabled_for_new_positions": false,
+      "validation_gate_reason": "disabled_after_negative_fixed_rule_validation_after_costs"
     },
     {
       "id": "sp500_futures",
@@ -34,7 +36,9 @@
       "result_unit": "points",
       "point_size": 1.0,
       "notional_usd": 10000,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "enabled_for_new_positions": true,
+      "validation_gate_reason": "provisional_paper_trading_only_positive_fixed_rule_test_not_live_validated"
     },
     {
       "id": "btcusd",
@@ -45,7 +49,9 @@
       "result_unit": "percent",
       "point_size": 1.0,
       "notional_usd": 10000,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "enabled_for_new_positions": false,
+      "validation_gate_reason": "disabled_after_negative_fixed_rule_validation_and_excess_drawdown"
     }
   ],
   "signal_model": {
@@ -134,7 +140,9 @@
     }
   },
   "validation": {
-    "status": "requires_out_of_sample_and_paper_trading_evidence",
+    "status": "eurusd_and_btc_failed_fixed_rule_test_sp500_provisional_only",
+    "last_report": "data/investments/model_validation_v2.json",
+    "policy": "Do not retune failed instruments after seeing test results. Disable them and require a separately specified future model version plus new validation.",
     "transaction_cost_assumptions": {
       "eurusd_round_trip_pips": 1.5,
       "sp500_futures_round_trip_points": 1.0,
@@ -146,6 +154,11 @@
       "positive_net_expectancy_after_costs": true,
       "profit_factor_above": 1.05,
       "maximum_drawdown_below_percent": 20
+    },
+    "live_paper_requirement": {
+      "minimum_closed_positions": 30,
+      "must_be_positive_after_costs": true,
+      "must_match_frozen_forecast_and_execution_rules": true
     }
   },
   "publishing_rules": {
@@ -153,6 +166,7 @@
     "forecast_must_include_hash": true,
     "do_not_edit_closed_history": true,
     "do_not_open_neutral_scenarios": true,
+    "do_not_open_instruments_disabled_by_validation_gate": true,
     "do_not_use_current_price_as_late_entry_or_late_close_fallback": true,
     "show_educational_disclaimer": true,
     "use_model_scenario_language_only": true,
