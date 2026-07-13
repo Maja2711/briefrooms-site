@@ -1,5 +1,23 @@
 # BriefRooms Investing Method Changelog
 
+## v2.0.1 — once-daily thesis review for open positions
+
+Added one rule-based review of every open weekly position per trading day.
+
+Rules:
+
+- review is attempted once daily after 23:00 Europe/Warsaw,
+- existing SL/TP monitoring remains active independently and can close earlier,
+- the full v2 signal is recalculated from fresh market data,
+- a position closes on a confirmed full signal in the opposite direction,
+- a long also closes when score is at most -15 with at least two negative signal groups,
+- a short also closes when score is at least +15 with at least two positive signal groups,
+- missing or poor-quality data never causes an automatic close,
+- execution uses the last completed 5-minute bar, not an arbitrary current-price fallback,
+- every keep, close or deferred-close decision is written to the weekly audit trail,
+- no same-week re-entry is allowed after a daily-review close,
+- the historical validation now includes an approximation of the saved daily review rule.
+
 ## v2.0.0 — frozen forecasts, real volatility input and validation gate
 
 The legacy prototype was audited and replaced for new forecasts.
