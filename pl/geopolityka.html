@@ -6,17 +6,16 @@
   <title>Geopolityka — Działy | BriefRooms</title>
   <meta name="description" content="Krótkie, rzeczowe podsumowania tematów geopolitycznych. Wybierz książkę z półki." />
   <link rel="icon" href="/assets/favicon.svg" />
-  <link rel="stylesheet" href="/assets/site.css?v=rooms2" />
+  <link rel="stylesheet" href="/assets/site.css?v=rooms4" />
+  <link rel="stylesheet" href="/assets/geopolitics-library-premium.css?v=2" />
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/geopolityka.html" />
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/geopolitics.html" />
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
 
   <style>
     :root{
-      --bg:#ece0cf;
-      --bg-top:#f6efe6;
       --ink:#172033;
-      --muted:#667085;
+      --muted:#eadcc7;
       --wood:#8b5d39;
       --wood-dark:#5d3922;
       --wood-light:#b47a4b;
@@ -27,83 +26,60 @@
     body.rooms-light.rooms-books{
       margin:0;
       min-height:100vh;
-      color:var(--ink);
       overflow-x:hidden;
       position:relative;
-      background:
-        radial-gradient(circle at 50% -10%,rgba(255,255,255,.94) 0,rgba(255,255,255,.25) 42%,transparent 68%),
-        linear-gradient(180deg,var(--bg-top) 0%,var(--bg) 100%);
+      color:var(--ink);
+      background-color:#1a100b;
     }
 
-    /* Tło pokoju: regały wypełnione książkami */
     body.rooms-light.rooms-books::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      z-index:0;
-      pointer-events:none;
-      opacity:.27;
-      background:
-        linear-gradient(to bottom,
-          transparent 0 104px,rgba(93,57,34,.2) 104px 111px,rgba(139,93,57,.42) 111px 124px,transparent 124px 219px,
-          rgba(93,57,34,.2) 219px 226px,rgba(139,93,57,.42) 226px 239px,transparent 239px 334px,
-          rgba(93,57,34,.2) 334px 341px,rgba(139,93,57,.42) 341px 354px,transparent 354px 449px,
-          rgba(93,57,34,.2) 449px 456px,rgba(139,93,57,.42) 456px 469px,transparent 469px 564px,
-          rgba(93,57,34,.2) 564px 571px,rgba(139,93,57,.42) 571px 584px,transparent 584px 679px,
-          rgba(93,57,34,.2) 679px 686px,rgba(139,93,57,.42) 686px 699px,transparent 699px 100%),
-        repeating-linear-gradient(90deg,
-          rgba(37,60,91,.30) 0 16px,rgba(255,255,255,.08) 16px 18px,
-          rgba(125,46,46,.28) 18px 34px,rgba(255,255,255,.08) 34px 36px,
-          rgba(58,104,78,.30) 36px 52px,rgba(255,255,255,.08) 52px 54px,
-          rgba(117,91,47,.30) 54px 71px,rgba(255,255,255,.08) 71px 73px,
-          rgba(90,63,115,.27) 73px 90px,rgba(255,255,255,.08) 90px 92px,
-          rgba(56,90,107,.28) 92px 108px,rgba(255,255,255,.08) 108px 110px);
-      background-size:100% 100%,100% 115px;
-      background-position:0 0,0 0;
+      content:none !important;
+      display:none !important;
     }
 
     header{
       position:relative;
-      z-index:1;
+      z-index:2;
       text-align:center;
-      padding:36px 16px 14px;
+      max-width:none;
+      padding:42px 16px 20px;
     }
 
     header h1{
-      margin:0 0 9px;
-      color:#182235;
+      margin:0 0 12px;
+      color:#fff1d9 !important;
       font-family:Georgia,"Times New Roman",serif;
-      font-size:clamp(2.15rem,5vw,3.25rem);
+      font-size:clamp(2.3rem,5vw,3.5rem);
       letter-spacing:-.025em;
+      text-shadow:0 4px 16px rgba(0,0,0,.92),0 1px 2px #000;
     }
 
     header .sub{
-      max-width:760px;
+      max-width:820px;
       margin:0 auto;
-      color:var(--muted);
-      font-size:1.02rem;
+      color:#f3e4cf !important;
+      font-size:1.04rem;
       line-height:1.6;
+      text-shadow:0 3px 10px rgba(0,0,0,.95),0 1px 2px #000;
     }
 
     main{
       position:relative;
-      z-index:1;
+      z-index:2;
       max-width:1260px;
       margin:0 auto;
-      padding:18px 18px 58px;
+      padding:20px 18px 58px;
     }
 
     .library{
       position:relative;
       overflow:hidden;
       padding:34px 26px 36px;
-      border:1px solid rgba(93,57,34,.2);
+      border:1px solid rgba(255,236,210,.26) !important;
       border-radius:24px;
-      background:
-        linear-gradient(90deg,rgba(255,255,255,.42),transparent 14%,transparent 86%,rgba(84,48,27,.08)),
-        rgba(255,255,255,.60);
-      box-shadow:0 22px 52px rgba(69,45,29,.15),inset 0 1px rgba(255,255,255,.9);
-      backdrop-filter:blur(2px);
+      background:rgba(244,235,222,.76) !important;
+      box-shadow:0 26px 58px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.78) !important;
+      backdrop-filter:blur(6px);
     }
 
     .library::before{
@@ -114,39 +90,21 @@
       width:max-content;
       max-width:100%;
       margin:0 auto 28px;
-      padding:8px 18px;
-      border:1px solid rgba(61,34,18,.65);
+      padding:9px 19px;
+      border:1px solid rgba(61,34,18,.75);
       border-radius:6px;
       color:#fff8ef;
       background:linear-gradient(180deg,var(--wood-light),var(--wood-dark));
-      box-shadow:0 8px 20px rgba(69,45,29,.24),inset 0 1px rgba(255,255,255,.2);
+      box-shadow:0 8px 20px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.22);
       font-size:.82rem;
       font-weight:800;
       letter-spacing:.14em;
       text-align:center;
     }
 
-    /* Dodatkowe książki i półki wewnątrz głównej biblioteczki */
     .library::after{
-      content:"";
-      position:absolute;
-      inset:18px;
-      z-index:0;
-      pointer-events:none;
-      border-radius:18px;
-      opacity:.24;
-      background:
-        linear-gradient(to bottom,
-          transparent 0 116px,rgba(93,57,34,.35) 116px 123px,rgba(139,93,57,.55) 123px 136px,transparent 136px 245px,
-          rgba(93,57,34,.35) 245px 252px,rgba(139,93,57,.55) 252px 265px,transparent 265px 100%),
-        repeating-linear-gradient(90deg,
-          rgba(37,60,91,.55) 0 13px,rgba(255,255,255,.12) 13px 15px,
-          rgba(125,46,46,.5) 15px 30px,rgba(255,255,255,.12) 30px 32px,
-          rgba(58,104,78,.55) 32px 46px,rgba(255,255,255,.12) 46px 48px,
-          rgba(117,91,47,.5) 48px 65px,rgba(255,255,255,.12) 65px 67px,
-          rgba(90,63,115,.48) 67px 83px,rgba(255,255,255,.12) 83px 85px);
-      background-size:100% 100%,100% 128px;
-      background-position:0 0,0 0;
+      content:none !important;
+      display:none !important;
     }
 
     .tiles{
@@ -167,7 +125,15 @@
       align-items:flex-end;
       justify-content:center;
       min-height:355px;
-      padding-bottom:23px;
+      padding:0 0 23px;
+      border:0;
+      background:transparent;
+      box-shadow:none;
+    }
+
+    .tile:hover{
+      background:transparent;
+      transform:none;
     }
 
     .tile::after{
@@ -179,7 +145,7 @@
       height:18px;
       border-radius:3px 3px 9px 9px;
       background:linear-gradient(180deg,var(--wood-light),var(--wood-dark));
-      box-shadow:0 4px 0 rgba(93,57,34,.48),0 10px 18px rgba(69,45,29,.2);
+      box-shadow:0 4px 0 rgba(93,57,34,.5),0 10px 18px rgba(0,0,0,.28);
     }
 
     .tile-link{
@@ -195,13 +161,13 @@
       overflow:hidden;
       color:#fff;
       text-decoration:none;
-      border:1px solid rgba(12,22,35,.35);
+      border:1px solid rgba(12,22,35,.42);
       border-radius:10px 13px 6px 10px;
       box-shadow:
         inset 8px 0 0 rgba(255,255,255,.12),
-        inset 18px 0 0 rgba(0,0,0,.16),
-        inset -10px 0 0 rgba(255,248,232,.38),
-        0 16px 24px rgba(17,24,39,.2);
+        inset 18px 0 0 rgba(0,0,0,.18),
+        inset -10px 0 0 rgba(255,248,232,.4),
+        0 18px 27px rgba(0,0,0,.29);
       transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;
     }
 
@@ -233,12 +199,12 @@
     .tile-link:hover,
     .tile-link:focus-visible{
       transform:translateY(-8px);
-      filter:saturate(1.05) brightness(1.02);
+      filter:saturate(1.06) brightness(1.03);
       box-shadow:
         inset 8px 0 0 rgba(255,255,255,.12),
-        inset 18px 0 0 rgba(0,0,0,.16),
-        inset -10px 0 0 rgba(255,248,232,.38),
-        0 22px 30px rgba(17,24,39,.27);
+        inset 18px 0 0 rgba(0,0,0,.18),
+        inset -10px 0 0 rgba(255,248,232,.4),
+        0 24px 34px rgba(0,0,0,.38);
       outline:none;
     }
 
@@ -248,11 +214,10 @@
       align-self:flex-end;
       display:inline-block;
       padding:8px 11px;
-      border:1px solid rgba(255,255,255,.2);
+      border:1px solid rgba(255,255,255,.22);
       border-radius:999px;
       color:#fff7ea;
-      background:rgba(0,0,0,.18);
-      box-shadow:inset 0 1px rgba(255,255,255,.15);
+      background:rgba(0,0,0,.22);
       font-size:.72rem;
       font-weight:800;
       letter-spacing:.02em;
@@ -272,13 +237,13 @@
       overflow:hidden;
       -webkit-box-orient:vertical;
       -webkit-line-clamp:4;
+      margin:0;
       color:#fff9ef;
       font-family:Georgia,"Times New Roman",serif;
       font-size:1.03rem;
       font-weight:800;
       line-height:1.2;
-      text-wrap:balance;
-      text-shadow:0 2px 3px rgba(0,0,0,.28);
+      text-shadow:0 2px 3px rgba(0,0,0,.3);
     }
 
     .tile-desc{
@@ -286,28 +251,35 @@
       overflow:hidden;
       -webkit-box-orient:vertical;
       -webkit-line-clamp:5;
+      margin:0;
       padding-top:10px;
       border-top:1px solid rgba(255,231,184,.35);
-      color:rgba(255,255,255,.9);
+      color:rgba(255,255,255,.92);
       font-size:.9rem;
       line-height:1.5;
     }
 
     .back{
       position:relative;
-      z-index:1;
-      margin:27px 4px 0;
-      color:var(--muted);
+      z-index:2;
+      margin:28px 4px 0;
+      color:#fff1dc !important;
+      text-shadow:0 2px 8px rgba(0,0,0,.9);
     }
 
-    .back a{color:#235b98;text-underline-offset:3px}
+    .back a{
+      color:#fff1dc !important;
+      text-decoration:underline;
+      text-underline-offset:3px;
+    }
 
     @media (max-width:900px){
       .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
 
     @media (max-width:520px){
-      header{padding-top:26px}
+      body.rooms-light.rooms-books{background-attachment:scroll !important}
+      header{padding-top:30px}
       .library{padding:26px 14px 30px}
       .tiles{grid-template-columns:1fr}
       .tile{min-height:340px}
