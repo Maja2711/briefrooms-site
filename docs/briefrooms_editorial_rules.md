@@ -21,6 +21,14 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 ## Strona główna
 Krótki opis na karcie jest tworzony z pierwszych zdań zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.
 
+## Stały rytm aktualizacji strony i newsów
+1. Strona główna oraz pliki newsów PL i EN są odświeżane co 4 godziny.
+2. Przed każdym przebiegiem zapisywany jest ostatni poprawny zestaw kart.
+3. Błąd pojedynczego generatora, tłumaczenia, walidatora albo skryptu wyglądu nie może zatrzymać zapisania ostatnich poprawnych danych.
+4. Pusta, częściowa albo uszkodzona aktualizacja nie może zastąpić widocznego zestawu newsów.
+5. Niezależny watchdog sprawdza stan co godzinę. Gdy dane są starsze niż 5 godzin, uruchamia ścieżkę odzyskiwania.
+6. Kontrakt częstotliwości i zabezpieczeń jest zapisany w `data/content_update_contract.json` i kontrolowany automatycznie.
+
 ## Duplikaty tematów
 Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko jedną kartę, nawet jeśli opisują je dwa różne źródła i prowadzą do dwóch różnych linków. Drugi link nie tworzy nowego briefu, jeśli sedno sprawy jest takie samo.
 
@@ -28,10 +36,13 @@ Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko j
 „Pilne” i „Breaking” są tylko sygnałem priorytetu sortowania. Nie pokazujemy ich jako etykiety na zdjęciu karty.
 
 ## Hot X
-1. Sekcja Hot X jest aktualizowana automatycznie trzy razy dziennie.
-2. Każdy przebieg ma pobierać nowe tematy albo konkretne posty z X, a nie tylko ponownie zapisywać stare dane.
-3. W wersji PL wszystkie widoczne tytuły i opisy muszą być po polsku; angielski tekst nie może zostać użyty jako fallback.
-4. W wersji EN tytuły i opisy pozostają po angielsku.
-5. Jedno realne zdarzenie może pojawić się w Hot X tylko raz.
-6. Aktualizacja nie może wyczyścić całej sekcji. Jeżeli nowe dane są puste, uszkodzone albo nie mają poprawnego linku do posta lub wyszukiwania X, pozostają ostatnie poprawne karty.
-7. Jeśli nowy przebieg dostarczy mniej niż trzy poprawne karty, brakujące miejsca są uzupełniane ostatnimi poprawnymi kartami, zamiast zostawiać pustą kolumnę.
+1. Sekcja Hot X jest aktualizowana automatycznie dwa razy dziennie.
+2. Każdy przebieg ma próbować pobrać nowe tematy albo konkretne posty z X, a nie tylko ponownie zapisywać stare dane.
+3. Każda widoczna karta musi mieć konkretny komentarz. Sam tytuł, pusty opis lub ogólnik typu „Na X monitorowany jest temat” nie jest komentarzem.
+4. W wersji PL wszystkie widoczne tytuły i komentarze muszą być po polsku; angielski tekst nie może zostać użyty jako fallback.
+5. W wersji EN tytuły i komentarze pozostają po angielsku.
+6. Jedno realne zdarzenie może pojawić się w Hot X tylko raz.
+7. Aktualizacja nie może wyczyścić całej sekcji. Jeżeli nowe dane są puste, uszkodzone, ogólnikowe albo nie mają poprawnego linku do X, pozostają ostatnie poprawne karty.
+8. Jeżeli brak ostatnich poprawnych danych, ładowany jest zapisany zestaw awaryjny z pełnymi komentarzami.
+9. Zawsze muszą pozostać co najmniej trzy karty z komentarzem. Brakujące miejsca są uzupełniane ostatnimi poprawnymi kartami.
+10. Watchdog uznaje Hot X za przeterminowany po 13 godzinach i uruchamia ponowną próbę aktualizacji.
