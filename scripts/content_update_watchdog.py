@@ -15,6 +15,8 @@ HEALTH = Path("data/content_update_health.json")
 HOME_PL = Path("pl/home_brief.json")
 HOME_EN = Path("en/home_brief.json")
 HOT_X = Path("data/hot_tweets.json")
+HOME_TEMPLATE = Path("config/workflow_templates/build-home-brief.yml")
+HOT_TEMPLATE = Path("config/workflow_templates/hot-x-topics.yml")
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -50,24 +52,32 @@ def age_hours(path: Path) -> float | None:
     return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
 
 
-def repair_cron(path: Path, expected: str) -> bool:
+def workflow_has_markers(text: str, markers: list[str]) -> bool:
+    return all(marker in text for marker in markers)
+
+
+def ensure_workflow(path: Path, template: Path, expected_cron: str, markers: list[str]) -> str | None:
+    if not template.exists():
+        raise SystemExit(f"Missing canonical workflow template: {template}")
+    template_text = template.read_text(encoding="utf-8")
     if not path.exists():
-        raise SystemExit(f"Required workflow is missing: {path}")
-    text = path.read_text(encoding="utf-8")
-    if f'cron: "{expected}"' in text or f"cron: '{expected}'" in text:
-        return False
-    changed, count = re.subn(r"cron:\s*[\"'][^\"']+[\"']", f'cron: "{expected}"', text, count=1)
-    if count != 1:
-        raise SystemExit(f"Could not repair cron contract in {path}")
-    path.write_text(changed, encoding="utf-8", newline="\n")
-    return True
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(template_text, encoding="utf-8", newline="\n")
+        return "restored_missing_workflow_from_template"
 
-
-def require_markers(path: Path, markers: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
-    missing = [marker for marker in markers if marker not in text]
-    if missing:
-        raise SystemExit(f"Content update contract removed from {path}: {', '.join(missing)}")
+    if not workflow_has_markers(text, markers):
+        path.write_text(template_text, encoding="utf-8", newline="\n")
+        return "restored_removed_protection_from_template"
+
+    if f'cron: "{expected_cron}"' not in text and f"cron: '{expected_cron}'" not in text:
+        changed, count = re.subn(r"cron:\s*[\"'][^\"']+[\"']", f'cron: "{expected_cron}"', text, count=1)
+        if count != 1:
+            path.write_text(template_text, encoding="utf-8", newline="\n")
+            return "restored_invalid_schedule_from_template"
+        path.write_text(changed, encoding="utf-8", newline="\n")
+        return "repaired_schedule"
+    return None
 
 
 def run_protection() -> list[str]:
@@ -96,14 +106,25 @@ def main() -> None:
 
     home_workflow = Path(str(home.get("workflow")))
     hot_workflow = Path(str(hot.get("workflow")))
-    repaired = []
-    if repair_cron(home_workflow, str(home.get("required_cron"))):
-        repaired.append(str(home_workflow))
-    if repair_cron(hot_workflow, str(hot.get("required_cron"))):
-        repaired.append(str(hot_workflow))
+    repairs = []
 
-    require_markers(home_workflow, ["protect_home_feed.py --backup", "protect_home_feed.py --validate", "continue-on-error: true"])
-    require_markers(hot_workflow, ["validate_hot_x_comments.py --backup", "validate_hot_x_comments.py --validate", "update_hot_x_2x_daily.py"])
+    home_repair = ensure_workflow(
+        home_workflow,
+        HOME_TEMPLATE,
+        str(home.get("required_cron")),
+        ["protect_home_feed.py --backup", "protect_home_feed.py --validate", "continue-on-error: true"],
+    )
+    if home_repair:
+        repairs.append({"workflow": str(home_workflow), "action": home_repair})
+
+    hot_repair = ensure_workflow(
+        hot_workflow,
+        HOT_TEMPLATE,
+        str(hot.get("required_cron")),
+        ["validate_hot_x_comments.py --backup", "validate_hot_x_comments.py --validate", "update_hot_x_2x_daily.py"],
+    )
+    if hot_repair:
+        repairs.append({"workflow": str(hot_workflow), "action": hot_repair})
 
     protection_notes = run_protection()
     home_ages = [x for x in (age_hours(HOME_PL), age_hours(HOME_EN)) if x is not None]
@@ -115,7 +136,7 @@ def main() -> None:
     report = {
         "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "contract_version": contract.get("contract_version"),
-        "workflow_repairs": repaired,
+        "workflow_repairs": repairs,
         "homepage_age_hours": None if home_age is None else round(home_age, 3),
         "homepage_stale": home_stale,
         "hot_x_age_hours": None if hot_age is None else round(hot_age, 3),
