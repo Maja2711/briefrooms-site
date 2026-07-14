@@ -1,35 +1,11 @@
 {
   "updated_at": "2026-07-14T10:02:41+02:00",
-  "mode": "concrete-news-to-x-search",
+  "mode": "protected-substantive-x-comments",
   "refresh_interval_hours": 12,
-  "rotation_slot": 4,
-  "rotation_slots_total": 6,
-  "method_pl": "Hot X jest odświeżany dwa razy dziennie. Nowy przebieg może zastąpić kartę tylko wtedy, gdy ma poprawny link do X oraz konkretny komentarz po polsku. Pusty lub ogólnikowy wynik nie usuwa ostatnich poprawnych kart.",
-  "method_en": "Hot X refreshes twice daily. A new card may replace the previous one only when it has a valid X destination and a substantive comment. Empty or generic output keeps the last valid cards.",
+  "update_frequency": "2_times_daily",
+  "method_pl": "Hot X jest odświeżany dwa razy dziennie. Nowe dane zastępują poprzednie tylko wtedy, gdy każda karta ma poprawny link do X oraz konkretny komentarz po polsku. Puste i ogólnikowe wyniki są odrzucane.",
+  "method_en": "Hot X refreshes twice daily. New data replaces the previous feed only when every card has a valid X destination and a substantive comment. Empty and generic output is rejected.",
   "items": [
-    {
-      "category": "crypto",
-      "label_pl": "KRYPTO",
-      "label_en": "CRYPTO",
-      "tweet_url": "",
-      "search_url": "https://x.com/search?q=%22Crypto%20treasury%20inflows%20fall%20to%20lowest%20level%20since%202024%22%20http%3A//www.bing.com/news/apiclick.aspx%3Fref%3DFexRss%26aid%3D%26tid%3D6a55ed2150aa48a9bc7b6a80e8f9aaf2%26url%3Dhttps%253a%252f%252fcointelegraph.com%252fnews%252fcrypto-treasury-inflows-may-lowe%E2%80%A6&src=typed_query&f=top",
-      "image": "/assets/hot-x/topic-crypto.svg",
-      "selected_at": "2026-07-14T10:02:41+02:00",
-      "rotation_slot": 4,
-      "refresh_interval_hours": 12,
-      "title_en": "Crypto treasury inflows fall to lowest level since 2024",
-      "title_pl": "Krypto: Bitcoin i rezerwy firm",
-      "summary_en": "Bitcoin treasury firms made up nearly all May inflows, but BTC-linked capital formation also dropped sharply from April. Monthly inflows into digital asset treasury…",
-      "summary_pl": "Temat dotyczy rynku kryptowalut, Bitcoina oraz roli dużych firm w nastrojach inwestorów. Link prowadzi do dyskusji na X.",
-      "source_en": "X — exact news search",
-      "source_pl": "X — konkretne wyszukiwanie newsa",
-      "selected_by": "concrete-news-to-x-search-12h",
-      "image_topic": "crypto",
-      "x_query": "\"Crypto treasury inflows fall to lowest level since 2024\" http://www.bing.com/news/apiclick.aspx?ref=FexRss&aid=&tid=6a55ed2150aa48a9bc7b6a80e8f9aaf2&url=https%3a%2f%2fcointelegraph.com%2fnews%2fcrypto-treasury-inflows-may-lowe…",
-      "pl_translation_status": "pl_ok",
-      "comment_pl": "Temat dotyczy rynku kryptowalut, Bitcoina oraz roli dużych firm w nastrojach inwestorów. Link prowadzi do dyskusji na X.",
-      "comment_en": "Bitcoin treasury firms made up nearly all May inflows, but BTC-linked capital formation also dropped sharply from April. Monthly inflows into digital asset treasury…"
-    },
     {
       "category": "economy",
       "label_pl": "MAKRO",
@@ -63,15 +39,31 @@
       "source_pl": "X — ostatni poprawny temat",
       "source_en": "X — last valid topic",
       "fallback_kind": "emergency_last_verified_comment"
+    },
+    {
+      "category": "crypto",
+      "label_pl": "KRYPTO",
+      "label_en": "CRYPTO",
+      "title_pl": "Bitcoin i ETF-y: przepływy kapitału znów sterują nastrojami",
+      "title_en": "Bitcoin and ETFs: capital flows again drive market sentiment",
+      "comment_pl": "Komentarze na X skupiają się na przepływach do funduszy ETF oraz na tym, czy zakupy instytucjonalne wystarczą do podtrzymania popytu na Bitcoina. Rynek obserwuje też, czy wzrost ceny ma szerokie potwierdzenie, czy jest napędzany przez wąską grupę dużych uczestników.",
+      "comment_en": "X commentary focuses on ETF flows and whether institutional buying is strong enough to sustain Bitcoin demand. The market is also watching whether the price move is broadly confirmed or driven by a narrow group of large participants.",
+      "summary_pl": "Komentarze na X skupiają się na przepływach do funduszy ETF oraz na tym, czy zakupy instytucjonalne wystarczą do podtrzymania popytu na Bitcoina. Rynek obserwuje też, czy wzrost ceny ma szerokie potwierdzenie, czy jest napędzany przez wąską grupę dużych uczestników.",
+      "summary_en": "X commentary focuses on ETF flows and whether institutional buying is strong enough to sustain Bitcoin demand. The market is also watching whether the price move is broadly confirmed or driven by a narrow group of large participants.",
+      "tweet_url": "",
+      "search_url": "https://x.com/search?q=Bitcoin%20ETF%20flows%20institutional%20demand&src=typed_query&f=top",
+      "image": "/assets/hot-x/topic-crypto.svg",
+      "source_pl": "X — ostatni poprawny temat",
+      "source_en": "X — last valid topic",
+      "fallback_kind": "emergency_last_verified_comment"
     }
   ],
-  "image_matching": "topic-classifier-v2",
-  "update_frequency": "2_times_daily",
-  "last_update_attempt_at": "2026-07-14T08:04:29+00:00",
+  "min_items": 3,
+  "last_update_attempt_at": "2026-07-14T08:09:47+00:00",
   "last_good_protection": {
-    "status": "new_comments_validated",
-    "new_substantive_items": 3,
+    "status": "generic_or_partial_update_completed_from_last_good",
+    "new_substantive_items": 0,
     "visible_items": 3,
-    "rule": "Hot X keeps at least three cards with substantive comments. Empty and generic output is rejected."
+    "rule": "Hot X keeps at least three cards with substantive comments. Empty, placeholder and generic output is rejected."
   }
 }
