@@ -33,11 +33,11 @@
       ],
       "entry_price": 1.1402509212493896,
       "entry_captured_at": "2026-07-13T08:00:00+02:00",
-      "exit_price": null,
-      "exit_captured_at": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 1.1449507474899292,
+      "exit_captured_at": "2026-07-14T16:30:00+02:00",
+      "result": "loss",
+      "result_value": -46.99826241,
+      "result_percent": -0.4122,
       "entry_source": "Yahoo Finance:EURUSD=X:5m:first_bar_at_or_after_target",
       "invalid_entry_audit": {
         "price": 1.1419435739517212,
@@ -46,7 +46,7 @@
         "reason": "outside_monday_08_00_to_10_00_window"
       },
       "entry_quality_status": "valid_reconstructed_target_bar",
-      "trade_status": "open",
+      "trade_status": "closed",
       "daily_reviews": [
         {
           "review_date": "2026-07-13",
@@ -60,11 +60,37 @@
           "data_quality": "passed",
           "decision": "keep",
           "reason": "keep_original_thesis_not_invalidated"
+        },
+        {
+          "review_date": "2026-07-14",
+          "reviewed_at": "2026-07-14T16:36:57+02:00",
+          "review_trigger": "material_event_request",
+          "original_direction": "short",
+          "fresh_direction": "neutral",
+          "fresh_score": -31,
+          "fresh_signal_strength": 0.31,
+          "positive_groups": 0,
+          "negative_groups": 3,
+          "data_quality": "passed",
+          "decision": "close",
+          "reason": "material_macro_event_invalidated_short_thesis",
+          "event_request_id": "2026-07-14-us-cpi-eurusd-short",
+          "event": "US CPI for June 2026 was materially softer than expected; headline CPI was 3.5% y/y versus 3.8% consensus and -0.4% m/m, while core CPI was 2.6% y/y and 0.0% m/m. The dollar and US Treasury yields fell after the release.",
+          "event_policy": "Close the existing EUR/USD short at the next available completed 5-minute bar. Do not reverse to long and do not reopen during the same week.",
+          "exit_price": 1.1449507474899292,
+          "exit_captured_at": "2026-07-14T16:30:00+02:00",
+          "exit_source": "Yahoo Finance:EURUSD=X:5m:last_completed_bar_position_review"
         }
       ],
-      "last_daily_review_at": "2026-07-13T23:14:15+02:00",
-      "last_daily_review_decision": "keep",
-      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
+      "last_daily_review_at": "2026-07-14T16:36:57+02:00",
+      "last_daily_review_decision": "close",
+      "last_daily_review_reason": "material_macro_event_invalidated_short_thesis",
+      "exit_source": "Yahoo Finance:EURUSD=X:5m:last_completed_bar_position_review",
+      "exit_reason": "event_review_material_macro_event_invalidated_short_thesis",
+      "exit_execution_model": "last_completed_5m_bar_at_review",
+      "risk_status": "closed_by_material_event_review",
+      "result_units": -46.99826241,
+      "result_currency": "USD"
     },
     {
       "instrument_id": "sp500_futures",
@@ -116,9 +142,23 @@
           "data_quality": "passed",
           "decision": "keep",
           "reason": "keep_original_thesis_not_invalidated"
+        },
+        {
+          "review_date": "2026-07-14",
+          "reviewed_at": "2026-07-14T16:36:57+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "original_direction": "long",
+          "fresh_direction": "long",
+          "fresh_score": 43,
+          "fresh_signal_strength": 0.43,
+          "positive_groups": 3,
+          "negative_groups": 0,
+          "data_quality": "passed",
+          "decision": "keep",
+          "reason": "keep_original_thesis_not_invalidated"
         }
       ],
-      "last_daily_review_at": "2026-07-13T23:14:15+02:00",
+      "last_daily_review_at": "2026-07-14T16:36:57+02:00",
       "last_daily_review_decision": "keep",
       "last_daily_review_reason": "keep_original_thesis_not_invalidated"
     },
@@ -173,6 +213,8 @@
       "data_quality_failure_action": "keep_position",
       "execution": "last_completed_5m_bar",
       "same_week_reentry": false
-    }
+    },
+    "last_material_event_review_at": "2026-07-14T16:36:57+02:00",
+    "material_event_close_only": true
   }
 }
