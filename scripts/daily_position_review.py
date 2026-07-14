@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Once-daily thesis review for open weekly positions.
+"""Review open weekly positions and close invalidated theses.
 
-Rules:
-- runs once per local trading day after 23:00 Europe/Warsaw;
-- SL/TP monitoring remains separate and may close positions earlier;
-- recomputes the saved v2 signal from current market data;
-- closes only on a confirmed opposite signal or a strong directional invalidation;
-- uses the last completed 5-minute bar, never an arbitrary current-price fallback;
-- records every review decision in the weekly file and in a separate report;
-- never reopens a position in the same week.
+Normal thesis review runs once per trading day after 23:00 Europe/Warsaw.
+A separately recorded material-event exit request may be processed immediately,
+using the next available completed 5-minute bar. Event exits are close-only:
+no automatic reversal and no same-week re-entry.
 """
 from __future__ import annotations
 
@@ -24,6 +20,7 @@ import investments_weekly_v2 as model
 ROOT = Path(__file__).resolve().parents[1]
 METHOD_PATH = ROOT / "data" / "investments" / "methodology.json"
 REPORT_PATH = ROOT / "data" / "investments" / "daily_review_report.json"
+EVENT_REQUESTS_PATH = ROOT / "data" / "investments" / "event_exit_requests.json"
 REVIEW_HOUR_LOCAL = 23
 INVALIDATION_SCORE = 15
 OPPOSING_GROUPS_REQUIRED = 2
@@ -66,7 +63,7 @@ def last_completed_5m_bar(symbol: str, now: datetime) -> Optional[Dict[str, Any]
         return {
             "price": price,
             "timestamp": ts.isoformat(timespec="seconds"),
-            "source": f"Yahoo Finance:{symbol}:5m:last_completed_bar_daily_review",
+            "source": f"Yahoo Finance:{symbol}:5m:last_completed_bar_position_review",
         }
     except Exception:
         return None
@@ -98,6 +95,38 @@ def exit_decision(side: str, fresh: Dict[str, Any]) -> Tuple[bool, str]:
     return False, "keep_original_thesis_not_invalidated"
 
 
+def pending_event_request(data: Dict[str, Any], week_id: str, instrument_id: str) -> Optional[Dict[str, Any]]:
+    for row in data.get("requests") or []:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("status")) != "pending" or str(row.get("action")) != "close_only":
+            continue
+        if str(row.get("week_id")) == week_id and str(row.get("instrument_id")) == instrument_id:
+            return row
+    return None
+
+
+def has_pending_event(data: Dict[str, Any], week: Dict[str, Any]) -> bool:
+    week_id = str(week.get("week_id") or "")
+    for item in week.get("instruments") or []:
+        if pending_event_request(data, week_id, str(item.get("instrument_id") or "")):
+            return True
+    return False
+
+
+def safe_fresh_signal(cfg: Dict[str, Any], method: Dict[str, Any], week_id: str, now: datetime) -> Dict[str, Any]:
+    try:
+        return model.model_signal(cfg, method, week_id, now)
+    except Exception as exc:
+        return {
+            "direction": "unavailable",
+            "score": 0,
+            "signal_strength": 0.0,
+            "signals": {},
+            "data_quality": f"failed:{type(exc).__name__}",
+        }
+
+
 def review() -> Dict[str, Any]:
     now = legacy.now_local()
     report: Dict[str, Any] = {
@@ -114,10 +143,6 @@ def review() -> Dict[str, Any]:
         report["status"] = "skipped_weekend"
         write(REPORT_PATH, report)
         return report
-    if now.hour < REVIEW_HOUR_LOCAL:
-        report["status"] = "skipped_before_daily_review_time"
-        write(REPORT_PATH, report)
-        return report
 
     path = model.current_week_path(now)
     week = read(path, {})
@@ -126,23 +151,38 @@ def review() -> Dict[str, Any]:
         write(REPORT_PATH, report)
         return report
 
+    event_data = read(EVENT_REQUESTS_PATH, {"requests": []})
+    event_pending = has_pending_event(event_data, week)
+    if now.hour < REVIEW_HOUR_LOCAL and not event_pending:
+        report["status"] = "skipped_before_daily_review_time"
+        write(REPORT_PATH, report)
+        return report
+
     state = week.get("daily_position_review") if isinstance(week.get("daily_position_review"), dict) else {}
-    if state.get("last_review_date") == now.date().isoformat():
+    if now.hour >= REVIEW_HOUR_LOCAL and state.get("last_review_date") == now.date().isoformat() and not event_pending:
         report["status"] = "skipped_already_reviewed_today"
         write(REPORT_PATH, report)
         return report
 
     method = read(METHOD_PATH, {})
     cfg_by_id = {str(x.get("id")): x for x in method.get("instruments", [])}
+    week_id = str(week.get("week_id") or "")
     changed = False
+    event_changed = False
 
     for item in week.get("instruments", []):
         inst_id = str(item.get("instrument_id") or "")
         side = str(item.get("direction") or "neutral")
         entry = sf(item.get("entry_price"))
         exit_price = sf(item.get("exit_price"))
+        request = pending_event_request(event_data, week_id, inst_id)
+
         if side not in {"long", "short"} or entry is None or exit_price is not None:
             report["skipped"].append({"instrument_id": inst_id, "reason": "no_open_directional_position"})
+            if request:
+                request["status"] = "no_action_position_not_open"
+                request["processed_at"] = now.isoformat(timespec="seconds")
+                event_changed = True
             continue
 
         cfg = cfg_by_id.get(inst_id)
@@ -150,12 +190,20 @@ def review() -> Dict[str, Any]:
             report["skipped"].append({"instrument_id": inst_id, "reason": "instrument_config_missing"})
             continue
 
-        fresh = model.model_signal(cfg, method, str(week.get("week_id") or ""), now)
-        should_close, reason = exit_decision(side, fresh)
+        fresh = safe_fresh_signal(cfg, method, week_id, now)
+        if request:
+            should_close = True
+            reason = str(request.get("reason") or "material_event_exit_request")
+            trigger = "material_event_request"
+        else:
+            should_close, reason = exit_decision(side, fresh)
+            trigger = "scheduled_daily_model_review"
+
         positive, negative = agreement(fresh)
         review_row: Dict[str, Any] = {
             "review_date": now.date().isoformat(),
             "reviewed_at": now.isoformat(timespec="seconds"),
+            "review_trigger": trigger,
             "original_direction": side,
             "fresh_direction": fresh.get("direction"),
             "fresh_score": fresh.get("score"),
@@ -166,6 +214,10 @@ def review() -> Dict[str, Any]:
             "decision": "close" if should_close else "keep",
             "reason": reason,
         }
+        if request:
+            review_row["event_request_id"] = request.get("request_id")
+            review_row["event"] = request.get("event")
+            review_row["event_policy"] = request.get("policy")
 
         if should_close:
             point = last_completed_5m_bar(str(item.get("symbol") or cfg.get("symbol") or ""), now)
@@ -177,16 +229,23 @@ def review() -> Dict[str, Any]:
                 item["exit_price"] = point["price"]
                 item["exit_captured_at"] = point["timestamp"]
                 item["exit_source"] = point["source"]
-                item["exit_reason"] = f"daily_model_{reason}"
-                item["exit_execution_model"] = "last_completed_5m_bar_at_once_daily_review"
+                item["exit_reason"] = f"event_review_{reason}" if request else f"daily_model_{reason}"
+                item["exit_execution_model"] = "last_completed_5m_bar_at_review"
                 item["trade_status"] = "closed"
-                item["risk_status"] = "closed_by_daily_model_review"
+                item["risk_status"] = "closed_by_material_event_review" if request else "closed_by_daily_model_review"
                 model.set_result(item, float(point["price"]))
                 review_row["exit_price"] = point["price"]
                 review_row["exit_captured_at"] = point["timestamp"]
                 review_row["exit_source"] = point["source"]
                 report["closed"].append({"instrument_id": inst_id, **review_row})
                 changed = True
+                if request:
+                    request["status"] = "executed"
+                    request["executed_at"] = now.isoformat(timespec="seconds")
+                    request["exit_price"] = point["price"]
+                    request["exit_captured_at"] = point["timestamp"]
+                    request["exit_source"] = point["source"]
+                    event_changed = True
         else:
             report["kept"].append({"instrument_id": inst_id, **review_row})
 
@@ -198,23 +257,35 @@ def review() -> Dict[str, Any]:
         item["last_daily_review_reason"] = review_row["reason"]
         changed = True
 
-    week["daily_position_review"] = {
-        "enabled": True,
-        "last_review_date": now.date().isoformat(),
-        "last_reviewed_at": now.isoformat(timespec="seconds"),
-        "local_time": f"{REVIEW_HOUR_LOCAL:02d}:00 Europe/Warsaw",
-        "exit_rules": {
-            "confirmed_opposite_signal": True,
-            "directional_invalidation_score": INVALIDATION_SCORE,
-            "opposing_groups_required": OPPOSING_GROUPS_REQUIRED,
-            "data_quality_failure_action": "keep_position",
-            "execution": "last_completed_5m_bar",
-            "same_week_reentry": False,
-        },
-    }
+    if now.hour >= REVIEW_HOUR_LOCAL:
+        week["daily_position_review"] = {
+            "enabled": True,
+            "last_review_date": now.date().isoformat(),
+            "last_reviewed_at": now.isoformat(timespec="seconds"),
+            "local_time": f"{REVIEW_HOUR_LOCAL:02d}:00 Europe/Warsaw",
+            "exit_rules": {
+                "confirmed_opposite_signal": True,
+                "directional_invalidation_score": INVALIDATION_SCORE,
+                "opposing_groups_required": OPPOSING_GROUPS_REQUIRED,
+                "material_event_close_only": True,
+                "data_quality_failure_action": "keep_position_unless_material_event_request",
+                "execution": "last_completed_5m_bar",
+                "same_week_reentry": False,
+            },
+        }
+    else:
+        state["enabled"] = True
+        state["last_material_event_review_at"] = now.isoformat(timespec="seconds")
+        state["material_event_close_only"] = True
+        week["daily_position_review"] = state
+
     if changed:
         write(path, week)
-    report["status"] = "completed"
+    if event_changed:
+        event_data["updated_at"] = now.isoformat(timespec="seconds")
+        write(EVENT_REQUESTS_PATH, event_data)
+
+    report["status"] = "completed_material_event_review" if event_pending and now.hour < REVIEW_HOUR_LOCAL else "completed"
     report["week_id"] = week.get("week_id")
     write(REPORT_PATH, report)
     return report
