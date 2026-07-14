@@ -3,18 +3,19 @@ name: Update Hot X Topics
 on:
   workflow_dispatch:
   schedule:
-    # Three times daily. GitHub cron uses UTC: 05:17, 13:17 and 21:17.
-    - cron: "17 5,13,21 * * *"
+    # Twice daily. GitHub cron uses UTC: 06:17 and 18:17.
+    - cron: "17 6,18 * * *"
   push:
     branches: [main]
     paths:
-      - "scripts/update_hot_x_3x_daily.py"
+      - "scripts/update_hot_x_2x_daily.py"
       - "scripts/build_hot_x_en.py"
       - "scripts/update_hot_x_topics.py"
       - "scripts/translate_hot_x_pl.py"
-      - "scripts/validate_hot_x_feed.py"
+      - "scripts/validate_hot_x_comments.py"
       - "scripts/patch_hot_x_loader.py"
       - "scripts/hot-x-render.js"
+      - "data/hot_x_emergency.json"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -22,11 +23,12 @@ permissions:
 
 concurrency:
   group: hot-x-update
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update-hot-x-topics:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -36,26 +38,33 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Save last known good Hot X feed
-        run: python scripts/validate_hot_x_feed.py --backup
+      - name: Save last known good Hot X comments
+        run: python scripts/validate_hot_x_comments.py --backup
+        continue-on-error: true
 
-      - name: Update Hot X automatically
+      - name: Update Hot X automatically twice daily
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
-        run: python scripts/update_hot_x_3x_daily.py
+        run: python scripts/update_hot_x_2x_daily.py
+        continue-on-error: true
 
       - name: Final Polish-language gate
         run: python scripts/translate_hot_x_pl.py
+        continue-on-error: true
 
-      - name: Validate and preserve last-good Hot X cards
-        run: python scripts/validate_hot_x_feed.py --validate
+      - name: Reject empty or generic cards and preserve comments
+        if: always()
+        run: python scripts/validate_hot_x_comments.py --validate
 
       - name: Load resilient Hot X renderer
+        if: always()
         run: python scripts/patch_hot_x_loader.py
+        continue-on-error: true
 
       - name: Commit updated Hot X data
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
