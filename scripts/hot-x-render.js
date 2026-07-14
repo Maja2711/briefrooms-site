@@ -18,7 +18,7 @@
       search: pl ? 'Otwórz temat na X →' : 'Open topic on X →',
       expand: pl ? 'Rozwiń cały post' : 'Expand full post',
       original: pl ? 'Post z X — oryginał' : 'X post — original',
-      summary: 'Brief'
+      summary: pl ? 'Komentarz' : 'Comment'
     };
   }
 
@@ -45,6 +45,11 @@
     return text.slice(0, max).replace(/\s+$/,'') + '…';
   }
 
+  function commentText(item){
+    var isPl = lang() === 'pl';
+    return String((isPl ? item.comment_pl : item.comment_en) || (isPl ? item.summary_pl : item.summary_en) || item.comment_pl || item.comment_en || item.summary_pl || item.summary_en || '').trim();
+  }
+
   function renderText(item, L){
     var exact = exactPostText(item);
     if(exact){
@@ -53,17 +58,14 @@
       }
       return '<p class="hot-x-mode">'+esc(L.original)+'</p><pre class="hot-x-full hot-x-short">'+esc(exact)+'</pre>';
     }
-    var isPl = lang() === 'pl';
-    var summary = String((isPl ? item.summary_pl : item.summary_en) || item.summary_pl || item.summary_en || '');
-    return '<p class="hot-x-mode">'+esc(L.summary)+'</p><p class="hot-x-text">'+esc(summary)+'</p>';
+    return '<p class="hot-x-mode">'+esc(L.summary)+'</p><p class="hot-x-text">'+esc(commentText(item))+'</p>';
   }
 
   function usableItems(items){
     var isPl = lang() === 'pl';
     return (items || []).filter(function(item){
       var title = String((isPl ? item.title_pl : item.title_en) || item.title_pl || item.title_en || '').trim();
-      var summary = String((isPl ? item.summary_pl : item.summary_en) || item.summary_pl || item.summary_en || '').trim();
-      return !!itemUrl(item) && !!title && !!summary;
+      return !!itemUrl(item) && !!title && commentText(item).length >= 40;
     });
   }
 
@@ -87,7 +89,7 @@
   }
 
   function cacheKey(){
-    return 'briefrooms_hot_x_last_good_v2_'+lang();
+    return 'briefrooms_hot_x_last_good_v3_'+lang();
   }
 
   function saveLastGood(items){
@@ -130,12 +132,9 @@
           saveLastGood(items);
           return;
         }
-        // Never erase the section. Keep the last known good cards or the
-        // server-rendered cards already present in the page.
         if(cached.length) render(cached);
       })
       .catch(function(){
-        // A failed update must not blank the column.
         if(cached.length) render(cached);
       });
   }
