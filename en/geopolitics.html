@@ -4,56 +4,340 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Geopolitics — Sections | BriefRooms</title>
-  <meta name="description" content="Short, factual explainers on geopolitics. Pick a topic to enter." />
+  <meta name="description" content="Short, factual explainers on geopolitics. Pick a book from the shelf." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=rooms2" />
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/geopolitics.html" />
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/geopolityka.html" />
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
+
+  <style>
+    :root{
+      --library-bg:#eee3d2;
+      --library-bg-light:#f8f1e7;
+      --ink:#172033;
+      --muted:#667085;
+      --wood:#8b5d39;
+      --wood-dark:#5d3922;
+      --wood-light:#b47a4b;
+    }
+
+    *{box-sizing:border-box;}
+
+    body.rooms-light.rooms-books{
+      margin:0;
+      color:var(--ink);
+      background:
+        radial-gradient(circle at 50% -10%, rgba(255,255,255,.94) 0, rgba(255,255,255,.25) 42%, transparent 68%),
+        linear-gradient(180deg,var(--library-bg-light) 0%,var(--library-bg) 100%);
+      min-height:100vh;
+    }
+
+    header{
+      text-align:center;
+      padding:36px 16px 14px;
+    }
+
+    header h1{
+      margin:0 0 9px;
+      color:#182235;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:clamp(2.15rem,5vw,3.25rem);
+      letter-spacing:-.025em;
+    }
+
+    header .sub{
+      max-width:760px;
+      margin:0 auto;
+      color:var(--muted);
+      font-size:1.02rem;
+      line-height:1.6;
+    }
+
+    main{
+      max-width:1220px;
+      margin:0 auto;
+      padding:18px 18px 58px;
+    }
+
+    .library{
+      position:relative;
+      padding:34px 26px 36px;
+      border:1px solid rgba(93,57,34,.18);
+      border-radius:24px;
+      background:
+        linear-gradient(90deg,rgba(255,255,255,.3),transparent 14%,transparent 86%,rgba(84,48,27,.07)),
+        rgba(255,255,255,.32);
+      box-shadow:0 22px 52px rgba(69,45,29,.13),inset 0 1px rgba(255,255,255,.8);
+    }
+
+    .library::before{
+      content:"GEOPOLITICS LIBRARY";
+      display:block;
+      margin:0 auto 28px;
+      width:max-content;
+      max-width:100%;
+      padding:8px 18px;
+      color:#f9f0e5;
+      background:linear-gradient(180deg,#7d5234,#5d3922);
+      border:1px solid rgba(61,34,18,.65);
+      border-radius:5px;
+      box-shadow:0 6px 12px rgba(61,34,18,.22),inset 0 1px rgba(255,255,255,.18);
+      font-size:.78rem;
+      font-weight:800;
+      letter-spacing:.16em;
+      text-align:center;
+    }
+
+    .tiles{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(205px,1fr));
+      gap:36px 24px;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+
+    .tile{
+      position:relative;
+      display:flex;
+      justify-content:center;
+      align-items:flex-end;
+      min-height:310px;
+      padding:0 7px 24px;
+    }
+
+    .tile::before{
+      content:"";
+      position:absolute;
+      left:-7px;
+      right:-7px;
+      bottom:6px;
+      height:18px;
+      border-radius:3px 3px 7px 7px;
+      background:
+        linear-gradient(180deg,var(--wood-light) 0 22%,var(--wood) 24% 72%,var(--wood-dark) 74% 100%);
+      box-shadow:0 8px 11px rgba(64,38,22,.27),inset 0 1px rgba(255,255,255,.28);
+      z-index:0;
+    }
+
+    .tile::after{
+      content:"";
+      position:absolute;
+      left:3px;
+      right:3px;
+      bottom:0;
+      height:7px;
+      border-radius:0 0 5px 5px;
+      background:#4d2f1d;
+      opacity:.92;
+    }
+
+    .tile-link{
+      --cover:#274b68;
+      --cover-dark:#173247;
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      width:min(100%,235px);
+      min-height:276px;
+      padding:20px 19px 22px 31px;
+      overflow:hidden;
+      color:#fff;
+      text-decoration:none;
+      border:1px solid rgba(12,22,35,.38);
+      border-radius:5px 12px 12px 5px;
+      background:
+        linear-gradient(90deg,rgba(0,0,0,.26) 0 9px,rgba(255,255,255,.13) 10px 12px,transparent 13px),
+        linear-gradient(145deg,var(--cover) 0%,var(--cover-dark) 100%);
+      box-shadow:
+        8px 10px 19px rgba(30,24,20,.28),
+        inset 17px 0 17px rgba(0,0,0,.13),
+        inset -2px 0 rgba(255,255,255,.13),
+        inset 0 2px rgba(255,255,255,.12);
+      transform-origin:50% 100%;
+      transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+    }
+
+    .tile:nth-child(2) .tile-link{--cover:#743532;--cover-dark:#4d2221;}
+    .tile:nth-child(3) .tile-link{--cover:#35634b;--cover-dark:#234332;}
+    .tile:nth-child(4) .tile-link{--cover:#80642f;--cover-dark:#55421e;}
+    .tile:nth-child(5) .tile-link{--cover:#644574;--cover-dark:#422d4d;}
+
+    .tile-link::before{
+      content:"";
+      position:absolute;
+      top:0;
+      right:4px;
+      bottom:0;
+      width:7px;
+      background:repeating-linear-gradient(180deg,rgba(255,250,231,.78) 0 2px,rgba(209,197,169,.55) 3px 4px);
+      opacity:.88;
+      box-shadow:-1px 0 rgba(0,0,0,.12);
+    }
+
+    .tile-link::after{
+      content:"";
+      position:absolute;
+      left:20px;
+      right:15px;
+      bottom:13px;
+      height:2px;
+      background:rgba(255,224,159,.64);
+      box-shadow:0 -5px rgba(255,224,159,.18);
+    }
+
+    .tile-link:hover,
+    .tile-link:focus-visible{
+      transform:translateY(-11px) rotate(-1.2deg);
+      filter:saturate(1.08) brightness(1.03);
+      box-shadow:
+        12px 18px 27px rgba(30,24,20,.31),
+        inset 17px 0 17px rgba(0,0,0,.13),
+        inset -2px 0 rgba(255,255,255,.14),
+        inset 0 2px rgba(255,255,255,.13);
+      outline:none;
+    }
+
+    .tile-date{
+      align-self:flex-end;
+      display:inline-flex;
+      position:relative;
+      z-index:1;
+      padding:6px 9px;
+      border:1px solid rgba(255,255,255,.24);
+      border-radius:999px;
+      background:rgba(5,13,23,.2);
+      color:#fff8e8;
+      font-size:.76rem;
+      font-weight:750;
+      letter-spacing:.02em;
+      backdrop-filter:blur(2px);
+    }
+
+    .tile-body{
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      gap:11px;
+      margin-top:22px;
+    }
+
+    .tile-title{
+      display:block;
+      color:#fffaf1;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:1.18rem;
+      font-weight:700;
+      line-height:1.27;
+      text-wrap:balance;
+      text-shadow:0 2px 3px rgba(0,0,0,.26);
+    }
+
+    .tile-desc{
+      display:block;
+      padding-top:10px;
+      border-top:1px solid rgba(255,231,184,.35);
+      color:rgba(255,255,255,.9);
+      font-size:.91rem;
+      line-height:1.5;
+    }
+
+    .back{
+      margin:27px 4px 0;
+      color:var(--muted);
+    }
+
+    .back a{
+      color:#235b98;
+      text-underline-offset:3px;
+    }
+
+    @media (max-width:720px){
+      header{padding-top:26px;}
+      .library{padding:26px 14px 30px;}
+      .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:31px 12px;}
+      .tile{min-height:286px;padding-left:1px;padding-right:1px;}
+      .tile-link{min-height:252px;padding:17px 15px 20px 25px;}
+      .tile-title{font-size:1.04rem;}
+      .tile-desc{font-size:.84rem;}
+      .tile-date{font-size:.7rem;padding:5px 7px;}
+    }
+
+    @media (max-width:460px){
+      .tiles{grid-template-columns:1fr;}
+      .tile-link{width:min(100%,270px);min-height:260px;}
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .tile-link{transition:none;}
+      .tile-link:hover,.tile-link:focus-visible{transform:none;}
+    }
+  </style>
 </head>
-<body>
+<body class="rooms-light rooms-books">
   <header>
     <h1>Geopolitics</h1>
-    <p class="sub">Pick a topic — crisp summary, key points, and sources.</p>
+    <p class="sub">Pick a book from the shelf — each one opens a concise, source-based geopolitical analysis.</p>
   </header>
 
   <main>
-    <ul class="tiles">
-      <li class="tile">
-        <a class="tile-link" href="/en/geo/russia-drones-fuel-grain.html">
-          <span class="tile-title">Russia under drone pressure: fuel, harvests and grain exports</span>
-          <span class="tile-desc">Refineries, fuel shortages, the Sea of Azov and the likely impact on global wheat prices.</span>
-        </a>
-      </li>
+    <section class="library" aria-label="Geopolitics article library">
+      <ul class="tiles">
+        <li class="tile">
+          <a class="tile-link" href="/en/geo/russia-drones-fuel-grain.html">
+            <time class="tile-date" datetime="2026-07-14">14 Jul 2026</time>
+            <span class="tile-body">
+              <span class="tile-title">Russia under drone pressure: fuel, harvests and grain exports</span>
+              <span class="tile-desc">Refineries, fuel shortages, the Sea of Azov and the likely impact on global wheat prices.</span>
+            </span>
+          </a>
+        </li>
 
-      <li class="tile">
-        <a class="tile-link" href="/en/geo/black-sea.html">
-          <span class="tile-title">Black Sea — a nexus of interests</span>
-          <span class="tile-desc">Grain, energy, and chokepoints: why this basin moves prices and risk.</span>
-        </a>
-      </li>
+        <li class="tile">
+          <a class="tile-link" href="/en/geo/black-sea.html">
+            <time class="tile-date" datetime="2025">2025</time>
+            <span class="tile-body">
+              <span class="tile-title">Black Sea — a nexus of interests</span>
+              <span class="tile-desc">Grain, energy and strategic chokepoints: why this basin moves prices and geopolitical risk.</span>
+            </span>
+          </a>
+        </li>
 
-      <li class="tile">
-        <a class="tile-link" href="/en/geo/rare-earths.html">
-          <span class="tile-title">Rare earths — cycles &amp; geopolitics</span>
-          <span class="tile-desc">2010 shock to 2025 re-globalization: processing bottlenecks, magnets, and market signals (REMX chart).</span>
-        </a>
-      </li>
+        <li class="tile">
+          <a class="tile-link" href="/en/geo/rare-earths.html">
+            <time class="tile-date" datetime="2025">2025</time>
+            <span class="tile-body">
+              <span class="tile-title">Rare earths — cycles &amp; geopolitics</span>
+              <span class="tile-desc">Processing bottlenecks, magnets, industrial policy and competition over critical supply chains.</span>
+            </span>
+          </a>
+        </li>
 
-      <li class="tile">
-        <a class="tile-link" href="/en/geo/falling-hegemon.html">
-          <span class="tile-title">Shifting world order – decline of the Hegemon?</span>
-          <span class="tile-desc">From US-led liberal order to a more multipolar system. What changes, what stays – and why it matters.</span>
-        </a>
-      </li>
+        <li class="tile">
+          <a class="tile-link" href="/en/geo/falling-hegemon.html">
+            <time class="tile-date" datetime="2025-11-24">24 Nov 2025</time>
+            <span class="tile-body">
+              <span class="tile-title">Shifting world order – decline of the Hegemon?</span>
+              <span class="tile-desc">From the US-led liberal order to a more multipolar system: what changes, what stays and why it matters.</span>
+            </span>
+          </a>
+        </li>
 
-      <li class="tile">
-        <a class="tile-link" href="/en/geo/usa-china-2025.html">
-          <span class="tile-title">US–China after 2025</span>
-          <span class="tile-desc">Managed separation, 2025–2030 scenarios, EU priorities.</span>
-        </a>
-      </li>
-    </ul>
+        <li class="tile">
+          <a class="tile-link" href="/en/geo/usa-china-2025.html">
+            <time class="tile-date" datetime="2025-10-25">25 Oct 2025</time>
+            <span class="tile-body">
+              <span class="tile-title">US–China after 2025</span>
+              <span class="tile-desc">Managed separation, 2025–2030 scenarios, supply chains and Europe's strategic position.</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </section>
 
     <p class="back">← <a href="/en/">Back to room selection</a></p>
   </main>
