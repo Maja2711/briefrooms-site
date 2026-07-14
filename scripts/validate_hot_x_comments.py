@@ -14,7 +14,7 @@ EMERGENCY = Path("data/hot_x_emergency.json")
 MIN_ITEMS = 3
 X_URL = re.compile(r"^https?://(?:x\.com|twitter\.com)/", re.I)
 GENERIC_TITLE = re.compile(r"^(temat z x|topic from x|hot x topic)", re.I)
-GENERIC_TEXT = re.compile(r"^(na x monitorowany jest|pełny wątek otwiera link|rotating hot x topic)", re.I)
+GENERIC_TEXT = re.compile(r"^(na x monitorowany jest|pełny wątek otwiera link|rotating hot x topic|temat dotyczy)", re.I)
 
 
 def load(path: Path) -> dict:
@@ -91,7 +91,7 @@ def validate() -> None:
     emergency = load(EMERGENCY)
     new = items(current)
     old = items(previous)
-    reserve = old or items(emergency)
+    reserve = old + items(emergency)
     merged = []
     seen = set()
     for item in new + reserve:
@@ -104,15 +104,15 @@ def validate() -> None:
             break
     if len(merged) < MIN_ITEMS:
         raise SystemExit("Hot X has no protected set of three substantive comments")
-    if new:
+    if len(new) >= MIN_ITEMS:
         out = dict(current)
-        status = "new_comments_validated" if len(new) >= MIN_ITEMS else "partial_update_completed_from_reserve"
+        status = "new_comments_validated"
     elif old:
         out = dict(previous)
-        status = "generic_or_empty_update_rejected_last_good_kept"
+        status = "generic_or_partial_update_completed_from_last_good"
     else:
         out = dict(emergency)
-        status = "generic_or_empty_update_rejected_emergency_loaded"
+        status = "generic_or_partial_update_completed_from_emergency"
     out["items"] = merged
     out["refresh_interval_hours"] = 12
     out["update_frequency"] = "2_times_daily"
@@ -121,7 +121,7 @@ def validate() -> None:
         "status": status,
         "new_substantive_items": len(new),
         "visible_items": len(merged),
-        "rule": "Hot X keeps at least three cards with substantive comments. Empty and generic output is rejected."
+        "rule": "Hot X keeps at least three cards with substantive comments. Empty, placeholder and generic output is rejected."
     }
     save(DATA, out)
     save(BACKUP, out)
