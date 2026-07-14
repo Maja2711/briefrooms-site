@@ -41,7 +41,7 @@ function usefulSentence(s){
 }
 function uniqueSentences(list){const seen=new Set();const out=[];for(const s of list){const k=s.toLowerCase().replace(/\W+/g,'').slice(0,90);if(k&&!seen.has(k)){seen.add(k);out.push(s)}}return out;}
 function cleanArticleComment(text){const s=uniqueSentences(splitSentences(text||'').filter(usefulSentence));return s.length>=3?s.slice(0,6).join(' '):'';}
-function approvedComment(item){const text=removeBoilerplate(item.full_brief||item.details||'');const count=(text.replace(/…/g,'.').match(/[^.!?]+[.!?]+/g)||[]).length;return String(item.comment_quality_status||'').startsWith('passed_')&&count>=3&&count<=6?text:'';}
+function approvedComment(item){const text=removeBoilerplate(item.full_brief||item.details||'');return String(item.comment_quality_status||'').startsWith('passed_')&&text?text:'';}
 function buildSummary(item){return approvedComment(item);}
 function visibleCategory(cat){const c=cleanMojibake(cat||'Brief');return /^(pilne|breaking|urgent|alert)$/i.test(c)?'World / news':c;}
 function makeBriefSections(item,link){const source=cleanMojibake(item.source||hostFromUrl(link));const category=visibleCategory(item.category||'Brief');const title=cleanMojibake(item.title||'Article brief');const main=buildSummary(item)||'The comment did not pass the quality check, so it was not published. BriefRooms does not show short, ungrammatical or headline-only summaries.';return {source,category,title,main};}
