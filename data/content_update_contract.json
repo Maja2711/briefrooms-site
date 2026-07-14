@@ -1,0 +1,27 @@
+{
+  "contract_version": "1.0.0",
+  "homepage_and_news": {
+    "interval_hours": 4,
+    "minimum_visible_cards": 6,
+    "workflow": ".github/workflows/build-home-brief.yml",
+    "required_cron": "17 */4 * * *",
+    "last_good_fallback_required": true,
+    "empty_update_may_replace_visible_feed": false
+  },
+  "hot_x": {
+    "interval_hours": 12,
+    "updates_per_day": 2,
+    "minimum_visible_cards": 3,
+    "workflow": ".github/workflows/hot-x-topics.yml",
+    "required_cron": "17 6,18 * * *",
+    "substantive_comment_required": true,
+    "generic_or_empty_update_may_replace_visible_feed": false,
+    "last_good_or_emergency_fallback_required": true
+  },
+  "watchdog": {
+    "check_interval_hours": 1,
+    "homepage_stale_after_hours": 5,
+    "hot_x_stale_after_hours": 13,
+    "repair_data_from_last_good": true
+  }
+}
