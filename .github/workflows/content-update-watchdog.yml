@@ -1,0 +1,92 @@
+name: Content update watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "data/content_update_contract.json"
+      - "scripts/content_update_watchdog.py"
+      - "scripts/protect_home_feed.py"
+      - "scripts/validate_hot_x_comments.py"
+      - ".github/workflows/build-home-brief.yml"
+      - ".github/workflows/hot-x-topics.yml"
+      - ".github/workflows/content-update-watchdog.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: content-publishing
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install recovery dependencies
+        run: python -m pip install --upgrade pip feedparser requests
+
+      - name: Check schedules, staleness and last-good data
+        id: watch
+        run: python scripts/content_update_watchdog.py --github-output "$GITHUB_OUTPUT"
+
+      - name: Recover stale homepage and news feeds
+        if: steps.watch.outputs.home_stale == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+        run: |
+          python scripts/protect_home_feed.py --backup || true
+          python scripts/build_home_brief_pl.py || true
+          python scripts/build_home_brief_en.py || true
+          python scripts/read_and_summarize_articles.py || true
+          python scripts/enforce_brief_length.py || true
+          python scripts/remove_urgent_badge_categories.py || true
+          python scripts/validate_brief_quality.py || true
+          python scripts/dedupe_home_brief_stories.py || true
+          python scripts/hide_urgent_home_labels.py || true
+          python scripts/patch_brief_comment_source.py || true
+          python scripts/protect_home_feed.py --validate
+
+      - name: Recover stale Hot X feed
+        if: steps.watch.outputs.hot_x_stale == 'true'
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+        run: |
+          python scripts/validate_hot_x_comments.py --backup || true
+          python scripts/update_hot_x_2x_daily.py || true
+          python scripts/translate_hot_x_pl.py || true
+          python scripts/validate_hot_x_comments.py --validate
+          python scripts/patch_hot_x_loader.py || true
+
+      - name: Recheck content health after recovery
+        if: always()
+        run: python scripts/content_update_watchdog.py || true
+
+      - name: Commit watchdog repairs and recovered content
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/build-home-brief.yml .github/workflows/hot-x-topics.yml data/content_update_health.json data/hot_tweets.json pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html .cache || true
+          if git diff --cached --quiet; then
+            echo "No watchdog changes to commit."
+          else
+            git commit -m "Repair content update availability"
+            git pull --rebase origin main
+            git push
+          fi
