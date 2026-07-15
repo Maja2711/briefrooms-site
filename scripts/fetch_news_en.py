@@ -17,9 +17,12 @@ import requests
 from comment_quality import (
     QUALITY_STATUS,
     QUALITY_VERSION,
+    get_ai_runtime,
     independent_ai_review,
+    request_json_completion,
     validate_news_comment,
 )
+from news_comment_batch import summarize_news_items
 
 # =========================
 # TIMEZONE (UTC dla wersji EN jest bezpieczniejsze)
@@ -33,7 +36,7 @@ MAX_PER_SECTION = 5
 MAX_PER_HOST = 2
 HOTBAR_LIMIT = 15 # Trochę więcej newsów w pasku
 
-AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
+AI_ENABLED = get_ai_runtime().available
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 
 # Ścieżki plików
@@ -512,12 +515,12 @@ def save_cache(path: str, data: dict):
 CACHE = load_cache(AI_CACHE_PATH)
 
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
-    key = os.getenv("OPENAI_API_KEY")
+    runtime = get_ai_runtime()
     safe_snippet = topic_safe_snippet(title, snippet)
     if len(clean_rss_text(snippet)) < 55:
         return {"summary": "", "key_point": "", "why_it_matters": "", "uncertain": "", "model": "insufficient_source", "reviewed": False}
     digest = hashlib.sha256(f"{title}|{url}|{safe_snippet}".encode("utf-8")).hexdigest()[:20]
-    cache_key = f"strict-v{QUALITY_VERSION}|{today_str()}|{digest}"
+    cache_key = f"strict-v{QUALITY_VERSION}|{digest}"
     if cache_key in CACHE:
         cached = CACHE[cache_key]
         quality = validate_news_comment(str(cached.get("summary") or ""), "en")
@@ -529,7 +532,7 @@ def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
             cached["key_point"] = quality.text
             return cached
 
-    if not key:
+    if not runtime.available:
         return {
             "summary": "",
             "key_point": "",
@@ -552,31 +555,24 @@ Rules:
 - Do not add facts that are absent from the title or description.
 - If the material is damaged or cannot be summarized with confidence, return an empty summary."""
     try:
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={
-                "model": AI_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a strict news editor. Return only valid JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1,
-                "max_tokens": 220,
-            },
+        payload = request_json_completion(
+            post=requests.post,
+            runtime=runtime,
+            messages=[
+                {"role": "system", "content": "You are a strict news editor. Return only valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=220,
+            temperature=0.1,
             timeout=25,
         )
-        response.raise_for_status()
-        payload = json.loads(response.json()["choices"][0]["message"]["content"].strip())
         quality = validate_news_comment(str(payload.get("summary") or ""), "en")
         if not quality.valid:
             print(f"[WARN] EN news comment rejected: {title[:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
             return {"summary": "", "key_point": "", "why_it_matters": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
         reviewed, reason = independent_ai_review(
             post=requests.post,
-            api_key=key,
-            model=AI_MODEL,
+            runtime=runtime,
             title=title,
             source_text=safe_snippet,
             summary=quality.text,
@@ -590,7 +586,9 @@ Rules:
             "key_point": quality.text,
             "why_it_matters": "",
             "uncertain": "",
-            "model": AI_MODEL,
+            "model": runtime.generation_model,
+            "review_model": runtime.review_model,
+            "provider": runtime.provider,
             "reviewed": True,
             "quality_status": QUALITY_STATUS,
             "quality_version": QUALITY_VERSION,
@@ -620,7 +618,7 @@ def verify_note_en(title: str, snippet: str) -> str:
 # =========================
 # POBIERANIE + DEDUPE
 # =========================
-def fetch_section(section_key: str, excluded_links=None, excluded_topics=None):
+def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
     excluded_links = set(excluded_links or [])
     excluded_topics = list(excluded_topics or [])
     items = []
@@ -687,6 +685,9 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None):
 
     picked = pool[:MAX_PER_SECTION]
 
+    if not summarize:
+        return picked
+
     # AI + weryfikacja
     for it in picked:
         s = ai_summarize_en(it["title"], it.get("summary_raw", ""), it["link"])
@@ -702,6 +703,27 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None):
         it["comment_generation_status"] = "ai_review_approved" if s.get("reviewed") is True else "rejected_or_unavailable"
 
     return picked
+
+
+def summarize_sections_en(sections: dict) -> None:
+    all_items = [item for items in sections.values() for item in items]
+    results = summarize_news_items(items=all_items, lang="en", cache=CACHE, post=requests.post)
+    for item in all_items:
+        result = results.get(str(item.get("_comment_batch_id") or ""), {})
+        summary = str(result.get("summary") or "")
+        item["ai_key_point"] = ensure_period(summary) if summary else ""
+        item["ai_why_it_matters"] = ""
+        item["ai_summary"] = item["ai_key_point"]
+        item["ai_uncertain"] = ""
+        item["ai_model"] = result.get("model", "")
+        item["comment_quality_status"] = result.get("quality_status", "")
+        item["comment_quality_version"] = result.get("quality_version")
+        item["comment_generation_status"] = "ai_review_approved" if result.get("reviewed") is True else "rejected_or_unavailable"
+    save_cache(AI_CACHE_PATH, CACHE)
+
+
+def finalize_sections(sections: dict) -> dict:
+    return sections
 
 
 # =========================
@@ -889,11 +911,14 @@ def main():
     seen_links = set()
     seen_topics = []
     for section_key in ("world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"):
-        items = fetch_section(section_key, seen_links, seen_topics)
+        items = fetch_section(section_key, seen_links, seen_topics, summarize=False)
         sections[section_key] = items
         for it in items:
             seen_links.add(normalize_link_for_dedupe(it.get("link", "")))
             seen_topics.append(it.get("_tok", set()))
+
+    summarize_sections_en(sections)
+    sections = finalize_sections(sections)
 
     # 1) HTML /en/news.html
     html_str = render_html(sections)

@@ -26,7 +26,9 @@ import fetch_news_pl as base  # noqa: E402
 from comment_quality import (  # noqa: E402
     QUALITY_STATUS,
     QUALITY_VERSION,
+    get_ai_runtime,
     independent_ai_review,
+    request_json_completion,
     validate_news_comment,
 )
 
@@ -252,8 +254,8 @@ def still_looks_english(text: str) -> bool:
 
 
 def translate_english_item_to_polish(item: dict, section_key: str) -> dict | None:
-    key = os.getenv("OPENAI_API_KEY")
-    if not key:
+    runtime = get_ai_runtime()
+    if not runtime.available:
         return None
 
     title = item.get("title", "") or ""
@@ -296,25 +298,17 @@ Opis RSS: {snippet}
 """
 
     try:
-        resp = base.requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={
-                "model": base.AI_MODEL,
-                "messages": [
-                    {"role": "system", "content": "Jesteś rygorystycznym polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1,
-                "max_tokens": 520,
-            },
+        data = request_json_completion(
+            post=base.requests.post,
+            runtime=runtime,
+            messages=[
+                {"role": "system", "content": "Jesteś rygorystycznym polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=520,
+            temperature=0.1,
             timeout=30,
         )
-        resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
-        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S).strip()
-        data = json.loads(raw)
 
         title_pl = base.ensure_full_sentence(str(data.get("title_pl", "")).strip(), 130).rstrip(".")
         summary = str(data.get("summary", "")).replace("Najważniejsze:", "").strip()
@@ -324,8 +318,7 @@ Opis RSS: {snippet}
             return None
         reviewed, reason = independent_ai_review(
             post=base.requests.post,
-            api_key=key,
-            model=base.AI_MODEL,
+            runtime=runtime,
             title=title,
             source_text=snippet,
             summary=quality.text,
@@ -356,6 +349,7 @@ Opis RSS: {snippet}
 _original_source_badge_for = base.source_badge_for
 _original_ai_summarize_pl = base.ai_summarize_pl
 _original_fetch_section = base.fetch_section
+_original_finalize_sections = base.finalize_sections
 
 
 def source_badge_for_hybrid(source: str) -> str:
@@ -376,8 +370,12 @@ def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str 
     return out
 
 
-def fetch_section_hybrid(section_key: str):
-    items = _original_fetch_section(section_key)
+def fetch_section_hybrid(section_key: str, summarize: bool = True):
+    items = _original_fetch_section(section_key, summarize=summarize)
+    if not summarize:
+        for item in items:
+            item["_source_was_english"] = likely_english_item(item)
+        return items
     out = []
     for it in items:
         if not likely_english_item(it):
@@ -404,9 +402,21 @@ def fetch_section_hybrid(section_key: str):
     return out
 
 
+def finalize_sections_hybrid(sections: dict) -> dict:
+    sections = _original_finalize_sections(sections)
+    for items in sections.values():
+        for item in items:
+            if not item.get("_source_was_english"):
+                continue
+            original_source = item.get("source_name", "Źródło")
+            item["source_name"] = f"{original_source} · źródło anglojęzyczne — brief po polsku"
+    return sections
+
+
 base.source_badge_for = source_badge_for_hybrid
 base.ai_summarize_pl = ai_summarize_pl_hybrid
 base.fetch_section = fetch_section_hybrid
+base.finalize_sections = finalize_sections_hybrid
 
 if __name__ == "__main__":
     base.main()

@@ -25,18 +25,20 @@ import requests
 from comment_quality import (
     QUALITY_VERSION,
     decode_http_response,
+    get_ai_runtime,
     independent_ai_review,
+    independent_ai_review_batch,
+    request_json_completion,
     validate_comment,
 )
 
 FILES = [(Path("pl/home_brief.json"), "pl"), (Path("en/home_brief.json"), "en")]
 TIMEOUT = 12
 USER_AGENT = "BriefRoomsBot/2.1 (+https://briefrooms.com)"
-AI_MODEL = os.getenv("NEWS_AI_MODEL") or os.getenv("BRIEFROOMS_AI_MODEL") or "gpt-4o-mini"
 CACHE_PATH = Path(".cache/article_full_briefs.json")
 MIN_ARTICLE_CHARS = 700
 MAX_ARTICLE_CHARS = 6000
-CACHE_VERSION = f"article-brief-v6-strict-{QUALITY_VERSION}"
+CACHE_VERSION = f"article-brief-v7-provider-batch-strict-{QUALITY_VERSION}"
 
 NOISE = re.compile(
     r"cookie|cookies|reklama|advertisement|subskryb|newsletter|zaloguj|privacy|rodo|"
@@ -165,8 +167,8 @@ def fetch_article_text(url: str) -> tuple[str, str]:
 
 
 def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dict) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or not article_text:
+    runtime = get_ai_runtime()
+    if not runtime.available or not article_text:
         return ""
     key = hashlib.sha256(f"{CACHE_VERSION}|{lang}|{link}|{title}|{article_text[:1600]}".encode("utf-8")).hexdigest()[:48]
     cached = cache.get(key)
@@ -206,31 +208,25 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
             f"Title: {title}\nArticle text:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
     try:
-        resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": AI_MODEL,
-                "messages": [
-                    {"role": "system", "content": "You are a strict news editor. Summarise only the provided article text and return valid JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1,
-                "max_tokens": 520,
-            },
+        data = request_json_completion(
+            post=requests.post,
+            runtime=runtime,
+            messages=[
+                {"role": "system", "content": "You are a strict news editor. Summarise only the provided article text and return valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=520,
+            temperature=0.1,
             timeout=35,
         )
-        resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
-        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
-        data = json.loads(raw)
         summary = clean(str(data.get("full_brief", "")), 1600)
         quality = validate_comment(summary, lang)
         if quality.valid and ai_review(title, lang, article_text, quality.text):
             cache[key] = {
                 "summary": quality.text,
-                "model": AI_MODEL,
+                "model": runtime.generation_model,
+                "review_model": runtime.review_model,
+                "provider": runtime.provider,
                 "reviewed": True,
                 "quality_version": QUALITY_VERSION,
             }
@@ -244,11 +240,10 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
 
 def ai_review(title: str, lang: str, article_text: str, summary: str) -> bool:
     """Independent second model call; failure or uncertainty means no publication."""
-    api_key = os.getenv("OPENAI_API_KEY")
+    runtime = get_ai_runtime()
     approved, reason = independent_ai_review(
         post=requests.post,
-        api_key=api_key or "",
-        model=AI_MODEL,
+        runtime=runtime,
         title=title,
         source_text=article_text,
         summary=summary,
@@ -259,11 +254,143 @@ def ai_review(title: str, lang: str, article_text: str, summary: str) -> bool:
     return approved
 
 
+def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[str, str]:
+    """Generate and independently review homepage comments in bounded batches."""
+    runtime = get_ai_runtime()
+    if not runtime.available:
+        return {}
+
+    accepted: dict[str, str] = {}
+    pending: list[dict] = []
+    for candidate in candidates:
+        key = hashlib.sha256(
+            f"{CACHE_VERSION}|{lang}|{candidate['link']}|{candidate['title']}|{candidate['article_text'][:1600]}".encode("utf-8")
+        ).hexdigest()[:48]
+        candidate["cache_key"] = key
+        cached = cache.get(key)
+        if isinstance(cached, dict) and cached.get("reviewed") is True and cached.get("quality_version") == QUALITY_VERSION:
+            quality = validate_comment(str(cached.get("summary") or ""), lang)
+            if quality.valid:
+                accepted[candidate["id"]] = quality.text
+                continue
+        pending.append(candidate)
+
+    chunks: list[list[dict]] = []
+    current: list[dict] = []
+    current_chars = 0
+    for candidate in pending:
+        size = len(candidate["title"]) + min(3200, len(candidate["article_text"]))
+        if current and (len(current) >= 8 or current_chars + size > 24000):
+            chunks.append(current)
+            current = []
+            current_chars = 0
+        current.append(candidate)
+        current_chars += size
+    if current:
+        chunks.append(current)
+
+    generated: dict[str, str] = {}
+    candidate_by_id = {candidate["id"]: candidate for candidate in pending}
+    for chunk in chunks:
+        source_items = [
+            {
+                "id": candidate["id"],
+                "title": candidate["title"][:220],
+                "article_text": candidate["article_text"][:3200],
+            }
+            for candidate in chunk
+        ]
+        if lang == "pl":
+            rules = (
+                "Dla każdego elementu napisz po polsku 3-6 pełnych, prostych i logicznych zdań, wyłącznie na "
+                "podstawie podanego tekstu. Każde zdanie musi być samodzielne i poprawne. Nie kopiuj uszkodzonych "
+                "znaków, porozcinanych wyrazów, podpisów, elementów interfejsu ani poleceń wydawcy."
+            )
+        else:
+            rules = (
+                "For every item write 3-6 complete, clear and logical English sentences using only the supplied "
+                "article text. Every sentence must stand alone. Do not copy damaged characters, split words, "
+                "bylines, publisher UI or editorial commands."
+            )
+        prompt = (
+            f"{rules} If an item cannot be summarized safely, return an empty full_brief. "
+            "Return every id exactly once as JSON: "
+            '{"items":[{"id":"same id","full_brief":"..."}]}.\n\n'
+            + json.dumps(source_items, ensure_ascii=False)
+        )
+        try:
+            payload = request_json_completion(
+                post=requests.post,
+                runtime=runtime,
+                messages=[
+                    {"role": "system", "content": "You are a strict multilingual news editor. Return only valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=min(4000, max(900, len(chunk) * 480)),
+                temperature=0.1,
+                timeout=60,
+            )
+            rows = payload.get("items")
+            if not isinstance(rows, list):
+                raise ValueError("batch generation response has no items list")
+            expected = {candidate["id"] for candidate in chunk}
+            seen: set[str] = set()
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                item_id = str(row.get("id", ""))
+                if item_id not in expected or item_id in seen:
+                    continue
+                seen.add(item_id)
+                quality = validate_comment(clean(str(row.get("full_brief") or ""), 1600), lang)
+                if quality.valid:
+                    generated[item_id] = quality.text
+                else:
+                    print(f"[WARN] batch comment rejected: {candidate_by_id[item_id]['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+        except Exception as exc:
+            print(f"[WARN] AI article batch failed ({lang}, {len(chunk)} items): {exc}", file=sys.stderr)
+
+    review_entries = [
+        {
+            "id": item_id,
+            "title": candidate_by_id[item_id]["title"],
+            "source_text": candidate_by_id[item_id]["article_text"],
+            "summary": summary,
+        }
+        for item_id, summary in generated.items()
+    ]
+    reviews = independent_ai_review_batch(
+        post=requests.post,
+        runtime=runtime,
+        entries=review_entries,
+        lang=lang,
+    )
+    for item_id, summary in generated.items():
+        approved, reason = reviews.get(item_id, (False, "missing_review"))
+        if not approved:
+            print(f"[WARN] batch AI review rejected: {candidate_by_id[item_id]['title'][:80]} :: {reason[:160]}", file=sys.stderr)
+            continue
+        candidate = candidate_by_id[item_id]
+        accepted[item_id] = summary
+        cache[candidate["cache_key"]] = {
+            "summary": summary,
+            "model": runtime.generation_model,
+            "review_model": runtime.review_model,
+            "provider": runtime.provider,
+            "reviewed": True,
+            "quality_version": QUALITY_VERSION,
+        }
+    return accepted
+
+
 def process(path: Path, lang: str, cache: dict) -> bool:
     if not path.exists():
         return False
     data = json.loads(path.read_text(encoding="utf-8"))
     changed = False
+    candidates: list[dict] = []
+    item_records: list[tuple[dict, str, str]] = []
+    item_index = 0
     for section in ("latest", "radar"):
         for item in data.get(section, []) or []:
             link = item.get("link") or ""
@@ -273,22 +400,34 @@ def process(path: Path, lang: str, cache: dict) -> bool:
             for key in ("comment_quality_status", "comment_quality_version", "comment_generation_status"):
                 item.pop(key, None)
             if len(article_text) >= MIN_ARTICLE_CHARS:
-                summary = ai_summarize(title, lang, article_text, link, cache)
-                if summary:
-                    item["full_brief"] = summary
-                    item["article_text_chars"] = len(article_text)
-                    item["summary_basis"] = "article_text_ai_reviewed"
-                    item["comment_generation_status"] = "ai_review_approved"
-                else:
-                    item.pop("full_brief", None)
-                    item["summary_basis"] = "article_text_ai_rejected"
-                    item["comment_generation_status"] = "rejected_or_unavailable"
+                item_id = f"{lang}-{item_index}"
+                item_index += 1
+                candidates.append({
+                    "id": item_id,
+                    "title": title,
+                    "link": link,
+                    "article_text": article_text,
+                })
+                item_records.append((item, item_id, article_text))
             else:
                 item.pop("full_brief", None)
                 item["summary_basis"] = "rss_only_insufficient_article_text"
                 item["comment_generation_status"] = "rejected_or_unavailable"
                 item["article_text_chars"] = len(article_text)
             changed = True
+
+    summaries = ai_summarize_batch(candidates, lang, cache)
+    for item, item_id, article_text in item_records:
+        summary = summaries.get(item_id, "")
+        item["article_text_chars"] = len(article_text)
+        if summary:
+            item["full_brief"] = summary
+            item["summary_basis"] = "article_text_ai_reviewed"
+            item["comment_generation_status"] = "ai_review_approved"
+        else:
+            item.pop("full_brief", None)
+            item["summary_basis"] = "article_text_ai_rejected"
+            item["comment_generation_status"] = "rejected_or_unavailable"
     data["brief_methodology"] = {
         "pl": "Komentarz powstaje wyłącznie z przeczytanego tekstu artykułu. Musi przejść niezależny przegląd AI oraz pełną kontrolę językową; surowy tekst artykułu lub RSS nie może być komentarzem awaryjnym.",
         "en": "A comment is created only from the retrieved article text. It must pass an independent AI review and the complete language gate; raw article or RSS text is never a fallback comment.",

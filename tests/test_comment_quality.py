@@ -27,6 +27,7 @@ if "dateutil" not in sys.modules:
 import read_and_summarize_articles as reader
 import fetch_news_en as news_en
 import fetch_news_pl as news_pl
+import news_comment_batch as news_batch
 import validate_brief_quality as gate
 
 
@@ -267,6 +268,85 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual(VALID_PL, result)
         self.assertEqual(2, post.call_count)
+
+    def test_github_models_is_used_when_openai_secret_is_missing(self):
+        with mock.patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "",
+                "GITHUB_MODELS_TOKEN": "github-test-token",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+            },
+        ):
+            runtime = quality.get_ai_runtime()
+        self.assertTrue(runtime.available)
+        self.assertEqual("github-models", runtime.provider)
+        self.assertEqual("https://models.github.ai/inference/chat/completions", runtime.endpoint)
+        self.assertEqual("openai/gpt-4o-mini", runtime.generation_model)
+        self.assertEqual("openai/gpt-4.1-mini", runtime.review_model)
+
+    def test_news_batch_uses_two_models_and_rejects_missing_review(self):
+        first = "The government published detailed programme rules that will take effect after public consultation ends."
+        second = "Researchers reported a measurable result and said the full study will be published after peer review."
+        responses = [
+            self.FakeResponse({
+                "items": [
+                    {"id": "en-0", "summary": first, "title_pl": ""},
+                    {"id": "en-1", "summary": second, "title_pl": ""},
+                ]
+            }),
+            self.FakeResponse({
+                "reviews": [
+                    {"id": "en-0", "approved": True, "reason": "supported and clear"},
+                ]
+            }),
+        ]
+        items = [
+            {
+                "title": "Government publishes programme rules",
+                "summary_raw": first,
+                "link": "https://example.com/one",
+            },
+            {
+                "title": "Researchers report study result",
+                "summary_raw": second,
+                "link": "https://example.com/two",
+            },
+        ]
+        post = mock.Mock(side_effect=responses)
+        with mock.patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "",
+                "GITHUB_MODELS_TOKEN": "github-test-token",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+            },
+        ):
+            result = news_batch.summarize_news_items(
+                items=items,
+                lang="en",
+                cache={},
+                post=post,
+            )
+        self.assertEqual({"en-0"}, set(result))
+        self.assertEqual(2, post.call_count)
+        self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
+
+    def test_production_workflows_grant_and_pass_github_models_access(self):
+        for relative in (
+            ".github/workflows/build-home-brief.yml",
+            ".github/workflows/news-pl.yml",
+            ".github/workflows/news-en.yml",
+            ".github/workflows/content-update-watchdog.yml",
+            "config/workflow_templates/build-home-brief.yml",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("models: read", source, relative)
+            self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
+            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
         paragraph = (

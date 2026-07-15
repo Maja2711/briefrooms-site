@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  models: read
 
 concurrency:
   group: content-publishing
@@ -56,6 +57,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
         run: python scripts/build_home_brief_pl.py
         continue-on-error: true
 
@@ -63,6 +67,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
         run: python scripts/build_home_brief_en.py
         continue-on-error: true
 
@@ -70,6 +77,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
         run: python scripts/read_and_summarize_articles.py
 
       - name: Enforce article brief methodology

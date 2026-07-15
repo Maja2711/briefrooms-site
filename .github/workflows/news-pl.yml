@@ -12,12 +12,14 @@ on:
       - "scripts/fetch_news_pl_hybrid.py"
       - "scripts/fetch_news_pl_deep.py"
       - "scripts/comment_quality.py"
+      - "scripts/news_comment_batch.py"
       - "tests/test_fetch_news_pl.py"
       - "tests/test_comment_quality.py"
       - ".github/workflows/news-pl.yml"
 
 permissions:
   contents: write
+  models: read
 
 jobs:
   build:
@@ -48,6 +50,9 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
         run: |
           python scripts/fetch_news_pl_deep.py
 
