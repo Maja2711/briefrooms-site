@@ -427,9 +427,13 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("models: read", source, relative)
             self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
             self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
-        for relative in (".github/workflows/news-pl.yml", ".github/workflows/news-en.yml"):
+        workflow_groups = {
+            ".github/workflows/news-pl.yml": "group: news-pl-publishing",
+            ".github/workflows/news-en.yml": "group: news-en-publishing",
+        }
+        for relative, marker in workflow_groups.items():
             source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("group: content-publishing", source, relative)
+            self.assertIn(marker, source, relative)
         watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
         self.assertIn('"--validate-passive"', watchdog)
 
