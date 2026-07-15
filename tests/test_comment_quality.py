@@ -436,6 +436,15 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn(marker, source, relative)
         watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
         self.assertIn('"--validate-passive"', watchdog)
+        for relative in (
+            ".github/workflows/build-home-brief.yml",
+            ".github/workflows/content-update-watchdog.yml",
+            ".github/workflows/news-pl.yml",
+            ".github/workflows/news-en.yml",
+            "config/workflow_templates/build-home-brief.yml",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("git pull --rebase -X theirs origin main", source, relative)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
         paragraph = (

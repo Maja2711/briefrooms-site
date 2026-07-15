@@ -114,6 +114,7 @@ jobs:
             echo "No homepage brief changes to commit."
           else
             git commit -m "Update homepage live brief data"
-            git pull --rebase origin main
+            # During rebase, "theirs" is this newer generated commit; keep it on same-file conflicts.
+            git pull --rebase -X theirs origin main
             git push
           fi
