@@ -42,6 +42,8 @@ SECTION_TABS_HTML = """
   <a class="brand-link" href="/pl/" aria-label="BRs — strona startowa"><span class="brand-mark">BRs</span></a>
   <a href="#polityka">Polityka</a>
   <a href="#ekonomia">Ekonomia</a>
+  <a href="#zdrowie">Zdrowie</a>
+  <a href="#nauka">Nauka</a>
   <a href="#sport">Sport</a>
 </nav>
 """
@@ -74,7 +76,7 @@ def fetch_section_strict(section_key: str):
 
     for item in items:
         text = _text(item)
-        if WEATHER_RE.search(text):
+        if WEATHER_RE.search(text) and section_key not in {"zdrowie", "nauka"}:
             continue
 
         if TVN24_RE.search(text):
@@ -106,6 +108,8 @@ def _add_section_tabs(html: str) -> str:
     )
     html = html.replace('<section class="card">\n  <h2>Polityka / Kraj</h2>', '<section class="card" id="polityka">\n  <h2>Polityka / Kraj</h2>', 1)
     html = html.replace('<section class="card">\n  <h2>Ekonomia / Biznes</h2>', '<section class="card" id="ekonomia">\n  <h2>Ekonomia / Biznes</h2>', 1)
+    html = html.replace('<section class="card">\n  <h2>Zdrowie</h2>', '<section class="card" id="zdrowie">\n  <h2>Zdrowie</h2>', 1)
+    html = html.replace('<section class="card">\n  <h2>Nauka</h2>', '<section class="card" id="nauka">\n  <h2>Nauka</h2>', 1)
     html = html.replace('<section class="card">\n  <h2>Sport</h2>', '<section class="card" id="sport">\n  <h2>Sport</h2>', 1)
     return html
 
@@ -117,6 +121,7 @@ def render_html_strict(sections: dict) -> str:
     # Remove the separate generic "why" row; the AI comment is now a direct article summary.
     html = re.sub(r'\n\s*<div class="sec"><strong>Dlaczego to ważne:</strong>.*?</div>', '', html, flags=re.I | re.S)
     html = re.sub(r'(<strong>Uwaga:</strong>)\s*(?:Uwaga|Ostrożnie)\s*:\s*', r'\1 ', html, flags=re.I)
+    html = re.sub(r"[ \t]+(?=\n)", "", html)
     return html
 
 

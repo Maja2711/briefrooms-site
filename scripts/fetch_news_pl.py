@@ -7,7 +7,7 @@ import re
 import json
 import html
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import feedparser
 from dateutil import tz
@@ -60,6 +60,22 @@ FEEDS = {
         "https://www.pap.pl/rss.xml",
         "https://feeds.reuters.com/reuters/businessNews",
     ],
+    "zdrowie": [
+        {"url": "https://naukawpolsce.pl/zdrowie/rss.xml", "source": "Nauka w Polsce"},
+        "http://feeds.bbci.co.uk/news/health/rss.xml",
+        "https://feeds.reuters.com/reuters/healthNews",
+        "https://apnews.com/hub/health?output=rss",
+        "https://www.theguardian.com/society/health/rss",
+        "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
+    ],
+    "nauka": [
+        {"url": "https://naukawpolsce.pl/naukowy/rss.xml", "source": "Nauka w Polsce"},
+        "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+        "https://apnews.com/hub/science?output=rss",
+        "https://www.theguardian.com/science/rss",
+        "https://www.nasa.gov/feed/",
+        "https://www.esa.int/rssfeed/Our_Activities/Space_News",
+    ],
     "sport": [
         {"url": "https://www.pap.pl/rss.xml", "source": "PAP Sport"},
         "https://www.polsatsport.pl/rss/wszystkie.xml",
@@ -90,12 +106,19 @@ TRUSTED_CORRO_FEEDS = [
     "https://apnews.com/hub/apf-topnews?utm_source=apnews.com&utm_medium=referral&utm_campaign=rss",
 ]
 
-# Zaufane źródła do zdrowia/nauki
-OFFICIAL_SCIENCE_FEEDS = [
+# Zaufane źródła do weryfikacji zdrowia i nauki
+OFFICIAL_HEALTH_FEEDS = [
     "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
     "https://www.cdc.gov/media/rss.htm",
     "https://www.nhs.uk/news/feed/",
     "https://www.cochrane.org/news-feed.xml",
+]
+OFFICIAL_SCIENCE_FEEDS = [
+    "https://naukawpolsce.pl/naukowy/rss.xml",
+    "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "https://apnews.com/hub/science?output=rss",
+    "https://www.nasa.gov/feed/",
+    "https://www.esa.int/rssfeed/Our_Activities/Space_News",
 ]
 
 # Preferencje źródeł
@@ -104,6 +127,10 @@ SOURCE_PRIORITY = [
     (re.compile(r"polsatnews\.pl", re.I), 18),
     (re.compile(r"tvn24\.pl", re.I), 15),
     (re.compile(r"bankier\.pl", re.I), 20),
+    (re.compile(r"naukawpolsce\.pl", re.I), 25),
+    (re.compile(r"who\.int", re.I), 24),
+    (re.compile(r"nasa\.gov|esa\.int", re.I), 22),
+    (re.compile(r"theguardian\.com", re.I), 12),
     (re.compile(r"reuters\.com", re.I), 12),
     (re.compile(r"sport\.tvp\.pl", re.I), 23),
     (re.compile(r"polsatsport\.pl", re.I), 22),
@@ -118,7 +145,12 @@ SOURCE_PRIORITY = [
 ]
 
 SOURCE_NAME_RULES = [
-    (re.compile(r"pap\.pl", re.I), "PAP Sport"),
+    (re.compile(r"pap\.pl", re.I), "PAP"),
+    (re.compile(r"naukawpolsce\.pl", re.I), "Nauka w Polsce"),
+    (re.compile(r"who\.int", re.I), "WHO"),
+    (re.compile(r"nasa\.gov", re.I), "NASA"),
+    (re.compile(r"esa\.int", re.I), "ESA"),
+    (re.compile(r"theguardian\.com", re.I), "The Guardian"),
     (re.compile(r"polsatsport\.pl", re.I), "Polsat Sport"),
     (re.compile(r"sport\.tvp\.pl", re.I), "TVP Sport"),
     (re.compile(r"przegladsportowy\.onet\.pl|sport\.onet\.pl", re.I), "Przegląd Sportowy / Onet Sport"),
@@ -129,9 +161,9 @@ SOURCE_NAME_RULES = [
     (re.compile(r"wtatennis\.com", re.I), "WTA"),
     (re.compile(r"fifa\.com", re.I), "FIFA"),
     (re.compile(r"uefa\.com", re.I), "UEFA"),
-    (re.compile(r"reuters\.com", re.I), "Reuters Sports"),
-    (re.compile(r"apnews\.com", re.I), "AP Sports"),
-    (re.compile(r"bbc\.", re.I), "BBC Sport"),
+    (re.compile(r"reuters\.com", re.I), "Reuters"),
+    (re.compile(r"apnews\.com", re.I), "AP"),
+    (re.compile(r"bbc\.", re.I), "BBC News"),
     (re.compile(r"espn\.", re.I), "ESPN"),
     (re.compile(r"tvn24\.pl", re.I), "TVN24"),
     (re.compile(r"polsatnews\.pl", re.I), "Polsat News"),
@@ -158,6 +190,12 @@ BOOST = {
     "sport": [
         (re.compile(r"Polska|Polacy|Polki|Polak|Polka|polski|polska|polscy|reprezentacja Polski|kadry Polski|biało-czerwoni", re.I), 22),
         (re.compile(r"mistrzostwa świata|mistrzostwa Europy|igrzyska|Grand Slam|ATP|WTA|FIFA World Cup|UEFA|Liga Mistrzów", re.I), 20),
+    ],
+    "zdrowie": [
+        (re.compile(r"WHO|NFZ|szpital|pacjent|lek|szczep|chorob|epidem|zdrowie publiczne|badanie kliniczne|nowotwor", re.I), 24),
+    ],
+    "nauka": [
+        (re.compile(r"badani|nauk|odkry|kosmos|NASA|ESA|klimat|archeolog|astronom|technolog", re.I), 24),
     ],
 }
 
@@ -212,6 +250,18 @@ TENNIS_EVENT_RE = re.compile(r"\b(tenis|ATP|WTA|Grand Slam|Wimbledon|Roland Garr
 NATIONAL_TEAM_RE = re.compile(r"reprezentacja Polski|kadra Polski|kadry Polski|biało-czerwoni|biało-czerwone", re.I)
 CORE_POLISH_SPORT_RE = re.compile(r"piłk|siatk|olimpij|sporty olimpijskie", re.I)
 GLOBAL_SPORT_RE = re.compile(r"\b(F1|Formula 1|Grand Prix|NBA|NHL|lekkoatlety|Premier League|La Liga|Serie A|Bundesliga|Liga Mistrzów|Champions League)\b", re.I)
+HEALTH_TOPIC_RE = re.compile(
+    r"\b(zdrow|medycz|medycyn|lekar|pacjent|szpital|chorob|zakaż|szczep|lek(?:i|u|ów)?|NFZ|WHO|"
+    r"epidem|profilakty|diagno|terapi|nowotwor|rak(?:a|iem)?|health|medical|medicine|doctor|patient|"
+    r"hospital|disease|infection|vaccine|drug|clinical trial|public health|cancer|FDA)\b",
+    re.I,
+)
+SCIENCE_TOPIC_RE = re.compile(
+    r"\b(nauk|badani|odkry|eksperyment|kosmos|astronom|planeta|galakty|NASA|ESA|klimat|archeolog|"
+    r"biolog|fizyk|chem|technolog|science|scientist|study|research|discovery|space|moon|mars|climate|"
+    r"archaeolog|species|telescope|physics|biology)\b",
+    re.I,
+)
 
 # =========================
 # TOKENIZACJA / PODOBIEŃSTWO
@@ -296,8 +346,13 @@ def source_name_for(link: str, fallback: str = "", section_key: str = "") -> str
     h = host_of(link)
     for rx, name in SOURCE_NAME_RULES:
         if rx.search(h):
-            if name == "PAP Sport" and section_key != "sport":
-                return "PAP"
+            if section_key == "sport":
+                return {
+                    "PAP": "PAP Sport",
+                    "Reuters": "Reuters Sports",
+                    "AP": "AP Sports",
+                    "BBC News": "BBC Sport",
+                }.get(name, name)
             return name
     return h.replace("www.", "") or "Źródło"
 
@@ -317,6 +372,9 @@ def is_rejected_item(section_key: str, title: str, snippet: str, link: str, sour
         return True
     path = urlparse(link).path or "/"
     if path in ("", "/") or URL_REJECT_RE.search(path):
+        return True
+    topic_filter = {"zdrowie": HEALTH_TOPIC_RE, "nauka": SCIENCE_TOPIC_RE}.get(section_key)
+    if topic_filter and not topic_filter.search(f"{text} {link} {source}"):
         return True
     if section_key == "sport":
         if len([seg for seg in path.split("/") if seg]) <= 1:
@@ -374,6 +432,10 @@ def why_it_matters_pl(section_key: str, title: str, snippet: str) -> str:
         return "To temat sportowy z wiarygodnego źródła, który pomaga śledzić najważniejsze rozstrzygnięcia i ich kontekst."
     if section_key == "biznes":
         return "Ten temat może mieć znaczenie dla cen, firm, rynku pracy albo decyzji finansowych gospodarstw domowych."
+    if section_key == "zdrowie":
+        return "W zdrowiu kluczowe są skala zjawiska, grupa ryzyka oraz to, czy informacja zmienia zalecenia dla pacjentów lub lekarzy."
+    if section_key == "nauka":
+        return "W nauce najważniejsze są metoda, jakość danych i stopień potwierdzenia wyniku, a nie sam efektowny nagłówek."
     return "To istotne, bo wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli."
 
 def score_item(item, section_key: str) -> float:
@@ -428,15 +490,12 @@ def ai_summarize_pl(title: str, snippet: str, url: str, section_key: str = "") -
         return cached
 
     if not key:
-        out = {
+        return {
             "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
             "why": why_it_matters_pl(section_key, title, snippet),
             "uncertain": "",
             "model": "fallback"
         }
-        CACHE[cache_key] = out
-        save_cache(AI_CACHE_PATH, CACHE)
-        return out
 
     prompt = f"""Napisz po polsku krótki komentarz do newsa z tytułu i opisu RSS.
 Zwróć dokładnie dwie obowiązkowe linie i opcjonalnie trzecią:
@@ -552,7 +611,7 @@ def _search_trusted_sources(title: str, feeds, min_sim=0.58, max_look=60):
     hits.sort(key=lambda x: x[1], reverse=True)
     return [h[0] for h in hits[:3]]
 
-def verify_note_pl(title: str, snippet: str) -> str:
+def verify_note_pl(title: str, snippet: str, section_key: str = "") -> str:
     """
     Zwraca jedno krótkie ostrzeżenie „Uwaga: …” TYLKO gdy:
     - naruszone są podstawowe zasady prawa (domniemanie niewinności, nadużycie „skazany”),
@@ -569,9 +628,13 @@ def verify_note_pl(title: str, snippet: str) -> str:
     science_hits = _apply_rules(SCIENCE_RED_FLAGS_PL, title, snippet)
     if science_hits:
         notes += science_hits
-        sci_srcs = _search_trusted_sources(title, OFFICIAL_SCIENCE_FEEDS)
+        verification_feeds = OFFICIAL_HEALTH_FEEDS if section_key == "zdrowie" else OFFICIAL_SCIENCE_FEEDS
+        sci_srcs = _search_trusted_sources(title, verification_feeds)
         if not sci_srcs:
-            notes.append("nie znaleziono zbieżnych nagłówków w WHO/CDC/NHS/Cochrane.")
+            if section_key == "zdrowie":
+                notes.append("nie znaleziono zbieżnych nagłówków w WHO/CDC/NHS/Cochrane.")
+            else:
+                notes.append("nie znaleziono zbieżnych nagłówków w zaufanych źródłach naukowych.")
 
     # 3) Mocna teza — oczekujemy co najmniej jednego echa w zaufanych źródłach
     if STRONG_CLAIM_RE.search(title) or STRONG_CLAIM_RE.search(snippet):
@@ -591,6 +654,23 @@ def verify_note_pl(title: str, snippet: str) -> str:
 # =========================
 # POBIERANIE + DEDUPE
 # =========================
+def entry_image(entry, source_url: str) -> str:
+    for key in ("media_thumbnail", "media_content"):
+        media = entry.get(key) or []
+        if isinstance(media, dict):
+            media = [media]
+        for item in media:
+            image_url = (item or {}).get("url")
+            if image_url:
+                return urljoin(source_url, image_url)
+    for enclosure in entry.get("enclosures") or []:
+        image_url = (enclosure or {}).get("href") or (enclosure or {}).get("url")
+        content_type = ((enclosure or {}).get("type") or "").lower()
+        if image_url and content_type.startswith("image/"):
+            return urljoin(source_url, image_url)
+    return ""
+
+
 def fetch_section(section_key: str):
     items = []
     for feed in FEEDS[section_key]:
@@ -614,6 +694,7 @@ def fetch_section(section_key: str):
                     "source_name": source_name,
                     "source_badge": source_badge_for(source_name),
                     "summary_raw": clean_snippet,
+                    "thumbnail_url": entry_image(e, f_url),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
         except Exception as ex:
@@ -686,7 +767,7 @@ def fetch_section(section_key: str):
     # AI + weryfikacja (ostrzeżenie tylko przy realnym powodzie)
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"], section_key)
-        verify = verify_note_pl(it["title"], it.get("summary_raw",""))
+        verify = verify_note_pl(it["title"], it.get("summary_raw",""), section_key)
         final_warn = verify or s.get("uncertain","")
         it["ai_summary"] = ensure_period(s["summary"])
         it["ai_why"] = ensure_period(s.get("why") or why_it_matters_pl(section_key, it["title"], it.get("summary_raw", "")))
@@ -743,6 +824,7 @@ def build_hotbar_json(sections: dict) -> dict:
 # RENDER HTML
 # =========================
 def render_html(sections: dict) -> str:
+    updated_at = datetime.now(TZ)
     extra_css = """
     ul.news{ list-style:none; padding-left:0; }
     ul.news li{ margin:18px 0 24px; }
@@ -751,6 +833,7 @@ def render_html(sections: dict) -> str:
       color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
     .news-main-link:hover{ color:#ffffff; text-decoration:underline; }
+    .news-main-link:focus-visible,.read-source:focus-visible{ outline:3px solid #f8c97a; outline-offset:4px; border-radius:6px; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
       background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
@@ -764,6 +847,8 @@ def render_html(sections: dict) -> str:
     }
     .news-thumb .title{ max-width:58px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.54rem; font-weight:700; letter-spacing:0; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-thumb.has-image{ padding:0; overflow:hidden; background:rgba(255,255,255,.06); align-items:stretch; }
+    .news-thumb.has-image img{ width:100%; height:100%; display:block; object-fit:cover; }
     .news-title-wrap{ display:flex; flex-direction:column; gap:4px; min-width:0; }
     .news-text{ font-weight:700; }
     .source-line{ color:#9fb3cb; font-size:.88rem; }
@@ -782,9 +867,22 @@ def render_html(sections: dict) -> str:
     .read-source{ display:inline-flex; margin-top:10px; color:#f8c97a; text-decoration:none; font-weight:700; }
     .read-source:hover{ color:#ffffff; text-decoration:underline; }
     .note{ color:#9fb3cb; font-size:.92rem }
+    .empty-state{ color:#b9c5d8; padding:12px 0; }
+    @media(max-width:640px){
+      .news-main-link{ align-items:flex-start; }
+      .news-thumb{ width:70px; min-width:70px; height:50px; }
+      .ai-note{ margin-left:0; }
+    }
     """
 
-    def badge(source: str):
+    def badge(it, source: str):
+        thumbnail_url = (it.get("thumbnail_url") or "").strip()
+        if thumbnail_url:
+            return (
+                '<span class="news-thumb has-image">'
+                f'<img src="{esc(thumbnail_url)}" alt="" loading="lazy" decoding="async" width="78" height="54" />'
+                '</span>'
+            )
         return (
             '<span class="news-thumb">'
             '<span class="dot"></span>'
@@ -798,7 +896,7 @@ def render_html(sections: dict) -> str:
         warn_html = f'<div class="sec"><strong>Uwaga:</strong> {esc(it["ai_uncertain"])}</div>' if it.get("ai_uncertain") else ""
         return f'''<li>
   <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
-    {badge(source)}
+    {badge(it, source)}
     <span class="news-title-wrap">
       <span class="news-text">{esc(it["title"])}</span>
       <span class="source-line">Źródło: {esc(source)}</span>
@@ -814,6 +912,8 @@ def render_html(sections: dict) -> str:
 
     def make_section(title, items):
         lis = "\n".join(make_li(it) for it in items)
+        if not lis:
+            lis = '<li class="empty-state">Brak nowych materiałów spełniających kryteria jakości. Sekcja zostanie sprawdzona ponownie przy najbliższej aktualizacji.</li>'
         return f"""
 <section class="card">
   <h2>{esc(title)}</h2>
@@ -828,7 +928,7 @@ def render_html(sections: dict) -> str:
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Aktualności — BriefRooms</title>
-  <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, sport." />
+  <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, zdrowie, nauka i sport." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=news5" />
   <style>
@@ -848,16 +948,18 @@ def render_html(sections: dict) -> str:
 <body data-page="news">
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnia aktualizacja: {today_str_pl()}
+  <p class="sub">Ostatnia aktualizacja: <time datetime="{updated_at.isoformat(timespec='minutes')}">{updated_at.strftime('%d.%m.%Y, %H:%M')}</time></p>
 </header>
 <main>
 {make_section("Polityka / Kraj", sections["polityka"])}
 {make_section("Ekonomia / Biznes", sections["biznes"])}
+{make_section("Zdrowie", sections["zdrowie"])}
+{make_section("Nauka", sections["nauka"])}
 {make_section("Sport", sections["sport"])}
 
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
-<footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
+<footer style="text-align:center; opacity:.55; padding:18px">© {updated_at.year} BriefRooms</footer>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "9adde99e330a4b0d991627986ac34246"}}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>"""
@@ -870,6 +972,8 @@ def main():
     sections = {
         "polityka": fetch_section("polityka"),
         "biznes":   fetch_section("biznes"),
+        "zdrowie":  fetch_section("zdrowie"),
+        "nauka":    fetch_section("nauka"),
         "sport":    fetch_section("sport"),
     }
 
@@ -885,7 +989,7 @@ def main():
     with open(HOTBAR_JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(hotbar_data, f, ensure_ascii=False, indent=2)
 
-    print("✓ Wygenerowano pl/aktualnosci.html +", HOTBAR_JSON_PATH, "(AI:", "ON" if AI_ENABLED else "OFF", ")")
+    print("[OK] Wygenerowano pl/aktualnosci.html +", HOTBAR_JSON_PATH, "(AI:", "ON" if AI_ENABLED else "OFF", ")")
 
 if __name__ == "__main__":
     main()

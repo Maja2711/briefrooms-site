@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Aktualności — BriefRooms</title>
-  <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, sport." />
+  <meta name="description" content="Automatycznie odświeżane aktualności z ostatnich godzin: polityka, ekonomia, zdrowie, nauka i sport." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/site.css?v=news5" />
   <style>
@@ -18,7 +18,7 @@
       box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
     }
     h2{ margin:8px 0 6px; color:#d7e6ff }
-    
+
     ul.news{ list-style:none; padding-left:0; }
     ul.news li{ margin:18px 0 24px; }
     .news-main-link{
@@ -26,6 +26,7 @@
       color:#fdf3e3; text-decoration:none; line-height:1.25;
     }
     .news-main-link:hover{ color:#ffffff; text-decoration:underline; }
+    .news-main-link:focus-visible,.read-source:focus-visible{ outline:3px solid #f8c97a; outline-offset:4px; border-radius:6px; }
     .news-thumb{
       width:78px; min-width:78px; height:54px; border-radius:14px;
       background:radial-gradient(circle at 10% 10%, #ffcf71 0%, #f7a34b 35%, #0f172a 100%);
@@ -39,6 +40,8 @@
     }
     .news-thumb .title{ max-width:58px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.54rem; font-weight:700; letter-spacing:0; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-thumb.has-image{ padding:0; overflow:hidden; background:rgba(255,255,255,.06); align-items:stretch; }
+    .news-thumb.has-image img{ width:100%; height:100%; display:block; object-fit:cover; }
     .news-title-wrap{ display:flex; flex-direction:column; gap:4px; min-width:0; }
     .news-text{ font-weight:700; }
     .source-line{ color:#9fb3cb; font-size:.88rem; }
@@ -57,8 +60,14 @@
     .read-source{ display:inline-flex; margin-top:10px; color:#f8c97a; text-decoration:none; font-weight:700; }
     .read-source:hover{ color:#ffffff; text-decoration:underline; }
     .note{ color:#9fb3cb; font-size:.92rem }
-    
-  
+    .empty-state{ color:#b9c5d8; padding:12px 0; }
+    @media(max-width:640px){
+      .news-main-link{ align-items:flex-start; }
+      .news-thumb{ width:70px; min-width:70px; height:50px; }
+      .ai-note{ margin-left:0; }
+    }
+
+
     html{ scroll-behavior:smooth; }
     .section-tabs{position:sticky;top:0;z-index:20;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px auto 18px;padding:10px 12px;background:rgba(8,15,30,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.10);border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
     .section-tabs a{display:inline-flex;align-items:center;justify-content:center;min-width:112px;padding:9px 16px;border-radius:999px;color:#fdf3e3;text-decoration:none;font-weight:800;letter-spacing:.01em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
@@ -68,20 +77,12 @@
     section.card{scroll-margin-top:92px}
     @media(max-width:640px){.section-tabs{border-radius:22px;justify-content:stretch}.section-tabs a{flex:1 1 30%;min-width:auto;padding:9px 10px;font-size:.92rem}.section-tabs .brand-link{flex:1 1 100%;justify-content:center}}
 
-  
-    .news-thumb.has-image{padding:0!important;overflow:hidden!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;align-items:stretch!important;justify-content:stretch!important;}
-    .news-thumb.has-image img{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;}
-    .news-thumb:not(.has-image){width:96px!important;min-width:96px!important;height:58px!important;padding:7px 8px!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:2px!important;}
-    .news-thumb:not(.has-image) .dot{display:none!important;}
-    .news-thumb:not(.has-image) .title{display:block!important;max-width:86px!important;width:86px!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip!important;color:#06111f!important;font-size:10px!important;font-weight:950!important;line-height:1.08!important;text-shadow:0 1px 0 rgba(255,255,255,.35)!important;}
-    .news-thumb:not(.has-image) .sub{display:block!important;color:rgba(6,17,31,.72)!important;font-size:8px!important;font-weight:800!important;line-height:1!important;}
-
   </style>
 </head>
 <body data-page="news">
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnia aktualizacja: 15.07.2026
+  <p class="sub">Ostatnia aktualizacja: <time datetime="2026-07-15T10:37+02:00">15.07.2026, 10:37</time></p>
 </header>
 <main>
 
@@ -89,6 +90,8 @@
   <a class="brand-link" href="/pl/" aria-label="BRs — strona startowa"><span class="brand-mark">BRs</span></a>
   <a href="#polityka">Polityka</a>
   <a href="#ekonomia">Ekonomia</a>
+  <a href="#zdrowie">Zdrowie</a>
+  <a href="#nauka">Nauka</a>
   <a href="#sport">Sport</a>
 </nav>
 
@@ -98,7 +101,7 @@
   <ul class="news">
     <li>
   <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-07-14/trump-dotrzymal-slowa-ws-iranu-ponad-20-okretow-setki-samolotow/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/9z/9zh9cajr538dbyxosvidxofm477oexbv.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
       <span class="news-text">Trump dotrzymał słowa ws. Iranu. &quot;Ponad 20 okrętów, setki samolotów&quot;</span>
       <span class="source-line">Źródło: Polsat News</span>
@@ -107,12 +110,12 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> Stany Zjednoczone przeprowadzają kolejne ataki na Iran - przekazano w komunikacie Dowództwa Centralnego USA. Amerykanie zrealizowali także wcześniejszą zapowiedź prezydenta Donalda Trumpa, który deklarował przywrócenie blokady irańskich portów.</div>
-    
+
   </div>
 </li>
 <li>
   <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-07-14/rosyjski-samolot-nad-baltykiem-polska-poderwala-mysliwce/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat News</span><span class="sub">źródło</span></span>
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/je/jeoxpm1zj72pshrfi3q2cxwmnfq919sg.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
       <span class="news-text">Rosyjski samolot 30 km od Ustki. Polska poderwała myśliwce</span>
       <span class="source-line">Źródło: Polsat News</span>
@@ -121,21 +124,21 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> - Nad wodami międzynarodowymi doszło do przechwycenia przez naszą parę dyżurną rosyjskiego samolotu Ił-20 - powiedział wicepremier i minister obrony narodowej Władysław Kosiniak-Kamysz. Maszyna znajdowała się około 30 km od Ustki. Minister podkreślił, że Rosja stanowi największe zagrożenie dla NATO.</div>
-    
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://tvn24.pl/biznes/ze-swiata/kryzys-na-kubie-sie-poglebia-blackout-wywolal-problemy-z-dostawami-wody-st9142926?source=rss" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://tvn24.pl/polska/przemyslaw-czarnek-uderza-w-ukraine-milosz-motyka-smutna-ale-konsekwentna-polityka-st9143039?source=rss" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">TVN24</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Awaria pogrążyła cały kraj w ciemnościach. Narasta kryzys na Kubie</span>
+      <span class="news-text">Rosyjska propaganda, czy &quot;po prostu bycie sobą&quot;? Minister o Czarnku</span>
       <span class="source-line">Źródło: TVN24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Kuba ponownie zmaga się z poważnym kryzysem energetycznym. We wtorek ogólnokrajowa awaria sieci doprowadziła do blackoutu na całej wyspie, pozostawiając mieszkańców bez prądu i pogłębiając problemy z dostępem do wody pitnej.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Ja nie wiem, czy to jest powtarzanie rosyjskiej propagandy, czy to jest po prostu bycie sobą - powiedział w TVN24 minister energii Miłosz Motyka z PSL, komentując niedawne słowa posła PiS Przemysława Czarnka o Ukrainie.</div>
+
   </div>
 </li>
   </ul>
@@ -145,6 +148,48 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Niezgodne-z-prawem-przyjecia-planowe-i-praca-po-55-godzin-bez-przerwy-NIK-bierze-pod-lupe-Szpital-Poludniowy-9168361.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Niezgodne z prawem przyjęcia planowe i praca po 55 godzin bez przerwy. NIK bierze pod lupę Szpital Południowy</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Najwyższa Izba Kontroli opublikowała w środę wyniki kontroli Warszawskiego Szpitala Południowego. Raport wskazuje na wiele nieprawidłowości, m.in. w zakresie zarządzania placówką, organizacji pracy, rozliczania świadczeń z NFZ i przeznaczenia pomieszczeń szpitalnych.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Stolica-ma-dwie-nowe-wiceprezydentki-Zmiany-kadrowe-to-efekt-skandalu-w-Szpitalu-Poludniowym-9168391.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Stolica ma dwie nowe wiceprezydentki. Zmiany kadrowe to efekt skandalu w Szpitalu Południowym</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Dzisiaj przechodzimy do kolejnego etapu. Moją propozycję objęcia stanowisk wiceprezydentek Warszawy przyjęły Magdalena Młochowska i Izabela Marcewicz-Jendrysik – poinformował w środę prezydent Warszawy Rafał Trzaskowski.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Inflacja-CPI-w-czerwcu-2026-znalazla-sie-w-celu-NBP-GUS-potwierdza-inflacyjna-niespodzianke-9168354.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">GUS potwierdza inflacyjną niespodziankę. Inflacja CPI jest w celu NBP</span>
+      <span class="source-line">Źródło: Bankier.pl</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Czerwcowa inflacja konsumencka znalazła się idealnie w celu Narodowego Banku Polskiego – potwierdził w środę Główny Urząd Statystyczny.</div>
+
+  </div>
+</li>
+<li>
   <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Zadyszka-w-drugiej-gospodarce-swiata-PKB-Chin-rosnie-najwolniej-od-czasow-pandemicznych-lockdownow-9168315.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
@@ -155,49 +200,7 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> W drugim kwartale 2026 roku produkt krajowy brutto Chin wzrósł o 4,3% w ujęciu rocznym, notując najsłabszy wynik od końcówki 2022 roku czyli momentu, gdy kraj paraliżowały jeszcze restrykcje ery &quot;Zero-COVID&quot;.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Koniec-z-astronomicznymi-pensjami-w-szpitalach-Polacy-zadaja-od-rzadu-kaganca-na-zarobki-lekarzy-9168308.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Koniec z astronomicznymi pensjami w szpitalach? Polacy żądają od rządu kagańca na zarobki lekarzy</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> 77,4 proc. badanych uważa, że rząd powinien ograniczyć zarobki lekarzy, wprowadzając maksymalne wynagrodzenia w publicznej służbie zdrowia - wynika z opublikowanego w środę sondażu IBRiS na zlecenie „Rzeczpospolitej”.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Wielki-wzrost-wycen-porodow-i-bat-na-szpitale-ktore-unikaja-znieczulen-NFZ-wdraza-nowe-zasady-9168299.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Wielki wzrost wycen porodów i bat na szpitale, które unikają znieczuleń. NFZ wdraża nowe zasady</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Po zmianie wyceny świadczeń Narodowy Fundusz Zdrowia przeznaczy przez rok o 1,2 mld zł więcej m.in. na położnictwo i leczenia psychiatryczne dzieci - poinformowała PAP Centrala NFZ.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Ranking-kredytow-konsolidacyjnych-lipiec-2026-r-Ranking-Bankier-pl-9167259.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Kilka kredytów, jedna rata. Sprawdzamy, gdzie konsolidacja kosztuje najmniej</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Ile kosztuje zamiana kilku kredytów w jedną ratę? Na przykładzie małżeństwa z dwojgiem dzieci sprawdziliśmy oferty banków, porównując nie tylko wysokość miesięcznego obciążenia, ale przede wszystkim całkowity koszt finansowania.</div>
-    
+
   </div>
 </li>
 <li>
@@ -211,21 +214,89 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> Rosną szacunki zdolności kredytowej dla zainteresowanych hipotekami. To w dużej mierze efekt obniżek oprocentowania w cennikach. Profilowa rodzina z dochodem 15 tys. zł może w lipcu liczyć na średnio 10 tys. zł finansowania więcej niż w czerwcu.</div>
-    
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Amerykanska-inflacja-niczym-kon-na-bialym-rycerzu-Jeden-odczyt-odwrocil-losy-sesji-9168255.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Ranking-kredytow-konsolidacyjnych-lipiec-2026-r-Ranking-Bankier-pl-9167259.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Amerykańska inflacja niczym koń na białym rycerzu. Jeden odczyt odwrócił losy sesji</span>
+      <span class="news-text">Kilka kredytów, jedna rata. Sprawdzamy, gdzie konsolidacja kosztuje najmniej</span>
       <span class="source-line">Źródło: Bankier.pl</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> To mógł być dzień, który zapowiadał się jako jednoznacznie spadkowy. I wtedy nadszedł wręcz podejrzanie „miękki” odczyt inflacyjny, który odwrócił losy sesji.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Ile kosztuje zamiana kilku kredytów w jedną ratę? Na przykładzie małżeństwa z dwojgiem dzieci sprawdziliśmy oferty banków, porównując nie tylko wysokość miesięcznego obciążenia, ale przede wszystkim całkowity koszt finansowania.</div>
+
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card" id="zdrowie">
+  <h2>Zdrowie</h2>
+  <ul class="news">
+    <li>
+  <a class="news-main-link" href="https://naukawpolsce.pl/aktualnosci/news%2C113898%2Cpolskie-badania-potwierdzaja-ze-cechy-molekularne-raka-piersi-moga-sie" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Nauka w Polsce</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Polskie badania potwierdzają, że cechy molekularne raka piersi mogą się zmienić w trakcie terapii</span>
+      <span class="source-line">Źródło: Nauka w Polsce</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Polskie badania potwierdzają, że cechy molekularne raka piersi mogą się zmienić w trakcie terapii.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://naukawpolsce.pl/aktualnosci/news%2C113862%2Cnaukowcy-leki-na-cukrzyce-i-otylosc-moga-pomagac-w-leczeniu-chorob-skory" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Nauka w Polsce</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Naukowcy: leki na cukrzycę i otyłość mogą pomagać w leczeniu chorób skóry</span>
+      <span class="source-line">Źródło: Nauka w Polsce</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Naukowcy: leki na cukrzycę i otyłość mogą pomagać w leczeniu chorób skóry.</div>
+
+  </div>
+</li>
+  </ul>
+</section>
+
+<section class="card" id="nauka">
+  <h2>Nauka</h2>
+  <ul class="news">
+    <li>
+  <a class="news-main-link" href="https://naukawpolsce.pl/aktualnosci/news%2C113923%2Cekspertka-centrum-esa-w-polsce-bedzie-kuznia-kadr.html" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Nauka w Polsce</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Ekspertka: centrum ESA w Polsce to będzie kuźnia kadr</span>
+      <span class="source-line">Źródło: Nauka w Polsce</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Ekspertka: centrum ESA w Polsce to będzie kuźnia kadr.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://naukawpolsce.pl/aktualnosci/news%2C113916%2Cdyrektor-esa-nasz-nowy-osrodek-w-polsce-nie-do-pomyslenia-bez-slawosza.html" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Nauka w Polsce</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Dyrektor ESA: nasz nowy ośrodek w Polsce nie do pomyślenia bez Sławosza</span>
+      <span class="source-line">Źródło: Nauka w Polsce</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Dyrektor ESA: nasz nowy ośrodek w Polsce nie do pomyślenia bez Sławosza.</div>
+
   </div>
 </li>
   </ul>
@@ -235,31 +306,31 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-14/kanaly-polsat-sport-pokaza-mecze-gornika-zabrze-w-kwalifikacjach-do-europejskich-pucharow-uefa/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+  <a class="news-main-link" href="https://sportowefakty.wp.pl/bukmacherzy/1262590/liga-narodow-siatkarzy-czas-na-najwieksze-gwiazdy-polska-bulgaria-15072026" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a3ffab43f88a5_14666941.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Kanały Polsat Sport pokażą mecze Górnika Zabrze w kwalifikacjach do europejskich pucharów UEFA</span>
-      <span class="source-line">Źródło: Polsat Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Górnik Zabrze, czyli jeden z najbardziej utytułowanych polskich klubów, rozpoczyna walkę o awans do Champions League. Pierwszym rywalem wicemistrza Polski jest wicemistrz Turcji, Fenerbahce Stambuł. Dzięki transmisjom w kanałach Polsat Sport kibice mogą towarzyszyć piłkarzom Górnika we wszystkich etapach kwalifikacji.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://sportowefakty.wp.pl/siatkowka/1262545/rywale-bezradni-pokaz-mocy-polski-na-me" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a570acb815000_23653040.jpg" alt="" loading="lazy"></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Rywale bezradni. Pokaz mocy Polski na ME</span>
+      <span class="news-text">Liga Narodów Siatkarzy. Czas na największe gwiazdy! Polska - Bułgaria (15.07.2026)</span>
       <span class="source-line">Źródło: SportoweFakty WP</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Krótka przerwa na mistrzostwach Europy U-18 niewiele zmieniła dla reprezentacji Polski. Biało-Czerwoni w przedostatnim meczu fazy grupowej rozbili Grecję 3:0, dzięki czemu zapewnili sobie awans do półfinału z pierwszego miejsca.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Reprezentacja Polski ma przed sobą ostatni turniej fazy interkontynentalnej Ligi Narodów Biało-czerwoni mają jeden cel– chcą przypieczętować awans do turnieju finałowego i włączyć się do walki o podium.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-14/polka-zaskoczyla-triumf-w-pierwszej-rundzie/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/58/58wbfi92dxphrhuddcbbrjoo2bb4c8n4.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Polka zaskoczyła! Triumf w pierwszej rundzie</span>
+      <span class="source-line">Źródło: Polsat Sport</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Zajmująca 142. miejsce w światowym rankingu tenisistek Katarzyna Kawa wygrała ze sklasyfikowaną na 81. pozycji Szwajcarką Simoną Waltert 6:1, 6:4 w pierwszej rundzie turnieju WTA rangi 250 w rumuńskich Jassach.</div>
+
   </div>
 </li>
 <li>
@@ -273,82 +344,54 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> Pierwszy półfinał mistrzostw świata świetnie rozpoczął się dla Hiszpanów. Lucas Digne sfaulował w polu karnym Lamine&#x27;a Yamala, a arbiter podyktował rzut karny. Do piłki podszedł Mikel Oyarzabal i dał prowadzenie drużynie Luisa de la Fuente.</div>
-    
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/kylian-mbappe-jasno-o-przyczynach-porazki-francuzow-na-ms/zwrpwwz" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/sjtk9lGaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8yNDQzMzc1OC02MWU0LTQ3NTktYTg4Yy01NDdmMTIwMjA5OTYuanBlZ5KVA80FZTfNBKbNAp6TBc0JYM0GQN4AAqEwB6ExBA" alt="" loading="lazy"></span>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/bukmacherzy/pilka-nozna/kto-wygra-mundial-2026-kursy-na-mistrzostwa-swiata-w-pilce-noznej/3rhytkt" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/g69k9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy9jOTM3ZGEyZmUzNjBhNTZkN2FjYTE0Y2U0M2NmOGVmOS5qcGeSlQMAbc0H0M0EZZMFzQlgzQZA3gACoTAHoTEE" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Kylian Mbappe jasno o przyczynach porażki Francuzów na MŚ</span>
+      <span class="news-text">Kto wygra Mundial 2026? Kto zostanie mistrzem świata?</span>
       <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Francja przegrała w półfinale mistrzostw świata z Hiszpanią 0:2, a jej lider, Kylian Mbappe zaraz po meczu nie krył rozczarowania po porażce. Zawodnik Realu Madryt jasno powiedział, co zawiodło i zaprzepaściło marzenia Francuzów o finale mundialu.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Mistrzostwa Świata 2026 weszły w decydującą fazę. Kto będzie górą w wielkim finale i sięgnie po tytuł? Swoje przewidywania prezentują analitycy legalnego bukmachera Betclic, u którego pierwszy zakład do 50 zł możesz zagrać bez ryzyka, bo w przypadku porażki otrzymasz zwrot.</div>
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-14/polka-zaskoczyla-triumf-w-pierwszej-rundzie/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-15/hiszpania-wraca-do-korzeni-czuc-ducha-z-2010-roku/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/qq/qqt2gjist954ec73m4pm9qu5d6vhcnem.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Polka zaskoczyła! Triumf w pierwszej rundzie</span>
+      <span class="news-text">Hiszpania wraca do korzeni! Czuć ducha z 2010 roku</span>
       <span class="source-line">Źródło: Polsat Sport</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Zajmująca 142. miejsce w światowym rankingu tenisistek Katarzyna Kawa wygrała ze sklasyfikowaną na 81. pozycji Szwajcarką Simoną Waltert 6:1, 6:4 w pierwszej rundzie turnieju WTA rangi 250 w rumuńskich Jassach.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Piłkarski szturm na Bastylię w Dallas i pokonanie silnej Francji daje Hiszpanii awans do drugiego finału mistrzostw świata w historii – podkreślają media w Hiszpani po wtorkowym zwycięstwie 2:0 nad Francją w półfinale mundialu.</div>
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-14/polska-bulgaria-wynik-meczu-siatkarzy-kto-wygral-1/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Polsat Sport</span><span class="sub">źródło</span></span>
+  <a class="news-main-link" href="https://www.polsatsport.pl/wiadomosc/2026-07-15/argentyna-chce-pokonac-anglie-przesadem-zaskakujaca-wypowiedz-trenera-tuchela/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/1o/1opoccjjufdn6ccrj65e5egae3vz59yx.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Polska - Bułgaria. Wynik meczu siatkarzy. Kto wygrał?</span>
+      <span class="news-text">Argentyna chce pokonać Anglię przesądem? Zaskakująca wypowiedź trenera Tuchela</span>
       <span class="source-line">Źródło: Polsat Sport</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Polska - Bułgaria, czyli czas na kolejne spotkanie w ramach Ligi Narodów siatkarzy 2026. Kto wygrał mecz Polska - Bułgaria? Jaki był wynik meczu polskich siatkarzy?</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://przegladsportowy.onet.pl/igrzyska-olimpijskie/rosjanie-wiedza-co-zrobia-z-inwalidami-wojennymi-inwestuja-pieniadze/pvmx9rm" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/z2Xk9lGaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy9lZGRhODhkZC0xNWJjLTQ3OGQtODg2Yi03MzdiYTRmZGVkMTAuanBlZ5KVAwDNAnXNB0PNBBWTBc0JYM0GQN4AAqEwB6ExBA" alt="" loading="lazy"></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Rosjanie już wiedzą, co zrobią z inwalidami wojennymi. &quot;Inwestują dużo pieniędzy&quot;</span>
-      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Prezes Polskiego Związku Judo wyjawił w &quot;Misji Sport&quot;, czy rosyjscy judocy są w rosyjskiej armii. — Na pewno tak jest. Przecież większość zawodników sportów walki bardzo chętnie jest wcielana do rosyjskiej armii — mówi wprost. Rosjanie już wiedzą, co zrobią z inwalidami wojennymi. Widzą ich m.in.</div>
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://sportowefakty.wp.pl/tenis/1262554/zagrali-w-turnieju-atp-nieudany-wystep-polakow" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/67d158ee59dfb0_71761653.jpg" alt="" loading="lazy"></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Zagrali w turnieju ATP. Nieudany występ Polaków</span>
-      <span class="source-line">Źródło: SportoweFakty WP</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Karol Drzewiecki i Filip Pieczonka po raz drugi w karierze połączyli siły. Polacy wystąpili w turnieju rangi ATP 250 w Bastad, ale odpadli już w pierwszej rundzie po porażce z Jeanem-Julienem Rojerem i Theodorem Winegarem.</div>
-    
+    <div class="sec"><strong>Najważniejsze:</strong> Trener reprezentacji Anglii Thomas Tuchel przed środowym półfinałem mistrzostw świata z Argentyną zdradził, że w ramach walki z narastającym stresem zabrał swoich piłkarzy na rowerową przejażdżkę i lody. - Czasem tyle wystarczy, aby poczuć się jak 15-latek - powiedział.</div>
+
   </div>
 </li>
 <li>
   <a class="news-main-link" href="https://sportowefakty.wp.pl/pilka-nozna/1262557/francuz-krytyczny-po-meczu-nie-przegralismy-z-hiszpania" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a57209b019e17_44499528.jpg" alt="" loading="lazy"></span>
+    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a57209b019e17_44499528.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
     <span class="news-title-wrap">
       <span class="news-text">Francuz krytyczny po meczu. &quot;Nie przegraliśmy z Hiszpanią&quot;</span>
       <span class="source-line">Źródło: SportoweFakty WP</span>
@@ -357,7 +400,21 @@
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
     <div class="sec"><strong>Najważniejsze:</strong> Reprezentacja Francji odpadła z mistrzostw świata po porażce 0:2 z Hiszpanią, ale Rayan Cherki nie szukał wymówek. Piłkarz Manchesteru City po półfinale stwierdził, że &quot;Trójkolorowi&quot; nie przegrali z rywalem, lecz z... samymi sobą.</div>
-    
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://sportowefakty.wp.pl/bukmacherzy/1262587/efekt-lewandowskiego-czy-polak-poprowadzi-chicago-fire-do-mistrzostwa-mls" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a56dbb9e60551_78375651.jpg" alt="" loading="lazy" decoding="async" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Efekt Lewandowskiego: Czy Polak poprowadzi Chicago Fire do mistrzostwa MLS?</span>
+      <span class="source-line">Źródło: SportoweFakty WP</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec"><strong>Najważniejsze:</strong> Robert Lewandowski został już zaprezentowany w Chicago Fire. Przed Polakiem pierwszy mecz w nowej lidze oraz rywalizacja mistrzostwo. Czy Lewy zdoła powtórzyć sukces z FC Barcelony i sięgnąć po tytuł w swoim debiutanckim sezonie?</div>
+
   </div>
 </li>
   </ul>
@@ -365,7 +422,7 @@
 
 <p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
-<footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
+<footer style="text-align:center; opacity:.55; padding:18px">© 2026 BriefRooms</footer>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
