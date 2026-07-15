@@ -13,6 +13,7 @@ from comment_quality import (
     QUALITY_STATUS,
     QUALITY_VERSION,
     normalize_text,
+    review_digest,
     validate_comment,
 )
 
@@ -36,7 +37,11 @@ def publishable_comment(item: dict, lang: str) -> tuple[str, tuple[str, ...]]:
     value = item.get("full_brief")
     if not isinstance(value, str):
         return "", ("missing_full_brief",)
+    if item.get("comment_review_digest") != review_digest(value):
+        return "", ("reviewed_comment_digest_mismatch",)
     result = validate_comment(value, lang)
+    if result.valid and result.text != value:
+        return "", ("post_review_normalization_required",)
     return (result.text, ()) if result.valid else ("", result.reasons)
 
 
@@ -90,6 +95,7 @@ def process(path: Path, lang: str) -> bool:
         "rejected_examples": rejected[:12],
         "raw_article_or_rss_fallback": "forbidden",
         "partial_sentence_salvage": "forbidden",
+        "reviewed_text_integrity": "sha256_exact_match_required",
     }
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return changed

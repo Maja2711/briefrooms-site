@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Read source articles and create meaning-only 3-6 sentence BriefRooms summaries.
+Read source articles and create meaning-only 3-4 sentence BriefRooms summaries.
 
 Rule: first try to read the article body from the source URL, then summarise only
 what is present in that source material. Never pad with generic sentences about
@@ -30,6 +30,7 @@ from comment_quality import (
     independent_ai_review,
     independent_ai_review_batch,
     request_json_completion,
+    review_digest,
     validate_comment,
 )
 
@@ -412,7 +413,12 @@ def process(path: Path, lang: str, cache: dict) -> bool:
             title = item.get("title") or ""
             article_text, status = fetch_article_text(link)
             item["article_read_status"] = status
-            for key in ("comment_quality_status", "comment_quality_version", "comment_generation_status"):
+            for key in (
+                "comment_quality_status",
+                "comment_quality_version",
+                "comment_generation_status",
+                "comment_review_digest",
+            ):
                 item.pop(key, None)
             if len(article_text) >= MIN_ARTICLE_CHARS:
                 item_id = f"{lang}-{item_index}"
@@ -426,6 +432,7 @@ def process(path: Path, lang: str, cache: dict) -> bool:
                 item_records.append((item, item_id, article_text))
             else:
                 item.pop("full_brief", None)
+                item.pop("comment_review_digest", None)
                 item["summary_basis"] = "rss_only_insufficient_article_text"
                 item["comment_generation_status"] = "rejected_or_unavailable"
                 item["article_text_chars"] = len(article_text)
@@ -437,10 +444,12 @@ def process(path: Path, lang: str, cache: dict) -> bool:
         item["article_text_chars"] = len(article_text)
         if summary:
             item["full_brief"] = summary
+            item["comment_review_digest"] = review_digest(summary)
             item["summary_basis"] = "article_text_ai_reviewed"
             item["comment_generation_status"] = "ai_review_approved"
         else:
             item.pop("full_brief", None)
+            item.pop("comment_review_digest", None)
             item["summary_basis"] = "article_text_ai_rejected"
             item["comment_generation_status"] = "rejected_or_unavailable"
     data["brief_methodology"] = {

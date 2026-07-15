@@ -18,6 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 import comment_quality as quality
 import protect_home_feed as protect
 import content_update_watchdog as watchdog
+import remove_urgent_badge_categories as category_cleanup
 sys.modules.setdefault("requests", mock.Mock())
 sys.modules.setdefault("feedparser", mock.Mock())
 if "dateutil" not in sys.modules:
@@ -27,6 +28,7 @@ if "dateutil" not in sys.modules:
     sys.modules["dateutil"] = dateutil_stub
 import read_and_summarize_articles as reader
 import enforce_brief_length as methodology
+import build_home_brief_en as home_en
 import fetch_news_en as news_en
 import fetch_news_pl as news_pl
 import news_comment_batch as news_batch
@@ -61,6 +63,7 @@ def approved_item(text: str, lang: str = "pl") -> dict:
         "full_brief": text,
         "summary_basis": "article_text_ai_reviewed",
         "comment_generation_status": "ai_review_approved",
+        "comment_review_digest": quality.review_digest(text),
         "comment_quality_status": quality.QUALITY_STATUS,
         "comment_quality_version": quality.QUALITY_VERSION,
     }
@@ -290,6 +293,54 @@ class PipelineContractTests(unittest.TestCase):
         }
         self.assertEqual(VALID_PL, methodology.build_full_brief(item, "pl"))
 
+    def test_category_cleanup_never_changes_an_ai_reviewed_comment(self):
+        reviewed = (
+            "Sąd uznał Stanisława G. za winnego umyślnego ataku nożem na pokrzywdzonego. "
+            "Oskarżony działał pod wpływem alkoholu, co sąd uznał za lekceważenie prawa. "
+            "Drugi zarzut dotyczył gróźb pozbawienia życia wobec pokrzywdzonego. "
+            "Sąd umorzył postępowanie wobec Kamila T., który odpowiadał za naruszenie nietykalności."
+        )
+        payload = {"latest": [approved_item(reviewed)], "radar": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "home.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            category_cleanup.process(path, "pl")
+            gate.process(path, "pl")
+            result = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(reviewed, result["latest"][0]["full_brief"])
+
+    def test_any_post_review_text_change_breaks_the_digest_contract(self):
+        item = approved_item(VALID_PL)
+        item["full_brief"] = VALID_PL.replace("dwuletnie", "trzyletnie")
+        comment, reasons = gate.publishable_comment(item, "pl")
+        self.assertEqual("", comment)
+        self.assertEqual(("reviewed_comment_digest_mismatch",), reasons)
+        self.assertFalse(protect.valid_card(item, "pl"))
+
+    def test_article_reader_attaches_digest_to_the_exact_reviewed_comment(self):
+        payload = {"latest": [approved_item(VALID_EN, "en")], "radar": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "home.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            with (
+                mock.patch.object(reader, "fetch_article_text", return_value=("Source article " * 100, "article_read")),
+                mock.patch.object(reader, "ai_summarize_batch", return_value={"en-0": VALID_EN}),
+            ):
+                reader.process(path, "en", {})
+            result = json.loads(path.read_text(encoding="utf-8"))["latest"][0]
+        self.assertEqual(VALID_EN, result["full_brief"])
+        self.assertEqual(quality.review_digest(VALID_EN), result["comment_review_digest"])
+
+    def test_english_homepage_rejects_live_roundups_before_article_fetch(self):
+        entry = {
+            "title": "Australia news live: politics debate; workplace drug use rises",
+            "link": "https://example.com/australia-news/live/2026/jul/16/updates",
+            "summary": "Rolling coverage of several unrelated stories across the day.",
+        }
+        with mock.patch.object(home_en, "article_excerpt") as article_excerpt:
+            self.assertIsNone(home_en.make_item(entry, "Breaking"))
+        article_excerpt.assert_not_called()
+
     def test_last_good_protection_revalidates_text_and_version(self):
         self.assertTrue(protect.valid_card(approved_item(VALID_PL), "pl"))
         self.assertTrue(protect.valid_card(approved_item(VALID_EN, "en"), "en"))
@@ -321,6 +372,31 @@ class PipelineContractTests(unittest.TestCase):
                 protect.validate_current()
             restored = json.loads(current_path.read_text(encoding="utf-8"))
         self.assertEqual(6, protect.total_valid(restored, "pl"))
+        self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
+
+    def test_english_feed_keeps_a_five_card_last_good_backup(self):
+        good = []
+        for index in range(5):
+            item = approved_item(VALID_EN, "en")
+            item["title"] = f"Reviewed English article {index + 1}"
+            item["link"] = f"https://example.com/en-{index + 1}"
+            good.append(item)
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+            backup_path = Path(tmp) / "backup.json"
+            current_path.write_text(
+                json.dumps({"latest": good, "radar": []}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            with mock.patch.object(protect, "FILES", {"en": (current_path, backup_path)}):
+                protect.backup_current()
+                current_path.write_text(
+                    json.dumps({"latest": [], "radar": []}, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                protect.validate_current()
+            restored = json.loads(current_path.read_text(encoding="utf-8"))
+        self.assertEqual(5, protect.total_valid(restored, "en"))
         self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
 
     def test_passive_home_check_does_not_rewrite_an_unchanged_empty_feed(self):
