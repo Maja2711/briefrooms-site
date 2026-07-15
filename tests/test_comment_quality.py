@@ -25,6 +25,7 @@ if "dateutil" not in sys.modules:
     dateutil_stub.tz.gettz.return_value = timezone.utc
     sys.modules["dateutil"] = dateutil_stub
 import read_and_summarize_articles as reader
+import enforce_brief_length as methodology
 import fetch_news_en as news_en
 import fetch_news_pl as news_pl
 import news_comment_batch as news_batch
@@ -177,6 +178,15 @@ class CommentQualityTests(unittest.TestCase):
         self.assertFalse(quality.validate_comment(" ".join(quality.split_sentences(VALID_PL)[:2]), "pl").valid)
         self.assertFalse(quality.validate_comment(" ".join(quality.split_sentences(VALID_EN)[:2]), "en").valid)
 
+    def test_homepage_comment_hard_limit_is_four_sentences(self):
+        five_sentences = VALID_EN + (
+            " Officials published the implementation timetable after the vote."
+            " Regulators will monitor the first phase and publish the results."
+        )
+        result = quality.validate_comment(five_sentences, "en")
+        self.assertFalse(result.valid)
+        self.assertIn("sentence_count", result.reasons)
+
     def test_short_news_comments_use_the_same_language_checks(self):
         valid_pl = "Rząd opublikował szczegółowe zasady programu, które zaczną obowiązywać po zakończeniu konsultacji społecznych."
         broken_pl = "Rz d opublikowa zasady, a cz kosztw ponios mieszkańcy bez dodatkowych wyjaśnień."
@@ -269,6 +279,15 @@ class PipelineContractTests(unittest.TestCase):
         comment, reasons = gate.publishable_comment(stale, "pl")
         self.assertEqual("", comment)
         self.assertEqual(("stale_quality_contract",), reasons)
+
+    def test_post_review_methodology_never_appends_unreviewed_fields(self):
+        item = {
+            "full_brief": VALID_PL,
+            "details": "Ten tekst nie przeszedł niezależnej recenzji i nie może zostać dopisany.",
+            "summary": "Kolejne niezatwierdzone zdanie nie może zmienić opublikowanego komentarza.",
+            "why": "Pole pomocnicze nie jest częścią komentarza zatwierdzonego przez model recenzujący.",
+        }
+        self.assertEqual(VALID_PL, methodology.build_full_brief(item, "pl"))
 
     def test_last_good_protection_revalidates_text_and_version(self):
         self.assertTrue(protect.valid_card(approved_item(VALID_PL), "pl"))

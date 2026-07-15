@@ -189,7 +189,7 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         prompt = (
             "Przeczytaj tekst artykułu i zrób streszczenie do BriefRooms. "
             "Zwróć wyłącznie JSON {\"full_brief\":\"...\"}. "
-            "Zasady: 3-6 pełnych zdań; tylko sens i fakty z tekstu; prosto, logicznie i gramatycznie. "
+            "Zasady: 3-4 pełne zdania; tylko sens i fakty z tekstu; prosto, logicznie i gramatycznie. "
             "Każde zdanie musi być samodzielne: czytelnik ma rozumieć kto/co zrobił bez znajomości poprzedniego zdania. "
             "Nie zaczynaj od: Dodał, Dodała, Zaznaczył, Powiedział, Skomentuj, symbolu, waluty, urwanego fragmentu ani środka zdania. "
             "Nie kopiuj podpisów, nazwisk autorów, FOTONEWS, PAP, poleceń redakcyjnych ani fragmentów UI. "
@@ -202,7 +202,7 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         prompt = (
             "Read the article text and write a BriefRooms summary. "
             "Return only JSON {\"full_brief\":\"...\"}. "
-            "Rules: 3-6 complete sentences; only the meaning and facts from the text; simple, logical and grammatical. "
+            "Rules: 3-4 complete sentences; only the meaning and facts from the text; simple, logical and grammatical. "
             "Every sentence must stand alone: the reader must understand who/what did something without relying on the previous sentence. "
             "Do not start with orphan reporting verbs, symbols, currencies, editorial commands or clipped fragments. "
             "Do not copy bylines, photo credits, wire labels, editorial commands or UI fragments. "
@@ -310,13 +310,13 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
         ]
         if lang == "pl":
             rules = (
-                "Dla każdego elementu napisz po polsku 3-6 pełnych, prostych i logicznych zdań, wyłącznie na "
+                "Dla każdego elementu napisz po polsku 3-4 pełne, proste i logiczne zdania, wyłącznie na "
                 "podstawie podanego tekstu. Każde zdanie musi być samodzielne i poprawne. Nie kopiuj uszkodzonych "
                 "znaków, porozcinanych wyrazów, podpisów, elementów interfejsu ani poleceń wydawcy."
             )
         else:
             rules = (
-                "For every item write 3-6 complete, clear and logical English sentences using only the supplied "
+                "For every item write 3-4 complete, clear and logical English sentences using only the supplied "
                 "article text. Every sentence must stand alone. Do not copy damaged characters, split words, "
                 "bylines, publisher UI or editorial commands."
             )
