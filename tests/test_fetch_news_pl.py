@@ -111,6 +111,46 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertFalse(result["reviewed"])
         save_cache.assert_not_called()
 
+    def test_batch_results_pass_through_the_production_finalizer(self):
+        sections = self.empty_sections()
+        summary = (
+            "Rząd opublikował szczegółowe zasady programu, które zaczną obowiązywać po zakończeniu konsultacji społecznych."
+        )
+        for index, section in enumerate(("polityka", "biznes", "zdrowie", "nauka", "sport", "polityka", "biznes", "sport")):
+            sections[section].append({
+                "title": f"Testowy materiał numer {index + 1}",
+                "link": f"https://example.com/batch-pl-{index + 1}",
+                "source_name": "Test Source",
+                "summary_raw": summary,
+                "_section_key": section,
+            })
+
+        def fake_batch(*, items, **_kwargs):
+            result = {}
+            for index, item in enumerate(items):
+                item_id = f"pl-{index}"
+                item["_comment_batch_id"] = item_id
+                result[item_id] = {
+                    "summary": summary,
+                    "reviewed": True,
+                    "quality_status": news.QUALITY_STATUS,
+                    "quality_version": news.QUALITY_VERSION,
+                    "model": "test-generation",
+                }
+            return result
+
+        with (
+            mock.patch.object(news, "summarize_news_items", side_effect=fake_batch),
+            mock.patch.object(news, "save_cache"),
+            mock.patch.object(news, "verify_note_pl", return_value=""),
+        ):
+            news.summarize_sections_pl(sections)
+            finalized = news.finalize_sections(sections)
+
+        accepted = [item for items in finalized.values() for item in items]
+        self.assertEqual(8, len(accepted))
+        self.assertTrue(all(item["comment_generation_status"] == "ai_review_approved" for item in accepted))
+
 
 if __name__ == "__main__":
     unittest.main()

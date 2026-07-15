@@ -21,6 +21,7 @@ from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_news_comme
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
+_original_finalize_sections = base.finalize_sections
 
 WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
@@ -84,36 +85,49 @@ def _item_text(item: dict) -> str:
     return " ".join(str(item.get(k, "") or "") for k in ("title", "summary_raw", "ai_key_point", "ai_summary", "source_name", "link"))
 
 
-def fetch_section_plain(section_key: str, excluded_links=None, excluded_topics=None):
-    items = _original_fetch_section(section_key, excluded_links, excluded_topics)
+def _plain_items(items: list[dict], require_comments: bool) -> list[dict]:
     cleaned = []
     for it in items:
         if WEATHER_RE.search(_item_text(it)):
             continue
 
-        if not (
-            it.get("comment_quality_status") == QUALITY_STATUS
-            and it.get("comment_quality_version") == QUALITY_VERSION
-            and it.get("comment_generation_status") == "ai_review_approved"
-        ):
-            continue
+        if require_comments:
+            if not (
+                it.get("comment_quality_status") == QUALITY_STATUS
+                and it.get("comment_quality_version") == QUALITY_VERSION
+                and it.get("comment_generation_status") == "ai_review_approved"
+            ):
+                continue
 
-        summary = _plain_summary(
-            it.get("title", ""),
-            it.get("ai_key_point") or it.get("ai_summary") or it.get("summary_raw", ""),
-        )
-        if not summary:
-            continue
-        it["ai_key_point"] = summary
-        it["ai_summary"] = summary
-        it["ai_why_it_matters"] = ""
+            summary = _plain_summary(
+                it.get("title", ""),
+                it.get("ai_key_point") or it.get("ai_summary") or it.get("summary_raw", ""),
+            )
+            if not summary:
+                continue
+            it["ai_key_point"] = summary
+            it["ai_summary"] = summary
+            it["ai_why_it_matters"] = ""
 
-        if BAD_AI_TEXT_RE.search(str(it.get("ai_uncertain", "") or "")):
-            it["ai_uncertain"] = ""
+            if BAD_AI_TEXT_RE.search(str(it.get("ai_uncertain", "") or "")):
+                it["ai_uncertain"] = ""
 
-        it["ai_model"] = ((it.get("ai_model") or "") + "+plain-summary-v1").strip("+")
+            it["ai_model"] = ((it.get("ai_model") or "") + "+plain-summary-v1").strip("+")
         cleaned.append(it)
     return cleaned
+
+
+def fetch_section_plain(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
+    items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
+    return _plain_items(items, require_comments=summarize)
+
+
+def finalize_sections_plain(sections: dict) -> dict:
+    sections = _original_finalize_sections(sections)
+    return {
+        section_key: _plain_items(items, require_comments=True)
+        for section_key, items in sections.items()
+    }
 
 
 def add_news_tabs_en(html: str) -> str:
@@ -149,6 +163,7 @@ def render_html_plain(sections: dict) -> str:
 
 
 base.fetch_section = fetch_section_plain
+base.finalize_sections = finalize_sections_plain
 base.render_html = render_html_plain
 
 if __name__ == "__main__":

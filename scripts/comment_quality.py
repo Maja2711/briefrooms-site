@@ -6,7 +6,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 import re
+import time
 
 QUALITY_VERSION = 4
 QUALITY_STATUS = f"passed_strict_v{QUALITY_VERSION}"
@@ -93,6 +95,110 @@ class QualityResult:
     reasons: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class AiRuntime:
+    provider: str
+    api_key: str
+    endpoint: str
+    generation_model: str
+    review_model: str
+
+    @property
+    def available(self) -> bool:
+        return bool(self.api_key and self.endpoint and self.generation_model and self.review_model)
+
+
+def get_ai_runtime() -> AiRuntime:
+    """Prefer a configured OpenAI key, then GitHub Models in Actions."""
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        generation_model = (
+            os.getenv("NEWS_AI_MODEL")
+            or os.getenv("BRIEFROOMS_AI_MODEL")
+            or "gpt-4o-mini"
+        )
+        review_model = os.getenv("NEWS_AI_REVIEW_MODEL") or generation_model
+        return AiRuntime(
+            provider="openai",
+            api_key=openai_key,
+            endpoint=os.getenv("OPENAI_CHAT_ENDPOINT", "https://api.openai.com/v1/chat/completions"),
+            generation_model=generation_model,
+            review_model=review_model,
+        )
+
+    github_token = os.getenv("GITHUB_MODELS_TOKEN", "").strip()
+    if github_token:
+        return AiRuntime(
+            provider="github-models",
+            api_key=github_token,
+            endpoint=os.getenv(
+                "GITHUB_MODELS_ENDPOINT",
+                "https://models.github.ai/inference/chat/completions",
+            ),
+            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o-mini"),
+            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1-mini"),
+        )
+
+    return AiRuntime("unavailable", "", "", "", "")
+
+
+def request_json_completion(
+    *,
+    post,
+    runtime: AiRuntime,
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    review: bool = False,
+    timeout: int = 40,
+) -> dict:
+    """Call an OpenAI-compatible endpoint and parse one strict JSON response."""
+    if not runtime.available:
+        raise RuntimeError("AI provider is unavailable")
+
+    model = runtime.review_model if review else runtime.generation_model
+    last_error: Exception | None = None
+    for attempt in range(4):
+        try:
+            response = post(
+                runtime.endpoint,
+                headers={
+                    "Accept": "application/vnd.github+json" if runtime.provider == "github-models" else "application/json",
+                    "Authorization": f"Bearer {runtime.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "response_format": {"type": "json_object"},
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                },
+                timeout=timeout,
+            )
+            status = int(getattr(response, "status_code", 200) or 200)
+            if status in {429, 500, 502, 503, 504} and attempt < 3:
+                retry_after = getattr(response, "headers", {}).get("Retry-After", "")
+                try:
+                    delay = min(20.0, max(1.0, float(retry_after)))
+                except (TypeError, ValueError):
+                    delay = float(2 ** attempt)
+                time.sleep(delay)
+                continue
+            response.raise_for_status()
+            raw = response.json()["choices"][0]["message"]["content"].strip()
+            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
+            payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                raise ValueError("AI response is not a JSON object")
+            return payload
+        except Exception as exc:
+            last_error = exc
+            if attempt >= 3:
+                break
+    raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
+
+
 def normalize_text(value: str) -> str:
     text = str(value or "")
     for bad, good in REPLACEMENTS.items():
@@ -151,16 +257,15 @@ def decode_http_response(response) -> str:
 def independent_ai_review(
     *,
     post,
-    api_key: str,
-    model: str,
+    runtime: AiRuntime,
     title: str,
     source_text: str,
     summary: str,
     lang: str,
 ) -> tuple[bool, str]:
     """Run the mandatory second-pass review without importing an HTTP client."""
-    if not api_key:
-        return False, "missing_api_key"
+    if not runtime.available:
+        return False, "missing_ai_provider"
     if lang == "pl":
         instruction = (
             "Oceń komentarz jako niezależny redaktor. Zatwierdź go tylko wtedy, gdy wszystkie zdania są poprawne "
@@ -179,28 +284,128 @@ def independent_ai_review(
         f"Title: {title}\n\nSource material:\n{source_text[:4500]}\n\nComment to review:\n{summary}"
     )
     try:
-        response = post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": "You are an independent, conservative publication quality reviewer."},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0,
-                "max_tokens": 120,
-            },
+        payload = request_json_completion(
+            post=post,
+            runtime=runtime,
+            messages=[
+                {"role": "system", "content": "You are an independent, conservative publication quality reviewer."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=120,
+            temperature=0,
+            review=True,
             timeout=35,
         )
-        response.raise_for_status()
-        payload = json.loads(response.json()["choices"][0]["message"]["content"].strip())
         if payload.get("approved") is True:
             return True, str(payload.get("reason") or "approved")
         return False, str(payload.get("reason") or "rejected")
     except Exception as exc:
         return False, f"review_error:{type(exc).__name__}:{exc}"
+
+
+def independent_ai_review_batch(
+    *,
+    post,
+    runtime: AiRuntime,
+    entries: list[dict[str, str]],
+    lang: str,
+) -> dict[str, tuple[bool, str]]:
+    """Review many generated comments in one separate-model request."""
+    default_reason = "missing_review" if runtime.available else "missing_ai_provider"
+    results = {
+        str(entry.get("id", "")): (False, default_reason)
+        for entry in entries
+        if str(entry.get("id", ""))
+    }
+    if not runtime.available or not entries:
+        return results
+
+    if lang == "pl":
+        instruction = (
+            "Jesteś niezależnym, bardzo ostrożnym redaktorem. Dla każdego elementu zatwierdź komentarz tylko, "
+            "gdy jest w pełni poprawny po polsku, logiczny, kompletny i łatwy do zrozumienia, nie ma brakujących "
+            "liter ani porozcinanych wyrazów, a wszystkie fakty wynikają z materiału źródłowego."
+        )
+    else:
+        instruction = (
+            "You are an independent, conservative editor. Approve each comment only when it is fully grammatical, "
+            "coherent, complete and easy to understand, contains no damaged or split words, and every claim is "
+            "supported by the source material."
+        )
+
+    chunks: list[list[dict[str, str]]] = []
+    current: list[dict[str, str]] = []
+    current_chars = 0
+    for entry in entries:
+        compact = {
+            "id": str(entry.get("id", "")),
+            "title": str(entry.get("title", ""))[:220],
+            "source": str(entry.get("source_text", ""))[:2600],
+            "comment": str(entry.get("summary", ""))[:1600],
+        }
+        size = sum(len(value) for value in compact.values())
+        if current and current_chars + size > 26000:
+            chunks.append(current)
+            current = []
+            current_chars = 0
+        current.append(compact)
+        current_chars += size
+    if current:
+        chunks.append(current)
+
+    for chunk in chunks:
+        expected_ids = {entry["id"] for entry in chunk if entry["id"]}
+        prompt = (
+            f"{instruction}\n"
+            "Return only JSON in this exact shape: "
+            '{"reviews":[{"id":"same id","approved":true,"reason":"short reason"}]}. '
+            "Return exactly one review for every id. One defect means approved=false.\n\n"
+            + json.dumps(chunk, ensure_ascii=False)
+        )
+        try:
+            payload = request_json_completion(
+                post=post,
+                runtime=runtime,
+                messages=[
+                    {"role": "system", "content": "Review every item independently. Never repair text during review."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=min(3000, max(500, len(chunk) * 70)),
+                temperature=0,
+                review=True,
+                timeout=50,
+            )
+            reviews = payload.get("reviews")
+            if not isinstance(reviews, list):
+                raise ValueError("batch review response has no reviews list")
+            seen: set[str] = set()
+            for review in reviews:
+                if not isinstance(review, dict):
+                    continue
+                item_id = str(review.get("id", ""))
+                if item_id not in expected_ids or item_id in seen:
+                    continue
+                seen.add(item_id)
+                approved = review.get("approved") is True
+                results[item_id] = (approved, str(review.get("reason") or ("approved" if approved else "rejected")))
+        except Exception as exc:
+            reason = f"batch_review_error:{type(exc).__name__}:{exc}"
+            for item_id in expected_ids:
+                results[item_id] = (False, reason)
+    return results
+
+
+def valid_display_title(value: str, lang: str) -> bool:
+    text = normalize_text(value)
+    if len(text) < 12 or len(text) > 190:
+        return False
+    if MOJIBAKE.search(text) or CONTROL.search(text) or HTML_OR_URL.search(text) or BAD_FRAGMENT.search(text):
+        return False
+    if lang == "pl" and BROKEN_PL.search(text):
+        return False
+    if lang == "en" and BROKEN_EN.search(text):
+        return False
+    return bool(re.search(r"[A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]", text))
 
 
 def split_sentences(value: str) -> list[str]:

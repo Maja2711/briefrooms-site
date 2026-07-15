@@ -17,9 +17,12 @@ import requests
 from comment_quality import (
     QUALITY_STATUS,
     QUALITY_VERSION,
+    get_ai_runtime,
     independent_ai_review,
+    request_json_completion,
     validate_news_comment,
 )
+from news_comment_batch import summarize_news_items
 
 # =========================
 # STREFA CZASOWA
@@ -39,7 +42,7 @@ SECTION_MAX_PER_HOST = {
 }
 HOTBAR_LIMIT = 12
 
-AI_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
+AI_ENABLED = get_ai_runtime().available
 AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 
 # osobny plik na cache AI
@@ -489,12 +492,12 @@ def ai_summarize_pl(title: str, snippet: str, url: str, section_key: str = "") -
     """
     Zwraca: {"summary": "...", "why": "...", "uncertain": ""} - 'uncertain' puste, gdy brak ostrzeżenia.
     """
-    key = os.getenv("OPENAI_API_KEY")
+    runtime = get_ai_runtime()
     source_text = re.sub(r"\s+", " ", (snippet or "").strip())
     if len(source_text) < 55:
         return {"summary": "", "why": "", "uncertain": "", "model": "insufficient_source", "reviewed": False}
     digest = hashlib.sha256(f"{title}|{url}|{source_text}".encode("utf-8")).hexdigest()[:20]
-    cache_key = f"strict-v{QUALITY_VERSION}|{today_str()}|{digest}"
+    cache_key = f"strict-v{QUALITY_VERSION}|{digest}"
     if cache_key in CACHE:
         cached = CACHE[cache_key]
         quality = validate_news_comment(str(cached.get("summary") or ""), "pl")
@@ -505,7 +508,7 @@ def ai_summarize_pl(title: str, snippet: str, url: str, section_key: str = "") -
         ):
             return cached
 
-    if not key:
+    if not runtime.available:
         return {
             "summary": "",
             "why": "",
@@ -528,31 +531,24 @@ Zasady:
 - Nie używaj formatowania Markdown."""
 
     try:
-        resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={
-                "model": AI_MODEL,
-                "messages": [
-                    {"role": "system", "content": "Jesteś rygorystycznym redaktorem newsów. Zwracasz wyłącznie poprawny JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1,
-                "max_tokens": 220,
-            },
+        payload = request_json_completion(
+            post=requests.post,
+            runtime=runtime,
+            messages=[
+                {"role": "system", "content": "Jesteś rygorystycznym redaktorem newsów. Zwracasz wyłącznie poprawny JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=220,
+            temperature=0.1,
             timeout=25,
         )
-        resp.raise_for_status()
-        payload = json.loads(resp.json()["choices"][0]["message"]["content"].strip())
         quality = validate_news_comment(str(payload.get("summary") or ""), "pl")
         if not quality.valid:
             print(f"[WARN] PL news comment rejected: {title[:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
             return {"summary": "", "why": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
         reviewed, reason = independent_ai_review(
             post=requests.post,
-            api_key=key,
-            model=AI_MODEL,
+            runtime=runtime,
             title=title,
             source_text=source_text,
             summary=quality.text,
@@ -565,7 +561,9 @@ Zasady:
             "summary": quality.text,
             "why": "",
             "uncertain": "",
-            "model": AI_MODEL,
+            "model": runtime.generation_model,
+            "review_model": runtime.review_model,
+            "provider": runtime.provider,
             "reviewed": True,
             "quality_status": QUALITY_STATUS,
             "quality_version": QUALITY_VERSION,
@@ -697,7 +695,7 @@ def entry_image(entry, source_url: str) -> str:
     return ""
 
 
-def fetch_section(section_key: str):
+def fetch_section(section_key: str, summarize: bool = True):
     items = []
     for feed in FEEDS[section_key]:
         f_url = feed_url(feed)
@@ -790,6 +788,9 @@ def fetch_section(section_key: str):
     else:
         picked = pool[:limit]
 
+    if not summarize:
+        return picked
+
     # AI + weryfikacja (ostrzeżenie tylko przy realnym powodzie)
     for it in picked:
         s = ai_summarize_pl(it["title"], it.get("summary_raw", ""), it["link"], section_key)
@@ -804,6 +805,30 @@ def fetch_section(section_key: str):
         it["comment_generation_status"] = "ai_review_approved" if s.get("reviewed") is True else "rejected_or_unavailable"
 
     return picked
+
+
+def summarize_sections_pl(sections: dict) -> None:
+    all_items = [item for items in sections.values() for item in items]
+    results = summarize_news_items(items=all_items, lang="pl", cache=CACHE, post=requests.post)
+    for item in all_items:
+        result = results.get(str(item.get("_comment_batch_id") or ""), {})
+        summary = str(result.get("summary") or "")
+        if result.get("title_pl"):
+            item["title"] = str(result["title_pl"])
+        section_key = str(item.get("_section_key") or "")
+        verify = verify_note_pl(item["title"], item.get("summary_raw", ""), section_key)
+        item["ai_summary"] = ensure_period(summary) if summary else ""
+        item["ai_why"] = ""
+        item["ai_uncertain"] = ensure_period(verify) if verify else ""
+        item["ai_model"] = result.get("model", "")
+        item["comment_quality_status"] = result.get("quality_status", "")
+        item["comment_quality_version"] = result.get("quality_version")
+        item["comment_generation_status"] = "ai_review_approved" if result.get("reviewed") is True else "rejected_or_unavailable"
+    save_cache(AI_CACHE_PATH, CACHE)
+
+
+def finalize_sections(sections: dict) -> dict:
+    return sections
 
 # =========================
 # HOTBAR JSON (dla paska)
@@ -999,12 +1024,17 @@ def render_html(sections: dict) -> str:
 # =========================
 def main():
     sections = {
-        "polityka": fetch_section("polityka"),
-        "biznes":   fetch_section("biznes"),
-        "zdrowie":  fetch_section("zdrowie"),
-        "nauka":    fetch_section("nauka"),
-        "sport":    fetch_section("sport"),
+        "polityka": fetch_section("polityka", summarize=False),
+        "biznes":   fetch_section("biznes", summarize=False),
+        "zdrowie":  fetch_section("zdrowie", summarize=False),
+        "nauka":    fetch_section("nauka", summarize=False),
+        "sport":    fetch_section("sport", summarize=False),
     }
+    for section_key, items in sections.items():
+        for item in items:
+            item["_section_key"] = section_key
+    summarize_sections_pl(sections)
+    sections = finalize_sections(sections)
 
     # 1) HTML /pl/aktualnosci.html
     html_str = render_html(sections)

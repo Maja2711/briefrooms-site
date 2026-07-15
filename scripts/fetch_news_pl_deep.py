@@ -15,6 +15,7 @@ from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_news_comme
 base = hybrid.base
 _original_fetch = base.fetch_section
 _original_render = base.render_html
+_original_finalize_sections = base.finalize_sections
 
 WEATHER_RE = re.compile(
     r"(tvnmeteo|pogoda|pogodowy|burza|burze|radar burz|mapa opad|opady|deszcz|ulewa|wiatr|wichura|grad|śnieg|mróz|upał|temperatura|prognoza|IMGW|meteop)",
@@ -70,8 +71,7 @@ def _clean_uncertain(value: str) -> str:
     return base.ensure_period(value) if value else ""
 
 
-def fetch_section_strict(section_key: str):
-    items = _original_fetch(section_key)
+def _strict_items(section_key: str, items: list[dict], require_comments: bool) -> list[dict]:
     kept = []
     tvn24_used = 0
 
@@ -85,26 +85,40 @@ def fetch_section_strict(section_key: str):
                 continue
             tvn24_used += 1
 
-        if not (
-            item.get("comment_quality_status") == QUALITY_STATUS
-            and item.get("comment_quality_version") == QUALITY_VERSION
-            and item.get("comment_generation_status") == "ai_review_approved"
-        ):
-            continue
+        if require_comments:
+            if not (
+                item.get("comment_quality_status") == QUALITY_STATUS
+                and item.get("comment_quality_version") == QUALITY_VERSION
+                and item.get("comment_generation_status") == "ai_review_approved"
+            ):
+                continue
 
-        summary = _plain_summary(
-            item.get("title", ""),
-            item.get("ai_summary", ""),
-        )
-        if not summary:
-            continue
-        item["ai_summary"] = summary
-        item["ai_why"] = ""
-        item["ai_uncertain"] = _clean_uncertain(item.get("ai_uncertain", ""))
+            summary = _plain_summary(
+                item.get("title", ""),
+                item.get("ai_summary", ""),
+            )
+            if not summary:
+                continue
+            item["ai_summary"] = summary
+            item["ai_why"] = ""
+            item["ai_uncertain"] = _clean_uncertain(item.get("ai_uncertain", ""))
 
         kept.append(item)
 
     return kept
+
+
+def fetch_section_strict(section_key: str, summarize: bool = True):
+    items = _original_fetch(section_key, summarize=summarize)
+    return _strict_items(section_key, items, require_comments=summarize)
+
+
+def finalize_sections_strict(sections: dict) -> dict:
+    sections = _original_finalize_sections(sections)
+    return {
+        section_key: _strict_items(section_key, items, require_comments=True)
+        for section_key, items in sections.items()
+    }
 
 
 def _add_section_tabs(html: str) -> str:
@@ -147,6 +161,7 @@ def render_html_strict(sections: dict) -> str:
 
 
 base.fetch_section = fetch_section_strict
+base.finalize_sections = finalize_sections_strict
 base.render_html = render_html_strict
 
 if __name__ == "__main__":
