@@ -416,6 +416,26 @@ class PipelineContractTests(unittest.TestCase):
             after = current_path.read_bytes()
         self.assertEqual(before, after)
 
+    def test_passive_home_check_saves_an_unchanged_valid_feed_as_last_good(self):
+        good = []
+        for index in range(5):
+            item = approved_item(VALID_EN, "en")
+            item["title"] = f"Reviewed English article {index + 1}"
+            item["link"] = f"https://example.com/passive-en-{index + 1}"
+            good.append(item)
+        payload = {"latest": good, "radar": [], "count": 5}
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+            backup_path = Path(tmp) / "backup.json"
+            current_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            before = current_path.read_bytes()
+            with mock.patch.object(protect, "FILES", {"en": (current_path, backup_path)}):
+                protect.validate_current(passive=True)
+            after = current_path.read_bytes()
+            backup = json.loads(backup_path.read_text(encoding="utf-8"))
+        self.assertEqual(before, after)
+        self.assertEqual(5, protect.total_valid(backup, "en"))
+
     def test_passive_home_check_never_erases_a_feed_without_a_current_backup(self):
         item = approved_item(VALID_PL)
         item["comment_quality_status"] = "passed_strict_v6"
@@ -437,11 +457,16 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(before, after)
 
     def test_watchdog_requires_current_quality_contract_in_both_feed_and_cards(self):
-        item = approved_item(VALID_EN, "en")
+        items = []
+        for index in range(5):
+            item = approved_item(VALID_EN, "en")
+            item["title"] = f"Reviewed English article {index + 1}"
+            item["link"] = f"https://example.com/watchdog-en-{index + 1}"
+            items.append(item)
         payload = {
-            "latest": [item],
+            "latest": items,
             "radar": [],
-            "count": 1,
+            "count": 5,
             "comment_quality_gate": {
                 "status": quality.QUALITY_STATUS,
                 "version": quality.QUALITY_VERSION,
@@ -452,6 +477,11 @@ class PipelineContractTests(unittest.TestCase):
             path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
             self.assertTrue(watchdog.home_contract_current(path, "en"))
             payload["latest"][0]["comment_quality_version"] = quality.QUALITY_VERSION - 1
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            self.assertFalse(watchdog.home_contract_current(path, "en"))
+            payload["latest"][0]["comment_quality_version"] = quality.QUALITY_VERSION
+            payload["latest"] = payload["latest"][:4]
+            payload["count"] = 4
             path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
             self.assertFalse(watchdog.home_contract_current(path, "en"))
 
@@ -659,9 +689,14 @@ class PipelineContractTests(unittest.TestCase):
             "config/workflow_templates/build-home-brief.yml",
         ):
             source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("git pull --ff-only origin main", source, relative)
+            self.assertIn("git diff --quiet HEAD..origin/main --", source, relative)
+            self.assertIn("Skip stale publish because generator code changed on main.", source, relative)
             self.assertIn("git pull --rebase -X theirs origin main", source, relative)
         watchdog_workflow = (ROOT / ".github/workflows/content-update-watchdog.yml").read_text(encoding="utf-8")
         self.assertIn("git pull --ff-only origin main", watchdog_workflow)
+        self.assertIn("git diff --quiet HEAD..origin/main --", watchdog_workflow)
+        self.assertIn("Skip stale publish because generator code changed on main.", watchdog_workflow)
         self.assertIn("git pull --rebase -X ours origin main", watchdog_workflow)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):

@@ -98,6 +98,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main:refs/remotes/origin/main
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/protect_home_feed.py tests/test_comment_quality.py; then
+            echo "Skip stale publish because generator code changed on main."
+            exit 0
+          fi
           git add .github/workflows/build-home-brief.yml .github/workflows/hot-x-topics.yml data/content_update_health.json data/hot_tweets.json pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html .cache || true
           if git diff --cached --quiet; then
             echo "No watchdog changes to commit."

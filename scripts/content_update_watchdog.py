@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION
-from protect_home_feed import valid_card
+from protect_home_feed import MIN_VISIBLE_ITEMS, valid_card
 
 CONTRACT = Path("data/content_update_contract.json")
 HEALTH = Path("data/content_update_health.json")
@@ -60,7 +60,7 @@ def home_contract_current(path: Path, lang: str) -> bool:
     gate = data.get("comment_quality_gate") or {}
     items = list(data.get("latest") or []) + list(data.get("radar") or [])
     if (
-        not items
+        len(items) < MIN_VISIBLE_ITEMS[lang]
         or data.get("count") != len(items)
         or gate.get("status") != QUALITY_STATUS
         or gate.get("version") != QUALITY_VERSION
@@ -137,6 +137,8 @@ def main() -> None:
             "test_comment_quality.py",
             "read_and_summarize_articles.py",
             "continue-on-error: true",
+            "git pull --ff-only origin main",
+            "Skip stale publish because generator code changed on main.",
         ],
     )
     if home_repair:

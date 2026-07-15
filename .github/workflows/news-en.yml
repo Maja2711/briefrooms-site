@@ -34,6 +34,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Sync latest main before generation
+        run: git pull --ff-only origin main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -65,6 +68,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main:refs/remotes/origin/main
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-en.yml scripts/fetch_news_en.py scripts/fetch_news_en_context.py scripts/news_comment_batch.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_en.py; then
+            echo "Skip stale publish because generator code changed on main."
+            exit 0
+          fi
           if [[ -n "$(git status --porcelain en/news.html .cache/news_summaries_en.json .cache/ai_cache_en.json)" ]]; then
             git add en/news.html .cache/news_summaries_en.json .cache/ai_cache_en.json
             git commit -m "chore(news-en): update plain-summary EN news"

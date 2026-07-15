@@ -34,6 +34,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Sync latest main before generation
+        run: git pull --ff-only origin main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -64,6 +67,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main:refs/remotes/origin/main
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_deep.py scripts/news_comment_batch.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
+            echo "Skip stale publish because generator code changed on main."
+            exit 0
+          fi
 
           # Dodaj tylko to, co faktycznie istnieje. Brak pliku cache nie może wywalać workflow.
           git add -A pl/aktualnosci.html .cache || true

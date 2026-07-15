@@ -35,6 +35,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Sync latest main before generation
+        run: git pull --ff-only origin main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -77,6 +79,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main:refs/remotes/origin/main
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/protect_home_feed.py tests/test_comment_quality.py; then
+            echo "Skip stale publish because generator code changed on main."
+            exit 0
+          fi
           git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html .cache || true
           if git diff --cached --quiet; then
             echo "No homepage brief changes to commit."
