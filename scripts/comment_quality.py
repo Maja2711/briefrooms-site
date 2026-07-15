@@ -10,7 +10,7 @@ import os
 import re
 import time
 
-QUALITY_VERSION = 5
+QUALITY_VERSION = 6
 QUALITY_STATUS = f"passed_strict_v{QUALITY_VERSION}"
 MIN_SENTENCES = 3
 MAX_SENTENCES = 6
@@ -88,6 +88,12 @@ BAD_GRAMMAR_PL = re.compile(
     r"\bprzez\s+(?:telewizj\u0105|agencj\u0105|redakcj\u0105)\b",
     re.I,
 )
+BAD_TENSE_PL = re.compile(
+    r"\b(?:w\u0142a\u015bnie|ju\u017c)\s+odby\u0142o\s+si\u0119\b[^.]{0,180}\bkt\u00f3re\s+okre\u015bli\b",
+    re.I,
+)
+KNOWN_STATUS_CONFLICT_PL = re.compile(r"\bby\u0142y\s+prezydent\s+(?:Donald\s+)?Trump\b", re.I)
+KNOWN_STATUS_CONFLICT_EN = re.compile(r"\bformer\s+president\s+(?:Donald\s+)?Trump\b", re.I)
 BYLINE_PL = re.compile(
     r"^(?:(?:[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]+|[A-ZĄĆĘŁŃÓŚŹŻ]\.)\s+){1,5}"
     r"[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]+\s*/+",
@@ -131,9 +137,9 @@ def get_ai_runtime() -> AiRuntime:
         generation_model = (
             os.getenv("NEWS_AI_MODEL")
             or os.getenv("BRIEFROOMS_AI_MODEL")
-            or "gpt-4o-mini"
+            or "gpt-4o"
         )
-        review_model = os.getenv("NEWS_AI_REVIEW_MODEL") or "gpt-4o"
+        review_model = os.getenv("NEWS_AI_REVIEW_MODEL") or "gpt-4.1"
         return AiRuntime(
             provider="openai",
             api_key=openai_key,
@@ -151,8 +157,8 @@ def get_ai_runtime() -> AiRuntime:
                 "GITHUB_MODELS_ENDPOINT",
                 "https://models.github.ai/inference/chat/completions",
             ),
-            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o-mini"),
-            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4o"),
+            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o"),
+            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1"),
         )
 
     return AiRuntime("unavailable", "", "", "", "")
@@ -594,6 +600,12 @@ def validate_text(
         reasons.append("unbalanced_english_quote")
     if lang == "pl" and BAD_GRAMMAR_PL.search(text):
         reasons.append("invalid_case_after_przez")
+    if lang == "pl" and BAD_TENSE_PL.search(text):
+        reasons.append("inconsistent_polish_tense")
+    if lang == "pl" and KNOWN_STATUS_CONFLICT_PL.search(text):
+        reasons.append("known_officeholder_status_conflict")
+    if lang == "en" and KNOWN_STATUS_CONFLICT_EN.search(text):
+        reasons.append("known_officeholder_status_conflict")
     if len(text) < min_chars:
         reasons.append("comment_too_short")
     if len(text) > max_chars:

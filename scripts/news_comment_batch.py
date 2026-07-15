@@ -121,7 +121,8 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 "understandable without extra context. Always return an empty title_pl."
             )
         prompt = (
-            f"{rules} Never repeat the same information. Use correct grammar, inflection, quotation marks and "
+            f"{rules} Never repeat the same information. Do not infer a person's current or former office unless "
+            "the title or source states it explicitly. Use correct grammar, inflection, quotation marks and "
             "punctuation. Never copy damaged characters, split words, bylines, publisher UI or editorial commands. "
             "If an item cannot be summarized safely, return an empty summary. Return each id exactly once as JSON: "
             '{"items":[{"id":"same id","summary":"...","title_pl":""}]}.\n\n'
@@ -136,7 +137,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                     {"role": "user", "content": prompt},
                 ],
                 max_tokens=min(4000, max(800, len(chunk) * 135)),
-                temperature=0.1,
+                temperature=0,
                 timeout=60,
             )
             rows = payload.get("items")

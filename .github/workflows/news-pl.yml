@@ -53,10 +53,10 @@ jobs:
       - name: Generate PL Aktualności (plain summaries + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
+          NEWS_AI_MODEL: gpt-4o
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4o
+          GITHUB_MODELS_MODEL: openai/gpt-4o
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1
         run: |
           python scripts/fetch_news_pl_deep.py
 
