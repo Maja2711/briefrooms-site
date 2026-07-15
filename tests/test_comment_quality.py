@@ -110,6 +110,24 @@ class CommentQualityTests(unittest.TestCase):
         self.assertFalse(result.valid)
         self.assertIn("invalid_case_after_przez", result.reasons)
 
+    def test_inconsistent_polish_lottery_tense_is_rejected(self):
+        broken = (
+            "W\u0142a\u015bnie odby\u0142o si\u0119 losowanie fazy grupowej, kt\u00f3re okre\u015bli, "
+            "z kim polskie zespo\u0142y zagraj\u0105 w nadchodz\u0105cych rozgrywkach."
+        )
+        result = quality.validate_news_comment(broken, "pl")
+        self.assertFalse(result.valid)
+        self.assertIn("inconsistent_polish_tense", result.reasons)
+
+    def test_known_current_officeholder_is_not_labelled_former(self):
+        broken = (
+            "Former President Trump threatened strikes on Iranian infrastructure unless negotiations resume, "
+            "while military exchanges continued."
+        )
+        result = quality.validate_news_comment(broken, "en")
+        self.assertFalse(result.valid)
+        self.assertIn("known_officeholder_status_conflict", result.reasons)
+
     def test_malformed_english_quote_spacing_is_rejected(self):
         broken = VALID_EN.replace(
             ".",
@@ -344,16 +362,16 @@ class PipelineContractTests(unittest.TestCase):
             {
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4o",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1",
             },
         ):
             runtime = quality.get_ai_runtime()
         self.assertTrue(runtime.available)
         self.assertEqual("github-models", runtime.provider)
         self.assertEqual("https://models.github.ai/inference/chat/completions", runtime.endpoint)
-        self.assertEqual("openai/gpt-4o-mini", runtime.generation_model)
-        self.assertEqual("openai/gpt-4o", runtime.review_model)
+        self.assertEqual("openai/gpt-4o", runtime.generation_model)
+        self.assertEqual("openai/gpt-4.1", runtime.review_model)
 
     def test_news_batch_uses_two_models_and_rejects_missing_review(self):
         first = "The government published detailed programme rules that will take effect after public consultation ends."
@@ -389,8 +407,8 @@ class PipelineContractTests(unittest.TestCase):
             {
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4o",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1",
             },
         ):
             result = news_batch.summarize_news_items(
@@ -401,8 +419,8 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual({"en-0"}, set(result))
         self.assertEqual(2, post.call_count)
-        self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
-        self.assertEqual("openai/gpt-4o", post.call_args_list[1].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4o", post.call_args_list[0].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4.1", post.call_args_list[1].kwargs["json"]["model"])
 
     def test_batch_review_splits_large_sets_into_small_requests(self):
         entries = [
@@ -438,8 +456,8 @@ class PipelineContractTests(unittest.TestCase):
             "github-models",
             "token",
             "https://models.github.ai/inference/chat/completions",
-            "openai/gpt-4o-mini",
             "openai/gpt-4o",
+            "openai/gpt-4.1",
         )
         post = mock.Mock(side_effect=responses)
         result = quality.independent_ai_review_batch(
@@ -459,8 +477,8 @@ class PipelineContractTests(unittest.TestCase):
             "github-models",
             "token",
             "https://models.github.ai/inference/chat/completions",
-            "openai/gpt-4o-mini",
             "openai/gpt-4o",
+            "openai/gpt-4.1",
         )
         post = mock.Mock(side_effect=ReadTimeout("timed out"))
         with (
@@ -487,7 +505,9 @@ class PipelineContractTests(unittest.TestCase):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("models: read", source, relative)
             self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
-            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4o", source, relative)
+            self.assertIn("NEWS_AI_MODEL: gpt-4o", source, relative)
+            self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o", source, relative)
+            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1", source, relative)
         workflow_groups = {
             ".github/workflows/news-pl.yml": "group: news-pl-publishing",
             ".github/workflows/news-en.yml": "group: news-en-publishing",

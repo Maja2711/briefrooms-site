@@ -211,6 +211,10 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
             "No generic category/source/read-more filler; do not add unsupported facts.\n\n"
             f"Title: {title}\nArticle text:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
+    prompt += (
+        "\nStrict final requirement: write 3-4 sentences only. Every sentence must add a distinct concrete fact. "
+        "Do not infer a person's current or former office unless the supplied source states it explicitly."
+    )
     try:
         data = request_json_completion(
             post=requests.post,
@@ -220,7 +224,7 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
                 {"role": "user", "content": prompt},
             ],
             max_tokens=520,
-            temperature=0.1,
+            temperature=0,
             timeout=35,
         )
         summary = clip_complete_text(clean(str(data.get("full_brief", ""))), 1600)
@@ -317,7 +321,9 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                 "bylines, publisher UI or editorial commands."
             )
         prompt = (
-            f"{rules} Every sentence must add a new fact; do not repeat or paraphrase information already stated. "
+            f"{rules} Write 3-4 sentences only. Every sentence must add a new fact; do not repeat or paraphrase "
+            "information already stated. Do not infer a person's current or former office unless the supplied "
+            "source states it explicitly. "
             "Use correct grammar, inflection, quotation marks and punctuation. "
             "If an item cannot be summarized safely, return an empty full_brief. "
             "Return every id exactly once as JSON: "
@@ -333,7 +339,7 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                     {"role": "user", "content": prompt},
                 ],
                 max_tokens=min(4000, max(900, len(chunk) * 480)),
-                temperature=0.1,
+                temperature=0,
                 timeout=60,
             )
             rows = payload.get("items")
