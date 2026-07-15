@@ -159,7 +159,7 @@ def validate_current(passive: bool = False) -> None:
                 )
                 if feed_changed:
                     save(data_path, protected)
-                    save(backup_path, protected)
+                save(backup_path, protected)
             else:
                 save(data_path, protected)
                 save(backup_path, protected)
