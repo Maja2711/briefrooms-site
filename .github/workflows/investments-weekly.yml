@@ -28,6 +28,7 @@ on:
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-public.js"
+      - "tests/test_investments_weekly_public.js"
       - "data/investments/methodology.json"
       - "data/investments/daily_review_policy.json"
       - "data/investments/event_exit_requests.json"
@@ -51,6 +52,9 @@ jobs:
 
       - name: Install market data dependency
         run: python -m pip install --upgrade pip yfinance pandas numpy
+
+      - name: Test public investment script
+        run: node --test tests/test_investments_weekly_public.js
 
       - name: Build and manage weekly positions with model v2
         env:

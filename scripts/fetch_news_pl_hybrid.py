@@ -130,7 +130,22 @@ def context_why_it_matters_pl(section_key: str, title: str, snippet: str) -> str
     """Zwraca konkretny, kontekstowy komentarz. Bez pustych sloganów i bez odsyłania do źródła."""
     text = f"{title} {snippet}"
 
-    if section_key == "sport" or SPORT_RE.search(text):
+    if section_key == "sport":
+        return sport_context_why_pl(title, snippet)
+
+    if section_key == "zdrowie":
+        return (
+            "W zdrowiu najważniejsze są skala zjawiska, grupa ryzyka i to, czy informacja zmienia realne zalecenia dla pacjentów lub lekarzy. "
+            "Komentarz powinien oddzielać ostrzeżenie systemowe od pojedynczego przypadku."
+        )
+
+    if section_key == "nauka":
+        return (
+            "W newsie naukowym liczy się nie efektowność nagłówka, tylko metoda, źródło danych i stopień potwierdzenia wyniku. "
+            "Dobra esencja powinna wskazać, co odkrycie zmienia w rozumieniu tematu i czego jeszcze nie przesądza."
+        )
+
+    if SPORT_RE.search(text):
         return sport_context_why_pl(title, snippet)
 
     if PUBLIC_PERSON_RE.search(text):
