@@ -134,7 +134,7 @@ def backup_current() -> None:
         print(f"{lang}: saved {count} last-good homepage cards")
 
 
-def validate_current() -> None:
+def validate_current(passive: bool = False) -> None:
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
         previous = load(backup_path)
@@ -149,8 +149,18 @@ def validate_current() -> None:
                 "previous_items_used": max(0, protected["count"] - new_count),
                 "visible_items": protected["count"],
             }
-            save(data_path, protected)
-            save(backup_path, protected)
+            if passive:
+                protected["last_update_attempt_at"] = current.get("last_update_attempt_at")
+                feed_changed = any(
+                    protected.get(key) != current.get(key)
+                    for key in ("latest", "radar", "count")
+                )
+                if feed_changed:
+                    save(data_path, protected)
+                    save(backup_path, protected)
+            else:
+                save(data_path, protected)
+                save(backup_path, protected)
             print(f"{lang}: validated {protected['count']} homepage cards")
             continue
 
@@ -180,7 +190,16 @@ def validate_current() -> None:
             "new_valid_items": new_count,
             "visible_items": degraded["count"],
         }
-        save(data_path, degraded)
+        if passive:
+            degraded["last_update_attempt_at"] = current.get("last_update_attempt_at")
+            feed_changed = any(
+                degraded.get(key) != current.get(key)
+                for key in ("latest", "radar", "count")
+            )
+            if feed_changed:
+                save(data_path, degraded)
+        else:
+            save(data_path, degraded)
         print(f"{lang}: no backup available; preserved {degraded['count']} usable cards")
 
 
@@ -189,8 +208,9 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--backup", action="store_true")
     group.add_argument("--validate", action="store_true")
+    group.add_argument("--validate-passive", action="store_true")
     args = parser.parse_args()
-    backup_current() if args.backup else validate_current()
+    backup_current() if args.backup else validate_current(passive=args.validate_passive)
 
 
 if __name__ == "__main__":
