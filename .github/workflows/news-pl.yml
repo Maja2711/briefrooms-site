@@ -73,6 +73,6 @@ jobs:
           else
             git commit -m "chore(news-pl): update plain-summary PL news"
             # Zabezpieczenie przed odrzuceniem push, gdy main zmienił się w międzyczasie.
-            git pull --rebase origin main
+            git pull --rebase -X theirs origin main
             git push
           fi
