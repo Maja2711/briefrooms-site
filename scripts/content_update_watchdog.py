@@ -10,6 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION
+from protect_home_feed import valid_card
+
 CONTRACT = Path("data/content_update_contract.json")
 HEALTH = Path("data/content_update_health.json")
 HOME_PL = Path("pl/home_brief.json")
@@ -50,6 +53,21 @@ def age_hours(path: Path) -> float | None:
     if dt is None:
         return None
     return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
+
+
+def home_contract_current(path: Path, lang: str) -> bool:
+    data = load(path)
+    gate = data.get("comment_quality_gate") or {}
+    items = list(data.get("latest") or []) + list(data.get("radar") or [])
+    if (
+        not items
+        or data.get("count") != len(items)
+        or gate.get("status") != QUALITY_STATUS
+        or gate.get("version") != QUALITY_VERSION
+    ):
+        return False
+
+    return all(valid_card(item, lang) for item in items)
 
 
 def workflow_has_markers(text: str, markers: list[str]) -> bool:
@@ -134,10 +152,15 @@ def main() -> None:
         repairs.append({"workflow": str(hot_workflow), "action": hot_repair})
 
     protection_notes = run_protection()
-    home_ages = [x for x in (age_hours(HOME_PL), age_hours(HOME_EN)) if x is not None]
-    home_age = max(home_ages) if home_ages else None
+    home_ages = (age_hours(HOME_PL), age_hours(HOME_EN))
+    home_age = max(home_ages) if all(x is not None for x in home_ages) else None
     hot_age = age_hours(HOT_X)
-    home_stale = home_age is None or home_age > float(watch.get("homepage_stale_after_hours", 5))
+    home_contract_ok = home_contract_current(HOME_PL, "pl") and home_contract_current(HOME_EN, "en")
+    home_stale = (
+        not home_contract_ok
+        or home_age is None
+        or home_age > float(watch.get("homepage_stale_after_hours", 5))
+    )
     hot_stale = hot_age is None or hot_age > float(watch.get("hot_x_stale_after_hours", 13))
 
     report = {
@@ -145,6 +168,7 @@ def main() -> None:
         "contract_version": contract.get("contract_version"),
         "workflow_repairs": repairs,
         "homepage_age_hours": None if home_age is None else round(home_age, 3),
+        "homepage_contract_current": home_contract_ok,
         "homepage_stale": home_stale,
         "hot_x_age_hours": None if hot_age is None else round(hot_age, 3),
         "hot_x_stale": hot_stale,

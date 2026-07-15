@@ -37,6 +37,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Sync latest main before health check
+        run: git pull --ff-only origin main
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -100,6 +103,6 @@ jobs:
             echo "No watchdog changes to commit."
           else
             git commit -m "Repair content update availability"
-            git pull --rebase -X theirs origin main
+            git pull --rebase -X ours origin main
             git push
           fi

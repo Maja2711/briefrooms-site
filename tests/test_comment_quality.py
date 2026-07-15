@@ -17,6 +17,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import comment_quality as quality
 import protect_home_feed as protect
+import content_update_watchdog as watchdog
 sys.modules.setdefault("requests", mock.Mock())
 sys.modules.setdefault("feedparser", mock.Mock())
 if "dateutil" not in sys.modules:
@@ -339,6 +340,45 @@ class PipelineContractTests(unittest.TestCase):
             after = current_path.read_bytes()
         self.assertEqual(before, after)
 
+    def test_passive_home_check_never_erases_a_feed_without_a_current_backup(self):
+        item = approved_item(VALID_PL)
+        item["comment_quality_status"] = "passed_strict_v6"
+        item["comment_quality_version"] = 6
+        payload = {
+            "latest": [item],
+            "radar": [],
+            "count": 1,
+            "last_update_attempt_at": "2026-07-15T12:00:00+00:00",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+            backup_path = Path(tmp) / "backup.json"
+            current_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            before = current_path.read_bytes()
+            with mock.patch.object(protect, "FILES", {"pl": (current_path, backup_path)}):
+                protect.validate_current(passive=True)
+            after = current_path.read_bytes()
+        self.assertEqual(before, after)
+
+    def test_watchdog_requires_current_quality_contract_in_both_feed_and_cards(self):
+        item = approved_item(VALID_EN, "en")
+        payload = {
+            "latest": [item],
+            "radar": [],
+            "count": 1,
+            "comment_quality_gate": {
+                "status": quality.QUALITY_STATUS,
+                "version": quality.QUALITY_VERSION,
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "home.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            self.assertTrue(watchdog.home_contract_current(path, "en"))
+            payload["latest"][0]["comment_quality_version"] = quality.QUALITY_VERSION - 1
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            self.assertFalse(watchdog.home_contract_current(path, "en"))
+
     def test_bad_reviewed_cache_entry_cannot_bypass_validator(self):
         title = "Test title"
         link = "https://example.com/cache-test"
@@ -538,13 +578,15 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn('"--validate-passive"', watchdog)
         for relative in (
             ".github/workflows/build-home-brief.yml",
-            ".github/workflows/content-update-watchdog.yml",
             ".github/workflows/news-pl.yml",
             ".github/workflows/news-en.yml",
             "config/workflow_templates/build-home-brief.yml",
         ):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("git pull --rebase -X theirs origin main", source, relative)
+        watchdog_workflow = (ROOT / ".github/workflows/content-update-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn("git pull --ff-only origin main", watchdog_workflow)
+        self.assertIn("git pull --rebase -X ours origin main", watchdog_workflow)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
         paragraph = (

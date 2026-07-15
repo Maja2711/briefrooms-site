@@ -183,6 +183,13 @@ def validate_current(passive: bool = False) -> None:
             print(f"{lang}: rejected incomplete update and kept {total_valid(restored, lang)} valid cards")
             continue
 
+        if passive:
+            print(
+                f"{lang}: passive check found {new_count} usable cards and no "
+                "current-contract backup; feed left unchanged"
+            )
+            continue
+
         # First-run safety: keep any usable cards instead of replacing the feed with nothing.
         degraded = merge(current, {}, lang)
         degraded["homepage_last_good_protection"] = {
@@ -190,16 +197,7 @@ def validate_current(passive: bool = False) -> None:
             "new_valid_items": new_count,
             "visible_items": degraded["count"],
         }
-        if passive:
-            degraded["last_update_attempt_at"] = current.get("last_update_attempt_at")
-            feed_changed = any(
-                degraded.get(key) != current.get(key)
-                for key in ("latest", "radar", "count")
-            )
-            if feed_changed:
-                save(data_path, degraded)
-        else:
-            save(data_path, degraded)
+        save(data_path, degraded)
         print(f"{lang}: no backup available; preserved {degraded['count']} usable cards")
 
 
