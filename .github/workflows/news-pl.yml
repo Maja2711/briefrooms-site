@@ -21,6 +21,10 @@ permissions:
   contents: write
   models: read
 
+concurrency:
+  group: content-publishing
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest

@@ -83,7 +83,7 @@ def ensure_workflow(path: Path, template: Path, expected_cron: str, markers: lis
 def run_protection() -> list[str]:
     notes = []
     for cmd in (
-        ["python", "scripts/protect_home_feed.py", "--validate"],
+        ["python", "scripts/protect_home_feed.py", "--validate-passive"],
         ["python", "scripts/validate_hot_x_comments.py", "--validate"],
     ):
         try:

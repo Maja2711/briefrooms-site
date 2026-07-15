@@ -233,6 +233,23 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(6, protect.total_valid(restored, "pl"))
         self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
 
+    def test_passive_home_check_does_not_rewrite_an_unchanged_empty_feed(self):
+        payload = {
+            "latest": [],
+            "radar": [],
+            "count": 0,
+            "last_update_attempt_at": "2026-07-15T12:00:00+00:00",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+            backup_path = Path(tmp) / "backup.json"
+            current_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            before = current_path.read_bytes()
+            with mock.patch.object(protect, "FILES", {"pl": (current_path, backup_path)}):
+                protect.validate_current(passive=True)
+            after = current_path.read_bytes()
+        self.assertEqual(before, after)
+
     def test_bad_reviewed_cache_entry_cannot_bypass_validator(self):
         title = "Test title"
         link = "https://example.com/cache-test"
@@ -335,6 +352,69 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
         self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
 
+    def test_batch_review_splits_large_sets_into_small_requests(self):
+        entries = [
+            {
+                "id": f"pl-{index}",
+                "title": f"Testowy materiał {index}",
+                "source_text": "Źródło opisuje konkretne i potwierdzone ustalenia sprawy.",
+                "summary": "Rząd opublikował szczegółowe zasady programu po zakończeniu konsultacji społecznych.",
+            }
+            for index in range(9)
+        ]
+        responses = [
+            self.FakeResponse({
+                "reviews": [
+                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
+                    for index in range(8)
+                ]
+            }),
+            self.FakeResponse({
+                "reviews": [{"id": "pl-8", "approved": True, "reason": "approved"}]
+            }),
+        ]
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(side_effect=responses)
+        result = quality.independent_ai_review_batch(
+            post=post,
+            runtime=runtime,
+            entries=entries,
+            lang="pl",
+        )
+        self.assertEqual(2, post.call_count)
+        self.assertTrue(all(approved for approved, _reason in result.values()))
+
+    def test_read_timeouts_are_bounded_to_two_attempts(self):
+        class ReadTimeout(Exception):
+            pass
+
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(side_effect=ReadTimeout("timed out"))
+        with (
+            mock.patch.object(quality.time, "sleep"),
+            self.assertRaisesRegex(RuntimeError, "after retries"),
+        ):
+            quality.request_json_completion(
+                post=post,
+                runtime=runtime,
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=100,
+                temperature=0,
+            )
+        self.assertEqual(2, post.call_count)
+
     def test_production_workflows_grant_and_pass_github_models_access(self):
         for relative in (
             ".github/workflows/build-home-brief.yml",
@@ -347,6 +427,11 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("models: read", source, relative)
             self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
             self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
+        for relative in (".github/workflows/news-pl.yml", ".github/workflows/news-en.yml"):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("group: content-publishing", source, relative)
+        watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
+        self.assertIn('"--validate-passive"', watchdog)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
         paragraph = (

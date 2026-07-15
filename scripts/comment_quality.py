@@ -194,7 +194,8 @@ def request_json_completion(
             return payload
         except Exception as exc:
             last_error = exc
-            if attempt >= 3:
+            is_timeout = "timeout" in type(exc).__name__.lower()
+            if attempt >= 3 or (is_timeout and attempt >= 1):
                 break
     raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
 
@@ -344,7 +345,7 @@ def independent_ai_review_batch(
             "comment": str(entry.get("summary", ""))[:1600],
         }
         size = sum(len(value) for value in compact.values())
-        if current and current_chars + size > 26000:
+        if current and (len(current) >= 8 or current_chars + size > 14000):
             chunks.append(current)
             current = []
             current_chars = 0
