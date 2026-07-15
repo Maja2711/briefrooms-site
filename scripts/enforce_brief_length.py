@@ -85,8 +85,9 @@ def unique(sentences: list[str]) -> list[str]:
 def build_full_brief(item: dict, lang: str) -> str:
     # The AI-reviewed full_brief is the only approved source. Appending details,
     # summary or why here would mutate the comment after independent review.
-    result = validate_comment(str(item.get("full_brief") or ""), lang)
-    return result.text if result.valid else ""
+    value = str(item.get("full_brief") or "")
+    result = validate_comment(value, lang)
+    return value if result.valid and result.text == value else ""
 
 
 def process_file(path: Path, lang: str) -> bool:

@@ -134,7 +134,8 @@ def process(path: Path, lang: str) -> bool:
     changed = False
     for section in ("latest", "radar"):
         for item in data.get(section, []) or []:
-            for key, limit in (("title", 120), ("summary", 260), ("details", 700), ("full_brief", 1200), ("source", 80), ("category", 60)):
+            # full_brief is immutable after AI review; the final digest gate protects it.
+            for key, limit in (("title", 120), ("summary", 260), ("details", 700), ("source", 80), ("category", 60)):
                 changed = clean_field(item, key, lang, limit) or changed
             cat = str(item.get("category") or "")
             if cat.lower() in {"pilne", "breaking", "urgent", "alert"} or item.get("urgent"):

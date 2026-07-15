@@ -16,13 +16,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION, review_digest, validate_comment
 
 FILES = {
     "pl": (Path("pl/home_brief.json"), Path(".cache/home_brief_pl_last_good.json")),
     "en": (Path("en/home_brief.json"), Path(".cache/home_brief_en_last_good.json")),
 }
-MIN_VISIBLE_ITEMS = 6
+MIN_VISIBLE_ITEMS = {"pl": 6, "en": 5}
 URL_RE = re.compile(r"^https?://", re.I)
 
 
@@ -44,7 +44,7 @@ def now_iso() -> str:
 
 
 def comment(item: dict[str, Any]) -> str:
-    return str(item.get("full_brief") or "").strip()
+    return str(item.get("full_brief") or "")
 
 
 def valid_card(value: object, lang: str) -> bool:
@@ -63,9 +63,11 @@ def valid_card(value: object, lang: str) -> bool:
         and value.get("comment_quality_version") == QUALITY_VERSION
         and value.get("summary_basis") == "article_text_ai_reviewed"
         and value.get("comment_generation_status") == "ai_review_approved"
+        and value.get("comment_review_digest") == review_digest(text)
     ):
         return False
-    return validate_comment(text, lang).valid
+    result = validate_comment(text, lang)
+    return result.valid and result.text == text
 
 
 def identity(item: dict[str, Any]) -> str:
@@ -100,11 +102,11 @@ def merge(new: dict[str, Any], old: dict[str, Any], lang: str) -> dict[str, Any]
     for item in cards(new, "radar", lang):
         append(merged_radar, item)
     for item in cards(old, "latest", lang):
-        if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS:
+        if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS[lang]:
             break
         append(merged_latest, item)
     for item in cards(old, "radar", lang):
-        if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS:
+        if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS[lang]:
             break
         append(merged_radar, item)
 
@@ -122,7 +124,7 @@ def backup_current() -> None:
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
         count = total_valid(current, lang)
-        if count < MIN_VISIBLE_ITEMS:
+        if count < MIN_VISIBLE_ITEMS[lang]:
             print(f"{lang}: backup skipped; only {count} valid cards")
             continue
         current["homepage_last_good_protection"] = {
@@ -141,7 +143,7 @@ def validate_current(passive: bool = False) -> None:
         new_count = total_valid(current, lang)
         old_count = total_valid(previous, lang)
 
-        if new_count >= MIN_VISIBLE_ITEMS:
+        if new_count >= MIN_VISIBLE_ITEMS[lang]:
             protected = merge(current, previous, lang)
             protected["homepage_last_good_protection"] = {
                 "status": "new_feed_validated",
@@ -166,7 +168,7 @@ def validate_current(passive: bool = False) -> None:
 
         if old_count:
             restored = merge(current, previous, lang)
-            if restored["count"] < MIN_VISIBLE_ITEMS:
+            if restored["count"] < MIN_VISIBLE_ITEMS[lang]:
                 restored = dict(previous)
                 restored["last_update_attempt_at"] = now_iso()
                 restored["refresh_interval_hours"] = 4

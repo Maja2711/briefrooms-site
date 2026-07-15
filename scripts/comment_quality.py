@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import os
 import re
@@ -16,6 +17,10 @@ MIN_SENTENCES = 3
 MAX_SENTENCES = 4
 MIN_COMMENT_CHARS = 180
 MAX_COMMENT_CHARS = 1600
+
+
+def review_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 REPLACEMENTS = {
     "Å": "ł", "Å": "Ł", "Å¼": "ż", "Å»": "Ż", "Åº": "ź", "Å¹": "Ź",

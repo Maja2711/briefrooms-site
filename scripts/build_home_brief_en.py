@@ -66,7 +66,7 @@ SOURCE_NAMES = [
     ("theverge.com", "The Verge"), ("wired.com", "WIRED"),
 ]
 SOURCE_WEIGHT = {"Reuters": 42, "AP": 38, "BBC": 26, "WSJ": 25, "CNBC": 22, "The Guardian": 20, "WHO": 18, "NASA": 16, "ESA": 16, "The Verge": 15}
-BAN = re.compile(r"horoscope|quiz|gallery|sponsored|lottery|gossip|live blog|coupon code|promo code|deals for|watch live|interview preview|will be a guest|tv programme", re.I)
+BAN = re.compile(r"horoscope|quiz|gallery|sponsored|lottery|gossip|live blog|news live|live updates?|coupon code|promo code|deals for|watch live|interview preview|will be a guest|tv programme", re.I)
 NOISE = re.compile(r"cookie|cookies|advertisement|subscribe|newsletter|privacy|sign in|log in|read more|related|photo credit|all rights reserved", re.I)
 LOW_VALUE = re.compile(r"will be a guest|watch live|programme|preview interview|read full transcript", re.I)
 URGENT = re.compile(r"\b(breaking|breaking news|urgent|alert|just in|developing|flash|latest:)\b|^\s*(breaking|urgent|alert|just in)\s*[:\-–—]", re.I)
