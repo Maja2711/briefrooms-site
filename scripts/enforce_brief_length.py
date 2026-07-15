@@ -14,6 +14,8 @@ import json
 import re
 from pathlib import Path
 
+from comment_quality import validate_comment
+
 FILES = [
     (Path("pl/home_brief.json"), "pl"),
     (Path("en/home_brief.json"), "en"),
@@ -81,9 +83,10 @@ def unique(sentences: list[str]) -> list[str]:
 
 
 def build_full_brief(item: dict, lang: str) -> str:
-    material = " ".join(clean(item.get(k) or "") for k in ("full_brief", "details", "summary", "why"))
-    sentences = unique(split_sentences(material))
-    return " ".join(sentences[:6])
+    # The AI-reviewed full_brief is the only approved source. Appending details,
+    # summary or why here would mutate the comment after independent review.
+    result = validate_comment(str(item.get("full_brief") or ""), lang)
+    return result.text if result.valid else ""
 
 
 def process_file(path: Path, lang: str) -> bool:
