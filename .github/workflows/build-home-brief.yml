@@ -8,6 +8,7 @@ on:
       - "scripts/build_home_brief_pl.py"
       - "scripts/build_home_brief_en.py"
       - "scripts/read_and_summarize_articles.py"
+      - "scripts/comment_quality.py"
       - "scripts/enforce_brief_length.py"
       - "scripts/remove_urgent_badge_categories.py"
       - "scripts/validate_brief_quality.py"
@@ -15,6 +16,7 @@ on:
       - "scripts/hide_urgent_home_labels.py"
       - "scripts/patch_brief_comment_source.py"
       - "scripts/protect_home_feed.py"
+      - "tests/test_comment_quality.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     # Six times daily, exactly every four hours. GitHub cron uses UTC.
@@ -43,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip feedparser requests
 
+      - name: Test PL and EN comment quality contract
+        run: python -m unittest discover -s tests -p "test_comment_quality.py"
+
       - name: Save last known good homepage feeds
         run: python scripts/protect_home_feed.py --backup
         continue-on-error: true
@@ -66,31 +71,24 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: python scripts/read_and_summarize_articles.py
-        continue-on-error: true
 
       - name: Enforce article brief methodology
         run: python scripts/enforce_brief_length.py
-        continue-on-error: true
 
       - name: Remove visible urgent badge categories
         run: python scripts/remove_urgent_badge_categories.py
-        continue-on-error: true
 
       - name: Final comment quality gate
         run: python scripts/validate_brief_quality.py
-        continue-on-error: true
 
       - name: Final same-story dedupe gate
         run: python scripts/dedupe_home_brief_stories.py
-        continue-on-error: true
 
       - name: Patch homepage renderers
         run: python scripts/hide_urgent_home_labels.py
-        continue-on-error: true
 
       - name: Keep one approved comment source
         run: python scripts/patch_brief_comment_source.py
-        continue-on-error: true
 
       - name: Restore or complete last-good homepage feeds
         if: always()

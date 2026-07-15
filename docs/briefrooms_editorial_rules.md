@@ -17,6 +17,15 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 7. Nie zawiera ogólników typu „źródłem wpisu jest”, „pełne tło jest w artykule” ani zdań o kategorii zamiast sensu tekstu.
 8. Jeśli tekst nie przejdzie kontroli jakości, komentarz nie jest publikowany. Nie wolno zastępować go krótkim, niegramatycznym albo tytułowym streszczeniem.
 9. News bez pełnego komentarza spełniającego powyższe warunki nie może być pokazany na stronie głównej. Usuwamy całą kartę, a nie publikujemy pusty lub pozorny brief.
+10. Komentarz powstaje dopiero po poprawnym zdekodowaniu bajtów strony źródłowej. Nie wolno ufać błędnemu nagłówkowi kodowania ani usuwać nierozpoznanych znaków z tekstu.
+11. Każdy nowy komentarz musi przejść trzy etapy: generację z materiału źródłowego, niezależną recenzję AI oraz deterministyczną kontrolę językową. Jedno wadliwe zdanie odrzuca cały komentarz.
+12. Surowy tekst artykułu, opis RSS, tytuł ani stary wpis w pamięci podręcznej nie mogą być komentarzem awaryjnym. Przy awarii zachowujemy wyłącznie ostatni zestaw zatwierdzony bieżącą wersją kontroli jakości.
+
+## Krótkie komentarze na stronach Aktualności / News
+1. Komentarz ma 1–2 pełne zdania i wynika z konkretnego opisu RSS, a nie z samego tytułu.
+2. Obowiązuje ten sam proces: generacja, niezależna recenzja AI i deterministyczna kontrola PL/EN.
+3. Brak klucza, błąd API, zbyt krótki materiał lub odrzucenie recenzenta oznacza brak publikacji danego komentarza.
+4. Jeśli cały nowy zestaw ma zbyt mało zatwierdzonych komentarzy, generator kończy się błędem i nie nadpisuje działającej strony.
 
 ## Strona główna
 Krótki opis na karcie jest tworzony z pierwszych zdań zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.

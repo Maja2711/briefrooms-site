@@ -13,6 +13,8 @@ from urllib.parse import quote_plus, urljoin, urlparse
 import feedparser
 import requests
 
+from comment_quality import decode_http_response
+
 OUT_PATH = "en/home_brief.json"
 TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
@@ -154,7 +156,7 @@ def article_excerpt(url):
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         if not r.ok:
             return ""
-        return html_to_article_text(r.text)
+        return html_to_article_text(decode_http_response(r))
     except Exception:
         return ""
 
@@ -163,7 +165,8 @@ def image_from_article(url):
     if not url.startswith("http"):
         return ""
     try:
-        text = requests.get(url, headers=HEADERS, timeout=TIMEOUT).text[:180000]
+        response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        text = decode_http_response(response)[:180000]
     except Exception:
         return ""
     m = IMG_META.search(text) or IMG_META_ALT.search(text)

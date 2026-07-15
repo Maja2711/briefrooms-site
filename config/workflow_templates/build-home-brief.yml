@@ -8,6 +8,7 @@ on:
       - "scripts/build_home_brief_pl.py"
       - "scripts/build_home_brief_en.py"
       - "scripts/read_and_summarize_articles.py"
+      - "scripts/comment_quality.py"
       - "scripts/enforce_brief_length.py"
       - "scripts/remove_urgent_badge_categories.py"
       - "scripts/validate_brief_quality.py"
@@ -15,6 +16,7 @@ on:
       - "scripts/hide_urgent_home_labels.py"
       - "scripts/patch_brief_comment_source.py"
       - "scripts/protect_home_feed.py"
+      - "tests/test_comment_quality.py"
       - ".github/workflows/build-home-brief.yml"
   schedule:
     - cron: "17 */4 * * *"
@@ -36,6 +38,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install --upgrade pip feedparser requests
+      - run: python -m unittest discover -s tests -p "test_comment_quality.py"
       - run: python scripts/protect_home_feed.py --backup
         continue-on-error: true
       - env:
@@ -52,19 +55,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: python scripts/read_and_summarize_articles.py
-        continue-on-error: true
       - run: python scripts/enforce_brief_length.py
-        continue-on-error: true
       - run: python scripts/remove_urgent_badge_categories.py
-        continue-on-error: true
       - run: python scripts/validate_brief_quality.py
-        continue-on-error: true
       - run: python scripts/dedupe_home_brief_stories.py
-        continue-on-error: true
       - run: python scripts/hide_urgent_home_labels.py
-        continue-on-error: true
       - run: python scripts/patch_brief_comment_source.py
-        continue-on-error: true
       - if: always()
         run: python scripts/protect_home_feed.py --validate
       - if: always()

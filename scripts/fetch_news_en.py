@@ -5,6 +5,7 @@ import sys
 import re
 import json
 import html
+import hashlib
 
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -12,6 +13,13 @@ from urllib.parse import urlparse
 import feedparser
 from dateutil import tz
 import requests
+
+from comment_quality import (
+    QUALITY_STATUS,
+    QUALITY_VERSION,
+    independent_ai_review,
+    validate_news_comment,
+)
 
 # =========================
 # TIMEZONE (UTC dla wersji EN jest bezpieczniejsze)
@@ -504,38 +512,102 @@ def save_cache(path: str, data: dict):
 CACHE = load_cache(AI_CACHE_PATH)
 
 def ai_summarize_en(title: str, snippet: str, url: str) -> dict:
-    # Wymaga klucza OpenAI – w trybie fallback używamy skrótu snippet
     key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"{norm_title(title)}|{today_str()}"
+    safe_snippet = topic_safe_snippet(title, snippet)
+    if len(clean_rss_text(snippet)) < 55:
+        return {"summary": "", "key_point": "", "why_it_matters": "", "uncertain": "", "model": "insufficient_source", "reviewed": False}
+    digest = hashlib.sha256(f"{title}|{url}|{safe_snippet}".encode("utf-8")).hexdigest()[:20]
+    cache_key = f"strict-v{QUALITY_VERSION}|{today_str()}|{digest}"
     if cache_key in CACHE:
         cached = CACHE[cache_key]
-        cached.setdefault("key_point", cached.get("summary", ""))
-        cached.setdefault("why_it_matters", "")
-        return cached
-
-    safe_snippet = topic_safe_snippet(title, snippet)
+        quality = validate_news_comment(str(cached.get("summary") or ""), "en")
+        if (
+            cached.get("reviewed") is True
+            and cached.get("quality_version") == QUALITY_VERSION
+            and quality.valid
+        ):
+            cached["key_point"] = quality.text
+            return cached
 
     if not key:
-        key_point = ensure_full_sentence((safe_snippet or title or "")[:320], 320)
-        out = {
-            "summary": key_point,
-            "key_point": key_point,
-            "why_it_matters": "It is a single-source item selected from a priority BriefRooms feed.",
+        return {
+            "summary": "",
+            "key_point": "",
+            "why_it_matters": "",
             "uncertain": "",
-            "model": "fallback"
+            "model": "unavailable",
+            "reviewed": False,
+        }
+
+    prompt = f"""Write a concise English news comment using only the title and RSS description.
+Return only JSON: {{"summary":"..."}}.
+The comment must contain 1-2 complete, concrete sentences and 55-320 characters.
+
+Title: {title}
+RSS description: {safe_snippet}
+
+Rules:
+- Use clear, neutral and grammatical English that is understandable without extra context.
+- Do not copy damaged characters, split words, bylines, publisher UI or editorial commands.
+- Do not add facts that are absent from the title or description.
+- If the material is damaged or cannot be summarized with confidence, return an empty summary."""
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": AI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a strict news editor. Return only valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
+                "max_tokens": 220,
+            },
+            timeout=25,
+        )
+        response.raise_for_status()
+        payload = json.loads(response.json()["choices"][0]["message"]["content"].strip())
+        quality = validate_news_comment(str(payload.get("summary") or ""), "en")
+        if not quality.valid:
+            print(f"[WARN] EN news comment rejected: {title[:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+            return {"summary": "", "key_point": "", "why_it_matters": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
+        reviewed, reason = independent_ai_review(
+            post=requests.post,
+            api_key=key,
+            model=AI_MODEL,
+            title=title,
+            source_text=safe_snippet,
+            summary=quality.text,
+            lang="en",
+        )
+        if not reviewed:
+            print(f"[WARN] EN news AI review rejected: {title[:80]} :: {reason[:160]}", file=sys.stderr)
+            return {"summary": "", "key_point": "", "why_it_matters": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
+        out = {
+            "summary": quality.text,
+            "key_point": quality.text,
+            "why_it_matters": "",
+            "uncertain": "",
+            "model": AI_MODEL,
+            "reviewed": True,
+            "quality_status": QUALITY_STATUS,
+            "quality_version": QUALITY_VERSION,
         }
         CACHE[cache_key] = out
         save_cache(AI_CACHE_PATH, CACHE)
         return out
-    
-    # ... Pełna logika AI dla EN (jak w oryginalnym kodzie) ...
-    # Zostawiamy fallback dla bezpieczeństwa.
-    return {
-        "summary": ensure_full_sentence((safe_snippet or title or "")[:320], 320),
-        "key_point": ensure_full_sentence((safe_snippet or title or "")[:320], 320),
-        "why_it_matters": "It is a single-source item selected from a priority BriefRooms feed.",
-        "uncertain": ""
-    }
+    except Exception as ex:
+        print(f"[WARN] EN news AI generation failed: {title[:80]} :: {ex}", file=sys.stderr)
+        return {
+            "summary": "",
+            "key_point": "",
+            "why_it_matters": "",
+            "uncertain": "",
+            "model": AI_MODEL,
+            "reviewed": False,
+        }
 
 # =========================
 # WARSTWA WERYFIKACJI (EN)
@@ -625,6 +697,9 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None):
         it["ai_summary"] = it["ai_key_point"]
         it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s.get("model","")
+        it["comment_quality_status"] = s.get("quality_status", "")
+        it["comment_quality_version"] = s.get("quality_version")
+        it["comment_generation_status"] = "ai_review_approved" if s.get("reviewed") is True else "rejected_or_unavailable"
 
     return picked
 

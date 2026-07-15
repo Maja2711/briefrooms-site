@@ -17,6 +17,7 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import fetch_news_en as base  # noqa: E402
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_news_comment  # noqa: E402
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
@@ -31,6 +32,7 @@ BAD_AI_TEXT_RE = re.compile(
     r"geopolitical signal|public decisions, safety or daily life|check the source)\b",
     re.I,
 )
+MIN_STRICT_COMMENTS = 8
 
 NEWS_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -70,13 +72,12 @@ SECTION_IDS = {
 
 
 def _plain_summary(title: str, snippet: str, fallback: str = "") -> str:
-    text = re.sub(r"\s+", " ", (snippet or fallback or title or "").strip())
+    text = re.sub(r"\s+", " ", (snippet or "").strip())
     text = re.sub(r"^(Key point|Why it matters|Summary)\s*:\s*", "", text, flags=re.I)
     if not text or BAD_AI_TEXT_RE.search(text):
-        text = re.sub(r"\s+", " ", (fallback or title or "").strip())
-    if len(text) > 360:
-        text = text[:360].rsplit(" ", 1)[0]
-    return base.ensure_period(text)
+        return ""
+    quality = validate_news_comment(text, "en")
+    return quality.text if quality.valid else ""
 
 
 def _item_text(item: dict) -> str:
@@ -90,11 +91,19 @@ def fetch_section_plain(section_key: str, excluded_links=None, excluded_topics=N
         if WEATHER_RE.search(_item_text(it)):
             continue
 
+        if not (
+            it.get("comment_quality_status") == QUALITY_STATUS
+            and it.get("comment_quality_version") == QUALITY_VERSION
+            and it.get("comment_generation_status") == "ai_review_approved"
+        ):
+            continue
+
         summary = _plain_summary(
             it.get("title", ""),
             it.get("ai_key_point") or it.get("ai_summary") or it.get("summary_raw", ""),
-            it.get("summary_raw", ""),
         )
+        if not summary:
+            continue
         it["ai_key_point"] = summary
         it["ai_summary"] = summary
         it["ai_why_it_matters"] = ""
@@ -122,6 +131,17 @@ def add_news_tabs_en(html: str) -> str:
 
 
 def render_html_plain(sections: dict) -> str:
+    accepted = [item for items in sections.values() for item in items]
+    if len(accepted) < MIN_STRICT_COMMENTS:
+        raise RuntimeError(
+            f"EN news publication blocked: only {len(accepted)} strictly approved comments"
+        )
+    for item in accepted:
+        quality = validate_news_comment(item.get("ai_key_point") or item.get("ai_summary", ""), "en")
+        if not quality.valid:
+            raise RuntimeError(
+                f"EN news publication blocked by final comment audit: {item.get('title', '')[:80]}"
+            )
     html = _original_render_html(sections)
     html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', '', html, flags=re.I | re.S)
     html = re.sub(r'\n\s*<div class="sec"><strong>Warning:</strong>\s*(?:Warning:\s*)+', '\n    <div class="sec"><strong>Warning:</strong> ', html, flags=re.I)

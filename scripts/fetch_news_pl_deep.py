@@ -10,6 +10,7 @@ ważne" layer, because those rows too easily become generic boilerplate.
 
 import re
 import fetch_news_pl_hybrid as hybrid
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_news_comment
 
 base = hybrid.base
 _original_fetch = base.fetch_section
@@ -25,6 +26,7 @@ BAD_AI_RE = re.compile(
     r"obserwacji życia publicznego|test zaufania|pojedynczej ciekawostki|sam fakt jest punktem wyjścia)",
     re.I,
 )
+MIN_STRICT_COMMENTS = 8
 
 SECTION_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -50,13 +52,12 @@ SECTION_TABS_HTML = """
 
 
 def _plain_summary(title: str, summary: str, fallback: str = "") -> str:
-    text = re.sub(r"\s+", " ", (summary or fallback or title or "").strip())
+    text = re.sub(r"\s+", " ", (summary or "").strip())
     text = re.sub(r"^(Najważniejsze|Dlaczego to ważne)\s*:\s*", "", text, flags=re.I)
     if not text or BAD_AI_RE.search(text):
-        text = re.sub(r"\s+", " ", (fallback or title or "").strip())
-    if len(text) > 360:
-        text = text[:360].rsplit(" ", 1)[0]
-    return base.ensure_period(text)
+        return ""
+    quality = validate_news_comment(text, "pl")
+    return quality.text if quality.valid else ""
 
 
 def _text(item: dict) -> str:
@@ -84,11 +85,20 @@ def fetch_section_strict(section_key: str):
                 continue
             tvn24_used += 1
 
-        item["ai_summary"] = _plain_summary(
+        if not (
+            item.get("comment_quality_status") == QUALITY_STATUS
+            and item.get("comment_quality_version") == QUALITY_VERSION
+            and item.get("comment_generation_status") == "ai_review_approved"
+        ):
+            continue
+
+        summary = _plain_summary(
             item.get("title", ""),
             item.get("ai_summary", ""),
-            item.get("summary_raw", ""),
         )
+        if not summary:
+            continue
+        item["ai_summary"] = summary
         item["ai_why"] = ""
         item["ai_uncertain"] = _clean_uncertain(item.get("ai_uncertain", ""))
 
@@ -115,6 +125,17 @@ def _add_section_tabs(html: str) -> str:
 
 
 def render_html_strict(sections: dict) -> str:
+    accepted = [item for items in sections.values() for item in items]
+    if len(accepted) < MIN_STRICT_COMMENTS:
+        raise RuntimeError(
+            f"PL news publication blocked: only {len(accepted)} strictly approved comments"
+        )
+    for item in accepted:
+        quality = validate_news_comment(item.get("ai_summary", ""), "pl")
+        if not quality.valid:
+            raise RuntimeError(
+                f"PL news publication blocked by final comment audit: {item.get('title', '')[:80]}"
+            )
     html = _original_render(sections)
     html = _add_section_tabs(html)
 

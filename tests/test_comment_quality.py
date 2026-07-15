@@ -1,0 +1,383 @@
+from __future__ import annotations
+
+import hashlib
+from datetime import timezone
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+import types
+import unittest
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+import comment_quality as quality
+import protect_home_feed as protect
+sys.modules.setdefault("requests", mock.Mock())
+sys.modules.setdefault("feedparser", mock.Mock())
+if "dateutil" not in sys.modules:
+    dateutil_stub = types.ModuleType("dateutil")
+    dateutil_stub.tz = mock.Mock()
+    dateutil_stub.tz.gettz.return_value = timezone.utc
+    sys.modules["dateutil"] = dateutil_stub
+import read_and_summarize_articles as reader
+import fetch_news_en as news_en
+import fetch_news_pl as news_pl
+import validate_brief_quality as gate
+
+
+VALID_PL = (
+    "Władze stanu Nowy Jork wprowadziły dwuletnie moratorium na budowę największych centrów danych wykorzystywanych przez systemy sztucznej inteligencji. "
+    "Decyzja ma ograniczyć ryzyko przeciążenia sieci energetycznej oraz wzrostu rachunków ponoszonych przez mieszkańców. "
+    "Moratorium poparły organizacje ekologiczne i część polityków, którzy domagają się jasnych gwarancji dotyczących kosztów oraz bezpieczeństwa dostaw energii."
+)
+
+BROKEN_PRODUCTION_PL = (
+    'Jak podkrelia, centra danych AI "zuywaj ogromne iloci energii, realnie gro c przeci eniem sieci" i podnosz rachunki za pr d. '
+    "Zadeklarowaa take, e nie dopuci do przerzucania tych kosztw na mieszkańcw. "
+    '"To rzeczywicie budzi obawy o bezpieczeństwo" Tech Hochul: spoeczeństwo potrzebuje elaznych gwarancji Decyzj Hochul popary organizacje ekologiczne i cz politykw Partii Demokratycznej. '
+    "Senatorka Kirsten Gillibrand ocenia, e w moratorium chodzi przede wszystkim o zaufanie spoeczne."
+)
+
+VALID_EN = (
+    "New York state introduced a two-year moratorium on construction of the largest data centers used for artificial intelligence. "
+    "The measure is intended to reduce the risk of overloading the power grid and raising electricity bills for residents. "
+    "Environmental groups and several elected officials supported the decision while calling for firm guarantees on costs and energy security."
+)
+
+
+def approved_item(text: str, lang: str = "pl") -> dict:
+    return {
+        "title": "Testowy artykuł" if lang == "pl" else "Test article",
+        "source": "Test Source",
+        "link": "https://example.com/article",
+        "full_brief": text,
+        "summary_basis": "article_text_ai_reviewed",
+        "comment_generation_status": "ai_review_approved",
+        "comment_quality_status": quality.QUALITY_STATUS,
+        "comment_quality_version": quality.QUALITY_VERSION,
+    }
+
+
+class CommentQualityTests(unittest.TestCase):
+    class FakeHttpResponse:
+        def __init__(self, content: bytes, encoding: str, apparent_encoding: str):
+            self.content = content
+            self.encoding = encoding
+            self.apparent_encoding = apparent_encoding
+            self.text = content.decode(encoding, errors="replace")
+
+    def test_valid_polish_comment_passes(self):
+        result = quality.validate_comment(VALID_PL, "pl")
+        self.assertTrue(result.valid, result.reasons)
+        self.assertEqual(3, len(result.sentences))
+
+    def test_exact_production_regression_is_rejected(self):
+        result = quality.validate_comment(BROKEN_PRODUCTION_PL, "pl")
+        self.assertFalse(result.valid)
+        self.assertTrue({"broken_polish_word", "orphan_polish_letters"} & set(result.reasons))
+
+    def test_one_bad_sentence_rejects_the_entire_comment(self):
+        broken = VALID_PL.replace(
+            "Decyzja ma ograniczyć ryzyko przeciążenia sieci energetycznej oraz wzrostu rachunków ponoszonych przez mieszkańców.",
+            "Decyzj popary organizacje, a koszty pr d mają ponieść mieszkańcy.",
+        )
+        result = quality.validate_comment(broken, "pl")
+        self.assertFalse(result.valid)
+        self.assertIn("broken_polish_word", result.reasons)
+
+    def test_mojibake_and_publisher_fragments_are_rejected(self):
+        broken = VALID_PL.replace("Władze", "Åadze").replace("Moratorium poparły", "FOTONEWS Moratorium poparły")
+        result = quality.validate_comment(broken, "pl")
+        self.assertFalse(result.valid)
+        self.assertTrue({"mojibake", "publisher_or_ui_fragment"} & set(result.reasons))
+
+    def test_valid_english_comment_passes(self):
+        result = quality.validate_comment(VALID_EN, "en")
+        self.assertTrue(result.valid, result.reasons)
+        self.assertEqual(3, len(result.sentences))
+
+    def test_broken_english_comment_is_rejected(self):
+        broken = VALID_EN.replace(
+            "The measure is intended",
+            "The measure isn t complete and t s intended",
+        )
+        result = quality.validate_comment(broken, "en")
+        self.assertFalse(result.valid)
+        self.assertTrue({"broken_english_contraction", "orphan_english_letters"} & set(result.reasons))
+
+    def test_sentence_count_is_fail_closed_in_both_languages(self):
+        self.assertFalse(quality.validate_comment(" ".join(quality.split_sentences(VALID_PL)[:2]), "pl").valid)
+        self.assertFalse(quality.validate_comment(" ".join(quality.split_sentences(VALID_EN)[:2]), "en").valid)
+
+    def test_short_news_comments_use_the_same_language_checks(self):
+        valid_pl = "Rząd opublikował szczegółowe zasady programu, które zaczną obowiązywać po zakończeniu konsultacji społecznych."
+        broken_pl = "Rz d opublikowa zasady, a cz kosztw ponios mieszkańcy bez dodatkowych wyjaśnień."
+        valid_en = "The government published detailed programme rules that will take effect after the consultation period ends."
+        broken_en = "The government isn t ready and t s delaying the detailed programme rules again."
+        self.assertTrue(quality.validate_news_comment(valid_pl, "pl").valid)
+        self.assertFalse(quality.validate_news_comment(broken_pl, "pl").valid)
+        self.assertTrue(quality.validate_news_comment(valid_en, "en").valid)
+        self.assertFalse(quality.validate_news_comment(broken_en, "en").valid)
+
+    def test_initials_and_market_abbreviations_are_not_treated_as_damage(self):
+        pl = "Indeks S&P 500 wzrósł m.in. po publikacji danych, a analityczka E. Nowak wskazała na poprawę nastrojów inwestorów o 15 tys. zł."
+        en = "The U.S. S&P 500 rose after the 5 p.m. data release, while analyst E. Smith pointed to stronger investor sentiment."
+        pl_result = quality.validate_news_comment(pl, "pl")
+        en_result = quality.validate_news_comment(en, "en")
+        self.assertTrue(pl_result.valid, pl_result.reasons)
+        self.assertTrue(en_result.valid, en_result.reasons)
+        self.assertEqual(1, len(pl_result.sentences))
+        self.assertEqual(1, len(en_result.sentences))
+
+    def test_rank_ordinal_does_not_create_a_false_sentence_boundary(self):
+        text = "Zajmująca 142. miejsce zawodniczka wygrała spotkanie i awansowała do kolejnej rundy międzynarodowego turnieju."
+        result = quality.validate_news_comment(text, "pl")
+        self.assertTrue(result.valid, result.reasons)
+        self.assertEqual(1, len(result.sentences))
+
+    def test_http_decoder_prefers_valid_utf8_over_wrong_header(self):
+        original = "Jak podkreśliła, centra danych zużywają energię i podnoszą rachunki za prąd."
+        response = self.FakeHttpResponse(original.encode("utf-8"), "iso-8859-1", "Windows-1252")
+        self.assertEqual(original, quality.decode_http_response(response))
+
+    def test_http_decoder_supports_polish_legacy_encoding(self):
+        original = "Zażółć gęślą jaźń, ponieważ źródło używa starszego kodowania."
+        response = self.FakeHttpResponse(original.encode("windows-1250"), "windows-1250", "Windows-1250")
+        self.assertEqual(original, quality.decode_http_response(response))
+
+    def test_legitimate_non_polish_names_are_not_mojibake(self):
+        text = "Officials in Åland, Łódź and Älmhult published a detailed joint report on regional energy security."
+        result = quality.validate_news_comment(text, "en")
+        self.assertTrue(result.valid, result.reasons)
+
+    def test_self_contained_english_sentence_may_start_with_that(self):
+        text = "That decision will change the timetable for the programme and requires formal approval from parliament."
+        result = quality.validate_news_comment(text, "en")
+        self.assertTrue(result.valid, result.reasons)
+
+
+class PipelineContractTests(unittest.TestCase):
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [{"message": {"content": json.dumps(self.payload, ensure_ascii=False)}}]
+            }
+
+    class FakeArticleResponse:
+        ok = True
+        status_code = 200
+        encoding = "iso-8859-1"
+        apparent_encoding = "Windows-1252"
+
+        def __init__(self, content: bytes):
+            self.content = content
+            self.text = content.decode(self.encoding, errors="replace")
+
+    def test_final_gate_keeps_only_fully_reviewed_valid_comments(self):
+        payload = {
+            "latest": [approved_item(VALID_PL), approved_item(BROKEN_PRODUCTION_PL)],
+            "radar": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "home_brief.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            gate.process(path, "pl")
+            result = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, len(result["latest"]))
+        self.assertEqual(quality.QUALITY_STATUS, result["latest"][0]["comment_quality_status"])
+        self.assertEqual(1, result["comment_quality_gate"]["rejected_count"])
+
+    def test_last_good_protection_revalidates_text_and_version(self):
+        self.assertTrue(protect.valid_card(approved_item(VALID_PL), "pl"))
+        self.assertTrue(protect.valid_card(approved_item(VALID_EN, "en"), "en"))
+
+        legacy = approved_item(VALID_PL)
+        legacy["comment_quality_status"] = "passed_3_to_6_sentences"
+        self.assertFalse(protect.valid_card(legacy, "pl"))
+        self.assertFalse(protect.valid_card(approved_item(BROKEN_PRODUCTION_PL), "pl"))
+
+    def test_failed_update_restores_only_strict_last_good_cards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+            backup_path = Path(tmp) / "backup.json"
+            good = []
+            for index in range(6):
+                item = approved_item(VALID_PL)
+                item["title"] = f"Poprawny materiał {index + 1}"
+                item["link"] = f"https://example.com/good-{index + 1}"
+                good.append(item)
+            backup_path.write_text(
+                json.dumps({"latest": good, "radar": []}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            current_path.write_text(
+                json.dumps({"latest": [approved_item(BROKEN_PRODUCTION_PL)], "radar": []}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            with mock.patch.object(protect, "FILES", {"pl": (current_path, backup_path)}):
+                protect.validate_current()
+            restored = json.loads(current_path.read_text(encoding="utf-8"))
+        self.assertEqual(6, protect.total_valid(restored, "pl"))
+        self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
+
+    def test_bad_reviewed_cache_entry_cannot_bypass_validator(self):
+        title = "Test title"
+        link = "https://example.com/cache-test"
+        article = "A" * 900
+        key = hashlib.sha256(
+            f"{reader.CACHE_VERSION}|pl|{link}|{title}|{article[:1600]}".encode("utf-8")
+        ).hexdigest()[:48]
+        cache = {
+            key: {
+                "summary": BROKEN_PRODUCTION_PL,
+                "reviewed": True,
+                "quality_version": quality.QUALITY_VERSION,
+            }
+        }
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+            self.assertEqual("", reader.ai_summarize(title, "pl", article, link, cache))
+
+    def test_generation_requires_independent_ai_approval(self):
+        responses = [
+            self.FakeResponse({"full_brief": VALID_PL}),
+            self.FakeResponse({"approved": True, "reason": "Poprawny i zgodny z tekstem."}),
+        ]
+        with (
+            mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+            mock.patch.object(reader.requests, "post", side_effect=responses) as post,
+        ):
+            result = reader.ai_summarize(
+                "Moratorium na centra danych",
+                "pl",
+                "Pełny tekst artykułu " * 80,
+                "https://example.com/approved",
+                {},
+            )
+        self.assertEqual(VALID_PL, result)
+        self.assertEqual(2, post.call_count)
+
+    def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
+        paragraph = (
+            "Jak podkreśliła gubernator, centra danych zużywają ogromne ilości energii, "
+            "grożą przeciążeniem sieci i podnoszą rachunki za prąd ponoszone przez mieszkańców."
+        )
+        html = (
+            '<html><head><meta charset="utf-8"></head><body><article>'
+            + "".join(f"<p>{paragraph} Akapit numer {index} zawiera dodatkowe informacje.</p>" for index in range(8))
+            + "</article></body></html>"
+        )
+        response = self.FakeArticleResponse(html.encode("utf-8"))
+        with mock.patch.object(reader.requests, "get", return_value=response):
+            text, status = reader.fetch_article_text("https://example.com/polish-encoding")
+        self.assertEqual("article_read", status)
+        self.assertIn("podkreśliła", text)
+        self.assertIn("zużywają", text)
+        self.assertNotIn("podkrelia", text)
+
+    def test_pl_and_en_news_comments_require_generation_and_review(self):
+        valid_pl = "Rząd opublikował szczegółowe zasady programu, które zaczną obowiązywać po zakończeniu konsultacji społecznych."
+        valid_en = "The government published detailed programme rules that will take effect after the consultation period ends."
+        cases = (
+            (news_pl, "ai_summarize_pl", "pl", valid_pl),
+            (news_en, "ai_summarize_en", "en", valid_en),
+        )
+        for module, function_name, lang, summary in cases:
+            with self.subTest(lang=lang):
+                responses = [
+                    self.FakeResponse({"summary": summary}),
+                    self.FakeResponse({"approved": True, "reason": "approved"}),
+                ]
+                with (
+                    mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+                    mock.patch.object(module, "CACHE", {}),
+                    mock.patch.object(module, "save_cache"),
+                    mock.patch.object(module.requests, "post", side_effect=responses) as post,
+                ):
+                    function = getattr(module, function_name)
+                    args = (
+                        ("Testowy tytuł", valid_pl, "https://example.com/pl", "polityka")
+                        if lang == "pl"
+                        else ("Test title", valid_en, "https://example.com/en")
+                    )
+                    result = function(*args)
+                self.assertEqual(summary, result["summary"])
+                self.assertTrue(result["reviewed"])
+                self.assertEqual(quality.QUALITY_STATUS, result["quality_status"])
+                self.assertEqual(2, post.call_count)
+
+    def test_en_news_has_no_rss_fallback_without_ai(self):
+        with (
+            mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""}),
+            mock.patch.object(news_en, "CACHE", {}),
+            mock.patch.object(news_en, "save_cache") as save_cache,
+        ):
+            result = news_en.ai_summarize_en(
+                "Test title",
+                "A detailed RSS description that used to be published directly as a fake AI comment.",
+                "https://example.com/no-ai",
+            )
+        self.assertEqual("", result["summary"])
+        self.assertFalse(result["reviewed"])
+        save_cache.assert_not_called()
+
+    def test_deterministic_rejection_runs_before_ai_review(self):
+        response = self.FakeResponse({"full_brief": BROKEN_PRODUCTION_PL})
+        with (
+            mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+            mock.patch.object(reader.requests, "post", return_value=response) as post,
+        ):
+            result = reader.ai_summarize(
+                "Moratorium na centra danych",
+                "pl",
+                "Pełny tekst artykułu " * 80,
+                "https://example.com/rejected-before-review",
+                {},
+            )
+        self.assertEqual("", result)
+        self.assertEqual(1, post.call_count)
+
+    def test_ai_review_rejection_blocks_deterministically_valid_text(self):
+        responses = [
+            self.FakeResponse({"full_brief": VALID_EN}),
+            self.FakeResponse({"approved": False, "reason": "One claim is not supported."}),
+        ]
+        with (
+            mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}),
+            mock.patch.object(reader.requests, "post", side_effect=responses),
+        ):
+            result = reader.ai_summarize(
+                "Data center moratorium",
+                "en",
+                "Full source article text " * 80,
+                "https://example.com/review-rejected",
+                {},
+            )
+        self.assertEqual("", result)
+
+    def test_raw_article_fallback_is_removed(self):
+        source = (SCRIPTS / "read_and_summarize_articles.py").read_text(encoding="utf-8")
+        self.assertNotIn("fallback_summary(article_text)", source)
+        self.assertNotIn("def fallback_summary", source)
+
+    def test_browser_renderers_require_current_strict_approval(self):
+        for relative in ("pl/index.html", "en/index.html", "pl/brief.html", "en/brief.html"):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(quality.QUALITY_STATUS, source, relative)
+            self.assertIn("article_text_ai_reviewed", source, relative)
+            self.assertNotIn("startsWith('passed_')", source, relative)
+
+
+if __name__ == "__main__":
+    unittest.main()

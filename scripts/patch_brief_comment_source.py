@@ -21,14 +21,18 @@ CONFIG = {
     },
 }
 
+QUALITY_STATUS = "passed_strict_v4"
+QUALITY_VERSION = 4
+
 APPROVED_RE = re.compile(r"function approvedComment\(item\)\{.*?\}", re.S)
 BUILD_RE = re.compile(r"function buildSummary\(item\)\{.*?\}", re.S)
 
 for path, cfg in CONFIG.items():
     text = path.read_text(encoding="utf-8")
     approved = (
-        f"function approvedComment(item){{const text={cfg['normalizer']}(item.full_brief||item.details||'');"
-        "return String(item.comment_quality_status||'').startsWith('passed_')&&text?text:'';}"
+        f"function approvedComment(item){{const text={cfg['normalizer']}(item.full_brief||'');"
+        f"return item.comment_quality_status==='{QUALITY_STATUS}'&&item.comment_quality_version==={QUALITY_VERSION}&&"
+        "item.summary_basis==='article_text_ai_reviewed'&&item.comment_generation_status==='ai_review_approved'&&text?text:'';}"
     )
     build = "function buildSummary(item){return approvedComment(item);}"
 
@@ -49,7 +53,7 @@ for path, cfg in CONFIG.items():
     # A page may call approvedComment directly (PL) or through buildSummary (EN).
     if "approvedComment(item)" not in text:
         raise SystemExit(f"approvedComment is not used in {path}")
-    if "comment_quality_status" not in text or "full_brief||item.details" not in text:
+    if QUALITY_STATUS not in text or "full_brief||''" not in text or "article_text_ai_reviewed" not in text:
         raise SystemExit(f"approved comment contract missing in {path}")
 
     path.write_text(text, encoding="utf-8", newline="\n")

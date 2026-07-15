@@ -112,7 +112,14 @@ def main() -> None:
         home_workflow,
         HOME_TEMPLATE,
         str(home.get("required_cron")),
-        ["protect_home_feed.py --backup", "protect_home_feed.py --validate", "continue-on-error: true"],
+        [
+            "protect_home_feed.py --backup",
+            "protect_home_feed.py --validate",
+            "comment_quality.py",
+            "test_comment_quality.py",
+            "read_and_summarize_articles.py",
+            "continue-on-error: true",
+        ],
     )
     if home_repair:
         repairs.append({"workflow": str(home_workflow), "action": home_repair})

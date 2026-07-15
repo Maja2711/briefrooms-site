@@ -6,12 +6,20 @@ import sys
 import re
 import json
 import html
+import hashlib
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse
 
 import feedparser
 from dateutil import tz
 import requests
+
+from comment_quality import (
+    QUALITY_STATUS,
+    QUALITY_VERSION,
+    independent_ai_review,
+    validate_news_comment,
+)
 
 # =========================
 # STREFA CZASOWA
@@ -482,33 +490,41 @@ def ai_summarize_pl(title: str, snippet: str, url: str, section_key: str = "") -
     Zwraca: {"summary": "...", "why": "...", "uncertain": ""} - 'uncertain' puste, gdy brak ostrzeżenia.
     """
     key = os.getenv("OPENAI_API_KEY")
-    cache_key = f"v3|{norm_title(title)}|{today_str()}"
+    source_text = re.sub(r"\s+", " ", (snippet or "").strip())
+    if len(source_text) < 55:
+        return {"summary": "", "why": "", "uncertain": "", "model": "insufficient_source", "reviewed": False}
+    digest = hashlib.sha256(f"{title}|{url}|{source_text}".encode("utf-8")).hexdigest()[:20]
+    cache_key = f"strict-v{QUALITY_VERSION}|{today_str()}|{digest}"
     if cache_key in CACHE:
         cached = CACHE[cache_key]
-        if "why" not in cached:
-            cached["why"] = why_it_matters_pl(section_key, title, snippet)
-        return cached
+        quality = validate_news_comment(str(cached.get("summary") or ""), "pl")
+        if (
+            cached.get("reviewed") is True
+            and cached.get("quality_version") == QUALITY_VERSION
+            and quality.valid
+        ):
+            return cached
 
     if not key:
         return {
-            "summary": ensure_full_sentence((snippet or title or "")[:320], 320),
-            "why": why_it_matters_pl(section_key, title, snippet),
+            "summary": "",
+            "why": "",
             "uncertain": "",
-            "model": "fallback"
+            "model": "unavailable",
+            "reviewed": False,
         }
 
-    prompt = f"""Napisz po polsku krótki komentarz do newsa z tytułu i opisu RSS.
-Zwróć dokładnie dwie obowiązkowe linie i opcjonalnie trzecią:
-Najważniejsze: jedno krótkie zdanie z sednem informacji.
-Dlaczego to ważne: jedno krótkie zdanie o znaczeniu albo konsekwencji tej informacji.
-Uwaga: jedno krótkie zdanie tylko wtedy, gdy widać element niepewny, sporny lub łatwy do błędnej interpretacji.
+    prompt = f"""Napisz po polsku krótki komentarz do newsa wyłącznie na podstawie tytułu i opisu RSS.
+Zwróć wyłącznie JSON: {{"summary":"..."}}.
+Komentarz ma mieć 1-2 pełne, konkretne zdania i 55-320 znaków.
 
 Tytuł: {title}
-Opis RSS: {snippet}
+Opis RSS: {source_text}
 Zasady:
-- Bądź zwięzły i neutralny.
-- Kończ zdania kropką.
+- Bądź zwięzły, neutralny, poprawny językowo i zrozumiały bez dodatkowego kontekstu.
+- Nie kopiuj uszkodzonych znaków, porozcinanych wyrazów, podpisów, fragmentów interfejsu ani poleceń wydawcy.
 - Nie dopisuj faktów spoza tytułu/opisu.
+- Jeśli materiał jest uszkodzony albo nie pozwala na pewne streszczenie, zwróć pusty summary.
 - Nie używaj formatowania Markdown."""
 
     try:
@@ -518,43 +534,53 @@ Zasady:
             json={
                 "model": AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś rzetelnym i zwięzłym asystentem prasowym. Zawsze kończ zdania kropką."},
+                    {"role": "system", "content": "Jesteś rygorystycznym redaktorem newsów. Zwracasz wyłącznie poprawny JSON."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
                 "max_tokens": 220,
             },
             timeout=25,
         )
         resp.raise_for_status()
-        text = resp.json()["choices"][0]["message"]["content"].strip()
-
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        summary_lines, why_lines, warn_line = [], [], ""
-        for ln in lines:
-            low = ln.lower()
-            if low.startswith("najważniejsze:"):
-                summary_lines.append(ln.split(":", 1)[1].strip())
-            elif low.startswith("dlaczego to ważne:"):
-                why_lines.append(ln.split(":", 1)[1].strip())
-            elif low.startswith("uwaga:"):
-                warn_line = ln
-            else:
-                summary_lines.append(ln)
-
-        summary = ensure_full_sentence(" ".join(summary_lines), 320)
-        why = ensure_full_sentence(" ".join(why_lines), 260) or why_it_matters_pl(section_key, title, snippet)
-        warn_line = ensure_period(warn_line) if warn_line else ""
-
-        out = {"summary": summary, "why": ensure_period(why), "uncertain": warn_line}
+        payload = json.loads(resp.json()["choices"][0]["message"]["content"].strip())
+        quality = validate_news_comment(str(payload.get("summary") or ""), "pl")
+        if not quality.valid:
+            print(f"[WARN] PL news comment rejected: {title[:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+            return {"summary": "", "why": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
+        reviewed, reason = independent_ai_review(
+            post=requests.post,
+            api_key=key,
+            model=AI_MODEL,
+            title=title,
+            source_text=source_text,
+            summary=quality.text,
+            lang="pl",
+        )
+        if not reviewed:
+            print(f"[WARN] PL news AI review rejected: {title[:80]} :: {reason[:160]}", file=sys.stderr)
+            return {"summary": "", "why": "", "uncertain": "", "model": AI_MODEL, "reviewed": False}
+        out = {
+            "summary": quality.text,
+            "why": "",
+            "uncertain": "",
+            "model": AI_MODEL,
+            "reviewed": True,
+            "quality_status": QUALITY_STATUS,
+            "quality_version": QUALITY_VERSION,
+        }
         CACHE[cache_key] = out
         save_cache(AI_CACHE_PATH, CACHE)
         return out
-    except Exception:
+    except Exception as ex:
+        print(f"[WARN] PL news AI generation failed: {title[:80]} :: {ex}", file=sys.stderr)
         return {
-            "summary": ensure_full_sentence((snippet or title)[:320], 320),
-            "why": why_it_matters_pl(section_key, title, snippet),
-            "uncertain": ""
+            "summary": "",
+            "why": "",
+            "uncertain": "",
+            "model": AI_MODEL,
+            "reviewed": False,
         }
 
 # =========================
@@ -773,6 +799,9 @@ def fetch_section(section_key: str):
         it["ai_why"] = ensure_period(s.get("why") or why_it_matters_pl(section_key, it["title"], it.get("summary_raw", "")))
         it["ai_uncertain"] = ensure_period(final_warn) if final_warn else ""
         it["ai_model"] = s.get("model","")
+        it["comment_quality_status"] = s.get("quality_status", "")
+        it["comment_quality_version"] = s.get("quality_version")
+        it["comment_generation_status"] = "ai_review_approved" if s.get("reviewed") is True else "rejected_or_unavailable"
 
     return picked
 

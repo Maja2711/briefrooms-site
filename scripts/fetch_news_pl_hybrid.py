@@ -12,6 +12,7 @@ Rules for Polish version:
 """
 
 import json
+import hashlib
 import os
 import re
 import sys
@@ -22,6 +23,12 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import fetch_news_pl as base  # noqa: E402
+from comment_quality import (  # noqa: E402
+    QUALITY_STATUS,
+    QUALITY_VERSION,
+    independent_ai_review,
+    validate_news_comment,
+)
 
 EN_HOST_RE = re.compile(
     r"(reuters\.com|bbc\.|apnews\.com|espn\.|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com|bloomberg\.com|theguardian\.com|nytimes\.com|cnbc\.com|nasa\.gov|esa\.int|who\.int)",
@@ -252,33 +259,35 @@ def translate_english_item_to_polish(item: dict, section_key: str) -> dict | Non
     title = item.get("title", "") or ""
     snippet = item.get("summary_raw", "") or ""
     source = item.get("source_name", "") or "źródło"
+    if len(re.sub(r"\s+", " ", snippet).strip()) < 55:
+        return None
 
-    cache_key = f"hybrid-pl-v3|{base.norm_title(title)}|{base.today_str()}"
+    digest = hashlib.sha256(f"{title}|{item.get('link', '')}|{snippet}".encode("utf-8")).hexdigest()[:20]
+    cache_key = f"hybrid-pl-strict-v{QUALITY_VERSION}|{base.today_str()}|{digest}"
     if cache_key in base.CACHE:
         cached = base.CACHE[cache_key]
-        if cached.get("title_pl") and cached.get("summary"):
-            if not why_is_useful(cached.get("why", "")):
-                cached["why"] = context_why_it_matters_pl(section_key, cached.get("title_pl", title), snippet)
+        quality = validate_news_comment(str(cached.get("summary") or ""), "pl")
+        if (
+            cached.get("title_pl")
+            and cached.get("reviewed") is True
+            and cached.get("quality_version") == QUALITY_VERSION
+            and quality.valid
+        ):
             return cached
 
     prompt = f"""Przetłumacz i opracuj po polsku anglojęzyczny news do polskiej wersji BriefRooms.
 Zwróć wyłącznie poprawny JSON bez Markdown:
 {{
   "title_pl": "krótki tytuł po polsku, maksymalnie 110 znaków",
-  "summary": "jedno lub dwa krótkie zdania po polsku z sednem informacji",
-  "why": "jedno lub dwa krótkie zdania po polsku z konkretną esencją: co z tego wynika, dla kogo i na jakim etapie sprawy. Nie odsyłaj do źródła.",
-  "uncertain": "opcjonalna krótka uwaga po polsku albo pusty string"
+  "summary": "jedno lub dwa pełne zdania po polsku z sednem informacji, 55-320 znaków"
 }}
 
 Zasady:
 - Wszystko, co zobaczy użytkownik, musi być po polsku.
 - Nie zostawiaj angielskiego tytułu.
 - Nie dopisuj faktów spoza tytułu i opisu RSS.
-- Komentarz 'Dlaczego to ważne' ma być esencją artykułu, nie instrukcją typu 'sprawdź w źródle'.
-- Nie używaj pustych sloganów typu: wpływa na decyzje publiczne, bezpieczeństwo albo codzienne życie obywateli.
-- Jeśli news sportowy zawiera rundę, wynik, etap turnieju, zawodnika lub drużynę — użyj tych konkretów w komentarzu.
-- Jeśli news dotyczy osoby publicznej i jej majątku/dochodów, znaczenie opisz przez przejrzystość życia publicznego.
-- Jeśli news jest lokalnym incydentem, opisz znaczenie przez procedury, bezpieczeństwo i reakcję instytucji.
+- Nie kopiuj uszkodzonych znaków, porozcinanych wyrazów, podpisów ani elementów interfejsu wydawcy.
+- Jeśli materiał jest uszkodzony albo nie pozwala na pewne streszczenie, zwróć pusty summary.
 
 Sekcja: {section_key}
 Źródło: {source}
@@ -293,10 +302,11 @@ Opis RSS: {snippet}
             json={
                 "model": base.AI_MODEL,
                 "messages": [
-                    {"role": "system", "content": "Jesteś polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON. Komentarz musi podawać esencję newsa, a nie odsyłać czytelnika do źródła."},
+                    {"role": "system", "content": "Jesteś rygorystycznym polskim redaktorem newsowym. Zwracasz wyłącznie poprawny JSON."},
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
                 "max_tokens": 520,
             },
             timeout=30,
@@ -307,21 +317,33 @@ Opis RSS: {snippet}
         data = json.loads(raw)
 
         title_pl = base.ensure_full_sentence(str(data.get("title_pl", "")).strip(), 130).rstrip(".")
-        summary = base.ensure_full_sentence(str(data.get("summary", "")).replace("Najważniejsze:", "").strip(), 360)
-        why_ai = base.ensure_full_sentence(str(data.get("why", "")).replace("Dlaczego to ważne:", "").strip(), 340)
-        why_rule = context_why_it_matters_pl(section_key, title_pl or title, snippet)
-        why = why_ai if why_is_useful(why_ai) else why_rule
-        uncertain = base.ensure_period(str(data.get("uncertain", "")).strip()) if data.get("uncertain") else ""
+        summary = str(data.get("summary", "")).replace("Najważniejsze:", "").strip()
+        quality = validate_news_comment(summary, "pl")
 
-        if still_looks_english(title_pl) or still_looks_english(summary) or still_looks_english(why):
+        if still_looks_english(title_pl) or not quality.valid:
+            return None
+        reviewed, reason = independent_ai_review(
+            post=base.requests.post,
+            api_key=key,
+            model=base.AI_MODEL,
+            title=title,
+            source_text=snippet,
+            summary=quality.text,
+            lang="pl",
+        )
+        if not reviewed:
+            print(f"[WARN] hybrid PL review rejected: {source} | {title[:80]} -> {reason[:160]}", file=sys.stderr)
             return None
 
         out = {
             "title_pl": title_pl,
-            "summary": base.ensure_period(summary),
-            "why": _clip_sentence(why, 340),
-            "uncertain": uncertain,
-            "model": f"{base.AI_MODEL}-hybrid-pl-v4",
+            "summary": quality.text,
+            "why": "",
+            "uncertain": "",
+            "model": f"{base.AI_MODEL}-hybrid-pl-strict-v{QUALITY_VERSION}",
+            "reviewed": True,
+            "quality_status": QUALITY_STATUS,
+            "quality_version": QUALITY_VERSION,
         }
         base.CACHE[cache_key] = out
         base.save_cache(base.AI_CACHE_PATH, base.CACHE)
@@ -346,11 +368,10 @@ def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str 
         out = {}
 
     summary = (out.get("summary") or "").replace("Najważniejsze:", "").strip()
-    out["summary"] = base.ensure_period(summary) if summary else base.ensure_period(base.ensure_full_sentence(snippet or title, 300))
+    out["summary"] = base.ensure_period(summary) if summary else ""
 
     why_ai = (out.get("why") or "").replace("Dlaczego to ważne:", "").strip()
-    why_rule = context_why_it_matters_pl(section_key, title, snippet)
-    out["why"] = _clip_sentence(why_ai if why_is_useful(why_ai) else why_rule, 340)
+    out["why"] = ""
     out["model"] = (out.get("model") or "") + "+contextual-why-v4"
     return out
 
@@ -374,6 +395,9 @@ def fetch_section_hybrid(section_key: str):
         if translated.get("uncertain"):
             it["ai_uncertain"] = translated["uncertain"]
         it["ai_model"] = translated.get("model", "")
+        it["comment_quality_status"] = translated.get("quality_status", "")
+        it["comment_quality_version"] = translated.get("quality_version")
+        it["comment_generation_status"] = "ai_review_approved" if translated.get("reviewed") is True else "rejected_or_unavailable"
         it["source_name"] = f"{original_source} · Źródło anglojęzyczne — brief po polsku"
         out.append(it)
 

@@ -25,6 +25,8 @@ from urllib.parse import quote_plus, urljoin, urlparse
 import feedparser
 import requests
 
+from comment_quality import decode_http_response
+
 OUT_PATH = "pl/home_brief.json"
 TIMEOUT = 9
 USER_AGENT = "BriefRoomsBot/2.0 (+https://briefrooms.com)"
@@ -230,7 +232,7 @@ def article_excerpt(url: str) -> str:
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
         if not r.ok:
             return ""
-        return html_to_article_text(r.text)
+        return html_to_article_text(decode_http_response(r))
     except Exception:
         return ""
 
@@ -259,7 +261,7 @@ def article_og_image(url: str) -> str:
         r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
         if not r.ok:
             return ""
-        head = r.text[:180000]
+        head = decode_http_response(r)[:180000]
         m = IMG_META.search(head) or IMG_META_ALT.search(head)
         return urljoin(url, html.unescape(m.group(1).strip())) if m else ""
     except Exception:
