@@ -10,6 +10,8 @@ idempotent and supports both compact and multiline page scripts.
 from pathlib import Path
 import re
 
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION
+
 CONFIG = {
     Path("pl/brief.html"): {
         "normalizer": "normalizeText",
@@ -20,9 +22,6 @@ CONFIG = {
         "fallback": "This item has no approved comment and should not be visible as a BriefRooms card.",
     },
 }
-
-QUALITY_STATUS = "passed_strict_v4"
-QUALITY_VERSION = 4
 
 APPROVED_RE = re.compile(r"function approvedComment\(item\)\{.*?\}", re.S)
 BUILD_RE = re.compile(r"function buildSummary\(item\)\{.*?\}", re.S)

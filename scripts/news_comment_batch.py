@@ -11,6 +11,7 @@ import sys
 from comment_quality import (
     QUALITY_STATUS,
     QUALITY_VERSION,
+    clip_complete_text,
     get_ai_runtime,
     independent_ai_review_batch,
     request_json_completion,
@@ -22,7 +23,7 @@ from comment_quality import (
 def _clean_source(value: str, limit: int = 750) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
     text = re.sub(r"\s+", " ", text).strip()
-    return text[:limit].rsplit(" ", 1)[0].strip() if len(text) > limit else text
+    return clip_complete_text(text, limit)
 
 
 def _cache_key(item: dict, lang: str, source_text: str) -> str:
@@ -85,7 +86,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
     current_chars = 0
     for candidate in pending:
         size = len(candidate["title"]) + len(candidate["source_text"])
-        if current and (len(current) >= 16 or current_chars + size > 14000):
+        if current and (len(current) >= 8 or current_chars + size > 8000):
             chunks.append(current)
             current = []
             current_chars = 0
@@ -120,7 +121,8 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 "understandable without extra context. Always return an empty title_pl."
             )
         prompt = (
-            f"{rules} Never copy damaged characters, split words, bylines, publisher UI or editorial commands. "
+            f"{rules} Never repeat the same information. Use correct grammar, inflection, quotation marks and "
+            "punctuation. Never copy damaged characters, split words, bylines, publisher UI or editorial commands. "
             "If an item cannot be summarized safely, return an empty summary. Return each id exactly once as JSON: "
             '{"items":[{"id":"same id","summary":"...","title_pl":""}]}.\n\n'
             + json.dumps(source_items, ensure_ascii=False)
