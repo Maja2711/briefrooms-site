@@ -22,6 +22,13 @@ from pathlib import Path
 
 import requests
 
+from comment_quality import (
+    QUALITY_VERSION,
+    decode_http_response,
+    independent_ai_review,
+    validate_comment,
+)
+
 FILES = [(Path("pl/home_brief.json"), "pl"), (Path("en/home_brief.json"), "en")]
 TIMEOUT = 12
 USER_AGENT = "BriefRoomsBot/2.1 (+https://briefrooms.com)"
@@ -29,6 +36,7 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL") or os.getenv("BRIEFROOMS_AI_MODEL") or "gp
 CACHE_PATH = Path(".cache/article_full_briefs.json")
 MIN_ARTICLE_CHARS = 700
 MAX_ARTICLE_CHARS = 6000
+CACHE_VERSION = f"article-brief-v6-strict-{QUALITY_VERSION}"
 
 NOISE = re.compile(
     r"cookie|cookies|reklama|advertisement|subskryb|newsletter|zaloguj|privacy|rodo|"
@@ -148,7 +156,7 @@ def fetch_article_text(url: str) -> tuple[str, str]:
         r = requests.get(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "pl,en;q=0.8"}, timeout=TIMEOUT, allow_redirects=True)
         if not r.ok:
             return "", f"http_{r.status_code}"
-        text = extract_article_text(r.text)
+        text = extract_article_text(decode_http_response(r))
         if len(text) < MIN_ARTICLE_CHARS:
             return text, "article_text_too_short"
         return text, "article_read"
@@ -160,18 +168,27 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not article_text:
         return ""
-    key = hashlib.sha256(f"article-brief-v3-coherence|{lang}|{link}|{title}|{article_text[:1200]}".encode("utf-8")).hexdigest()[:48]
+    key = hashlib.sha256(f"{CACHE_VERSION}|{lang}|{link}|{title}|{article_text[:1600]}".encode("utf-8")).hexdigest()[:48]
     cached = cache.get(key)
-    if isinstance(cached, dict) and cached.get("summary"):
-        return cached["summary"]
+    if (
+        isinstance(cached, dict)
+        and cached.get("reviewed") is True
+        and cached.get("quality_version") == QUALITY_VERSION
+        and cached.get("summary")
+    ):
+        result = validate_comment(cached["summary"], lang)
+        if result.valid:
+            return result.text
     if lang == "pl":
         prompt = (
             "Przeczytaj tekst artykułu i zrób streszczenie do BriefRooms. "
             "Zwróć wyłącznie JSON {\"full_brief\":\"...\"}. "
-            "Zasady: 3-6 zdań; tylko sens i fakty z tekstu; prosto, logicznie i gramatycznie. "
+            "Zasady: 3-6 pełnych zdań; tylko sens i fakty z tekstu; prosto, logicznie i gramatycznie. "
             "Każde zdanie musi być samodzielne: czytelnik ma rozumieć kto/co zrobił bez znajomości poprzedniego zdania. "
             "Nie zaczynaj od: Dodał, Dodała, Zaznaczył, Powiedział, Skomentuj, symbolu, waluty, urwanego fragmentu ani środka zdania. "
             "Nie kopiuj podpisów, nazwisk autorów, FOTONEWS, PAP, poleceń redakcyjnych ani fragmentów UI. "
+            "Tekst źródłowy może zawierać uszkodzone polskie znaki lub odstępy. Nie kopiuj takich uszkodzeń. "
+            "Jeżeli sensu nie da się jednoznacznie odtworzyć, zwróć pusty full_brief. "
             "Zero ogólników o kategorii, źródle lub tym, gdzie czytać więcej; nie dopisuj faktów spoza artykułu.\n\n"
             f"Tytuł: {title}\nTekst artykułu:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
@@ -179,10 +196,12 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         prompt = (
             "Read the article text and write a BriefRooms summary. "
             "Return only JSON {\"full_brief\":\"...\"}. "
-            "Rules: 3-6 sentences; only the meaning and facts from the text; simple, logical and grammatical. "
+            "Rules: 3-6 complete sentences; only the meaning and facts from the text; simple, logical and grammatical. "
             "Every sentence must stand alone: the reader must understand who/what did something without relying on the previous sentence. "
             "Do not start with orphan reporting verbs, symbols, currencies, editorial commands or clipped fragments. "
             "Do not copy bylines, photo credits, wire labels, editorial commands or UI fragments. "
+            "The source text may contain damaged characters or spacing. Never copy those defects. "
+            "If the meaning cannot be reconstructed unambiguously, return an empty full_brief. "
             "No generic category/source/read-more filler; do not add unsupported facts.\n\n"
             f"Title: {title}\nArticle text:\n{article_text[:MAX_ARTICLE_CHARS]}"
         )
@@ -190,7 +209,16 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": AI_MODEL, "messages": [{"role": "system", "content": "You are a strict news editor. Summarise only what is in the provided article text and return valid JSON."}, {"role": "user", "content": prompt}], "temperature": 0.1, "max_tokens": 520},
+            json={
+                "model": AI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are a strict news editor. Summarise only the provided article text and return valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
+                "max_tokens": 520,
+            },
             timeout=35,
         )
         resp.raise_for_status()
@@ -198,18 +226,37 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
         data = json.loads(raw)
         summary = clean(str(data.get("full_brief", "")), 1600)
-        sents = unique(split_sentences(summary))[:6]
-        if len(sents) >= 3:
-            result = " ".join(sents)
-            cache[key] = {"summary": result, "model": AI_MODEL}
-            return result
+        quality = validate_comment(summary, lang)
+        if quality.valid and ai_review(title, lang, article_text, quality.text):
+            cache[key] = {
+                "summary": quality.text,
+                "model": AI_MODEL,
+                "reviewed": True,
+                "quality_version": QUALITY_VERSION,
+            }
+            return quality.text
+        if not quality.valid:
+            print(f"[WARN] deterministic comment rejection: {title[:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
     except Exception as ex:
         print(f"[WARN] AI article summary failed: {title[:80]} :: {ex}", file=sys.stderr)
     return ""
 
 
-def fallback_summary(article_text: str) -> str:
-    return " ".join(unique(split_sentences(article_text))[:6])
+def ai_review(title: str, lang: str, article_text: str, summary: str) -> bool:
+    """Independent second model call; failure or uncertainty means no publication."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    approved, reason = independent_ai_review(
+        post=requests.post,
+        api_key=api_key or "",
+        model=AI_MODEL,
+        title=title,
+        source_text=article_text,
+        summary=summary,
+        lang=lang,
+    )
+    if not approved:
+        print(f"[WARN] AI review rejected: {title[:80]} :: {reason[:160]}", file=sys.stderr)
+    return approved
 
 
 def process(path: Path, lang: str, cache: dict) -> bool:
@@ -223,20 +270,28 @@ def process(path: Path, lang: str, cache: dict) -> bool:
             title = item.get("title") or ""
             article_text, status = fetch_article_text(link)
             item["article_read_status"] = status
+            for key in ("comment_quality_status", "comment_quality_version", "comment_generation_status"):
+                item.pop(key, None)
             if len(article_text) >= MIN_ARTICLE_CHARS:
-                summary = ai_summarize(title, lang, article_text, link, cache) or fallback_summary(article_text)
+                summary = ai_summarize(title, lang, article_text, link, cache)
                 if summary:
                     item["full_brief"] = summary
                     item["article_text_chars"] = len(article_text)
-                    item["summary_basis"] = "article_text"
-                    changed = True
+                    item["summary_basis"] = "article_text_ai_reviewed"
+                    item["comment_generation_status"] = "ai_review_approved"
+                else:
+                    item.pop("full_brief", None)
+                    item["summary_basis"] = "article_text_ai_rejected"
+                    item["comment_generation_status"] = "rejected_or_unavailable"
             else:
+                item.pop("full_brief", None)
                 item["summary_basis"] = "rss_only_insufficient_article_text"
+                item["comment_generation_status"] = "rejected_or_unavailable"
                 item["article_text_chars"] = len(article_text)
-                changed = True
+            changed = True
     data["brief_methodology"] = {
-        "pl": "Zasada: najpierw przeczytać dostępny tekst artykułu, potem streścić jego sens. Komentarz ma być prosty, logiczny, gramatyczny i samodzielny zdaniowo. Nie może zaczynać się od urwanego czasownika typu „Dodał”, od symbolu, waluty, polecenia redakcyjnego ani środka zdania.",
-        "en": "Rule: first read the available article text, then summarise its meaning. The comment must be simple, logical, grammatical and sentence-complete. It must not start with orphan reporting verbs, symbols, currencies, editorial commands or clipped fragments.",
+        "pl": "Komentarz powstaje wyłącznie z przeczytanego tekstu artykułu. Musi przejść niezależny przegląd AI oraz pełną kontrolę językową; surowy tekst artykułu lub RSS nie może być komentarzem awaryjnym.",
+        "en": "A comment is created only from the retrieved article text. It must pass an independent AI review and the complete language gate; raw article or RSS text is never a fallback comment.",
     }
     if changed:
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

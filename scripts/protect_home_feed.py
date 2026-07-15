@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
+
 FILES = {
     "pl": (Path("pl/home_brief.json"), Path(".cache/home_brief_pl_last_good.json")),
     "en": (Path("en/home_brief.json"), Path(".cache/home_brief_en_last_good.json")),
@@ -42,10 +44,10 @@ def now_iso() -> str:
 
 
 def comment(item: dict[str, Any]) -> str:
-    return str(item.get("full_brief") or item.get("details") or item.get("summary") or "").strip()
+    return str(item.get("full_brief") or "").strip()
 
 
-def valid_card(value: object) -> bool:
+def valid_card(value: object, lang: str) -> bool:
     if not isinstance(value, dict):
         return False
     title = str(value.get("title") or "").strip()
@@ -53,7 +55,17 @@ def valid_card(value: object) -> bool:
     source = str(value.get("source") or "").strip()
     text = comment(value)
     status = str(value.get("comment_quality_status") or "")
-    return bool(title and source and URL_RE.match(link) and len(text) >= 120 and status.startswith("passed_"))
+    if not (
+        title
+        and source
+        and URL_RE.match(link)
+        and status == QUALITY_STATUS
+        and value.get("comment_quality_version") == QUALITY_VERSION
+        and value.get("summary_basis") == "article_text_ai_reviewed"
+        and value.get("comment_generation_status") == "ai_review_approved"
+    ):
+        return False
+    return validate_comment(text, lang).valid
 
 
 def identity(item: dict[str, Any]) -> str:
@@ -63,15 +75,15 @@ def identity(item: dict[str, Any]) -> str:
     return re.sub(r"\W+", "", str(item.get("title") or "").lower())[:160]
 
 
-def cards(data: dict[str, Any], section: str) -> list[dict[str, Any]]:
-    return [dict(x) for x in (data.get(section) or []) if valid_card(x)]
+def cards(data: dict[str, Any], section: str, lang: str) -> list[dict[str, Any]]:
+    return [dict(x) for x in (data.get(section) or []) if valid_card(x, lang)]
 
 
-def total_valid(data: dict[str, Any]) -> int:
-    return len(cards(data, "latest")) + len(cards(data, "radar"))
+def total_valid(data: dict[str, Any], lang: str) -> int:
+    return len(cards(data, "latest", lang)) + len(cards(data, "radar", lang))
 
 
-def merge(new: dict[str, Any], old: dict[str, Any]) -> dict[str, Any]:
+def merge(new: dict[str, Any], old: dict[str, Any], lang: str) -> dict[str, Any]:
     merged_latest: list[dict[str, Any]] = []
     merged_radar: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -83,15 +95,15 @@ def merge(new: dict[str, Any], old: dict[str, Any]) -> dict[str, Any]:
         seen.add(key)
         target.append(item)
 
-    for item in cards(new, "latest"):
+    for item in cards(new, "latest", lang):
         append(merged_latest, item)
-    for item in cards(new, "radar"):
+    for item in cards(new, "radar", lang):
         append(merged_radar, item)
-    for item in cards(old, "latest"):
+    for item in cards(old, "latest", lang):
         if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS:
             break
         append(merged_latest, item)
-    for item in cards(old, "radar"):
+    for item in cards(old, "radar", lang):
         if len(merged_latest) + len(merged_radar) >= MIN_VISIBLE_ITEMS:
             break
         append(merged_radar, item)
@@ -109,7 +121,7 @@ def merge(new: dict[str, Any], old: dict[str, Any]) -> dict[str, Any]:
 def backup_current() -> None:
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
-        count = total_valid(current)
+        count = total_valid(current, lang)
         if count < MIN_VISIBLE_ITEMS:
             print(f"{lang}: backup skipped; only {count} valid cards")
             continue
@@ -126,11 +138,11 @@ def validate_current() -> None:
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
         previous = load(backup_path)
-        new_count = total_valid(current)
-        old_count = total_valid(previous)
+        new_count = total_valid(current, lang)
+        old_count = total_valid(previous, lang)
 
         if new_count >= MIN_VISIBLE_ITEMS:
-            protected = merge(current, previous)
+            protected = merge(current, previous, lang)
             protected["homepage_last_good_protection"] = {
                 "status": "new_feed_validated",
                 "new_valid_items": new_count,
@@ -143,7 +155,7 @@ def validate_current() -> None:
             continue
 
         if old_count:
-            restored = merge(current, previous)
+            restored = merge(current, previous, lang)
             if restored["count"] < MIN_VISIBLE_ITEMS:
                 restored = dict(previous)
                 restored["last_update_attempt_at"] = now_iso()
@@ -154,15 +166,15 @@ def validate_current() -> None:
                 "reason": "new_update_failed_or_had_too_few_approved_comments",
                 "new_valid_items": new_count,
                 "previous_valid_items": old_count,
-                "visible_items": total_valid(restored),
+                "visible_items": total_valid(restored, lang),
             }
             save(data_path, restored)
             save(backup_path, restored)
-            print(f"{lang}: rejected incomplete update and kept {total_valid(restored)} valid cards")
+            print(f"{lang}: rejected incomplete update and kept {total_valid(restored, lang)} valid cards")
             continue
 
         # First-run safety: keep any usable cards instead of replacing the feed with nothing.
-        degraded = merge(current, {})
+        degraded = merge(current, {}, lang)
         degraded["homepage_last_good_protection"] = {
             "status": "degraded_no_backup_available",
             "new_valid_items": new_count,

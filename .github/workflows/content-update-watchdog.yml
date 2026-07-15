@@ -12,6 +12,10 @@ on:
       - "config/workflow_templates/hot-x-topics.yml"
       - "scripts/content_update_watchdog.py"
       - "scripts/protect_home_feed.py"
+      - "scripts/comment_quality.py"
+      - "scripts/read_and_summarize_articles.py"
+      - "scripts/validate_brief_quality.py"
+      - "tests/test_comment_quality.py"
       - "scripts/validate_hot_x_comments.py"
       - ".github/workflows/build-home-brief.yml"
       - ".github/workflows/hot-x-topics.yml"
@@ -40,6 +44,9 @@ jobs:
       - name: Install recovery dependencies
         run: python -m pip install --upgrade pip feedparser requests
 
+      - name: Test PL and EN comment quality contract
+        run: python -m unittest discover -s tests -p "test_comment_quality.py"
+
       - name: Check schedules, staleness and last-good data
         id: watch
         run: python scripts/content_update_watchdog.py --github-output "$GITHUB_OUTPUT"
@@ -53,13 +60,13 @@ jobs:
           python scripts/protect_home_feed.py --backup || true
           python scripts/build_home_brief_pl.py || true
           python scripts/build_home_brief_en.py || true
-          python scripts/read_and_summarize_articles.py || true
-          python scripts/enforce_brief_length.py || true
-          python scripts/remove_urgent_badge_categories.py || true
-          python scripts/validate_brief_quality.py || true
-          python scripts/dedupe_home_brief_stories.py || true
-          python scripts/hide_urgent_home_labels.py || true
-          python scripts/patch_brief_comment_source.py || true
+          python scripts/read_and_summarize_articles.py
+          python scripts/enforce_brief_length.py
+          python scripts/remove_urgent_badge_categories.py
+          python scripts/validate_brief_quality.py
+          python scripts/dedupe_home_brief_stories.py
+          python scripts/hide_urgent_home_labels.py
+          python scripts/patch_brief_comment_source.py
           python scripts/protect_home_feed.py --validate
 
       - name: Recover stale Hot X feed
