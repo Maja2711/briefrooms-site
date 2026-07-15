@@ -30,7 +30,7 @@ function repairMojibake(text){
 }
 function normalizeText(text){return repairMojibake(text).replace(/\s+/g,' ').replace(/\s+-\s+TVN24\b/gi,'').replace(/\s+-\s+[^.!?]{2,35}$/,'').trim();}
 function visibleCategory(cat){const c=repairMojibake(cat||'Brief');return /^(pilne|breaking|urgent|alert)$/i.test(c)?'Aktualności':c;}
-function approvedComment(item){const text=normalizeText(item.full_brief||'');return item.comment_quality_status==='passed_strict_v4'&&item.comment_quality_version===4&&item.summary_basis==='article_text_ai_reviewed'&&item.comment_generation_status==='ai_review_approved'&&text?text:'';}
+function approvedComment(item){const text=normalizeText(item.full_brief||'');return item.comment_quality_status==='passed_strict_v5'&&item.comment_quality_version===5&&item.summary_basis==='article_text_ai_reviewed'&&item.comment_generation_status==='ai_review_approved'&&text?text:'';}
 function makeBriefSections(item,link){
   const source=repairMojibake(item.source||hostFromUrl(link));
   const category=visibleCategory(item.category||'Brief');

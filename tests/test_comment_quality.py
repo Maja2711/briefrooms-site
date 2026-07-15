@@ -91,6 +91,50 @@ class CommentQualityTests(unittest.TestCase):
         self.assertFalse(result.valid)
         self.assertIn("broken_polish_word", result.reasons)
 
+    def test_truncated_lowercase_fragment_is_rejected(self):
+        broken = VALID_PL.replace(
+            ".",
+            ", m. Kolejne zdanie opisuje potwierdzone ustalenia sprawy.",
+            1,
+        )
+        result = quality.validate_comment(broken, "pl")
+        self.assertFalse(result.valid)
+        self.assertIn("truncated_lowercase_fragment", result.reasons)
+
+    def test_invalid_polish_case_after_przez_is_rejected(self):
+        broken = (
+            "Prezydent Litwy zosta\u0142 zacytowany przez telewizj\u0105 LRT. "
+            + " ".join(quality.split_sentences(VALID_PL)[1:])
+        )
+        result = quality.validate_comment(broken, "pl")
+        self.assertFalse(result.valid)
+        self.assertIn("invalid_case_after_przez", result.reasons)
+
+    def test_malformed_english_quote_spacing_is_rejected(self):
+        broken = VALID_EN.replace(
+            ".",
+            ", calling them 'ratepayers. ' Officials provided no further details.",
+            1,
+        )
+        result = quality.validate_comment(broken, "en")
+        self.assertFalse(result.valid)
+        self.assertIn("malformed_quote_spacing", result.reasons)
+
+    def test_rephrased_duplicate_information_is_rejected(self):
+        broken = VALID_EN + (
+            " Environmental groups and several elected officials backed the decision and demanded firm guarantees "
+            "on costs and energy security."
+        )
+        result = quality.validate_comment(broken, "en")
+        self.assertFalse(result.valid)
+        self.assertIn("near_duplicate_sentence", result.reasons)
+
+    def test_source_clipping_keeps_only_complete_sentences(self):
+        first = "Officials published a complete and verified first sentence for the report."
+        source = first + " The second sentence is intentionally much longer and must never be clipped halfway through."
+        self.assertEqual(first, quality.clip_complete_text(source, len(first) + 35))
+        self.assertEqual("", quality.clip_complete_text("A" * 200, 100))
+
     def test_mojibake_and_publisher_fragments_are_rejected(self):
         broken = VALID_PL.replace("Władze", "Åadze").replace("Moratorium poparły", "FOTONEWS Moratorium poparły")
         result = quality.validate_comment(broken, "pl")
@@ -200,6 +244,14 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(quality.QUALITY_STATUS, result["latest"][0]["comment_quality_status"])
         self.assertEqual(1, result["comment_quality_gate"]["rejected_count"])
 
+    def test_final_gate_never_promotes_a_stale_review_contract(self):
+        stale = approved_item(VALID_PL)
+        stale["comment_quality_status"] = f"passed_strict_v{quality.QUALITY_VERSION - 1}"
+        stale["comment_quality_version"] = quality.QUALITY_VERSION - 1
+        comment, reasons = gate.publishable_comment(stale, "pl")
+        self.assertEqual("", comment)
+        self.assertEqual(("stale_quality_contract",), reasons)
+
     def test_last_good_protection_revalidates_text_and_version(self):
         self.assertTrue(protect.valid_card(approved_item(VALID_PL), "pl"))
         self.assertTrue(protect.valid_card(approved_item(VALID_EN, "en"), "en"))
@@ -293,7 +345,7 @@ class PipelineContractTests(unittest.TestCase):
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
                 "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4o",
             },
         ):
             runtime = quality.get_ai_runtime()
@@ -301,7 +353,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual("github-models", runtime.provider)
         self.assertEqual("https://models.github.ai/inference/chat/completions", runtime.endpoint)
         self.assertEqual("openai/gpt-4o-mini", runtime.generation_model)
-        self.assertEqual("openai/gpt-4.1-mini", runtime.review_model)
+        self.assertEqual("openai/gpt-4o", runtime.review_model)
 
     def test_news_batch_uses_two_models_and_rejects_missing_review(self):
         first = "The government published detailed programme rules that will take effect after public consultation ends."
@@ -338,7 +390,7 @@ class PipelineContractTests(unittest.TestCase):
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
                 "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4o",
             },
         ):
             result = news_batch.summarize_news_items(
@@ -350,7 +402,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual({"en-0"}, set(result))
         self.assertEqual(2, post.call_count)
         self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
-        self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4o", post.call_args_list[1].kwargs["json"]["model"])
 
     def test_batch_review_splits_large_sets_into_small_requests(self):
         entries = [
@@ -366,11 +418,20 @@ class PipelineContractTests(unittest.TestCase):
             self.FakeResponse({
                 "reviews": [
                     {"id": f"pl-{index}", "approved": True, "reason": "approved"}
-                    for index in range(8)
+                    for index in range(3)
                 ]
             }),
             self.FakeResponse({
-                "reviews": [{"id": "pl-8", "approved": True, "reason": "approved"}]
+                "reviews": [
+                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
+                    for index in range(3, 6)
+                ]
+            }),
+            self.FakeResponse({
+                "reviews": [
+                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
+                    for index in range(6, 9)
+                ]
             }),
         ]
         runtime = quality.AiRuntime(
@@ -378,7 +439,7 @@ class PipelineContractTests(unittest.TestCase):
             "token",
             "https://models.github.ai/inference/chat/completions",
             "openai/gpt-4o-mini",
-            "openai/gpt-4.1-mini",
+            "openai/gpt-4o",
         )
         post = mock.Mock(side_effect=responses)
         result = quality.independent_ai_review_batch(
@@ -387,7 +448,7 @@ class PipelineContractTests(unittest.TestCase):
             entries=entries,
             lang="pl",
         )
-        self.assertEqual(2, post.call_count)
+        self.assertEqual(3, post.call_count)
         self.assertTrue(all(approved for approved, _reason in result.values()))
 
     def test_read_timeouts_are_bounded_to_two_attempts(self):
@@ -399,7 +460,7 @@ class PipelineContractTests(unittest.TestCase):
             "token",
             "https://models.github.ai/inference/chat/completions",
             "openai/gpt-4o-mini",
-            "openai/gpt-4.1-mini",
+            "openai/gpt-4o",
         )
         post = mock.Mock(side_effect=ReadTimeout("timed out"))
         with (
@@ -426,7 +487,7 @@ class PipelineContractTests(unittest.TestCase):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("models: read", source, relative)
             self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
-            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
+            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4o", source, relative)
         workflow_groups = {
             ".github/workflows/news-pl.yml": "group: news-pl-publishing",
             ".github/workflows/news-en.yml": "group: news-en-publishing",

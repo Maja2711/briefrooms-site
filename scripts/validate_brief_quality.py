@@ -23,6 +23,12 @@ REQUIRED_GENERATION_STATUS = "ai_review_approved"
 
 
 def publishable_comment(item: dict, lang: str) -> tuple[str, tuple[str, ...]]:
+    existing_version = item.get("comment_quality_version")
+    existing_status = item.get("comment_quality_status")
+    if existing_version is not None and existing_version != QUALITY_VERSION:
+        return "", ("stale_quality_contract",)
+    if existing_status and existing_status != QUALITY_STATUS:
+        return "", ("stale_quality_contract",)
     if item.get("summary_basis") != REQUIRED_BASIS:
         return "", ("not_ai_reviewed_article_text",)
     if item.get("comment_generation_status") != REQUIRED_GENERATION_STATUS:

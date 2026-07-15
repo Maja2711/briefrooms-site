@@ -24,6 +24,7 @@ import requests
 
 from comment_quality import (
     QUALITY_VERSION,
+    clip_complete_text,
     decode_http_response,
     get_ai_runtime,
     independent_ai_review,
@@ -38,7 +39,7 @@ USER_AGENT = "BriefRoomsBot/2.1 (+https://briefrooms.com)"
 CACHE_PATH = Path(".cache/article_full_briefs.json")
 MIN_ARTICLE_CHARS = 700
 MAX_ARTICLE_CHARS = 6000
-CACHE_VERSION = f"article-brief-v7-provider-batch-strict-{QUALITY_VERSION}"
+CACHE_VERSION = f"article-brief-v8-complete-source-review-strict-{QUALITY_VERSION}"
 
 NOISE = re.compile(
     r"cookie|cookies|reklama|advertisement|subskryb|newsletter|zaloguj|privacy|rodo|"
@@ -141,14 +142,14 @@ def extract_article_text(raw_html: str) -> str:
     paras = []
     for block in blocks[:3]:
         for p in re.findall(r"<p[^>]*>([\s\S]*?)</p>", block, flags=re.I)[:80]:
-            t = clean(p, 1200)
+            t = clip_complete_text(clean(p), 1200)
             if len(t) >= 55 and not NOISE.search(t):
                 paras.append(t)
             if len(paras) >= 18:
                 break
         if len(paras) >= 18:
             break
-    return clean(" ".join(paras), MAX_ARTICLE_CHARS)
+    return clip_complete_text(clean(" ".join(paras)), MAX_ARTICLE_CHARS)
 
 
 def fetch_article_text(url: str) -> tuple[str, str]:
@@ -169,6 +170,9 @@ def fetch_article_text(url: str) -> tuple[str, str]:
 def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dict) -> str:
     runtime = get_ai_runtime()
     if not runtime.available or not article_text:
+        return ""
+    article_text = clip_complete_text(article_text, MAX_ARTICLE_CHARS)
+    if not article_text:
         return ""
     key = hashlib.sha256(f"{CACHE_VERSION}|{lang}|{link}|{title}|{article_text[:1600]}".encode("utf-8")).hexdigest()[:48]
     cached = cache.get(key)
@@ -219,7 +223,7 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
             temperature=0.1,
             timeout=35,
         )
-        summary = clean(str(data.get("full_brief", "")), 1600)
+        summary = clip_complete_text(clean(str(data.get("full_brief", ""))), 1600)
         quality = validate_comment(summary, lang)
         if quality.valid and ai_review(title, lang, article_text, quality.text):
             cache[key] = {
@@ -280,7 +284,7 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
     current_chars = 0
     for candidate in pending:
         size = len(candidate["title"]) + min(3200, len(candidate["article_text"]))
-        if current and (len(current) >= 8 or current_chars + size > 24000):
+        if current and (len(current) >= 4 or current_chars + size > 12000):
             chunks.append(current)
             current = []
             current_chars = 0
@@ -296,7 +300,7 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
             {
                 "id": candidate["id"],
                 "title": candidate["title"][:220],
-                "article_text": candidate["article_text"][:3200],
+                "article_text": clip_complete_text(candidate["article_text"], 3200),
             }
             for candidate in chunk
         ]
@@ -313,7 +317,9 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                 "bylines, publisher UI or editorial commands."
             )
         prompt = (
-            f"{rules} If an item cannot be summarized safely, return an empty full_brief. "
+            f"{rules} Every sentence must add a new fact; do not repeat or paraphrase information already stated. "
+            "Use correct grammar, inflection, quotation marks and punctuation. "
+            "If an item cannot be summarized safely, return an empty full_brief. "
             "Return every id exactly once as JSON: "
             '{"items":[{"id":"same id","full_brief":"..."}]}.\n\n'
             + json.dumps(source_items, ensure_ascii=False)
@@ -342,7 +348,10 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                 if item_id not in expected or item_id in seen:
                     continue
                 seen.add(item_id)
-                quality = validate_comment(clean(str(row.get("full_brief") or ""), 1600), lang)
+                quality = validate_comment(
+                    clip_complete_text(clean(str(row.get("full_brief") or "")), 1600),
+                    lang,
+                )
                 if quality.valid:
                     generated[item_id] = quality.text
                 else:

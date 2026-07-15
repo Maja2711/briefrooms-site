@@ -10,7 +10,7 @@ import os
 import re
 import time
 
-QUALITY_VERSION = 4
+QUALITY_VERSION = 5
 QUALITY_STATUS = f"passed_strict_v{QUALITY_VERSION}"
 MIN_SENTENCES = 3
 MAX_SENTENCES = 6
@@ -77,6 +77,17 @@ BROKEN_EN = re.compile(
     r"wouldn t|shouldn t|won t|can t|it s|they re|we re|you re)\b",
     re.I,
 )
+TRUNCATED_LOWERCASE_FRAGMENT = re.compile(
+    r",\s*[a-z\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c]\.(?=\s+[A-Z\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b])"
+)
+MALFORMED_QUOTE_SPACING = re.compile(
+    r"[.!?]\s+[\"'\u2019\u201d](?=\s|[A-Z\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b])"
+)
+BAD_PUNCTUATION_SPACING = re.compile(r"\s+[,.!?;:](?=\s|$)")
+BAD_GRAMMAR_PL = re.compile(
+    r"\bprzez\s+(?:telewizj\u0105|agencj\u0105|redakcj\u0105)\b",
+    re.I,
+)
 BYLINE_PL = re.compile(
     r"^(?:(?:[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]+|[A-ZĄĆĘŁŃÓŚŹŻ]\.)\s+){1,5}"
     r"[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż-]+\s*/+",
@@ -85,6 +96,11 @@ BYLINE_EN = re.compile(r"^(?:By\s+)?(?:[A-Z][a-z-]+\s+){1,4}[A-Z][a-z-]+\s*/+")
 
 PL_ALLOWED_ONE = {"a", "i", "o", "u", "w", "z"}
 PL_INVALID_TWO = {"cz"}
+DUPLICATE_STOPWORDS = {
+    "and", "are", "for", "from", "has", "have", "that", "the", "their", "this", "was", "were", "with",
+    "oraz", "jest", "ktory", "ktora", "ktore", "ktorych", "przez", "sie", "tego", "tym", "dla", "jako",
+    "kt\u00f3ry", "kt\u00f3ra", "kt\u00f3re", "kt\u00f3rych", "si\u0119",
+}
 
 
 @dataclass(frozen=True)
@@ -117,7 +133,7 @@ def get_ai_runtime() -> AiRuntime:
             or os.getenv("BRIEFROOMS_AI_MODEL")
             or "gpt-4o-mini"
         )
-        review_model = os.getenv("NEWS_AI_REVIEW_MODEL") or generation_model
+        review_model = os.getenv("NEWS_AI_REVIEW_MODEL") or "gpt-4o"
         return AiRuntime(
             provider="openai",
             api_key=openai_key,
@@ -136,7 +152,7 @@ def get_ai_runtime() -> AiRuntime:
                 "https://models.github.ai/inference/chat/completions",
             ),
             generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o-mini"),
-            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1-mini"),
+            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4o"),
         )
 
     return AiRuntime("unavailable", "", "", "", "")
@@ -206,6 +222,30 @@ def normalize_text(value: str) -> str:
         text = text.replace(bad, good)
     text = re.sub(r"\s+", " ", text).strip(" -–—·•/\t\n\r")
     return text
+
+
+def _abbreviation_at_end(value: str) -> bool:
+    return bool(re.search(
+        r"(?:\b(?:e\.g|i\.e|m\.in|dr|prof|np|itd|itp|proc|tys|mln|mld|nr|art|ust|pkt|godz|"
+        r"mr|mrs|ms|vs|etc|p\.m|a\.m|r|m)\.|(?:\b[A-Z]\.){1,4})$",
+        value,
+        re.I,
+    ))
+
+
+def clip_complete_text(value: str, limit: int) -> str:
+    """Clip source material only after a complete sentence, never mid-sentence."""
+    text = normalize_text(value)
+    if len(text) <= limit:
+        return text
+
+    prefix = text[:limit].rstrip()
+    boundaries = list(re.finditer(r"[.!?](?:[\"'\u2019\u201d)\]]+)?(?=\s|$)", prefix))
+    for boundary in reversed(boundaries):
+        candidate = prefix[:boundary.end()].strip()
+        if len(candidate) >= 55 and not _abbreviation_at_end(candidate):
+            return candidate
+    return ""
 
 
 def decode_http_response(response) -> str:
@@ -280,9 +320,14 @@ def independent_ai_review(
             "complete and easy to understand, with no missing characters, split words or publisher UI fragments, and "
             "every claim is supported by the source material. One defect means approved=false."
         )
+    defect_rule = (
+        "Reject any grammar or inflection error, clipped fragment, malformed quotation, punctuation defect, "
+        "or repeated information. One defect means approved=false."
+    )
     prompt = (
-        f"{instruction}\nReturn only JSON {{\"approved\":true|false,\"reason\":\"short reason\"}}.\n\n"
-        f"Title: {title}\n\nSource material:\n{source_text[:4500]}\n\nComment to review:\n{summary}"
+        f"{instruction} {defect_rule}\n"
+        "Return only JSON {\"approved\":true|false,\"reason\":\"short reason\"}.\n\n"
+        f"Title: {title}\n\nSource material:\n{clip_complete_text(source_text, 4500)}\n\nComment to review:\n{summary}"
     )
     try:
         payload = request_json_completion(
@@ -334,6 +379,11 @@ def independent_ai_review_batch(
             "supported by the source material."
         )
 
+    instruction += (
+        " Reject any grammar or inflection error, clipped fragment, malformed quotation, punctuation defect, "
+        "or repeated information. One defect means approved=false."
+    )
+
     chunks: list[list[dict[str, str]]] = []
     current: list[dict[str, str]] = []
     current_chars = 0
@@ -341,11 +391,11 @@ def independent_ai_review_batch(
         compact = {
             "id": str(entry.get("id", "")),
             "title": str(entry.get("title", ""))[:220],
-            "source": str(entry.get("source_text", ""))[:2600],
+            "source": clip_complete_text(str(entry.get("source_text", "")), 2600),
             "comment": str(entry.get("summary", ""))[:1600],
         }
         size = sum(len(value) for value in compact.values())
-        if current and (len(current) >= 8 or current_chars + size > 14000):
+        if current and (len(current) >= 3 or current_chars + size > 7000):
             chunks.append(current)
             current = []
             current_chars = 0
@@ -492,6 +542,24 @@ def _sentence_reason(sentence: str, lang: str) -> str:
     return ""
 
 
+def _meaning_tokens(sentence: str) -> set[str]:
+    return {
+        token.lower()
+        for token in re.findall(r"[^\W\d_]{3,}", sentence, flags=re.UNICODE)
+        if token.lower() not in DUPLICATE_STOPWORDS
+    }
+
+
+def _has_near_duplicate_sentence(sentences: list[str]) -> bool:
+    token_sets = [_meaning_tokens(sentence) for sentence in sentences]
+    for index, left in enumerate(token_sets):
+        for right in token_sets[index + 1:]:
+            smaller = min(len(left), len(right))
+            if smaller >= 6 and len(left & right) / smaller >= 0.55:
+                return True
+    return False
+
+
 def validate_text(
     value: str,
     lang: str,
@@ -512,6 +580,20 @@ def validate_text(
         reasons.append("control_character")
     if MOJIBAKE.search(text):
         reasons.append("mojibake")
+    if TRUNCATED_LOWERCASE_FRAGMENT.search(text):
+        reasons.append("truncated_lowercase_fragment")
+    if MALFORMED_QUOTE_SPACING.search(text):
+        reasons.append("malformed_quote_spacing")
+    if BAD_PUNCTUATION_SPACING.search(text):
+        reasons.append("bad_punctuation_spacing")
+    if text.count('"') % 2:
+        reasons.append("unbalanced_double_quote")
+    if text.count("\u201e") != text.count("\u201d") and ("\u201e" in text or "\u201d" in text):
+        reasons.append("unbalanced_polish_quote")
+    if text.count("\u201c") != text.count("\u201d") and "\u201c" in text:
+        reasons.append("unbalanced_english_quote")
+    if lang == "pl" and BAD_GRAMMAR_PL.search(text):
+        reasons.append("invalid_case_after_przez")
     if len(text) < min_chars:
         reasons.append("comment_too_short")
     if len(text) > max_chars:
@@ -530,6 +612,8 @@ def validate_text(
         if key in seen:
             reasons.append("duplicate_sentence")
         seen.add(key)
+    if _has_near_duplicate_sentence(sentences):
+        reasons.append("near_duplicate_sentence")
 
     unique_reasons = tuple(dict.fromkeys(reasons))
     return QualityResult(not unique_reasons, text, tuple(sentences), unique_reasons)
