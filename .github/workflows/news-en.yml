@@ -55,10 +55,7 @@ jobs:
 
       - name: Stagger AI generation after a code push
         if: github.event_name == 'push'
-        run: |
-          if git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(scripts/build_home_brief_|scripts/read_and_summarize_articles.py|scripts/fetch_news_pl|scripts/news_comment_batch.py|scripts/comment_quality.py|\.github/workflows/(build-home-brief|news-pl)\.yml)'; then
-            sleep 70m
-          fi
+        run: sleep 70m
 
       - name: Generate EN News
         env:
