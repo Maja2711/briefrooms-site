@@ -289,7 +289,7 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
     current_chars = 0
     for candidate in pending:
         size = len(candidate["title"]) + min(3200, len(candidate["article_text"]))
-        if current and (len(current) >= 4 or current_chars + size > 12000):
+        if current and (len(current) >= 6 or current_chars + size > 20000):
             chunks.append(current)
             current = []
             current_chars = 0

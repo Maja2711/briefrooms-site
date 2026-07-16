@@ -99,7 +99,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
     current_chars = 0
     for candidate in pending:
         size = len(candidate["title"]) + len(candidate["source_text"])
-        if current and (len(current) >= 8 or current_chars + size > 8000):
+        if current and (len(current) >= 10 or current_chars + size > 20000):
             chunks.append(current)
             current = []
             current_chars = 0

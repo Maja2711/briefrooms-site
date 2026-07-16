@@ -170,7 +170,8 @@ def backup_current() -> None:
         print(f"{lang}: saved {count} last-good homepage cards")
 
 
-def validate_current(passive: bool = False) -> None:
+def validate_current(passive: bool = False) -> bool:
+    complete = True
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
         previous = load(backup_path)
@@ -217,6 +218,7 @@ def validate_current(passive: bool = False) -> None:
             save(data_path, restored)
             save(backup_path, restored)
             print(f"{lang}: rejected incomplete update and kept {total_valid(restored, lang)} valid cards")
+            complete = False
             continue
 
         if passive:
@@ -224,6 +226,7 @@ def validate_current(passive: bool = False) -> None:
                 f"{lang}: passive check found {new_count} usable cards and no "
                 "current-contract backup; feed left unchanged"
             )
+            complete = False
             continue
 
         # First-run safety: keep any usable cards instead of replacing the feed with nothing.
@@ -235,6 +238,8 @@ def validate_current(passive: bool = False) -> None:
         }
         save(data_path, degraded)
         print(f"{lang}: no backup available; preserved {degraded['count']} usable cards")
+        complete = False
+    return complete
 
 
 def main() -> None:
@@ -244,7 +249,12 @@ def main() -> None:
     group.add_argument("--validate", action="store_true")
     group.add_argument("--validate-passive", action="store_true")
     args = parser.parse_args()
-    backup_current() if args.backup else validate_current(passive=args.validate_passive)
+    if args.backup:
+        backup_current()
+        return
+    complete = validate_current(passive=args.validate_passive)
+    if args.validate and not complete:
+        raise SystemExit("Homepage update incomplete: fewer than 8 fresh, reviewed cards")
 
 
 if __name__ == "__main__":

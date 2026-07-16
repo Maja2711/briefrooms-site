@@ -404,7 +404,7 @@ class PipelineContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with mock.patch.object(protect, "FILES", {"pl": (current_path, backup_path)}):
-                protect.validate_current()
+                self.assertFalse(protect.validate_current())
             restored = json.loads(current_path.read_text(encoding="utf-8"))
         self.assertEqual(6, protect.total_valid(restored, "pl"))
         self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
@@ -429,7 +429,7 @@ class PipelineContractTests(unittest.TestCase):
                     json.dumps({"latest": [], "radar": []}, ensure_ascii=False),
                     encoding="utf-8",
                 )
-                protect.validate_current()
+                self.assertFalse(protect.validate_current())
             restored = json.loads(current_path.read_text(encoding="utf-8"))
         self.assertEqual(5, protect.total_valid(restored, "en"))
         self.assertEqual("restored_or_completed_from_last_good", restored["homepage_last_good_protection"]["status"])
@@ -562,16 +562,16 @@ class PipelineContractTests(unittest.TestCase):
             {
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
             },
         ):
             runtime = quality.get_ai_runtime()
         self.assertTrue(runtime.available)
         self.assertEqual("github-models", runtime.provider)
         self.assertEqual("https://models.github.ai/inference/chat/completions", runtime.endpoint)
-        self.assertEqual("openai/gpt-4o", runtime.generation_model)
-        self.assertEqual("openai/gpt-4.1", runtime.review_model)
+        self.assertEqual("openai/gpt-4o-mini", runtime.generation_model)
+        self.assertEqual("openai/gpt-4.1-mini", runtime.review_model)
 
     def test_news_batch_uses_two_models_and_rejects_missing_review(self):
         first = "The government published detailed programme rules that will take effect after public consultation ends."
@@ -607,8 +607,8 @@ class PipelineContractTests(unittest.TestCase):
             {
                 "OPENAI_API_KEY": "",
                 "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
             },
         ):
             result = news_batch.summarize_news_items(
@@ -619,10 +619,10 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual({"en-0"}, set(result))
         self.assertEqual(2, post.call_count)
-        self.assertEqual("openai/gpt-4o", post.call_args_list[0].kwargs["json"]["model"])
-        self.assertEqual("openai/gpt-4.1", post.call_args_list[1].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
+        self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
 
-    def test_batch_review_splits_large_sets_into_small_requests(self):
+    def test_batch_review_combines_entries_within_the_daily_request_budget(self):
         entries = [
             {
                 "id": f"pl-{index}",
@@ -632,26 +632,12 @@ class PipelineContractTests(unittest.TestCase):
             }
             for index in range(9)
         ]
-        responses = [
-            self.FakeResponse({
-                "reviews": [
-                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
-                    for index in range(3)
-                ]
-            }),
-            self.FakeResponse({
-                "reviews": [
-                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
-                    for index in range(3, 6)
-                ]
-            }),
-            self.FakeResponse({
-                "reviews": [
-                    {"id": f"pl-{index}", "approved": True, "reason": "approved"}
-                    for index in range(6, 9)
-                ]
-            }),
-        ]
+        responses = [self.FakeResponse({
+            "reviews": [
+                {"id": f"pl-{index}", "approved": True, "reason": "approved"}
+                for index in range(9)
+            ]
+        })]
         runtime = quality.AiRuntime(
             "github-models",
             "token",
@@ -666,7 +652,7 @@ class PipelineContractTests(unittest.TestCase):
             entries=entries,
             lang="pl",
         )
-        self.assertEqual(3, post.call_count)
+        self.assertEqual(1, post.call_count)
         self.assertTrue(all(approved for approved, _reason in result.values()))
 
     def test_read_timeouts_are_bounded_to_two_attempts(self):
@@ -694,6 +680,38 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual(2, post.call_count)
 
+    def test_github_models_requests_are_paced_when_configured(self):
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        response = self.FakeResponse({"value": "ok"})
+        post = mock.Mock(return_value=response)
+        previous = quality._LAST_GITHUB_MODELS_REQUEST_AT
+        quality._LAST_GITHUB_MODELS_REQUEST_AT = 0.0
+        try:
+            with (
+                mock.patch.dict(os.environ, {"GITHUB_MODELS_MIN_INTERVAL_SECONDS": "4.2"}),
+                mock.patch.object(quality.time, "monotonic", side_effect=[10.0, 10.0, 11.0, 14.2]),
+                mock.patch.object(quality.time, "sleep") as sleep,
+            ):
+                for _ in range(2):
+                    quality.request_json_completion(
+                        post=post,
+                        runtime=runtime,
+                        messages=[{"role": "user", "content": "test"}],
+                        max_tokens=100,
+                        temperature=0,
+                    )
+        finally:
+            quality._LAST_GITHUB_MODELS_REQUEST_AT = previous
+        sleep.assert_called_once()
+        self.assertAlmostEqual(3.2, sleep.call_args.args[0])
+        self.assertEqual(2, post.call_count)
+
     def test_production_workflows_grant_and_pass_github_models_access(self):
         for relative in (
             ".github/workflows/build-home-brief.yml",
@@ -705,9 +723,10 @@ class PipelineContractTests(unittest.TestCase):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("models: read", source, relative)
             self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
-            self.assertIn("NEWS_AI_MODEL: gpt-4o", source, relative)
-            self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o", source, relative)
-            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1", source, relative)
+            self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", source, relative)
+            self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", source, relative)
+            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
+            self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"', source, relative)
         workflow_groups = {
             ".github/workflows/news-pl.yml": "group: news-pl-publishing",
             ".github/workflows/news-en.yml": "group: news-en-publishing",
@@ -715,6 +734,9 @@ class PipelineContractTests(unittest.TestCase):
         for relative, marker in workflow_groups.items():
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(marker, source, relative)
+            self.assertIn("cancel-in-progress: true", source, relative)
+        self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
+        self.assertIn('cron: "40 */4 * * *"', (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"))
         watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
         self.assertIn('"--validate-passive"', watchdog)
         for relative in (
