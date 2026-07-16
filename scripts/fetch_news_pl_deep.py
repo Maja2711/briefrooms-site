@@ -27,7 +27,7 @@ BAD_AI_RE = re.compile(
     r"obserwacji życia publicznego|test zaufania|pojedynczej ciekawostki|sam fakt jest punktem wyjścia)",
     re.I,
 )
-MIN_STRICT_COMMENTS = 8
+SECTION_PUBLISH_BOUNDS = base.SECTION_PUBLISH_BOUNDS
 
 SECTION_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -85,6 +85,9 @@ def _strict_items(section_key: str, items: list[dict], require_comments: bool) -
                 continue
             tvn24_used += 1
 
+        if section_key == "polityka" and not str(item.get("thumbnail_url") or "").strip():
+            continue
+
         if require_comments:
             if not (
                 item.get("comment_quality_status") == QUALITY_STATUS
@@ -116,7 +119,9 @@ def fetch_section_strict(section_key: str, summarize: bool = True):
 def finalize_sections_strict(sections: dict) -> dict:
     sections = _original_finalize_sections(sections)
     return {
-        section_key: _strict_items(section_key, items, require_comments=True)
+        section_key: _strict_items(section_key, items, require_comments=True)[
+            :SECTION_PUBLISH_BOUNDS[section_key][1]
+        ]
         for section_key, items in sections.items()
     }
 
@@ -139,11 +144,21 @@ def _add_section_tabs(html: str) -> str:
 
 
 def render_html_strict(sections: dict) -> str:
+    for section_key, (minimum, maximum) in SECTION_PUBLISH_BOUNDS.items():
+        count = len(sections.get(section_key, []))
+        if not minimum <= count <= maximum:
+            raise RuntimeError(
+                f"PL news publication blocked: {section_key} has {count} items; "
+                f"required range is {minimum}-{maximum}"
+            )
+
+    politics_without_image = [
+        item for item in sections["polityka"] if not str(item.get("thumbnail_url") or "").strip()
+    ]
+    if politics_without_image:
+        raise RuntimeError("PL news publication blocked: every politics item must have a thumbnail")
+
     accepted = [item for items in sections.values() for item in items]
-    if len(accepted) < MIN_STRICT_COMMENTS:
-        raise RuntimeError(
-            f"PL news publication blocked: only {len(accepted)} strictly approved comments"
-        )
     for item in accepted:
         quality = validate_news_comment(item.get("ai_summary", ""), "pl")
         if not quality.valid:

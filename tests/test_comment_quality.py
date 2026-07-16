@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -29,6 +29,7 @@ if "dateutil" not in sys.modules:
 import read_and_summarize_articles as reader
 import enforce_brief_length as methodology
 import build_home_brief_en as home_en
+import build_home_brief_pl as home_pl
 import fetch_news_en as news_en
 import fetch_news_pl as news_pl
 import news_comment_batch as news_batch
@@ -341,6 +342,40 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIsNone(home_en.make_item(entry, "Breaking"))
         article_excerpt.assert_not_called()
 
+    def test_homepage_contract_requires_eight_fresh_items_in_both_languages(self):
+        self.assertEqual({"pl": 8, "en": 8}, protect.MIN_VISIBLE_ITEMS)
+        contract = json.loads((ROOT / "data/content_update_contract.json").read_text(encoding="utf-8"))
+        self.assertEqual(8, contract["homepage_and_news"]["minimum_visible_cards"])
+        self.assertGreaterEqual(home_pl.MAX_ITEMS, 16)
+        self.assertGreaterEqual(home_en.MAX_ITEMS, 16)
+        now = 1_800_000_000.0
+        self.assertTrue(home_pl.is_fresh_timestamp(now - 23 * 3600, now))
+        self.assertTrue(home_en.is_fresh_timestamp(now - 23 * 3600, now))
+        self.assertFalse(home_pl.is_fresh_timestamp(now - 25 * 3600, now))
+        self.assertFalse(home_en.is_fresh_timestamp(now - 25 * 3600, now))
+
+    def test_homepage_images_have_no_visible_category_labels(self):
+        for relative in ("pl/index.html", "en/index.html"):
+            page = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn('<span class="tag">', page)
+            self.assertNotIn("brief-card .tag", page)
+
+    def test_stale_homepage_feed_is_not_a_last_good_source(self):
+        stale = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+        payload = {"updated_at": stale, "latest": [approved_item(VALID_PL)], "radar": []}
+        self.assertEqual(0, protect.total_valid(payload, "pl"))
+
+    def test_foreign_source_polish_comment_must_be_longer(self):
+        one_sentence = (
+            "Światowa Organizacja Zdrowia opublikowała nowe zalecenia dotyczące monitorowania zakażeń w szpitalach."
+        )
+        two_sentences = (
+            "Światowa Organizacja Zdrowia opublikowała nowe zalecenia dotyczące monitorowania zakażeń w szpitalach. "
+            "Dokument opisuje grupy ryzyka oraz działania, które placówki powinny wdrożyć podczas kolejnych kontroli."
+        )
+        self.assertFalse(news_batch._meets_comment_contract(one_sentence, "pl", True))
+        self.assertTrue(news_batch._meets_comment_contract(two_sentences, "pl", True))
+
     def test_last_good_protection_revalidates_text_and_version(self):
         self.assertTrue(protect.valid_card(approved_item(VALID_PL), "pl"))
         self.assertTrue(protect.valid_card(approved_item(VALID_EN, "en"), "en"))
@@ -418,12 +453,12 @@ class PipelineContractTests(unittest.TestCase):
 
     def test_passive_home_check_saves_an_unchanged_valid_feed_as_last_good(self):
         good = []
-        for index in range(5):
+        for index in range(8):
             item = approved_item(VALID_EN, "en")
             item["title"] = f"Reviewed English article {index + 1}"
             item["link"] = f"https://example.com/passive-en-{index + 1}"
             good.append(item)
-        payload = {"latest": good, "radar": [], "count": 5}
+        payload = {"latest": good, "radar": [], "count": 8}
         with tempfile.TemporaryDirectory() as tmp:
             current_path = Path(tmp) / "current.json"
             backup_path = Path(tmp) / "backup.json"
@@ -434,7 +469,7 @@ class PipelineContractTests(unittest.TestCase):
             after = current_path.read_bytes()
             backup = json.loads(backup_path.read_text(encoding="utf-8"))
         self.assertEqual(before, after)
-        self.assertEqual(5, protect.total_valid(backup, "en"))
+        self.assertEqual(8, protect.total_valid(backup, "en"))
 
     def test_passive_home_check_never_erases_a_feed_without_a_current_backup(self):
         item = approved_item(VALID_PL)
@@ -458,7 +493,7 @@ class PipelineContractTests(unittest.TestCase):
 
     def test_watchdog_requires_current_quality_contract_in_both_feed_and_cards(self):
         items = []
-        for index in range(5):
+        for index in range(8):
             item = approved_item(VALID_EN, "en")
             item["title"] = f"Reviewed English article {index + 1}"
             item["link"] = f"https://example.com/watchdog-en-{index + 1}"
@@ -466,7 +501,7 @@ class PipelineContractTests(unittest.TestCase):
         payload = {
             "latest": items,
             "radar": [],
-            "count": 5,
+            "count": 8,
             "comment_quality_gate": {
                 "status": quality.QUALITY_STATUS,
                 "version": quality.QUALITY_VERSION,
