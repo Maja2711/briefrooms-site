@@ -2,7 +2,7 @@ name: Build EN News (12x daily)
 
 on:
   schedule:
-    - cron: "10 */2 * * *"
+    - cron: "40 */2 * * *"
   workflow_dispatch: {}
   push:
     branches: [main]
@@ -52,6 +52,13 @@ jobs:
 
       - name: Test EN news builder
         run: python -m unittest tests.test_fetch_news_en -v
+
+      - name: Stagger AI generation after a code push
+        if: github.event_name == 'push'
+        run: |
+          if git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(scripts/build_home_brief_|scripts/read_and_summarize_articles.py|scripts/fetch_news_pl|scripts/news_comment_batch.py|scripts/comment_quality.py|\.github/workflows/(build-home-brief|news-pl)\.yml)'; then
+            sleep 70m
+          fi
 
       - name: Generate EN News
         env:

@@ -53,6 +53,13 @@ jobs:
       - name: Test strict PL and EN comment contract
         run: python -m unittest discover -s tests -p "test_comment_quality.py"
 
+      - name: Stagger AI generation after a code push
+        if: github.event_name == 'push'
+        run: |
+          if git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq '^(scripts/build_home_brief_|scripts/read_and_summarize_articles.py|scripts/comment_quality.py|\.github/workflows/build-home-brief.yml)'; then
+            sleep 50m
+          fi
+
       - name: Generate PL Aktualności (plain summaries + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
