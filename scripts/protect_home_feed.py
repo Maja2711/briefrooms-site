@@ -23,7 +23,7 @@ FILES = {
     "en": (Path("en/home_brief.json"), Path(".cache/home_brief_en_last_good.json")),
 }
 MIN_VISIBLE_ITEMS = {"pl": 8, "en": 8}
-MAX_FEED_AGE_HOURS = 24
+MAX_FEED_AGE_HOURS = 12
 URL_RE = re.compile(r"^https?://", re.I)
 
 

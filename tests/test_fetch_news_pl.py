@@ -56,6 +56,11 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertEqual((3, 5), news.SECTION_PUBLISH_BOUNDS["nauka"])
         self.assertEqual((5, 10), news.SECTION_PUBLISH_BOUNDS["sport"])
 
+    def test_native_polish_feed_encoding_is_repaired_before_publication(self):
+        broken = 'USA rozważajš uderzenie. Mówiš o tysišcach żołnierzy.'
+        expected = 'USA rozważają uderzenie. Mówią o tysiącach żołnierzy.'
+        self.assertEqual(expected, news.repair_polish_feed_encoding(broken))
+
     def test_health_and_science_have_dedicated_feeds(self):
         self.assertTrue(any("naukawpolsce.pl/zdrowie" in news.feed_url(feed) for feed in news.FEEDS["zdrowie"]))
         self.assertTrue(any("naukawpolsce.pl/naukowy" in news.feed_url(feed) for feed in news.FEEDS["nauka"]))

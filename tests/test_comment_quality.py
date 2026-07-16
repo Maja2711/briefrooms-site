@@ -346,13 +346,16 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual({"pl": 8, "en": 8}, protect.MIN_VISIBLE_ITEMS)
         contract = json.loads((ROOT / "data/content_update_contract.json").read_text(encoding="utf-8"))
         self.assertEqual(8, contract["homepage_and_news"]["minimum_visible_cards"])
+        self.assertEqual(12, contract["homepage_and_news"]["maximum_story_age_hours"])
         self.assertGreaterEqual(home_pl.MAX_ITEMS, 16)
         self.assertGreaterEqual(home_en.MAX_ITEMS, 16)
         now = 1_800_000_000.0
-        self.assertTrue(home_pl.is_fresh_timestamp(now - 23 * 3600, now))
-        self.assertTrue(home_en.is_fresh_timestamp(now - 23 * 3600, now))
-        self.assertFalse(home_pl.is_fresh_timestamp(now - 25 * 3600, now))
-        self.assertFalse(home_en.is_fresh_timestamp(now - 25 * 3600, now))
+        self.assertTrue(home_pl.is_fresh_timestamp(now - 11 * 3600, now))
+        self.assertTrue(home_en.is_fresh_timestamp(now - 11 * 3600, now))
+        self.assertFalse(home_pl.is_fresh_timestamp(now - 13 * 3600, now))
+        self.assertFalse(home_en.is_fresh_timestamp(now - 13 * 3600, now))
+        self.assertEqual(12, protect.MAX_FEED_AGE_HOURS)
+        self.assertEqual("Sądu", home_pl.repair_polish_feed_encoding("Sšdu"))
 
     def test_homepage_images_have_no_visible_category_labels(self):
         for relative in ("pl/index.html", "en/index.html"):

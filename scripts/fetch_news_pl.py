@@ -213,6 +213,29 @@ SOURCE_BADGE_SHORT = {
     "AP Sports": "AP",
 }
 
+POLISH_NATIVE_SOURCES = {
+    "PAP",
+    "Nauka w Polsce",
+    "Polsat News",
+    "Bankier.pl",
+    "RMF24",
+    "Polsat Sport",
+    "TVP Sport",
+    "Przegląd Sportowy / Onet Sport",
+    "SportoweFakty WP",
+    "Eurosport Polska",
+    "PZPN / Łączy nas piłka",
+    "RMF24 Sport",
+}
+POLISH_CP1250_AS_LATIN2 = str.maketrans({
+    "Ľ": "Ą",
+    "š": "ą",
+    "\x8c": "Ś",
+    "\x8f": "Ź",
+    "\x9c": "ś",
+    "\x9f": "ź",
+})
+
 # Wzmocnienia tematyczne
 BOOST = {
     "polityka": [
@@ -393,6 +416,10 @@ def source_name_for(link: str, fallback: str = "", section_key: str = "") -> str
 
 def source_badge_for(source: str) -> str:
     return SOURCE_BADGE_SHORT.get(source, source)
+
+
+def repair_polish_feed_encoding(value: str) -> str:
+    return str(value or "").translate(POLISH_CP1250_AS_LATIN2)
 
 def is_sport_related(title: str, snippet: str, link: str, source: str = "") -> bool:
     if source and source != "PAP Sport":
@@ -762,6 +789,9 @@ def fetch_section(section_key: str, summarize: bool = True):
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 clean_snippet = re.sub("<[^<]+?>", "", snippet).strip()
                 source_name = source_name_for(link, f_source, section_key)
+                if source_name in POLISH_NATIVE_SOURCES:
+                    title = repair_polish_feed_encoding(title)
+                    clean_snippet = repair_polish_feed_encoding(clean_snippet)
                 if is_rejected_item(section_key, title, clean_snippet, link, source_name):
                     continue
                 items.append({
