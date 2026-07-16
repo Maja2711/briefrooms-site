@@ -92,6 +92,8 @@ def _plain_items(items: list[dict], require_comments: bool) -> list[dict]:
             continue
 
         if require_comments:
+            if not str(it.get("thumbnail_url") or "").startswith(("http://", "https://")):
+                continue
             if not (
                 it.get("comment_quality_status") == QUALITY_STATUS
                 and it.get("comment_quality_version") == QUALITY_VERSION
@@ -149,6 +151,11 @@ def render_html_plain(sections: dict) -> str:
     if len(accepted) < MIN_STRICT_COMMENTS:
         raise RuntimeError(
             f"EN news publication blocked: only {len(accepted)} strictly approved comments"
+        )
+    missing_thumbnails = [item.get("title", "") for item in accepted if not item.get("thumbnail_url")]
+    if missing_thumbnails:
+        raise RuntimeError(
+            f"EN news publication blocked: {len(missing_thumbnails)} items have no thumbnail"
         )
     for item in accepted:
         quality = validate_news_comment(item.get("ai_key_point") or item.get("ai_summary", ""), "en")

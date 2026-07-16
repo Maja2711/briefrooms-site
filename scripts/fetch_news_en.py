@@ -8,7 +8,7 @@ import html
 import hashlib
 
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import feedparser
 from dateutil import tz
@@ -17,6 +17,7 @@ import requests
 from comment_quality import (
     QUALITY_STATUS,
     QUALITY_VERSION,
+    decode_http_response,
     get_ai_runtime,
     independent_ai_review,
     request_json_completion,
@@ -615,6 +616,90 @@ def verify_note_en(title: str, snippet: str) -> str:
     return ""
 
 
+def _valid_image_url(value: str, base_url: str = "") -> str:
+    candidate = html.unescape(str(value or "")).strip()
+    if not candidate:
+        return ""
+    candidate = urljoin(base_url, candidate)
+    if not candidate.lower().startswith(("http://", "https://")):
+        return ""
+    if re.search(r"(?:pixel|tracking|spacer|blank)\.(?:gif|png)(?:\?|$)", candidate, re.I):
+        return ""
+    return candidate
+
+
+def entry_image(entry, feed_url: str) -> str:
+    """Return the best real image exposed directly by an RSS entry."""
+    candidates = []
+    for key in ("media_content", "media_thumbnail"):
+        for media in entry.get(key, []) or []:
+            if not isinstance(media, dict):
+                continue
+            url = _valid_image_url(media.get("url") or media.get("href"), feed_url)
+            if not url:
+                continue
+            try:
+                width = int(media.get("width") or 0)
+            except (TypeError, ValueError):
+                width = 0
+            candidates.append((width, url))
+
+    for enclosure in (entry.get("enclosures", []) or []) + (entry.get("links", []) or []):
+        if not isinstance(enclosure, dict):
+            continue
+        media_type = str(enclosure.get("type") or "").lower()
+        rel = str(enclosure.get("rel") or "").lower()
+        if media_type.startswith("image/") or rel == "enclosure":
+            url = _valid_image_url(enclosure.get("href") or enclosure.get("url"), feed_url)
+            if url:
+                candidates.append((0, url))
+
+    raw_html = str(entry.get("summary") or entry.get("description") or "")
+    match = re.search(r"<img[^>]+src=[\"']([^\"']+)", raw_html, re.I)
+    if match:
+        url = _valid_image_url(match.group(1), feed_url)
+        if url:
+            candidates.append((0, url))
+
+    return max(candidates, default=(0, ""), key=lambda item: item[0])[1]
+
+
+def article_image(link: str) -> str:
+    """Use article metadata when the RSS feed does not include an image."""
+    if not str(link or "").lower().startswith(("http://", "https://")):
+        return ""
+    try:
+        response = requests.get(
+            link,
+            headers={
+                "User-Agent": "BriefRoomsBot/2.1 (+https://briefrooms.com)",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout=6,
+            allow_redirects=True,
+        )
+        if not response.ok:
+            return ""
+        page = decode_http_response(response)[:600000]
+    except Exception:
+        return ""
+
+    patterns = (
+        r"""<meta[^>]+(?:property|name)=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)""",
+        r"""<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image(?::secure_url)?["']""",
+        r"""<meta[^>]+(?:property|name)=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)""",
+        r"""<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']twitter:image(?::src)?["']""",
+        r"""<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)""",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, page, re.I)
+        if match:
+            image_url = _valid_image_url(match.group(1), link)
+            if image_url:
+                return image_url
+    return ""
+
+
 # =========================
 # POBIERANIE + DEDUPE
 # =========================
@@ -639,6 +724,7 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
                     "title": title.strip(),
                     "link":  link.strip(),
                     "summary_raw": topic_safe_snippet(title, summary_raw),
+                    "thumbnail_url": entry_image(e, feed_url),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
                 })
         except Exception as ex:
@@ -683,7 +769,15 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
         per_host[h] += 1
         pool.append(it)
 
-    picked = pool[:MAX_PER_SECTION]
+    picked = []
+    for it in pool:
+        if not it.get("thumbnail_url"):
+            it["thumbnail_url"] = article_image(it.get("link", ""))
+        if not it.get("thumbnail_url"):
+            continue
+        picked.append(it)
+        if len(picked) >= MAX_PER_SECTION:
+            break
 
     if not summarize:
         return picked
@@ -786,6 +880,8 @@ def render_html(sections: dict) -> str:
     }
     .news-thumb .title{ font-size:.56rem; font-weight:700; letter-spacing:.03em; color:#fff; line-height:1; }
     .news-thumb .sub{ font-size:.47rem; color:rgba(244,246,255,.85); line-height:1.05; white-space:nowrap; }
+    .news-thumb.has-image{padding:0;overflow:hidden;background:rgba(255,255,255,.06);align-items:stretch;justify-content:stretch;}
+    .news-thumb.has-image img{width:100%;height:100%;display:block;object-fit:cover;}
 
     .ai-note{
       margin:10px 0 0 88px;
@@ -802,7 +898,14 @@ def render_html(sections: dict) -> str:
     .note{ color:#9fb3cb; font-size:.92rem }
     """
 
-    def badge(source_label: str):
+    def badge(source_label: str, image_url: str = ""):
+        if image_url:
+            return (
+                '<span class="news-thumb has-image">'
+                f'<img src="{esc(image_url)}" alt="" loading="lazy" decoding="async" '
+                'referrerpolicy="no-referrer" width="78" height="54" />'
+                '</span>'
+            )
         source_label = esc(source_label or "Source")
         return (
             '<span class="news-thumb">'
@@ -819,7 +922,7 @@ def render_html(sections: dict) -> str:
         source = esc(raw_source)
         return f'''<li>
   <a class="news-main-link" href="{esc(it["link"])}" target="_blank" rel="noopener">
-    {badge(raw_source)}
+    {badge(raw_source, it.get("thumbnail_url", ""))}
     <span class="news-text">{esc(it["title"])}</span>
   </a>
   <div class="source-line">Source: {source}</div>

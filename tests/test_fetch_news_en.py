@@ -42,6 +42,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
                 "title": f"Test report number {index + 1}",
                 "link": f"https://example.com/en-article-{index + 1}",
                 "source_name": "Test Source",
+                "thumbnail_url": f"https://example.com/image-{index + 1}.jpg",
                 "ai_key_point": summary,
                 "ai_summary": summary,
                 "ai_why_it_matters": "",
@@ -58,6 +59,26 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertIn('<a href="#health">Health</a>', page)
         self.assertIn('<a href="#science">Science</a>', page)
         self.assertIn("Test report number 1", page)
+        self.assertEqual(8, page.count('<span class="news-thumb has-image">'))
+        self.assertEqual(8, page.count("<img "))
+
+    def test_render_blocks_an_item_without_a_thumbnail(self):
+        sections = self.strict_sections()
+        sections["world"][0]["thumbnail_url"] = ""
+        with self.assertRaisesRegex(RuntimeError, "items have no thumbnail"):
+            context.render_html_plain(sections)
+
+    def test_rss_thumbnail_uses_the_largest_available_image(self):
+        entry = {
+            "media_thumbnail": [
+                {"url": "https://example.com/small.jpg", "width": "240"},
+                {"url": "https://example.com/large.jpg", "width": "800"},
+            ]
+        }
+        self.assertEqual(
+            "https://example.com/large.jpg",
+            base.entry_image(entry, "https://example.com/feed.xml"),
+        )
 
     def test_plain_wrapper_never_restores_rss_fallback(self):
         self.assertEqual("", context._plain_summary("Title", "", "Raw RSS fallback text."))
@@ -70,6 +91,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
                 "title": f"Test report number {index + 1}",
                 "link": f"https://example.com/batch-en-{index + 1}",
                 "source_name": "Test Source",
+                "thumbnail_url": f"https://example.com/batch-image-{index + 1}.jpg",
                 "summary_raw": summary,
             })
 
