@@ -59,30 +59,33 @@ jobs:
       - name: Build Polish homepage brief JSON
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o
+          NEWS_AI_MODEL: gpt-4o-mini
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: python scripts/build_home_brief_pl.py
         continue-on-error: true
 
       - name: Build English homepage brief JSON
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o
+          NEWS_AI_MODEL: gpt-4o-mini
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: python scripts/build_home_brief_en.py
         continue-on-error: true
 
       - name: Read source articles and summarise meaning
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o
+          NEWS_AI_MODEL: gpt-4o-mini
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: python scripts/read_and_summarize_articles.py
 
       - name: Enforce article brief methodology

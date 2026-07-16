@@ -17,6 +17,7 @@ MIN_SENTENCES = 3
 MAX_SENTENCES = 4
 MIN_COMMENT_CHARS = 180
 MAX_COMMENT_CHARS = 1600
+_LAST_GITHUB_MODELS_REQUEST_AT = 0.0
 
 
 def review_digest(value: str) -> str:
@@ -162,8 +163,8 @@ def get_ai_runtime() -> AiRuntime:
                 "GITHUB_MODELS_ENDPOINT",
                 "https://models.github.ai/inference/chat/completions",
             ),
-            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o"),
-            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1"),
+            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o-mini"),
+            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1-mini"),
         )
 
     return AiRuntime("unavailable", "", "", "", "")
@@ -187,6 +188,19 @@ def request_json_completion(
     last_error: Exception | None = None
     for attempt in range(4):
         try:
+            if runtime.provider == "github-models":
+                global _LAST_GITHUB_MODELS_REQUEST_AT
+                try:
+                    min_interval = max(
+                        0.0,
+                        float(os.getenv("GITHUB_MODELS_MIN_INTERVAL_SECONDS", "0") or 0),
+                    )
+                except ValueError:
+                    min_interval = 0.0
+                elapsed = time.monotonic() - _LAST_GITHUB_MODELS_REQUEST_AT
+                if min_interval and elapsed < min_interval:
+                    time.sleep(min_interval - elapsed)
+                _LAST_GITHUB_MODELS_REQUEST_AT = time.monotonic()
             response = post(
                 runtime.endpoint,
                 headers={
@@ -406,7 +420,7 @@ def independent_ai_review_batch(
             "comment": str(entry.get("summary", ""))[:1600],
         }
         size = sum(len(value) for value in compact.values())
-        if current and (len(current) >= 3 or current_chars + size > 7000):
+        if current and (len(current) >= 10 or current_chars + size > 20000):
             chunks.append(current)
             current = []
             current_chars = 0

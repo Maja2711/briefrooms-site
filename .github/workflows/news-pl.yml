@@ -1,9 +1,9 @@
-name: Build PL Aktualności (12x dziennie)
+name: Build PL Aktualności (6x dziennie)
 
 on:
   schedule:
-    # czasy w UTC — co 2 godziny = 12x dziennie
-    - cron: "10 */2 * * *"
+    # Czasy w UTC: co 4 godziny, z limitem zapytań zachowującym rezerwę na ponowienia.
+    - cron: "10 */4 * * *"
   workflow_dispatch: {}
   push:
     branches: [main]
@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: news-pl-publishing
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -55,15 +55,16 @@ jobs:
 
       - name: Stagger AI generation after a code push
         if: github.event_name == 'push'
-        run: sleep 50m
+        run: sleep 15m
 
       - name: Generate PL Aktualności (plain summaries + hotbar JSON)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o
+          NEWS_AI_MODEL: gpt-4o-mini
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: |
           python scripts/fetch_news_pl_deep.py
 
