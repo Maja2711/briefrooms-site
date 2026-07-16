@@ -32,7 +32,9 @@ TIMEOUT = 9
 USER_AGENT = "BriefRoomsBot/2.0 (+https://briefrooms.com)"
 AI_MODEL = os.getenv("NEWS_AI_MODEL") or os.getenv("BRIEFROOMS_AI_MODEL") or "gpt-4o-mini"
 AI_CACHE_PATH = ".cache/home_brief_pl_ai.json"
-MAX_ITEMS = 12
+MAX_ITEMS = 20
+MIN_ITEMS = 8
+MAX_STORY_AGE_HOURS = 24
 
 # Direct feeds + Google News RSS searches that often surface PAP/Reuters/Stooq/Bankier items.
 # "Pilne" is first on purpose: publishers' urgent/breaking labels get first chance and extra score.
@@ -372,6 +374,12 @@ def entry_timestamp(entry) -> float:
     return time.time()
 
 
+def is_fresh_timestamp(value: float, now: float | None = None) -> bool:
+    reference = time.time() if now is None else now
+    age_hours = (reference - value) / 3600.0
+    return -2 <= age_hours <= MAX_STORY_AGE_HOURS
+
+
 def quality_score(item: dict) -> int:
     text = f"{item.get('title','')} {item.get('summary','')} {item.get('details','')}"
     src = item.get("source", "")
@@ -402,6 +410,9 @@ def make_item(entry, category: str) -> dict | None:
         return None
     if BAN.search(f"{title} {rss_summary}") or LOW_VALUE.search(f"{title} {rss_summary}"):
         return None
+    published_ts = entry_timestamp(entry)
+    if not is_fresh_timestamp(published_ts):
+        return None
     article_text = article_excerpt(link)
     source = source_name(link, f"{title} {rss_summary}")
     urgent = category == "Pilne" or is_urgent_text(title, rss_summary, article_text)
@@ -423,7 +434,8 @@ def make_item(entry, category: str) -> dict | None:
         "time": "dzisiaj",
         "urgent": urgent,
         "priority_reason": "publisher_marked_urgent" if urgent else "standard_importance",
-        "ts": entry_timestamp(entry),
+        "ts": published_ts,
+        "published_at": datetime.fromtimestamp(published_ts, timezone.utc).isoformat(timespec="seconds"),
     }
     item["quality_score"] = quality_score(item)
     if item["quality_score"] < 15:

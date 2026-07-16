@@ -18,7 +18,9 @@ from comment_quality import decode_http_response
 OUT_PATH = "en/home_brief.json"
 TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
-MAX_ITEMS = 12
+MAX_ITEMS = 20
+MIN_ITEMS = 8
+MAX_STORY_AGE_HOURS = 24
 
 # "Breaking" is first on purpose: publisher-marked urgent/breaking items get first chance and extra score.
 FEEDS = {
@@ -210,6 +212,12 @@ def timestamp(entry):
     return time.time()
 
 
+def is_fresh_timestamp(value, now=None):
+    reference = time.time() if now is None else now
+    age_hours = (reference - value) / 3600.0
+    return -2 <= age_hours <= MAX_STORY_AGE_HOURS
+
+
 def quality_score(item):
     text = f"{item.get('title','')} {item.get('summary','')} {item.get('details','')}"
     score = SOURCE_WEIGHT.get(item.get("source", ""), 10)
@@ -228,6 +236,9 @@ def make_item(entry, category):
     rss_raw = entry.get("summary", "") or entry.get("description", "") or title
     rss_summary = clean_text(rss_raw, 260)
     if not title or not link or BAN.search(title + " " + rss_summary) or LOW_VALUE.search(title + " " + rss_summary):
+        return None
+    published_ts = timestamp(entry)
+    if not is_fresh_timestamp(published_ts):
         return None
     article_text = article_excerpt(link)
     source = source_name(link, f"{title} {rss_summary}")
@@ -248,7 +259,8 @@ def make_item(entry, category):
         "time": "today",
         "urgent": urgent,
         "priority_reason": "publisher_marked_breaking" if urgent else "standard_importance",
-        "ts": timestamp(entry),
+        "ts": published_ts,
+        "published_at": datetime.fromtimestamp(published_ts, timezone.utc).isoformat(timespec="seconds"),
     }
     item["quality_score"] = quality_score(item)
     if item["quality_score"] < 15:

@@ -22,7 +22,8 @@ FILES = {
     "pl": (Path("pl/home_brief.json"), Path(".cache/home_brief_pl_last_good.json")),
     "en": (Path("en/home_brief.json"), Path(".cache/home_brief_en_last_good.json")),
 }
-MIN_VISIBLE_ITEMS = {"pl": 6, "en": 5}
+MIN_VISIBLE_ITEMS = {"pl": 8, "en": 8}
+MAX_FEED_AGE_HOURS = 24
 URL_RE = re.compile(r"^https?://", re.I)
 
 
@@ -43,6 +44,25 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def parse_datetime(value: object) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def is_recent_timestamp(value: object, now: datetime | None = None) -> bool:
+    parsed = parse_datetime(value)
+    if parsed is None:
+        return False
+    reference = now or datetime.now(timezone.utc)
+    age_hours = (reference - parsed).total_seconds() / 3600.0
+    return -2 <= age_hours <= MAX_FEED_AGE_HOURS
+
+
 def comment(item: dict[str, Any]) -> str:
     return str(item.get("full_brief") or "")
 
@@ -55,6 +75,7 @@ def valid_card(value: object, lang: str) -> bool:
     source = str(value.get("source") or "").strip()
     text = comment(value)
     status = str(value.get("comment_quality_status") or "")
+    published_at = value.get("published_at")
     if not (
         title
         and source
@@ -64,6 +85,7 @@ def valid_card(value: object, lang: str) -> bool:
         and value.get("summary_basis") == "article_text_ai_reviewed"
         and value.get("comment_generation_status") == "ai_review_approved"
         and value.get("comment_review_digest") == review_digest(text)
+        and (published_at is None or is_recent_timestamp(published_at))
     ):
         return False
     result = validate_comment(text, lang)
@@ -78,7 +100,19 @@ def identity(item: dict[str, Any]) -> str:
 
 
 def cards(data: dict[str, Any], section: str, lang: str) -> list[dict[str, Any]]:
-    return [dict(x) for x in (data.get(section) or []) if valid_card(x, lang)]
+    updated_at = data.get("updated_at")
+    if updated_at is not None and not is_recent_timestamp(updated_at):
+        return []
+    result: list[dict[str, Any]] = []
+    for value in data.get(section) or []:
+        if not isinstance(value, dict):
+            continue
+        item = dict(value)
+        if updated_at is not None:
+            item.setdefault("published_at", updated_at)
+        if valid_card(item, lang):
+            result.append(item)
+    return result
 
 
 def total_valid(data: dict[str, Any], lang: str) -> int:
@@ -124,11 +158,11 @@ def backup_current() -> None:
     for lang, (data_path, backup_path) in FILES.items():
         current = load(data_path)
         count = total_valid(current, lang)
-        if count < MIN_VISIBLE_ITEMS[lang]:
-            print(f"{lang}: backup skipped; only {count} valid cards")
+        if count == 0:
+            print(f"{lang}: backup skipped; no fresh valid cards")
             continue
         current["homepage_last_good_protection"] = {
-            "status": "saved_before_update",
+            "status": "saved_before_update" if count >= MIN_VISIBLE_ITEMS[lang] else "saved_partial_reserve",
             "visible_items": count,
             "rule": "Homepage/news updates run every four hours and cannot erase the last valid feed.",
         }

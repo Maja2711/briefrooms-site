@@ -896,7 +896,6 @@ def render_html(sections: dict) -> str:
 <main>
 {sections_html}
 
-<p class="note">Automatic summary (RSS). Links lead to publishers. This page is overwritten automatically.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© BriefRooms</footer>
 </body>

@@ -19,6 +19,17 @@ from comment_quality import (
     validate_news_comment,
 )
 
+FOREIGN_PL_MIN_CHARS = 130
+
+
+def _meets_comment_contract(text: str, lang: str, longer_polish_comment: bool) -> bool:
+    quality = validate_news_comment(text, lang)
+    if not quality.valid:
+        return False
+    if longer_polish_comment:
+        return len(quality.sentences) == 2 and len(quality.text) >= FOREIGN_PL_MIN_CHARS
+    return True
+
 
 def _clean_source(value: str, limit: int = 750) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
@@ -43,6 +54,7 @@ def _cached_result(cache: dict, key: str, lang: str, needs_title_translation: bo
         cached.get("reviewed") is True
         and cached.get("quality_version") == QUALITY_VERSION
         and quality.valid
+        and _meets_comment_contract(quality.text, lang, needs_title_translation)
         and (not needs_title_translation or valid_display_title(title_pl, "pl"))
     ):
         return None
@@ -78,6 +90,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
             "title": str(item.get("title") or "")[:190],
             "source_text": source_text,
             "translate_title": needs_title_translation,
+            "longer_polish_comment": needs_title_translation,
             "cache_key": key,
         })
 
@@ -104,6 +117,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 "title": candidate["title"],
                 "source": candidate["source_text"],
                 "translate_title_to_polish": candidate["translate_title"],
+                "longer_polish_comment": candidate["longer_polish_comment"],
             }
             for candidate in chunk
         ]
@@ -112,7 +126,8 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 "Napisz dla każdego elementu krótki, neutralny komentarz po polsku: 1-2 pełne, konkretne zdania, "
                 "55-300 znaków. Używaj wyłącznie faktów z tytułu i opisu. Tekst ma być naturalny, logiczny i "
                 "zrozumiały bez dodatkowego kontekstu. Jeżeli translate_title_to_polish=true, podaj także wierny, "
-                "naturalny title_pl; w przeciwnym razie title_pl ma być pusty."
+                "naturalny title_pl; w przeciwnym razie title_pl ma być pusty. Gdy longer_polish_comment=true, "
+                "komentarz musi mieć dokładnie 2 treściwe zdania i co najmniej 130 znaków."
             )
         else:
             rules = (
@@ -155,7 +170,11 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 candidate = pending_by_id[item_id]
                 quality = validate_news_comment(str(row.get("summary") or ""), lang)
                 title_pl = str(row.get("title_pl") or "").strip()
-                if not quality.valid:
+                if not _meets_comment_contract(
+                    quality.text,
+                    lang,
+                    candidate["longer_polish_comment"],
+                ):
                     print(f"[WARN] {lang.upper()} batch comment rejected: {candidate['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
                     continue
                 if candidate["translate_title"] and not valid_display_title(title_pl, "pl"):

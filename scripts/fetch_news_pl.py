@@ -32,10 +32,21 @@ TZ = tz.gettz("Europe/Warsaw")
 # =========================
 # KONFIG
 # =========================
-MAX_PER_SECTION = 6
+MAX_PER_SECTION = 12
 MAX_PER_HOST = 6
 SECTION_LIMITS = {
-    "sport": 10,
+    "polityka": 14,
+    "biznes": 10,
+    "zdrowie": 10,
+    "nauka": 10,
+    "sport": 18,
+}
+SECTION_PUBLISH_BOUNDS = {
+    "polityka": (5, 10),
+    "biznes": (3, 6),
+    "zdrowie": (3, 5),
+    "nauka": (3, 5),
+    "sport": (5, 10),
 }
 SECTION_MAX_PER_HOST = {
     "sport": 3,
@@ -60,7 +71,11 @@ FEEDS = {
         "https://tvn24.pl/najnowsze.xml",
         "https://tvn24.pl/polska.xml",
         "https://tvn24.pl/swiat.xml",
+        {"url": "https://www.polsatnews.pl/rss/polska.xml", "source": "Polsat News"},
         "https://www.polsatnews.pl/rss/wszystkie.xml",
+        {"url": "https://www.rmf24.pl/fakty/polityka/feed", "source": "RMF24"},
+        {"url": "https://www.rmf24.pl/fakty/polska/feed", "source": "RMF24"},
+        {"url": "https://www.rmf24.pl/fakty/swiat/feed", "source": "RMF24"},
         "https://www.pap.pl/rss.xml",
         "https://feeds.reuters.com/reuters/worldNews",
         "https://feeds.reuters.com/reuters/politicsNews",
@@ -68,11 +83,14 @@ FEEDS = {
     "biznes": [
         "https://www.bankier.pl/rss/wiadomosci.xml",
         "https://www.bankier.pl/rss/gospodarka.xml",
+        {"url": "https://www.polsatnews.pl/rss/biznes.xml", "source": "Polsat News"},
+        {"url": "https://www.rmf24.pl/ekonomia/feed", "source": "RMF24"},
         "https://www.pap.pl/rss.xml",
         "https://feeds.reuters.com/reuters/businessNews",
     ],
     "zdrowie": [
         {"url": "https://naukawpolsce.pl/zdrowie/rss.xml", "source": "Nauka w Polsce"},
+        {"url": "https://www.rmf24.pl/zdrowie/feed", "source": "RMF24"},
         "http://feeds.bbci.co.uk/news/health/rss.xml",
         "https://feeds.reuters.com/reuters/healthNews",
         "https://apnews.com/hub/health?output=rss",
@@ -81,6 +99,8 @@ FEEDS = {
     ],
     "nauka": [
         {"url": "https://naukawpolsce.pl/naukowy/rss.xml", "source": "Nauka w Polsce"},
+        {"url": "https://www.rmf24.pl/nauka/feed", "source": "RMF24"},
+        {"url": "https://www.polsatnews.pl/rss/technologie.xml", "source": "Polsat News"},
         "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
         "https://apnews.com/hub/science?output=rss",
         "https://www.theguardian.com/science/rss",
@@ -90,6 +110,8 @@ FEEDS = {
     "sport": [
         {"url": "https://www.pap.pl/rss.xml", "source": "PAP Sport"},
         "https://www.polsatsport.pl/rss/wszystkie.xml",
+        {"url": "https://www.polsatnews.pl/rss/sport.xml", "source": "Polsat Sport"},
+        {"url": "https://www.rmf24.pl/sport/feed", "source": "RMF24 Sport"},
         {"url": "https://sport.tvp.pl/rss", "source": "TVP Sport"},
         {"url": "https://przegladsportowy.onet.pl/.feed", "source": "Przegląd Sportowy / Onet Sport"},
         {"url": "https://sportowefakty.wp.pl/rss.xml", "source": "SportoweFakty WP"},
@@ -138,6 +160,7 @@ SOURCE_PRIORITY = [
     (re.compile(r"polsatnews\.pl", re.I), 18),
     (re.compile(r"tvn24\.pl", re.I), 15),
     (re.compile(r"bankier\.pl", re.I), 20),
+    (re.compile(r"rmf24\.pl", re.I), 20),
     (re.compile(r"naukawpolsce\.pl", re.I), 25),
     (re.compile(r"who\.int", re.I), 24),
     (re.compile(r"nasa\.gov|esa\.int", re.I), 22),
@@ -179,6 +202,7 @@ SOURCE_NAME_RULES = [
     (re.compile(r"tvn24\.pl", re.I), "TVN24"),
     (re.compile(r"polsatnews\.pl", re.I), "Polsat News"),
     (re.compile(r"bankier\.pl", re.I), "Bankier.pl"),
+    (re.compile(r"rmf24\.pl", re.I), "RMF24"),
 ]
 
 SOURCE_BADGE_SHORT = {
@@ -238,7 +262,7 @@ URL_REJECT_RE = re.compile(
     re.I,
 )
 SPORT_SOURCE_HOST_RE = re.compile(
-    r"polsatsport\.pl|sport\.tvp\.pl|przegladsportowy\.onet\.pl|sportowefakty\.wp\.pl|eurosport\.tvn24\.pl|laczynaspilka\.pl|pzpn\.pl|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com|reuters\.com|apnews\.com|bbc\.|espn\.",
+    r"polsatsport\.pl|rmf24\.pl|sport\.tvp\.pl|przegladsportowy\.onet\.pl|sportowefakty\.wp\.pl|eurosport\.tvn24\.pl|laczynaspilka\.pl|pzpn\.pl|atptour\.com|wtatennis\.com|fifa\.com|uefa\.com|reuters\.com|apnews\.com|bbc\.|espn\.",
     re.I,
 )
 SPORT_TOPIC_RE = re.compile(
@@ -695,6 +719,34 @@ def entry_image(entry, source_url: str) -> str:
     return ""
 
 
+def article_image(link: str) -> str:
+    """Read the article metadata when the RSS feed has no thumbnail."""
+    try:
+        response = requests.get(
+            link,
+            headers={"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"},
+            timeout=7,
+        )
+        if response.status_code >= 400:
+            return ""
+        page = response.text[:350000]
+    except Exception:
+        return ""
+
+    patterns = (
+        r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, page, re.I)
+        if not match:
+            continue
+        image_url = urljoin(link, html.unescape(match.group(1)).strip())
+        if image_url.lower().startswith(("http://", "https://")):
+            return image_url
+    return ""
+
+
 def fetch_section(section_key: str, summarize: bool = True):
     items = []
     for feed in FEEDS[section_key]:
@@ -787,6 +839,11 @@ def fetch_section(section_key: str, summarize: bool = True):
             add_item(it)
     else:
         picked = pool[:limit]
+
+    if section_key == "polityka":
+        for item in picked:
+            if not item.get("thumbnail_url"):
+                item["thumbnail_url"] = article_image(item.get("link", ""))
 
     if not summarize:
         return picked
@@ -934,7 +991,7 @@ def render_html(sections: dict) -> str:
         if thumbnail_url:
             return (
                 '<span class="news-thumb has-image">'
-                f'<img src="{esc(thumbnail_url)}" alt="" loading="lazy" decoding="async" width="78" height="54" />'
+                f'<img src="{esc(thumbnail_url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" />'
                 '</span>'
             )
         return (
@@ -1011,7 +1068,6 @@ def render_html(sections: dict) -> str:
 {make_section("Nauka", sections["nauka"])}
 {make_section("Sport", sections["sport"])}
 
-<p class="note">Automatyczny skrót (RSS). Linki prowadzą do wydawców. Strona nadpisywana automatycznie.</p>
 </main>
 <footer style="text-align:center; opacity:.55; padding:18px">© {updated_at.year} BriefRooms</footer>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "9adde99e330a4b0d991627986ac34246"}}'></script><!-- End Cloudflare Web Analytics -->

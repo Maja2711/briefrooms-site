@@ -99,7 +99,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/protect_home_feed.py tests/test_comment_quality.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml data/content_update_contract.json scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/dedupe_home_brief_stories.py scripts/hide_urgent_home_labels.py scripts/patch_brief_comment_source.py scripts/protect_home_feed.py tests/test_comment_quality.py; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi

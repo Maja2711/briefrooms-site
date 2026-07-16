@@ -35,16 +35,26 @@ class PolishNewsBuilderTests(unittest.TestCase):
         summary = (
             "Redakcja opisała konkretne ustalenia sprawy, które mają znaczenie dla odbiorców i wynikają bezpośrednio z materiału źródłowego."
         )
-        for index, section in enumerate(("polityka", "biznes", "zdrowie", "nauka", "sport", "polityka", "biznes", "sport")):
-            sections[section].append({
-                "title": f"Testowy materiał numer {index + 1}",
-                "link": f"https://example.com/article-{index + 1}",
-                "source_name": "Test Source",
-                "ai_summary": summary,
-                "ai_why": "",
-                "ai_uncertain": "",
-            })
+        index = 0
+        for section, (minimum, _maximum) in news.SECTION_PUBLISH_BOUNDS.items():
+            for _ in range(minimum):
+                index += 1
+                sections[section].append({
+                    "title": f"Testowy materiał numer {index}",
+                    "link": f"https://example.com/article-{index}",
+                    "source_name": "Test Source",
+                    "thumbnail_url": f"https://example.com/image-{index}.jpg",
+                    "ai_summary": summary,
+                    "ai_why": "",
+                    "ai_uncertain": "",
+                })
         return sections
+
+    def test_publication_ranges_match_the_product_contract(self):
+        self.assertEqual((5, 10), news.SECTION_PUBLISH_BOUNDS["polityka"])
+        self.assertEqual((3, 5), news.SECTION_PUBLISH_BOUNDS["zdrowie"])
+        self.assertEqual((3, 5), news.SECTION_PUBLISH_BOUNDS["nauka"])
+        self.assertEqual((5, 10), news.SECTION_PUBLISH_BOUNDS["sport"])
 
     def test_health_and_science_have_dedicated_feeds(self):
         self.assertTrue(any("naukawpolsce.pl/zdrowie" in news.feed_url(feed) for feed in news.FEEDS["zdrowie"]))
@@ -82,10 +92,17 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertIn('<time datetime="', page)
         self.assertIn("</time></p>", page)
         self.assertIn("Testowy materiał numer 1", page)
+        self.assertNotIn("Automatyczny skrót (RSS)", page)
 
     def test_render_is_fail_closed_when_comments_are_missing(self):
-        with self.assertRaisesRegex(RuntimeError, "only 0 strictly approved comments"):
+        with self.assertRaisesRegex(RuntimeError, "polityka has 0 items"):
             deep.render_html_strict(self.empty_sections())
+
+    def test_politics_without_thumbnail_blocks_publication(self):
+        sections = self.strict_sections()
+        sections["polityka"][0]["thumbnail_url"] = ""
+        with self.assertRaisesRegex(RuntimeError, "every politics item must have a thumbnail"):
+            deep.render_html_strict(sections)
 
     def test_rss_image_is_extracted(self):
         entry = {"media_thumbnail": [{"url": "/images/story.jpg"}]}
@@ -93,6 +110,15 @@ class PolishNewsBuilderTests(unittest.TestCase):
             news.entry_image(entry, "https://example.com/feed.xml"),
             "https://example.com/images/story.jpg",
         )
+
+    def test_article_metadata_fills_a_missing_politics_thumbnail(self):
+        response = mock.Mock(
+            status_code=200,
+            text='<html><head><meta property="og:image" content="/media/politics.jpg"></head></html>',
+        )
+        with mock.patch.object(news.requests, "get", return_value=response):
+            image = news.article_image("https://example.com/politics/story")
+        self.assertEqual("https://example.com/media/politics.jpg", image)
 
     def test_missing_ai_never_publishes_rss_fallback(self):
         with (
@@ -121,6 +147,7 @@ class PolishNewsBuilderTests(unittest.TestCase):
                 "title": f"Testowy materiał numer {index + 1}",
                 "link": f"https://example.com/batch-pl-{index + 1}",
                 "source_name": "Test Source",
+                "thumbnail_url": f"https://example.com/batch-{index + 1}.jpg",
                 "summary_raw": summary,
                 "_section_key": section,
             })
