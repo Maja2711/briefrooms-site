@@ -34,7 +34,17 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL") or os.getenv("BRIEFROOMS_AI_MODEL") or "gp
 AI_CACHE_PATH = ".cache/home_brief_pl_ai.json"
 MAX_ITEMS = 20
 MIN_ITEMS = 8
-MAX_STORY_AGE_HOURS = 24
+MAX_STORY_AGE_HOURS = 12
+
+POLISH_NATIVE_SOURCES = {"Stooq", "PAP", "Bankier.pl", "TVN24", "Polsat News"}
+POLISH_CP1250_AS_LATIN2 = str.maketrans({
+    "Ľ": "Ą",
+    "š": "ą",
+    "\x8c": "Ś",
+    "\x8f": "Ź",
+    "\x9c": "ś",
+    "\x9f": "ź",
+})
 
 # Direct feeds + Google News RSS searches that often surface PAP/Reuters/Stooq/Bankier items.
 # "Pilne" is first on purpose: publishers' urgent/breaking labels get first chance and extra score.
@@ -155,6 +165,10 @@ def fix_encoding(value: str) -> str:
             except Exception:
                 pass
     return value.replace("Â", "")
+
+
+def repair_polish_feed_encoding(value: str) -> str:
+    return str(value or "").translate(POLISH_CP1250_AS_LATIN2)
 
 
 def clean_text(value: str, max_len: int = 190) -> str:
@@ -408,13 +422,16 @@ def make_item(entry, category: str) -> dict | None:
     rss_summary = clean_text(rss_raw, 260)
     if not title or not link:
         return None
+    source = source_name(link, f"{title} {rss_summary}")
+    if source in POLISH_NATIVE_SOURCES:
+        title = repair_polish_feed_encoding(title)
+        rss_summary = repair_polish_feed_encoding(rss_summary)
     if BAN.search(f"{title} {rss_summary}") or LOW_VALUE.search(f"{title} {rss_summary}"):
         return None
     published_ts = entry_timestamp(entry)
     if not is_fresh_timestamp(published_ts):
         return None
     article_text = article_excerpt(link)
-    source = source_name(link, f"{title} {rss_summary}")
     urgent = category == "Pilne" or is_urgent_text(title, rss_summary, article_text)
     category = assign_category(category, title, article_text or rss_summary)
     if urgent:
@@ -463,7 +480,7 @@ def collect_items() -> list[dict]:
                 seen.add(norm)
                 items.append(item)
     # Priority order: publisher-marked urgent first, then score, then recency.
-    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
+    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("ts", 0), x.get("quality_score", 0)), reverse=True)
     return items
 
 

@@ -20,7 +20,7 @@ TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
 MAX_ITEMS = 20
 MIN_ITEMS = 8
-MAX_STORY_AGE_HOURS = 24
+MAX_STORY_AGE_HOURS = 12
 
 # "Breaking" is first on purpose: publisher-marked urgent/breaking items get first chance and extra score.
 FEEDS = {
@@ -286,7 +286,7 @@ def collect_items():
                     continue
                 seen.add(key)
                 items.append(item)
-    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("quality_score", 0), x.get("ts", 0)), reverse=True)
+    items.sort(key=lambda x: (1 if x.get("urgent") else 0, x.get("ts", 0), x.get("quality_score", 0)), reverse=True)
     return items
 
 
