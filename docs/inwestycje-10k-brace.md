@@ -46,7 +46,27 @@ The historical test is deliberately called **BRACE-Lite**. Reliable point-in-tim
 - drawdown,
 - benchmark trend, volatility and portfolio breadth.
 
-Weights calculated at week `t` are applied only to returns from `t` to `t+1`. The test includes 0.25% transaction cost per unit of turnover, monthly rebalancing, cash when conviction is low, and three parameter variants. It reports CAGR, total return, volatility, Sharpe, Sortino, maximum drawdown, Calmar and turnover.
+Weights calculated at week `t` are applied only to returns from `t` to `t+1`. Weights drift naturally between monthly rebalances. Buy & Hold is funded once and is not periodically reset to target weights. The test includes 0.25% transaction cost per unit of turnover, cash when conviction is low, and three parameter variants. It reports CAGR, total return, volatility, Sharpe, Sortino, maximum drawdown, Calmar and turnover.
+
+For live instruments with insufficient history, the test uses explicitly disclosed economic proxies only in the historical layer:
+
+- `FWIA.DE` → `VT`,
+- `ZPRV.DE` → `VBR`,
+- `NOVO-B.CO` → `NVO`.
+
+These proxies do not change the live holdings or execution records and do not perfectly reproduce UCITS structure, currency, taxation or tracking differences.
+
+## Champion–challenger promotion gate
+
+BRACE does not become the official model merely because it is newer or more complicated. The baseline remains champion until the challenger passes every pre-defined test:
+
+- at least 260 weekly observations,
+- CAGR at least 0.5 percentage point above baseline,
+- Sharpe ratio no lower than baseline,
+- maximum drawdown no more than 2 percentage points worse,
+- stable results across conservative, standard and aggressive parameter variants.
+
+Failing any criterion produces `not_promoted`. Parameters are not retuned after seeing the result simply to make BRACE win. Even a full historical pass only makes BRACE eligible for live-shadow confirmation; it does not automatically replace the official process.
 
 ## Limitations
 
