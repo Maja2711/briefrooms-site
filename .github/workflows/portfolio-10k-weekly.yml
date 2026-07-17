@@ -12,17 +12,23 @@ on:
           - auto
           - initialize
           - review
+          - migrate
   schedule:
+    # Common live window: US and European cash markets are both open.
+    - cron: "50 14 * * 1-5"
+    # Full fundamental/market review once per week.
     - cron: "20 6 * * 0"
   push:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_weekly.py"
       - "scripts/portfolio_10k_weekly_v2.py"
+      - "scripts/portfolio_10k_weekly_v3.py"
       - "scripts/portfolio_10k_news_quality.py"
       - "scripts/portfolio-10k-public.js"
       - "tests/test_portfolio_10k.py"
       - "tests/test_portfolio_10k_v2.py"
+      - "tests/test_portfolio_10k_execution.py"
       - "tests/test_portfolio_10k_news_quality.py"
       - ".github/workflows/portfolio-10k-weekly.yml"
 
@@ -50,14 +56,15 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
       - name: Validate model code and allocation
-        run: python -m pytest -q tests/test_portfolio_10k.py tests/test_portfolio_10k_v2.py tests/test_portfolio_10k_news_quality.py
+        run: python -m pytest -q tests/test_portfolio_10k.py tests/test_portfolio_10k_v2.py tests/test_portfolio_10k_execution.py tests/test_portfolio_10k_news_quality.py
 
-      - name: Initialize or review portfolio
+      - name: Migrate, initialize or review portfolio
         env:
-          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-        run: python scripts/portfolio_10k_weekly_v2.py --mode "$MODE"
+          MODE: ${{ github.event_name == 'push' && 'migrate' || (github.event_name == 'workflow_dispatch' && inputs.mode || 'auto') }}
+        run: python scripts/portfolio_10k_weekly_v3.py --mode "$MODE"
 
       - name: Filter duplicate and irrelevant headlines
+        if: github.event_name != 'push'
         run: python scripts/portfolio_10k_news_quality.py
 
       - name: Commit transparent portfolio update
