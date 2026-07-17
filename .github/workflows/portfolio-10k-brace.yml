@@ -62,6 +62,9 @@ jobs:
       - name: Validate BRACE and existing portfolio tests
         run: python -m pytest -q tests/test_portfolio_10k*.py
 
+      - name: Compile BRACE Python modules
+        run: python -m py_compile scripts/portfolio_10k_brace*.py
+
       - name: Validate public JavaScript
         run: node --check scripts/portfolio-10k-brace-public.js
 
