@@ -80,6 +80,40 @@ class EnglishNewsBuilderTests(unittest.TestCase):
             base.entry_image(entry, "https://example.com/feed.xml"),
         )
 
+    def test_thumbnail_availability_requires_a_real_image_response(self):
+        response = mock.Mock()
+        response.ok = True
+        response.headers = {"Content-Type": "image/jpeg"}
+        response.iter_content.return_value = iter([b"image-bytes"])
+
+        base.IMAGE_FETCH_CACHE.clear()
+        with mock.patch.object(base.requests, "get", return_value=response):
+            self.assertTrue(base.image_is_fetchable("https://example.com/photo.jpg"))
+        response.close.assert_called_once_with()
+
+    def test_fetch_section_skips_a_hotlink_blocked_thumbnail(self):
+        entries = [
+            {"title": "Blocked image report", "link": "https://example.com/blocked", "summary": "First report."},
+            {"title": "Reachable image report", "link": "https://example.com/reachable", "summary": "Second report."},
+        ]
+        parsed = types.SimpleNamespace(entries=entries)
+
+        with (
+            mock.patch.object(base, "FEEDS", {"world": ["https://example.com/feed.xml"]}),
+            mock.patch.object(base.feedparser, "parse", return_value=parsed),
+            mock.patch.object(base, "should_keep_item", return_value=True),
+            mock.patch.object(
+                base,
+                "entry_image",
+                side_effect=["https://example.com/blocked.jpg", "https://example.com/reachable.jpg"],
+            ),
+            mock.patch.object(base, "image_is_fetchable", side_effect=lambda url: "reachable" in url),
+            mock.patch.object(base, "article_image", return_value=""),
+        ):
+            selected = base.fetch_section("world", summarize=False)
+
+        self.assertEqual(["Reachable image report"], [item["title"] for item in selected])
+
     def test_plain_wrapper_never_restores_rss_fallback(self):
         self.assertEqual("", context._plain_summary("Title", "", "Raw RSS fallback text."))
 
