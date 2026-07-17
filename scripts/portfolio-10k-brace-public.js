@@ -12,6 +12,7 @@
     noEvidence: 'Brak wystarczających dowodów do publikacji.', noBacktest: 'Backtest oczekuje na pierwszy pełny przebieg.',
     model: 'Model', cagr: 'CAGR', drawdown: 'Maks. obsunięcie', sharpe: 'Sharpe', turnover: 'Obrót roczny',
     generated: 'Aktualizacja', quality: 'jakość', decay: 'waga po wygaszeniu',
+    promotionTitle: 'Bramka awansu champion–challenger', promoted: 'KANDYDAT DO POTWIERDZENIA LIVE', notPromoted: 'NIE AWANSOWAŁ', championLabel: 'Obecny champion',
     decisions: {
       ADD_REVIEW: 'PRZEGLĄD DOKUPIENIA', HOLD: 'TRZYMAJ', HOLD_BUILD_EVIDENCE: 'BUDUJ DOWODY',
       WAIT_FOR_EVENT: 'CZEKAJ NA WYDARZENIE', WAIT_INVESTIGATE: 'ZBADAJ SPRZECZNOŚCI',
@@ -31,6 +32,7 @@
     noEvidence: 'Insufficient evidence to publish.', noBacktest: 'The backtest is waiting for its first complete run.',
     model: 'Model', cagr: 'CAGR', drawdown: 'Max drawdown', sharpe: 'Sharpe', turnover: 'Annual turnover',
     generated: 'Updated', quality: 'quality', decay: 'decayed weight',
+    promotionTitle: 'Champion–challenger promotion gate', promoted: 'ELIGIBLE FOR LIVE CONFIRMATION', notPromoted: 'NOT PROMOTED', championLabel: 'Current champion',
     decisions: {
       ADD_REVIEW: 'REVIEW ADDING', HOLD: 'HOLD', HOLD_BUILD_EVIDENCE: 'BUILD EVIDENCE',
       WAIT_FOR_EVENT: 'WAIT FOR EVENT', WAIT_INVESTIGATE: 'INVESTIGATE CONFLICT',
@@ -120,6 +122,14 @@
     return kind === 'ratio' ? num(value).toFixed(2) : pct(value, 1);
   }
 
+  function promotionGate(gate) {
+    if (!gate?.status) return '';
+    const promoted = gate.status === 'eligible_for_live_confirmation';
+    const reason = lang === 'pl' ? gate.reason_pl : gate.reason_en;
+    const champion = T.models[gate.champion] || gate.champion || '—';
+    return `<div class="status-note ${promoted ? 'ok' : ''}" style="margin:0 0 16px"><b>${esc(T.promotionTitle)} — ${esc(promoted ? T.promoted : T.notPromoted)}</b><br>${esc(reason || '')}<br><small>${esc(T.championLabel)}: ${esc(champion)}</small></div>`;
+  }
+
   function renderBacktest(data) {
     const box = document.getElementById('brace-backtest');
     if (!box) return;
@@ -131,7 +141,7 @@
     const order = ['buy_hold', 'baseline', 'brace_standard', 'benchmark'];
     const rows = order.filter(key => metrics[key]).map(key => `<tr><td><b>${esc(T.models[key] || key)}</b></td><td>${metricCell(metrics[key].cagr)}</td><td>${metricCell(metrics[key].max_drawdown)}</td><td>${metricCell(metrics[key].sharpe_zero_rf, 'ratio')}</td><td>${metricCell(metrics[key].annualized_turnover)}</td></tr>`).join('');
     const method = lang === 'pl' ? data.methodology_pl : data.methodology_en;
-    box.innerHTML = `<div class="table-scroll"><table class="audit brace-table"><thead><tr><th>${esc(T.model)}</th><th>${esc(T.cagr)}</th><th>${esc(T.drawdown)}</th><th>${esc(T.sharpe)}</th><th>${esc(T.turnover)}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="brace-method">${esc(method || '')}</p>`;
+    box.innerHTML = `${promotionGate(data.promotion_gate)}<div class="table-scroll"><table class="audit brace-table"><thead><tr><th>${esc(T.model)}</th><th>${esc(T.cagr)}</th><th>${esc(T.drawdown)}</th><th>${esc(T.sharpe)}</th><th>${esc(T.turnover)}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="brace-method">${esc(method || '')}</p>`;
   }
 
   async function json(url) {
