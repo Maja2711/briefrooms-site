@@ -2,7 +2,7 @@ name: Build PL Aktualności (6x dziennie)
 
 on:
   schedule:
-    # Czasy w UTC: co 4 godziny, z limitem zapytań zachowującym rezerwę na ponowienia.
+    # Czasy w UTC: co 4 godziny.
     - cron: "10 */4 * * *"
   workflow_dispatch: {}
   push:
@@ -11,8 +11,10 @@ on:
       - "scripts/fetch_news_pl.py"
       - "scripts/fetch_news_pl_hybrid.py"
       - "scripts/fetch_news_pl_deep.py"
+      - "scripts/read_and_summarize_articles.py"
+      - "scripts/newsroom_articles.py"
+      - "scripts/newsroom_style.py"
       - "scripts/comment_quality.py"
-      - "scripts/news_comment_batch.py"
       - "tests/test_fetch_news_pl.py"
       - "tests/test_comment_quality.py"
       - ".github/workflows/news-pl.yml"
@@ -28,6 +30,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 55
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,11 +56,7 @@ jobs:
       - name: Test strict PL and EN comment contract
         run: python -m unittest discover -s tests -p "test_comment_quality.py"
 
-      - name: Stagger AI generation after a code push
-        if: github.event_name == 'push'
-        run: sleep 15m
-
-      - name: Generate PL Aktualności (plain summaries + hotbar JSON)
+      - name: Generate PL Aktualności with homepage-grade full-article comments
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
@@ -65,28 +64,22 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
-        run: |
-          python scripts/fetch_news_pl_deep.py
+        run: python scripts/fetch_news_pl_deep.py
 
-      - name: Commit & push if changed
+      - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_comment_batch.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi
-
-          # Dodaj tylko to, co faktycznie istnieje. Brak pliku cache nie może wywalać workflow.
           git add -A pl/aktualnosci.html .cache || true
-
           if git diff --cached --quiet; then
             echo "No PL news changes to commit."
           else
-            git commit -m "chore(news-pl): update plain-summary PL news"
-            # Zabezpieczenie przed odrzuceniem push, gdy main zmienił się w międzyczasie.
+            git commit -m "chore(news-pl): publish homepage-grade PL news"
             git pull --rebase -X theirs origin main
             git push
           fi
