@@ -2,7 +2,8 @@
 """Safe orchestration for the BriefRooms 10K model portfolio.
 
 A repository push may migrate the one invalid legacy initialization, but future
-code deployments must never reset an already valid active portfolio.
+code deployments must never reset an already valid active or partially active
+portfolio.
 """
 from __future__ import annotations
 
@@ -53,6 +54,13 @@ def run(mode: str) -> None:
         except Exception as exc:
             execution.save_pending(data, now, str(exc))
             raise
+
+    if data.get("status") == "partial_open":
+        # The dedicated staged-entry workflow owns completion of pending positions.
+        # Most importantly, do not downgrade this state back to pending_open and do
+        # not erase the valid live entries that have already been frozen.
+        print("Portfolio 10K partially active; pending positions are handled by staged live entry")
+        return
 
     if data.get("status") != "active":
         execution.save_pending(data, now, "Unsupported portfolio status")
