@@ -18,7 +18,7 @@
       box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25)
     }
     h2{ margin:8px 0 6px; color:#d7e6ff }
-       
+
     ul.news{ list-style:none; padding-left:0; }
     ul.news li{ margin:18px 0 24px; }
     ul.news li a{
@@ -55,7 +55,7 @@
     .sec{ margin-top:4px; }
     .source-line{ margin:8px 0 0 88px; color:#9fb3cb; font-size:.82rem; }
     .note{ color:#9fb3cb; font-size:.92rem }
-    
+
 
     /* EN: override source CTA text */
     body[data-page="news"] ul.news > li > a::after{
@@ -67,7 +67,7 @@
         content:"Source" !important;
       }
     }
-  
+
     html{ scroll-behavior:smooth; }
     .section-tabs{position:sticky;top:0;z-index:20;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px auto 18px;padding:10px 12px;background:rgba(8,15,30,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.10);border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
     .section-tabs a{display:inline-flex;align-items:center;justify-content:center;min-width:96px;padding:9px 14px;border-radius:999px;color:#fdf3e3;text-decoration:none;font-weight:800;letter-spacing:.01em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);white-space:nowrap}
@@ -77,6 +77,135 @@
     section.card{scroll-margin-top:92px}
     @media(max-width:760px){.section-tabs{border-radius:22px;justify-content:stretch}.section-tabs a{flex:1 1 31%;min-width:auto;padding:9px 10px;font-size:.88rem}.section-tabs .brand-link{flex:1 1 100%;justify-content:center}}
 
+
+    body[data-page="news"]{
+      margin:0!important;
+      color:#eef7ff!important;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important;
+      background:
+        radial-gradient(1000px 520px at 12% -10%,rgba(46,214,201,.18),transparent 58%),
+        radial-gradient(900px 620px at 86% 16%,rgba(73,168,255,.13),transparent 58%),
+        linear-gradient(180deg,#06131f 0%,#071827 48%,#081522 100%)!important;
+      min-height:100vh;
+    }
+    body[data-page="news"]:before{
+      content:"";position:fixed;inset:0;pointer-events:none;
+      background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+      background-size:44px 44px;
+      mask-image:linear-gradient(180deg,rgba(0,0,0,.86),transparent 84%);
+    }
+    body[data-page="news"] header{
+      position:relative;z-index:1;max-width:1360px!important;margin:0 auto!important;
+      padding:30px 24px 12px!important;text-align:left!important;
+    }
+    body[data-page="news"] header h1{
+      margin:0 0 8px!important;font-size:clamp(38px,5vw,58px)!important;
+      line-height:1.03!important;letter-spacing:-.045em!important;
+    }
+    body[data-page="news"] header .sub{margin:0!important;color:#9fb2c8!important;font-size:14px!important}
+    body[data-page="news"] main{
+      position:relative;z-index:1;max-width:1360px!important;margin:0 auto!important;
+      padding:0 24px 64px!important;
+    }
+    body[data-page="news"] .section-tabs{
+      top:10px!important;margin:18px auto 30px!important;max-width:1180px!important;
+      background:rgba(6,19,31,.86)!important;border-color:rgba(255,255,255,.12)!important;
+      box-shadow:0 18px 44px rgba(0,0,0,.26)!important;
+    }
+    body[data-page="news"] section.card{
+      background:transparent!important;border:0!important;border-radius:0!important;
+      box-shadow:none!important;padding:10px 0 24px!important;margin:18px 0 26px!important;
+    }
+    body[data-page="news"] section.card h2{
+      margin:0 0 18px!important;padding:0 0 14px!important;
+      color:#eef7ff!important;font-size:clamp(25px,3vw,34px)!important;
+      line-height:1.08!important;letter-spacing:-.035em!important;
+      border-bottom:1px solid rgba(255,255,255,.12)!important;
+    }
+    body[data-page="news"] ul.news{
+      list-style:none!important;margin:0!important;padding:0!important;
+      display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:18px!important;
+    }
+    body[data-page="news"] ul.news>li{
+      min-width:0;margin:0!important;padding:0!important;overflow:hidden!important;
+      border:1px solid rgba(255,255,255,.12)!important;border-radius:22px!important;
+      background:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.04))!important;
+      box-shadow:0 18px 44px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.08)!important;
+      transition:transform .2s ease,border-color .2s ease!important;
+      display:flex!important;flex-direction:column!important;
+    }
+    body[data-page="news"] ul.news>li:hover{
+      transform:translateY(-3px)!important;border-color:rgba(56,214,201,.32)!important;
+    }
+    body[data-page="news"] .news-main-link,
+    body[data-page="news"] ul.news>li>a{
+      display:block!important;color:inherit!important;text-decoration:none!important;
+      min-width:0!important;
+    }
+    body[data-page="news"] ul.news>li>a::after{content:none!important;display:none!important}
+    body[data-page="news"] .news-thumb{
+      display:block!important;width:100%!important;min-width:0!important;height:190px!important;
+      margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+      overflow:hidden!important;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.32),transparent 40%),linear-gradient(135deg,#0d344a,#081827)!important;
+      box-shadow:none!important;
+    }
+    body[data-page="news"] .news-thumb.has-image img{
+      display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image){
+      display:grid!important;place-items:center!important;text-align:center!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image) .dot{display:none!important}
+    body[data-page="news"] .news-thumb:not(.has-image) .title{
+      display:block!important;max-width:80%!important;color:rgba(255,255,255,.82)!important;
+      font-size:24px!important;font-weight:950!important;line-height:1.05!important;
+      white-space:normal!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image) .sub{display:none!important}
+    body[data-page="news"] .news-title-wrap{display:block!important;padding:16px 16px 12px!important}
+    body[data-page="news"] .news-text{
+      display:block!important;padding:16px 16px 7px!important;
+      color:#eef7ff!important;font-size:18px!important;font-weight:850!important;
+      line-height:1.2!important;letter-spacing:-.015em!important;
+    }
+    body[data-page="news"] .news-title-wrap .news-text{padding:0!important}
+    body[data-page="news"] .source-line{
+      margin:0!important;padding:0 16px 12px!important;color:#88a0b6!important;
+      font-size:12px!important;line-height:1.35!important;
+    }
+    body[data-page="news"] .news-title-wrap .source-line{padding:8px 0 0!important}
+    body[data-page="news"] .ai-note{
+      margin:0!important;padding:15px 16px 18px!important;border:0!important;
+      border-top:1px solid rgba(255,255,255,.09)!important;border-radius:0!important;
+      background:transparent!important;color:#b8c9d8!important;font-size:14px!important;
+      line-height:1.55!important;flex:1!important;
+    }
+    body[data-page="news"] .ai-head{margin:0 0 9px!important}
+    body[data-page="news"] .ai-badge{
+      display:inline-flex!important;align-items:center!important;gap:7px!important;
+      padding:5px 9px!important;border-radius:999px!important;
+      background:rgba(56,214,201,.12)!important;border:1px solid rgba(56,214,201,.24)!important;
+      color:#8ffff6!important;font-size:10px!important;font-weight:950!important;
+      letter-spacing:.045em!important;text-transform:uppercase!important;
+    }
+    body[data-page="news"] .ai-dot{background:#38d6c9!important;box-shadow:0 0 8px rgba(56,214,201,.68)!important}
+    body[data-page="news"] .sec{margin:0!important}
+    body[data-page="news"] .sec strong{display:none!important}
+    body[data-page="news"] .empty-state{
+      grid-column:1/-1;padding:28px!important;border:1px solid rgba(255,255,255,.10)!important;
+      border-radius:18px!important;background:rgba(255,255,255,.035)!important;
+    }
+    body[data-page="news"] footer{position:relative;z-index:1;color:#7f93a8!important}
+    @media(max-width:760px){
+      body[data-page="news"] header{padding:24px 14px 10px!important}
+      body[data-page="news"] main{padding:0 14px 44px!important}
+      body[data-page="news"] ul.news{grid-template-columns:1fr!important;gap:15px!important}
+      body[data-page="news"] .news-thumb{height:178px!important}
+      body[data-page="news"] .news-text{font-size:17px!important}
+    }
+
+  /* briefrooms-newsroom-v2 */
   </style>
 </head>
 <body data-page="news">
@@ -103,42 +232,29 @@
   <h2>World News</h2>
   <ul class="news">
     <li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c151gdjwd10o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/3349/live/d949cc00-81d7-11f1-926f-c90d1bcfbc84.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">Iran accuses US of hitting civilian infrastructure</span>
+  </a>
+  <div class="source-line">Source: BBC News</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Iran has accused the US of targeting civilian infrastructure during recent air strikes. The attacks have reportedly resulted in damage to bridges, a train station, and an airport in Iran. Seven people were confirmed killed in the strikes, according to provincial authorities. The US Central Command stated that the attacks aimed to degrade Iranian military capabilities.</div>
+
+
+  </div>
+</li>
+<li>
   <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c151gegwqv1o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/2407/live/9aae3f90-819f-11f1-a603-673178e2b07e.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-text">Uganda suspends school trips after 20 pupils die in bus crash</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Uganda has suspended school trips following a tragic bus crash that resulted in the deaths of 20 pupils. This incident highlights the ongoing issue of road safety in the country.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cx2k9wvv5wyo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/d581/live/e4364610-818d-11f1-bee8-53ce494e1abc.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Trump alleges China meddled in 2020 election and questions voting security ahead of midterms</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Donald Trump has alleged that China interfered in the 2020 U.S. elections, raising concerns about voting security ahead of the midterm elections. China has denied these claims, calling them fabricated.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.theguardian.com/us-news/2026/jul/17/ebola-us-aid-workers-kenya" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/db74c2bd4916bf32c469d847b07460e79d7b13ff/324_0_3556_2844/master/3556.jpg?width=700&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=a91b0d0436289b066ef92d41da763bc6" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Seven Americans quarantining at Kenya Ebola facility after US travel ban, says aid group</span>
-  </a>
-  <div class="source-line">Source: The Guardian</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Seven American aid workers are quarantining in Kenya after the U.S. imposed travel restrictions related to the Ebola outbreak. This facility has faced significant opposition within Kenya.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">The Ugandan government has suspended all school trips following a tragic bus crash that killed at least 20 pupils. The accident occurred in Kapchorwa district while the students were on an educational tour. Preliminary investigations indicate that the bus had a mechanical fault before the driver lost control. Education Minister John Chrysostom Muyingo emphasized the need for immediate safety measures for children.</div>
+
+
   </div>
 </li>
   </ul>
@@ -148,29 +264,16 @@
   <h2>Asia-Pacific</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cjd4kvxpd3do?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/f1b8/live/e08168e0-81e4-11f1-bee8-53ce494e1abc.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">China hits out at British Steel nationalisation</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The UK government has announced the nationalization of British Steel, stating that it is necessary to protect a vital national capability.</div>
-    
-    
-  </div>
-</li>
-<li>
   <a class="news-main-link" href="https://www.scmp.com/news/china/diplomacy/article/3360994/china-blasts-unfounded-smears-trumps-election-claims-threaten-diplomatic-thaw?utm_source=rss_feed" target="_blank" rel="noopener">
     <span class="news-thumb has-image"><img src="https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/07/17/84c759d6-977a-42b3-901b-a7f0e7b5ef82_c13b04da.jpg?itok=OI9BydtL&amp;v=1784292315" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-text">China blasts ‘unfounded smears’ as Trump’s election claims threaten diplomatic thaw</span>
   </a>
   <div class="source-line">Source: South China Morning Post</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Trump&#x27;s allegations of Chinese interference in U.S. elections have led to heightened tensions between the two nations, potentially jeopardizing diplomatic relations. His claims were made during a lengthy address from the White House.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">US President Donald Trump has accused China of interfering in US elections, claiming they stole 220 million voter files. His allegations have strained the diplomatic relationship between the US and China. A spokesperson for the Chinese Ministry urged the US to stop its &#x27;unfounded smears&#x27; and improve bilateral relations. Trump&#x27;s claims were made during a prime-time address from the White House.</div>
+
+
   </div>
 </li>
 <li>
@@ -180,10 +283,23 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Japan has amended its royal succession laws to allow the adoption of male relatives over 15 into the imperial family, while maintaining the ban on female emperors.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">The Japanese parliament has approved a bill to relax imperial succession rules. This bill allows the adoption of distant male relatives and enables women to retain their royal status after marrying outside the family. However, the law barring women from ascending the throne remains unchanged. The bill marks the first amendment to the Imperial House Law since 1949.</div>
+
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.scmp.com/news/people-culture/trending-china/article/3360974/china-student-discovered-video-platform-shines-heroine-acclaimed-film-dear-you?utm_source=rss_feed" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/07/17/f5b70c76-2561-4777-9649-4cc540245dfc_57ee62d5.jpg?itok=TSKDTJE3&amp;v=1784284048" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">China student discovered on video platform shines as heroine in acclaimed film ‘Dear You’</span>
+  </a>
+  <div class="source-line">Source: South China Morning Post</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Li Sitong is a recent graduate who starred in the film &#x27;Dear You&#x27; as Zia Lamgi. The film, directed by Lan Hongchun, tells a poignant story of migration and family secrets. It was produced on a budget of 14 million yuan and grossed nearly 2 billion yuan at the box office. Li Sitong&#x27;s performance has garnered her widespread acclaim, and she hopes to pursue more acting opportunities in the future.</div>
+
+
   </div>
 </li>
 <li>
@@ -193,10 +309,10 @@
   </a>
   <div class="source-line">Source: CNA</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Kimi K3 AI model from China has generated excitement in the industry, with some comparing its anticipated 2025 release to a significant moment in AI development that challenged US dominance.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Moonshot AI has released a new model called Kimi K3, which has generated significant interest in the tech community. This model is noted for its potential to compete with advanced AI offerings from the United States. Kimi K3 has around 2.8 trillion parameters, making it the world&#x27;s first open-source model of its size. Experts have commented on its strong performance in coding tasks, although it still trails behind proprietary models from leading US companies.</div>
+
+
   </div>
 </li>
   </ul>
@@ -212,10 +328,10 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> European demand for air-conditioners is rising sharply, with Chinese brands stepping in to meet this need. This trend is notable in a region where air-conditioner ownership has traditionally been low.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Europe is experiencing a surge in demand for air-conditioners due to extreme heatwaves, with many residents turning to Chinese brands. Midea, a Chinese manufacturer, has reported a significant increase in sales across several European countries. The newer models from Chinese companies are designed to comply with European regulations, making them more accessible to consumers. However, the rise in air-conditioner usage raises concerns about electricity consumption and environmental impact.</div>
+
+
   </div>
 </li>
 <li>
@@ -225,10 +341,23 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The outgoing UK Prime Minister has reaffirmed the country&#x27;s unwavering support for Ukraine during a final visit with President Zelensky. This commitment comes amid ongoing conflict with Russia.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Sir Keir Starmer visited Ukraine to reaffirm the UK&#x27;s support and announced new funding for the country. During his visit, he met with President Volodymyr Zelensky and was awarded the Order of Freedom. Starmer emphasized that the UK&#x27;s commitment to Ukraine would not change with the upcoming leadership transition. He highlighted the importance of Ukraine&#x27;s fight for security in Europe and expressed confidence in their eventual victory.</div>
+
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/17/zelenskyy-defends-sacking-ukraine-defence-minister-mykhailo-fedorov" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/83d517f9ca97e20de2a86744389c0608d181ca84/636_0_4290_3432/master/4290.jpg?width=700&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=643e0c2dbed8d430c3eb8c38213f0227" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">Political crisis and protests in Ukraine as Zelenskyy defends sacking defence minister</span>
+  </a>
+  <div class="source-line">Source: The Guardian</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">President Volodymyr Zelenskyy defended his decision to dismiss Defence Minister Mykhailo Fedorov amid protests in Ukraine. He acknowledged a breakdown in relations between Fedorov and military leaders, leading to his choice to support the military&#x27;s commander in chief. The dismissal has sparked outrage among civil society, with protests erupting in support of Fedorov. Zelenskyy has appointed Yevhenii Khmara as the acting defence minister while seeking parliamentary approval.</div>
+
+
   </div>
 </li>
   </ul>
@@ -238,42 +367,16 @@
   <h2>Middle East</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.aljazeera.com/news/2026/7/17/satellite-images-show-damage-inside-irans-bushehr-nuclear-power-plant?traffic_source=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://www.aljazeera.com/wp-content/uploads/2026/07/GettyImages-1685052-1784216862.jpg?resize=1920%2C1440" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Satellite images show damage inside Iran’s Bushehr nuclear power plant</span>
-  </a>
-  <div class="source-line">Source: Al Jazeera</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Recent satellite images have shown damage to Iran&#x27;s Bushehr nuclear power plant, with strikes reported between July 7 and 12. This raises concerns about the security of nuclear facilities in the region.</div>
-    
-    
-  </div>
-</li>
-<li>
   <a class="news-main-link" href="https://www.aljazeera.com/news/2026/7/17/church-of-england-backs-palestinian-christians-despite-backlash?traffic_source=rss" target="_blank" rel="noopener">
     <span class="news-thumb has-image"><img src="https://www.aljazeera.com/wp-content/uploads/2026/07/getty_6a59fb3623-1784281910.jpg?resize=1920%2C1440" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-text">Church of England backs Palestinian Christians despite backlash</span>
   </a>
   <div class="source-line">Source: Al Jazeera</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Church of England has expressed support for Palestinian Christians, passing a motion to better understand their experiences. This decision has faced backlash but reflects ongoing discussions about the situation in the region.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.theguardian.com/world/2026/jul/16/us-intensifies-attacks-on-iran-as-tehran-hits-back-at-gulf-states" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/8c2a30d2d0cd6393d76ac542ae98d51ec6a6d751/638_0_5000_4000/master/5000.jpg?width=700&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=c2b309ae8e694090a9cbb0e3caec9b0b" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">US intensifies attacks on Iran as Tehran hits back at Gulf states</span>
-  </a>
-  <div class="source-line">Source: The Guardian</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The US has escalated its military actions against Iran, leading to retaliatory strikes from Iran on US allies, raising fears of a broader conflict in the region.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">The Church of England&#x27;s General Synod voted to support Palestinian Christians and engage with the Kairos documents. This decision was made despite backlash from Jewish groups regarding the language used in the documents. The Kairos Palestine document, launched in 2009, calls for an end to Israeli occupation. The latest document, Kairos Palestine II, addresses the ongoing violence in Gaza and the experiences of Palestinian Christians.</div>
+
+
   </div>
 </li>
   </ul>
@@ -289,10 +392,10 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> UK fuel prices are increasing again following the collapse of peace talks related to the US-Israel war with Iran.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Fuel prices in the UK are rising again due to renewed tensions in the Middle East. The price of Brent crude oil has been volatile, recently climbing to around $87 a barrel. The RAC reports that petrol and diesel prices have increased since early July, with petrol now costing 152.54p per litre. Despite the current rise, prices remain below the peaks reached during the summer of 2022.</div>
+
+
   </div>
 </li>
 <li>
@@ -302,36 +405,10 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Trump Media is introducing a paid service that provides Wall Street traders with immediate access to its most impactful social media posts.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.cnbc.com/2026/07/17/import-prices-post-surprise-gain-as-costs-of-goods-from-china-hit-highest-since-2008.html" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://image.cnbcfm.com/api/v1/image/108294522-1776774695017-gettyimages-2272269783-jr_15265_4taxt9d7.jpeg?v=1776774725&amp;w=1920&amp;h=1080" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Import prices post surprise gain as costs of goods from China hit highest since 2008</span>
-  </a>
-  <div class="source-line">Source: CNBC</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Import prices rose by 0.3% for the month, driven by increases in various goods, despite a decline in energy costs.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.cnbc.com/2026/07/17/apple-nvidia-aapl-nvda-market-cap.html" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://image.cnbcfm.com/api/v1/image/108318288-17809385162026-06-08t170559z_308644001_rc2tpla6ggmw_rtrmadp_0_apple-wwdc.jpeg?v=1780938573&amp;w=1920&amp;h=1080" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Apple dethrones Nvidia as world&#x27;s most valuable company, ending the chipmaker&#x27;s long run at the top</span>
-  </a>
-  <div class="source-line">Source: CNBC</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Apple has surpassed Nvidia to become the world&#x27;s most valuable company, marking a shift in market focus towards companies involved in AI infrastructure.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Trump Media &amp; Technology Group is launching a paid service to provide Wall Street firms with rapid access to influential posts on Truth Social. The service, named Truth API, will deliver posts in milliseconds and operate continuously. This initiative aims to create a new revenue stream for the company, which is currently not profitable. The White House has declined to comment on whether President Trump&#x27;s posts will be included in this paid service.</div>
+
+
   </div>
 </li>
 <li>
@@ -341,10 +418,10 @@
   </a>
   <div class="source-line">Source: Federal Reserve</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Federal Reserve Board has taken enforcement action against the former chief lending officer of Heritage State Bank. Details regarding the nature of the enforcement action have not been disclosed.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">The Federal Reserve Board announced an enforcement action against James Burns, the former Chief Lending Officer of Heritage State Bank. The action is related to appraisal-related lending misconduct. The announcement was made on a secure government website. For further inquiries, the Federal Reserve provided contact information for media inquiries.</div>
+
+
   </div>
 </li>
   </ul>
@@ -360,10 +437,23 @@
   </a>
   <div class="source-line">Source: ESA</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Copernicus Sentinel-2 satellite captured an image showcasing part of Guinea-Bissau, located in western Africa.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Guinea-Bissau is one of the smallest nations in continental Africa, covering an area of 36,125 square kilometers. The country features a mix of highlands in the northeast and lowlands along the Atlantic coast. The coastal region is characterized by low plains, mangrove swamps, and numerous rivers and estuaries. The Geba River, a freshwater river, flows into the Atlantic Ocean, contributing to the region&#x27;s agricultural viability.</div>
+
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c3v0xe5elzyo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/9b7e/live/26ca8eb0-81ec-11f1-b7bc-5dd9ae7a9918.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">At least two dead in Texas floods ravaging same area where campers died</span>
+  </a>
+  <div class="source-line">Source: BBC News</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">At least two people have died in flooding across central Texas. The flooding is a result of heavy rain and is expected to worsen, with forecasts predicting up to 30 inches of rain. Emergency responders have conducted at least 230 rescues in the affected areas. Flash flood warnings remain in place, urging residents to seek higher ground.</div>
+
+
   </div>
 </li>
 <li>
@@ -373,10 +463,10 @@
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Researchers have discovered an Earth-like rocky planet within the habitable zone of a distant star that possesses an atmosphere.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Researchers have discovered the first atmosphere surrounding an Earth-like rocky planet, LHS 1140 b, located 48 light-years from Earth. The atmosphere contains helium, which does not support life, but other gases may also be present. This finding is significant as it brings scientists closer to understanding the potential for life beyond our solar system. The study highlights the importance of the &#x27;Goldilocks zone&#x27; for planets to support life.</div>
+
+
   </div>
 </li>
 <li>
@@ -386,10 +476,10 @@
   </a>
   <div class="source-line">Source: The Guardian</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> A brain implant has enabled Keith Thomas, who was paralyzed from the chest down, to regain movement in his arms and hands, allowing him to feed himself and drink from a cup.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Keith Thomas, who was paralyzed from the chest down, has regained the ability to feed himself and drink from a cup due to a brain implant. The technology, developed by researchers at the Feinstein Institutes for Medical Research, allows him to move his limbs and feel sensations. After months of training, Thomas can now perform tasks like scratching his nose and handling delicate objects. His progress demonstrates the potential for brain-computer interfaces to restore movement and sensation.</div>
+
+
   </div>
 </li>
   </ul>
@@ -399,42 +489,16 @@
   <h2>Health</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/cpv3eky4w2do?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/00b0/live/f29dcd70-7bae-11f1-9b70-93a7d5047ee3.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">What type of procrastinator are you - and how to fix it now (not later)</span>
-  </a>
-  <div class="source-line">Source: BBC News</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Researchers have identified nine types of procrastination, suggesting that understanding these can help address underlying issues.</div>
-    
-    
-  </div>
-</li>
-<li>
   <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c74glj9zkzko?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/2ac5/live/29a87d30-812f-11f1-bee8-53ce494e1abc.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-text">Teenagers from 15 should be given free MenB vaccine, say UK experts</span>
   </a>
   <div class="source-line">Source: BBC News</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> UK experts are recommending that teenagers aged 15 be offered the MenB vaccine for free due to concerns over a recent outbreak in Kent that resulted in two deaths. This recommendation aims to enhance public health safety.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.theguardian.com/society/2026/jul/16/offer-teenagers-a-meningitis-b-vaccine-on-nhs-advisers-tell-uk-government" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/19cbf8185e10115bea6ae945ca807c90367897e3/0_0_3999_3199/master/3999.jpg?width=700&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=176efdc1a41bb53091b072b05273c1e7" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Offer teenagers a meningitis B vaccine on NHS, advisers tell UK government</span>
-  </a>
-  <div class="source-line">Source: The Guardian</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> The Joint Committee on Vaccination and Immunisation (JCVI) recommends that all teenagers in the UK be offered the meningitis B vaccine at age 15 due to recent outbreaks.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">UK experts are now recommending that all teenagers receive a free meningitis B vaccine at around age 15. This recommendation follows a significant outbreak in Kent that resulted in two deaths. A one-off vaccination campaign is being launched for young people heading to university. The Department of Health and Social Care is considering this advice for future vaccination programs.</div>
+
+
   </div>
 </li>
 <li>
@@ -444,10 +508,10 @@
   </a>
   <div class="source-line">Source: The Guardian</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Federal health officials are investigating Taylor Farms as a potential source of a cyclosporiasis outbreak linked to iceberg lettuce supplied to Taco Bell, affecting several states.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Federal health officials are investigating iceberg lettuce from Taylor Farms as a potential source of a cyclosporiasis outbreak linked to Taco Bell. The outbreak has affected states including Michigan, Ohio, West Virginia, and Kentucky. Taco Bell has voluntarily removed the potentially impacted lettuce from its supply chain nationwide. The Centers for Disease Control and Prevention reported 1,645 lab-confirmed cases and 145 hospitalizations due to the illness.</div>
+
+
   </div>
 </li>
   </ul>
@@ -457,29 +521,42 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/czxedvre7ryo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/698c/live/adf12f60-81e3-11f1-9b73-1d2c7fa8d439.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">Keep calm and carry on - Spain trust team identity to deliver World Cup</span>
+  </a>
+  <div class="source-line">Source: BBC Sport</div>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Spain&#x27;s national football team is aiming to win their second World Cup title against Argentina. The team&#x27;s confidence stems from their recent successes, including winning Euro 2024 and an unbeaten streak of 37 games. Spain&#x27;s approach has been consistent, focusing on maintaining calm and sticking to their game plan. The final match is expected to be challenging, especially with Argentina&#x27;s strong squad led by Lionel Messi.</div>
+
+
+  </div>
+</li>
+<li>
   <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/clyxllv7lmpo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
     <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/341f/live/ddf955e0-81cd-11f1-b976-0b9c15b0ccfc.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-text">Five reasons for England to be cheerful despite World Cup exit</span>
   </a>
   <div class="source-line">Source: BBC Sport</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Despite losing in the World Cup semi-finals, there are several reasons for optimism regarding the future of England&#x27;s football.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Despite a semi-final loss in the World Cup, there are reasons for optimism regarding England&#x27;s football future. England has two Golden Boot contenders, Harry Kane and Jude Bellingham, both of whom have scored six goals in the tournament. The team&#x27;s recent performances show significant progress, having reached the semi-finals or finals in four of the last five major tournaments. The players faced challenging conditions during the World Cup, including extreme heat and humidity.</div>
+
+
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/c89nlvwx410o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/ef87/live/18cbc900-81dd-11f1-8b86-31ce3d5ecce7.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Uefa will not use VAR for diving like at World Cup</span>
+  <a class="news-main-link" href="https://www.skysports.com/rugby-union/news/12040/13564427/england-captain-jamie-george-will-lead-team-off-field-in-argentina-if-racial-abuse-resurfaces" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://e2.365dm.com/26/07/1920x1080/skysports-jamie-george-engladn_7300085.jpg?20260717151703" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-text">George will lead England off pitch in Argentina if racial abuse resurfaces</span>
   </a>
-  <div class="source-line">Source: BBC Sport</div>
+  <div class="source-line">Source: Sky Sports</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Uefa has instructed its video assistant referees not to consider potential diving as mistaken identity, a practice observed during the 2026 World Cup.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Jamie George has stated he will lead the England rugby team off the pitch if racial abuse occurs again during their match in Argentina. This follows an incident where teammates Asher Opoku-Fordjour and Chandler Cunningham-South were racially abused by fans. A World Rugby investigation confirmed that racial discrimination had taken place during a previous match in Argentina. George is consulting with players of mixed heritage to determine the appropriate response if such an incident happens again.</div>
+
+
   </div>
 </li>
 <li>
@@ -489,23 +566,10 @@
   </a>
   <div class="source-line">Source: Sky Sports</div>
   <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Dominik Szoboszlai has officially signed a new long-term contract with Liverpool.</div>
-    
-    
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.skysports.com/golf/news/12040/13564310/the-open-lucas-herbert-and-sam-burns-equal-major-history-with-extraordinary-second-round-62s-at-royal-birkdale" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://e2.365dm.com/26/07/1920x1080/skysports-lucas-herbert-golf_7300005.jpg?20260717140616" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-text">Burns matches major history after Herbert misses on &#x27;61 round&#x27; at The Open</span>
-  </a>
-  <div class="source-line">Source: Sky Sports</div>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> BriefRooms • AI comment</span></div>
-    <div class="sec"><strong>Key point:</strong> Sam Burns and Lucas Herbert matched the record for the lowest round in men&#x27;s major history with second-round scores of 62 at The Open.</div>
-    
-    
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Comment</span></div>
+    <div class="sec">Dominik Szoboszlai has signed a new long-term contract with Liverpool, extending his stay until 2031. He joined Liverpool from RB Leipzig for £60 million in the summer of 2023. Szoboszlai was a key player in Liverpool&#x27;s title-winning team for the 2024/25 season and was named the club&#x27;s player of the year last season. He expressed his excitement about the new deal and his desire to win more titles with the club.</div>
+
+
   </div>
 </li>
   </ul>
