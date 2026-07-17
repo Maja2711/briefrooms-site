@@ -15,7 +15,7 @@ The public portfolio starts with PLN 10,000 and a roughly five-year horizon. Its
 - SPGI.US — 8%
 - NOVOB.DK — 5%
 
-The first successful workflow run freezes the public model's entry close, FX rate and fractional number of units. This is a model execution, not proof of a fill in an XTB account.
+The first successful workflow run freezes the public model's entry close, FX rate and fractional number of units. This is a model execution, not proof of a fill in an XTB account. The model assumes a 0.5% FX conversion charge on each foreign-currency purchase. Dividends are recorded gross before withholding tax, because the actual tax depends on instrument domicile and investor circumstances.
 
 ## Weekly review
 
@@ -47,5 +47,5 @@ A falling price alone is not a reason to sell. Reduction is considered after the
 - Missing data is displayed as `—`, never as artificial zero.
 - Entry records are frozen after initialization.
 - Weekly snapshots and decision-journal entries are retained.
-- The public page identifies external data sources and explains that broker BID/ASK may differ.
+- The public page identifies external data sources, cost assumptions and explains that broker BID/ASK may differ.
 - The model does not claim that a technical score is a probability of profit.
