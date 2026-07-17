@@ -3,8 +3,10 @@
 
 The historical test is deliberately BRACE-Lite: it uses only point-in-time price
 and market-regime information. Current fundamental fields are never injected
-into historical dates. The purpose is to test the decision architecture and
-risk controls, not to manufacture a flattering hindsight result.
+into historical dates. Long-history proxies are disclosed explicitly when the
+live instrument does not have enough history. The purpose is to test the
+decision architecture and risk controls, not to manufacture a flattering
+hindsight result.
 """
 from __future__ import annotations
 
@@ -23,15 +25,27 @@ ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_PATH = ROOT / "data" / "investments" / "portfolio_10k.json"
 OUTPUT_PATH = ROOT / "data" / "investments" / "portfolio_10k_brace_backtest.json"
 
+# Explicit economic proxies used only in the historical validation layer.
+# They do not change the live portfolio or its execution prices.
+LONG_HISTORY_PROXIES: Dict[str, str] = {
+    "FWIA.DE": "VT",       # global all-cap equities
+    "ZPRV.DE": "VBR",      # US small-cap value exposure
+    "NOVO-B.CO": "NVO",    # Novo Nordisk ADR for longer USD history
+}
+
 
 def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, float(value)))
 
 
 def score_linear(value: float, bad: float, good: float) -> float:
-    if not math.isfinite(float(value)) or good == bad:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
         return 50.0
-    return clamp(100.0 * (float(value) - bad) / (good - bad))
+    if not math.isfinite(number) or good == bad:
+        return 50.0
+    return clamp(100.0 * (number - bad) / (good - bad))
 
 
 def weekly_prices(daily: pd.DataFrame) -> pd.DataFrame:
@@ -43,7 +57,7 @@ def weekly_prices(daily: pd.DataFrame) -> pd.DataFrame:
 
 
 def feature_frames(prices: pd.DataFrame, benchmark: pd.Series) -> Dict[str, pd.DataFrame | pd.Series]:
-    returns = prices.pct_change()
+    returns = prices.pct_change(fill_method=None)
     mom_26 = prices / prices.shift(26) - 1.0
     mom_52 = prices / prices.shift(52) - 1.0
     ma40 = prices.rolling(40, min_periods=30).mean()
@@ -54,7 +68,7 @@ def feature_frames(prices: pd.DataFrame, benchmark: pd.Series) -> Dict[str, pd.D
     bench_mom26 = benchmark / benchmark.shift(26) - 1.0
     relative_26 = mom_26.sub(bench_mom26, axis=0)
     bench_ma40 = benchmark / benchmark.rolling(40, min_periods=30).mean() - 1.0
-    bench_vol13 = benchmark.pct_change().rolling(13, min_periods=10).std(ddof=1) * math.sqrt(52)
+    bench_vol13 = benchmark.pct_change(fill_method=None).rolling(13, min_periods=10).std(ddof=1) * math.sqrt(52)
     breadth = (prices > ma40).mean(axis=1)
     return {
         "returns": returns,
@@ -144,13 +158,19 @@ def run_strategy(
     transaction_cost: float = 0.0025,
     variant: str = "standard",
 ) -> StrategyResult:
+    """Run a no-look-ahead weekly simulation with realistic weight drift.
+
+    Signals observed at ``when`` choose weights for the next weekly return.
+    Between scheduled rebalances, asset weights drift with realised returns.
+    Buy & Hold is funded once and is never subsequently rebalanced.
+    """
     features = feature_frames(prices, benchmark)
     asset_returns = features["returns"]
     valid_dates = prices.index[prices.notna().all(axis=1)]
     if len(valid_dates) < 60:
         raise ValueError("Insufficient aligned history")
     start_index = 52
-    current_weights = pd.Series(0.0, index=prices.columns)
+    current_weights = pd.Series(0.0, index=prices.columns, dtype=float)
     returns_out: Dict[pd.Timestamp, float] = {}
     turnover_out: Dict[pd.Timestamp, float] = {}
     weights_out: Dict[pd.Timestamp, pd.Series] = {}
@@ -158,8 +178,12 @@ def run_strategy(
     for i in range(start_index, len(valid_dates) - 1):
         when = valid_dates[i]
         next_when = valid_dates[i + 1]
-        rebalance = (i - start_index) % rebalance_every == 0 or current_weights.sum() == 0
+        first_allocation = float(current_weights.sum()) == 0.0
+        scheduled_rebalance = mode != "buy_hold" and (i - start_index) % rebalance_every == 0
+        rebalance = first_allocation or scheduled_rebalance
         cost = 0.0
+        turnover = 0.0
+
         if rebalance:
             if mode == "buy_hold":
                 desired = target.reindex(prices.columns).fillna(0.0)
@@ -172,14 +196,21 @@ def run_strategy(
                 raise ValueError(f"Unknown mode: {mode}")
             turnover = float((desired - current_weights).abs().sum())
             cost = turnover * transaction_cost
-            current_weights = desired
-        else:
-            turnover = 0.0
+            current_weights = desired.astype(float)
 
         next_return = asset_returns.loc[next_when].reindex(prices.columns).fillna(0.0)
-        portfolio_return = float((current_weights * next_return).sum()) - cost
+        cash_weight = max(0.0, 1.0 - float(current_weights.sum()))
+        gross_asset_values = current_weights * (1.0 + next_return)
+        gross_total = float(gross_asset_values.sum()) + cash_weight
+        portfolio_return = gross_total - 1.0 - cost
+
         returns_out[next_when] = portfolio_return
         turnover_out[next_when] = turnover
+
+        # Transaction costs reduce total wealth but do not create artificial
+        # leverage. Composition then drifts according to realised asset returns.
+        if gross_total > 0:
+            current_weights = (gross_asset_values / gross_total).clip(lower=0.0)
         weights_out[next_when] = current_weights.copy()
 
     returns_series = pd.Series(returns_out, dtype=float).sort_index()
@@ -221,7 +252,7 @@ def metrics(result: StrategyResult) -> Dict[str, float]:
 
 
 def benchmark_result(benchmark: pd.Series, index: pd.Index) -> StrategyResult:
-    returns = benchmark.pct_change().reindex(index).fillna(0.0)
+    returns = benchmark.pct_change(fill_method=None).reindex(index).fillna(0.0)
     return StrategyResult(
         returns=returns,
         equity=(1.0 + returns).cumprod(),
@@ -249,12 +280,33 @@ def download_history(symbols: Iterable[str], start: str) -> pd.DataFrame:
     return close.astype(float)
 
 
+def historical_symbol(symbol: str) -> str:
+    return LONG_HISTORY_PROXIES.get(symbol, symbol)
+
+
+def build_proxy_target(portfolio: Mapping[str, Any]) -> tuple[pd.Series, Dict[str, str]]:
+    weights: Dict[str, float] = {}
+    proxy_map: Dict[str, str] = {}
+    for position in portfolio.get("positions", []):
+        live = str(position["market_symbol"])
+        proxy = historical_symbol(live)
+        proxy_map[live] = proxy
+        weights[proxy] = weights.get(proxy, 0.0) + float(position["target_weight"])
+    target = pd.Series(weights, dtype=float)
+    return target / target.sum(), proxy_map
+
+
 def build_backtest(portfolio: Mapping[str, Any], start: str = "2016-01-01") -> Dict[str, Any]:
-    target = pd.Series({str(p["market_symbol"]): float(p["target_weight"]) for p in portfolio.get("positions", [])})
-    benchmark_symbol = str(portfolio.get("benchmark", {}).get("market_symbol") or "FWIA.DE")
+    target, proxy_map = build_proxy_target(portfolio)
+    live_benchmark = str(portfolio.get("benchmark", {}).get("market_symbol") or "FWIA.DE")
+    benchmark_symbol = historical_symbol(live_benchmark)
     downloaded = download_history([*target.index, benchmark_symbol], start)
     weekly = weekly_prices(downloaded)
     available_assets = [symbol for symbol in target.index if symbol in weekly.columns]
+    missing_assets = sorted(set(target.index) - set(available_assets))
+    if missing_assets:
+        raise RuntimeError(f"Missing historical series: {', '.join(missing_assets)}")
+
     prices = weekly[available_assets].dropna(how="any")
     benchmark = weekly[benchmark_symbol].reindex(prices.index).ffill().dropna()
     prices = prices.reindex(benchmark.index).dropna(how="any")
@@ -275,23 +327,32 @@ def build_backtest(portfolio: Mapping[str, Any], start: str = "2016-01-01") -> D
     output_metrics["benchmark"] = metrics(bench)
 
     standard_cagr = output_metrics["brace_standard"].get("cagr", 0.0)
-    variant_cagrs = [output_metrics[name].get("cagr", 0.0) for name in ("brace_conservative", "brace_standard", "brace_aggressive")]
+    variant_cagrs = [
+        output_metrics[name].get("cagr", 0.0)
+        for name in ("brace_conservative", "brace_standard", "brace_aggressive")
+    ]
     robust = max(variant_cagrs) - min(variant_cagrs) <= 0.05
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "model": "BRACE-Lite walk-forward validation",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "start_date": common_index.min().date().isoformat(),
         "end_date": common_index.max().date().isoformat(),
         "symbols": available_assets,
         "benchmark_symbol": benchmark_symbol,
+        "live_to_historical_proxy": proxy_map,
+        "benchmark_proxy": {live_benchmark: benchmark_symbol},
         "assumptions": {
             "rebalance_frequency_weeks": 4,
             "transaction_cost_per_turnover": 0.0025,
             "lookahead": False,
             "fundamentals_in_backtest": False,
             "cash_return": 0.0,
+            "weights_drift_between_rebalances": True,
+            "buy_hold_rebalanced_after_launch": False,
+            "proxy_series_disclosed": True,
             "survivorship_limitation": "The current portfolio universe is tested; delisted historical candidates are not reconstructed.",
+            "proxy_limitation": "Long-history ETFs or ADRs are economic proxies and will not exactly match the live UCITS instrument, currency or tax treatment.",
         },
         "metrics": output_metrics,
         "robustness": {
@@ -309,13 +370,16 @@ def build_backtest(portfolio: Mapping[str, Any], start: str = "2016-01-01") -> D
         },
         "methodology_pl": (
             "Test walk-forward używa wyłącznie informacji cenowej dostępnej do danego tygodnia. "
-            "Pełne fundamenty historyczne point-in-time nie są zastępowane dzisiejszymi danymi; "
-            "dlatego test nazywa się BRACE-Lite. Wagi z tygodnia t obowiązują dopiero dla zwrotu t→t+1."
+            "Pełne fundamenty historyczne point-in-time nie są zastępowane dzisiejszymi danymi. "
+            "Dla instrumentów o krótkiej historii stosujemy jawnie wskazane proxy ekonomiczne. "
+            "Wagi z tygodnia t obowiązują dopiero dla zwrotu t→t+1 i naturalnie dryfują pomiędzy "
+            "miesięcznymi rebalancingami. Buy & Hold nie jest ponownie równoważony po starcie."
         ),
         "methodology_en": (
             "The walk-forward test uses only price information available by each week. "
-            "Current fundamentals are never backfilled into history, so the test is labelled BRACE-Lite. "
-            "Weights formed at week t apply only to the t→t+1 return."
+            "Current fundamentals are never backfilled into history. Instruments with short histories "
+            "use explicitly disclosed economic proxies. Weights formed at week t apply only to the "
+            "t→t+1 return and drift naturally between monthly rebalances. Buy & Hold is not rebalanced after launch."
         ),
     }
 

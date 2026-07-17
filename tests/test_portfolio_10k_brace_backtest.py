@@ -56,3 +56,36 @@ def test_metrics_capture_drawdown_and_turnover():
     assert metrics["weeks"] > 50
     assert metrics["annualized_turnover"] >= 0
     assert -1 < metrics["max_drawdown"] <= 0
+
+
+def test_buy_hold_is_funded_once_and_weights_drift():
+    index = pd.date_range("2020-01-03", periods=100, freq="W-FRI")
+    prices = pd.DataFrame({
+        "A": 100 * np.cumprod(np.repeat(1.02, len(index))),
+        "B": 100 * np.cumprod(np.repeat(1.00, len(index))),
+    }, index=index)
+    benchmark = pd.Series(100 * np.cumprod(np.repeat(1.005, len(index))), index=index)
+    result = bt.run_strategy(
+        prices, benchmark, pd.Series({"A": 0.5, "B": 0.5}),
+        "buy_hold", transaction_cost=0.0,
+    )
+    assert (result.turnover > 0).sum() == 1
+    assert result.weights.iloc[-1]["A"] > result.weights.iloc[0]["A"]
+    assert result.weights.iloc[-1]["B"] < result.weights.iloc[0]["B"]
+
+
+def test_long_history_proxy_map_is_explicit_and_weight_preserving():
+    portfolio = {
+        "positions": [
+            {"market_symbol": "FWIA.DE", "target_weight": 0.25},
+            {"market_symbol": "ZPRV.DE", "target_weight": 0.10},
+            {"market_symbol": "GOOGL", "target_weight": 0.60},
+            {"market_symbol": "NOVO-B.CO", "target_weight": 0.05},
+        ]
+    }
+    target, proxy_map = bt.build_proxy_target(portfolio)
+    assert proxy_map["FWIA.DE"] == "VT"
+    assert proxy_map["ZPRV.DE"] == "VBR"
+    assert proxy_map["NOVO-B.CO"] == "NVO"
+    assert abs(target.sum() - 1.0) < 1e-12
+    assert target["VT"] == 0.25
