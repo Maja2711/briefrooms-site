@@ -50,14 +50,14 @@
     weeklyTitle: 'Decision journal', weeklyText: 'Weekly entries remain in history. A model flag is not an automatic order.',
     methodologyTitle: 'How the model works', methodologyText: 'A simple public process: data first, then thesis and risk, and only then possible rotation.',
     method: [
-      ['1', 'Valuation', 'Update all instruments and FX rates. Internal PLN accounting is converted to USD for the English public view.'],
+      ['1', 'Valuation', 'Update instrument prices and the FX rates required to express non-USD holdings in USD.'],
       ['2', 'Business and earnings', 'Check earnings dates and headlines concerning guidance, regulation, margins and key products.'],
       ['3', 'Market and risk', '50/200-session trend, 6M momentum, volatility, drawdown and weight deviation from target.'],
       ['4', 'Decision', 'Rotate only after thesis failure, material risk or excessive concentration — not because of a price decline alone.']
     ],
     auditTitle: 'Model transaction register', auditText: 'Entry prices and units are frozen at launch. History is not rewritten with hindsight.',
     symbol: 'Instrument', value: 'Value', status: 'Status', dataSource: 'Data source', disclaimer: 'This is a public analytical and educational experiment. It is not investment advice, personalised financial advice or confirmation of transactions in an XTB account. Prices may differ from broker bid/ask quotes, and past performance does not guarantee future results.',
-    planned: 'planned', active: 'active', stock: 'Stock', etf: 'ETF', approximate: 'approximate value', fxUnavailable: 'USD/PLN reporting rate unavailable'
+    planned: 'planned', active: 'active', stock: 'Stock', etf: 'ETF', approximate: 'approximate value', fxUnavailable: 'USD reporting conversion unavailable'
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -155,7 +155,7 @@
     const flag=p.review_flag||'HOLD',cardTone=flag==='THESIS_REVIEW'?'alert':flag!=='HOLD'?'review':'',pnlPct=num(p.pnl_percent);
     const riskSignals=(p.risk_signals||[]).map(s=>`<span class="signal risk">${esc(signalLabel(s))}</span>`).join('');
     const positiveSignals=(p.positive_signals||[]).map(s=>`<span class="signal">${esc(signalLabel(s))}</span>`).join('');
-    const riskList=(lang==='pl'?p.risks_pl:p.risks_en)||[];
+    const riskList=((lang==='pl'?p.risks_pl:p.risks_en)||[]).filter(item=>lang!=='en'||!/(^|\W)PLN(\W|$)/i.test(String(item)));
     return `<article class="position ${cardTone}"><div class="position-head"><div><div class="symbol">${esc(p.broker_symbol)}</div><h3>${esc(p.label)}</h3><div class="type">${esc(p.asset_type==='ETF'?T.etf:T.stock)}</div></div><span class="flag ${esc(flag)}">${esc(T.flags[flag]||flag)}</span></div><div class="position-value"><div><small>${esc(T.value)}</small><strong>${esc(money(p.current_value_pln??p.entry_value_pln,data))}</strong></div><div><small>${esc(T.pnl)}</small><b class="${tone(pnlPct)}">${esc(signedPct(pnlPct))} · ${esc(signedMoney(p.pnl_pln,data))}</b></div></div><div class="metrics"><div class="metric"><small>${esc(T.target)}</small><b>${esc(pct(p.target_weight,1))}</b></div><div class="metric"><small>${esc(T.currentWeight)}</small><b>${esc(pct(p.current_weight,1))}</b></div><div class="metric"><small>${esc(T.score)}</small><b>${num(p.model_score)===null?T.noData:esc(String(p.model_score)+'/100')}</b></div><div class="metric"><small>${esc(T.entry)}</small><b>${price(p.entry_price,p.currency)}</b></div><div class="metric"><small>${esc(T.current)}</small><b>${price(p.current_price,p.currency)}</b></div><div class="metric"><small>${esc(T.quantity)}</small><b>${num(p.quantity)===null?T.noData:num(p.quantity).toLocaleString(locale,{maximumFractionDigits:6})}</b></div><div class="metric"><small>${esc(T.entryDate)}</small><b>${dateFmt(p.entry_date)}</b></div><div class="metric"><small>${esc(T.dividends)}</small><b>${money(p.dividends_pln,data)}</b></div><div class="metric"><small>${esc(T.earnings)}</small><b>${dateFmt(p.next_earnings_date)}</b></div></div><p class="thesis">${esc(text(p,'thesis'))}</p><div class="signals">${positiveSignals}${riskSignals}</div><details><summary>${esc(T.details)}</summary><div class="detail-grid"><section class="detail-box"><h4>${esc(T.thesis)}</h4><p>${esc(text(p,'thesis'))}</p><h4>${esc(T.invalidation)}</h4><p>${esc(text(p,'invalidation'))}</p></section><section class="detail-box"><h4>${esc(T.risks)}</h4><ul>${riskList.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section><section class="detail-box" style="grid-column:1/-1"><h4>${esc(T.recentNews)}</h4><ul class="news-list">${newsList(p.recent_news)}</ul></section></div></details></article>`;
   }
 
