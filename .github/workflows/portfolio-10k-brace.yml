@@ -15,19 +15,32 @@ on:
   schedule:
     # Runs after the baseline Sunday portfolio review.
     - cron: "40 7 * * 0"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/portfolio_10k_brace*.py"
+      - "scripts/portfolio-10k-brace-public.js"
+      - "tests/test_portfolio_10k_brace*.py"
+      - "assets/portfolio-10k.css"
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - ".github/workflows/portfolio-10k-brace.yml"
   push:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_brace*.py"
       - "scripts/portfolio-10k-brace-public.js"
       - "tests/test_portfolio_10k_brace*.py"
+      - "assets/portfolio-10k.css"
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-brace.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: portfolio-10k-brace
+  group: portfolio-10k-brace-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -53,15 +66,15 @@ jobs:
         run: node --check scripts/portfolio-10k-brace-public.js
 
       - name: Build live BRACE challenger snapshot
-        if: github.event_name != 'push' && (github.event_name == 'schedule' || inputs.mode == 'review' || inputs.mode == 'full')
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'review' || inputs.mode == 'full'))
         run: python scripts/portfolio_10k_brace.py
 
       - name: Run no-lookahead BRACE-Lite backtest
-        if: github.event_name != 'push' && (github.event_name == 'schedule' || inputs.mode == 'backtest' || inputs.mode == 'full')
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
         run: python scripts/portfolio_10k_brace_backtest.py
 
       - name: Commit transparent BRACE outputs
-        if: github.event_name != 'push'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
