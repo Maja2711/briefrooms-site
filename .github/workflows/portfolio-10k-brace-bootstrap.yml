@@ -1,4 +1,4 @@
-name: Bootstrap BRACE Data After Backtest Upgrade
+name: Bootstrap BRACE Promotion Governance
 
 on:
   push:
@@ -41,7 +41,10 @@ jobs:
       - name: Refresh long-history no-look-ahead BRACE-Lite backtest
         run: python scripts/portfolio_10k_brace_backtest.py
 
-      - name: Commit refreshed BRACE data
+      - name: Apply champion-challenger promotion gate
+        run: python scripts/portfolio_10k_brace_promotion.py
+
+      - name: Commit refreshed BRACE data and verdict
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -49,7 +52,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "BRACE outputs already current."
           else
-            git commit -m "Refresh BRACE challenger data"
+            git commit -m "Publish BRACE promotion verdict"
             git pull --rebase origin main
             git push
           fi
