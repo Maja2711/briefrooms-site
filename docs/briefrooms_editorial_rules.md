@@ -8,7 +8,7 @@ Najpierw czytamy dostępny tekst artykułu, potem streszczamy jego sens. Komenta
 ## Komentarz pod artykułem
 Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki:
 
-1. Ma od 3 do 6 zdań.
+1. Ma od 3 do 4 zdań.
 2. Jest logiczny, gramatyczny i zrozumiały dla czytelnika bez znajomości poprzednich zdań.
 3. Każde zdanie zaczyna się pełną informacją albo normalnym podmiotem.
 4. Nie zaczyna się od urwanego czasownika typu „Dodał”, „Zaznaczył”, „Powiedział”, „Wskazał”.
@@ -16,19 +16,20 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 6. Nie zawiera poleceń redakcyjnych, nazwisk autorów, podpisów, źródeł zdjęć ani elementów UI, np. „Agnieszka Loosen /”, „Skomentuj”, „FOTONEWS”, „PAP”, „czytaj także”, „zobacz także”.
 7. Nie zawiera ogólników typu „źródłem wpisu jest”, „pełne tło jest w artykule” ani zdań o kategorii zamiast sensu tekstu.
 8. Jeśli tekst nie przejdzie kontroli jakości, komentarz nie jest publikowany. Nie wolno zastępować go krótkim, niegramatycznym albo tytułowym streszczeniem.
-9. News bez pełnego komentarza spełniającego powyższe warunki nie może być pokazany na stronie głównej. Usuwamy całą kartę, a nie publikujemy pusty lub pozorny brief.
+9. News bez pełnego komentarza spełniającego powyższe warunki nie może być pokazany na stronie głównej ani na stronach Aktualności / News. Usuwamy kartę, a nie publikujemy pusty lub pozorny brief.
 10. Komentarz powstaje dopiero po poprawnym zdekodowaniu bajtów strony źródłowej. Nie wolno ufać błędnemu nagłówkowi kodowania ani usuwać nierozpoznanych znaków z tekstu.
 11. Każdy nowy komentarz musi przejść trzy etapy: generację z materiału źródłowego, niezależną recenzję AI oraz deterministyczną kontrolę językową. Jedno wadliwe zdanie odrzuca cały komentarz.
 12. Surowy tekst artykułu, opis RSS, tytuł ani stary wpis w pamięci podręcznej nie mogą być komentarzem awaryjnym. Przy awarii zachowujemy wyłącznie ostatni zestaw zatwierdzony bieżącą wersją kontroli jakości.
 
-## Krótkie komentarze na stronach Aktualności / News
-1. Komentarz ma 1–2 pełne zdania i wynika z konkretnego opisu RSS, a nie z samego tytułu.
-2. Obowiązuje ten sam proces: generacja, niezależna recenzja AI i deterministyczna kontrola PL/EN.
-3. Brak klucza, błąd API, zbyt krótki materiał lub odrzucenie recenzenta oznacza brak publikacji danego komentarza.
-4. Jeśli cały nowy zestaw ma zbyt mało zatwierdzonych komentarzy, generator kończy się błędem i nie nadpisuje działającej strony.
+## Jedna jakość na stronie głównej i w Aktualnościach / News
+1. Strona główna, `pl/aktualnosci.html` i `en/news.html` korzystają z tego samego pełnego tekstu artykułu, tego samego generatora, niezależnego recenzenta i tego samego walidatora 3–4 zdań.
+2. Jeśli ten sam link występuje na stronie głównej i w Aktualnościach / News, ponownie używany jest dokładnie ten sam wcześniej zatwierdzony komentarz.
+3. Strony Aktualności / News nie mogą tworzyć komentarzy wyłącznie z opisu RSS ani używać osobnego, łagodniejszego kontraktu 1–2 zdań.
+4. Błąd jednego artykułu odrzuca tylko jego kartę. Jeśli cały nowy zestaw ma zbyt mało zatwierdzonych komentarzy, nie nadpisuje ostatniej działającej wersji strony.
+5. Wersje PL i EN mają te same zasady jakości i ten sam układ dużych kart, zachowując własne działy tematyczne.
 
 ## Strona główna
-Krótki opis na karcie jest tworzony z pierwszych zdań zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.
+Krótki opis na karcie jest tworzony z zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.
 
 ## Stały rytm aktualizacji strony i newsów
 1. Strona główna oraz pliki newsów PL i EN są odświeżane co 4 godziny.
