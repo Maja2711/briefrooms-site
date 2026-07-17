@@ -44,6 +44,7 @@ AI_MODEL = os.getenv("NEWS_AI_MODEL", "gpt-4o-mini")
 AI_CACHE_PATH = ".cache/ai_cache_en.json"
 HOTBAR_JSON_PATH = ".cache/news_summaries_en.json" # To czyta hotbar.js
 HTML_OUTPUT_PATH = "en/news.html" # Generowana strona zbiorcza
+IMAGE_FETCH_CACHE = {}
 CLOUDFLARE_WEB_ANALYTICS = (
     "<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
     "data-cf-beacon='{\"token\": \"9adde99e330a4b0d991627986ac34246\"}'></script><!-- End Cloudflare Web Analytics -->"
@@ -700,6 +701,39 @@ def article_image(link: str) -> str:
     return ""
 
 
+def image_is_fetchable(value: str) -> bool:
+    """Reject hotlink-blocked or non-image URLs before they reach production."""
+    image_url = _valid_image_url(value)
+    if not image_url:
+        return False
+    if image_url in IMAGE_FETCH_CACHE:
+        return IMAGE_FETCH_CACHE[image_url]
+
+    response = None
+    try:
+        response = requests.get(
+            image_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; BriefRoomsBot/2.1; +https://briefrooms.com)",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            },
+            timeout=8,
+            allow_redirects=True,
+            stream=True,
+        )
+        content_type = str(response.headers.get("Content-Type") or "").lower()
+        first_chunk = next(response.iter_content(chunk_size=64), b"") if response.ok else b""
+        available = bool(response.ok and content_type.startswith("image/") and first_chunk)
+    except Exception:
+        available = False
+    finally:
+        if response is not None:
+            response.close()
+
+    IMAGE_FETCH_CACHE[image_url] = available
+    return available
+
+
 # =========================
 # POBIERANIE + DEDUPE
 # =========================
@@ -771,10 +805,14 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
 
     picked = []
     for it in pool:
-        if not it.get("thumbnail_url"):
-            it["thumbnail_url"] = article_image(it.get("link", ""))
-        if not it.get("thumbnail_url"):
+        image_url = it.get("thumbnail_url", "")
+        if image_url and not image_is_fetchable(image_url):
+            image_url = ""
+        if not image_url:
+            image_url = article_image(it.get("link", ""))
+        if not image_url or not image_is_fetchable(image_url):
             continue
+        it["thumbnail_url"] = image_url
         picked.append(it)
         if len(picked) >= MAX_PER_SECTION:
             break
