@@ -73,6 +73,10 @@ jobs:
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
         run: python scripts/portfolio_10k_brace_backtest.py
 
+      - name: Apply champion-challenger promotion gate
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
+        run: python scripts/portfolio_10k_brace_promotion.py
+
       - name: Commit transparent BRACE outputs
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
