@@ -1,69 +1,61 @@
 {
   "schema_version": "2.0.0",
   "model_id": "BRACE",
-  "model_version": "2.0.0",
-  "mode": "challenger",
-  "status": "live_shadow_learning",
-  "generated_at": "2026-07-17T15:26:13+00:00",
-  "review_date": "2026-07-17",
-  "source_portfolio_id": "briefrooms-xtb-10k",
-  "source_portfolio_status": "pending_open",
-  "weights": {
-    "business_quality": 0.2,
-    "results_revisions": 0.2,
-    "attractiveness": 0.15,
-    "confirmation": 0.15,
-    "risk": 0.15,
-    "context": 0.1,
-    "events_information": 0.05
+  "created_at": "2026-07-17T15:26:13+00:00",
+  "updated_at": "2026-07-17T15:26:14+00:00",
+  "objective": {
+    "primary_pl": "Maksymalizować pięcioletnią geometryczną stopę zwrotu netto po kosztach, przy kontrolowanym ryzyku trwałej utraty kapitału.",
+    "primary_en": "Maximise five-year geometric return net of costs while controlling the risk of permanent capital loss.",
+    "constraints": {
+      "no_leverage": true,
+      "no_cfds": true,
+      "single_stock_max_weight": 0.18,
+      "broad_etf_max_weight": 0.3,
+      "target_max_drawdown": 0.3,
+      "human_approval_required": true
+    }
   },
-  "policy": {
-    "no_automatic_orders": true,
-    "negative_evidence_asymmetry": 1.35,
-    "add_requires_persistence": true,
-    "earnings_blackout_days": 5,
-    "critical_risk_overrides_score": true,
-    "adaptive_evidence_learning": true,
-    "counterfactual_attribution": true,
-    "full_memory_file": "/data/investments/portfolio_10k_brace_memory.json",
-    "learned_multipliers_bounded": [
+  "learning_policy": {
+    "mode": "bounded_bayesian_adaptive_evidence",
+    "horizons_days": [
+      7,
+      30,
+      90,
+      180,
+      365
+    ],
+    "prior_alpha": 4.0,
+    "prior_beta": 4.0,
+    "minimum_effective_samples": 8.0,
+    "full_maturity_samples": 24.0,
+    "multiplier_bounds": [
       0.8,
       1.2
     ],
-    "human_approval_required": true
+    "counterfactual_attribution": true,
+    "decisions_immutable": true,
+    "outcomes_append_only": true,
+    "learned_changes_apply_next_review": true,
+    "pillar_weights_self_modified": false,
+    "decision_thresholds_self_modified": false
   },
-  "market_context": {
-    "score": 70.02,
-    "regime": "risk_on",
-    "sp500_price": 7473.2202,
-    "sp500_ma200": 6987.3072,
-    "vix": 18.43,
-    "us_10y": 4.521,
-    "market_date": "2026-07-17"
-  },
-  "portfolio": {
-    "score": 70.87,
-    "confidence": 80.16,
-    "decision_counts": {
-      "HOLD": 3,
-      "WAIT_FOR_EVENT": 1,
-      "HOLD_BUILD_EVIDENCE": 2,
-      "WAIT_INVESTIGATE": 2
-    },
-    "positions_reviewed": 8
-  },
-  "positions": [
+  "decisions": [
     {
+      "decision_id": "2026-W29:fwia:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "fwia",
       "broker_symbol": "FWIA.DE",
       "label": "Invesco FTSE All-World UCITS ETF Acc",
       "asset_type": "ETF",
-      "target_weight": 0.25,
-      "current_weight": null,
-      "market_price": 8.04,
-      "market_currency": "EUR",
-      "market_date": "2026-07-17",
-      "next_earnings_date": null,
+      "market_regime": "risk_on",
+      "decision": "HOLD",
+      "urgency": "low",
+      "reason_codes": [
+        "positive_but_not_add_threshold"
+      ],
       "score": 66.35,
       "confidence": 67.0,
       "pillar_scores": {
@@ -75,49 +67,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 15.254,
-        "results_revisions": 11.0,
-        "attractiveness": 7.8,
-        "confirmation": 8.9241,
-        "risk": 13.8657,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.67,
-      "evidence_adjustments": {
-        "business_quality": 6.27,
-        "results_revisions": 0.0,
-        "attractiveness": 0.0,
-        "confirmation": 3.029,
-        "risk": 0.421,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "HOLD",
-        "urgency": "low",
-        "reason_codes": [
-          "positive_but_not_add_threshold"
-        ],
-        "max_position_weight": 0.375
-      },
-      "decision_change": false,
-      "strongest_argument": "Odporność na ryzyko / Risk resilience",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
-      "next_catalyst_pl": "Kolejny przegląd tygodniowy",
-      "next_catalyst_en": "Next weekly review",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 8,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 8.04,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "diversified_index_structure",
           "pillar": "business_quality",
@@ -215,24 +168,70 @@
           "evidence_id": "relative_strength_6m:3"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 4,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 4,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "diversified_index_structure:0",
+          "code": "diversified_index_structure",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.26,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.3075,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:1",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.46,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.2075,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:2",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 1,
+          "marginal_score": 0.07,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.15875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:3",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.0,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:zprv:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "zprv",
       "broker_symbol": "ZPRV.DE",
       "label": "SPDR MSCI USA Small Cap Value Weighted UCITS ETF",
       "asset_type": "ETF",
-      "target_weight": 0.1,
-      "current_weight": null,
-      "market_price": 81.900002,
-      "market_currency": "EUR",
-      "market_date": "2026-07-17",
-      "next_earnings_date": null,
+      "market_regime": "risk_on",
+      "decision": "HOLD",
+      "urgency": "low",
+      "reason_codes": [
+        "positive_but_not_add_threshold"
+      ],
       "score": 69.19,
       "confidence": 67.0,
       "pillar_scores": {
@@ -244,49 +243,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 15.254,
-        "results_revisions": 11.0,
-        "attractiveness": 7.8,
-        "confirmation": 11.6753,
-        "risk": 13.9604,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.67,
-      "evidence_adjustments": {
-        "business_quality": 6.27,
-        "results_revisions": 0.0,
-        "attractiveness": 0.0,
-        "confirmation": 8.032,
-        "risk": 0.124,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "HOLD",
-        "urgency": "low",
-        "reason_codes": [
-          "positive_but_not_add_threshold"
-        ],
-        "max_position_weight": 0.15000000000000002
-      },
-      "decision_change": false,
-      "strongest_argument": "Odporność na ryzyko / Risk resilience",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
-      "next_catalyst_pl": "Kolejny przegląd tygodniowy",
-      "next_catalyst_en": "Next weekly review",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 8,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 81.900002,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "diversified_index_structure",
           "pillar": "business_quality",
@@ -384,24 +344,71 @@
           "evidence_id": "drawdown_52w:3"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 4,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 4,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "diversified_index_structure:0",
+          "code": "diversified_index_structure",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.25,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.30625,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:1",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.8,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.25,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:2",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.4,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.2,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:3",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 1,
+          "marginal_score": 0.02,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.1525,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:googl:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "googl",
       "broker_symbol": "GOOGL.US",
       "label": "Alphabet Class A",
       "asset_type": "Stock",
-      "target_weight": 0.15,
-      "current_weight": null,
-      "market_price": 347.070007,
-      "market_currency": "USD",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-07-22",
+      "market_regime": "risk_on",
+      "decision": "WAIT_FOR_EVENT",
+      "urgency": "normal",
+      "reason_codes": [
+        "strong_setup",
+        "earnings_event_risk"
+      ],
       "score": 73.91,
       "confidence": 90.25,
       "pillar_scores": {
@@ -413,50 +420,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 18.3718,
-        "results_revisions": 20.0,
-        "attractiveness": 8.3444,
-        "confirmation": 6.5931,
-        "risk": 11.1,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 8.371,
-        "results_revisions": 9.0,
-        "attractiveness": 0.0,
-        "confirmation": -0.733,
-        "risk": 0.0,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "WAIT_FOR_EVENT",
-        "urgency": "normal",
-        "reason_codes": [
-          "strong_setup",
-          "earnings_event_risk"
-        ],
-        "max_position_weight": 0.22499999999999998
-      },
-      "decision_change": false,
-      "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
-      "next_catalyst_pl": "Wyniki: 2026-07-22",
-      "next_catalyst_en": "Earnings: 2026-07-22",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 347.070007,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "earnings_growth",
           "pillar": "results_revisions",
@@ -626,24 +593,103 @@
           "evidence_id": "drawdown_52w:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "earnings_growth:0",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "revenue_growth:1",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.67,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.35875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:2",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "marginal_score": -0.54,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.2175,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:3",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.43,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.20375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:4",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:5",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:6",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "WAIT_FOR_EVENT",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:amzn:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "amzn",
       "broker_symbol": "AMZN.US",
       "label": "Amazon",
       "asset_type": "Stock",
-      "target_weight": 0.15,
-      "current_weight": null,
-      "market_price": 248.729996,
-      "market_currency": "USD",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-07-30",
+      "market_regime": "risk_on",
+      "decision": "HOLD",
+      "urgency": "low",
+      "reason_codes": [
+        "positive_but_not_add_threshold"
+      ],
       "score": 69.88,
       "confidence": 90.25,
       "pillar_scores": {
@@ -655,49 +701,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 12.8081,
-        "results_revisions": 20.0,
-        "attractiveness": 9.45,
-        "confirmation": 7.0385,
-        "risk": 11.0823,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 6.374,
-        "results_revisions": 9.0,
-        "attractiveness": 0.0,
-        "confirmation": -1.24,
-        "risk": 2.037,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "HOLD",
-        "urgency": "low",
-        "reason_codes": [
-          "positive_but_not_add_threshold"
-        ],
-        "max_position_weight": 0.22499999999999998
-      },
-      "decision_change": false,
-      "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
-      "next_catalyst_pl": "Wyniki: 2026-07-30",
-      "next_catalyst_en": "Earnings: 2026-07-30",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 248.729996,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "earnings_growth",
           "pillar": "results_revisions",
@@ -867,24 +874,104 @@
           "evidence_id": "forward_pe:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "earnings_growth:0",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "revenue_growth:1",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.27,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.30875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:2",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "marginal_score": -0.53,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.21625,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:3",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.34,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.1925,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:4",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 1,
+          "marginal_score": 0.3,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.1875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:5",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:6",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "HOLD",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:tsm:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "tsm",
       "broker_symbol": "TSM.US",
       "label": "Taiwan Semiconductor Manufacturing ADR",
       "asset_type": "Stock",
-      "target_weight": 0.12,
-      "current_weight": null,
-      "market_price": 396.804993,
-      "market_currency": "USD",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-10-15",
+      "market_regime": "risk_on",
+      "decision": "HOLD_BUILD_EVIDENCE",
+      "urgency": "normal",
+      "reason_codes": [
+        "strong_setup",
+        "awaiting_signal_persistence"
+      ],
       "score": 82.7,
       "confidence": 90.25,
       "pillar_scores": {
@@ -896,50 +983,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 20.0,
-        "results_revisions": 20.0,
-        "attractiveness": 13.4223,
-        "confirmation": 9.9646,
-        "risk": 9.8112,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 18.6,
-        "results_revisions": 9.0,
-        "attractiveness": 2.575,
-        "confirmation": 7.297,
-        "risk": 0.0,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "HOLD_BUILD_EVIDENCE",
-        "urgency": "normal",
-        "reason_codes": [
-          "strong_setup",
-          "awaiting_signal_persistence"
-        ],
-        "max_position_weight": 0.18
-      },
-      "decision_change": true,
-      "strongest_argument": "Jakość biznesu / Business quality",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
-      "next_catalyst_pl": "Wyniki: 2026-10-15",
-      "next_catalyst_en": "Earnings: 2026-10-15",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 396.804993,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "revenue_growth",
           "pillar": "business_quality",
@@ -1109,24 +1156,104 @@
           "evidence_id": "drawdown_52w:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "revenue_growth:0",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.92,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.39,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:1",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "earnings_growth:2",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:3",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.69,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.23625,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:4",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.4,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.2,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:5",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 1,
+          "marginal_score": 0.39,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.19875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:6",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:visa:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "visa",
       "broker_symbol": "V.US",
       "label": "Visa Class A",
       "asset_type": "Stock",
-      "target_weight": 0.1,
-      "current_weight": null,
-      "market_price": 358.380005,
-      "market_currency": "USD",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-07-28",
+      "market_regime": "risk_on",
+      "decision": "HOLD_BUILD_EVIDENCE",
+      "urgency": "normal",
+      "reason_codes": [
+        "strong_setup",
+        "awaiting_signal_persistence"
+      ],
       "score": 78.2,
       "confidence": 90.25,
       "pillar_scores": {
@@ -1138,50 +1265,10 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 18.3001,
-        "results_revisions": 20.0,
-        "attractiveness": 7.6492,
-        "confirmation": 9.6909,
-        "risk": 13.0533,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [],
-      "contradiction_penalty": 0.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 10.006,
-        "results_revisions": 9.0,
-        "attractiveness": 0.0,
-        "confirmation": 2.632,
-        "risk": 0.395,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "HOLD_BUILD_EVIDENCE",
-        "urgency": "normal",
-        "reason_codes": [
-          "strong_setup",
-          "awaiting_signal_persistence"
-        ],
-        "max_position_weight": 0.15000000000000002
-      },
-      "decision_change": true,
-      "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
-      "next_catalyst_pl": "Wyniki: 2026-07-28",
-      "next_catalyst_en": "Earnings: 2026-07-28",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 358.380005,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "earnings_growth",
           "pillar": "results_revisions",
@@ -1351,24 +1438,105 @@
           "evidence_id": "forward_pe:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "earnings_growth:0",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "revenue_growth:1",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.32,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.315,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:2",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 0.69,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.23625,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:3",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.48,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.21,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "relative_strength_6m:4",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "marginal_score": -0.07,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.15875,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:5",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 1,
+          "marginal_score": 0.06,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.1575,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:6",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "HOLD_BUILD_EVIDENCE",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:spgi:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "spgi",
       "broker_symbol": "SPGI.US",
       "label": "S&P Global",
       "asset_type": "Stock",
-      "target_weight": 0.08,
-      "current_weight": null,
-      "market_price": 450.859985,
-      "market_currency": "USD",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-07-28",
+      "market_regime": "risk_on",
+      "decision": "WAIT_INVESTIGATE",
+      "urgency": "normal",
+      "reason_codes": [
+        "contradictory_evidence",
+        "fundamentals_vs_market",
+        "results_vs_price_reaction"
+      ],
       "score": 62.04,
       "confidence": 75.25,
       "pillar_scores": {
@@ -1380,54 +1548,13 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 15.685,
-        "results_revisions": 20.0,
-        "attractiveness": 9.3983,
-        "confirmation": 4.572,
-        "risk": 10.8842,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [
         "fundamentals_vs_market",
         "results_vs_price_reaction"
       ],
-      "contradiction_penalty": 8.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 8.46,
-        "results_revisions": 9.0,
-        "attractiveness": 0.0,
-        "confirmation": -10.945,
-        "risk": 0.0,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "WAIT_INVESTIGATE",
-        "urgency": "normal",
-        "reason_codes": [
-          "contradictory_evidence",
-          "fundamentals_vs_market",
-          "results_vs_price_reaction"
-        ],
-        "max_position_weight": 0.13
-      },
-      "decision_change": false,
-      "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
-      "next_catalyst_pl": "Wyniki: 2026-07-28",
-      "next_catalyst_en": "Earnings: 2026-07-28",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 450.859985,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "relative_strength_6m",
           "pillar": "confirmation",
@@ -1597,24 +1724,105 @@
           "evidence_id": "drawdown_52w:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "relative_strength_6m:0",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "marginal_score": -9.82,
+          "decision_without": "HOLD",
+          "decision_changed": true,
+          "importance": 1.0,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "earnings_growth:1",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:2",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 0.89,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.26125,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "revenue_growth:3",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 0.8,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.25,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:4",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.18,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.1725,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:5",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:6",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 0,
+          "marginal_score": 0.0,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.15,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     },
     {
+      "decision_id": "2026-W29:novo:2.0.0",
+      "week_id": "2026-W29",
+      "review_date": "2026-07-17",
+      "published_at": "2026-07-17T15:26:14+00:00",
+      "model_version": "2.0.0",
       "id": "novo",
       "broker_symbol": "NOVOB.DK",
       "label": "Novo Nordisk B",
       "asset_type": "Stock",
-      "target_weight": 0.05,
-      "current_weight": null,
-      "market_price": 329.899994,
-      "market_currency": "DKK",
-      "market_date": "2026-07-17",
-      "next_earnings_date": "2026-08-05",
+      "market_regime": "risk_on",
+      "decision": "WAIT_INVESTIGATE",
+      "urgency": "normal",
+      "reason_codes": [
+        "contradictory_evidence",
+        "fundamentals_vs_market",
+        "results_vs_price_reaction"
+      ],
       "score": 61.83,
       "confidence": 75.25,
       "pillar_scores": {
@@ -1626,54 +1834,13 @@
         "context": 70.02,
         "events_information": 50.0
       },
-      "weighted_contributions": {
-        "business_quality": 17.0425,
-        "results_revisions": 19.3214,
-        "attractiveness": 8.6989,
-        "confirmation": 4.8309,
-        "risk": 10.4292,
-        "context": 7.002,
-        "events_information": 2.5
-      },
       "contradictions": [
         "fundamentals_vs_market",
         "results_vs_price_reaction"
       ],
-      "contradiction_penalty": 8.0,
-      "data_completeness": 0.9025,
-      "evidence_adjustments": {
-        "business_quality": 7.963,
-        "results_revisions": 9.0,
-        "attractiveness": 3.528,
-        "confirmation": -9.413,
-        "risk": -7.784,
-        "context": 0.0,
-        "events_information": 0.0
-      },
-      "decision": {
-        "code": "WAIT_INVESTIGATE",
-        "urgency": "normal",
-        "reason_codes": [
-          "contradictory_evidence",
-          "fundamentals_vs_market",
-          "results_vs_price_reaction"
-        ],
-        "max_position_weight": 0.1
-      },
-      "decision_change": false,
-      "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
-      "next_catalyst_pl": "Wyniki: 2026-08-05",
-      "next_catalyst_en": "Earnings: 2026-08-05",
-      "thesis_clock": {
-        "quarters_elapsed": 0.0,
-        "target_quarters": 4,
-        "progress": 0.0,
-        "status": "not_started",
-        "milestones_met": 0,
-        "milestones_total": 0
-      },
-      "evidence_ledger": [
+      "reference_price": 329.899994,
+      "reference_benchmark_price": 8.04,
+      "evidence": [
         {
           "code": "relative_strength_6m",
           "pillar": "confirmation",
@@ -1843,201 +2010,104 @@
           "evidence_id": "free_cash_flow_yield:6"
         }
       ],
-      "adaptive_learning": {
-        "signals_observed": 7,
-        "multipliers_applied": 0,
-        "counterfactuals_computed": 7,
-        "learned_from_prior_outcomes": true
-      }
+      "counterfactuals": [
+        {
+          "evidence_id": "relative_strength_6m:0",
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "marginal_score": -9.82,
+          "decision_without": "HOLD",
+          "decision_changed": true,
+          "importance": 1.0,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "revenue_growth:1",
+          "code": "revenue_growth",
+          "pillar": "business_quality",
+          "direction": 1,
+          "marginal_score": 1.85,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.38125,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "earnings_growth:2",
+          "code": "earnings_growth",
+          "pillar": "results_revisions",
+          "direction": 1,
+          "marginal_score": 1.8,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.375,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "drawdown_52w:3",
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": -1,
+          "marginal_score": -1.16,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.295,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "forward_pe:4",
+          "code": "forward_pe",
+          "pillar": "attractiveness",
+          "direction": 1,
+          "marginal_score": 0.53,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.21625,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "price_vs_ma200:5",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
+          "direction": 1,
+          "marginal_score": 0.42,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.2025,
+          "method": "published_evidence_local_ablation"
+        },
+        {
+          "evidence_id": "free_cash_flow_yield:6",
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": -1,
+          "marginal_score": -0.25,
+          "decision_without": "WAIT_INVESTIGATE",
+          "decision_changed": false,
+          "importance": 0.18125,
+          "method": "published_evidence_local_ablation"
+        }
+      ],
+      "immutable": true
     }
   ],
-  "decision_history": [
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "fwia",
-      "broker_symbol": "FWIA.DE",
-      "decision": "HOLD",
-      "score": 66.35,
-      "confidence": 67.0,
-      "reference_price": 8.04,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "zprv",
-      "broker_symbol": "ZPRV.DE",
-      "decision": "HOLD",
-      "score": 69.19,
-      "confidence": 67.0,
-      "reference_price": 81.900002,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "googl",
-      "broker_symbol": "GOOGL.US",
-      "decision": "WAIT_FOR_EVENT",
-      "score": 73.91,
-      "confidence": 90.25,
-      "reference_price": 347.070007,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "amzn",
-      "broker_symbol": "AMZN.US",
-      "decision": "HOLD",
-      "score": 69.88,
-      "confidence": 90.25,
-      "reference_price": 248.729996,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "tsm",
-      "broker_symbol": "TSM.US",
-      "decision": "HOLD_BUILD_EVIDENCE",
-      "score": 82.7,
-      "confidence": 90.25,
-      "reference_price": 396.804993,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "visa",
-      "broker_symbol": "V.US",
-      "decision": "HOLD_BUILD_EVIDENCE",
-      "score": 78.2,
-      "confidence": 90.25,
-      "reference_price": 358.380005,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": false,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "spgi",
-      "broker_symbol": "SPGI.US",
-      "decision": "WAIT_INVESTIGATE",
-      "score": 62.04,
-      "confidence": 75.25,
-      "reference_price": 450.859985,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": true,
-        "immutable_record": true
-      }
-    },
-    {
-      "week_id": "2026-W29",
-      "review_date": "2026-07-17",
-      "id": "novo",
-      "broker_symbol": "NOVOB.DK",
-      "decision": "WAIT_INVESTIGATE",
-      "score": 61.83,
-      "confidence": 75.25,
-      "reference_price": 329.899994,
-      "reference_benchmark_price": 8.04,
-      "decision_quality_at_publication": {
-        "transparent_rules_passed": true,
-        "contradictions_disclosed": true,
-        "immutable_record": true
-      }
-    }
-  ],
-  "backtest": {
-    "status": "pending"
-  },
-  "limitations_pl": [
-    "BRACE działa równolegle do portfela bazowego i nie wykonuje transakcji.",
-    "Niska kompletność danych obniża confidence zamiast sztucznie poprawiać score.",
-    "Pełne fundamenty historyczne point-in-time nie są zastępowane dzisiejszymi danymi.",
-    "Uczenie zmienia wyłącznie ograniczone współczynniki wiarygodności dowodów; nie zmienia automatycznie wag filarów ani progów decyzji."
-  ],
-  "limitations_en": [
-    "BRACE runs in parallel with the baseline portfolio and does not execute trades.",
-    "Low data coverage reduces confidence instead of artificially lifting the score.",
-    "Current fundamentals are never backfilled into historical tests.",
-    "Learning only changes bounded evidence-reliability multipliers; it does not automatically alter pillar weights or decision thresholds."
-  ],
-  "objective": {
-    "primary_pl": "Maksymalizować pięcioletnią geometryczną stopę zwrotu netto po kosztach, przy kontrolowanym ryzyku trwałej utraty kapitału.",
-    "primary_en": "Maximise five-year geometric return net of costs while controlling the risk of permanent capital loss.",
-    "constraints": {
-      "no_leverage": true,
-      "no_cfds": true,
-      "single_stock_max_weight": 0.18,
-      "broad_etf_max_weight": 0.3,
-      "target_max_drawdown": 0.3,
-      "human_approval_required": true
-    }
-  },
-  "learning": {
-    "mode": "bounded_bayesian_adaptive_evidence",
-    "status": "collecting_memory",
-    "decisions_stored": 8,
-    "outcome_events_stored": 0,
-    "evaluated_horizons": {},
-    "signals_tracked": 0,
-    "active_multipliers": 0,
+  "outcome_events": [],
+  "reliability": {
+    "global": {},
+    "contextual": {},
+    "generated_at": "2026-07-17T15:26:14+00:00",
     "minimum_effective_samples": 8.0,
-    "multiplier_bounds": [
+    "bounds": [
       0.8,
       1.2
-    ],
-    "applies_next_review": true,
-    "top_reliable_signals": [],
-    "signals_needing_review": [],
-    "objective": {
-      "primary_pl": "Maksymalizować pięcioletnią geometryczną stopę zwrotu netto po kosztach, przy kontrolowanym ryzyku trwałej utraty kapitału.",
-      "primary_en": "Maximise five-year geometric return net of costs while controlling the risk of permanent capital loss.",
-      "constraints": {
-        "no_leverage": true,
-        "no_cfds": true,
-        "single_stock_max_weight": 0.18,
-        "broad_etf_max_weight": 0.3,
-        "target_max_drawdown": 0.3,
-        "human_approval_required": true
-      }
-    },
-    "governance_pl": "Współczynniki uczą się bayesowsko, lecz pozostają neutralne do czasu zebrania minimalnej próby. Są ograniczone do zakresu 0,80–1,20 i nie zmieniają samodzielnie wag filarów ani progów decyzji.",
-    "governance_en": "Reliability coefficients update with Bayesian shrinkage but remain neutral until the minimum sample is reached. They are bounded to 0.80–1.20 and never self-modify pillar weights or decision thresholds.",
-    "new_outcomes_this_review": 0
-  }
+    ]
+  },
+  "audit": [
+    {
+      "at": "2026-07-17T15:26:13+00:00",
+      "event": "legacy_history_migrated",
+      "records": 8
+    }
+  ]
 }
