@@ -11,8 +11,11 @@
     thesisClock: 'Zegar tezy', evidence: 'Rejestr dowodów', contradictions: 'Sprzeczności do zbadania', noContradictions: 'Brak istotnych sprzeczności',
     noEvidence: 'Brak wystarczających dowodów do publikacji.', noBacktest: 'Backtest oczekuje na pierwszy pełny przebieg.',
     model: 'Model', cagr: 'CAGR', drawdown: 'Maks. obsunięcie', sharpe: 'Sharpe', turnover: 'Obrót roczny',
-    generated: 'Aktualizacja', quality: 'jakość', decay: 'waga po wygaszeniu',
+    generated: 'Aktualizacja', quality: 'jakość', decay: 'waga po wygaszeniu', adaptive: 'mnożnik uczenia',
     promotionTitle: 'Bramka awansu champion–challenger', promoted: 'KANDYDAT DO POTWIERDZENIA LIVE', notPromoted: 'NIE AWANSOWAŁ', championLabel: 'Obecny champion',
+    learningTitle: 'BRACE 2.0 · system uczenia', learningStatus: 'Stan uczenia', memory: 'Decyzje w pełnej pamięci', outcomes: 'Oceny wyników', activeSignals: 'Aktywne mnożniki', minSample: 'Minimalna próba',
+    objective: 'Cel modelu', topSignals: 'Najbardziej wiarygodne sygnały', weakSignals: 'Sygnały wymagające ostrożności', noSignals: 'Model dopiero zbiera wyniki. Mnożniki pozostają neutralne.',
+    reliability: 'wiarygodność', samples: 'próba', multiplier: 'mnożnik', nextReview: 'Zmiany obowiązują od następnego przeglądu',
     decisions: {
       ADD_REVIEW: 'PRZEGLĄD DOKUPIENIA', HOLD: 'TRZYMAJ', HOLD_BUILD_EVIDENCE: 'BUDUJ DOWODY',
       WAIT_FOR_EVENT: 'CZEKAJ NA WYDARZENIE', WAIT_INVESTIGATE: 'ZBADAJ SPRZECZNOŚCI',
@@ -31,8 +34,11 @@
     thesisClock: 'Thesis clock', evidence: 'Evidence ledger', contradictions: 'Contradictions to investigate', noContradictions: 'No material contradictions',
     noEvidence: 'Insufficient evidence to publish.', noBacktest: 'The backtest is waiting for its first complete run.',
     model: 'Model', cagr: 'CAGR', drawdown: 'Max drawdown', sharpe: 'Sharpe', turnover: 'Annual turnover',
-    generated: 'Updated', quality: 'quality', decay: 'decayed weight',
+    generated: 'Updated', quality: 'quality', decay: 'decayed weight', adaptive: 'learning multiplier',
     promotionTitle: 'Champion–challenger promotion gate', promoted: 'ELIGIBLE FOR LIVE CONFIRMATION', notPromoted: 'NOT PROMOTED', championLabel: 'Current champion',
+    learningTitle: 'BRACE 2.0 · learning system', learningStatus: 'Learning status', memory: 'Decisions in full memory', outcomes: 'Outcome evaluations', activeSignals: 'Active multipliers', minSample: 'Minimum sample',
+    objective: 'Model objective', topSignals: 'Most reliable signals', weakSignals: 'Signals requiring caution', noSignals: 'The model is still collecting outcomes. Multipliers remain neutral.',
+    reliability: 'reliability', samples: 'sample', multiplier: 'multiplier', nextReview: 'Changes apply from the next review',
     decisions: {
       ADD_REVIEW: 'REVIEW ADDING', HOLD: 'HOLD', HOLD_BUILD_EVIDENCE: 'BUILD EVIDENCE',
       WAIT_FOR_EVENT: 'WAIT FOR EVENT', WAIT_INVESTIGATE: 'INVESTIGATE CONFLICT',
@@ -76,6 +82,32 @@
     if (meta) meta.textContent = `${T.generated}: ${dateFmt(data.generated_at)}`;
   }
 
+  function signalTable(items) {
+    if (!items?.length) return `<p class="brace-empty">${esc(T.noSignals)}</p>`;
+    const rows = items.map(item => `<tr><td><b>${esc(String(item.code || '').replaceAll('_', ' '))}</b></td><td>${pct(item.posterior_mean, 1)}</td><td>${(num(item.effective_samples) || 0).toFixed(1)}</td><td>×${(num(item.multiplier) || 1).toFixed(3)}</td></tr>`).join('');
+    return `<div class="table-scroll"><table class="audit brace-table"><thead><tr><th>Signal</th><th>${esc(T.reliability)}</th><th>${esc(T.samples)}</th><th>${esc(T.multiplier)}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  function renderLearning(data) {
+    const box = document.getElementById('brace-learning');
+    if (!box) return;
+    const learning = data.learning || {};
+    const objective = lang === 'pl' ? learning.objective?.primary_pl : learning.objective?.primary_en;
+    const governance = lang === 'pl' ? learning.governance_pl : learning.governance_en;
+    box.innerHTML = `
+      <div class="brace-summary">
+        ${summaryCard(T.learningStatus, String(learning.status || 'collecting_memory').replaceAll('_', ' '), T.nextReview)}
+        ${summaryCard(T.memory, String(Math.round(num(learning.decisions_stored) || 0)), T.objective)}
+        ${summaryCard(T.outcomes, String(Math.round(num(learning.outcome_events_stored) || 0)), Object.entries(learning.evaluated_horizons || {}).map(([k,v]) => `${k}: ${v}`).join(' · ') || '—')}
+        ${summaryCard(T.activeSignals, String(Math.round(num(learning.active_multipliers) || 0)), `${T.minSample}: ${num(learning.minimum_effective_samples) || 8}`)}
+      </div>
+      <div class="status-note" style="margin:16px 0"><b>${esc(T.objective)}</b><br>${esc(objective || '—')}<br><small>${esc(governance || '')}</small></div>
+      <div class="brace-learning-columns">
+        <div><h4>${esc(T.topSignals)}</h4>${signalTable(learning.top_reliable_signals)}</div>
+        <div><h4>${esc(T.weakSignals)}</h4>${signalTable(learning.signals_needing_review)}</div>
+      </div>`;
+  }
+
   function pillarRows(pillars) {
     return Object.entries(T.pillars).map(([key, label]) => {
       const value = num(pillars?.[key]);
@@ -89,7 +121,9 @@
     return items.slice(0, 7).map(item => {
       const direction = num(item.direction) < 0 ? 'negative' : num(item.direction) > 0 ? 'positive' : 'neutral';
       const description = lang === 'pl' ? item.description_pl : item.description_en;
-      return `<article class="brace-evidence ${direction}"><b>${esc(description || item.code)}</b><span>${esc(item.source || '')} · ${dateFmt(item.observed_at)} · ${esc(T.quality)} ${(num(item.quality) || 0).toFixed(2)} · ${esc(T.decay)} ${(num(item.decayed_weight) || 0).toFixed(2)}</span></article>`;
+      const multiplier = num(item.adaptive_multiplier);
+      const adaptive = multiplier === null ? '' : ` · ${esc(T.adaptive)} ×${multiplier.toFixed(3)}`;
+      return `<article class="brace-evidence ${direction}"><b>${esc(description || item.code)}</b><span>${esc(item.source || '')} · ${dateFmt(item.observed_at)} · ${esc(T.quality)} ${(num(item.quality) || 0).toFixed(2)} · ${esc(T.decay)} ${(num(item.decayed_weight) || 0).toFixed(2)}${adaptive}</span></article>`;
     }).join('');
   }
 
@@ -159,6 +193,7 @@
     ]);
     if (live.status === 'fulfilled') {
       renderSummary(live.value);
+      renderLearning(live.value);
       renderPositions(live.value);
     } else if (positions) {
       positions.innerHTML = `<div class="error">${esc(T.unavailable)}</div>`;
