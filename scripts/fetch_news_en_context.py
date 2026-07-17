@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Plain EN news builder for BriefRooms.
+"""Homepage-grade EN News builder.
 
-Active wrapper used by news-en.yml. It keeps the feed selection from
-scripts/fetch_news_en.py, but makes the public AI comment deliberately simple:
-one clean article-level summary based on the title/RSS text. It removes generic
-"Why it matters" rows such as health/science/policy boilerplate.
+The active EN workflow keeps its World, Asia-Pacific, Europe, Middle East,
+Business, Science, Health and Sport sections, but visible comments now come
+from the same full-article generator, deterministic validator and independent
+reviewer as the homepage. The generated page uses the same large image cards.
 """
+
+from __future__ import annotations
 
 import os
 import re
@@ -17,7 +19,9 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 import fetch_news_en as base  # noqa: E402
-from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_news_comment  # noqa: E402
+from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
+from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
+from newsroom_style import apply_newsroom_style  # noqa: E402
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
@@ -27,13 +31,8 @@ WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
     re.I,
 )
-BAD_AI_TEXT_RE = re.compile(
-    r"\b(For health news|For science news|single-source item selected from a priority BriefRooms feed|"
-    r"it matters because|the useful context is|The concrete channel is|This is a macro signal|"
-    r"geopolitical signal|public decisions, safety or daily life|check the source)\b",
-    re.I,
-)
-MIN_STRICT_COMMENTS = 8
+MIN_TOTAL_APPROVED = 8
+MAX_PER_SECTION = 5
 
 NEWS_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -72,71 +71,52 @@ SECTION_IDS = {
 }
 
 
-def _plain_summary(title: str, snippet: str, fallback: str = "") -> str:
-    text = re.sub(r"\s+", " ", (snippet or "").strip())
-    text = re.sub(r"^(Key point|Why it matters|Summary)\s*:\s*", "", text, flags=re.I)
-    if not text or BAD_AI_TEXT_RE.search(text):
-        return ""
-    quality = validate_news_comment(text, "en")
-    return quality.text if quality.valid else ""
-
-
 def _item_text(item: dict) -> str:
-    return " ".join(str(item.get(k, "") or "") for k in ("title", "summary_raw", "ai_key_point", "ai_summary", "source_name", "link"))
+    return " ".join(str(item.get(key, "") or "") for key in ("title", "summary_raw", "source_name", "link"))
 
 
-def _plain_items(items: list[dict], require_comments: bool) -> list[dict]:
-    cleaned = []
-    for it in items:
-        if WEATHER_RE.search(_item_text(it)):
-            continue
+def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
+    items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
+    return [item for item in items if not WEATHER_RE.search(_item_text(item))]
 
-        if require_comments:
-            if not str(it.get("thumbnail_url") or "").startswith(("http://", "https://")):
+
+def summarize_sections_en_full(sections: dict) -> None:
+    enriched = enrich_sections_with_homepage_quality(sections, "en")
+    sections.clear()
+    sections.update(enriched)
+
+
+def finalize_sections_full(sections: dict) -> dict:
+    sections = _original_finalize_sections(sections)
+    final: dict[str, list[dict]] = {}
+    for section_key, items in sections.items():
+        approved: list[dict] = []
+        for item in items:
+            text = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "")
+            quality = validate_comment(text, "en")
+            if not quality.valid:
                 continue
             if not (
-                it.get("comment_quality_status") == QUALITY_STATUS
-                and it.get("comment_quality_version") == QUALITY_VERSION
-                and it.get("comment_generation_status") == "ai_review_approved"
+                item.get("comment_quality_status") == QUALITY_STATUS
+                and item.get("comment_quality_version") == QUALITY_VERSION
+                and item.get("comment_generation_status") == "ai_review_approved"
+                and item.get("summary_basis") == "article_text_ai_reviewed"
             ):
                 continue
-
-            summary = _plain_summary(
-                it.get("title", ""),
-                it.get("ai_key_point") or it.get("ai_summary") or it.get("summary_raw", ""),
-            )
-            if not summary:
-                continue
-            it["ai_key_point"] = summary
-            it["ai_summary"] = summary
-            it["ai_why_it_matters"] = ""
-
-            if BAD_AI_TEXT_RE.search(str(it.get("ai_uncertain", "") or "")):
-                it["ai_uncertain"] = ""
-
-            it["ai_model"] = ((it.get("ai_model") or "") + "+plain-summary-v1").strip("+")
-        cleaned.append(it)
-    return cleaned
-
-
-def fetch_section_plain(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
-    items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
-    return _plain_items(items, require_comments=summarize)
-
-
-def finalize_sections_plain(sections: dict) -> dict:
-    sections = _original_finalize_sections(sections)
-    return {
-        section_key: _plain_items(items, require_comments=True)
-        for section_key, items in sections.items()
-    }
+            item["full_brief"] = quality.text
+            item["ai_key_point"] = quality.text
+            item["ai_summary"] = quality.text
+            item["ai_why_it_matters"] = ""
+            item["ai_uncertain"] = ""
+            approved.append(item)
+        final[section_key] = approved[:MAX_PER_SECTION]
+    return final
 
 
 def add_news_tabs_en(html: str) -> str:
     if 'class="section-tabs"' not in html:
         html = html.replace("</style>", NEWS_TABS_CSS + "\n  </style>", 1)
         html = html.replace("<main>\n", "<main>\n" + NEWS_TABS_HTML + "\n", 1)
-
     for title, section_id in SECTION_IDS.items():
         html = html.replace(
             f'<section class="card">\n  <h2>{title}</h2>',
@@ -146,32 +126,32 @@ def add_news_tabs_en(html: str) -> str:
     return html
 
 
-def render_html_plain(sections: dict) -> str:
+def render_html_full(sections: dict) -> str:
     accepted = [item for items in sections.values() for item in items]
-    if len(accepted) < MIN_STRICT_COMMENTS:
+    if len(accepted) < MIN_TOTAL_APPROVED:
         raise RuntimeError(
-            f"EN news publication blocked: only {len(accepted)} strictly approved comments"
-        )
-    missing_thumbnails = [item.get("title", "") for item in accepted if not item.get("thumbnail_url")]
-    if missing_thumbnails:
-        raise RuntimeError(
-            f"EN news publication blocked: {len(missing_thumbnails)} items have no thumbnail"
+            f"EN news publication kept on last-good version: only {len(accepted)} homepage-grade comments"
         )
     for item in accepted:
-        quality = validate_news_comment(item.get("ai_key_point") or item.get("ai_summary", ""), "en")
+        quality = validate_comment(
+            item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary", ""),
+            "en",
+        )
         if not quality.valid:
             raise RuntimeError(
-                f"EN news publication blocked by final comment audit: {item.get('title', '')[:80]}"
+                f"EN news publication blocked by full-article comment audit: {item.get('title', '')[:80]}"
             )
     html = _original_render_html(sections)
-    html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', '', html, flags=re.I | re.S)
-    html = re.sub(r'\n\s*<div class="sec"><strong>Warning:</strong>\s*(?:Warning:\s*)+', '\n    <div class="sec"><strong>Warning:</strong> ', html, flags=re.I)
-    return add_news_tabs_en(html)
+    html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', "", html, flags=re.I | re.S)
+    html = html.replace("<strong>Key point:</strong> ", "")
+    html = add_news_tabs_en(html)
+    return apply_newsroom_style(html, "en")
 
 
-base.fetch_section = fetch_section_plain
-base.finalize_sections = finalize_sections_plain
-base.render_html = render_html_plain
+base.fetch_section = fetch_section_full
+base.summarize_sections_en = summarize_sections_en_full
+base.finalize_sections = finalize_sections_full
+base.render_html = render_html_full
 
 if __name__ == "__main__":
     base.main()
