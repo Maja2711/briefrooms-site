@@ -69,6 +69,10 @@ jobs:
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'review' || inputs.mode == 'full'))
         run: python scripts/portfolio_10k_brace.py
 
+      - name: Apply immutable memory and adaptive evidence learning
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'review' || inputs.mode == 'full'))
+        run: python scripts/portfolio_10k_brace_learning_runtime.py
+
       - name: Run no-lookahead BRACE-Lite backtest
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
         run: python scripts/portfolio_10k_brace_backtest.py
@@ -82,11 +86,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k_brace.json data/investments/portfolio_10k_brace_backtest.json
+          git add data/investments/portfolio_10k_brace.json data/investments/portfolio_10k_brace_backtest.json data/investments/portfolio_10k_brace_memory.json
           if git diff --cached --quiet; then
             echo "No BRACE data changes to commit."
           else
-            git commit -m "Update BRACE challenger review"
+            git commit -m "Update BRACE learning review"
             git pull --rebase origin main
             git push
           fi
