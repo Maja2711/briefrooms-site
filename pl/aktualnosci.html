@@ -77,20 +77,141 @@
     section.card{scroll-margin-top:92px}
     @media(max-width:640px){.section-tabs{border-radius:22px;justify-content:stretch}.section-tabs a{flex:1 1 30%;min-width:auto;padding:9px 10px;font-size:.92rem}.section-tabs .brand-link{flex:1 1 100%;justify-content:center}}
 
-  
-    .news-thumb.has-image{padding:0!important;overflow:hidden!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.16)!important;align-items:stretch!important;justify-content:stretch!important;}
-    .news-thumb.has-image img{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;}
-    .news-thumb:not(.has-image){width:96px!important;min-width:96px!important;height:58px!important;padding:7px 8px!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:2px!important;}
-    .news-thumb:not(.has-image) .dot{display:none!important;}
-    .news-thumb:not(.has-image) .title{display:block!important;max-width:86px!important;width:86px!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip!important;color:#06111f!important;font-size:10px!important;font-weight:950!important;line-height:1.08!important;text-shadow:0 1px 0 rgba(255,255,255,.35)!important;}
-    .news-thumb:not(.has-image) .sub{display:block!important;color:rgba(6,17,31,.72)!important;font-size:8px!important;font-weight:800!important;line-height:1!important;}
 
+    body[data-page="news"]{
+      margin:0!important;
+      color:#eef7ff!important;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important;
+      background:
+        radial-gradient(1000px 520px at 12% -10%,rgba(46,214,201,.18),transparent 58%),
+        radial-gradient(900px 620px at 86% 16%,rgba(73,168,255,.13),transparent 58%),
+        linear-gradient(180deg,#06131f 0%,#071827 48%,#081522 100%)!important;
+      min-height:100vh;
+    }
+    body[data-page="news"]:before{
+      content:"";position:fixed;inset:0;pointer-events:none;
+      background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+      background-size:44px 44px;
+      mask-image:linear-gradient(180deg,rgba(0,0,0,.86),transparent 84%);
+    }
+    body[data-page="news"] header{
+      position:relative;z-index:1;max-width:1360px!important;margin:0 auto!important;
+      padding:30px 24px 12px!important;text-align:left!important;
+    }
+    body[data-page="news"] header h1{
+      margin:0 0 8px!important;font-size:clamp(38px,5vw,58px)!important;
+      line-height:1.03!important;letter-spacing:-.045em!important;
+    }
+    body[data-page="news"] header .sub{margin:0!important;color:#9fb2c8!important;font-size:14px!important}
+    body[data-page="news"] main{
+      position:relative;z-index:1;max-width:1360px!important;margin:0 auto!important;
+      padding:0 24px 64px!important;
+    }
+    body[data-page="news"] .section-tabs{
+      top:10px!important;margin:18px auto 30px!important;max-width:1180px!important;
+      background:rgba(6,19,31,.86)!important;border-color:rgba(255,255,255,.12)!important;
+      box-shadow:0 18px 44px rgba(0,0,0,.26)!important;
+    }
+    body[data-page="news"] section.card{
+      background:transparent!important;border:0!important;border-radius:0!important;
+      box-shadow:none!important;padding:10px 0 24px!important;margin:18px 0 26px!important;
+    }
+    body[data-page="news"] section.card h2{
+      margin:0 0 18px!important;padding:0 0 14px!important;
+      color:#eef7ff!important;font-size:clamp(25px,3vw,34px)!important;
+      line-height:1.08!important;letter-spacing:-.035em!important;
+      border-bottom:1px solid rgba(255,255,255,.12)!important;
+    }
+    body[data-page="news"] ul.news{
+      list-style:none!important;margin:0!important;padding:0!important;
+      display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:18px!important;
+    }
+    body[data-page="news"] ul.news>li{
+      min-width:0;margin:0!important;padding:0!important;overflow:hidden!important;
+      border:1px solid rgba(255,255,255,.12)!important;border-radius:22px!important;
+      background:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.04))!important;
+      box-shadow:0 18px 44px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.08)!important;
+      transition:transform .2s ease,border-color .2s ease!important;
+      display:flex!important;flex-direction:column!important;
+    }
+    body[data-page="news"] ul.news>li:hover{
+      transform:translateY(-3px)!important;border-color:rgba(56,214,201,.32)!important;
+    }
+    body[data-page="news"] .news-main-link,
+    body[data-page="news"] ul.news>li>a{
+      display:block!important;color:inherit!important;text-decoration:none!important;
+      min-width:0!important;
+    }
+    body[data-page="news"] ul.news>li>a::after{content:none!important;display:none!important}
+    body[data-page="news"] .news-thumb{
+      display:block!important;width:100%!important;min-width:0!important;height:190px!important;
+      margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+      overflow:hidden!important;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.32),transparent 40%),linear-gradient(135deg,#0d344a,#081827)!important;
+      box-shadow:none!important;
+    }
+    body[data-page="news"] .news-thumb.has-image img{
+      display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image){
+      display:grid!important;place-items:center!important;text-align:center!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image) .dot{display:none!important}
+    body[data-page="news"] .news-thumb:not(.has-image) .title{
+      display:block!important;max-width:80%!important;color:rgba(255,255,255,.82)!important;
+      font-size:24px!important;font-weight:950!important;line-height:1.05!important;
+      white-space:normal!important;
+    }
+    body[data-page="news"] .news-thumb:not(.has-image) .sub{display:none!important}
+    body[data-page="news"] .news-title-wrap{display:block!important;padding:16px 16px 12px!important}
+    body[data-page="news"] .news-text{
+      display:block!important;padding:16px 16px 7px!important;
+      color:#eef7ff!important;font-size:18px!important;font-weight:850!important;
+      line-height:1.2!important;letter-spacing:-.015em!important;
+    }
+    body[data-page="news"] .news-title-wrap .news-text{padding:0!important}
+    body[data-page="news"] .source-line{
+      margin:0!important;padding:0 16px 12px!important;color:#88a0b6!important;
+      font-size:12px!important;line-height:1.35!important;
+    }
+    body[data-page="news"] .news-title-wrap .source-line{padding:8px 0 0!important}
+    body[data-page="news"] .ai-note{
+      margin:0!important;padding:15px 16px 18px!important;border:0!important;
+      border-top:1px solid rgba(255,255,255,.09)!important;border-radius:0!important;
+      background:transparent!important;color:#b8c9d8!important;font-size:14px!important;
+      line-height:1.55!important;flex:1!important;
+    }
+    body[data-page="news"] .ai-head{margin:0 0 9px!important}
+    body[data-page="news"] .ai-badge{
+      display:inline-flex!important;align-items:center!important;gap:7px!important;
+      padding:5px 9px!important;border-radius:999px!important;
+      background:rgba(56,214,201,.12)!important;border:1px solid rgba(56,214,201,.24)!important;
+      color:#8ffff6!important;font-size:10px!important;font-weight:950!important;
+      letter-spacing:.045em!important;text-transform:uppercase!important;
+    }
+    body[data-page="news"] .ai-dot{background:#38d6c9!important;box-shadow:0 0 8px rgba(56,214,201,.68)!important}
+    body[data-page="news"] .sec{margin:0!important}
+    body[data-page="news"] .sec strong{display:none!important}
+    body[data-page="news"] .empty-state{
+      grid-column:1/-1;padding:28px!important;border:1px solid rgba(255,255,255,.10)!important;
+      border-radius:18px!important;background:rgba(255,255,255,.035)!important;
+    }
+    body[data-page="news"] footer{position:relative;z-index:1;color:#7f93a8!important}
+    @media(max-width:760px){
+      body[data-page="news"] header{padding:24px 14px 10px!important}
+      body[data-page="news"] main{padding:0 14px 44px!important}
+      body[data-page="news"] ul.news{grid-template-columns:1fr!important;gap:15px!important}
+      body[data-page="news"] .news-thumb{height:178px!important}
+      body[data-page="news"] .news-text{font-size:17px!important}
+    }
+
+  /* briefrooms-newsroom-v2 */
   </style>
 </head>
 <body data-page="news">
 <header>
   <h1>Aktualności</h1>
-  <p class="sub">Ostatnia aktualizacja: <time datetime="2026-07-17T12:39+02:00">17.07.2026, 12:39</time></p>
+  <p class="sub">Ostatnia aktualizacja: <time datetime="2026-07-17T17:23+02:00">17.07.2026, 17:23</time></p>
 </header>
 <main>
 
@@ -108,86 +229,72 @@
   <h2>Polityka / Kraj</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/polska/news-afera-w-rzadowej-agencji-rezerw-strategicznych-kolejne-osoby,nIdn,1010334" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/1e/b2/fot-636x421-1eb2b8aa.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-07-17/nocne-naloty-na-iran-trafiono-w-dziesiatki-celow/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/5g/5g7khks2usoaoxjoh1kjs8d7msrkt9rz.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Afera w Rządowej Agencji Rezerw Strategicznych. Kolejne osoby usłyszały zarzuty</span>
-      <span class="source-line">Źródło: RMF24</span>
+      <span class="news-text">Nocne naloty na Iran. &quot;Trafiono w dziesiątki celów&quot;</span>
+      <span class="source-line">Źródło: Polsat News</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W Rządowej Agencji Rezerw Strategicznych pojawiły się nowe zarzuty wobec kolejnych osób. Sprawa ta budzi duże zainteresowanie mediów i opinii publicznej.</div>
+    <div class="sec">Amerykańskie siły przeprowadziły nocne ataki na irańskie cele wojskowe, co było szóstą nocą bombardowań. Ataki miały na celu osłabienie irańskich zdolności wojskowych oraz odpowiedzialność za ataki na żeglugę handlową. W wyniku bombardowań uderzono w mosty, lotnisko i dworzec kolejowy w Iranie. Prezydent Trump ogłosił, że USA odnoszą sukcesy w Iranie.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/polska/news-mordowani-w-okrutny-sposob-sejm-przyjal-uchwale-ws-ludobojst,nIdn,1010330" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/65/4a/zdjecie-ilustracyjne-autor-zdjecia-anita-walczewska-636x421-654ab60a.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.rmf24.pl/fakty/polityka/news-niech-sie-nikt-nie-dziwi-goraco-w-koalicji-rzadowej,nIdn,1010368" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/12/5e/fot-636x421-125e0410.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">„Mordowani w okrutny sposób”. Sejm przyjął uchwałę ws. ludobójstwa wołyńskiego</span>
+      <span class="news-text">„Niech się nikt nie dziwi”. Gorąco w koalicji rządowej</span>
       <span class="source-line">Źródło: RMF24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Sejm przyjął uchwałę dotyczącą ludobójstwa wołyńskiego, co jest ważnym krokiem w kierunku upamiętnienia ofiar. Temat ten budzi wiele emocji i kontrowersji w społeczeństwie.</div>
+    <div class="sec">Koalicja Obywatelska, Lewica, Centrum oraz koła Razem i Konfederacji Korony Polskiej zagłosowały przeciwko kandydaturze dr. Szpytmy na szefa IPN. Premier Tusk zapowiedział, że w Senacie nie uzyska on akceptacji. Lider PSL, Kosiniak-Kamysz, poparł Szpytmę ze względu na jego życiorys. W Senacie Koalicja Obywatelska ma 42 senatorów, co czyni ją największym klubem.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/polska/news-zarobki-medykow-samorzad-lekarski-reaguje-na-decyzje-prezyde,nIdn,1010317" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/e4/ee/ustawa-pozwala-agencji-oceny-technologii-medycznych-i-taryfikacji-aotmit-na-zbieranie-danych-o-wynagrodzeniach-w-ochronie-zdrowia-636x421-e4eee33e.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-07-17/zurek-z-wnioskiem-do-prezydenta-chce-prawa-laski-w-glosnej-sprawie/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/8y/8y2bc3tvdyc8n8f5qeqn1n4gqj6seqh2.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Zarobki medyków. Samorząd lekarski reaguje na decyzję prezydenta</span>
-      <span class="source-line">Źródło: RMF24</span>
+      <span class="news-text">Żurek z wnioskiem do prezydenta. Chce prawa łaski w głośnej sprawie</span>
+      <span class="source-line">Źródło: Polsat News</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Samorząd lekarski zareagował na decyzję prezydenta w sprawie zarobków medyków. Kwestia wynagrodzeń w służbie zdrowia jest aktualnie na czołowej liście tematów publicznych.</div>
+    <div class="sec">Prokurator generalny Waldemar Żurek złożył wniosek o prawo łaski dla Piotra Pytla. Pytel został skazany na dożywocie, mimo że nie był sprawcą zbrodni. Obecnie przebywa na wolności z przerwą w wykonywaniu kary. Prokurator argumentuje, że każdy zasługuje na drugą szansę.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/regiony/slaskie/news-betoniarka-runela-na-rowerzystke-i-osobowke-sledztwo-ws-trag,nIdn,1010321" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/b6/e7/we-wtorkowym-wypadku-w-czernichowie-zginely-dwie-osobym-zdj-636x421-b6e7f32f.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.polsatnews.pl/wiadomosc/2026-07-17/dziesiatki-osob-z-objawami-zatrucia-w-toruniu-dzieci-i-seniorzy-trafili-do-szpitala/" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ipla.pluscdn.pl/dituel/cp/db/dbv4co7k2sx1jijubjd12f36te8iviq5.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Betoniarka runęła na rowerzystkę i osobówkę. Śledztwo ws. tragedii w Czernichowie</span>
-      <span class="source-line">Źródło: RMF24</span>
+      <span class="news-text">Dziesiątki osób z objawami zatrucia w Toruniu. Dzieci i seniorzy trafili do szpitala</span>
+      <span class="source-line">Źródło: Polsat News</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W Czernichowie doszło do tragicznego wypadku, w którym betoniarka uderzyła w rowerzystkę oraz samochód osobowy. Śledztwo w tej sprawie zostało wszczęte przez odpowiednie służby.</div>
+    <div class="sec">Kilkadziesiąt osób w Toruniu ma objawy mogące wskazywać na zakażenie salmonellą. Przypadki odnotowano w trzech placówkach, a dziewięć osób wymagało hospitalizacji. Objawy wystąpiły u dzieci i seniorów, a wszystkie placówki korzystały z tej samej firmy cateringowej. Sanepid ustala obecnie źródło zachorowań.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/swiat/news-katastrofa-na-dunaju-rzeka-wysycha-statki-z-turystami-uziemi,nIdn,1010316" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/92/f6/historyczny-rekord-niskiego-poziomu-dunajufoto-zoltan-mathe-636x421-92f6cf8b.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.rmf24.pl/fakty/swiat/news-ke-szykuje-trzesienie-ziemi-w-systemie-ets-chodzi-o-gigantyc,nIdn,1010346" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/94/33/zdj-636x421-943313e2.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Katastrofa na Dunaju: Rzeka wysycha, statki z turystami uziemione</span>
+      <span class="news-text">KE szykuje trzęsienie ziemi w systemie ETS. Chodzi o gigantyczne pieniądze</span>
       <span class="source-line">Źródło: RMF24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Na Dunaju występuje poważny problem z wysychaniem rzeki, co prowadzi do uziemienia statków z turystami. Sytuacja ta ma wpływ na lokalny przemysł turystyczny.</div>
-    <div class="sec"><strong>Uwaga:</strong> brak potwierdzenia w nagłówkach PAP/Reuters/BBC/AP — potraktuj informację ostrożnie.</div>
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://tvn24.pl/polska/wybor-nowego-szefa-ipn-jest-decyzja-sejmu-st9146376?source=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://tvn24.pl/_e/i/tvnmeteo/najnowsze/cdn-zdjecie-0esms1-pilna-wiadomosc-ph6147821/alternates/WEBP_LANDSCAPE_1620" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Wybór nowego szefa IPN. Jest decyzja Sejmu</span>
-      <span class="source-line">Źródło: TVN24</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Sejm podjął decyzję w sprawie wyboru nowego szefa IPN, co jest istotnym wydarzeniem w kontekście polityki historycznej. Nowy prezes będzie miał za zadanie kontynuować działalność instytutu.</div>
+    <div class="sec">Komisja Europejska zaprezentowała projekt reformy systemu ETS, który ma zwiększyć środki na dekarbonizację. Państwa członkowskie będą musiały przeznaczać co najmniej 50% przychodów z aukcji ETS na ten cel. Obecnie tylko 5% tych środków trafia na inwestycje w dekarbonizację. Nowe przepisy mają również zwiększyć liczbę darmowych uprawnień do emisji dla przemysłów energochłonnych.</div>
 
   </div>
 </li>
@@ -198,86 +305,58 @@
   <h2>Ekonomia / Biznes</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Marynarze-zyskaja-zerowy-PIT-Sejm-zakonczyl-prace-nad-ustawa-9169607.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Inflacja-w-krajach-Unii-Europejskiej-w-czerwcu-2026-Dwa-kraje-gonia-Rumunie-9169630.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Marynarze zyskają zerowy PIT. Sejm zakończył prace nad ustawą</span>
+      <span class="news-text">Euroinflacja: dwa kraje gonią Rumunię. Unijny &quot;peleton&quot; przekracza 3%</span>
       <span class="source-line">Źródło: Bankier.pl</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Sejm zakończył prace nad ustawą wprowadzającą zerowy PIT dla marynarzy, co ma na celu poprawę konkurencyjności w sektorze żeglugi. Ustawa czeka teraz na podpis prezydenta.</div>
+    <div class="sec">W czerwcu 2026 roku inflacja HICP w Unii Europejskiej wyniosła 2,9%. W strefie euro inflacja zharmonizowana osiągnęła wartość 2,8%. Ceny energii, w tym paliw, nadal wpływają na inflację, mimo że spadły o 1,8% w porównaniu do maja. W Polsce inflacja HICP wyniosła 3,0%, co jest powyżej unijnej średniej.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Czy-wroci-program-Ceny-Paliwa-Nizej-Minister-finansow-wskazuje-na-bariere-w-budzecie-9169505.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
+  <a class="news-main-link" href="https://www.rmf24.pl/fakty/ekonomia/news-emerytura-zalezna-od-liczby-dzieci-prezes-zus-studzi-zapal-m,nIdn,1010366" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/02/95/katarzyna-pelczynska-nalecz-proponuje-emerytury-za-dzieci-636x421-0295cc9c.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Czy wróci program &quot;Ceny Paliwa Niżej&quot;? Minister finansów wskazuje na barierę w budżecie</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Minister finansów wskazał na trudności budżetowe, które mogą wpłynąć na ewentualny powrót programu &quot;Ceny Paliwa Niżej&quot;. Rząd analizuje sytuację na rynkach oraz w regionie Bliskiego Wschodu.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Sylwia-Gregorczyk-Abram-nowym-Rzecznikiem-Praw-Obywatelskich-Sejm-podjal-decyzje-9169663.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Sylwia Gregorczyk-Abram nowym Rzecznikiem Praw Obywatelskich? Sejm podjął decyzję</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Sejm powołał Sylwię Gregorczyk-Abram na stanowisko Rzecznika Praw Obywatelskich, co jest istotnym krokiem w obszarze ochrony praw obywatelskich. Teraz decyzję musi zatwierdzić Senat.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.bankier.pl/wiadomosc/Orlen-z-planem-ochrony-przyrody-do-2030-r-Konkretne-wymogi-dla-inwestycji-i-dostawcow-9169649.html?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=Wiadomosci" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">Bankier.pl</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Orlen z planem ochrony przyrody do 2030 r. Konkretne wymogi dla inwestycji i dostawców</span>
-      <span class="source-line">Źródło: Bankier.pl</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Grupa Orlen przyjęła Plan działań na rzecz bioróżnorodności do 2030 roku, który ma na celu ograniczenie wpływu inwestycji na przyrodę.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.rmf24.pl/regiony/warszawa/news-to-najwiekszy-taki-obiekt-w-europie-na-zeraniu-stanela-potez,nIdn,1010296" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/67/e3/prezentacja-nowo-wybudowanego-akumulatora-ciepla-na-terenie-elektrocieplowni-zeran-w-warszawiefoto-marcin-obara-636x421-67e30aa4.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">To największy taki obiekt w Europie. Na Żeraniu stanęła potężna konstrukcja</span>
+      <span class="news-text">Emerytura zależna od liczby dzieci? Prezes ZUS studzi zapał minister</span>
       <span class="source-line">Źródło: RMF24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Na Żeraniu powstała potężna konstrukcja, która jest największym obiektem tego typu w Europie.</div>
+    <div class="sec">Prezes ZUS Liwiusz Laska wyraził wątpliwości konstytucyjne dotyczące pomysłu uzależnienia wieku emerytalnego kobiet od liczby dzieci. Minister Katarzyna Pełczyńska-Nałęcz proponuje takie rozwiązanie jako formę nagradzania rodzicielstwa. Laska zapewnił, że nie toczą się żadne prace legislacyjne w tej sprawie. W Polsce wiek emerytalny wynosi 60 lat dla kobiet i 65 lat dla mężczyzn.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/swiat/news-ke-lagodzi-ets-polska-wygrala-pierwsza-runde-ale-najtrudniej,nIdn,1010248" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/8e/06/siedziba-ke-636x421-8e06e307.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.rmf24.pl/fakty/polska/news-tusk-i-tak-dlugo-wytrzymalismy-nie-mozemy-bez-konca-na-to-lo,nIdn,1010347" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/73/ab/premier-donald-tusk-fot-636x421-73ab12c2.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">KE łagodzi ETS. Polska wygrała pierwszą rundę, ale najtrudniejsza walka dopiero się zaczyna</span>
+      <span class="news-text">Tusk: I tak długo wytrzymaliśmy. Nie możemy bez końca na to łożyć</span>
       <span class="source-line">Źródło: RMF24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Polska osiągnęła wstępne sukcesy w negocjacjach z Komisją Europejską w sprawie ETS, jednak najtrudniejsze wyzwania są jeszcze przed nią.</div>
+    <div class="sec">Premier Donald Tusk podkreślił, że budżet nie może bez końca finansować dopłat do paliw. Program Ceny Paliwa Niżej był tymczasowy i zakończył się 30 czerwca. Tusk zaznaczył, że sytuacja na Bliskim Wschodzie wpływa na ceny paliw. Analitycy przewidują wzrost cen paliw na stacjach w nadchodzących tygodniach.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.rmf24.pl/fakty/ekonomia/news-inflacja-hamuje-sa-nowe-dane-gus-u,nIdn,1010024" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/89/d5/zdjecie-ilustracyjne-636x421-89d57b35.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Inflacja hamuje. Są nowe dane GUS-u</span>
+      <span class="source-line">Źródło: RMF24</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Inflacja konsumencka w Polsce w czerwcu 2026 roku wyniosła 2,5% w ujęciu rok do roku. To spadek w porównaniu do 3,1% w maju. Ceny towarów i usług konsumpcyjnych obniżyły się o 0,5% w ujęciu miesiąc do miesiąca. GUS poinformował również o deficycie w obrotach towarowych wynoszącym 2,9 miliarda euro.</div>
 
   </div>
 </li>
@@ -288,58 +367,72 @@
   <h2>Zdrowie</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.theguardian.com/us-news/2026/jul/16/merck-cholesterol-drug-fda-approval-lipfendra" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/b201e783e3dbf68916afff83df7600cecca87c60/83_595_2129_1704/master/2129.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=d61d0be6a582b2c073676ade70068a8c" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.theguardian.com/us-news/2026/jul/17/cyclosporiasis-parasite-symptoms-diarrhea-foods-explainer" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/e274dbb13c53c5a43d38766d861f04a1c7716536/753_0_2160_1728/master/2160.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=ce5e4d4b283a23819642cda74a7dff67" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Producent leków Merck ogłasza zatwierdzenie nowego leku na cholesterol</span>
-      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Wzrost przypadków cyklosporyozy w USA, w tym w Michigan</span>
+      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Firma Merck ogłosiła zatwierdzenie nowego leku na cholesterol, Lipfendra, przez FDA. Lek ten może być alternatywą dla statyn, które są najczęściej przepisywanymi lekami w USA.</div>
+    <div class="sec">W Stanach Zjednoczonych odnotowano gwałtowny wzrost przypadków cyklosporyozy, szczególnie w Michigan i Ohio. W Michigan zgłoszono niemal 1000 przypadków, co czyni ten wybuch największym w historii stanu. CDC zidentyfikowało sałatę lodową z Meksyku jako źródło epidemii. Objawy cyklosporyozy obejmują wodniste biegunki oraz inne dolegliwości żołądkowe.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.theguardian.com/society/2026/jul/16/energy-drinks-high-caffeine-banned-under-16s-england" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/92f3ad06944500e90a527813d39352535e106cde/362_0_4560_3648/master/4560.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=2ea2e4377a68313081704838a5ef6856" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.rmf24.pl/aktualnosci-twoje-zdrowie-fm/news-gdy-odpornosc-staje-sie-terapia-czym-sa-zywe-leki,nId,8089420" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://rmf24.rmffm.pl/attachments/000MW21N4H1PG9TF-C0.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Napoje energetyczne zakazane w sprzedaży dla osób poniżej 16. roku życia w Anglii</span>
-      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Gdy odporność staje się terapią. Czym są „żywe leki”?</span>
+      <span class="source-line">Źródło: RMF24</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W Anglii wprowadzono zakaz sprzedaży napojów energetycznych dla osób poniżej 16. roku życia. Nowe przepisy mają na celu poprawę zdrowia dzieci, które często sięgają po te napoje.</div>
+    <div class="sec">Nowoczesne terapie, takie jak CAR-T i TCR-T, oferują nowe możliwości leczenia nowotworów hematologicznych. W tych terapiach komórki układu odpornościowego pacjenta są modyfikowane genetycznie, aby skuteczniej zwalczać nowotwory. Wrocławska debata ma na celu omówienie warunków wdrażania tych innowacyjnych metod w Polsce. Terapie te mogą stać się realną szansą dla pacjentów z chorobami uznawanymi za nieuleczalne.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.theguardian.com/uk-news/2026/jul/16/as-a-frontline-worker-my-anger-over-the-tories-handling-of-covid-has-not-abated" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/1866065ff4dd5124c4b3fb8930e57a1b63420ec8/0_0_989_791/master/989.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=aa6c970aadb544afe7f349e996dab18e" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.theguardian.com/environment/2026/jul/16/down-to-earth-lancashire-pfas-contamination-forever-chemicals" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/29ce80100a00871d53810223b7e9124ea71893ea/1440_0_7200_5760/master/7200.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=ad7cdd14704744539c0712a873d252f7" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Jako pracownik pierwszej linii, mój gniew na sposób, w jaki Tories zarządzali Covid, nie osłabł | List</span>
-      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Skandal zdrowotny związany z chemikaliami w Lancashire</span>
+      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Jako pracownica pierwszej linii, Laura Matthews wyraża swoje niezadowolenie z zarządzania pandemią przez rząd. Wspomina o braku odpowiedniego sprzętu ochronnego i trudnych warunkach pracy.</div>
+    <div class="sec">Mieszkańcy Thornton-Cleveleys w Anglii są zaniepokojeni zanieczyszczeniem chemikaliami z pobliskiej fabryki AGC Chemicals Europe. W 2024 roku rozpoczęto dochodzenie w sprawie emisji Pfoa, substancji rakotwórczej. Mieszkańcy zostali ostrzeżeni, aby unikać jedzenia lokalnych produktów. Fabryka ogłosiła plany zamknięcia, co rodzi pytania o odpowiedzialność za oczyszczenie terenu.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/news/articles/c74glj9zkzko?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/2ac5/live/29a87d30-812f-11f1-bee8-53ce494e1abc.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.theguardian.com/society/2026/jul/17/salsa-classes-improve-mental-health-oxford-study-depression-anxiety" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/eb0e78b4fbe983fee1873c11a84cc28ef6548256/936_0_4680_3744/master/4680.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=104598606cc237f45fe0800604493d04" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Nastolatkowie od 15. roku życia powinni otrzymać darmowe szczepienie przeciwko MenB, mówią eksperci z Wielkiej Brytanii</span>
-      <span class="source-line">Źródło: BBC News · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Zajęcia z salsy mogą poprawić zdrowie psychiczne, sugeruje badanie z Oksfordu</span>
+      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Eksperci w Wielkiej Brytanii zalecają wprowadzenie darmowych szczepień przeciwko MenB dla nastolatków od 15. roku życia. Propozycja ta wynika z obaw o wybuch epidemii.</div>
+    <div class="sec">Badanie przeprowadzone przez naukowców z Oksfordu sugeruje, że zajęcia z salsy mogą poprawić zdrowie psychiczne. Uczestnicy programu tanecznego doświadczyli znacznego zmniejszenia objawów depresji i lęku społecznego. Salsa jest popularnym tańcem, który łączy różne style muzyczne i oferuje korzyści zdrowotne. Naukowcy zalecają rozważenie wprowadzenia takich zajęć jako formy wsparcia dla młodych ludzi.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.theguardian.com/us-news/2026/jul/16/taco-bell-lettuce-cyclosporiasis-outbreak" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://i.guim.co.uk/img/media/a6b46d1a4e3a74b9175652c734ba0414e726dea0/381_0_6168_4937/master/6168.jpg?width=140&amp;quality=85&amp;auto=format&amp;fit=max&amp;s=4e1ea56d1b13fdb42e807c5fb5c0b0c9" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Cyklosporydoza: władze badają dostawcę sałaty Taco Bell jako potencjalne źródło epidemii</span>
+      <span class="source-line">Źródło: The Guardian · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Władze badają dostawcę sałaty Taco Bell w związku z epidemią cyklosporydozy. Sałata od firmy Taylor Farms może być źródłem zakażeń w kilku stanach USA. Taco Bell podjęło działania, aby usunąć potencjalnie zainfekowaną sałatę z obiegu. CDC potwierdziło, że liczba przypadków cyklosporydozy w USA wzrosła, a wiele osób nie zgłasza się na badania.</div>
 
   </div>
 </li>
@@ -350,16 +443,30 @@
   <h2>Nauka</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://www.nasa.gov/organizations/oiir/artemis-accords/nasa-welcomes-serbia-as-newest-artemis-accords-signatory/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">NASA</span><span class="sub">źródło</span></span>
+  <a class="news-main-link" href="https://naukawpolsce.pl/aktualnosci/news%2C113891%2Carcheolog-kamienne-waly-w-gorach-izerskich-znikaja-choc-sa-unikatowym" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">Nauka w Polsce</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Serbia nowym sygnatariuszem Artemis Accords</span>
-      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Archeolog: kamienne wały w Górach Izerskich znikają, choć są unikatowym świadectwem historii</span>
+      <span class="source-line">Źródło: Nauka w Polsce</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Serbia dołączyła do Artemis Accords, co oznacza jej zaangażowanie w międzynarodową współpracę w eksploracji kosmosu. To ważny krok w kierunku rozwoju technologii kosmicznych w regionie.</div>
+    <div class="sec">Kamienne wały w Górach Izerskich są unikatowym świadectwem pracy osadników. Archeolodzy ostrzegają, że te zabytki znikają z powodu braku ochrony. Badania wykazały, że wały mają bogatą historię, która nie jest dokumentowana w kronikach. Zniszczenie tych struktur prowadzi do utraty cennych informacji o dawnym krajobrazie rolniczym.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.nasa.gov/organizations/oiir/artemis-accords/nasa-welcomes-serbia-as-newest-artemis-accords-signatory/" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">NASA</span><span class="sub">źródło</span></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Serbia dołącza do Artemis Accords jako 69</span>
+      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Serbia podpisała Artemis Accords, stając się 69. krajem, który dołączył do tej inicjatywy. Minister spraw zagranicznych Serbii, Marko Đurić, podkreślił znaczenie współpracy z NASA. Podpisanie porozumienia otwiera nowe możliwości dla przyszłych misji księżycowych. Serbia ma długą historię współpracy z NASA, sięgającą czasów programu Apollo.</div>
 
   </div>
 </li>
@@ -367,55 +474,41 @@
   <a class="news-main-link" href="https://www.nasa.gov/solar-system/comets/nasa-study-finds-near-earth-asteroid-is-actually-comet/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">NASA</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Badania NASA ujawniają, że bliski Ziemi asteroid jest w rzeczywistości kometą</span>
-      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Badania NASA ujawniają, że bliski Ziemi asteroid to tak naprawdę kometa</span>
+      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Badania NASA ujawniają, że bliski Ziemi obiekt, wcześniej uznawany za asteroidę, jest w rzeczywistości kometą. Odkrycie to wynika z precyzyjnego śledzenia ruchu obiektu w przestrzeni.</div>
+    <div class="sec">Badania NASA ujawniają, że bliski Ziemi obiekt, znany jako 1998 SH2, jest w rzeczywistości kometą. Obiekt ten wykazuje nieregularny ruch, co sugeruje, że może emitować gaz i pył. Naukowcy z NASA zidentyfikowali perturbacje w jego ruchu, które nie były zgodne z zachowaniem asteroidy. Odkrycie to ma istotne znaczenie dla obrony planetarnej.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.nasa.gov/centers-and-facilities/armstrong/nasa-uses-subscale-aircraft-to-accelerate-flight-innovation/" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://www.nasa.gov/wp-content/uploads/2024/12/afrc2024-0166-033orig.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.esa.int/ESA_Multimedia/Images/2026/07/Earth_from_Space_Guinea-Bissau" target="_blank" rel="noopener">
+    <span class="news-thumb"><span class="dot"></span><span class="title">ESA</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">NASA wykorzystuje samoloty subskali do przyspieszenia innowacji w lotnictwie</span>
-      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Ziemia z kosmosu: Gwinea-Bissau</span>
+      <span class="source-line">Źródło: ESA · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> NASA wykorzystuje małe, zdalnie sterowane samoloty do testowania nowych koncepcji lotniczych, co pozwala na rozwijanie innowacyjnych pomysłów. Laboratorium badań lotniczych w Kalifornii wspiera te działania, co przyczynia się do postępu w dziedzinie lotnictwa.</div>
+    <div class="sec">Guinea-Bissau to jeden z najmniejszych krajów w Afryce kontynentalnej, zajmujący obszar 36 125 km². Kraj ten charakteryzuje się niskimi równinami i mangrowymi bagnami wzdłuż wybrzeża Atlantyku. Tidalne wody docierają do 100 km w głąb lądu, co wpływa na unikalny ekosystem. W regionie tym znajduje się wiele rzek, w tym rzeka Geba, która jest ważna dla rolnictwa.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://science.nasa.gov/science-research/astromaterials/nasa-study-of-pristine-meteorite-adds-to-story-of-ancient-asteroids/" target="_blank" rel="noopener">
+  <a class="news-main-link" href="https://science.nasa.gov/earth/earth-observatory/a-tide-fueled-trove-of-biodiversity-in-guinea-bissau/" target="_blank" rel="noopener">
     <span class="news-thumb"><span class="dot"></span><span class="title">NASA</span><span class="sub">źródło</span></span>
     <span class="news-title-wrap">
-      <span class="news-text">Badanie meteorytu przez NASA wzbogaca historię starożytnych asteroid</span>
-      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">Biodiversytet napędzany przez przypływy w Gwinei-Bissau</span>
+      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> NASA bada meteoryt, który spadł na Ziemię w lipcu 2024 roku. Analizy dostarczają nowych informacji o wodzie, ewolucji chemicznej asteroid i składnikach życia w młodym Układzie Słonecznym.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.nasa.gov/directorates/esdmd/artemis-campaign-development-division/human-landing-system-program/how-nasas-artemis-iii-lander-test-will-pave-way-for-moon-landings/" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">NASA</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Jak test lądownika NASA Artemis III utoruje drogę do lądowań na Księżycu</span>
-      <span class="source-line">Źródło: NASA · źródło anglojęzyczne — brief po polsku</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> NASA planuje misję demonstracyjną Artemis III w 2027 roku, aby przećwiczyć operacje dokowania między systemami lądowania a statkiem Orion. Dane z tej misji będą kluczowe dla przyszłych lądowań na Księżycu.</div>
+    <div class="sec">Archipelag Bijagós w Gwinei-Bissau jest domem dla wielu migrujących ptaków i żółwi morskich. Tereny te są regularnie zalewane przez przypływy, co wpływa na ich ekosystem. UNESCO uznało archipelag za miejsce światowego dziedzictwa, chroniąc jego unikalne ekosystemy. Tidalne zmiany w regionie są jednymi z największych w Afryce Zachodniej.</div>
 
   </div>
 </li>
@@ -426,114 +519,44 @@
   <h2>Sport</h2>
   <ul class="news">
     <li>
-  <a class="news-main-link" href="https://przegladsportowy.onet.pl/lekkoatletyka/rekord-swiata-co-za-wystep-anity-wlodarczyk/s8nhzep" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/mntk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy81NTliMTdmNjA1NTRkMzc1NjczZjQ2YTQwNjliNWU0YS5qcGeSlQPNAu3MwM0Lgc0GeJMFzQlgzQZA3gACoTAHoTEE" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/tenis/rekord-zyciowy-polki-w-wta-zagra-o-us-open-tak-wysoko-nigdy-nie-byla/tzvh73s" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/_rGk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy85MmI3NDE1YzZmOGZmYWIzOTMxNTdhMjk5YjJlZTdhYy5qcGeSlQPNA1bMh80RAs0JkZMFzQlgzQZA3gACoTAHoTEE" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Rekord! Co za występ Anity Włodarczyk</span>
+      <span class="news-text">Rekord życiowy Polki w WTA. Zagra o US Open, tak wysoko nigdy nie była</span>
       <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Anita Włodarczyk pobiła rekord świata masters w rzucie młotem, co wzbudziło entuzjazm kibiców.</div>
+    <div class="sec">Martyna Kubka osiągnęła półfinał turnieju ITF w Hiszpanii, co zapewni jej najwyższe w karierze miejsce w rankingu WTA. Po zwycięstwie nad Han Shi, zajmie 205. miejsce w rankingu. Jeżeli pokona Kirę Pawłową, wejdzie do czołowej dwusetki. Udział w kwalifikacjach do US Open to znaczący sukces dla Polki.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://sportowefakty.wp.pl/plywanie/1262921/sprawca-ataku-na-wicemistrzynie-olimpijska-aresztowany" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a5744011a3c70_14322213.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://sportowefakty.wp.pl/pilka-nozna/1262963/kim-jest-wybraniec-fifa-i-jakim-cudem-dostal-sedziowanie-finalu-mistrzostw-swiat" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a5a21824254a6_91654851.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Sprawca ataku na wicemistrzynię olimpijską aresztowany</span>
+      <span class="news-text">Kim jest wybraniec FIFA i jakim cudem dostał sędziowanie finału mistrzostw świata?</span>
       <span class="source-line">Źródło: SportoweFakty WP</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Podejrzany o atak na białoruską wicemistrzynię olimpijską został aresztowany. Prokuratura zaznacza, że motyw ataku nie był związany z narodowością.</div>
+    <div class="sec">Slavko Vincić, sędzia finału mistrzostw świata, ma kontrowersyjną przeszłość. Jego firma zajmująca się usługami montażowymi wygenerowała w 2025 roku przychody przekraczające 8 mln euro. Vincić był zatrzymany przez policję po imprezie z prostytutkami, ale nie postawiono mu zarzutów. Mimo kontrowersji, zyskał popularność jako sędzia w mediach społecznościowych.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.bbc.co.uk/sport/cricket/articles/ce8kv0dk8jro?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/b877/live/4e65a690-81be-11f1-851a-41b6200fdab4.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/c89nlvwx410o?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/ef87/live/18cbc900-81dd-11f1-8b86-31ce3d5ecce7.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">WCA zaniepokojona formatem Pucharu Świata ODI</span>
-      <span class="source-line">Źródło: BBC Sport · źródło anglojęzyczne — brief po polsku</span>
+      <span class="news-text">UEFA nie będzie używać VAR do oceny symulacji jak na Mistrzostwach Świata</span>
+      <span class="source-line">Źródło: BBC Sport · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> WCA wyraziła zaniepokojenie zmianami w strukturze męskiego Pucharu Świata w krykiecie. Organizacja podkreśla, że nowe zasady mogą wpłynąć na rywalizację w turnieju.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://www.rmf24.pl/fakty/sport/news-mial-byc-wielka-gwiazda-najdrozszy-pilkarz-ekstraklasy-idzie,nIdn,1010292" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/4b/4a/osman-bukari-fot-636x421-4b4a5d50.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Miał być wielką gwiazdą. Najdroższy piłkarz Ekstraklasy idzie na wypożyczenie</span>
-      <span class="source-line">Źródło: RMF24 Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Najdroższy piłkarz Ekstraklasy, który miał być wielką gwiazdą, odchodzi na wypożyczenie. To zaskakujący krok w jego karierze.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/nie-tylko-marciniak-drugi-polski-sedzia-tez-konczy-ms-2026/bc2h0ck" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/jepk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8yYzIzYjYzYjk2OGFjODYxZTc5M2NhZDMzMzU2ZjQ4OC5qcGeSlQMAzLrNCd_NBY2TBc0JYM0GQN4AAqEwB6ExBA" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Nie tylko Szymon Marciniak. Drugi polski sędzia też kończy MŚ 2026</span>
-      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> FIFA ogłosiła, że Tomasz Kwiatkowski nie będzie sędzią VAR na Mistrzostwach Świata 2026. To oznacza, że tylko Szymon Marciniak kończy swój udział w turnieju.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/1-liga/reprezentant-polski-zeslany-do-rezerw-wieczystej-krakow/fdzzyzy" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/8qZk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy84ZjIyZGZkNzRmZDAzNzA3ZGVhODgxZTNmMzAxOTczMS5qcGeSlQPNAyMqzQupzQaQkwXNCWDNBkDeAAKhMAehMQQ" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Reprezentant Polski zesłany do rezerw Wieczystej Kraków</span>
-      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Rafał Pietrzak, trzykrotny reprezentant Polski, został przesunięty do rezerw Wieczystej Kraków. Drużyna ma przed sobą historyczny sezon.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://sport.tvp.pl/93188411/mundial-2026-w-telewizji-polskiej-transmisje-w-tvp-zapowiedz-wideo" target="_blank" rel="noopener">
-    <span class="news-thumb"><span class="dot"></span><span class="title">TVP Sport</span><span class="sub">źródło</span></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Mundial 2026 w Telewizji Polskiej! Oglądaj transmisje MŚ w TVP [ZAPOWIEDŹ WIDEO]</span>
-      <span class="source-line">Źródło: TVP Sport</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Mistrzostwa świata w piłce nożnej odbywają się w USA, Meksyku i Kanadzie. Telewizja Polska zapewnia transmisje wszystkich meczów turnieju.</div>
-
-  </div>
-</li>
-<li>
-  <a class="news-main-link" href="https://sportowefakty.wp.pl/pilka-nozna/1262942/messi-w-lozku-zdjecie-to-hit" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/6a59fa5eee19d6_49868210.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
-    <span class="news-title-wrap">
-      <span class="news-text">Messi w łóżku. Zdjęcie to hit</span>
-      <span class="source-line">Źródło: SportoweFakty WP</span>
-    </span>
-  </a>
-  <div class="ai-note">
-    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Po półfinałowym zwycięstwie nad Anglią w Mistrzostwach Świata, Lionel Messi i Rodrigo De Paul dzielą się radosnym zdjęciem. Atmosfera w reprezentacji Argentyny jest bardzo pozytywna.</div>
+    <div class="sec">UEFA zdecydowała, że nie będzie używać VAR do oceny symulacji, jak miało to miejsce na Mistrzostwach Świata. Nowe zasady VAR zostały wprowadzone przez Międzynarodową Radę Piłkarską (IFAB) od tego lata. W trakcie Mistrzostw Świata VAR interweniował w przypadku błędnej identyfikacji zawodnika, co doprowadziło do kontrowersyjnych decyzji. Wiele lig krajowych wyraziło obawy dotyczące potencjalnych problemów, jakie mogą wyniknąć z wprowadzenia tych zmian.</div>
 
   </div>
 </li>
@@ -547,21 +570,63 @@
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> W składzie sędziowskim na półfinał znajduje się Polak, a Szymon Marciniak czeka na swoją szansę. To może być ważny moment dla polskiego sędziowania.</div>
+    <div class="sec">Tomasz Kwiatkowski został wyznaczony na sędziego VAR podczas półfinału Mistrzostw Świata między Francją a Hiszpanią. W wozie VAR towarzyszyć mu będą sędziowie z różnych krajów, w tym z Holandii i Meksyku. Mecz poprowadzi Ivan Barton z Salwadoru, który ma doświadczenie w sędziowaniu na mundialu. Szymon Marciniak, znany polski sędzia, wciąż czeka na swoją szansę w pozostałych meczach turnieju.</div>
 
   </div>
 </li>
 <li>
-  <a class="news-main-link" href="https://www.rmf24.pl/siatkowka/news-mocny-sklad-wielka-stawka-polscy-siatkarze-ruszaja-na-podboj,nIdn,1009899" target="_blank" rel="noopener">
-    <span class="news-thumb has-image"><img src="https://rmf.rmffm.pl/news/attachments/19/b5/siatkarze-reprezentacji-polski-podczas-towarzyskiego-meczu-z-niemcami-w-olsztynie-636x421-19b589d5.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+  <a class="news-main-link" href="https://przegladsportowy.onet.pl/pilka-nozna/mistrzostwa-swiata-2026/hiszpanski-premier-wybiera-sie-na-final-ms-2026-glosno-krytykowal-trumpa/1kphl4v" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://cdn.przegladsportowy.onet.pl/1/abYk9lBaHR0cHM6Ly9vY2RuLmV1L3B1bHNjbXMvTURBXy8zODE4NTc2N2Q0NTUxYzAyOGRkMzZlY2RkZGY5MTgyNC5qcGeSlQPNAtfNATPNDUPNB3aTBc0JYM0GQN4AAqEwB6ExBA" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
     <span class="news-title-wrap">
-      <span class="news-text">Mocny skład, wielka stawka. Polscy siatkarze ruszają na podbój Chicago</span>
-      <span class="source-line">Źródło: RMF24 Sport</span>
+      <span class="news-text">Hiszpański premier wybiera się na finał MŚ 2026. Głośno krytykował Donalda Trumpa</span>
+      <span class="source-line">Źródło: Przegląd Sportowy / Onet Sport</span>
     </span>
   </a>
   <div class="ai-note">
     <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
-    <div class="sec"><strong>Najważniejsze:</strong> Polscy siatkarze wyruszają do Chicago z mocnym składem, aby stawić czoła wyzwaniom. Wysoka stawka towarzyszy ich występowi w tym mieście.</div>
+    <div class="sec">Premier Hiszpanii, Pedro Sanchez, weźmie udział w finale Mistrzostw Świata 2026. Jego relacje z Donaldem Trumpem są napięte, w przeciwieństwie do dobrych kontaktów z prezydentem Argentyny. Sanchez sprzeciwił się wojnie USA i Izraela z Iranem. Zarówno Trump, jak i FIFA zapowiedzieli swoją obecność na finale oraz wspólne wręczenie trofeum.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://sportowefakty.wp.pl/tenis/1262970/swietny-powrot-polki-obroniona-pilka-meczowa" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://sf-administracja.wpcdn.pl/storage2/featured_original/691a3ea71c5628_78743218.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Świetny powrót Polki. Obroniła meczbola</span>
+      <span class="source-line">Źródło: SportoweFakty WP</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Martyna Kubka awansowała do półfinału zawodów ITF World Tennis Tour w Hiszpanii. W meczu pokonała Chinkę Han Shi po zaciętej walce, odwracając losy spotkania. Polka była bliska porażki, przegrywając 2:5 w trzecim secie, ale zdołała wygrać. Jej kolejną przeciwniczką będzie Rosjanka Kira Pawłowa.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/czxedvre7ryo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/698c/live/adf12f60-81e3-11f1-9b73-1d2c7fa8d439.jpg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Hiszpania ufa zespołowej tożsamości przed finałem Mistrzostw Świata</span>
+      <span class="source-line">Źródło: BBC Sport · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Reprezentacja Hiszpanii jest pewna siebie przed finałem Mistrzostw Świata. Zespół wierzy, że może pokonać Argentynę i zdobyć drugi tytuł. Hiszpanie nie przegrali żadnego meczu w turnieju, co jest niezwykłe. W finale będą musieli stawić czoła Lionelowi Messiemu, który jest w znakomitej formie.</div>
+
+  </div>
+</li>
+<li>
+  <a class="news-main-link" href="https://www.bbc.co.uk/sport/football/articles/clyxllv7lmpo?at_medium=RSS&amp;at_campaign=rss" target="_blank" rel="noopener">
+    <span class="news-thumb has-image"><img src="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/341f/live/ddf955e0-81cd-11f1-b976-0b9c15b0ccfc.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="78" height="54" /></span>
+    <span class="news-title-wrap">
+      <span class="news-text">Pięć powodów do optymizmu dla Anglii mimo odpadnięcia z Mistrzostw Świata</span>
+      <span class="source-line">Źródło: BBC Sport · źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku</span>
+    </span>
+  </a>
+  <div class="ai-note">
+    <div class="ai-head"><span class="ai-badge"><span class="ai-dot"></span> Komentarz</span></div>
+    <div class="sec">Anglia odpadła z Mistrzostw Świata, co jest bolesnym doświadczeniem. Mimo to, drużyna ma powody do optymizmu, ponieważ posiada dwóch kandydatów do Złotego Buta. Harry Kane i Jude Bellingham zdobyli po sześć goli w turnieju. Anglia osiągnęła postęp, docierając do półfinałów w czterech z ostatnich pięciu dużych turniejów.</div>
 
   </div>
 </li>
