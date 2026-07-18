@@ -86,8 +86,12 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertIn('<section class="card" id="zdrowie">', page)
         self.assertIn("Testowy materiał numer 1", page)
         self.assertIn("briefrooms-newsroom-v2", page)
-        self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))", page)
-        self.assertIn("height:190px", page)
+        self.assertIn("grid-template-columns:1fr!important", page)
+        self.assertIn("@media(min-width:900px)", page)
+        self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))!important", page)
+        self.assertIn("@media(min-width:1400px)", page)
+        self.assertIn("grid-template-columns:repeat(3,minmax(0,1fr))!important", page)
+        self.assertIn("height:172px", page)
 
     def test_render_is_fail_closed_when_full_comments_are_missing(self):
         with self.assertRaisesRegex(RuntimeError, "only 0 homepage-grade comments"):
@@ -124,7 +128,6 @@ class PolishNewsBuilderTests(unittest.TestCase):
         accepted = [item for items in finalized.values() for item in items]
         self.assertEqual(8, len(accepted))
         self.assertTrue(all(item["comment_generation_status"] == "ai_review_approved" for item in accepted))
-
 
 if __name__ == "__main__":
     unittest.main()

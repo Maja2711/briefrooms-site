@@ -124,8 +124,8 @@
     }
     body[data-page="news"] ul.news{
       list-style:none!important;margin:0!important;padding:0!important;
-      display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
-      gap:18px!important;
+      display:grid!important;grid-template-columns:1fr!important;
+      gap:24px!important;
     }
     body[data-page="news"] ul.news>li{
       min-width:0;margin:0!important;padding:0!important;overflow:hidden!important;
@@ -145,7 +145,7 @@
     }
     body[data-page="news"] ul.news>li>a::after{content:none!important;display:none!important}
     body[data-page="news"] .news-thumb{
-      display:block!important;width:100%!important;min-width:0!important;height:190px!important;
+      display:block!important;width:100%!important;min-width:0!important;height:172px!important;
       margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
       overflow:hidden!important;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.32),transparent 40%),linear-gradient(135deg,#0d344a,#081827)!important;
       box-shadow:none!important;
@@ -197,11 +197,17 @@
       border-radius:18px!important;background:rgba(255,255,255,.035)!important;
     }
     body[data-page="news"] footer{position:relative;z-index:1;color:#7f93a8!important}
-    @media(max-width:760px){
+    @media(min-width:900px){
+      body[data-page="news"] ul.news{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    }
+    @media(min-width:1400px){
+      body[data-page="news"] ul.news{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+    }
+    @media(max-width:899px){
       body[data-page="news"] header{padding:24px 14px 10px!important}
       body[data-page="news"] main{padding:0 14px 44px!important}
-      body[data-page="news"] ul.news{grid-template-columns:1fr!important;gap:15px!important}
-      body[data-page="news"] .news-thumb{height:178px!important}
+      body[data-page="news"] ul.news{grid-template-columns:1fr!important;gap:24px!important}
+      body[data-page="news"] .news-thumb{height:184px!important}
       body[data-page="news"] .news-text{font-size:17px!important}
     }
 

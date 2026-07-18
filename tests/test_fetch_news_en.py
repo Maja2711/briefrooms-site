@@ -72,8 +72,12 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertIn("Test report number 1", page)
         self.assertEqual(8, page.count('<span class="news-thumb has-image">'))
         self.assertIn("briefrooms-newsroom-v2", page)
-        self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))", page)
-        self.assertIn("height:190px", page)
+        self.assertIn("grid-template-columns:1fr!important", page)
+        self.assertIn("@media(min-width:900px)", page)
+        self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))!important", page)
+        self.assertIn("@media(min-width:1400px)", page)
+        self.assertIn("grid-template-columns:repeat(3,minmax(0,1fr))!important", page)
+        self.assertIn("height:172px", page)
         self.assertNotIn("BriefRooms • AI comment", page)
 
     def test_missing_thumbnail_uses_visual_fallback(self):
@@ -126,7 +130,6 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         accepted = [item for items in finalized.values() for item in items]
         self.assertEqual(8, len(accepted))
         self.assertTrue(all(item["comment_generation_status"] == "ai_review_approved" for item in accepted))
-
 
 if __name__ == "__main__":
     unittest.main()
