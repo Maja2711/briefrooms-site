@@ -29,7 +29,7 @@ class AlternateLinkParser(HTMLParser):
 
 def test_every_public_page_has_one_shared_header() -> None:
     pages = sync_site_header.public_pages()
-    assert len(pages) == 47
+    assert len(pages) == 45
 
     for page in pages:
         text = page.read_text(encoding="utf-8")
@@ -51,6 +51,17 @@ def test_every_public_page_has_one_shared_header() -> None:
             head.group(1),
             re.IGNORECASE,
         ), relative
+
+
+def test_homepages_keep_the_original_door_navigation() -> None:
+    for page in (ROOT / "pl" / "index.html", ROOT / "en" / "index.html"):
+        text = page.read_text(encoding="utf-8")
+        assert '<header class="top">' in text, page.relative_to(ROOT)
+        assert text.count('class="nav-link ') == 6, page.relative_to(ROOT)
+        assert '<span class="brand-mark">BRs</span>' in text, page.relative_to(ROOT)
+        assert "/assets/site-header.css" not in text, page.relative_to(ROOT)
+        assert "/scripts/site-header.js" not in text, page.relative_to(ROOT)
+        assert 'id="site-header"' not in text, page.relative_to(ROOT)
 
 
 def test_legacy_full_navigation_is_not_duplicated() -> None:
@@ -141,6 +152,7 @@ def test_shared_header_styles_cover_layout_and_accessibility() -> None:
     assert "padding: 0 !important" in css
     assert "background: rgba(5, 17, 29, 0.96) !important" in css
     assert "overflow-x: auto" not in css
+    assert "#087f9a 0%, #23d5cc 38%, #78e7f7 70%, #d6fbff 100%" in css
     assert re.search(r"#site-header\s*\{[^}]*min-height:\s*var\(--br-site-header-height\)", css, re.DOTALL)
 
 
