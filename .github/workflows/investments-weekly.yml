@@ -41,6 +41,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: investments-paper-publishing
+  cancel-in-progress: false
+
 jobs:
   build-investments-weekly:
     runs-on: ubuntu-latest
