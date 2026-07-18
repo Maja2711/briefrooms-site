@@ -300,7 +300,7 @@
             <p>Non‑HDL obejmuje cholesterol przenoszony przez wszystkie cząstki, które mogą odkładać się w tętnicach: LDL, Lp(a) i lipoproteiny resztkowe. Dlatego pokazuje więcej niż samo LDL, szczególnie przy wysokich triglicerydach.</p>
             <table class="interpretation-table"><thead><tr><th>Sytuacja</th><th>Orientacyjny cel non‑HDL</th></tr></thead><tbody><tr><td>Ryzyko umiarkowane</td><td>poniżej 130 mg/dl</td></tr><tr><td>Wysokie ryzyko</td><td>poniżej 100 mg/dl</td></tr><tr><td>Bardzo wysokie ryzyko, np. po zawale lub udarze</td><td>poniżej 85 mg/dl</td></tr></tbody></table>
             <h3>Jak czytać cholesterol resztkowy</h3>
-            <table class="interpretation-table"><thead><tr><th>Wynik remnant‑C</th><th>Praktyczna interpretacja</th></tr></thead><tbody><tr><td>poniżej 20 mg/dl</td><td>niski lub korzystny</td></tr><tr><td>20–29 mg/dl</td><td>pośredni — warto ocenić razem z TG, non‑HDL i ApoB</td></tr><tr><td>30 mg/dl lub więcej</td><td>podwyższony; w badaniach wiązał się z większym ryzykiem sercowo‑naczyniowym</td></tr></tbody></table>
+            <table class="interpretation-table"><thead><tr><th>Wynik remnant‑C</th><th>Praktyczna interpretacja</th></tr></thead><tbody><tr><td>poniżej 20 mg/dl</td><td>wynik korzystny</td></tr><tr><td>20–29 mg/dl</td><td>pośredni — warto ocenić razem z TG, non‑HDL i ApoB</td></tr><tr><td>30 mg/dl lub więcej</td><td>podwyższony; w badaniach wiązał się z większym ryzykiem sercowo‑naczyniowym</td></tr></tbody></table>
             <p class="scale-note"><strong>Ważne:</strong> remnant‑C jest wartością obliczoną. Próg 30 mg/dl jest progiem używanym w badaniach ryzyka, a nie osobnym, powszechnie obowiązującym celem leczenia. LDL i non‑HDL pozostają ważniejsze przy podejmowaniu decyzji.</p>
           </div>
           <p class="calc-privacy">Obliczenia odbywają się na Twoim urządzeniu. Wpisane dane nie są wysyłane ani zapisywane. To orientacyjne objaśnienie, nie diagnoza ani dobór leczenia.</p>
@@ -353,16 +353,16 @@
       document.getElementById('non-hdl-result').textContent=fmt(nonHdl);
       document.getElementById('remnant-result').textContent=fmt(remnant);
       document.getElementById('non-hdl-note').textContent=nonHdl<85?'Poniżej celu nawet dla wielu osób z bardzo wysokim ryzykiem.':nonHdl<100?'Poniżej celu dla wysokiego ryzyka, ale nie dla każdego bardzo wysokiego ryzyka.':nonHdl<130?'Poniżej typowego celu dla ryzyka umiarkowanego; przy wysokim ryzyku cel jest niższy.':nonHdl<160?'Podwyższony — powyżej celu 130 mg/dl dla ryzyka umiarkowanego.':'Wysoki — wyraźnie powyżej celów stosowanych w wytycznych.';
-      document.getElementById('remnant-note').textContent=remnant<20?'Niski lub korzystny wynik.':remnant<30?'Wynik pośredni (20–29 mg/dl); oceń go razem z TG, non‑HDL i ApoB.':'Podwyższony (≥30 mg/dl); w badaniach wiązał się z większym ryzykiem.';
+      document.getElementById('remnant-note').textContent=(remnant<20?'Wynik korzystny.':remnant<30?'Wynik pośredni.':'Wynik podwyższony; w badaniach wiązał się z większym ryzykiem.')+' Skala: <20 korzystny | 20–29 pośredni | ≥30 mg/dl podwyższony.';
       const ratioFmt=v=>(Math.round(v*100)/100).toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2});
       document.getElementById('tc-hdl-result').textContent=ratioFmt(tcHdl);
-      document.getElementById('tc-hdl-note').textContent=tcHdl<3.5?'Korzystna proporcja.':tcHdl<5?'Pośrednia proporcja — najważniejsze pozostają LDL i non‑HDL.':'Wysoka proporcja; zwykle wynika z wysokiego cholesterolu aterogennego lub niskiego HDL.';
+      document.getElementById('tc-hdl-note').textContent=(tcHdl<3.5?'Wynik korzystny.':tcHdl<5?'Wynik pośredni.':'Wynik wysoki.')+' Skala pomocnicza: <3,50 korzystny | 3,50–4,99 pośredni | ≥5,00 wysoki.';
       document.getElementById('ldl-hdl-result').textContent=ratioFmt(ldlHdl);
-      document.getElementById('ldl-hdl-note').textContent=ldlHdl<2?'Korzystna proporcja.':ldlHdl<3?'Pośrednia proporcja.':'Wysoka proporcja LDL do HDL.';
+      document.getElementById('ldl-hdl-note').textContent=(ldlHdl<2?'Wynik korzystny.':ldlHdl<3?'Wynik pośredni.':'Wynik wysoki.')+' Skala pomocnicza: <2,00 korzystny | 2,00–2,99 pośredni | ≥3,00 wysoki.';
       document.getElementById('tg-hdl-result').textContent=ratioFmt(tgHdl);
-      document.getElementById('tg-hdl-note').textContent=tgHdl<2?'Korzystny wynik pomocniczy.':tgHdl<3?'Strefa pośrednia; znaczenie zależy m.in. od płci i metabolizmu glukozy.':'Podwyższony wskaźnik; może towarzyszyć insulinooporności i dyslipidemii metabolicznej.';
+      document.getElementById('tg-hdl-note').textContent=(tgHdl<2?'Wynik korzystny.':tgHdl<3?'Wynik pośredni.':'Wynik podwyższony; może towarzyszyć insulinooporności.')+' Skala pomocnicza: <2,00 korzystny | 2,00–2,99 pośredni | ≥3,00 podwyższony.';
       document.getElementById('aip-result').textContent=ratioFmt(aip);
-      document.getElementById('aip-note').textContent=aip<0.11?'Niski według skali badawczej.':aip<=0.21?'Pośredni według skali badawczej.':'Podwyższony według skali badawczej.';
+      document.getElementById('aip-note').textContent=(aip<0.11?'Wynik korzystny.':aip<=0.21?'Wynik pośredni.':'Wynik podwyższony.')+' Skala badawcza AIP: <0,11 korzystny | 0,11–0,21 pośredni | >0,21 podwyższony.';
       const notes=[];
       if(ldl>=190) notes.push('<strong>LDL jest bardzo wysokie (co najmniej 190 mg/dl).</strong> Umów konsultację lekarską; czasem przyczyną jest rodzinna hipercholesterolemia.');
       else if(ldl>=160) notes.push('<strong>LDL jest wysokie.</strong> Warto omówić z lekarzem całe ryzyko i dalsze postępowanie.');
