@@ -33,7 +33,8 @@ TZ = timezone.utc
 # =========================
 # CONFIG
 # =========================
-MAX_PER_SECTION = 5
+MIN_PER_SECTION = 3
+MAX_PER_SECTION = 9
 MAX_PER_HOST = 2
 HOTBAR_LIMIT = 15 # Trochę więcej newsów w pasku
 
@@ -804,18 +805,30 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
         pool.append(it)
 
     picked = []
+    without_image = []
     for it in pool:
         image_url = it.get("thumbnail_url", "")
         if image_url and not image_is_fetchable(image_url):
             image_url = ""
         if not image_url:
             image_url = article_image(it.get("link", ""))
-        if not image_url or not image_is_fetchable(image_url):
-            continue
-        it["thumbnail_url"] = image_url
-        picked.append(it)
+        if image_url and image_is_fetchable(image_url):
+            it["thumbnail_url"] = image_url
+            picked.append(it)
+        else:
+            # A blocked/missing thumbnail must not reduce a section below the
+            # editorial minimum. The renderer provides a visual fallback.
+            it["thumbnail_url"] = ""
+            without_image.append(it)
         if len(picked) >= MAX_PER_SECTION:
             break
+
+    for it in without_image:
+        if len(picked) >= MIN_PER_SECTION:
+            break
+        picked.append(it)
+
+    picked = picked[:MAX_PER_SECTION]
 
     if not summarize:
         return picked
