@@ -329,24 +329,24 @@ SCIENCE_TOPIC_RE = re.compile(
     re.I,
 )
 BUSINESS_TOPIC_RE = re.compile(
-    r"\b(gospodar|ekonom|biznes|firm|spółk|przedsiębior|rynek|giełd|GPW|WIG|akcj|obligacj|"
-    r"bank|kredyt|pożycz|hipotek|finans|walut|złot|dolar|euro|inflac|deflac|PKB|NBP|RPP|"
-    r"stopy procent|podat|VAT|CIT|PIT|budżet|deficyt|dług publicz|handel|eksport|import|"
-    r"produkc|przemysł|energia|paliw|ropa|gaz|praca|bezroboc|płac|wynagrod|emerytur|ZUS|"
-    r"econom|business|company|companies|market|stocks?|shares?|bonds?|banking|credit|"
-    r"inflation|GDP|interest rates?|tax|trade|exports?|imports?|industry|energy|oil|gas|jobs?)\b",
+    r"(?:gospodar\w*|ekonom\w*|biznes\w*|firm\w*|spółk\w*|przedsiębior\w*|rynk\w*|giełd\w*|GPW|WIG|akcj\w*|obligacj\w*|"
+    r"bank\w*|kredyt\w*|pożycz\w*|hipotek\w*|finans\w*|walut\w*|złot\w*|dolar\w*|euro|inflac\w*|deflac\w*|PKB|NBP|RPP|"
+    r"stopy procent\w*|podat\w*|VAT|CIT|PIT|budżet\w*|deficyt\w*|dług publicz\w*|hand\w*|eksport\w*|import\w*|"
+    r"produkc\w*|przemysł\w*|energi\w*|paliw\w*|ropa|gaz|prac\w*|bezroboc\w*|płac\w*|wynagrod\w*|emerytur\w*|ZUS|"
+    r"econom\w*|business\w*|compan\w*|market\w*|stock\w*|share\w*|bond\w*|banking|credit\w*|"
+    r"inflation|GDP|interest rate\w*|tax\w*|trade|export\w*|import\w*|industr\w*|energy|oil|gas|jobs?)",
     re.I,
 )
 GEOPOLITICS_ONLY_RE = re.compile(
-    r"\b(wojn|atak|ostrzał|pocisk|dron|front|żołnier|armia|ofiar|zabit|rann|Ukrain|Rosj|"
-    r"NATO|konflikt|rozejm|sankcj|war|attack|missile|drone|troops?|army|killed|wounded|"
-    r"Ukraine|Russia|NATO|conflict|ceasefire|sanctions?)\b",
+    r"(?:wojn\w*|atak\w*|ostrzał\w*|pocisk\w*|dron\w*|front\w*|żołnier\w*|armi\w*|ofiar\w*|zabit\w*|rann\w*|Ukrain\w*|Rosj\w*|"
+    r"NATO|konflikt\w*|rozejm\w*|sankcj\w*|war|attack\w*|missile\w*|drone\w*|troop\w*|army|killed|wounded|"
+    r"Ukraine|Russia|NATO|conflict\w*|ceasefire|sanction\w*)",
     re.I,
 )
 BUSINESS_IMPACT_RE = re.compile(
-    r"\b(cen|koszt|kurs|rynek|giełd|handel|eksport|import|dostaw|surowc|ropa|gaz|energia|"
-    r"inwest|finans|bank|PKB|inflac|budżet|sankcj gospodar|prices?|costs?|markets?|trade|"
-    r"supply|commodit|oil|gas|energy|investment|finance|banking|GDP|inflation|economic sanctions?)\b",
+    r"(?:cen\w*|koszt\w*|kurs\w*|rynk\w*|giełd\w*|hand\w*|eksport\w*|import\w*|dostaw\w*|surowc\w*|ropa|gaz|energi\w*|"
+    r"inwest\w*|finans\w*|bank\w*|PKB|inflac\w*|budżet\w*|sankcj\w+ gospodar\w*|price\w*|cost\w*|market\w*|trade|"
+    r"supply|commodit\w*|oil|gas|energy|investment\w*|finance|banking|GDP|inflation|economic sanction\w*)",
     re.I,
 )
 
@@ -464,7 +464,9 @@ def is_rejected_item(section_key: str, title: str, snippet: str, link: str, sour
     path = urlparse(link).path or "/"
     if path in ("", "/") or URL_REJECT_RE.search(path):
         return True
-    topic_filter = {"biznes": BUSINESS_TOPIC_RE, "zdrowie": HEALTH_TOPIC_RE, "nauka": SCIENCE_TOPIC_RE}.get(section_key)
+    if section_key == "biznes" and not BUSINESS_TOPIC_RE.search(f"{text} {link}"):
+        return True
+    topic_filter = {"zdrowie": HEALTH_TOPIC_RE, "nauka": SCIENCE_TOPIC_RE}.get(section_key)
     if topic_filter and not topic_filter.search(f"{text} {link} {source}"):
         return True
     if section_key == "biznes" and GEOPOLITICS_ONLY_RE.search(text) and not BUSINESS_IMPACT_RE.search(text):
