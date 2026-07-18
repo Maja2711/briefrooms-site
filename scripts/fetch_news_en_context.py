@@ -31,8 +31,9 @@ WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
     re.I,
 )
-MIN_TOTAL_APPROVED = 8
-MAX_PER_SECTION = 5
+MIN_TOTAL_APPROVED = 24
+MIN_PER_SECTION = 3
+MAX_PER_SECTION = 9
 
 NEWS_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -128,6 +129,17 @@ def add_news_tabs_en(html: str) -> str:
 
 def render_html_full(sections: dict) -> str:
     accepted = [item for items in sections.values() for item in items]
+    underfilled = {
+        section_key: len(items)
+        for section_key, items in sections.items()
+        if len(items) < MIN_PER_SECTION
+    }
+    if underfilled:
+        details = ", ".join(f"{section}={count}" for section, count in underfilled.items())
+        raise RuntimeError(
+            "EN news publication kept on last-good version: "
+            f"each section requires {MIN_PER_SECTION}-{MAX_PER_SECTION} approved items; {details}"
+        )
     if len(accepted) < MIN_TOTAL_APPROVED:
         raise RuntimeError(
             f"EN news publication kept on last-good version: only {len(accepted)} homepage-grade comments"
