@@ -69,6 +69,26 @@ def test_legacy_full_navigation_is_not_duplicated() -> None:
             assert not is_legacy_nav, page.relative_to(ROOT)
 
 
+def test_room_hubs_use_header_navigation_without_obsolete_back_links() -> None:
+    hubs = (
+        ROOT / "pl" / "geopolityka.html",
+        ROOT / "pl" / "zdrowie.html",
+        ROOT / "pl" / "nauka.html",
+        ROOT / "en" / "geopolitics.html",
+        ROOT / "en" / "health.html",
+        ROOT / "en" / "science.html",
+    )
+    obsolete_labels = (
+        "Wróć na stronę wyboru pokoju",
+        "Wróć na stronę wyboru pokoi",
+        "Back to room selection",
+    )
+    for page in hubs:
+        text = page.read_text(encoding="utf-8")
+        assert '<header id="site-header"></header>' in text, page.relative_to(ROOT)
+        assert not any(label in text for label in obsolete_labels), page.relative_to(ROOT)
+
+
 def test_generated_briefs_and_redirect_templates_are_excluded() -> None:
     excluded = [
         ROOT / "pl" / "brief.html",
