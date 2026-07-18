@@ -1135,8 +1135,11 @@ def render_html(sections: dict) -> str:
     h2{{ margin:8px 0 6px; color:#d7e6ff }}
     {extra_css}
   </style>
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260718-1" />
+  <script src="/scripts/site-header.js?v=20260718-1" defer></script>
 </head>
 <body data-page="news">
+<header id="site-header"></header>
 <header>
   <h1>Aktualności</h1>
   <p class="sub">Ostatnia aktualizacja: <time datetime="{updated_at.isoformat(timespec='minutes')}">{updated_at.strftime('%d.%m.%Y, %H:%M')}</time></p>

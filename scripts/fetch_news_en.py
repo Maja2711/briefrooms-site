@@ -1041,8 +1041,11 @@ def render_html(sections: dict) -> str:
       }}
     }}
   </style>
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260718-1" />
+  <script src="/scripts/site-header.js?v=20260718-1" defer></script>
 </head>
 <body data-page="news">
+<header id="site-header"></header>
 <header>
   <h1>News</h1>
   <p class="sub">Last updated: {today_str()}</p>
