@@ -65,7 +65,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         return sections
 
     def test_render_is_fail_closed_when_comments_are_missing(self):
-        with self.assertRaisesRegex(RuntimeError, "only 0 homepage-grade comments"):
+        with self.assertRaisesRegex(RuntimeError, "each section requires 3-9 approved items"):
             context.render_html_full(self.empty_sections())
 
     def test_render_is_blocked_when_any_section_has_fewer_than_three_items(self):
