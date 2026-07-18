@@ -1,0 +1,84 @@
+{
+  "policy_version": "4.0.0",
+  "name": "BriefRooms multi-instrument adaptive weekly paper exposure",
+  "status": "experimental_paper_trading_only",
+  "enabled": true,
+  "mandatory_monday_position": true,
+  "monday_open_not_before_local": "08:00",
+  "scheduled_friday_close_local": "22:00",
+  "reentry_after_any_close": true,
+  "minimum_minutes_after_exit": 5,
+  "max_simultaneous_positions_per_instrument": 1,
+  "instruments": [
+    {
+      "instrument_id": "eurusd",
+      "enabled": true,
+      "round_trip_cost": 1.5,
+      "cost_unit": "pips",
+      "default_tie_direction": "long"
+    },
+    {
+      "instrument_id": "sp500_futures",
+      "enabled": true,
+      "round_trip_cost": 1.0,
+      "cost_unit": "points",
+      "default_tie_direction": "long"
+    },
+    {
+      "instrument_id": "btcusd",
+      "enabled": true,
+      "round_trip_cost": 0.2,
+      "cost_unit": "percent",
+      "default_tie_direction": "long"
+    }
+  ],
+  "strategy_tournament": {
+    "enabled": true,
+    "candidate_methods": [
+      "base_v2",
+      "inverse_v2",
+      "weekly_trend",
+      "daily_weekly_blend",
+      "ema_mean_reversion"
+    ],
+    "rolling_closed_legs": 120,
+    "minimum_observations_before_performance_weight": 6,
+    "prior_observations": 5,
+    "performance_weight": 18.0,
+    "exploration_bonus": 2.5,
+    "maximum_learning_adjustment": 18.0,
+    "rule": "Negative results of one direction never imply that the opposite direction is profitable. Base and inverse methods are evaluated separately using only earlier closed paper legs and walk-forward data."
+  },
+  "weekly_candle_model": {
+    "enabled": true,
+    "minimum_weekly_bars": 40,
+    "ema_fast": 10,
+    "ema_slow": 30,
+    "momentum_fast_weeks": 4,
+    "momentum_slow_weeks": 13,
+    "breakout_lookback_weeks": 26,
+    "weights": {
+      "trend": 35,
+      "momentum_fast": 25,
+      "momentum_slow": 20,
+      "breakout": 15,
+      "last_candle": 5
+    }
+  },
+  "daily_analysis": {
+    "enabled": true,
+    "review_after_local_hour": 23,
+    "write_on_entry_or_reentry": true,
+    "max_saved_reviews_per_instrument": 30,
+    "show_latest_review_on_public_page": true
+  },
+  "learning_guardrails": {
+    "use_only_closed_earlier_paper_legs": true,
+    "no_future_data": true,
+    "no_rewrite_of_closed_history": true,
+    "no_guaranteed_profit_claims": true,
+    "do_not_increase_notional_after_losses": true,
+    "real_broker_orders": false,
+    "paper_trading_only": true
+  }
+}
