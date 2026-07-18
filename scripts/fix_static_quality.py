@@ -2,8 +2,8 @@
 """Static quality guard for generated BriefRooms pages.
 
 Runs after manual fixes or automated generators. It removes generic AI boilerplate
-from already-generated news HTML, makes home pages readable without JS, and keeps
-Hot X rendered only by the exact-post renderer.
+from already-generated news HTML, preserves generator-owned static homepage cards,
+and keeps Hot X rendered only by the exact-post renderer.
 """
 from pathlib import Path
 import re
@@ -55,9 +55,6 @@ def fix_home_en() -> None:
         return
     html = p.read_text(encoding="utf-8")
     before = html
-    fallback = '''<a class="brief-card" href="/en/news.html"><div class="thumb"><div class="fallback-art">BR</div><span class="tag">News</span></div><div class="brief-body"><h3 class="brief-title">Latest briefs are refreshed automatically</h3><p class="brief-desc">Open the News room for the current source-linked briefs. The cards update when home_brief.json loads.</p><span class="brief-source"><b>BriefRooms</b><span class="brief-link">Open news →</span></span></div></a>'''
-    html = html.replace('Update: loading...', 'Update: latest briefs')
-    html = html.replace('<div id="latest-briefs" class="brief-grid"></div>', f'<div id="latest-briefs" class="brief-grid">{fallback}</div>')
     html = inject_hot_x_renderer(html)
     if html != before:
         write(path, html)
@@ -71,9 +68,6 @@ def fix_home_pl() -> None:
         return
     html = p.read_text(encoding="utf-8")
     before = html
-    fallback = '''<a class="brief-card" href="/pl/aktualnosci.html"><div class="thumb"><div class="fallback-art">BR</div><span class="tag">Aktualności</span></div><div class="brief-body"><h3 class="brief-title">Najnowsze briefy odświeżają się automatycznie</h3><p class="brief-desc">Otwórz pokój Aktualności, żeby zobaczyć aktualne briefy z linkami do źródeł. Karty uzupełnią się po wczytaniu home_brief.json.</p><span class="brief-source"><b>BriefRooms</b><span class="brief-link">Otwórz aktualności →</span></span></div></a>'''
-    html = html.replace('Aktualizacja: ładowanie…', 'Aktualizacja: najnowsze briefy')
-    html = html.replace('<div id="latest-briefs" class="brief-grid"></div>', f'<div id="latest-briefs" class="brief-grid">{fallback}</div>')
     html = html.replace('Otwórz na X →', 'Źródło na X →')
     html = inject_hot_x_renderer(html)
     if html != before:

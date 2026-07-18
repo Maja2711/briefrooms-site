@@ -16,8 +16,11 @@ on:
       - "scripts/read_and_summarize_articles.py"
       - "scripts/validate_brief_quality.py"
       - "scripts/generate_permanent_briefs.py"
+      - "scripts/home-briefs.js"
       - "tests/test_comment_quality.py"
       - "tests/test_permanent_briefs.py"
+      - "tests/test_homepage_static.py"
+      - "tests/test_home_briefs.js"
       - "scripts/validate_hot_x_comments.py"
       - ".github/workflows/build-home-brief.yml"
       - ".github/workflows/hot-x-topics.yml"
@@ -55,6 +58,11 @@ jobs:
 
       - name: Test permanent brief archive
         run: python -m unittest discover -s tests -p "test_permanent_briefs.py"
+
+      - name: Test static homepage briefs and resilient browser refresh
+        run: |
+          python -m unittest discover -s tests -p "test_homepage_static.py"
+          node --test tests/test_home_briefs.js
 
       - name: Check schedules, staleness and last-good data
         id: watch
@@ -106,7 +114,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml data/content_update_contract.json scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/dedupe_home_brief_stories.py scripts/hide_urgent_home_labels.py scripts/patch_brief_comment_source.py scripts/protect_home_feed.py scripts/generate_permanent_briefs.py tests/test_comment_quality.py tests/test_permanent_briefs.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml data/content_update_contract.json scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/dedupe_home_brief_stories.py scripts/hide_urgent_home_labels.py scripts/patch_brief_comment_source.py scripts/protect_home_feed.py scripts/generate_permanent_briefs.py scripts/home-briefs.js tests/test_comment_quality.py tests/test_permanent_briefs.py tests/test_homepage_static.py tests/test_home_briefs.js; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi

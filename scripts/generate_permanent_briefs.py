@@ -44,10 +44,15 @@ TRACKING_QUERY_KEYS = {
     "ref_src",
 }
 SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+HOME_BRIEFS_START = "<!-- HOME_BRIEFS_START -->"
+HOME_BRIEFS_END = "<!-- HOME_BRIEFS_END -->"
+HOME_CARD_LIMIT = 12
+REMOVED_PUBLIC_URLS = {f"{SITE_URL}/en/geo/topic.html"}
 
 LANGUAGES = {
     "pl": {
         "home": Path("pl/home_brief.json"),
+        "index": Path("pl/index.html"),
         "archive": Path("data/permanent_briefs_pl.json"),
         "directory": Path("pl/briefy"),
         "url_directory": "/pl/briefy",
@@ -59,9 +64,13 @@ LANGUAGES = {
         "open_source": "Otwórz artykuł źródłowy ↗",
         "back_to_site": "Wróć do BriefRooms",
         "default_category": "Brief",
+        "default_source": "Źródło",
+        "read_brief": "Czytaj brief →",
+        "updated_label": "Aktualizacja: ",
     },
     "en": {
         "home": Path("en/home_brief.json"),
+        "index": Path("en/index.html"),
         "archive": Path("data/permanent_briefs_en.json"),
         "directory": Path("en/briefs"),
         "url_directory": "/en/briefs",
@@ -73,6 +82,9 @@ LANGUAGES = {
         "open_source": "Open source article ↗",
         "back_to_site": "Back to BriefRooms",
         "default_category": "Brief",
+        "default_source": "Source",
+        "read_brief": "Read brief →",
+        "updated_label": "Update: ",
     },
 }
 
@@ -204,15 +216,152 @@ def is_approved(item: object) -> bool:
     )
 
 
-def absolute_image_url(raw_url: object) -> str:
+def safe_external_url(raw_url: object) -> str:
     value = str(raw_url or "").strip()
     try:
         parsed = urlsplit(value)
-        if parsed.scheme.lower() in {"http", "https"} and parsed.hostname:
+        if (
+            parsed.scheme.lower() in {"http", "https"}
+            and parsed.hostname
+            and not parsed.username
+            and not parsed.password
+        ):
             return value
     except ValueError:
         pass
-    return DEFAULT_IMAGE
+    return ""
+
+
+def absolute_image_url(raw_url: object) -> str:
+    return safe_external_url(raw_url) or DEFAULT_IMAGE
+
+
+def valid_home_permalink(raw_path: object, lang: str) -> str:
+    path = str(raw_path or "").strip()
+    directory = re.escape(LANGUAGES[lang]["url_directory"])
+    if re.fullmatch(rf"{directory}/[a-z0-9-]+-[0-9a-f]{{12}}\.html", path):
+        return path
+    return ""
+
+
+def approved_home_items(home: dict, lang: str) -> list[dict]:
+    selected: list[dict] = []
+    seen: set[str] = set()
+    for section in ("latest", "radar"):
+        items = home.get(section, []) or []
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not is_approved(item) or not valid_home_permalink(item.get("permalink"), lang):
+                continue
+            identity = str(item.get("link") or item.get("title") or "")
+            if not identity or identity in seen:
+                continue
+            seen.add(identity)
+            selected.append(item)
+            if len(selected) >= HOME_CARD_LIMIT:
+                return selected
+    return selected
+
+
+def _fallback_label(category: object) -> str:
+    label = "".join(list(normalize_text(category))[:2]).upper()
+    return label or "BR"
+
+
+def render_home_card(item: dict, lang: str) -> str:
+    cfg = LANGUAGES[lang]
+    permalink = valid_home_permalink(item.get("permalink"), lang)
+    if not permalink:
+        raise ValueError("unsafe homepage brief permalink")
+    title = normalize_text(item.get("title"))
+    description = normalize_text(item.get("full_brief"))
+    if not title or not description:
+        raise ValueError("homepage card is missing approved text")
+    category = visible_category(item.get("category"), lang)
+    source = normalize_text(item.get("source")) or cfg["default_source"]
+    image_url = safe_external_url(item.get("image"))
+    fallback = (
+        f'<div class="fallback-art" aria-hidden="true">'
+        f'{html.escape(_fallback_label(category))}</div>'
+    )
+    if image_url:
+        image = (
+            f'<img src="{html.escape(image_url, quote=True)}" alt="" loading="lazy" '
+            'referrerpolicy="no-referrer">'
+        )
+        thumb = f'<div class="thumb has-image">{fallback}{image}</div>'
+    else:
+        thumb = f'<div class="thumb">{fallback}</div>'
+    return (
+        f'<a class="brief-card" href="{html.escape(permalink, quote=True)}">'
+        f'{thumb}<div class="brief-body">'
+        f'<h3 class="brief-title">{html.escape(title)}</h3>'
+        f'<p class="brief-desc">{html.escape(description)}</p>'
+        f'<span class="brief-source"><b>{html.escape(source)}</b>'
+        f'<span class="brief-link">{html.escape(cfg["read_brief"])}</span></span>'
+        '</div></a>'
+    )
+
+
+def _home_date(updated_at: object, lang: str) -> str:
+    generated = parse_datetime(updated_at)
+    if lang == "pl":
+        return generated.strftime("%d.%m.%Y")
+    return generated.strftime("%d/%m/%Y")
+
+
+def render_homepage_static(index_path: Path, home: dict, lang: str) -> bytes | None:
+    items = approved_home_items(home, lang)
+    if not items:
+        print(
+            f"WARNING: {lang} homepage has no newly approved briefs; preserving existing static cards.",
+            file=sys.stderr,
+        )
+        return None
+    source = index_path.read_text(encoding="utf-8")
+    cards = "\n".join(render_home_card(item, lang) for item in items)
+    generated_block = f"{HOME_BRIEFS_START}\n{cards}\n{HOME_BRIEFS_END}"
+    if HOME_BRIEFS_START in source and HOME_BRIEFS_END in source:
+        source = re.sub(
+            rf"{re.escape(HOME_BRIEFS_START)}.*?{re.escape(HOME_BRIEFS_END)}",
+            lambda _match: generated_block,
+            source,
+            count=1,
+            flags=re.DOTALL,
+        )
+    else:
+        source, replacements = re.subn(
+            r'(<div\s+id=["\']latest-briefs["\'][^>]*>).*?(</div>\s*</section>\s*<div\s+class=["\']more-wrap["\'])',
+            lambda match: f"{match.group(1)}\n{generated_block}\n{match.group(2)}",
+            source,
+            count=1,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+        if replacements != 1:
+            raise ValueError(f"homepage card container not found in {index_path}")
+    updated_at = iso_datetime(home.get("updated_at"))
+    source, replacements = re.subn(
+        r'(<div\s+id=["\']latest-briefs["\']\s+class=["\']brief-grid["\'])'
+        r'(?:\s+data-home-updated-at=["\'][^"\']*["\'])?\s*>',
+        rf'\1 data-home-updated-at="{html.escape(updated_at, quote=True)}">',
+        source,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if replacements != 1:
+        raise ValueError(f"homepage update timestamp target not found in {index_path}")
+    label = LANGUAGES[lang]["updated_label"] + _home_date(home.get("updated_at"), lang)
+    source, replacements = re.subn(
+        r'(<span\s+class=["\']pill["\']\s+id=["\']updated-at["\']>).*?(</span>)',
+        rf"\1{html.escape(label)}\2",
+        source,
+        count=1,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    if replacements != 1:
+        raise ValueError(f"homepage visible update date not found in {index_path}")
+    return source.encode("utf-8")
 
 
 def item_content_hash(data: dict) -> str:
@@ -435,7 +584,7 @@ def _sitemap_bytes(root_path: Path, archives: dict[str, list[dict]]) -> bytes:
     for node in list(root):
         loc_node = node.find(f"{{{SITEMAP_NS}}}loc")
         loc = normalize_text(loc_node.text if loc_node is not None else "")
-        if not loc or loc in seen:
+        if not loc or loc in seen or loc in REMOVED_PUBLIC_URLS:
             continue
         if "brief.html?u=" in loc or "/pl/briefy/" in loc or "/en/briefs/" in loc:
             continue
@@ -510,7 +659,14 @@ def generate_all(root: Path = ROOT, now: datetime | None = None) -> dict:
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     pending: dict[Path, bytes] = {}
     archives: dict[str, list[dict]] = {}
-    stats = {"generated": 0, "unchanged": 0, "skipped": 0, "errors": []}
+    stats = {
+        "generated": 0,
+        "unchanged": 0,
+        "skipped": 0,
+        "homepages_updated": 0,
+        "homepages_preserved": 0,
+        "errors": [],
+    }
 
     for lang, cfg in LANGUAGES.items():
         home_path = root / cfg["home"]
@@ -570,6 +726,14 @@ def generate_all(root: Path = ROOT, now: datetime | None = None) -> dict:
         archives[lang] = records
         pending[archive_path] = _archive_payload(lang, records)
         pending[home_path] = (json.dumps(home, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        index_path = root / cfg["index"]
+        if index_path.exists():
+            homepage_html = render_homepage_static(index_path, home, lang)
+            if homepage_html is None:
+                stats["homepages_preserved"] += 1
+            else:
+                pending[index_path] = homepage_html
+                stats["homepages_updated"] += 1
 
     pending[root / "sitemap.xml"] = _sitemap_bytes(root / "sitemap.xml", archives)
     _atomic_write_many(pending)
@@ -593,7 +757,8 @@ def main() -> int:
     print(
         "Permanent briefs: "
         f"{stats['generated']} generated, {stats['unchanged']} unchanged, "
-        f"{stats['skipped']} skipped"
+        f"{stats['skipped']} skipped; homepage HTML: "
+        f"{stats['homepages_updated']} updated, {stats['homepages_preserved']} preserved"
     )
     return 0
 
