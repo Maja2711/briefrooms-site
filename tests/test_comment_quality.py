@@ -863,7 +863,14 @@ class PipelineContractTests(unittest.TestCase):
         self.assertNotIn("def fallback_summary", source)
 
     def test_browser_renderers_require_current_strict_approval(self):
-        for relative in ("pl/index.html", "en/index.html", "pl/brief.html", "en/brief.html"):
+        homepage_renderer = (SCRIPTS / "home-briefs.js").read_text(encoding="utf-8")
+        self.assertIn(quality.QUALITY_STATUS, homepage_renderer)
+        self.assertIn("article_text_ai_reviewed", homepage_renderer)
+        self.assertNotIn("startsWith('passed_')", homepage_renderer)
+        for relative in ("pl/index.html", "en/index.html"):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn('/scripts/home-briefs.js', source, relative)
+        for relative in ("pl/brief.html", "en/brief.html"):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(quality.QUALITY_STATUS, source, relative)
             self.assertIn("article_text_ai_reviewed", source, relative)
