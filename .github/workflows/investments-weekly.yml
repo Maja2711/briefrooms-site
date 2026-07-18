@@ -22,6 +22,7 @@ on:
       - "scripts/investments_weekly.py"
       - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v3.py"
+      - "scripts/backtest_continuous_exposure_v3.py"
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/audit_weekly_model.py"
@@ -84,6 +85,9 @@ jobs:
           FORCE_BACKTEST: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: python scripts/backtest_weekly_model_v2.py
 
+      - name: Validate experimental continuous exposure separately
+        run: python scripts/backtest_continuous_exposure_v3.py
+
       - name: Render simple public investment pages
         run: python scripts/render_simple_investments.py
 
@@ -91,7 +95,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json data/investments/model_validation_v2.json data/investments/continuous_exposure_policy.json data/investments/continuous_exposure_state.json data/investments/continuous_exposure_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json data/investments/model_validation_v2.json data/investments/continuous_exposure_policy.json data/investments/continuous_exposure_state.json data/investments/continuous_exposure_report.json data/investments/continuous_exposure_validation_v3.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No investment forecast changes to commit."
           else
