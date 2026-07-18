@@ -1,0 +1,210 @@
+/* Shared presentation for every article opened from the Geopolitics library.
+   Loaded after each article's legacy inline styles, so the library has one
+   consistent reading experience without rewriting article content. */
+
+html {
+  background: #f5eee5 !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #f5eee5 !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+body::before,
+body::after {
+  content: none !important;
+  display: none !important;
+}
+
+body > header {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 30px 18px 12px !important;
+  text-align: center !important;
+  color: #111827 !important;
+}
+
+body > header h1 {
+  margin: 0 auto 10px !important;
+  max-width: 980px;
+  color: #0f172a !important;
+  font-size: clamp(1.75rem, 4vw, 2.55rem) !important;
+  line-height: 1.2 !important;
+  text-shadow: none !important;
+}
+
+body > header p,
+body > header .sub,
+body > header .lead,
+body > header .tagline,
+.geo-publication-date {
+  color: #4b5563 !important;
+  text-shadow: none !important;
+}
+
+.geo-publication-date {
+  margin: 6px 0 0 !important;
+  font-size: 1rem;
+}
+
+.geo-share-row {
+  margin: 14px 0 0 !important;
+  text-align: center;
+}
+
+.geo-x-share,
+.tweet-share {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-height: 46px;
+  padding: 10px 16px !important;
+  border: 1px solid rgba(15, 23, 42, .14) !important;
+  border-radius: 12px !important;
+  background: #111827 !important;
+  color: #f9fafb !important;
+  font-size: .96rem !important;
+  font-weight: 700;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .14);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.geo-x-share:hover,
+.geo-x-share:focus-visible,
+.tweet-share:hover,
+.tweet-share:focus-visible {
+  background: #020617 !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 11px 22px rgba(15, 23, 42, .2);
+  outline: 3px solid rgba(37, 99, 235, .22);
+  outline-offset: 2px;
+}
+
+.geo-x-share svg,
+.tweet-share svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+body > main {
+  width: min(980px, calc(100% - 32px)) !important;
+  max-width: 980px !important;
+  margin: 8px auto 0 !important;
+  padding: 0 0 56px !important;
+  color: #111827 !important;
+}
+
+/* Legacy articles use different names for the same visual container. */
+body > main > article,
+body > main > .card,
+body > main > section.card,
+body > main > section:not([class]),
+body > main .card {
+  background: #fff !important;
+  color: #111827 !important;
+  border: 1px solid rgba(15, 23, 42, .07) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .08) !important;
+}
+
+body > main > article,
+body > main > section:not([class]) {
+  padding: 20px 22px !important;
+}
+
+body > main .card {
+  padding: 18px 20px !important;
+}
+
+body > main h2,
+body > main h3,
+body > main h4,
+body > main strong {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+body > main p,
+body > main li,
+body > main td,
+body > main th,
+body > main figcaption {
+  color: #111827 !important;
+}
+
+body > main a {
+  color: #1d4ed8 !important;
+  text-decoration-color: rgba(37, 99, 235, .45) !important;
+  text-underline-offset: 2px;
+}
+
+body > main a:hover {
+  color: #1e40af !important;
+  text-decoration-color: rgba(30, 64, 175, .9) !important;
+}
+
+body > main .wrap,
+body > main .note,
+body > main .forecast,
+body > main blockquote,
+body > main table {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  border-color: rgba(15, 23, 42, .1) !important;
+}
+
+body > main .pill,
+body > main .tag,
+body > main .badge {
+  background: #eef2f7 !important;
+  color: #334155 !important;
+  border-color: rgba(51, 65, 85, .14) !important;
+}
+
+body > footer {
+  color: #475569 !important;
+}
+
+/* Preserve small decorative icons, but remove dark glass panels around them. */
+.magnet-badge {
+  background: rgba(255, 255, 255, .78) !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .12), inset 0 0 0 1px rgba(15, 23, 42, .08) !important;
+}
+
+@media (max-width: 640px) {
+  body > header {
+    padding: 24px 14px 10px !important;
+  }
+
+  body > header h1 {
+    font-size: 1.62rem !important;
+  }
+
+  body > main {
+    width: min(100% - 22px, 980px) !important;
+  }
+
+  body > main > article,
+  body > main > section:not([class]),
+  body > main .card {
+    padding: 15px !important;
+    border-radius: 13px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geo-x-share,
+  .tweet-share {
+    transition: none;
+  }
+}
