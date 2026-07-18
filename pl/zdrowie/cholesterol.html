@@ -132,8 +132,8 @@
     .calc-field input:focus{outline:3px solid rgba(47,111,237,.18);border-color:#2f6fed}
     .calc-actions{display:flex;flex-wrap:wrap;gap:10px}.calc-button{padding:12px 18px;border:0;border-radius:12px;background:#101827;color:#fff;font:inherit;font-weight:750;cursor:pointer}.calc-reset{background:#e8edf4;color:#172033}
     .calc-error{margin-top:14px;padding:12px 14px;border-radius:12px;background:#fff0f0;color:#8b1e1e;font-weight:700}
-    .calc-results{margin-top:20px;padding-top:20px;border-top:1px solid #d8dee8}.calc-results h3{margin-top:0}.result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-box{padding:16px;border-radius:14px;background:#fff;border:1px solid #dce2ea}.result-box strong{display:block;font-size:1.25rem;margin-top:5px}.result-summary{margin-top:16px;padding:16px;border-left:4px solid #2f6fed;border-radius:8px;background:#edf4ff}.calc-privacy{color:#5c6678;font-size:.9rem}
-    @media(max-width:640px){.calc-grid,.result-grid{grid-template-columns:1fr}.lipid-calculator{padding:18px}}
+    .calc-results{margin-top:20px;padding-top:20px;border-top:1px solid #d8dee8}.calc-results h3{margin-top:0}.result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.ratio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}.result-box{padding:16px;border-radius:14px;background:#fff;border:1px solid #dce2ea}.result-box strong{display:block;font-size:1.25rem;margin:5px 0}.result-box span{display:block;color:#4d586a;font-size:.92rem}.result-summary{margin-top:16px;padding:16px;border-left:4px solid #2f6fed;border-radius:8px;background:#edf4ff}.interpretation-table{width:100%;margin:14px 0 20px;border-collapse:collapse;font-size:.93rem}.interpretation-table th,.interpretation-table td{padding:10px 12px;border:1px solid #d8dee8;text-align:left;vertical-align:top}.interpretation-table th{background:#eef3f8}.scale-note{color:#4d586a;font-size:.92rem}.calc-privacy{color:#5c6678;font-size:.9rem}
+    @media(max-width:640px){.calc-grid,.result-grid,.ratio-grid{grid-template-columns:1fr}.lipid-calculator{padding:18px}.interpretation-table{font-size:.84rem}.interpretation-table th,.interpretation-table td{padding:8px}}
   </style>
 </head>
 <body class="rooms-light cholesterol-page">
@@ -286,9 +286,22 @@
             <h3>Twoje wyliczenia</h3>
             <div class="result-grid">
               <div class="result-box">Cholesterol nie‑HDL (non‑HDL‑C)<strong id="non-hdl-result"></strong><span id="non-hdl-note"></span></div>
-              <div class="result-box">Cholesterol resztkowy (remnant‑C)<strong id="remnant-result"></strong><span>Wartość pomocnicza — nie ma jednego celu odpowiedniego dla każdego.</span></div>
+              <div class="result-box">Cholesterol resztkowy (remnant‑C)<strong id="remnant-result"></strong><span id="remnant-note"></span></div>
             </div>
+            <h3 style="margin-top:22px">Dodatkowe wskaźniki</h3>
+            <div class="ratio-grid">
+              <div class="result-box">Cholesterol całkowity / HDL<strong id="tc-hdl-result"></strong><span id="tc-hdl-note"></span></div>
+              <div class="result-box">LDL / HDL<strong id="ldl-hdl-result"></strong><span id="ldl-hdl-note"></span></div>
+              <div class="result-box">TG / HDL<strong id="tg-hdl-result"></strong><span id="tg-hdl-note"></span></div>
+            </div>
+            <div class="result-box" style="margin-top:12px">Wskaźnik aterogenności osocza (AIP)<strong id="aip-result"></strong><span id="aip-note"></span></div>
             <div id="calc-summary" class="result-summary"></div>
+            <h3 style="margin-top:24px">Jak czytać non‑HDL</h3>
+            <p>Non‑HDL obejmuje cholesterol przenoszony przez wszystkie cząstki, które mogą odkładać się w tętnicach: LDL, Lp(a) i lipoproteiny resztkowe. Dlatego pokazuje więcej niż samo LDL, szczególnie przy wysokich triglicerydach.</p>
+            <table class="interpretation-table"><thead><tr><th>Sytuacja</th><th>Orientacyjny cel non‑HDL</th></tr></thead><tbody><tr><td>Ryzyko umiarkowane</td><td>poniżej 130 mg/dl</td></tr><tr><td>Wysokie ryzyko</td><td>poniżej 100 mg/dl</td></tr><tr><td>Bardzo wysokie ryzyko, np. po zawale lub udarze</td><td>poniżej 85 mg/dl</td></tr></tbody></table>
+            <h3>Jak czytać cholesterol resztkowy</h3>
+            <table class="interpretation-table"><thead><tr><th>Wynik remnant‑C</th><th>Praktyczna interpretacja</th></tr></thead><tbody><tr><td>poniżej 20 mg/dl</td><td>niski lub korzystny</td></tr><tr><td>20–29 mg/dl</td><td>pośredni — warto ocenić razem z TG, non‑HDL i ApoB</td></tr><tr><td>30 mg/dl lub więcej</td><td>podwyższony; w badaniach wiązał się z większym ryzykiem sercowo‑naczyniowym</td></tr></tbody></table>
+            <p class="scale-note"><strong>Ważne:</strong> remnant‑C jest wartością obliczoną. Próg 30 mg/dl jest progiem używanym w badaniach ryzyka, a nie osobnym, powszechnie obowiązującym celem leczenia. LDL i non‑HDL pozostają ważniejsze przy podejmowaniu decyzji.</p>
           </div>
           <p class="calc-privacy">Obliczenia odbywają się na Twoim urządzeniu. Wpisane dane nie są wysyłane ani zapisywane. To orientacyjne objaśnienie, nie diagnoza ani dobór leczenia.</p>
         </div>
@@ -306,7 +319,8 @@
           <li><a href="https://pubmed.ncbi.nlm.nih.gov/33127255/" target="_blank" rel="noopener">Metaanaliza badań kontrolowanych — olej rzepakowy a LDL, ApoB i inne czynniki ryzyka</a></li>
           <li><a href="https://pubmed.ncbi.nlm.nih.gov/28752873/" target="_blank" rel="noopener">Metaanaliza badań randomizowanych — kwas linolowy omega-6 a markery zapalne</a></li>
           <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8774349/" target="_blank" rel="noopener">Przegląd — dlaczego należy unikać długiego i wielokrotnego podgrzewania oleju</a></li>
-          <li><a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">PMC — remnant cholesterol & ryzyko kardiometaboliczne</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/33272365/" target="_blank" rel="noopener">Badanie PREDIMED — remnant‑C ≥30 mg/dl a wyższe ryzyko zdarzeń sercowo‑naczyniowych</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/34953633/" target="_blank" rel="noopener">Metaanaliza — wskaźnik TG/HDL a ryzyko sercowo‑naczyniowe</a></li>
         </ul>
         <p class="back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
       </section>
@@ -331,14 +345,24 @@
       if([total,ldl,hdl,tg].some(v=>!Number.isFinite(v)||v<=0)){
         error.textContent='Uzupełnij wszystkie cztery pola dodatnimi liczbami w mg/dl.';error.hidden=false;results.hidden=true;return;
       }
-      const nonHdl=total-hdl,remnant=total-ldl-hdl;
+      const nonHdl=total-hdl,remnant=total-ldl-hdl,tcHdl=total/hdl,ldlHdl=ldl/hdl,tgHdl=tg/hdl,aip=Math.log10((tg/88.57)/(hdl/38.67));
       if(nonHdl<0||remnant<0){
         error.textContent='Podane wartości nie są ze sobą zgodne. Sprawdź jednostkę i przepisz liczby bezpośrednio z jednego wyniku badania.';error.hidden=false;results.hidden=true;return;
       }
       error.hidden=true;
       document.getElementById('non-hdl-result').textContent=fmt(nonHdl);
       document.getElementById('remnant-result').textContent=fmt(remnant);
-      document.getElementById('non-hdl-note').textContent=nonHdl<130?'Dla osoby bez podwyższonego ryzyka jest to zwykle korzystny poziom; Twój indywidualny cel może być niższy.':'Wartość wynosi co najmniej 130 mg/dl — omów ją razem z LDL i całym ryzykiem.';
+      document.getElementById('non-hdl-note').textContent=nonHdl<85?'Poniżej celu nawet dla wielu osób z bardzo wysokim ryzykiem.':nonHdl<100?'Poniżej celu dla wysokiego ryzyka, ale nie dla każdego bardzo wysokiego ryzyka.':nonHdl<130?'Poniżej typowego celu dla ryzyka umiarkowanego; przy wysokim ryzyku cel jest niższy.':nonHdl<160?'Podwyższony — powyżej celu 130 mg/dl dla ryzyka umiarkowanego.':'Wysoki — wyraźnie powyżej celów stosowanych w wytycznych.';
+      document.getElementById('remnant-note').textContent=remnant<20?'Niski lub korzystny wynik.':remnant<30?'Wynik pośredni (20–29 mg/dl); oceń go razem z TG, non‑HDL i ApoB.':'Podwyższony (≥30 mg/dl); w badaniach wiązał się z większym ryzykiem.';
+      const ratioFmt=v=>(Math.round(v*100)/100).toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2});
+      document.getElementById('tc-hdl-result').textContent=ratioFmt(tcHdl);
+      document.getElementById('tc-hdl-note').textContent=tcHdl<3.5?'Korzystna proporcja.':tcHdl<5?'Pośrednia proporcja — najważniejsze pozostają LDL i non‑HDL.':'Wysoka proporcja; zwykle wynika z wysokiego cholesterolu aterogennego lub niskiego HDL.';
+      document.getElementById('ldl-hdl-result').textContent=ratioFmt(ldlHdl);
+      document.getElementById('ldl-hdl-note').textContent=ldlHdl<2?'Korzystna proporcja.':ldlHdl<3?'Pośrednia proporcja.':'Wysoka proporcja LDL do HDL.';
+      document.getElementById('tg-hdl-result').textContent=ratioFmt(tgHdl);
+      document.getElementById('tg-hdl-note').textContent=tgHdl<2?'Korzystny wynik pomocniczy.':tgHdl<3?'Strefa pośrednia; znaczenie zależy m.in. od płci i metabolizmu glukozy.':'Podwyższony wskaźnik; może towarzyszyć insulinooporności i dyslipidemii metabolicznej.';
+      document.getElementById('aip-result').textContent=ratioFmt(aip);
+      document.getElementById('aip-note').textContent=aip<0.11?'Niski według skali badawczej.':aip<=0.21?'Pośredni według skali badawczej.':'Podwyższony według skali badawczej.';
       const notes=[];
       if(ldl>=190) notes.push('<strong>LDL jest bardzo wysokie (co najmniej 190 mg/dl).</strong> Umów konsultację lekarską; czasem przyczyną jest rodzinna hipercholesterolemia.');
       else if(ldl>=160) notes.push('<strong>LDL jest wysokie.</strong> Warto omówić z lekarzem całe ryzyko i dalsze postępowanie.');
