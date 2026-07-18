@@ -21,6 +21,8 @@
 function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function art(category){return `<div class="fallback">${esc((category||'BR').slice(0,2).toUpperCase())}</div>`}
 function getUrl(){return new URLSearchParams(location.search).get('u')||''}
+function canonicalSourceUrl(raw){try{const u=new URL(String(raw||''));if(!/^https?:$/.test(u.protocol)||u.username||u.password)return '';u.hash='';[...u.searchParams.keys()].forEach(k=>{const low=k.toLowerCase();if(low.startsWith('utm_')||['at_campaign','at_medium','fbclid','gclid','mc_cid','mc_eid','ref','ref_src'].includes(low))u.searchParams.delete(k)});u.searchParams.sort();return u.href}catch(e){return ''}}
+function archiveItems(data){return Array.isArray(data)?data:(Array.isArray(data&&data.items)?data.items:[])}
 function hostFromUrl(link){try{return new URL(link).hostname.replace('www.','')}catch(e){return 'Źródło'}}
 function repairMojibake(text){
   let s=String(text||'');
@@ -38,13 +40,13 @@ function makeBriefSections(item,link){
   const main=approvedComment(item)||'Ten wpis nie ma zatwierdzonego komentarza i nie powinien być widoczny jako karta BriefRooms.';
   return {source,category,title,main};
 }
-function render(item){
+function render(item,overrideMessage){
   const app=document.getElementById('app');
   const link=item.link||getUrl();
   const b=makeBriefSections(item,link);
-  app.innerHTML=`<div class="image">${item.image?`<img src="${esc(item.image)}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.image').innerHTML=art('${esc(b.category)}')">`:art(b.category)}</div><div class="body"><span class="tag">${esc(b.category)}</span><h1>${esc(b.title)}</h1><div class="brief-blocks"><section class="brief-block"><h2>Sedno sprawy</h2><p>${esc(b.main)}</p></section></div><div class="meta"><span>Źródło: <b>${esc(b.source)}</b></span><span>${esc(item.time||'dzisiaj')}</span></div><div class="cta"><a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">Otwórz artykuł źródłowy ↗</a><a class="btn" href="/pl/">Wróć do BriefRooms</a></div></div>`
+  app.innerHTML=`<div class="image">${item.image?`<img src="${esc(item.image)}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.image').innerHTML=art('${esc(b.category)}')">`:art(b.category)}</div><div class="body"><span class="tag">${esc(b.category)}</span><h1>${esc(b.title)}</h1><div class="brief-blocks"><section class="brief-block"><h2>Sedno sprawy</h2><p>${esc(overrideMessage||b.main)}</p></section></div><div class="meta"><span>Źródło: <b>${esc(b.source)}</b></span><span>${esc(item.time||'dzisiaj')}</span></div><div class="cta">${canonicalSourceUrl(link)?`<a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">Otwórz artykuł źródłowy ↗</a>`:''}<a class="btn" href="/pl/">Wróć do BriefRooms</a></div></div>`
 }
-async function load(){const u=getUrl();try{const r=await fetch('/pl/home_brief.json?v='+Date.now(),{cache:'no-store'});if(r.ok){const data=await r.json();const all=[...(data.latest||[]),...(data.radar||[])];const item=all.find(x=>String(x.link)===u);if(item){render(item);return;}}}catch(e){}render({title:'Brief artykułu',link:u,category:'Źródło',source:u?hostFromUrl(u):'Źródło'});}
+async function load(){const u=getUrl();const canonical=canonicalSourceUrl(u);if(canonical){try{const r=await fetch('/data/permanent_briefs_pl.json?v='+Date.now(),{cache:'no-store'});if(r.ok){const found=archiveItems(await r.json()).find(x=>canonicalSourceUrl(x.source_url)===canonical);if(found&&/^\/pl\/briefy\/[a-z0-9-]+-[0-9a-f]{12}\.html$/.test(String(found.permalink||''))&&location.pathname!==found.permalink){location.replace(found.permalink);return}}}catch(e){}}try{const r=await fetch('/pl/home_brief.json?v='+Date.now(),{cache:'no-store'});if(r.ok){const data=await r.json();const all=[...(data.latest||[]),...(data.radar||[])];const item=all.find(x=>canonicalSourceUrl(x.link)===canonical);if(item){render(item);return;}}}catch(e){}render({title:'Brief artykułu',link:u,category:'Źródło',source:u?hostFromUrl(u):'Źródło'},'Ten brief nie został jeszcze zapisany w archiwum BriefRooms. Możesz otworzyć artykuł źródłowy.');}
 load();
 </script>
 </body>

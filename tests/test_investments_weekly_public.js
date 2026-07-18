@@ -6,6 +6,25 @@ const vm = require('node:vm');
 const script = fs.readFileSync('scripts/investments-weekly-public.js', 'utf8');
 const week = JSON.parse(fs.readFileSync('data/investments/weekly/2026-W29.json', 'utf8'));
 
+function signed(value, digits) {
+  return (value >= 0 ? '+' : '') + Number(value).toLocaleString('pl-PL', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function expectedResult(item) {
+  const parts = [`${signed(item.result_value, 2)} USD`];
+  if (item.instrument_id === 'eurusd') parts.push(`${signed(item.result_units, 1)} pips`);
+  if (item.instrument_id === 'sp500_futures') parts.push(`${signed(item.result_units, 2)} pkt`);
+  parts.push(`${signed(item.result_percent, 2)}%`);
+  return parts.join(' · ');
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function renderWithLive(updatedAt) {
   const classes = new Set();
   const elements = {
@@ -53,13 +72,15 @@ test('shows normalized investment results with units and notional', async () => 
   assert.match(html, /<th>Tydzień<\/th>/);
   assert.match(html, /<dt>Nominał<\/dt>/);
   assert.match(html, /10(?:\s|&nbsp;|\u00a0)000 EUR/);
-  assert.match(html, /-47,00 USD · -47,0 pips · -0,41%/);
-  assert.match(html, /\+38,60 USD · \+29,25 pkt · \+0,39%/);
+  for (const item of week.instruments.filter((entry) => entry.exit_price)) {
+    assert.match(html, new RegExp(escapeRegex(expectedResult(item))));
+  }
 });
 
 test('hides current prices when live data is stale', async () => {
   const { elements, classes } = await renderWithLive('2000-01-01T00:00:00Z');
   assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
   assert.equal(classes.has('stale'), true);
-  assert.doesNotMatch(elements.app.innerHTML, /\+38,60 USD/);
+  assert.doesNotMatch(elements.app.innerHTML, /1,14456/);
+  assert.doesNotMatch(elements.app.innerHTML, /7607,50/);
 });

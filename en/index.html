@@ -18,7 +18,7 @@ const COMMENT_QUALITY_STATUS='passed_strict_v7';
 const fallbackBriefs=[{category:'News',title:'Loading current briefs...',summary:'Approved cards will appear here shortly.',source:'BriefRooms',link:'/en/',image:'',time:'now'}];
 function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function art(category){return '<div class="fallback-art">'+esc((category||'BR').slice(0,2).toUpperCase())+'</div>'}
-function briefUrl(it){return '/en/brief.html?u='+encodeURIComponent(String(it.link||''));}
+function briefUrl(it){if(it.permalink)return String(it.permalink);return '/en/brief.html?u='+encodeURIComponent(String(it.link||''));}
 function uniqueByLink(items){const seen=new Set();return items.filter(it=>{const k=String(it.link||it.title||'');if(!k||seen.has(k))return false;seen.add(k);return true;});}
 function approvedItems(items){return items.filter(it=>String(it.comment_quality_status||'')===COMMENT_QUALITY_STATUS&&it.comment_quality_version===7&&it.summary_basis==='article_text_ai_reviewed'&&it.comment_generation_status==='ai_review_approved'&&typeof it.full_brief==='string'&&it.full_brief.trim());}
 function commentText(it){return it.full_brief||it.summary||'';}
