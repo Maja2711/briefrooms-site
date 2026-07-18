@@ -1,0 +1,58 @@
+{
+  "policy_version": "1.0.0",
+  "name": "BriefRooms continuous weekly exposure layer",
+  "status": "experimental_paper_trading_only",
+  "enabled": true,
+  "instrument_id": "sp500_futures",
+  "mandatory_monday_position": true,
+  "monday_open_not_before_local": "08:00",
+  "reentry_after_any_close": true,
+  "reentry_timing": "first completed 5-minute bar available on the next workflow run",
+  "minimum_minutes_after_exit": 5,
+  "max_simultaneous_positions": 1,
+  "weekly_candle_model": {
+    "enabled": true,
+    "minimum_weekly_bars": 40,
+    "ema_fast": 10,
+    "ema_slow": 30,
+    "momentum_fast_weeks": 4,
+    "momentum_slow_weeks": 13,
+    "breakout_lookback_weeks": 26,
+    "weights": {
+      "trend": 35,
+      "momentum_fast": 25,
+      "momentum_slow": 20,
+      "breakout": 15,
+      "last_candle": 5
+    },
+    "tie_break_direction": "long"
+  },
+  "adaptive_learning": {
+    "enabled": true,
+    "source": "closed_paper_position_legs_only",
+    "rolling_legs": 60,
+    "minimum_observations_per_regime_direction": 8,
+    "max_score_adjustment": 15,
+    "update_frequency": "after_each_closed_leg",
+    "use_only_information_available_before_next_entry": true,
+    "no_intraday_weight_optimization": true,
+    "no_rewrite_of_closed_history": true,
+    "description_pl": "Warstwa uczy się wyłącznie z zamkniętych pozycji paper-trading. Dla podobnego reżimu rynku porównuje historyczny wynik long i short po kosztach i może jedynie ograniczenie skorygować wybór kierunku. Nie dostraja parametrów do bieżącej świecy i nie zmienia historii.",
+    "description_en": "The layer learns only from closed paper-trading legs. For a comparable market regime it compares after-cost long and short outcomes and may apply only a capped direction adjustment. It does not optimise weights on the current bar or rewrite history."
+  },
+  "risk_and_costs": {
+    "reuse_v2_frozen_atr_risk_plan": true,
+    "sp500_round_trip_cost_points": 1.0,
+    "archive_every_closed_leg": true
+  },
+  "guardrails": {
+    "real_broker_orders": false,
+    "paper_trading_only": true,
+    "allowed_instruments": [
+      "sp500_futures"
+    ],
+    "eurusd_enabled": false,
+    "btcusd_enabled": false,
+    "reason": "EUR/USD and BTC/USD failed the saved fixed-rule validation. Continuous exposure is introduced as a separate S&P 500 paper experiment and does not overwrite model v2 validation."
+  }
+}
