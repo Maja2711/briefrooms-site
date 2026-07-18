@@ -23,6 +23,7 @@ on:
       - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v3.py"
       - "scripts/investments_weekly_v4.py"
+      - "scripts/investments_weekly_v4_cli.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/backtest_continuous_exposure_v3.py"
       - "scripts/backtest_multi_strategy_v4.py"
@@ -81,13 +82,13 @@ jobs:
       - name: Build and manage all weekly paper positions
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-        run: python scripts/investments_weekly_v4.py --mode "$MODE"
+        run: python scripts/investments_weekly_v4_cli.py --mode "$MODE"
 
       - name: Once-daily thesis review and conditional close
         run: python scripts/daily_position_review.py
 
       - name: Re-enter every enabled instrument after a close
-        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
+        run: python scripts/investments_weekly_v4_cli.py --mode ensure-exposure
 
       - name: Apply base-model validation labels
         run: python scripts/apply_instrument_validation_gate.py
