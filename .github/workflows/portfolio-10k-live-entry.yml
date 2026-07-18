@@ -6,6 +6,12 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_open_live_now.py"
+      - "scripts/portfolio_10k_material_reports.py"
+      - "scripts/validate_portfolio_10k_state.py"
+      - "scripts/validate_portfolio_10k_material_reports.py"
+      - "tests/test_portfolio_10k_staged_entry.py"
+      - "tests/test_portfolio_10k_material_reports.py"
+      - "tests/test_portfolio_10k_material_reports_ui.js"
       - ".github/workflows/portfolio-10k-live-entry.yml"
   schedule:
     # Complete any still-pending European positions during the common session.
@@ -17,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: portfolio-10k-live-entry
+  group: portfolio-10k-automation
   cancel-in-progress: false
 
 jobs:
@@ -34,20 +40,34 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip yfinance pandas numpy
+        run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
       - name: Open only positions with fresh tradable quotes
         run: python scripts/portfolio_10k_open_live_now.py
 
-      - name: Commit staged entry data
+      - name: Validate portfolio execution and accounting
+        run: python scripts/validate_portfolio_10k_state.py
+
+      - name: Detect confirmed material events
+        run: python scripts/portfolio_10k_material_reports.py
+
+      - name: Validate material reports
+        run: python scripts/validate_portfolio_10k_material_reports.py
+
+      - name: Run Portfolio 10K tests
+        run: |
+          python -m pytest -q tests/test_portfolio_10k*.py
+          node tests/test_portfolio_10k_material_reports_ui.js
+
+      - name: Commit validated staged entry and report data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k.json
+          git add data/investments/portfolio_10k.json data/investments/portfolio_10k_material_reports.json
           if git diff --cached --quiet; then
             echo "No new live entries."
           else
-            git commit -m "Open fresh 10K portfolio positions"
+            git commit -m "Update validated 10K portfolio state"
             git pull --rebase origin main
             git push
           fi

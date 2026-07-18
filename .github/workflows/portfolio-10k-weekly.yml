@@ -14,14 +14,6 @@ on:
           - review
           - migrate
   schedule:
-    # Several attempts during the common US-European cash-market window.
-    # Repeated attempts protect the launch against delayed or temporarily missing
-    # Yahoo Finance 5-minute and FX bars. Once the portfolio is active, later runs
-    # become harmless no-op checks.
-    - cron: "50 14 * * 1-5"
-    - cron: "0 15 * * 1-5"
-    - cron: "10 15 * * 1-5"
-    - cron: "20 15 * * 1-5"
     # Full fundamental/market review once per week.
     - cron: "20 6 * * 0"
   push:
@@ -32,19 +24,29 @@ on:
       - "scripts/portfolio_10k_weekly_v3.py"
       - "scripts/portfolio_10k_runtime.py"
       - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_material_reports.py"
+      - "scripts/validate_portfolio_10k_state.py"
+      - "scripts/validate_portfolio_10k_material_reports.py"
       - "scripts/portfolio-10k-public.js"
+      - "scripts/portfolio-10k-material-reports-public.js"
+      - "assets/portfolio-10k.css"
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
       - "tests/test_portfolio_10k.py"
       - "tests/test_portfolio_10k_v2.py"
       - "tests/test_portfolio_10k_execution.py"
       - "tests/test_portfolio_10k_runtime.py"
       - "tests/test_portfolio_10k_news_quality.py"
+      - "tests/test_portfolio_10k_staged_entry.py"
+      - "tests/test_portfolio_10k_material_reports.py"
+      - "tests/test_portfolio_10k_material_reports_ui.js"
       - ".github/workflows/portfolio-10k-weekly.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: portfolio-10k-weekly
+  group: portfolio-10k-automation
   cancel-in-progress: false
 
 jobs:
@@ -63,26 +65,35 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
-      - name: Validate model code and allocation
-        run: python -m pytest -q tests/test_portfolio_10k.py tests/test_portfolio_10k_v2.py tests/test_portfolio_10k_execution.py tests/test_portfolio_10k_runtime.py tests/test_portfolio_10k_news_quality.py
-
       - name: Migrate, initialize or review portfolio
         id: portfolio_run
-        continue-on-error: true
         env:
           MODE: ${{ github.event_name == 'push' && 'migrate' || (github.event_name == 'workflow_dispatch' && inputs.mode || 'auto') }}
         run: python scripts/portfolio_10k_runtime.py --mode "$MODE"
 
       - name: Filter duplicate and irrelevant headlines
-        if: github.event_name != 'push' && steps.portfolio_run.outcome == 'success'
+        if: github.event_name != 'push'
         run: python scripts/portfolio_10k_news_quality.py
 
-      - name: Commit transparent portfolio update or error state
-        if: always()
+      - name: Validate portfolio execution and accounting
+        run: python scripts/validate_portfolio_10k_state.py
+
+      - name: Detect confirmed material events from current quotes, FX and news
+        run: python scripts/portfolio_10k_material_reports.py
+
+      - name: Validate material reports
+        run: python scripts/validate_portfolio_10k_material_reports.py
+
+      - name: Run all Portfolio 10K tests
+        run: |
+          python -m pytest -q tests/test_portfolio_10k*.py
+          node tests/test_portfolio_10k_material_reports_ui.js
+
+      - name: Commit validated portfolio and report update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k.json
+          git add data/investments/portfolio_10k.json data/investments/portfolio_10k_material_reports.json
           if git diff --cached --quiet; then
             echo "No portfolio changes to commit."
           else
@@ -90,9 +101,3 @@ jobs:
             git pull --rebase origin main
             git push
           fi
-
-      - name: Fail workflow after publishing diagnostic state
-        if: steps.portfolio_run.outcome == 'failure'
-        run: |
-          echo "Portfolio run failed. The diagnostic state was committed to portfolio_10k.json."
-          exit 1
