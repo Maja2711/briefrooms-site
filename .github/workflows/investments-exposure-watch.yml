@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "scripts/investments_weekly_v3.py"
+      - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "data/investments/continuous_exposure_policy.json"
       - ".github/workflows/investments-exposure-watch.yml"
@@ -36,6 +37,9 @@ jobs:
 
       - name: Install market data dependency
         run: python -m pip install --upgrade pip yfinance pandas numpy
+
+      - name: Recover a missing current-week paper forecast
+        run: python scripts/ensure_current_week_forecast.py
 
       - name: Check SL TP and maintain continuous weekly exposure
         run: python scripts/investments_weekly_v3.py --mode close
