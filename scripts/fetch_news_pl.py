@@ -49,6 +49,7 @@ SECTION_PUBLISH_BOUNDS = {
     "sport": (5, 10),
 }
 SECTION_MAX_PER_HOST = {
+    "biznes": 2,
     "sport": 3,
 }
 HOTBAR_LIMIT = 12
@@ -83,10 +84,14 @@ FEEDS = {
     "biznes": [
         "https://www.bankier.pl/rss/wiadomosci.xml",
         "https://www.bankier.pl/rss/gospodarka.xml",
+        {"url": "https://businessinsider.com.pl/.feed", "source": "Business Insider Polska"},
         {"url": "https://www.polsatnews.pl/rss/biznes.xml", "source": "Polsat News"},
         {"url": "https://www.rmf24.pl/ekonomia/feed", "source": "RMF24"},
         "https://www.pap.pl/rss.xml",
         "https://feeds.reuters.com/reuters/businessNews",
+        {"url": "https://feeds.bbci.co.uk/news/business/rss.xml", "source": "BBC Business"},
+        {"url": "https://apnews.com/hub/business?output=rss", "source": "AP Business"},
+        {"url": "https://www.theguardian.com/uk/business/rss", "source": "The Guardian Business"},
     ],
     "zdrowie": [
         {"url": "https://naukawpolsce.pl/zdrowie/rss.xml", "source": "Nauka w Polsce"},
@@ -159,13 +164,14 @@ SOURCE_PRIORITY = [
     (re.compile(r"pap\.pl", re.I), 25),
     (re.compile(r"polsatnews\.pl", re.I), 18),
     (re.compile(r"tvn24\.pl", re.I), 15),
-    (re.compile(r"bankier\.pl", re.I), 20),
-    (re.compile(r"rmf24\.pl", re.I), 20),
+    (re.compile(r"bankier\.pl", re.I), 12),
+    (re.compile(r"businessinsider\.com\.pl", re.I), 20),
+    (re.compile(r"rmf24\.pl", re.I), 18),
     (re.compile(r"naukawpolsce\.pl", re.I), 25),
     (re.compile(r"who\.int", re.I), 24),
     (re.compile(r"nasa\.gov|esa\.int", re.I), 22),
-    (re.compile(r"theguardian\.com", re.I), 12),
-    (re.compile(r"reuters\.com", re.I), 12),
+    (re.compile(r"theguardian\.com", re.I), 16),
+    (re.compile(r"reuters\.com", re.I), 24),
     (re.compile(r"sport\.tvp\.pl", re.I), 23),
     (re.compile(r"polsatsport\.pl", re.I), 22),
     (re.compile(r"przegladsportowy\.onet\.pl|sport\.onet\.pl", re.I), 22),
@@ -173,9 +179,9 @@ SOURCE_PRIORITY = [
     (re.compile(r"eurosport\.tvn24\.pl", re.I), 21),
     (re.compile(r"laczynaspilka\.pl|pzpn\.pl", re.I), 21),
     (re.compile(r"atptour\.com|wtatennis\.com|fifa\.com|uefa\.com", re.I), 18),
-    (re.compile(r"apnews\.com", re.I), 14),
+    (re.compile(r"apnews\.com", re.I), 20),
     (re.compile(r"espn\.", re.I), 12),
-    (re.compile(r"bbc\.", re.I), 10),
+    (re.compile(r"bbc\.", re.I), 20),
 ]
 
 SOURCE_NAME_RULES = [
@@ -202,6 +208,7 @@ SOURCE_NAME_RULES = [
     (re.compile(r"tvn24\.pl", re.I), "TVN24"),
     (re.compile(r"polsatnews\.pl", re.I), "Polsat News"),
     (re.compile(r"bankier\.pl", re.I), "Bankier.pl"),
+    (re.compile(r"businessinsider\.com\.pl", re.I), "Business Insider Polska"),
     (re.compile(r"rmf24\.pl", re.I), "RMF24"),
 ]
 
@@ -218,6 +225,7 @@ POLISH_NATIVE_SOURCES = {
     "Nauka w Polsce",
     "Polsat News",
     "Bankier.pl",
+    "Business Insider Polska",
     "RMF24",
     "Polsat Sport",
     "TVP Sport",
@@ -318,6 +326,27 @@ SCIENCE_TOPIC_RE = re.compile(
     r"\b(nauk|badani|odkry|eksperyment|kosmos|astronom|planeta|galakty|NASA|ESA|klimat|archeolog|"
     r"biolog|fizyk|chem|technolog|science|scientist|study|research|discovery|space|moon|mars|climate|"
     r"archaeolog|species|telescope|physics|biology)\b",
+    re.I,
+)
+BUSINESS_TOPIC_RE = re.compile(
+    r"\b(gospodar|ekonom|biznes|firm|spółk|przedsiębior|rynek|giełd|GPW|WIG|akcj|obligacj|"
+    r"bank|kredyt|pożycz|hipotek|finans|walut|złot|dolar|euro|inflac|deflac|PKB|NBP|RPP|"
+    r"stopy procent|podat|VAT|CIT|PIT|budżet|deficyt|dług publicz|handel|eksport|import|"
+    r"produkc|przemysł|energia|paliw|ropa|gaz|praca|bezroboc|płac|wynagrod|emerytur|ZUS|"
+    r"econom|business|company|companies|market|stocks?|shares?|bonds?|banking|credit|"
+    r"inflation|GDP|interest rates?|tax|trade|exports?|imports?|industry|energy|oil|gas|jobs?)\b",
+    re.I,
+)
+GEOPOLITICS_ONLY_RE = re.compile(
+    r"\b(wojn|atak|ostrzał|pocisk|dron|front|żołnier|armia|ofiar|zabit|rann|Ukrain|Rosj|"
+    r"NATO|konflikt|rozejm|sankcj|war|attack|missile|drone|troops?|army|killed|wounded|"
+    r"Ukraine|Russia|NATO|conflict|ceasefire|sanctions?)\b",
+    re.I,
+)
+BUSINESS_IMPACT_RE = re.compile(
+    r"\b(cen|koszt|kurs|rynek|giełd|handel|eksport|import|dostaw|surowc|ropa|gaz|energia|"
+    r"inwest|finans|bank|PKB|inflac|budżet|sankcj gospodar|prices?|costs?|markets?|trade|"
+    r"supply|commodit|oil|gas|energy|investment|finance|banking|GDP|inflation|economic sanctions?)\b",
     re.I,
 )
 
@@ -435,8 +464,10 @@ def is_rejected_item(section_key: str, title: str, snippet: str, link: str, sour
     path = urlparse(link).path or "/"
     if path in ("", "/") or URL_REJECT_RE.search(path):
         return True
-    topic_filter = {"zdrowie": HEALTH_TOPIC_RE, "nauka": SCIENCE_TOPIC_RE}.get(section_key)
+    topic_filter = {"biznes": BUSINESS_TOPIC_RE, "zdrowie": HEALTH_TOPIC_RE, "nauka": SCIENCE_TOPIC_RE}.get(section_key)
     if topic_filter and not topic_filter.search(f"{text} {link} {source}"):
+        return True
+    if section_key == "biznes" and GEOPOLITICS_ONLY_RE.search(text) and not BUSINESS_IMPACT_RE.search(text):
         return True
     if section_key == "sport":
         if len([seg for seg in path.split("/") if seg]) <= 1:
@@ -867,10 +898,27 @@ def fetch_section(section_key: str, summarize: bool = True):
             if len(picked) >= limit:
                 break
             add_item(it)
+    elif section_key == "biznes":
+        # Najpierw po jednym materiale z każdego źródła; dopiero potem uzupełnij sekcję.
+        picked = []
+        seen_sources = set()
+        for it in pool:
+            src = it.get("source_name") or host_of(it.get("link", ""))
+            if src in seen_sources:
+                continue
+            picked.append(it)
+            seen_sources.add(src)
+            if len(picked) >= limit:
+                break
+        for it in pool:
+            if len(picked) >= limit:
+                break
+            if it not in picked:
+                picked.append(it)
     else:
         picked = pool[:limit]
 
-    if section_key == "polityka":
+    if section_key in ("polityka", "biznes"):
         for item in picked:
             if not item.get("thumbnail_url"):
                 item["thumbnail_url"] = article_image(item.get("link", ""))
