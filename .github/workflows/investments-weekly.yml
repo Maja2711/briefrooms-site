@@ -21,6 +21,7 @@ on:
     paths:
       - "scripts/investments_weekly.py"
       - "scripts/investments_weekly_v2.py"
+      - "scripts/investments_weekly_v3.py"
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/audit_weekly_model.py"
@@ -29,7 +30,9 @@ on:
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-public.js"
       - "tests/test_investments_weekly_public.js"
+      - "tests/test_investments_weekly_v3.py"
       - "data/investments/methodology.json"
+      - "data/investments/continuous_exposure_policy.json"
       - "data/investments/daily_review_policy.json"
       - "data/investments/event_exit_requests.json"
       - ".github/workflows/investments-weekly.yml"
@@ -56,10 +59,13 @@ jobs:
       - name: Test public investment script
         run: node --test tests/test_investments_weekly_public.js
 
-      - name: Build and manage weekly positions with model v2
+      - name: Test continuous weekly exposure rules
+        run: python -m unittest tests/test_investments_weekly_v3.py
+
+      - name: Build and manage weekly paper positions with continuous exposure layer
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-        run: python scripts/investments_weekly_v2.py --mode "$MODE"
+        run: python scripts/investments_weekly_v3.py --mode "$MODE"
 
       - name: Once-daily thesis review and conditional close
         run: python scripts/daily_position_review.py
@@ -67,10 +73,13 @@ jobs:
       - name: Block new entries for instruments that failed validation
         run: python scripts/apply_instrument_validation_gate.py
 
+      - name: Re-enter after a close while the weekly exposure window is active
+        run: python scripts/investments_weekly_v3.py --mode ensure-exposure
+
       - name: Audit model integrity and closed history
         run: python scripts/audit_weekly_model.py
 
-      - name: Run scheduled model validation
+      - name: Run scheduled base model v2 validation
         env:
           FORCE_BACKTEST: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: python scripts/backtest_weekly_model_v2.py
@@ -82,7 +91,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json data/investments/model_validation_v2.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json data/investments/model_validation_v2.json data/investments/continuous_exposure_policy.json data/investments/continuous_exposure_state.json data/investments/continuous_exposure_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No investment forecast changes to commit."
           else
