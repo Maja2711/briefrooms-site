@@ -58,7 +58,7 @@
   }
   </script>
 
- <link rel="stylesheet" href="/assets/site.css?v=rooms2" />
+ <link rel="stylesheet" href="/assets/site.css?v=cholesterol-cream-1" />
 
   <style>
   
@@ -110,12 +110,28 @@
     @keyframes pop{ from{ transform:translateY(-4px); opacity:0 } to{ transform:none; opacity:1 } }
     .small{ font-size:12px; opacity:.95; line-height:1.45 }
     .mb0{ margin-bottom:0 }
+
+    /* Spójny jasny motyw z Protokołem żywnościowym */
+    body.rooms-light.cholesterol-page{ background:#f5eee5; color:#111827 }
+    body.cholesterol-page header{ padding:24px 16px 10px }
+    body.cholesterol-page h1,body.cholesterol-page h2,body.cholesterol-page h3{ color:#0f172a }
+    body.cholesterol-page .lead{ color:#4b5563 }
+    body.cholesterol-page main{ max-width:980px; margin:18px auto 70px }
+    body.cholesterol-page .card{ background:#fff; border:1px solid rgba(15,23,42,.06); box-shadow:0 10px 24px rgba(15,23,42,.08); color:#111827 }
+    body.cholesterol-page .wrap{ background:#f8fafc; border-color:rgba(15,23,42,.08) }
+    body.cholesterol-page .pill{ background:#eef2f7; border-color:rgba(15,23,42,.10); color:#334155 }
+    body.cholesterol-page .sources li a,body.cholesterol-page .back a{ color:#1d4ed8 }
+    body.cholesterol-page details.pop{ background:linear-gradient(180deg,#fff,#f7fafc); border-color:rgba(15,23,42,.10); box-shadow:0 8px 20px rgba(15,23,42,.08) }
+    .share-row{ margin:16px 0 0 }
+    .tweet-share{ display:inline-flex; align-items:center; gap:9px; padding:11px 16px; border-radius:14px; border:1px solid #172033; background:#101827; color:#fff; text-decoration:none; box-shadow:0 8px 18px rgba(15,23,42,.15); font-weight:700 }
+    .tweet-share:hover{ background:#1b2639; color:#fff; text-decoration:none; transform:translateY(-1px) }
   </style>
 </head>
-<body class="rooms-light">
+<body class="rooms-light cholesterol-page">
   <header>
     <h1>Twój cholesterol i cały lipidogram — praktyczny przewodnik</h1>
     <p class="lead">Poniżej dostajesz esencję tego, jak czytać wyniki, co naprawdę je poprawia i jak wdrożyć zmiany w 5 krokach. Oparte na zgodnych wytycznych (ESC/EAS, ACC/AHA), stanowiskach AHA/WHO oraz przeglądach EFSA i pracach przeglądowych o „remnant cholesterol” (np. <span class="pill">PMC</span>).</p>
+    <p class="share-row"><a id="tweet-this" class="tweet-share" target="_blank" rel="noopener" aria-label="Udostępnij na X"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 3L13.9 10.7L21 21H16.2L11.3 14.3L6 21H3.7L10.6 12.7L4 3H8.9L13.4 9.5L18.3 3h2z"/></svg>Udostępnij na X</a></p>
   </header>
 
   <main>
@@ -259,6 +275,13 @@
   </main>
 
   <footer>© BriefRooms</footer>
+  <script>
+  (function(){
+    const title=(document.querySelector('meta[property="og:title"]')?.content||document.title).replace(/\s+\|\s*BriefRooms/i,'').trim();
+    const share='https://twitter.com/intent/tweet?url='+encodeURIComponent(location.href)+'&text='+encodeURIComponent(title)+'&hashtags='+encodeURIComponent('cholesterol,lipidy,zdrowie');
+    const a=document.getElementById('tweet-this'); if(a) a.href=share;
+  })();
+  </script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
