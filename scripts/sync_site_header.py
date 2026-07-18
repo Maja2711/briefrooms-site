@@ -13,11 +13,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "20260718-1"
+VERSION = "20260719-1"
 STYLESHEET = f'<link rel="stylesheet" href="/assets/site-header.css?v={VERSION}" />'
 SCRIPT = f'<script src="/scripts/site-header.js?v={VERSION}" defer></script>'
 HOST = '<header id="site-header"></header>'
 EXCLUDED = {
+    Path("pl/index.html"),
+    Path("en/index.html"),
     Path("pl/brief.html"),
     Path("en/brief.html"),
     Path("en/geo/topic.html"),
@@ -60,8 +62,25 @@ def transform(text: str, newline: str) -> str:
 
     if "/assets/site-header.css" not in text:
         text = re.sub(r"</head>", STYLESHEET + newline + SCRIPT + newline + "</head>", text, count=1, flags=re.IGNORECASE)
-    elif "/scripts/site-header.js" not in text:
+    else:
+        text = re.sub(
+            r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/site-header\.css\?v=[^"\']+["\']\s*/?>',
+            STYLESHEET,
+            text,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+
+    if "/scripts/site-header.js" not in text:
         text = re.sub(r"</head>", SCRIPT + newline + "</head>", text, count=1, flags=re.IGNORECASE)
+    else:
+        text = re.sub(
+            r'<script\s+src=["\']/scripts/site-header\.js\?v=[^"\']+["\']\s+defer></script>',
+            SCRIPT,
+            text,
+            count=1,
+            flags=re.IGNORECASE,
+        )
 
     host_count = len(re.findall(r'id=["\']site-header["\']', text, re.IGNORECASE))
     if host_count == 0:
