@@ -57,20 +57,29 @@ class EnglishNewsBuilderTests(unittest.TestCase):
 
     def strict_sections(self):
         sections = self.empty_sections()
-        for index, section in enumerate(sections, 1):
-            sections[section].append(approved_item(index))
+        index = 1
+        for section in sections:
+            for _ in range(3):
+                sections[section].append(approved_item(index))
+                index += 1
         return sections
 
     def test_render_is_fail_closed_when_comments_are_missing(self):
         with self.assertRaisesRegex(RuntimeError, "only 0 homepage-grade comments"):
             context.render_html_full(self.empty_sections())
 
+    def test_render_is_blocked_when_any_section_has_fewer_than_three_items(self):
+        sections = self.strict_sections()
+        sections["world"] = sections["world"][:1]
+        with self.assertRaisesRegex(RuntimeError, "world=1"):
+            context.render_html_full(sections)
+
     def test_rendered_page_contains_homepage_style_full_comments(self):
         page = context.render_html_full(self.strict_sections())
         self.assertIn('<a href="#health">Health</a>', page)
         self.assertIn('<a href="#science">Science</a>', page)
         self.assertIn("Test report number 1", page)
-        self.assertEqual(8, page.count('<span class="news-thumb has-image">'))
+        self.assertEqual(24, page.count('<span class="news-thumb has-image">'))
         self.assertIn("briefrooms-newsroom-v2", page)
         self.assertIn("grid-template-columns:1fr!important", page)
         self.assertIn("@media(min-width:900px)", page)
@@ -120,7 +129,11 @@ class EnglishNewsBuilderTests(unittest.TestCase):
             mock.patch.object(base, "article_image", return_value=""),
         ):
             selected = base.fetch_section("world", summarize=False)
-        self.assertEqual(["Reachable image report"], [item["title"] for item in selected])
+        self.assertEqual(
+            ["Reachable image report", "Blocked image report"],
+            [item["title"] for item in selected],
+        )
+        self.assertEqual("", selected[1]["thumbnail_url"])
 
     def test_finalizer_requires_homepage_quality_metadata(self):
         sections = self.empty_sections()
