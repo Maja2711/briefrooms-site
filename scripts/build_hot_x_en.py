@@ -9,6 +9,7 @@ import urllib.request
 from pathlib import Path
 
 import update_hot_x_topics as hot
+from hot_x_items import TOTAL_ITEMS, select_unique
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "hot_tweets.json"
@@ -108,6 +109,8 @@ def make_exact_x_link(item: dict) -> None:
         return
     title = str(item.get("title_en") or item.get("title_pl") or "").strip()
     source = re.sub(r"\s*/\s*(X search|wyszukiwanie X|X).*", "", str(item.get("source_en") or "")).strip()
+    if re.match(r"^https?://", source, re.I):
+        source = ""
     if title and is_concrete_news(item):
         q = f'"{title}" {source}'.strip()
         item["search_url"] = x_search(q, live=False)
@@ -211,6 +214,11 @@ def apply_pl_text(item: dict, label_pl: str) -> None:
     if translated:
         item["title_pl"], item["summary_pl"] = translated
         return
+    title_pl = strip_wire_noise(str(item.get("title_pl") or ""))
+    summary_pl = strip_wire_noise(str(item.get("summary_pl") or ""))
+    if title_pl and summary_pl and not ENGLISH_LEFTOVERS.search(title_pl + " " + summary_pl):
+        item["title_pl"], item["summary_pl"] = title_pl, summary_pl
+        return
     item["title_pl"], item["summary_pl"] = pl_fallback(title_en, summary_en, label_pl)
 
 
@@ -238,9 +246,15 @@ def apply_images_and_concrete_links() -> None:
             item["image"] = image
         make_exact_x_link(item)
         apply_pl_text(item, label_pl)
+        item["comment_en"] = str(item.get("summary_en") or "").strip()
+        item["comment_pl"] = str(item.get("summary_pl") or "").strip()
         item["source_en"] = clean_source(str(item.get("source_en") or ""), False)
         item["source_pl"] = clean_source(str(item.get("source_pl") or item.get("source_en") or ""), True)
     assert_pl_hot_text(data)
+    for item in data.get("items", []):
+        item["comment_en"] = str(item.get("summary_en") or "").strip()
+        item["comment_pl"] = str(item.get("summary_pl") or "").strip()
+    data["items"] = select_unique([data.get("items") or []], target=TOTAL_ITEMS)
     data["image_matching"] = "topic-classifier-v2"
     data["mode"] = "concrete-news-to-x-search"
     data["method_pl"] = "Automatycznie co 4 godziny: wybiera konkretny news, tworzy dokładny link do wyszukiwania tego tematu na X i pokazuje krótki opis po polsku. W wersji PL tytuł i opis nie mogą zostawać po angielsku."

@@ -9,7 +9,11 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-HOT_X_SCRIPT = '<script src="/scripts/hot-x-render.js?v=exact-x-1" defer></script>'
+HOT_X_SCRIPT = '<script src="/scripts/hot-x-render.js?v=circulating-x-5" defer></script>'
+HOT_X_RENDERER_RE = re.compile(
+    r'\s*<script\s+src=["\']/scripts/hot-x-render\.js\?v=[^"\']+["\']\s+defer></script>\s*',
+    re.I,
+)
 
 
 def write(path: str, html: str) -> None:
@@ -38,8 +42,7 @@ def strip_generic_news(path: str, why_label: str) -> None:
 def inject_hot_x_renderer(html: str) -> str:
     html = html.replace('loadHome();hot();', 'loadHome();')
     html = html.replace('<script src="/scripts/hotbar.js?v=10" defer></script>', '')
-    if HOT_X_SCRIPT in html:
-        return html
+    html = HOT_X_RENDERER_RE.sub('\n', html)
     if '</body>' in html:
         return html.replace('</body>', HOT_X_SCRIPT + '\n</body>', 1)
     return html + '\n' + HOT_X_SCRIPT + '\n'

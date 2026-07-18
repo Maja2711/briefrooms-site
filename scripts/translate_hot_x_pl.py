@@ -109,8 +109,11 @@ def process() -> bool:
         if item.get("summary_pl") != summary_pl:
             item["summary_pl"] = summary_pl
             changed = True
+        if item.get("comment_pl") != summary_pl:
+            item["comment_pl"] = summary_pl
+            changed = True
         item["pl_translation_status"] = "pl_checked_no_english_leak"
-    data["method_pl"] = "Automatycznie co 4 godziny: wybiera konkretny news z X i pokazuje tytuł oraz opis po polsku. W wersji PL nie wolno publikować angielskiego tytułu ani opisu."
+    data["method_pl"] = "Automatycznie dwa razy dziennie: wybiera konkretne posty i dyskusje z X oraz pokazuje tytuł i komentarz po polsku. W wersji PL nie wolno publikować angielskiego komentarza jako fallbacku."
     data["pl_language_gate"] = "Hot X PL: title_pl i summary_pl muszą być po polsku; angielski fallback jest blokowany."
     if changed:
         PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

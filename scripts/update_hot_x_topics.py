@@ -12,8 +12,12 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from hot_x_items import INITIAL_VISIBLE_ITEMS, TOTAL_ITEMS, normalize_title, select_unique
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "hot_tweets.json"
+LAST_GOOD = ROOT / ".cache" / "hot_tweets_comments_last_good.json"
+EMERGENCY = ROOT / "data" / "hot_x_emergency.json"
 WARSAW = timezone(timedelta(hours=2))
 SLOT_HOURS = 4
 
@@ -57,6 +61,15 @@ def now_dt() -> datetime:
 
 def now_iso() -> str:
     return now_dt().isoformat(timespec="seconds")
+
+
+def load_items(path: Path) -> List[Dict[str, Any]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        values = data.get("items") if isinstance(data, dict) else []
+        return [dict(item) for item in values or [] if isinstance(item, dict)]
+    except Exception:
+        return []
 
 
 def current_slot_index() -> int:
@@ -182,15 +195,16 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
         item.update(api)
         item["title_en"] = topic["fallback_title_en"]
         item["title_pl"] = topic["fallback_title_pl"]
+        item["summary_pl"] = topic["fallback_summary_pl"]
         return item
     picked = bing_news_pick(topic["query"])
     if picked:
         title, desc, source = picked
         item.update({
             "title_en": title,
-            "title_pl": title,
+            "title_pl": topic["fallback_title_pl"],
             "summary_en": desc or topic["fallback_summary_en"],
-            "summary_pl": desc or topic["fallback_summary_pl"],
+            "summary_pl": topic["fallback_summary_pl"],
             "source_en": f"{source} / X search",
             "source_pl": f"{source} / wyszukiwanie X",
             "selected_by": "rotating-news-to-x-search-4h",
@@ -208,11 +222,38 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
     return item
 
 
+def rotating_topics(start_slot: int) -> List[Tuple[int, Dict[str, str]]]:
+    ordered: List[Tuple[int, Dict[str, str]]] = []
+    seen_topics = set()
+    for offset in range(len(TOPIC_SLOTS)):
+        slot = (start_slot + offset) % len(TOPIC_SLOTS)
+        for topic in TOPIC_SLOTS[slot]:
+            identity = normalize_title(topic.get("query") or topic.get("fallback_title_en"))
+            if not identity or identity in seen_topics:
+                continue
+            seen_topics.add(identity)
+            ordered.append((slot, topic))
+    return ordered
+
+
+def build_current_items(slot: int) -> List[Dict[str, Any]]:
+    candidates: List[Dict[str, Any]] = []
+    for topic_slot, topic in rotating_topics(slot):
+        candidates.append(build_item(topic, topic_slot))
+        selected = select_unique([candidates], target=TOTAL_ITEMS)
+        if len(selected) >= TOTAL_ITEMS:
+            return selected
+    return select_unique([candidates], target=TOTAL_ITEMS)
+
+
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     slot = current_slot_index()
-    topics = TOPIC_SLOTS[slot]
-    items = [build_item(topic, slot) for topic in topics]
+    previous = load_items(OUT)
+    last_good = load_items(LAST_GOOD)
+    emergency = load_items(EMERGENCY)
+    current = build_current_items(slot)
+    items = select_unique([current, last_good, previous, emergency], target=TOTAL_ITEMS)
     mode = "automatic-4h-x-api-exact-post" if os.environ.get("X_BEARER_TOKEN") else "automatic-4h-rotating-x-search"
     payload = {
         "updated_at": now_iso(),
@@ -220,12 +261,14 @@ def main() -> None:
         "refresh_interval_hours": SLOT_HOURS,
         "rotation_slot": slot,
         "rotation_slots_total": len(TOPIC_SLOTS),
+        "initial_visible_items": INITIAL_VISIBLE_ITEMS,
+        "target_items": TOTAL_ITEMS,
         "method_pl": "Automatycznie co 4 godziny. Jeśli dostępny jest X_BEARER_TOKEN, skrypt zapisuje konkretny post z X dokładnie 1:1 w polu x_post_text_raw. Bez tokenu pokazuje dokładne wyszukiwanie źródła na X.",
         "method_en": "Automatically every 4 hours. If X_BEARER_TOKEN is available, the script stores the exact X post text 1:1 in x_post_text_raw. Without the token, it shows an exact X source search.",
         "items": items,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Updated {OUT} with {len(items)} Hot X topics in slot={slot} mode={mode}")
+    print(f"Updated {OUT} with {len(items)}/{TOTAL_ITEMS} unique Hot X topics in slot={slot} mode={mode}")
 
 
 if __name__ == "__main__":

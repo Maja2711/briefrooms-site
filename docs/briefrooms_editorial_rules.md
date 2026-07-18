@@ -46,7 +46,7 @@ Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko j
 „Pilne” i „Breaking” są tylko sygnałem priorytetu sortowania. Nie pokazujemy ich jako etykiety na zdjęciu karty.
 
 ## Hot X
-1. Sekcja Hot X jest aktualizowana automatycznie dwa razy dziennie.
+1. Sekcja ma widoczną nazwę „Co krąży w X” w wersji PL oraz “What’s circulating on X” w wersji EN i jest aktualizowana automatycznie dwa razy dziennie.
 2. Każdy przebieg ma próbować pobrać nowe tematy albo konkretne posty z X, a nie tylko ponownie zapisywać stare dane.
 3. Każda widoczna karta musi mieć konkretny komentarz. Sam tytuł, pusty opis lub ogólnik typu „Na X monitorowany jest temat” nie jest komentarzem.
 4. W wersji PL wszystkie widoczne tytuły i komentarze muszą być po polsku; angielski tekst nie może zostać użyty jako fallback.
@@ -54,5 +54,7 @@ Na stronie głównej jeden realny temat albo jedno zdarzenie może mieć tylko j
 6. Jedno realne zdarzenie może pojawić się w Hot X tylko raz.
 7. Aktualizacja nie może wyczyścić całej sekcji. Jeżeli nowe dane są puste, uszkodzone, ogólnikowe albo nie mają poprawnego linku do X, pozostają ostatnie poprawne karty.
 8. Jeżeli brak ostatnich poprawnych danych, ładowany jest zapisany zestaw awaryjny z pełnymi komentarzami.
-9. Zawsze muszą pozostać co najmniej trzy karty z komentarzem. Brakujące miejsca są uzupełniane ostatnimi poprawnymi kartami.
-10. Watchdog uznaje Hot X za przeterminowany po 13 godzinach i uruchamia ponowną próbę aktualizacji.
+9. Na stronie głównej od razu widoczne są dokładnie dwie kompaktowe karty. Przycisk rozwijania pokazuje maksymalnie osiem unikalnych kart bez przeładowania strony.
+10. Bezpośredni post i przegląd dyskusji muszą mieć różne etykiety oraz różne CTA. Link do wyszukiwania nie może być opisany jako konkretny post.
+11. Brakujące miejsca są uzupełniane kolejno z last-good i zestawu awaryjnego, bez tworzenia duplikatów. Co najmniej dwie poprawne karty muszą pozostać dostępne.
+12. Watchdog uznaje Hot X za przeterminowany po 13 godzinach i uruchamia ponowną próbę aktualizacji.

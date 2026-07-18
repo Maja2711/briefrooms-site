@@ -8,11 +8,19 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from hot_x_items import (
+    INITIAL_VISIBLE_ITEMS,
+    TOTAL_ITEMS,
+    comment_text,
+    select_unique,
+    valid_item,
+)
+
 DATA = Path("data/hot_tweets.json")
 BACKUP = Path(".cache/hot_tweets_comments_last_good.json")
 EMERGENCY = Path("data/hot_x_emergency.json")
-MIN_ITEMS = 3
-X_URL = re.compile(r"^https?://(?:x\.com|twitter\.com)/", re.I)
+MIN_VISIBLE_ITEMS = INITIAL_VISIBLE_ITEMS
+TARGET_ITEMS = TOTAL_ITEMS
 GENERIC_TITLE = re.compile(r"^(temat z x|topic from x|hot x topic)", re.I)
 GENERIC_TEXT = re.compile(r"^(na x monitorowany jest|pełny wątek otwiera link|rotating hot x topic|temat dotyczy)", re.I)
 
@@ -30,19 +38,8 @@ def save(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
-def url(item: dict) -> str:
-    for key in ("tweet_url", "search_url"):
-        value = str(item.get(key) or "").strip()
-        if X_URL.match(value):
-            return value
-    return ""
-
-
 def text(item: dict, lang: str) -> str:
-    exact = str(item.get("x_post_text_raw") or item.get("x_post_text") or "").strip()
-    if exact:
-        return exact
-    return str(item.get(f"comment_{lang}") or item.get(f"summary_{lang}") or "").strip()
+    return comment_text(item, lang)
 
 
 def substantive(value: str) -> bool:
@@ -51,11 +48,17 @@ def substantive(value: str) -> bool:
 
 
 def valid(item: object) -> bool:
-    if not isinstance(item, dict):
+    if not valid_item(item, substantive=True):
         return False
+    assert isinstance(item, dict)
     title_pl = str(item.get("title_pl") or "").strip()
     title_en = str(item.get("title_en") or "").strip()
-    return bool(url(item) and title_pl and title_en and not GENERIC_TITLE.search(title_pl) and not GENERIC_TITLE.search(title_en) and substantive(text(item, "pl")) and substantive(text(item, "en")))
+    return bool(
+        not GENERIC_TITLE.search(title_pl)
+        and not GENERIC_TITLE.search(title_en)
+        and substantive(text(item, "pl"))
+        and substantive(text(item, "en"))
+    )
 
 
 def items(data: dict) -> list[dict]:
@@ -70,14 +73,10 @@ def items(data: dict) -> list[dict]:
     return out
 
 
-def key(item: dict) -> str:
-    return url(item) or re.sub(r"\W+", "", str(item.get("title_pl") or "").lower())[:140]
-
-
 def backup() -> None:
     data = load(DATA)
-    good = items(data)
-    if len(good) < MIN_ITEMS:
+    good = select_unique([items(data)], target=TARGET_ITEMS, substantive=True)
+    if len(good) < MIN_VISIBLE_ITEMS:
         print(f"Hot X comment backup skipped: {len(good)} valid cards")
         return
     data["items"] = good
@@ -89,22 +88,13 @@ def validate() -> None:
     current = load(DATA)
     previous = load(BACKUP)
     emergency = load(EMERGENCY)
-    new = items(current)
-    old = items(previous)
-    reserve = old + items(emergency)
-    merged = []
-    seen = set()
-    for item in new + reserve:
-        identity = key(item)
-        if not identity or identity in seen:
-            continue
-        seen.add(identity)
-        merged.append(item)
-        if len(merged) >= max(MIN_ITEMS, len(new)):
-            break
-    if len(merged) < MIN_ITEMS:
-        raise SystemExit("Hot X has no protected set of three substantive comments")
-    if len(new) >= MIN_ITEMS:
+    new = select_unique([items(current)], target=TARGET_ITEMS, substantive=True)
+    old = select_unique([items(previous)], target=TARGET_ITEMS, substantive=True)
+    emergency_items = select_unique([items(emergency)], target=TARGET_ITEMS, substantive=True)
+    merged = select_unique([new, old, emergency_items], target=TARGET_ITEMS, substantive=True)
+    if len(merged) < MIN_VISIBLE_ITEMS:
+        raise SystemExit("Hot X has no protected set of two substantive, unique comments")
+    if len(new) >= MIN_VISIBLE_ITEMS:
         out = dict(current)
         status = "new_comments_validated"
     elif old:
@@ -116,12 +106,15 @@ def validate() -> None:
     out["items"] = merged
     out["refresh_interval_hours"] = 12
     out["update_frequency"] = "2_times_daily"
+    out["initial_visible_items"] = MIN_VISIBLE_ITEMS
+    out["target_items"] = TARGET_ITEMS
     out["last_update_attempt_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     out["last_good_protection"] = {
         "status": status,
         "new_substantive_items": len(new),
         "visible_items": len(merged),
-        "rule": "Hot X keeps at least three cards with substantive comments. Empty, placeholder and generic output is rejected."
+        "rule_pl": "Sekcja zachowuje co najmniej dwie widoczne karty i uzupełnia rozwijany zestaw do maksymalnie ośmiu unikalnych tematów.",
+        "rule_en": "The section keeps at least two visible cards and completes the expanded set with up to eight unique topics."
     }
     save(DATA, out)
     save(BACKUP, out)

@@ -9,11 +9,21 @@ from pathlib import Path
 
 import build_hot_x_en as builder
 import update_hot_x_topics as source
+from hot_x_items import (
+    INITIAL_VISIBLE_ITEMS,
+    TOTAL_ITEMS,
+    duplicate_free,
+    select_unique,
+    valid_item,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "hot_tweets.json"
+LAST_GOOD = ROOT / ".cache" / "hot_tweets_comments_last_good.json"
+EMERGENCY = ROOT / "data" / "hot_x_emergency.json"
 INTERVAL_HOURS = 12
-MIN_ITEMS = 3
+MIN_VISIBLE_ITEMS = INITIAL_VISIBLE_ITEMS
+TARGET_ITEMS = TOTAL_ITEMS
 
 
 def rotation_slot() -> int:
@@ -21,42 +31,48 @@ def rotation_slot() -> int:
     return block % len(source.TOPIC_SLOTS)
 
 
-def normalized(value: str) -> str:
-    return re.sub(r"\W+", "", str(value or "").lower())
+def load_items(path: Path) -> list[dict]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return [dict(item) for item in data.get("items") or [] if isinstance(item, dict)]
+    except Exception:
+        return []
 
 
 def validate_payload(data: dict) -> None:
     items = data.get("items")
-    if not isinstance(items, list) or len(items) < MIN_ITEMS:
-        raise RuntimeError(f"Hot X update rejected: expected at least {MIN_ITEMS} items")
-    seen = set()
+    if not isinstance(items, list) or len(items) < MIN_VISIBLE_ITEMS:
+        raise RuntimeError(f"Hot X update rejected: expected at least {MIN_VISIBLE_ITEMS} items")
+    if len(items) > TARGET_ITEMS:
+        raise RuntimeError(f"Hot X update rejected: expected at most {TARGET_ITEMS} items")
+    if not duplicate_free(items):
+        raise RuntimeError("Hot X update rejected: duplicate URL, title or category overflow")
     for index, item in enumerate(items, start=1):
-        if not isinstance(item, dict):
-            raise RuntimeError(f"Hot X item {index} is invalid")
-        if not (item.get("tweet_url") or item.get("search_url")):
-            raise RuntimeError(f"Hot X item {index} has no X destination")
-        if not str(item.get("title_pl") or "").strip() or not str(item.get("summary_pl") or "").strip():
-            raise RuntimeError(f"Hot X item {index} has no Polish title/comment")
-        key = normalized(item.get("title_en") or item.get("title_pl"))
-        if key and key in seen:
-            raise RuntimeError(f"Hot X item {index} duplicates another topic")
-        seen.add(key)
+        if not valid_item(item):
+            raise RuntimeError(f"Hot X item {index} lacks a valid X URL or bilingual content")
 
 
 def normalize_metadata() -> None:
     data = json.loads(OUT.read_text(encoding="utf-8"))
+    data["items"] = select_unique(
+        [data.get("items") or [], load_items(LAST_GOOD), load_items(EMERGENCY)],
+        target=TARGET_ITEMS,
+    )
     data["refresh_interval_hours"] = INTERVAL_HOURS
     data["update_frequency"] = "2_times_daily"
     data["rotation_slot"] = rotation_slot()
     data["rotation_slots_total"] = len(source.TOPIC_SLOTS)
+    data["initial_visible_items"] = MIN_VISIBLE_ITEMS
+    data["target_items"] = TARGET_ITEMS
     data["method_pl"] = (
-        "Hot X jest odświeżany dwa razy dziennie. Nowy przebieg może zastąpić kartę tylko wtedy, "
-        "gdy ma poprawny link do X oraz konkretny komentarz po polsku. Pusty lub ogólnikowy wynik "
-        "nie usuwa ostatnich poprawnych kart."
+        "Hot X jest odświeżany dwa razy dziennie. Sekcja zachowuje co najmniej dwie widoczne karty "
+        "i uzupełnia rozwijany zestaw do maksymalnie ośmiu unikalnych tematów. Pusty lub ogólnikowy "
+        "wynik nie usuwa ostatnich poprawnych kart."
     )
     data["method_en"] = (
         "Hot X refreshes twice daily. A new card may replace the previous one only when it has "
-        "a valid X destination and a substantive comment. Empty or generic output keeps the last valid cards."
+        "a valid X destination and a substantive comment. The section keeps at least two visible cards and "
+        "completes the expanded set with up to eight unique topics."
     )
     for item in data.get("items", []):
         selected = str(item.get("selected_by") or "")
