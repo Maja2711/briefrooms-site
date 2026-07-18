@@ -8,10 +8,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/investments_weekly_v3.py"
+      - "scripts/investments_weekly_v4.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
-      - "data/investments/continuous_exposure_policy.json"
+      - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/investments-exposure-watch.yml"
 
 permissions:
@@ -41,14 +41,14 @@ jobs:
       - name: Recover a missing current-week paper forecast
         run: python scripts/ensure_current_week_forecast.py
 
-      - name: Check SL TP and maintain continuous weekly exposure
-        run: python scripts/investments_weekly_v3.py --mode close
+      - name: Check SL TP and maintain all weekly paper positions
+        run: python scripts/investments_weekly_v4.py --mode close
 
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
 
-      - name: Re-enter after any close during the active weekly window
-        run: python scripts/investments_weekly_v3.py --mode ensure-exposure
+      - name: Re-enter every instrument after a close during the active weekly window
+        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
 
       - name: Render public investment pages
         run: python scripts/render_simple_investments.py
@@ -57,11 +57,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/continuous_exposure_state.json data/investments/continuous_exposure_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/multi_instrument_exposure_state.json data/investments/multi_instrument_exposure_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No continuous exposure changes to commit."
           else
-            git commit -m "Maintain continuous weekly paper exposure"
+            git commit -m "Maintain all weekly paper positions"
             git pull --rebase origin main
             git push
           fi
