@@ -125,6 +125,15 @@
     .share-row{ margin:16px 0 0 }
     .tweet-share{ display:inline-flex; align-items:center; gap:9px; padding:11px 16px; border-radius:14px; border:1px solid #172033; background:#101827; color:#fff; text-decoration:none; box-shadow:0 8px 18px rgba(15,23,42,.15); font-weight:700 }
     .tweet-share:hover{ background:#1b2639; color:#fff; text-decoration:none; transform:translateY(-1px) }
+    .lipid-calculator{margin-top:18px;padding:24px;border:1px solid #d8dee8;border-radius:20px;background:linear-gradient(145deg,#fff,#f7f9fc);box-shadow:0 14px 34px rgba(15,23,42,.08)}
+    .calc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+    .calc-field label{display:block;margin-bottom:7px;font-weight:750}.calc-field span{display:block;margin-top:5px;color:#5c6678;font-size:.86rem}
+    .calc-field input{box-sizing:border-box;width:100%;padding:13px 14px;border:1px solid #b9c3d2;border-radius:12px;background:#fff;color:#101827;font:inherit}
+    .calc-field input:focus{outline:3px solid rgba(47,111,237,.18);border-color:#2f6fed}
+    .calc-actions{display:flex;flex-wrap:wrap;gap:10px}.calc-button{padding:12px 18px;border:0;border-radius:12px;background:#101827;color:#fff;font:inherit;font-weight:750;cursor:pointer}.calc-reset{background:#e8edf4;color:#172033}
+    .calc-error{margin-top:14px;padding:12px 14px;border-radius:12px;background:#fff0f0;color:#8b1e1e;font-weight:700}
+    .calc-results{margin-top:20px;padding-top:20px;border-top:1px solid #d8dee8}.calc-results h3{margin-top:0}.result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-box{padding:16px;border-radius:14px;background:#fff;border:1px solid #dce2ea}.result-box strong{display:block;font-size:1.25rem;margin-top:5px}.result-summary{margin-top:16px;padding:16px;border-left:4px solid #2f6fed;border-radius:8px;background:#edf4ff}.calc-privacy{color:#5c6678;font-size:.9rem}
+    @media(max-width:640px){.calc-grid,.result-grid{grid-template-columns:1fr}.lipid-calculator{padding:18px}}
   </style>
 </head>
 <body class="rooms-light cholesterol-page">
@@ -257,15 +266,32 @@
         <p><strong>Co warto sprawdzić:</strong> ciśnienie, glukozę lub HbA1c, TSH (tarczycę), funkcję nerek i wątroby, stosowane leki, ApoB oraz Lp(a). Po istotnej zmianie stylu życia lub leczenia lipidogram zwykle kontroluje się po około <strong>6–12 tygodniach</strong>.</p>
       </section>
 
-      <section class="wrap">
-        <h2>Jak to zastosować — mini-procedura w 5 krokach</h2>
-        <ol>
-          <li>Spisz cztery liczby: <strong>Cholesterol całkowity, LDL-C, HDL-C, TG</strong>.</li>
-          <li>Policz: <strong>non-HDL-C = Cholesterol całkowity − HDL-C</strong>; <strong>Remnant-C = Cholesterol całkowity − LDL-C − HDL-C</strong>.</li>
-          <li>Ustal z lekarzem lub kalkulatorem ryzyka, jaki cel LDL odpowiada Twojej sytuacji. Wynik poniżej 100 mg/dl nie zawsze oznacza osiągnięcie celu. <span class="pill">ESC/EAS 2025</span></li>
-          <li>Wprowadź prosty plan: jedz w stylu śródziemnomorskim, część tłuszczów nasyconych (SFA) zastąp nienasyconymi, codziennie jedz błonnik, regularnie się ruszaj oraz ogranicz alkohol i cukier.</li>
-          <li>Kontrola po 6–12 tyg. Jeśli nie „zielono”: porozmawiaj z lekarzem o kolejnych krokach (np. ezetymib/statyny/PCSK9 wg ryzyka).</li>
-        </ol>
+      <section class="wrap" id="kalkulator-lipidogramu">
+        <h2>Sprawdź swój lipidogram</h2>
+        <p>Wpisz cztery wartości dokładnie tak, jak widzisz je na wyniku. Kalkulator wyliczy cholesterol nie‑HDL (non‑HDL‑C) i cholesterol resztkowy (remnant‑C), a następnie prostym językiem podsumuje liczby.</p>
+        <div class="lipid-calculator">
+          <h3>Wpisz swoje dane z lipidogramu</h3>
+          <p>Wszystkie wartości podaj w <strong>mg/dl</strong>. Wiek i masa ciała nie są potrzebne do tych obliczeń.</p>
+          <form id="lipid-form" novalidate>
+            <div class="calc-grid">
+              <div class="calc-field"><label for="total-c">Cholesterol całkowity</label><input id="total-c" name="total" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 210" aria-describedby="total-help"><span id="total-help">Na wyniku także: TC lub CHOL</span></div>
+              <div class="calc-field"><label for="ldl-c">Cholesterol LDL</label><input id="ldl-c" name="ldl" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 128" aria-describedby="ldl-help"><span id="ldl-help">Na wyniku: LDL‑C</span></div>
+              <div class="calc-field"><label for="hdl-c">Cholesterol HDL</label><input id="hdl-c" name="hdl" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 52" aria-describedby="hdl-help"><span id="hdl-help">Na wyniku: HDL‑C</span></div>
+              <div class="calc-field"><label for="tg-c">Triglicerydy</label><input id="tg-c" name="tg" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 150" aria-describedby="tg-help"><span id="tg-help">Na wyniku: TG lub trójglicerydy</span></div>
+            </div>
+            <div class="calc-actions"><button class="calc-button" type="submit">Oblicz i wyjaśnij wyniki</button><button class="calc-button calc-reset" type="reset">Wyczyść</button></div>
+            <div id="calc-error" class="calc-error" role="alert" hidden></div>
+          </form>
+          <div id="calc-results" class="calc-results" aria-live="polite" hidden>
+            <h3>Twoje wyliczenia</h3>
+            <div class="result-grid">
+              <div class="result-box">Cholesterol nie‑HDL (non‑HDL‑C)<strong id="non-hdl-result"></strong><span id="non-hdl-note"></span></div>
+              <div class="result-box">Cholesterol resztkowy (remnant‑C)<strong id="remnant-result"></strong><span>Wartość pomocnicza — nie ma jednego celu odpowiedniego dla każdego.</span></div>
+            </div>
+            <div id="calc-summary" class="result-summary"></div>
+          </div>
+          <p class="calc-privacy">Obliczenia odbywają się na Twoim urządzeniu. Wpisane dane nie są wysyłane ani zapisywane. To orientacyjne objaśnienie, nie diagnoza ani dobór leczenia.</p>
+        </div>
       </section>
 
       <section>
@@ -293,6 +319,40 @@
     const title=(document.querySelector('meta[property="og:title"]')?.content||document.title).replace(/\s+\|\s*BriefRooms/i,'').trim();
     const share='https://twitter.com/intent/tweet?url='+encodeURIComponent(location.href)+'&text='+encodeURIComponent(title)+'&hashtags='+encodeURIComponent('cholesterol,lipidy,zdrowie');
     const a=document.getElementById('tweet-this'); if(a) a.href=share;
+    const form=document.getElementById('lipid-form');
+    if(!form) return;
+    const parseValue=id=>Number(document.getElementById(id).value.trim().replace(',','.'));
+    const fmt=value=>(Math.round(value*10)/10).toLocaleString('pl-PL',{maximumFractionDigits:1})+' mg/dl';
+    form.addEventListener('reset',()=>{document.getElementById('calc-error').hidden=true;document.getElementById('calc-results').hidden=true});
+    form.addEventListener('submit',event=>{
+      event.preventDefault();
+      const total=parseValue('total-c'),ldl=parseValue('ldl-c'),hdl=parseValue('hdl-c'),tg=parseValue('tg-c');
+      const error=document.getElementById('calc-error'),results=document.getElementById('calc-results');
+      if([total,ldl,hdl,tg].some(v=>!Number.isFinite(v)||v<=0)){
+        error.textContent='Uzupełnij wszystkie cztery pola dodatnimi liczbami w mg/dl.';error.hidden=false;results.hidden=true;return;
+      }
+      const nonHdl=total-hdl,remnant=total-ldl-hdl;
+      if(nonHdl<0||remnant<0){
+        error.textContent='Podane wartości nie są ze sobą zgodne. Sprawdź jednostkę i przepisz liczby bezpośrednio z jednego wyniku badania.';error.hidden=false;results.hidden=true;return;
+      }
+      error.hidden=true;
+      document.getElementById('non-hdl-result').textContent=fmt(nonHdl);
+      document.getElementById('remnant-result').textContent=fmt(remnant);
+      document.getElementById('non-hdl-note').textContent=nonHdl<130?'Dla osoby bez podwyższonego ryzyka jest to zwykle korzystny poziom; Twój indywidualny cel może być niższy.':'Wartość wynosi co najmniej 130 mg/dl — omów ją razem z LDL i całym ryzykiem.';
+      const notes=[];
+      if(ldl>=190) notes.push('<strong>LDL jest bardzo wysokie (co najmniej 190 mg/dl).</strong> Umów konsultację lekarską; czasem przyczyną jest rodzinna hipercholesterolemia.');
+      else if(ldl>=160) notes.push('<strong>LDL jest wysokie.</strong> Warto omówić z lekarzem całe ryzyko i dalsze postępowanie.');
+      else if(ldl>=100) notes.push('LDL nie przekracza 160 mg/dl, ale jest powyżej 100 mg/dl. To może być za dużo, zwłaszcza przy chorobie serca, cukrzycy, chorobie nerek lub dużym ryzyku.');
+      else notes.push('LDL jest poniżej 100 mg/dl. To korzystna wartość ogólna, ale osoby z dużym ryzykiem często mają niższy cel — np. poniżej 70 lub 55 mg/dl.');
+      if(tg>=500) notes.push('<strong>Triglicerydy są bardzo wysokie (co najmniej 500 mg/dl).</strong> Skontaktuj się z lekarzem możliwie szybko, ponieważ rośnie ryzyko ostrego zapalenia trzustki.');
+      else if(tg>=200) notes.push('Triglicerydy są wysokie. Warto sprawdzić m.in. alkohol, cukry proste, glukozę, tarczycę i leki.');
+      else if(tg>=150) notes.push('Triglicerydy są lekko podwyższone. Pomagają zwykle ruch oraz ograniczenie alkoholu i cukrów prostych.');
+      else notes.push('Triglicerydy są poniżej 150 mg/dl — to zwykle korzystny wynik.');
+      notes.push(hdl<40?'HDL jest niskie. Nie leczy się go osobno tabletką — najważniejsze są ruch, niepalenie oraz poprawa LDL i triglicerydów.':'HDL wynosi co najmniej 40 mg/dl. Samo wysokie HDL nie usuwa ryzyka związanego z wysokim LDL.');
+      notes.push('<strong>Wniosek:</strong> z samego lipidogramu nie można ustalić Twojego osobistego celu LDL ani zdecydować o lekach. Potrzebne są także m.in. wiek, ciśnienie, palenie, cukrzyca, choroby serca i nerek oraz wywiad rodzinny.');
+      document.getElementById('calc-summary').innerHTML='<p>'+notes.join('</p><p>')+'</p>';
+      results.hidden=false;results.scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
   })();
   </script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
