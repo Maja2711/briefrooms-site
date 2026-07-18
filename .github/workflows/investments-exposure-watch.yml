@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "scripts/investments_weekly_v4.py"
+      - "scripts/investments_weekly_v4_cli.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "data/investments/multi_instrument_exposure_policy.json"
@@ -42,13 +43,13 @@ jobs:
         run: python scripts/ensure_current_week_forecast.py
 
       - name: Check SL TP and maintain all weekly paper positions
-        run: python scripts/investments_weekly_v4.py --mode close
+        run: python scripts/investments_weekly_v4_cli.py --mode close
 
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
 
       - name: Re-enter every instrument after a close during the active weekly window
-        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
+        run: python scripts/investments_weekly_v4_cli.py --mode ensure-exposure
 
       - name: Render public investment pages
         run: python scripts/render_simple_investments.py
