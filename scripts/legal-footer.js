@@ -3,6 +3,13 @@
   if(window.__BR_LEGAL_FOOTER__) return;
   window.__BR_LEGAL_FOOTER__ = true;
   function isEn(){return (document.documentElement.lang||'').toLowerCase().indexOf('en')===0 || location.pathname.indexOf('/en/')===0;}
+  function readingTheme(){
+    if(location.pathname!=='/pl/nauka/ciemny-tlen.html' || document.getElementById('br-cream-reading-theme')) return;
+    var s=document.createElement('style');
+    s.id='br-cream-reading-theme';
+    s.textContent='body.rooms-light{background:#f5eee5!important;color:#1f2937!important}body.rooms-light header h1,body.rooms-light h2,body.rooms-light h3{color:#0f172a!important}body.rooms-light .lead{color:#566170!important}body.rooms-light .pill{background:rgba(255,255,255,.86)!important;border-color:#ddd3c5!important;color:#475569!important;box-shadow:0 3px 10px rgba(71,52,32,.05)!important}body.rooms-light .card{background:#fffdf9!important;border-color:#e1d7ca!important;box-shadow:0 14px 34px -22px rgba(73,54,34,.34),inset 0 1px 0 rgba(255,255,255,.85)!important}body.rooms-light .card::after{background:radial-gradient(circle,rgba(47,111,237,.055),transparent 68%)!important}body.rooms-light .hero{background:#fffdf9!important}body.rooms-light .hero-copy{background:linear-gradient(145deg,#fffdf9,#faf5ed)!important}body.rooms-light strong{color:#0f172a!important}body.rooms-light .fact{background:#f6f1e9!important;border-color:#dfd5c8!important}body.rooms-light .fact strong{color:#162033!important}body.rooms-light .fact span,body.rooms-light .source-note,body.rooms-light .back{color:#667085!important}body.rooms-light .thesis{background:linear-gradient(145deg,#f4f8ff,#fffdf9)!important;border-left-color:#4f8fe8!important}body.rooms-light .counter{border-left-color:#d79a32!important}body.rooms-light .status{border-left-color:#2f9d8f!important}body.rooms-light .quote{background:#eef5ff!important;border-color:#c9dcf5!important;color:#26364b!important}body.rooms-light .callout{background:#edf8f5!important;border-color:#bddfd7!important;color:#244b45!important}body.rooms-light .sources a,body.rooms-light .back a{color:#245fb8!important}body.rooms-light .sources a:hover,body.rooms-light .back a:hover{color:#153f7b!important}.br-legal-footer{border-top-color:#d9cec0!important;color:#6b7280!important}.br-legal-footer a,.br-legal-footer summary{color:#405168!important}.br-legal-panel{background:#fffaf3!important;border-color:#ddd3c5!important;color:#596579!important}';
+    document.head.appendChild(s);
+  }
   function style(){
     if(document.getElementById('br-legal-footer-style')) return;
     var s=document.createElement('style');
@@ -13,6 +20,7 @@
   function item(title, body){return '<details><summary>'+title+'</summary><div class="br-legal-panel">'+body+'</div></details>';}
   function render(){
     style();
+    readingTheme();
     var en=isEn();
     var html;
     if(en){

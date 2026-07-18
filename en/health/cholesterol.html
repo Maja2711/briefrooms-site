@@ -13,7 +13,7 @@
   <link rel="icon" href="/assets/favicon.svg" />
 
   <!-- site styles + comments styles -->
-  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/site.css?v=cholesterol-cream-1" />
  
 
   <style>
@@ -68,12 +68,30 @@
     /* Comments UI small tweaks: bigger textarea, hide tiny path line if present */
     #br-comments textarea{ min-height:120px }
     #br-comments small{ display:none }
+
+    /* Light theme aligned with Food Protocol */
+    body.rooms-light.cholesterol-page{ background:#f5eee5; color:#111827 }
+    body.cholesterol-page header{ padding:24px 16px 10px }
+    body.cholesterol-page h1,body.cholesterol-page h2,body.cholesterol-page h3{ color:#0f172a }
+    body.cholesterol-page .lead{ color:#4b5563 }
+    body.cholesterol-page main{ max-width:980px; margin:18px auto 70px }
+    body.cholesterol-page .card{ background:#fff; border:1px solid rgba(15,23,42,.06); box-shadow:0 10px 24px rgba(15,23,42,.08); color:#111827 }
+    body.cholesterol-page .wrap{ background:#f8fafc; border-color:rgba(15,23,42,.08) }
+    body.cholesterol-page .pill{ background:#eef2f7; border-color:rgba(15,23,42,.10); color:#334155 }
+    body.cholesterol-page .sources li a,body.cholesterol-page .back a{ color:#1d4ed8 }
+    body.cholesterol-page details.pop{ background:linear-gradient(180deg,#fff,#f7fafc); border-color:rgba(15,23,42,.10); box-shadow:0 8px 20px rgba(15,23,42,.08) }
+    .share-row{ margin:16px 0 0 }
+    .tweet-share{ display:inline-flex; align-items:center; gap:9px; padding:11px 16px; border-radius:14px; border:1px solid #172033; background:#101827; color:#fff; text-decoration:none; box-shadow:0 8px 18px rgba(15,23,42,.15); font-weight:700 }
+    .tweet-share:hover{ background:#1b2639; color:#fff; text-decoration:none; transform:translateY(-1px) }
+    .lipid-calculator{margin-top:18px;padding:24px;border:1px solid #d8dee8;border-radius:20px;background:linear-gradient(145deg,#fff,#f7f9fc);box-shadow:0 14px 34px rgba(15,23,42,.08)}
+    .calc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}.calc-field label{display:block;margin-bottom:7px;font-weight:750}.calc-field span{display:block;margin-top:5px;color:#5c6678;font-size:.86rem}.calc-field input{box-sizing:border-box;width:100%;padding:13px 14px;border:1px solid #b9c3d2;border-radius:12px;background:#fff;color:#101827;font:inherit}.calc-field input:focus{outline:3px solid rgba(47,111,237,.18);border-color:#2f6fed}.calc-actions{display:flex;flex-wrap:wrap;gap:10px}.calc-button{padding:12px 18px;border:0;border-radius:12px;background:#101827;color:#fff;font:inherit;font-weight:750;cursor:pointer}.calc-reset{background:#e8edf4;color:#172033}.calc-error{margin-top:14px;padding:12px 14px;border-radius:12px;background:#fff0f0;color:#8b1e1e;font-weight:700}.calc-results{margin-top:20px;padding-top:20px;border-top:1px solid #d8dee8}.calc-results h3{margin-top:0}.result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.ratio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}.result-box{padding:16px;border-radius:14px;background:#effaf3;border:1px solid #b9e4c8;box-shadow:0 6px 16px rgba(31,122,68,.06)}.result-box strong{display:block;font-size:1.25rem;margin:5px 0;color:#14532d}.result-box span{display:block;color:#355b43;font-size:.92rem}.result-summary{margin-top:16px;padding:18px;border-left:4px solid #2f6fed;border-radius:8px;background:#edf4ff}.result-summary h3{margin:4px 0 10px}.result-summary ul{margin-top:8px}.interpretation-table{width:100%;margin:14px 0 20px;border-collapse:collapse;font-size:.93rem}.interpretation-table th,.interpretation-table td{padding:10px 12px;border:1px solid #d8dee8;text-align:left;vertical-align:top}.interpretation-table th{background:#eef3f8}.scale-note{color:#4d586a;font-size:.92rem}.calc-privacy{color:#5c6678;font-size:.9rem}@media(max-width:640px){.calc-grid,.result-grid,.ratio-grid{grid-template-columns:1fr}.lipid-calculator{padding:18px}}
   </style>
 </head>
-<body>
+<body class="rooms-light cholesterol-page">
   <header>
     <h1>Your cholesterol & full lipid panel — a practical guide</h1>
     <p class="lead">Below you’ll find the essence of how to read your results, what truly improves them, and how to implement changes in 5 steps — based on aligned guidelines (ESC/EAS, ACC/AHA), AHA/WHO statements, EFSA reviews and reviews on remnant cholesterol (e.g., <span class="pill">PMC</span>).</p>
+    <p class="share-row"><a id="tweet-this" class="tweet-share" target="_blank" rel="noopener" aria-label="Share on X"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 3L13.9 10.7L21 21H16.2L11.3 14.3L6 21H3.7L10.6 12.7L4 3H8.9L13.4 9.5L18.3 3h2z"/></svg>Share on X</a></p>
   </header>
 
   <main>
@@ -81,18 +99,28 @@
       <section>
         <h2>Your lipid panel, without jargon</h2>
         <ul>
-          <li><strong>LDL-C</strong> — the “bad” cholesterol and main driver of atherosclerosis. Lower is better. For a generally healthy adult (final targets depend on clinical risk and your doctor): roughly good &lt;<strong>100 mg/dL</strong>, needs work <strong>100–159</strong>, high/poor <strong>≥160</strong>. <span class="pill">ESC/EAS</span></li>
-          <li><strong>HDL-C</strong> — the “good” one. Too low: &lt;<strong>40</strong> mg/dL (men), &lt;<strong>50</strong> mg/dL (women). We don’t “chase” very high HDL with pills — the whole profile matters. <span class="pill">ACC</span></li>
+          <li><strong>LDL-C</strong> — cholesterol carried in LDL particles. It is one of the main causes of atherosclerosis. The higher your cardiovascular risk, the lower your LDL target should be. There is no single “good” value for everyone. <span class="pill">ESC/EAS 2025</span></li>
+          <li><strong>HDL-C</strong> — often called “good cholesterol”. Low HDL can accompany poorer metabolic health, but raising HDL itself with medication is not a treatment goal. LDL, the number of harmful particles and total risk matter more. <span class="pill">ESC/EAS</span></li>
           <li><strong>TG</strong> (triglycerides) — fats circulating in blood. Good &lt;<strong>150</strong> mg/dL; borderline/high <strong>150–499</strong>; very high <strong>≥500</strong> (pancreatitis risk → urgent management). <span class="pill">ACC</span></li>
           <li><strong>TC</strong> (total cholesterol) — supportive only; LDL-C and the indices below are more informative. <span class="pill">ESC/EAS</span></li>
         </ul>
 
-        <h3>Two extremely useful indices you can calculate yourself</h3>
+        <h3>Key LDL targets depend on risk</h3>
         <ul>
-          <li><strong>non-HDL-C = TC − HDL-C.</strong> Captures all atherogenic particles (LDL + remnants). Roughly: good &lt;<strong>130</strong>; needs work <strong>130–159</strong>; high/poor <strong>≥160</strong>. (Guidelines: the non-HDL target is ~30 mg/dL higher than the matching LDL target.) <span class="pill">ScienceDirect</span></li>
-          <li><strong>Remnant-C (remnant cholesterol) = TC − LDL-C − HDL-C</strong> (or non-HDL − LDL). Higher is worse; &gt;<strong>20–25</strong> mg/dL often flags residual risk to tackle via diet/activity and TG control. <span class="pill">PMC</span></li>
-          <li><strong>RC (residual cholesterol):</strong> used similarly to Remnant-C in literature; elevated RC suggests atherogenic remnant overload even when LDL looks “okay”. <span class="pill">PMC</span></li>
-          <li><strong>TG/HDL ratio:</strong> a practical insulin-resistance proxy; higher ratios track cardiometabolic risk (interpret together with TG, HDL and clinical context). <span class="pill">PMC</span></li>
+          <li><strong>Low risk:</strong> usually an LDL-C target below <strong>116 mg/dL</strong>.</li>
+          <li><strong>Moderate risk:</strong> usually below <strong>100 mg/dL</strong>.</li>
+          <li><strong>High risk:</strong> below <strong>70 mg/dL</strong> and at least a 50% reduction from baseline.</li>
+          <li><strong>Very high risk</strong> (for example established atherosclerosis or a previous heart attack): below <strong>55 mg/dL</strong> and at least a 50% reduction.</li>
+        </ul>
+        <p class="wrap"><strong>Important:</strong> risk depends on age, blood pressure, smoking, diabetes, kidney disease, previous cardiovascular events and additional risk factors. LDL alone does not define your target.</p>
+
+        <h3>Additional markers and useful calculations</h3>
+        <ul>
+          <li><strong>non-HDL-C = TC − HDL-C.</strong> It captures all particles that can contribute to atherosclerosis. Its target also depends on risk and is usually about <strong>30 mg/dL higher</strong> than the matching LDL target. <span class="pill">ESC/EAS</span></li>
+          <li><strong>Remnant cholesterol (RC) = TC − LDL-C − HDL-C.</strong> This calculated value can point to additional risk when triglycerides are high, but it should not be interpreted on its own. <span class="pill">PMC</span></li>
+          <li><strong>TG/HDL ratio:</strong> can be a supporting clue to poorer metabolic health, but it does not diagnose insulin resistance and has no single cut-off that works for everyone. <span class="pill">PMC</span></li>
+          <li><strong>ApoB (apolipoprotein B):</strong> gives an estimate of the number of particles that can enter the artery wall. It is especially useful with high triglycerides, diabetes, obesity or a mismatch between LDL and non-HDL.</li>
+          <li><strong>Lp(a), or lipoprotein(a):</strong> is a largely inherited risk factor. It is worth measuring at least once in adult life. A high result may support a lower LDL target and more careful risk assessment. <span class="pill">ESC/EAS 2025</span></li>
         </ul>
       </section>
 
@@ -112,8 +140,7 @@
             <summary>Saturated fats</summary>
             <div class="popover">
               <div class="small">
-                <strong>SFA</strong> most abundant in: fatty cuts of red meat, full-fat cheese, butter/cream, palm/coconut fats.
-                Focus on swapping SFA <em>out</em> rather than adding “superfoods”.
+                <strong>Saturated fats (SFA)</strong> are found mainly in butter, lard, fatty meat, full-fat cheese, cream, palm fat and coconut fat. They do not need to be eliminated completely; what matters most is what replaces the excess.
               </div>
             </div>
           </details>
@@ -130,18 +157,18 @@
             <summary>Unsaturated fats</summary>
             <div class="popover">
               <div class="small">
-                <strong>MUFA</strong> (olive, canola/rapeseed, high-oleic oils, nuts) and <strong>PUFA</strong> (soy/sunflower/linseed oils, walnuts, fatty fish). Replacing SFA → MUFA/PUFA lowers LDL and ASCVD risk.
+                <strong>Unsaturated fats</strong> are found in olive oil, canola/rapeseed oil, nuts, seeds and fish. When they replace part of the butter, lard and fatty meat in a diet, they usually help lower LDL.
               </div>
             </div>
           </details>
 
           <!-- Canola note -->
           <details class="pop">
-            <summary>Canola oil (MUFA)</summary>
+            <summary>Canola/rapeseed oil</summary>
             <div class="popover">
               <div class="small">
-                In short: claims that “seed oils cause inflammation” aren’t supported by solid reviews or guidelines — swapping SFA for unsaturated fats (canola/olive/soy) lowers LDL and CVD risk; higher omega-6 intake alone doesn’t raise inflammatory markers. <span class="pill">AHA</span> <span class="pill">ACC</span><br><br>
-                Regulatory view: the EU renewed glyphosate approval to 15-Dec-2033 with a desiccation ban; FAO/WHO monitoring shows residues largely within legal limits. Glyphosate is highly polar and remains mainly in meal; studies did not detect it in cold-pressed rapeseed oil. Historical erucic-acid issues concern old cultivars; modern low-erucic varieties meet strict limits. <span class="pill">EC</span> <span class="pill">FAO/WHO</span> <span class="pill">PMC</span> <span class="pill">EFSA</span>
+                Human studies do not support the claim that normal canola/rapeseed oil intake causes inflammation. In controlled trials, replacing some animal fat with canola oil generally lowered LDL. This does not mean adding large amounts of oil to the diet. <span class="pill">RCT meta-analysis</span><br><br>
+                Use olive oil as the main choice and canola/rapeseed oil as a reasonable alternative. Do not overheat oil, let it smoke or reuse the same frying oil repeatedly.
               </div>
             </div>
           </details>
@@ -149,14 +176,14 @@
 
         <p class="mb0"><strong>What to prioritise (everyday pattern):</strong></p>
         <ul>
-          <li>Olive oil, canola/rapeseed oil (mostly MUFA); linseed/soy/sunflower oils (PUFA) used reasonably in cooking.</li>
+          <li><strong>First choice:</strong> olive oil, especially extra virgin. <strong>Reasonable alternative:</strong> canola/rapeseed oil. There is no need to add sunflower oil specifically for health.</li>
           <li>Nuts & seeds (almonds, walnuts, flax, sesame) as snack swaps for sweets/processed snacks.</li>
           <li>Fish <strong>2×/week</strong> (salmon, mackerel, herring, sardines).</li>
           <li>Plenty of vegetables/legumes/whole grains — a Mediterranean-style, minimally processed pattern.</li>
           <li>Limit: fatty processed meats, full-fat cheeses/butter, ultra-processed sweets and refined carbs.</li>
         </ul>
 
-        <p class="wrap"><strong>5.1 Evidence note:</strong> (e.g., Mensink RP, <em>Am J Clin Nutr</em> 2016) — replacing <strong>5% of energy from SFA</strong> with unsaturated fats lowers <strong>LDL by ≈10%</strong> without harming HDL. <span class="pill">AHA</span></p>
+        <p class="wrap"><strong>What this means in the kitchen:</strong> instead of using butter on bread every day and frying in large amounts of animal fat, use olive oil more often, a small amount of canola/rapeseed oil, or choose a handful of nuts. This type of swap usually lowers LDL; the exact effect depends on the whole diet and the amount of fat eaten. <span class="pill">AHA</span></p>
 
         <h3>2) Soluble (gel-forming) fibre — daily, from concrete sources</h3>
         <ul>
@@ -167,6 +194,7 @@
         <h3>3) Phytosterols — in foods + optional fortified products</h3>
         <ul>
           <li><strong>1.5–2.4 g/day</strong> lowers LDL ~7–10%. Rich foods: vegetable oils (sesame/rice bran/corn/canola), sesame, sunflower, wheat germ; fortified spreads/yogurts help reach 2 g/d. <span class="pill">EFSA</span> <span class="pill">NCBI</span></li>
+          <li>Fortified products work best with a meal. They do not replace medication. They are not intended for young children or for pregnancy/breastfeeding without individual advice; the rare condition sitosterolaemia is a contraindication.</li>
         </ul>
 
         <h3>4) Activity “by the watch”</h3>
@@ -184,26 +212,41 @@
       </section>
 
       <section class="wrap">
-        <h2>How to use this — a 5-step mini-procedure</h2>
-        <ol>
-          <li>Write down four numbers: <strong>TC, LDL-C, HDL-C, TG</strong>.</li>
-          <li>Compute: <strong>non-HDL-C = TC − HDL-C</strong>; <strong>Remnant-C = TC − LDL-C − HDL-C</strong>.</li>
-          <li>Traffic-light check (healthy adult, no known high risk): LDL-C &lt;100 good, 100–159 needs work, ≥160 poor; non-HDL-C &lt;130 good, 130–159 needs work, ≥160 poor; TG &lt;150 good, 150–499 needs work, ≥500 very high; HDL-C low if &lt;40 (men) / &lt;50 (women). <span class="pill">ESC/EAS</span> <span class="pill">ACC</span></li>
-          <li>Implement: Mediterranean pattern + SFA→UFA swap + daily soluble fibre + WHO activity + alcohol/sugar cut-back.</li>
-          <li>Re-check in 6–12 weeks. If not green: talk to your clinician about next steps (e.g., ezetimibe/statins/PCSK9 as per guidelines and risk).</li>
-        </ol>
+        <h2>When diet may not be enough</h2>
+        <p>Diet and activity are the foundation, but people with high risk or markedly raised LDL often also need medication. Treatment commonly starts with a statin. If the effect is not enough or the drug is not tolerated, a clinician may consider ezetimibe, bempedoic acid or PCSK9-targeting medicines. Treatment depends on total risk, not one number.</p>
+        <p><strong>Useful checks:</strong> blood pressure, glucose or HbA1c, TSH (thyroid), kidney and liver function, current medicines, ApoB and Lp(a). After a meaningful lifestyle or medication change, lipids are commonly rechecked after about <strong>6–12 weeks</strong>.</p>
+      </section>
+
+      <section class="wrap" id="lipid-calculator">
+        <h2>Check your lipid panel — Calculator</h2>
+        <p>Enter the four values exactly as shown on your report. The calculator works out non‑HDL cholesterol and remnant cholesterol, then explains the numbers in plain language.</p>
+        <div class="lipid-calculator">
+          <h3>Enter your lipid panel results</h3><p>Enter all values in <strong>mg/dL</strong>. Age and weight are not needed for these calculations.</p>
+          <form id="lipid-form" novalidate><div class="calc-grid">
+            <div class="calc-field"><label for="total-c">Total cholesterol</label><input id="total-c" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 210"><span>Also shown as TC or CHOL</span></div>
+            <div class="calc-field"><label for="ldl-c">LDL cholesterol</label><input id="ldl-c" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 128"><span>Shown as LDL‑C</span></div>
+            <div class="calc-field"><label for="hdl-c">HDL cholesterol</label><input id="hdl-c" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 52"><span>Shown as HDL‑C</span></div>
+            <div class="calc-field"><label for="tg-c">Triglycerides</label><input id="tg-c" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 150"><span>Shown as TG</span></div>
+          </div><div class="calc-actions"><button class="calc-button" type="submit">Calculate and explain</button><button class="calc-button calc-reset" type="reset">Clear</button></div><div id="calc-error" class="calc-error" role="alert" hidden></div></form>
+          <div id="calc-results" class="calc-results" aria-live="polite" hidden><h3>Your calculations</h3><div class="result-grid"><div class="result-box">Non‑HDL cholesterol<strong id="non-hdl-result"></strong><span id="non-hdl-note"></span></div><div class="result-box">Remnant cholesterol<strong id="remnant-result"></strong><span id="remnant-note"></span></div></div><h3 style="margin-top:22px">Additional ratios</h3><div class="ratio-grid"><div class="result-box">Total cholesterol / HDL<strong id="tc-hdl-result"></strong><span id="tc-hdl-note"></span></div><div class="result-box">LDL / HDL<strong id="ldl-hdl-result"></strong><span id="ldl-hdl-note"></span></div><div class="result-box">TG / HDL<strong id="tg-hdl-result"></strong><span id="tg-hdl-note"></span></div></div><div class="result-box" style="margin-top:12px">Atherogenic index of plasma (AIP)<strong id="aip-result"></strong><span id="aip-note"></span></div><div id="calc-summary" class="result-summary"></div><h3 style="margin-top:24px">How to read non‑HDL</h3><p>Non‑HDL includes cholesterol carried by all artery‑depositing particles: LDL, Lp(a) and remnant lipoproteins.</p><table class="interpretation-table"><thead><tr><th>Situation</th><th>Indicative non‑HDL goal</th></tr></thead><tbody><tr><td>Moderate risk</td><td>below 130 mg/dL</td></tr><tr><td>High risk</td><td>below 100 mg/dL</td></tr><tr><td>Very high risk, e.g. after heart attack or stroke</td><td>below 85 mg/dL</td></tr></tbody></table><h3>How to read remnant cholesterol</h3><table class="interpretation-table"><thead><tr><th>Remnant‑C</th><th>Practical interpretation</th></tr></thead><tbody><tr><td>below 20 mg/dL</td><td>favourable result</td></tr><tr><td>20–29 mg/dL</td><td>intermediate — assess with TG, non‑HDL and ApoB</td></tr><tr><td>30 mg/dL or above</td><td>raised; associated with higher cardiovascular risk in studies</td></tr></tbody></table><p class="scale-note"><strong>Important:</strong> remnant‑C is calculated. The 30 mg/dL threshold comes from risk studies and is not a universal treatment target. LDL and non‑HDL remain more important for decisions.</p></div>
+          <p class="calc-privacy">Calculations happen on your device. Your entries are not sent or stored. This is general guidance, not a diagnosis or treatment recommendation.</p>
+        </div>
       </section>
 
       <section>
         <h2>Sources & further reading</h2>
         <ul class="sources">
-          <li><a href="https://www.portailvasculaire.fr/" target="_blank" rel="noopener">ESC/EAS 2019 dyslipidaemia guidelines (overview of LDL/non-HDL/ApoB, non-fasting sampling)</a></li>
+          <li><a href="https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/dyslipidaemias/" target="_blank" rel="noopener">ESC/EAS 2025 focused update on dyslipidaemias</a></li>
           <li><a href="https://www.ahajournals.org/" target="_blank" rel="noopener">AHA scientific statements on dietary fats & eating patterns</a></li>
           <li><a href="https://professional.heart.org/" target="_blank" rel="noopener">AHA — smoking cessation & CVD risk</a></li>
           <li><a href="https://www.acc.org/" target="_blank" rel="noopener">ACC/AHA — triglycerides thresholds and management</a></li>
-          <li><a href="https://www.who.int/" target="_blank" rel="noopener">WHO — physical activity guidelines for adults</a></li>
-          <li><a href="https://www.efsa.europa.eu/" target="_blank" rel="noopener">EFSA — β-glucan/psyllium & phytosterols opinions</a></li>
-          <li><a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">PMC — remnant cholesterol & cardiometabolic risk</a></li>
+          <li><a href="https://www.who.int/europe/publications/i/item/9789240014886" target="_blank" rel="noopener">WHO — physical activity guidelines for adults</a></li>
+          <li><a href="https://www.efsa.europa.eu/en/efsajournal/pub/1175" target="_blank" rel="noopener">EFSA — plant sterols and stanols and LDL cholesterol</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/33127255/" target="_blank" rel="noopener">Controlled-trial meta-analysis — canola oil and LDL, ApoB and other risk factors</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/28752873/" target="_blank" rel="noopener">Randomized-trial meta-analysis — omega-6 linoleic acid and inflammatory markers</a></li>
+          <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8774349/" target="_blank" rel="noopener">Review — why prolonged and repeated heating of cooking oil should be avoided</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/33272365/" target="_blank" rel="noopener">PREDIMED study — remnant‑C ≥30 mg/dL and higher cardiovascular event risk</a></li>
+          <li><a href="https://pubmed.ncbi.nlm.nih.gov/34953633/" target="_blank" rel="noopener">Meta-analysis — TG/HDL ratio and cardiovascular risk</a></li>
         </ul>
         <p class="back">← <a href="/en/health.html">Back to Health</a></p>
       </section>
@@ -213,6 +256,36 @@
   </main>
 
   <footer>© BriefRooms</footer>
+  <script>
+  (function(){
+    const title=(document.querySelector('meta[property="og:title"]')?.content||document.title).replace(/\s+\|\s*BriefRooms/i,'').trim();
+    const share='https://twitter.com/intent/tweet?url='+encodeURIComponent(location.href)+'&text='+encodeURIComponent(title)+'&hashtags='+encodeURIComponent('cholesterol,lipids,health');
+    const a=document.getElementById('tweet-this'); if(a) a.href=share;
+    const form=document.getElementById('lipid-form');if(!form)return;
+    const val=id=>Number(document.getElementById(id).value.trim().replace(',','.'));const fmt=v=>(Math.round(v*10)/10).toLocaleString('en-GB',{maximumFractionDigits:1})+' mg/dL';
+    form.addEventListener('reset',()=>{document.getElementById('calc-error').hidden=true;document.getElementById('calc-results').hidden=true});
+    form.addEventListener('submit',event=>{event.preventDefault();const total=val('total-c'),ldl=val('ldl-c'),hdl=val('hdl-c'),tg=val('tg-c'),error=document.getElementById('calc-error'),results=document.getElementById('calc-results');if([total,ldl,hdl,tg].some(v=>!Number.isFinite(v)||v<=0)){error.textContent='Enter positive numbers in mg/dL in all four fields.';error.hidden=false;results.hidden=true;return}const nonHdl=total-hdl,remnant=total-ldl-hdl;if(nonHdl<0||remnant<0){error.textContent='These values are not internally consistent. Check the unit and copy all four numbers from the same report.';error.hidden=false;results.hidden=true;return}error.hidden=true;document.getElementById('non-hdl-result').textContent=fmt(nonHdl);document.getElementById('remnant-result').textContent=fmt(remnant);document.getElementById('non-hdl-note').textContent=nonHdl<130?'Usually favourable for someone without increased risk; your personal target may be lower.':'At least 130 mg/dL — discuss it together with LDL and your overall risk.';const notes=[];if(ldl>=190)notes.push('<strong>LDL is very high (at least 190 mg/dL).</strong> Arrange a medical review; familial hypercholesterolaemia is one possible cause.');else if(ldl>=160)notes.push('<strong>LDL is high.</strong> Discuss your overall risk and next steps with a clinician.');else if(ldl>=100)notes.push('LDL is below 160 mg/dL but above 100 mg/dL. This can still be too high, especially with heart disease, diabetes, kidney disease or high overall risk.');else notes.push('LDL is below 100 mg/dL. This is generally favourable, but high-risk people often need a lower target, such as below 70 or 55 mg/dL.');if(tg>=500)notes.push('<strong>Triglycerides are very high (at least 500 mg/dL).</strong> Contact a clinician promptly because the risk of acute pancreatitis increases.');else if(tg>=200)notes.push('Triglycerides are high. Alcohol, added sugars, glucose, thyroid function and medicines are worth reviewing.');else if(tg>=150)notes.push('Triglycerides are mildly raised. Activity and reducing alcohol and added sugars often help.');else notes.push('Triglycerides are below 150 mg/dL — usually a favourable result.');notes.push(hdl<40?'HDL is low. It is not treated as a separate tablet target — activity, not smoking and improving LDL and triglycerides matter most.':'HDL is at least 40 mg/dL. A high HDL does not cancel the risk from a high LDL.');notes.push('<strong>Bottom line:</strong> a lipid panel alone cannot set your personal LDL target or decide whether you need medicine. Age, blood pressure, smoking, diabetes, heart or kidney disease and family history also matter.');document.getElementById('calc-summary').innerHTML='<p>'+notes.join('</p><p>')+'</p>';results.hidden=false;results.scrollIntoView({behavior:'smooth',block:'nearest'})});
+    form.addEventListener('submit',event=>{
+      if(event.defaultPrevented){
+        const total=val('total-c'),ldl=val('ldl-c'),hdl=val('hdl-c'),tg=val('tg-c');
+        if([total,ldl,hdl,tg].some(v=>!Number.isFinite(v)||v<=0))return;
+        const nonHdl=total-hdl,remnant=total-ldl-hdl;
+        if(nonHdl<0||remnant<0)return;
+        const tcHdl=total/hdl,ldlHdl=ldl/hdl,tgHdl=tg/hdl,aip=Math.log10((tg/88.57)/(hdl/38.67));
+        document.getElementById('non-hdl-note').textContent=nonHdl<85?'Below the goal even for many very-high-risk people.':nonHdl<100?'Below the high-risk goal, but not every very-high-risk goal.':nonHdl<130?'Below the usual moderate-risk goal; high-risk goals are lower.':nonHdl<160?'Raised — above the 130 mg/dL moderate-risk goal.':'High — clearly above guideline goals.';
+        document.getElementById('remnant-note').textContent=(remnant<20?'Favourable result.':remnant<30?'Intermediate result.':'Raised result; associated with higher risk in studies.')+' Scale: <20 favourable | 20–29 intermediate | ≥30 mg/dL raised.';
+        const rf=v=>(Math.round(v*100)/100).toFixed(2);
+        document.getElementById('tc-hdl-result').textContent=rf(tcHdl);document.getElementById('tc-hdl-note').textContent=(tcHdl<3.5?'Favourable result.':tcHdl<5?'Intermediate result.':'High result.')+' Supporting scale: <3.50 favourable | 3.50–4.99 intermediate | ≥5.00 high.';
+        document.getElementById('ldl-hdl-result').textContent=rf(ldlHdl);document.getElementById('ldl-hdl-note').textContent=(ldlHdl<2?'Favourable result.':ldlHdl<3?'Intermediate result.':'High result.')+' Supporting scale: <2.00 favourable | 2.00–2.99 intermediate | ≥3.00 high.';
+        document.getElementById('tg-hdl-result').textContent=rf(tgHdl);document.getElementById('tg-hdl-note').textContent=(tgHdl<2?'Favourable result.':tgHdl<3?'Intermediate result.':'Raised result; it may accompany insulin resistance.')+' Supporting scale: <2.00 favourable | 2.00–2.99 intermediate | ≥3.00 raised.';
+        document.getElementById('aip-result').textContent=rf(aip);document.getElementById('aip-note').textContent=(aip<0.11?'Favourable result.':aip<=0.21?'Intermediate result.':'Raised result.')+' AIP research scale: <0.11 favourable | 0.11–0.21 intermediate | >0.21 raised.';
+        const signals=aip<0.11?['a favourable triglyceride-to-HDL relationship','no typical pattern of insulin-resistance-related atherogenic dyslipidaemia','a lower likelihood of predominantly small, dense LDL particles']:aip<=0.21?['an intermediate triglyceride-to-HDL relationship','an inconclusive metabolic dyslipidaemia pattern','an intermediate likelihood of predominantly small, dense LDL particles']:['an unfavourable triglyceride-to-HDL relationship','a pattern that may fit insulin-resistance-related atherogenic dyslipidaemia','a higher likelihood of predominantly small, dense LDL particles'];
+        const limits='<h3>What do the ratios say about your result?</h3><p>Your result suggests:</p><ul><li>'+signals.join('</li><li>')+'</li></ul><h3>What does AIP say — and what does it not say?</h3><p>AIP describes the relationship between triglycerides and HDL. It may indirectly indicate a metabolic lipid pattern and probable LDL particle size, but it does not measure those particles directly.</p><p><strong>Even a favourable AIP does not automatically mean low overall atherosclerotic risk.</strong> AIP:</p><ul><li>does not include LDL‑C, non‑HDL‑C or ApoB,</li><li>does not measure the number of atherogenic particles,</li><li>does not include Lp(a),</li><li>does not replace SCORE2 or clinical assessment.</li></ul><h3>Whole lipid-panel summary</h3>';
+        const summary=document.getElementById('calc-summary');summary.innerHTML=limits+summary.innerHTML;
+      }
+    });
+  })();
+  </script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
