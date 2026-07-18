@@ -22,6 +22,7 @@ on:
       - "scripts/investments_weekly.py"
       - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v3.py"
+      - "scripts/ensure_current_week_forecast.py"
       - "scripts/backtest_continuous_exposure_v3.py"
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
@@ -66,6 +67,9 @@ jobs:
 
       - name: Test continuous weekly exposure rules
         run: python -m unittest tests/test_investments_weekly_v3.py
+
+      - name: Recover a missing current-week paper forecast
+        run: python scripts/ensure_current_week_forecast.py
 
       - name: Build and manage weekly paper positions with continuous exposure layer
         env:
