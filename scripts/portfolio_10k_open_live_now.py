@@ -13,8 +13,11 @@ all-or-nothing launch window had passed.
 """
 from __future__ import annotations
 
+import argparse
+import copy
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, Tuple
+from pathlib import Path
+from typing import Any, Dict, Tuple
 
 import pandas as pd
 import yfinance as yf
@@ -25,6 +28,7 @@ import portfolio_10k_weekly_v2 as cost
 FRESHNESS_MINUTES = 15
 BAR_MINUTES = 5
 ENTRY_TYPE = "latest_completed_fresh_5m_close_user_authorized_staged_entry"
+PARTIAL_STATUS = "partially_active"
 
 
 def utc_now() -> datetime:
@@ -83,6 +87,109 @@ def already_spent(data: Dict[str, Any]) -> float:
     )
 
 
+def _execution_timestamp(value: Any) -> datetime:
+    text = str(value or "").strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid staged execution timestamp: {value}") from exc
+    if parsed.tzinfo is None:
+        raise RuntimeError(f"Staged execution timestamp has no timezone: {value}")
+    return parsed.astimezone(timezone.utc)
+
+
+def portfolio_status(data: Dict[str, Any]) -> str:
+    positions = data.get("positions", [])
+    active_count = sum(1 for position in positions if position.get("status") == "active")
+    if positions and active_count == len(positions):
+        return "active"
+    if active_count:
+        return PARTIAL_STATUS
+    return "pending_open"
+
+
+def reconcile_staged_entries(data: Dict[str, Any]) -> bool:
+    """Promote audited staged executions into their canonical position records.
+
+    The staged batch is the source of truth. Re-running this function never changes
+    an already active position and rejects conflicting duplicate executions.
+    """
+    before = copy.deepcopy(data)
+    positions = {
+        str(position.get("broker_symbol") or ""): position
+        for position in data.get("positions", [])
+    }
+    executions: Dict[str, Dict[str, Any]] = {}
+    for batch in data.get("staged_entry_batches", []):
+        _execution_timestamp(batch.get("executed_at_utc"))
+        for execution in batch.get("opened", []):
+            symbol = str(execution.get("symbol") or "")
+            if symbol not in positions:
+                raise RuntimeError(f"Staged execution references unknown symbol: {symbol}")
+            price = base.finite(execution.get("price"))
+            rate = base.finite(execution.get("fx_to_pln"))
+            entry_value = base.finite(execution.get("entry_value_pln"))
+            timestamp = _execution_timestamp(execution.get("timestamp_utc"))
+            if not price or price <= 0 or not rate or rate <= 0 or not entry_value or entry_value <= 0:
+                raise RuntimeError(f"Incomplete staged execution for {symbol}")
+            normalized = {
+                "symbol": symbol,
+                "price": float(price),
+                "fx_to_pln": float(rate),
+                "entry_value_pln": float(entry_value),
+                "timestamp": timestamp,
+            }
+            previous = executions.get(symbol)
+            if previous and previous != normalized:
+                raise RuntimeError(f"Conflicting staged executions for {symbol}")
+            executions[symbol] = normalized
+
+    fx_fee = cost.fee_rate(data)
+    for symbol, execution in executions.items():
+        position = positions[symbol]
+        if position.get("status") == "active":
+            continue
+        currency = str(position.get("currency") or "PLN")
+        applied_fee = fx_fee if currency != "PLN" else 0.0
+        entry_value = execution["entry_value_pln"]
+        notional = entry_value / (1.0 + applied_fee)
+        fee = entry_value - notional
+        quantity = notional / (execution["price"] * execution["fx_to_pln"])
+        timestamp = execution["timestamp"]
+        position.update({
+            "status": "active",
+            "quantity": round(quantity, 6),
+            "entry_date": timestamp.date().isoformat(),
+            "entry_timestamp_utc": timestamp.isoformat(timespec="minutes"),
+            "entry_price": round(execution["price"], 6),
+            "entry_price_type": ENTRY_TYPE,
+            "entry_fx_to_pln": round(execution["fx_to_pln"], 6),
+            "entry_value_local": round(quantity * execution["price"], 6),
+            "entry_notional_pln": round(notional, 2),
+            "entry_fee_pln": round(fee, 2),
+            "entry_value_pln": round(entry_value, 2),
+            "current_price": round(execution["price"], 6),
+            "current_fx_to_pln": round(execution["fx_to_pln"], 6),
+            "current_value_pln": round(notional, 2),
+            "pnl_pln": round(-fee, 2),
+            "pnl_percent": round(-fee / entry_value, 6),
+            "dividends_pln": 0.0,
+            "market_date": timestamp.date().isoformat(),
+            "review_flag": "HOLD",
+        })
+        if currency == "USD":
+            data.setdefault("reporting_fx", {})["usd_pln"] = round(execution["fx_to_pln"], 6)
+
+    data["status"] = portfolio_status(data)
+    data.update(recompute_totals(data))
+    if executions:
+        latest_market_date = max(item["timestamp"].date() for item in executions.values())
+        data["last_market_session"] = latest_market_date.isoformat()
+    if executions and data["status"] != "pending_open":
+        data["execution_model_version"] = "2.2-staged-reconciled"
+    return data != before
+
+
 def initialise_benchmark_if_possible(
     data: Dict[str, Any], position: Dict[str, Any], price: float, rate: float, timestamp: datetime
 ) -> None:
@@ -114,7 +221,13 @@ def initialise_benchmark_if_possible(
 def recompute_totals(data: Dict[str, Any]) -> Dict[str, Any]:
     start_capital = base.finite(data.get("starting_capital_pln")) or 10000.0
     spent = already_spent(data)
-    cash = round(start_capital - spent, 2)
+    base_cash = round(start_capital - spent, 2)
+    dividends = sum(
+        base.finite(position.get("dividends_pln")) or 0.0
+        for position in data.get("positions", [])
+        if position.get("status") == "active"
+    )
+    cash = round(base_cash + dividends, 2)
     position_value = sum(
         base.finite(position.get("current_value_pln")) or 0.0
         for position in data.get("positions", [])
@@ -130,7 +243,8 @@ def recompute_totals(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "cash_pln": cash,
         "cash_balance_pln": cash,
-        "base_cash_pln": cash,
+        "base_cash_pln": base_cash,
+        "dividends_pln": round(dividends, 2),
         "total_value_pln": total_value,
         "total_return_pln": round(total_value - start_capital, 2),
         "total_return_percent": round(total_value / start_capital - 1.0, 6),
@@ -154,10 +268,20 @@ def append_snapshot(data: Dict[str, Any], summary: Dict[str, Any], now: datetime
         snapshots.append(snapshot)
 
 
-def run() -> None:
-    data = base.load_json(base.DATA_PATH)
+def run(data_path: Path = base.DATA_PATH, reconcile_only: bool = False) -> None:
+    data = base.load_json(data_path)
     base.validate_config(data)
+    changed = reconcile_staged_entries(data)
+    if reconcile_only:
+        if changed:
+            base.write_json_atomic(data_path, data)
+            print("Reconciled audited staged executions with portfolio positions")
+        else:
+            print("Staged executions already reconciled")
+        return
     if data.get("status") == "active":
+        if changed:
+            base.write_json_atomic(data_path, data)
         print("Portfolio already fully active; no staged entries required")
         return
 
@@ -194,6 +318,7 @@ def run() -> None:
                 "entry_price": round(price, 6),
                 "entry_price_type": ENTRY_TYPE,
                 "entry_fx_to_pln": round(rate, 6),
+                "entry_value_local": round(quantity * price, 6),
                 "entry_notional_pln": round(notional, 2),
                 "entry_fee_pln": round(fee, 2),
                 "entry_value_pln": round(entry_value, 2),
@@ -212,6 +337,7 @@ def run() -> None:
                 "timestamp_utc": timestamp.isoformat(timespec="minutes"),
                 "price": round(price, 6),
                 "fx_to_pln": round(rate, 6),
+                "quantity": quantity,
                 "entry_value_pln": round(entry_value, 2),
             })
         except Exception as exc:
@@ -222,15 +348,22 @@ def run() -> None:
 
     active_count = sum(1 for p in data.get("positions", []) if p.get("status") == "active")
     total_count = len(data.get("positions", []))
-    data["status"] = "active" if active_count == total_count else "partial_open"
+    data["status"] = portfolio_status(data)
+    if not opened:
+        if changed:
+            base.write_json_atomic(data_path, data)
+        print(f"Opened 0 positions; {total_count - active_count} remain pending")
+        for item in pending_reasons:
+            print(f"PENDING {item['symbol']}: {item['reason']}")
+        return
     summary = recompute_totals(data)
     data.update(summary)
     data["cost_model_version"] = cost.COST_MODEL_VERSION
-    data["execution_model_version"] = "2.1-staged"
+    data["execution_model_version"] = "2.2-staged-reconciled"
     data["last_updated_at"] = base.now_local().isoformat(timespec="seconds")
     data["last_market_session"] = now.date().isoformat() if opened else data.get("last_market_session")
-    data["last_run_error"] = None if opened else "No currently fresh tradable positions"
-    data["staged_entry_authorized_at_utc"] = now.isoformat(timespec="seconds")
+    data["last_run_error"] = None
+    data.setdefault("staged_entry_authorized_at_utc", now.isoformat(timespec="seconds"))
     data["staged_entry_batches"] = data.get("staged_entry_batches", []) + [{
         "executed_at_utc": now.isoformat(timespec="seconds"),
         "opened": opened,
@@ -255,7 +388,7 @@ def run() -> None:
     if "USD" in fx_cache:
         data.setdefault("reporting_fx", {})["usd_pln"] = round(fx_cache["USD"][0], 6)
     append_snapshot(data, summary, now)
-    base.write_json_atomic(base.DATA_PATH, data)
+    base.write_json_atomic(data_path, data)
     print(f"Opened {len(opened)} positions; {total_count - active_count} remain pending")
     for item in opened:
         print(f"OPEN {item['symbol']} {item['price']} at {item['timestamp_utc']}")
@@ -263,5 +396,12 @@ def run() -> None:
         print(f"PENDING {item['symbol']}: {item['reason']}")
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reconcile-only", action="store_true")
+    args = parser.parse_args()
+    run(reconcile_only=args.reconcile_only)
+
+
 if __name__ == "__main__":
-    run()
+    main()

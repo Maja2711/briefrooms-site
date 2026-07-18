@@ -55,7 +55,10 @@ def run(mode: str) -> None:
             execution.save_pending(data, now, str(exc))
             raise
 
-    if data.get("status") == "partial_open":
+    if data.get("status") in {"partial_open", "partially_active"}:
+        if data.get("status") == "partial_open":
+            data["status"] = "partially_active"
+            base.write_json_atomic(base.DATA_PATH, data)
         # The dedicated staged-entry workflow owns completion of pending positions.
         # Most importantly, do not downgrade this state back to pending_open and do
         # not erase the valid live entries that have already been frozen.
