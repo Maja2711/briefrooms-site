@@ -19,18 +19,20 @@
 
   var NAVIGATION = {
     pl: [
-      { section: 'news', label: 'Aktualności', href: '/pl/aktualnosci.html' },
-      { section: 'geopolitics', label: 'Geopolityka', href: '/pl/geopolityka.html' },
-      { section: 'health', label: 'Zdrowie', href: '/pl/zdrowie.html' },
-      { section: 'science', label: 'Nauka', href: '/pl/nauka.html' },
-      { section: 'investing', label: 'Inwestycje', href: '/pl/inwestycje.html' }
+      { section: 'news', label: 'Aktualności', href: '/pl/aktualnosci.html', icon: '▤' },
+      { section: 'geopolitics', label: 'Geopolityka', href: '/pl/geopolityka.html', icon: '◎' },
+      { section: 'health', label: 'Zdrowie', href: '/pl/zdrowie.html', icon: '♡' },
+      { section: 'science', label: 'Nauka', href: '/pl/nauka.html', icon: '⚗' },
+      { section: 'investing', label: 'Inwestycje', href: '/pl/inwestycje.html', icon: '↗' },
+      { section: 'about', label: 'O nas', href: '/pl/o-projekcie.html', icon: 'i' }
     ],
     en: [
-      { section: 'news', label: 'News', href: '/en/news.html' },
-      { section: 'geopolitics', label: 'Geopolitics', href: '/en/geopolitics.html' },
-      { section: 'health', label: 'Health', href: '/en/health.html' },
-      { section: 'science', label: 'Science', href: '/en/science.html' },
-      { section: 'investing', label: 'Investing', href: '/en/investing.html' }
+      { section: 'news', label: 'News', href: '/en/news.html', icon: '▤' },
+      { section: 'geopolitics', label: 'Geopolitics', href: '/en/geopolitics.html', icon: '◎' },
+      { section: 'health', label: 'Health', href: '/en/health.html', icon: '♡' },
+      { section: 'science', label: 'Science', href: '/en/science.html', icon: '⚗' },
+      { section: 'investing', label: 'Investing', href: '/en/investing.html', icon: '↗' },
+      { section: 'about', label: 'About', href: '/en/about.html', icon: 'i' }
     ]
   };
 
@@ -105,6 +107,8 @@
     if (/^\/(?:pl\/zdrowie|en\/health)(?:\.html|\/|$)/.test(path)) return 'health';
     if (/^\/(?:pl\/nauka|en\/science)(?:\.html|\/|$)/.test(path)) return 'science';
     if (/^\/(?:pl\/inwestycje|en\/investing)(?:\.html|\/|$)/.test(path)) return 'investing';
+    if (/^\/pl\/(?:o-projekcie|kontakt|metodologia)(?:\.html|\/|$)/.test(path) ||
+        /^\/en\/(?:about|contact|methodology)(?:\.html|\/|$)/.test(path)) return 'about';
     return '';
   }
 
@@ -151,18 +155,20 @@
     var activeSection = sectionForPath(locationObject.pathname);
     var labels = language === 'pl' ? {
       header: 'Nawigacja serwisu',
-      navigation: 'Główna nawigacja',
+      navigation: 'Wejścia do pokoi BriefRooms',
       home: 'BriefRooms — strona główna',
-      open: 'Otwórz menu',
-      close: 'Zamknij menu',
-      switchLanguage: 'Przejdź do wersji angielskiej'
+      open: 'Otwórz menu pokoi',
+      close: 'Zamknij menu pokoi',
+      switchLanguage: 'Przejdź do wersji angielskiej',
+      roomPrefix: 'Otwórz pokój'
     } : {
       header: 'Site navigation',
-      navigation: 'Main navigation',
+      navigation: 'BriefRooms room entrances',
       home: 'BriefRooms home',
-      open: 'Open menu',
-      close: 'Close menu',
-      switchLanguage: 'Switch to Polish'
+      open: 'Open room menu',
+      close: 'Close room menu',
+      switchLanguage: 'Switch to Polish',
+      roomPrefix: 'Open room'
     };
 
     host.className = 'br-site-header';
@@ -182,9 +188,20 @@
     nav.id = 'br-site-navigation';
     nav.setAttribute('aria-label', labels.navigation);
     NAVIGATION[language].forEach(function (item) {
-      var link = createElement(doc, 'a', 'br-site-header__link', item.label);
+      var link = createElement(doc, 'a', 'br-site-header__link');
       link.href = item.href;
       link.setAttribute('data-section', item.section);
+      link.setAttribute('aria-label', labels.roomPrefix + ' ' + item.label);
+
+      var icon = createElement(doc, 'span', 'br-site-header__icon', item.icon);
+      icon.setAttribute('aria-hidden', 'true');
+      var label = createElement(doc, 'span', 'br-site-header__label', item.label);
+      var handle = createElement(doc, 'span', 'br-site-header__handle');
+      handle.setAttribute('aria-hidden', 'true');
+      link.appendChild(icon);
+      link.appendChild(label);
+      link.appendChild(handle);
+
       if (item.section === activeSection) {
         link.classList.add('is-active');
         link.setAttribute('aria-current', 'page');
