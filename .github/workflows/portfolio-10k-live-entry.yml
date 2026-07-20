@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_open_live_now.py"
+      - "scripts/portfolio_10k_complete_declared_positions.py"
       - "scripts/portfolio_10k_material_reports.py"
       - "scripts/validate_portfolio_10k_state.py"
       - "scripts/validate_portfolio_10k_material_reports.py"
@@ -15,7 +16,7 @@ on:
       - ".github/workflows/portfolio-10k-live-entry.yml"
   schedule:
     # Retry pending instruments every 15 minutes while European/US markets may trade.
-    # The script is idempotent: an already active position is never opened again.
+    # The scripts are idempotent: an already active position is never opened again.
     - cron: "7,22,37,52 7-16 * * 1-5"
 
 permissions:
@@ -43,8 +44,11 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
-      - name: Open only positions with fresh tradable quotes
+      - name: Open positions with fresh tradable quotes
         run: python scripts/portfolio_10k_open_live_now.py
+
+      - name: Complete declared ETF allocations from recent open-session trades
+        run: python scripts/portfolio_10k_complete_declared_positions.py
 
       - name: Validate portfolio execution and accounting
         run: python scripts/validate_portfolio_10k_state.py
@@ -57,7 +61,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No new live entries."
           else
-            git commit -m "Open validated 10K portfolio positions"
+            git commit -m "Open all validated 10K portfolio positions"
             git pull --rebase origin main
             git push
           fi
