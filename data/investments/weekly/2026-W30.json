@@ -239,7 +239,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-07-20T22:09:51+02:00",
+      "last_risk_review_at": "2026-07-20T23:33:56+02:00",
       "daily_trading_analysis": [
         {
           "review_date": "2026-07-20",
@@ -277,7 +277,26 @@
         "learning_adjustment": 0.0,
         "summary_pl": "Metoda weekly_trend wskazuje short. Score bazowy: -23, tygodniowy: -31. Reżim: trend_down:vol_normal.",
         "summary_en": "Method weekly_trend indicates short. Base score: -23, weekly score: -31. Regime: trend_down:vol_normal."
-      }
+      },
+      "daily_reviews": [
+        {
+          "review_date": "2026-07-20",
+          "reviewed_at": "2026-07-20T23:34:00+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "original_direction": "short",
+          "fresh_direction": "neutral",
+          "fresh_score": -33,
+          "fresh_signal_strength": 0.33,
+          "positive_groups": 0,
+          "negative_groups": 2,
+          "data_quality": "passed",
+          "decision": "keep",
+          "reason": "keep_original_thesis_not_invalidated"
+        }
+      ],
+      "last_daily_review_at": "2026-07-20T23:34:00+02:00",
+      "last_daily_review_decision": "keep",
+      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
     },
     {
       "instrument_id": "sp500_futures",
@@ -498,7 +517,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-07-20T22:09:51+02:00",
+      "last_risk_review_at": "2026-07-20T23:33:56+02:00",
       "daily_trading_analysis": [
         {
           "review_date": "2026-07-20",
@@ -536,7 +555,26 @@
         "learning_adjustment": 0.0,
         "summary_pl": "Metoda weekly_trend wskazuje long. Score bazowy: 11, tygodniowy: 67. Reżim: trend_up:vol_normal.",
         "summary_en": "Method weekly_trend indicates long. Base score: 11, weekly score: 67. Regime: trend_up:vol_normal."
-      }
+      },
+      "daily_reviews": [
+        {
+          "review_date": "2026-07-20",
+          "reviewed_at": "2026-07-20T23:34:00+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "original_direction": "long",
+          "fresh_direction": "neutral",
+          "fresh_score": 6,
+          "fresh_signal_strength": 0.06,
+          "positive_groups": 2,
+          "negative_groups": 1,
+          "data_quality": "passed",
+          "decision": "keep",
+          "reason": "keep_original_thesis_not_invalidated"
+        }
+      ],
+      "last_daily_review_at": "2026-07-20T23:34:00+02:00",
+      "last_daily_review_decision": "keep",
+      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
     },
     {
       "instrument_id": "btcusd",
@@ -757,7 +795,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-07-20T22:09:51+02:00",
+      "last_risk_review_at": "2026-07-20T23:33:56+02:00",
       "daily_trading_analysis": [
         {
           "review_date": "2026-07-20",
@@ -795,7 +833,26 @@
         "learning_adjustment": 0.0,
         "summary_pl": "Metoda weekly_trend wskazuje short. Score bazowy: -2, tygodniowy: -48. Reżim: trend_down:vol_normal.",
         "summary_en": "Method weekly_trend indicates short. Base score: -2, weekly score: -48. Regime: trend_down:vol_normal."
-      }
+      },
+      "daily_reviews": [
+        {
+          "review_date": "2026-07-20",
+          "reviewed_at": "2026-07-20T23:34:00+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "original_direction": "short",
+          "fresh_direction": "neutral",
+          "fresh_score": 19,
+          "fresh_signal_strength": 0.19,
+          "positive_groups": 1,
+          "negative_groups": 1,
+          "data_quality": "passed",
+          "decision": "keep",
+          "reason": "keep_original_thesis_not_invalidated"
+        }
+      ],
+      "last_daily_review_at": "2026-07-20T23:34:00+02:00",
+      "last_daily_review_decision": "keep",
+      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
     }
   ],
   "forecast_hash": "863703b113ce1396ae4d340e9e9471dd5ad5190e43b3d7f7d980640bbc8aeb95",
@@ -812,5 +869,20 @@
     "strategy_tournament": true,
     "daily_analysis": true,
     "last_checked_at": "2026-07-20T08:34:00+02:00"
+  },
+  "daily_position_review": {
+    "enabled": true,
+    "last_review_date": "2026-07-20",
+    "last_reviewed_at": "2026-07-20T23:34:00+02:00",
+    "local_time": "23:00 Europe/Warsaw",
+    "exit_rules": {
+      "confirmed_opposite_signal": true,
+      "directional_invalidation_score": 15,
+      "opposing_groups_required": 2,
+      "material_event_close_only": true,
+      "data_quality_failure_action": "keep_position_unless_material_event_request",
+      "execution": "last_completed_5m_bar",
+      "same_week_reentry": false
+    }
   }
 }
