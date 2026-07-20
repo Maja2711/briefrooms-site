@@ -9,7 +9,8 @@ on:
       - "scripts/update_investment_room_quotes_v2.py"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
-    - cron: "*/15 * * * *"
+    # Avoid the busiest quarter-hour boundaries, where GitHub may delay schedules.
+    - cron: "3,18,33,48 * * * *"
 
 permissions:
   contents: write
@@ -21,6 +22,7 @@ concurrency:
 jobs:
   update-investment-room-quotes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
