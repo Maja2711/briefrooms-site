@@ -14,10 +14,9 @@ on:
       - "tests/test_portfolio_10k_material_reports_ui.js"
       - ".github/workflows/portfolio-10k-live-entry.yml"
   schedule:
-    # Complete any still-pending European positions during the common session.
-    - cron: "50 14 * * 1-5"
-    - cron: "0 15 * * 1-5"
-    - cron: "10 15 * * 1-5"
+    # Retry pending instruments every 15 minutes while European/US markets may trade.
+    # The script is idempotent: an already active position is never opened again.
+    - cron: "7,22,37,52 7-16 * * 1-5"
 
 permissions:
   contents: write
@@ -33,6 +32,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
