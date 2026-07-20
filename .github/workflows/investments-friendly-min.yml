@@ -15,17 +15,25 @@ on:
           - close
           - render
   schedule:
-    - cron: "*/15 * * * *"
+    # Offset from quote updates so both jobs do not compete for main at once.
+    - cron: "8,23,38,53 * * * *"
 
 permissions:
   contents: write
 
+concurrency:
+  group: investment-weekly-pages
+  cancel-in-progress: false
+
 jobs:
   build-friendly-investments:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -76,10 +84,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/learning data/investments/macro_events.json data/investments/scenario_grades.json data/investments/reentry_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          # live_prices.json is owned exclusively by investment-room-quotes.yml.
+          # Discard the local model copy to prevent two workflows racing on one file.
+          git restore data/investments/live_prices.json
+          git add data/investments/weekly data/investments/learning data/investments/macro_events.json data/investments/scenario_grades.json data/investments/reentry_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No changes"
           else
             git commit -m "Update investment pages"
+            git pull --rebase origin main
             git push
           fi
