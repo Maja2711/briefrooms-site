@@ -1,28 +1,351 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BriefRooms</title><link rel="icon" href="/assets/favicon.svg">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BriefRooms</title>
+<link rel="icon" href="/assets/favicon.svg">
 <style>
-:root{--bg:#050b12;--line:rgba(255,255,255,.13);--txt:#eef7ff;--muted:#9fb2c8;--cyan:#38d6c9;--green:#52e38b;--red:#ff4d6d;--amber:#ffbf3f;--glass:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.04))}*{box-sizing:border-box}body{margin:0;color:var(--txt);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:radial-gradient(900px 520px at 10% -10%,rgba(56,214,201,.18),transparent 58%),linear-gradient(180deg,#050b12,#071321 45%,#081523);min-height:100vh}.page{max-width:1180px;margin:auto;padding:24px}a{color:inherit;text-decoration:none}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}.brand,.logo{display:flex;gap:10px;align-items:center}.brand-mark{display:inline-flex;align-items:center;justify-content:center;width:36px;height:32px;border-radius:11px;color:#08111d;background:linear-gradient(135deg,#087f9a,#23d5cc 38%,#78e7f7 70%,#d6fbff);font-size:14px;font-weight:950;letter-spacing:-.08em}.brand-name{font-size:26px;font-weight:950;letter-spacing:-.04em}.nav{display:flex;gap:9px;flex-wrap:wrap}.nav a{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);border-radius:999px;padding:9px 12px;font-size:13px}.nav a.active{color:#062026;background:linear-gradient(135deg,var(--cyan),#52e38b);font-weight:900}.lang{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:13px;padding:10px 14px;font-weight:900}h1{font-size:clamp(38px,6vw,70px);line-height:1;margin:34px 0 8px;letter-spacing:-.06em}.quotes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0}.quote,.card,.model{border:1px solid rgba(255,255,255,.12);border-radius:22px;background:rgba(3,10,18,.52);padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08)}.quote small{display:block;color:#8fa4b8;text-transform:uppercase;font-size:11px;font-weight:900}.quote h3{margin:8px 0 14px}.value{font-size:30px;font-weight:950}.chg{display:inline-flex;margin-top:8px;border-radius:999px;padding:5px 9px;background:rgba(255,255,255,.06);font-size:12px;font-weight:900}.up{color:var(--green)}.down{color:var(--red)}.meta{margin-top:10px;color:#7f95aa;font-size:11px}.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:18px}.card{display:block;background:var(--glass);min-height:190px}.card.weekly{background:linear-gradient(135deg,rgba(59,130,246,.19),rgba(15,23,42,.18) 58%),var(--glass);border-color:rgba(96,165,250,.38);box-shadow:0 20px 48px rgba(15,45,92,.28),inset 4px 0 0 rgba(96,165,250,.72),inset 0 1px 0 rgba(255,255,255,.10)}.card.portfolio{background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(14,116,144,.12) 62%),var(--glass);border-color:rgba(52,211,153,.38);box-shadow:0 20px 48px rgba(4,67,57,.25),inset 4px 0 0 rgba(52,211,153,.72),inset 0 1px 0 rgba(255,255,255,.10)}.card.scenario{background:linear-gradient(135deg,rgba(245,158,11,.17),rgba(124,58,237,.11) 68%),var(--glass);border-color:rgba(251,191,36,.36);box-shadow:0 20px 48px rgba(74,48,12,.24),inset 4px 0 0 rgba(251,191,36,.72),inset 0 1px 0 rgba(255,255,255,.10)}.card.weekly,.card.portfolio,.card.scenario{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}.card.weekly:hover,.card.portfolio:hover,.card.scenario:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.45);box-shadow:0 26px 58px rgba(0,0,0,.34),inset 4px 0 0 currentColor,inset 0 1px 0 rgba(255,255,255,.13)}.card span{display:inline-flex;border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.07);color:#9ffff6;font-size:12px;font-weight:900}.card h2{font-size:30px;margin:18px 0 10px}.card p{color:#bfd0e0;line-height:1.6}.row{display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.1);padding:12px 0}.row:last-child{border-bottom:0}.row small{display:block;color:#8fa4b8}.pos{font-weight:950}.short{color:var(--red)}.long{color:var(--green)}.watch{color:var(--amber)}.closed{color:var(--amber);font-size:12px;letter-spacing:.025em}.neutral{color:#94a3b8}.legal,footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;color:#7f93a8;font-size:12px}@media(max-width:900px){.nav{display:none}.quotes,.hero,.grid{grid-template-columns:1fr}.brand-name{font-size:24px}}
-.xtb-brand{display:inline-flex!important;align-items:center!important;gap:5px!important;color:#e51b24!important;font-weight:950!important;letter-spacing:.035em!important;white-space:nowrap!important;vertical-align:-2px!important}.xtb-mark{display:block;width:18px;height:14px;fill:#e51b24;filter:drop-shadow(0 0 5px rgba(229,27,36,.22))}.xtb-word{color:#e51b24!important;font:950 .96em/1 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;letter-spacing:.035em!important}</style>
-<link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+:root{
+  --bg:#050b12;
+  --line:rgba(255,255,255,.13);
+  --txt:#eef7ff;
+  --muted:#9fb2c8;
+  --cyan:#38d6c9;
+  --green:#52e38b;
+  --red:#ff4d6d;
+  --amber:#ffbf3f;
+  --glass:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.04));
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  color:var(--txt);
+  font-family:Inter,system-ui,"Segoe UI",Arial,sans-serif;
+  background:
+    radial-gradient(900px 520px at 10% -10%,rgba(56,214,201,.18),transparent 58%),
+    radial-gradient(820px 540px at 82% 0%,rgba(255,191,63,.09),transparent 54%),
+    linear-gradient(180deg,#050b12,#071321 45%,#081523);
+  min-height:100vh;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.36;
+  background:
+    linear-gradient(rgba(255,255,255,.026) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+.page{max-width:1180px;margin:auto;padding:24px;position:relative;z-index:1}
+a{color:inherit;text-decoration:none}
+h1{
+  font-size:clamp(38px,6vw,70px);
+  line-height:1;
+  margin:34px 0 8px;
+  letter-spacing:-.06em;
+}
+
+/* Quotes are deliberately secondary: compact strip, not hero cards. */
+.quotes{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin:14px 0 22px;
+}
+.quote{
+  min-width:0;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  background:rgba(3,10,18,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+}
+.quote small{
+  display:block;
+  overflow:hidden;
+  color:#7f95aa;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.035em;
+  text-overflow:ellipsis;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.quote h3{
+  overflow:hidden;
+  margin:3px 0 5px;
+  color:#dce9f5;
+  font-size:13px;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.quote-main{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.value{
+  min-width:0;
+  overflow:hidden;
+  font-size:20px;
+  font-weight:950;
+  letter-spacing:-.025em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.chg{
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  min-height:22px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(255,255,255,.055);
+  font-size:10px;
+  font-weight:900;
+}
+.up{color:var(--green)}
+.down{color:var(--red)}
+.meta{
+  overflow:hidden;
+  margin-top:5px;
+  color:#6f8599;
+  font-size:8.5px;
+  line-height:1.2;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.quote-error{grid-column:1/-1}
+
+/* The three products are now the visual priority. */
+.focus-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+.card,.model{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  background:rgba(3,10,18,.52);
+  box-shadow:0 18px 44px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.card{
+  display:flex;
+  min-height:270px;
+  flex-direction:column;
+  padding:24px;
+  background:var(--glass);
+}
+.card.weekly{
+  background:linear-gradient(135deg,rgba(59,130,246,.22),rgba(15,23,42,.18) 60%),var(--glass);
+  border-color:rgba(96,165,250,.48);
+  box-shadow:0 22px 52px rgba(15,45,92,.30),inset 4px 0 0 rgba(96,165,250,.82),inset 0 1px 0 rgba(255,255,255,.11);
+}
+.card.portfolio{
+  background:linear-gradient(135deg,rgba(16,185,129,.21),rgba(14,116,144,.13) 62%),var(--glass);
+  border-color:rgba(52,211,153,.46);
+  box-shadow:0 22px 52px rgba(4,67,57,.27),inset 4px 0 0 rgba(52,211,153,.82),inset 0 1px 0 rgba(255,255,255,.11);
+}
+.card.scenario{
+  background:linear-gradient(135deg,rgba(245,158,11,.20),rgba(124,58,237,.12) 68%),var(--glass);
+  border-color:rgba(251,191,36,.44);
+  box-shadow:0 22px 52px rgba(74,48,12,.26),inset 4px 0 0 rgba(251,191,36,.82),inset 0 1px 0 rgba(255,255,255,.11);
+}
+.card.weekly,.card.portfolio,.card.scenario{
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.card.weekly:hover,.card.portfolio:hover,.card.scenario:hover{
+  transform:translateY(-4px);
+  border-color:rgba(255,255,255,.50);
+  box-shadow:0 28px 62px rgba(0,0,0,.36),inset 4px 0 0 currentColor,inset 0 1px 0 rgba(255,255,255,.14);
+}
+.card > span{
+  align-self:flex-start;
+  display:inline-flex;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.075);
+  color:#9ffff6;
+  font-size:12px;
+  font-weight:900;
+}
+.card h2{
+  margin:20px 0 10px;
+  font-size:clamp(25px,2.4vw,32px);
+  line-height:1.06;
+  letter-spacing:-.035em;
+}
+.card p{
+  margin:0 0 20px;
+  color:#bfd0e0;
+  font-size:14px;
+  line-height:1.58;
+}
+.card > b{margin-top:auto;color:#9ffff6}
+
+/* Model direction stays available, but no longer competes with the three main entries. */
+.model{margin-top:18px;padding:15px 18px}
+.model-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.model-head h2{margin:0;font-size:20px;letter-spacing:-.025em}
+.model-head span{
+  color:#7f95aa;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+.model-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.row{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 14px;
+  border-left:1px solid rgba(255,255,255,.09);
+}
+.row:first-child{border-left:0}
+.row b{font-size:13px}
+.row small{display:block;color:#7f95aa;font-size:10px}
+.pos{flex:0 0 auto;font-size:12px;font-weight:950}
+.short{color:var(--red)}
+.long,.bullish{color:var(--green)}
+.watch{color:var(--amber)}
+.closed{color:var(--amber);font-size:10px;letter-spacing:.02em}
+.neutral{color:#94a3b8}
+
+.legal,footer{
+  margin-top:30px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+  color:#7f93a8;
+  font-size:12px;
+}
+.xtb-brand{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  color:#e51b24!important;
+  font-weight:950!important;
+  letter-spacing:.035em!important;
+  white-space:nowrap!important;
+  vertical-align:-2px!important;
+}
+.xtb-mark{display:block;width:18px;height:14px;fill:#e51b24;filter:drop-shadow(0 0 5px rgba(229,27,36,.22))}
+.xtb-word{color:#e51b24!important;font:950 .96em/1 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;letter-spacing:.035em!important}
+
+@media(max-width:1050px){
+  .focus-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card.weekly{grid-column:1/-1;min-height:220px}
+}
+@media(max-width:760px){
+  .page{padding:18px 14px 28px}
+  h1{margin-top:26px}
+  .quotes{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0 16px}
+  .quote{padding:9px 10px;border-radius:12px}
+  .quote small{font-size:8px}
+  .quote h3{font-size:11.5px}
+  .value{font-size:16px}
+  .chg{min-height:19px;padding:2px 6px;font-size:8.5px}
+  .meta{font-size:7.8px}
+  .focus-grid{grid-template-columns:1fr;gap:14px}
+  .card.weekly{grid-column:auto}
+  .card{min-height:220px;padding:21px}
+  .card h2{font-size:26px}
+  .card p{font-size:13px;line-height:1.52}
+  .model{padding:14px}
+  .model-head{margin-bottom:10px}
+  .model-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .row,.row:first-child{
+    padding:9px 10px;
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:11px;
+    background:rgba(255,255,255,.018);
+  }
+  .row b{font-size:11.5px}
+  .row small{font-size:8.5px}
+  .pos{font-size:10px}
+  .closed{font-size:8.5px}
+}
+@media(max-width:390px){
+  .quote{padding:8px}
+  .value{font-size:15px}
+  .quote h3{font-size:11px}
+  .card{min-height:210px;padding:19px}
+}
+@media(prefers-reduced-motion:reduce){
+  .card.weekly,.card.portfolio,.card.scenario{transition:none}
+}
+</style>
+<link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
 <script src="/scripts/site-header.js?v=20260719-1" defer></script>
 </head>
 <body>
-<header id="site-header"></header><div class="page">
+<header id="site-header"></header>
+<div class="page">
+  <h1>Investing</h1>
 
-<h1>Investing</h1>
-<section class="quotes" id="quotes"><div class="quote">Loading quotes…</div></section>
-<section class="hero"><a class="card weekly" href="/en/investing/weekly-forecasts.html"><span>Weekly</span><h2>Weekly positions</h2><p>EUR/USD, S&amp;P 500 futures and BTC/USD: price now, SL/TP, result, close and history.</p><b style="color:#9ffff6">Open →</b></a><aside class="model"><h2>Model direction</h2><div class="row" data-model-id="eurusd"><div><b>EUR/USD</b><small>FX</small></div><div class="pos short">SHORT</div></div><div class="row" data-model-id="sp500_futures"><div><b>S&amp;P 500 futures</b><small>index</small></div><div class="pos long">LONG</div></div><div class="row"><div><b>US 10Y</b><small>US 10Y bonds</small></div><div class="pos watch">WATCH</div></div><div class="row" data-model-id="btcusd"><div><b>BTC/USD</b><small>crypto</small></div><div class="pos long">LONG</div></div></aside></section>
-<section class="grid"><a class="card portfolio" href="/en/investing/portfolio-10k.html"><span>Public portfolio</span><h2>10K Investing</h2><p>An <span class="xtb-brand" aria-label="XTB"><svg class="xtb-mark" viewBox="0 0 28 22" aria-hidden="true"><path d="M1 2h7.2L14 8.2 19.8 2H27l-9.2 10L27 20h-7.2L14 15.8 8.2 20H1l9.2-8z"/></svg><span class="xtb-word">XTB</span></span> model portfolio starting with PLN 10,000: entry prices, current performance, benchmark, dividends, theses, risks and a weekly decision journal.</p><b style="color:#9ffff6">View portfolio →</b></a><a class="card scenario" href="/en/investing/spx-scenarios-2026.html"><span>Scenarios</span><h2>S&amp;P 500 scenarios</h2><p>Macro, liquidity, recession risk, valuations and possible index paths.</p><b style="color:#9ffff6">Open →</b></a></section>
-<p class="legal">Content is educational and analytical. It is not investment advice or financial advice.</p><footer>© 2026 BriefRooms · <a href="/en/">Back to home</a></footer>
-</div><script>
+  <section class="quotes" id="quotes" aria-label="Current market quotes" aria-live="polite">
+    <div class="quote quote-error">Loading quotes…</div>
+  </section>
+
+  <section class="focus-grid" aria-label="Key investing sections">
+    <a class="card weekly" href="/en/investing/weekly-forecasts.html">
+      <span>Weekly</span>
+      <h2>Weekly positions</h2>
+      <p>EUR/USD, S&amp;P 500 futures and BTC/USD: price now, SL/TP, result, close and history.</p>
+      <b>Open →</b>
+    </a>
+
+    <a class="card portfolio" href="/en/investing/portfolio-10k.html">
+      <span>Public portfolio</span>
+      <h2>10K Investing</h2>
+      <p>An <span class="xtb-brand" aria-label="XTB"><svg class="xtb-mark" viewBox="0 0 28 22" aria-hidden="true"><path d="M1 2h7.2L14 8.2 19.8 2H27l-9.2 10L27 20h-7.2L14 15.8 8.2 20H1l9.2-8z"/></svg><span class="xtb-word">XTB</span></span> model portfolio starting with PLN 10,000: entry prices, current performance, benchmark, dividends, theses, risks and a weekly decision journal.</p>
+      <b>View portfolio →</b>
+    </a>
+
+    <a class="card scenario" href="/en/investing/spx-scenarios-2026.html">
+      <span>Scenarios</span>
+      <h2>S&amp;P 500 scenarios</h2>
+      <p>Macro, liquidity, recession risk, valuations and possible index paths.</p>
+      <b>Open →</b>
+    </a>
+  </section>
+
+  <aside class="model">
+    <div class="model-head"><h2>Model direction</h2><span>Supporting panel</span></div>
+    <div class="model-grid">
+      <div class="row" data-model-id="eurusd"><div><b>EUR/USD</b><small>FX</small></div><div class="pos short">SHORT</div></div>
+      <div class="row" data-model-id="sp500_futures"><div><b>S&amp;P 500 futures</b><small>index</small></div><div class="pos long">LONG</div></div>
+      <div class="row"><div><b>US 10Y</b><small>US 10Y bonds</small></div><div class="pos watch">WATCH</div></div>
+      <div class="row" data-model-id="btcusd"><div><b>BTC/USD</b><small>crypto</small></div><div class="pos long">LONG</div></div>
+    </div>
+  </aside>
+
+  <p class="legal">Content is educational and analytical. It is not investment advice or financial advice.</p>
+  <footer>© 2026 BriefRooms · <a href="/en/">Back to home</a></footer>
+</div>
+<script>
 const ORDER=['eurusd','sp500','us10y','btcusd'];
 function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function fmt(q){if(!q||q.close===null||q.close===undefined||!Number.isFinite(Number(q.close)))return '—';const v=Number(q.close),d=Number(q.decimals??2);return v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})+(q.unit||'');}
 function chg(q){const v=Number(q&&q.change_percent);if(!Number.isFinite(v))return '<span class="chg">—</span>';const cls=v>0?'up':v<0?'down':'';return '<span class="chg '+cls+'">'+(v>0?'+':'')+v.toFixed(2)+'%</span>';}
-function card(q){return '<article class="quote"><small>'+esc(q.kind_en||'')+'</small><h3>'+esc(q.label_en||q.key)+'</h3><div class="value">'+fmt(q)+'</div>'+chg(q)+'<div class="meta">change from open · '+esc(q.symbol||'')+'<br>'+esc(q.date||'')+' '+esc(q.time||'')+'</div></article>';}
-async function loadQuotes(){try{const r=await fetch('/data/investments/room_quotes.json?v='+Date.now(),{cache:'no-store'}),data=await r.json(),q=data.quotes||{};document.getElementById('quotes').innerHTML=ORDER.map(k=>card(q[k]||{key:k,label_en:k})).join('');}catch(e){document.getElementById('quotes').innerHTML='<div class="quote">Could not load quotes.</div>';}}
+function card(q){return '<article class="quote"><small>'+esc(q.kind_en||'')+'</small><h3>'+esc(q.label_en||q.key)+'</h3><div class="quote-main"><div class="value">'+fmt(q)+'</div>'+chg(q)+'</div><div class="meta">'+esc(q.symbol||'')+' · '+esc(q.date||'')+' '+esc(q.time||'')+'</div></article>';}
+async function loadQuotes(){try{const r=await fetch('/data/investments/room_quotes.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('quotes');const data=await r.json(),q=data.quotes||{};document.getElementById('quotes').innerHTML=ORDER.map(k=>card(q[k]||{key:k,label_en:k})).join('');}catch(e){document.getElementById('quotes').innerHTML='<div class="quote quote-error">Could not load quotes.</div>';}}
 loadQuotes();
-</script><script>(function(){const closedText='POSITION CLOSED!',noTradeText='NO POSITION';function isoWeek(d){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())),day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);const y=new Date(Date.UTC(x.getUTCFullYear(),0,1));return x.getUTCFullYear()+'-W'+String(Math.ceil((((x-y)/86400000)+1)/7)).padStart(2,'0')}async function latestWeek(){for(let i=0;i<8;i++){const d=new Date();d.setUTCDate(d.getUTCDate()-i*7);try{const r=await fetch('/data/investments/weekly/'+isoWeek(d)+'.json?v='+Date.now(),{cache:'no-store'});if(r.ok)return r.json()}catch(e){}}return null}function apply(it){const el=document.querySelector('[data-model-id="'+it.instrument_id+'"] .pos');if(!el)return;const closed=it.trade_status==='closed'||(it.exit_price!==null&&it.exit_price!==undefined&&it.exit_price!=='');const noTrade=it.trade_status==='no_trade'||it.direction==='neutral';if(closed){el.textContent=closedText;el.className='pos closed'}else if(noTrade){el.textContent=noTradeText;el.className='pos neutral'}else{el.textContent=String(it.direction||'neutral').toUpperCase();el.className='pos '+(it.direction==='short'?'short':it.direction==='long'?'long':'neutral')}}latestWeek().then(w=>(w?.instruments||[]).forEach(apply));})();</script></body></html>
+setInterval(loadQuotes,15*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadQuotes();});
+</script>
+<script>
+(function(){
+  const closedText='POSITION CLOSED!';
+  const noTradeText='NO POSITION';
+  function isoWeek(d){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);const y=new Date(Date.UTC(x.getUTCFullYear(),0,1));return x.getUTCFullYear()+'-W'+String(Math.ceil((((x-y)/86400000)+1)/7)).padStart(2,'0');}
+  async function latestWeek(){for(let i=0;i<8;i++){const d=new Date();d.setUTCDate(d.getUTCDate()-i*7);try{const r=await fetch('/data/investments/weekly/'+isoWeek(d)+'.json?v='+Date.now(),{cache:'no-store'});if(r.ok)return r.json();}catch(e){}}return null;}
+  function apply(it){const el=document.querySelector('[data-model-id="'+it.instrument_id+'"] .pos');if(!el)return;const closed=it.trade_status==='closed'||(it.exit_price!==null&&it.exit_price!==undefined&&it.exit_price!=='');const noTrade=it.trade_status==='no_trade'||it.direction==='neutral';if(closed){el.textContent=closedText;el.className='pos closed';}else if(noTrade){el.textContent=noTradeText;el.className='pos neutral';}else{el.textContent=String(it.direction||'neutral').toUpperCase();el.className='pos '+(it.direction==='short'?'short':it.direction==='long'?'long':'neutral');}}
+  latestWeek().then(w=>(w?.instruments||[]).forEach(apply));
+})();
+</script>
+</body>
+</html>
