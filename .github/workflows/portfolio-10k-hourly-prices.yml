@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
+      - "scripts/patch_portfolio_10k_hourly_ui.py"
       - "scripts/portfolio-10k-public.js"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
@@ -42,17 +43,21 @@ jobs:
       - name: Refresh current prices and portfolio valuation
         run: python scripts/portfolio_10k_hourly_prices.py
 
+      - name: Apply one-time PL and EN hourly-price UI patch
+        if: ${{ hashFiles('scripts/patch_portfolio_10k_hourly_ui.py') != '' }}
+        run: python scripts/patch_portfolio_10k_hourly_ui.py
+
       - name: Validate accounting consistency
         run: python scripts/validate_portfolio_10k_state.py
 
       - name: Validate public JavaScript
         run: node --check scripts/portfolio-10k-public.js
 
-      - name: Commit hourly valuation
+      - name: Commit hourly valuation and UI
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k.json
+          git add -A
           if git diff --cached --quiet; then
             echo "No hourly valuation change to commit."
           else
