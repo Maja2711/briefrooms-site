@@ -34,6 +34,8 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      artifact_sha: ${{ steps.artifact.outputs.sha }}
     steps:
       - name: Checkout latest main
         uses: actions/checkout@v6
@@ -45,6 +47,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_homepage_static.py"
 
       - name: Build clean production artifact
+        id: artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -72,6 +75,7 @@ jobs:
 
           DEPLOYED_SHA="$(git rev-parse HEAD)"
           DEPLOYED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "sha=${DEPLOYED_SHA}" >> "$GITHUB_OUTPUT"
           cat > _site/build-version.json <<EOF
           {
             "repository": "Maja2711/briefrooms-site",
@@ -100,3 +104,43 @@ jobs:
       - name: Deploy exact main artifact
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verify:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify production SHA and static homepage cards
+        env:
+          EXPECTED_SHA: ${{ needs.build.outputs.artifact_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACTUAL_SHA=""
+          for attempt in $(seq 1 12); do
+            VERSION_JSON="$(curl --silent --show-error --location \
+              --header 'Cache-Control: no-cache' \
+              "https://briefrooms.com/build-version.json?sha=${EXPECTED_SHA}&attempt=${attempt}" || true)"
+            ACTUAL_SHA="$(python -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' \
+              <<<"${VERSION_JSON}" 2>/dev/null || true)"
+            if [[ "${ACTUAL_SHA}" == "${EXPECTED_SHA}" ]]; then
+              break
+            fi
+            sleep 10
+          done
+
+          if [[ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]]; then
+            echo "Production SHA mismatch: expected ${EXPECTED_SHA}, got ${ACTUAL_SHA:-missing}."
+            exit 1
+          fi
+
+          for page in pl en; do
+            HTML="$(curl --fail --silent --show-error --location \
+              --header 'Cache-Control: no-cache' \
+              "https://briefrooms.com/${page}/?sha=${EXPECTED_SHA}")"
+            grep -q '<!-- HOME_BRIEFS_START -->' <<<"${HTML}"
+            grep -q 'class="brief-card"' <<<"${HTML}"
+          done
+
+          echo "Production matches ${EXPECTED_SHA}."
