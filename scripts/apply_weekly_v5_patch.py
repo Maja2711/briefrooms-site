@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+# One-time atomic installer; the workflow removes this file after verification.
 import base64
 import gzip
 import json
