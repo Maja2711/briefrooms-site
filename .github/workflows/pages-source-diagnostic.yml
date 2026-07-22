@@ -21,20 +21,37 @@ jobs:
           ref: main
           fetch-depth: 1
 
-      - name: Read actual GitHub Pages configuration
+      - name: Read actual GitHub Pages configuration and latest build
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p data
-          curl --fail-with-body --silent --show-error \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
+          headers=(
+            -H 'Accept: application/vnd.github+json'
+            -H "Authorization: Bearer ${GH_TOKEN}"
+            -H 'X-GitHub-Api-Version: 2022-11-28'
+          )
+          curl --fail-with-body --silent --show-error "${headers[@]}" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" \
-            > data/pages_source_diagnostic.json
-          python -m json.tool data/pages_source_diagnostic.json
+            > /tmp/pages.json
+          curl --fail-with-body --silent --show-error "${headers[@]}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds/latest" \
+            > /tmp/latest-build.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = {
+              'pages': json.loads(Path('/tmp/pages.json').read_text()),
+              'latest_build': json.loads(Path('/tmp/latest-build.json').read_text()),
+          }
+          Path('data/pages_source_diagnostic.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
+          )
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
 
       - name: Publish diagnostic result
         shell: bash
