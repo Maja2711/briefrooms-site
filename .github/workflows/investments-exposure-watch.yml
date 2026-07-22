@@ -1,4 +1,4 @@
-name: Continuous Weekly Paper Exposure Watch
+name: Governed Weekly Paper Exposure Watch
 
 on:
   workflow_dispatch:
@@ -8,10 +8,14 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/investments_weekly_v4.py"
-      - "scripts/investments_weekly_v4_cli.py"
+      - "scripts/investments_weekly_v5.py"
+      - "scripts/apply_instrument_validation_gate.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
+      - "scripts/render_weekly_public_pages.py"
+      - "scripts/render_simple_investments.py"
+      - "scripts/investments-weekly-governance.js"
+      - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/investments-exposure-watch.yml"
 
@@ -23,46 +27,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  monitor-continuous-exposure:
+  monitor-governed-exposure:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install market data dependency
+      - name: Install market-data dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
       - name: Recover a missing current-week paper forecast
         run: python scripts/ensure_current_week_forecast.py
 
-      - name: Check SL TP and maintain all weekly paper positions
-        run: python scripts/investments_weekly_v4_cli.py --mode close
+      - name: Apply shared validation gate before any entry
+        run: python scripts/apply_instrument_validation_gate.py
+
+      - name: Check SL TP and scheduled closes under model v5
+        run: python scripts/investments_weekly_v5.py --mode close
 
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
 
-      - name: Re-enter every instrument after a close during the active weekly window
-        run: python scripts/investments_weekly_v4_cli.py --mode ensure-exposure
+      - name: Re-evaluate exposure with NO_TRADE and re-entry locks
+        run: python scripts/investments_weekly_v5.py --mode ensure-exposure
 
-      - name: Render public investment pages
+      - name: Re-apply shared validation gate as defense in depth
+        run: python scripts/apply_instrument_validation_gate.py
+
+      - name: Render Polish and English public pages
         run: python scripts/render_simple_investments.py
 
-      - name: Commit paper-position updates
+      - name: Commit governed paper-position updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/multi_instrument_exposure_state.json data/investments/multi_instrument_exposure_report.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json \
+                  data/investments/weekly \
+                  data/investments/daily_review_report.json \
+                  data/investments/event_exit_requests.json \
+                  data/investments/multi_instrument_exposure_state_v5.json \
+                  data/investments/multi_instrument_exposure_report_v5.json \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
-            echo "No continuous exposure changes to commit."
+            echo "No governed exposure changes to commit."
           else
-            git commit -m "Maintain all weekly paper positions"
+            git commit -m "Maintain governed weekly paper positions"
             git pull --rebase origin main
             git push
           fi
