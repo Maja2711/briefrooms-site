@@ -214,7 +214,7 @@
           saveLastGood(combined);
           return true;
         }
-        return false;
+        return renderUnavailable();
       })
       .catch(function(){
         var lastResort = usableItems((seed || []).concat(cached || []));
