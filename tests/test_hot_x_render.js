@@ -27,8 +27,7 @@ function item(index) {
     title_en: `English topic number ${index}`,
     comment_pl: longPl,
     comment_en: longEn,
-    tweet_url: index === 0 ? 'https://x.com/briefrooms/status/100?utm_source=test' : '',
-    search_url: `https://x.com/search?q=topic%20${index}&src=typed_query&f=top`,
+    tweet_url: `https://x.com/briefrooms/status/${100 + index}?utm_source=test`,
     image: '/assets/hot-x/topic-news.svg',
   };
 }
@@ -52,19 +51,17 @@ function fakeToggle() {
   return { feed, button, classes };
 }
 
-const selected = hot.usableItems(Array.from({ length: 8 }, (_, index) => item(index)));
-assert.strictEqual(selected.length, 8, 'eight unique cards are accepted');
+const selected = hot.usableItems(Array.from({ length: 10 }, (_, index) => item(index)));
+assert.strictEqual(selected.length, 10, 'ten unique cards are accepted');
 
 let labels = hot.labels();
 const markup = selected.map((value, index) => hot.cardHtml(value, index, labels)).join('');
-assert.strictEqual((markup.match(/hot-x-extra/g) || []).length, 6, 'six cards are hidden before expansion');
-assert.ok(!selected.slice(0, 2).map((value, index) => hot.cardHtml(value, index, labels)).join('').includes('hot-x-extra'), 'the first two cards are visible');
+assert.strictEqual((markup.match(/hot-x-extra/g) || []).length, 7, 'seven cards are hidden before expansion');
+assert.ok(!selected.slice(0, 3).map((value, index) => hot.cardHtml(value, index, labels)).join('').includes('hot-x-extra'), 'the first three cards are visible');
 assert.ok(hot.moreButtonHtml(labels).includes('aria-expanded="false"'), 'the button starts collapsed');
 assert.ok(hot.moreButtonHtml(labels).includes('Więcej z X'), 'the Polish button starts with the correct text');
 assert.ok(markup.includes('Konkretny post'), 'direct posts receive the Polish type label');
-assert.ok(markup.includes('Przegląd dyskusji'), 'search links receive the Polish type label');
 assert.ok(markup.includes('Otwórz post na X →'), 'direct post CTA is correct');
-assert.ok(markup.includes('Otwórz dyskusję na X →'), 'discussion CTA is correct');
 
 const plToggle = fakeToggle();
 hot.attachToggle(plToggle.feed, plToggle.button, labels);
@@ -86,7 +83,6 @@ labels = hot.labels();
 assert.strictEqual(labels.more, 'More from X');
 assert.strictEqual(labels.less, 'Show less');
 assert.strictEqual(labels.postType, 'Specific post');
-assert.strictEqual(labels.searchType, 'Discussion overview');
 
 const enToggle = fakeToggle();
 hot.attachToggle(enToggle.feed, enToggle.button, labels);
@@ -119,8 +115,8 @@ global.fetch = async () => ({ ok: true, json: async () => ({ items: selected }) 
 
 hot.renderEmergency([], []).then(rendered => {
   assert.ok(rendered, 'emergency data prevents an empty first visit');
-  assert.strictEqual(emergencyFeed['data-hot-x-count'], '8');
-  console.log('Hot X renderer tests passed: PL/EN 2 -> 8 -> 2, labels, aria, strict language and emergency fallback.');
+  assert.strictEqual(emergencyFeed['data-hot-x-count'], '10');
+  console.log('Hot X renderer tests passed: PL/EN 3 -> 10 -> 3, labels, aria, strict language and emergency fallback.');
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;

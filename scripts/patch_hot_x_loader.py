@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 FILES = [Path("pl/index.html"), Path("en/index.html")]
-NEW = "/scripts/hot-x-render.js?v=circulating-x-6"
+NEW = "/scripts/hot-x-render.js?v=manual-curated-x-1"
 SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js\?v=[^"\']+["\']\s+defer></script>\s*', re.I)
 
 for path in FILES:

@@ -1,8 +1,8 @@
 (function(){
   'use strict';
 
-  var TOTAL_ITEMS = 8;
-  var INITIAL_VISIBLE_ITEMS = 2;
+  var TOTAL_ITEMS = 10;
+  var INITIAL_VISIBLE_ITEMS = 3;
   var TRACKING_PARAMS = /^(?:src|ref|ref_src|s|t|twclid|utm_.+)$/i;
 
   function esc(value){
@@ -170,7 +170,7 @@
   }
 
   function cacheKey(){
-    return 'briefrooms_hot_x_last_good_v4_'+lang();
+    return 'briefrooms_hot_x_last_good_v5_'+lang();
   }
 
   function saveLastGood(items){
