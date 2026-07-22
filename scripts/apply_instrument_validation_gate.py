@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Apply per-instrument validation policy to model v2 forecasts.
+"""Apply one validation gate to every weekly model layer.
 
-An instrument that failed the fixed-rule historical test is forced to neutral
-before the entry window. An already opened position is not rewritten or deleted:
-it is marked as grandfathered and remains subject to SL/TP and the once-daily
-position review. Closed and legacy weeks are never rewritten by this gate.
+The gate only controls new entries. Existing open positions are grandfathered and
+remain managed by their frozen SL/TP and thesis rules. Closed history is never
+rewritten.
 """
 from __future__ import annotations
 
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-METHOD = ROOT / "data" / "investments" / "methodology.json"
-WEEKLY = ROOT / "data" / "investments" / "weekly"
+METHOD = ROOT / "data/investments/methodology.json"
+WEEKLY = ROOT / "data/investments/weekly"
 TZ = ZoneInfo("Europe/Warsaw")
 
 
@@ -32,63 +30,78 @@ def write(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
+def is_open(item: Dict[str, Any]) -> bool:
+    return item.get("entry_price") is not None and item.get("exit_price") is None and item.get("direction") in {"long", "short"}
+
+
+def is_closed(item: Dict[str, Any]) -> bool:
+    return item.get("entry_price") is not None and item.get("exit_price") is not None
+
+
+def apply_item(item: Dict[str, Any], cfg: Dict[str, Any]) -> bool:
+    enabled = bool(cfg.get("enabled_for_new_positions", False))
+    reason = str(cfg.get("validation_gate_reason") or "instrument_not_validated")
+    if enabled:
+        marker = "enabled_for_paper_trading"
+        if item.get("validation_gate") == marker and item.get("validation_gate_reason") is None:
+            return False
+        item["validation_gate"] = marker
+        item["validation_gate_reason"] = None
+        return True
+
+    if is_open(item):
+        marker = "grandfathered_existing_position_no_new_entries"
+        if item.get("validation_gate") == marker and item.get("validation_gate_reason") == reason:
+            return False
+        item["validation_gate"] = marker
+        item["validation_gate_reason"] = reason
+        item["validation_gate_note"] = (
+            "Existing position preserved; frozen risk controls remain active, but no model layer may open a new leg."
+        )
+        return True
+
+    if is_closed(item):
+        changed = item.get("validation_gate") != reason or item.get("next_entry_status") != "no_trade"
+        item["validation_gate"] = reason
+        item["validation_gate_reason"] = reason
+        item["next_entry_status"] = "no_trade"
+        item["next_entry_reason"] = "blocked_by_common_validation_gate"
+        return changed
+
+    before = (item.get("direction"), item.get("trade_status"), item.get("validation_gate"))
+    item["pre_gate_direction"] = item.get("direction")
+    item["pre_gate_score"] = item.get("score")
+    item.update({
+        "direction": "neutral", "score": 0, "trade_status": "no_trade",
+        "entry_quality_status": "blocked_by_common_validation_gate", "risk_plan": None,
+        "result": "no_trade", "result_value": 0.0, "result_percent": 0.0,
+        "validation_gate": reason, "validation_gate_reason": reason,
+        "no_trade_decision": True, "no_trade_reason": "blocked_by_common_validation_gate",
+        "rationale_pl": ["Brak pozycji: wspólna bramka walidacyjna nie dopuściła instrumentu do nowych wejść."],
+        "rationale_en": ["No position: the shared validation gate did not approve the instrument for new entries."],
+    })
+    return before != (item.get("direction"), item.get("trade_status"), item.get("validation_gate"))
+
+
 def main() -> None:
     method = read(METHOD, {})
-    policy = {str(x.get("id")): x for x in method.get("instruments", [])}
+    policy = {str(row.get("id")): row for row in method.get("instruments", [])}
     changed_files = 0
-    for path in sorted(WEEKLY.glob("*.json"), reverse=True)[:4]:
+    # The gate is defensive and version-independent. Limiting to recent files avoids
+    # mutating archived legacy history while still covering the active/future weeks.
+    for path in sorted(WEEKLY.glob("*.json"), reverse=True)[:8]:
         week = read(path, {})
-        if not str(week.get("method_version") or "").startswith("2."):
-            continue
         changed = False
         for item in week.get("instruments", []):
-            inst_id = str(item.get("instrument_id") or "")
-            cfg = policy.get(inst_id, {})
-            enabled = bool(cfg.get("enabled_for_new_positions", False))
-            if enabled:
-                if item.get("validation_gate") != "enabled_for_paper_trading":
-                    item["validation_gate"] = "enabled_for_paper_trading"
-                    changed = True
-                continue
-
-            reason = str(cfg.get("validation_gate_reason") or "instrument_not_validated")
-            if item.get("entry_price") is not None:
-                # Do not rewrite an existing position after entry. Block only new
-                # positions and keep managing this one through saved exit rules.
-                marker = "grandfathered_existing_position_no_new_entries"
-                if item.get("validation_gate") != marker:
-                    item["validation_gate"] = marker
-                    item["validation_gate_reason"] = reason
-                    item["validation_gate_note"] = "Existing position preserved; no new entries allowed. SL/TP and daily model review remain active."
-                    changed = True
-                continue
-
-            if item.get("direction") == "neutral" and item.get("validation_gate") == reason:
-                continue
-            item["pre_gate_direction"] = item.get("direction")
-            item["pre_gate_score"] = item.get("score")
-            item["direction"] = "neutral"
-            item["trade_status"] = "no_trade"
-            item["entry_quality_status"] = "blocked_by_validation_gate"
-            item["risk_plan"] = None
-            item["result"] = "no_trade"
-            item["result_value"] = 0.0
-            item["result_percent"] = 0.0
-            item["validation_gate"] = reason
-            item["rationale_pl"] = [
-                "Brak pozycji: instrument nie przeszedł zapisanych kryteriów walidacji po kosztach.",
-                "Nie dostrajamy parametrów po wyniku testu; instrument pozostaje wyłączony do nowej, niezależnej wersji modelu."
-            ]
-            item["rationale_en"] = [
-                "No position: the instrument did not pass the saved after-cost validation criteria.",
-                "Parameters are not retuned after seeing the test result; the instrument stays disabled until a new independently specified model version."
-            ]
-            changed = True
+            changed = apply_item(item, policy.get(str(item.get("instrument_id")), {})) or changed
         if changed:
-            week["instrument_validation_gate_applied_at"] = datetime.now(TZ).isoformat(timespec="seconds")
+            week["common_validation_gate"] = {
+                "version": "5.0.0", "applied_at": datetime.now(TZ).isoformat(timespec="seconds"),
+                "scope": "all_model_layers_new_entries_only", "closed_history_rewritten": False,
+            }
             write(path, week)
             changed_files += 1
-    print(f"Validation gate applied to {changed_files} forecast files")
+    print(f"Common validation gate applied to {changed_files} weekly files")
 
 
 if __name__ == "__main__":

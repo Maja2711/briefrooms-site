@@ -1,4 +1,4 @@
-name: Build Investments Weekly Forecasts
+name: Build Governed Investments Weekly Forecasts
 
 on:
   workflow_dispatch:
@@ -8,40 +8,25 @@ on:
         required: true
         default: "auto"
         type: choice
-        options:
-          - auto
-          - forecast
-          - close
-          - ensure-exposure
-          - render
+        options: [auto, forecast, close, ensure-exposure, render]
   schedule:
     - cron: "17 * * * *"
   push:
     branches: [main]
     paths:
-      - "scripts/investments_weekly.py"
-      - "scripts/investments_weekly_v2.py"
-      - "scripts/investments_weekly_v3.py"
-      - "scripts/investments_weekly_v4.py"
-      - "scripts/investments_weekly_v4_cli.py"
-      - "scripts/ensure_current_week_forecast.py"
-      - "scripts/backtest_continuous_exposure_v3.py"
-      - "scripts/backtest_multi_strategy_v4.py"
+      - "scripts/investments_weekly*.py"
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
-      - "scripts/audit_weekly_model.py"
-      - "scripts/backtest_weekly_model_v2.py"
+      - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-public.js"
+      - "scripts/investments-weekly-governance.js"
+      - "tests/test_investments_weekly*.py"
       - "tests/test_investments_weekly_public.js"
-      - "tests/test_investments_weekly_v3.py"
-      - "tests/test_investments_weekly_v4.py"
       - "data/investments/methodology.json"
-      - "data/investments/continuous_exposure_policy.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - "data/investments/daily_review_policy.json"
-      - "data/investments/event_exit_requests.json"
       - ".github/workflows/investments-weekly.yml"
 
 permissions:
@@ -54,71 +39,90 @@ concurrency:
 jobs:
   build-investments-weekly:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install market data dependency
+      - name: Install market-data dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
-      - name: Test public investment script
-        run: node --test tests/test_investments_weekly_public.js
+      - name: Validate public scripts
+        run: |
+          node --check scripts/investments-weekly-public.js
+          node --check scripts/investments-weekly-governance.js
+          node --test tests/test_investments_weekly_public.js
 
-      - name: Test legacy continuous exposure rules
-        run: python -m unittest tests/test_investments_weekly_v3.py
+      - name: Test governed weekly rules
+        run: |
+          python -m unittest tests/test_investments_weekly_v4.py
+          python -m unittest tests/test_investments_weekly_v5.py
 
-      - name: Test multi-instrument adaptive exposure rules
-        run: python -m unittest tests/test_investments_weekly_v4.py
-
-      - name: Recover a missing current-week paper forecast
+      - name: Recover missing current-week forecast
         run: python scripts/ensure_current_week_forecast.py
 
-      - name: Build and manage all weekly paper positions
+      - name: Apply shared validation gate before any new entry
+        run: python scripts/apply_instrument_validation_gate.py
+
+      - name: Run governed weekly model v5
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-        run: python scripts/investments_weekly_v4_cli.py --mode "$MODE"
+        run: python scripts/investments_weekly_v5.py --mode "$MODE"
 
       - name: Once-daily thesis review and conditional close
         run: python scripts/daily_position_review.py
 
-      - name: Re-enter every enabled instrument after a close
-        run: python scripts/investments_weekly_v4_cli.py --mode ensure-exposure
+      - name: Re-evaluate exposure with locks and NO_TRADE
+        run: python scripts/investments_weekly_v5.py --mode ensure-exposure
 
-      - name: Apply base-model validation labels
+      - name: Re-apply shared validation gate as defense in depth
         run: python scripts/apply_instrument_validation_gate.py
 
       - name: Audit model integrity and closed history
         run: python scripts/audit_weekly_model.py
 
-      - name: Run scheduled base model v2 validation
+      - name: Run scheduled base-model validation
         env:
           FORCE_BACKTEST: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: python scripts/backtest_weekly_model_v2.py
 
-      - name: Validate legacy S&P continuous exposure separately
-        run: python scripts/backtest_continuous_exposure_v3.py
-
-      - name: Validate multi-instrument strategy tournament separately
+      - name: Validate candidate methods separately
         run: python scripts/backtest_multi_strategy_v4.py
 
-      - name: Render simple public investment pages
+      - name: Replay exact published execution ledger
+        run: python scripts/backtest_weekly_execution_parity_v5.py
+
+      - name: Render Polish and English public pages
         run: python scripts/render_simple_investments.py
 
-      - name: Commit generated investment updates
+      - name: Commit validated weekly updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/daily_review_report.json data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json data/investments/model_validation_v2.json data/investments/continuous_exposure_policy.json data/investments/continuous_exposure_state.json data/investments/continuous_exposure_report.json data/investments/continuous_exposure_validation_v3.json data/investments/multi_instrument_exposure_policy.json data/investments/multi_instrument_exposure_state.json data/investments/multi_instrument_exposure_report.json data/investments/multi_instrument_validation_v4.json pl/inwestycje/prognozy-tygodniowe.html en/investing/weekly-forecasts.html
+          git add data/investments/live_prices.json \
+                  data/investments/weekly \
+                  data/investments/daily_review_report.json \
+                  data/investments/event_exit_requests.json \
+                  data/investments/model_audit.json \
+                  data/investments/closed_week_manifest.json \
+                  data/investments/model_validation_v2.json \
+                  data/investments/multi_instrument_exposure_state_v5.json \
+                  data/investments/multi_instrument_exposure_report_v5.json \
+                  data/investments/multi_instrument_validation_v4.json \
+                  data/investments/weekly_execution_parity_v5.json \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
-            echo "No investment forecast changes to commit."
+            echo "No governed weekly changes to commit."
           else
-            git commit -m "Update weekly investments forecasts"
+            git commit -m "Update governed weekly investments forecasts"
             git pull --rebase origin main
             git push
           fi
