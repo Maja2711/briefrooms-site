@@ -10,6 +10,7 @@ on:
     paths:
       - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_v5_finalize.py"
+      - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
@@ -67,6 +68,9 @@ jobs:
       - name: Persist and verify v5 governance metadata
         run: python scripts/investments_weekly_v5_finalize.py
 
+      - name: Replay exact published execution ledger
+        run: python scripts/backtest_weekly_execution_parity_v5.py
+
       - name: Render Polish and English public pages
         run: python scripts/render_simple_investments.py
 
@@ -80,6 +84,7 @@ jobs:
                   data/investments/event_exit_requests.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
+                  data/investments/weekly_execution_parity_v5.json \
                   pl/inwestycje/prognozy-tygodniowe.html \
                   en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
