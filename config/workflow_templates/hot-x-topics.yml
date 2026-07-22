@@ -46,7 +46,7 @@ jobs:
       - run: python scripts/translate_hot_x_pl.py
         continue-on-error: true
       - if: always()
-        run: python scripts/validate_hot_x_comments.py --validate
+        run: python scripts/validate_hot_x_comments.py --validate --require-fresh-posts
       - if: always()
         run: python scripts/patch_hot_x_loader.py
         continue-on-error: true

@@ -12,6 +12,7 @@ from hot_x_items import (
     INITIAL_VISIBLE_ITEMS,
     TOTAL_ITEMS,
     comment_text,
+    is_direct_post,
     select_unique,
     valid_item,
 )
@@ -21,6 +22,8 @@ BACKUP = Path(".cache/hot_tweets_comments_last_good.json")
 EMERGENCY = Path("data/hot_x_emergency.json")
 MIN_VISIBLE_ITEMS = INITIAL_VISIBLE_ITEMS
 TARGET_ITEMS = TOTAL_ITEMS
+MIN_DAILY_DIRECT_POSTS = 3
+MAX_DIRECT_POST_AGE_HOURS = 36
 GENERIC_TITLE = re.compile(r"^(temat z x|topic from x|hot x topic)", re.I)
 GENERIC_TEXT = re.compile(r"^(na x monitorowany jest|pełny wątek otwiera link|rotating hot x topic|temat dotyczy)", re.I)
 
@@ -73,6 +76,25 @@ def items(data: dict) -> list[dict]:
     return out
 
 
+def fresh_direct_posts(values: list[dict], now: datetime | None = None) -> list[dict]:
+    now = now or datetime.now(timezone.utc)
+    cutoff = now.timestamp() - MAX_DIRECT_POST_AGE_HOURS * 3600
+    fresh = []
+    for item in values:
+        if not is_direct_post(item.get("tweet_url")):
+            continue
+        stamp = item.get("x_post_created_at") or item.get("selected_at")
+        try:
+            created = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            continue
+        if created.timestamp() >= cutoff:
+            fresh.append(item)
+    return fresh
+
+
 def backup() -> None:
     data = load(DATA)
     good = select_unique([items(data)], target=TARGET_ITEMS, substantive=True)
@@ -84,7 +106,7 @@ def backup() -> None:
     print(f"Hot X comment backup saved: {len(good)} cards")
 
 
-def validate() -> None:
+def validate(*, require_fresh_posts: bool = False) -> None:
     current = load(DATA)
     previous = load(BACKUP)
     emergency = load(EMERGENCY)
@@ -92,6 +114,20 @@ def validate() -> None:
     old = select_unique([items(previous)], target=TARGET_ITEMS, substantive=True)
     emergency_items = select_unique([items(emergency)], target=TARGET_ITEMS, substantive=True)
     merged = select_unique([new, old, emergency_items], target=TARGET_ITEMS, substantive=True)
+    direct = fresh_direct_posts(new)
+    daily_gate_passed = len(direct) >= MIN_DAILY_DIRECT_POSTS
+    if require_fresh_posts and not daily_gate_passed:
+        if old:
+            out = dict(previous)
+            out["items"] = old
+            out["last_update_attempt_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            out["last_good_protection"] = {
+                "status": "daily_direct_post_gate_failed_last_good_restored",
+                "fresh_direct_posts": len(direct),
+                "required_fresh_direct_posts": MIN_DAILY_DIRECT_POSTS,
+            }
+            save(DATA, out)
+        raise SystemExit(f"Hot X daily publication rejected: {len(direct)}/{MIN_DAILY_DIRECT_POSTS} fresh direct X posts")
     if len(merged) < MIN_VISIBLE_ITEMS:
         raise SystemExit("Hot X has no protected set of two substantive, unique comments")
     if len(new) >= MIN_VISIBLE_ITEMS:
@@ -109,9 +145,13 @@ def validate() -> None:
     out["initial_visible_items"] = MIN_VISIBLE_ITEMS
     out["target_items"] = TARGET_ITEMS
     out["last_update_attempt_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if daily_gate_passed:
+        out["last_successful_direct_posts_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     out["last_good_protection"] = {
         "status": status,
         "new_substantive_items": len(new),
+        "fresh_direct_posts": len(direct),
+        "required_fresh_direct_posts": MIN_DAILY_DIRECT_POSTS,
         "visible_items": len(merged),
         "rule_pl": "Sekcja zachowuje co najmniej dwie widoczne karty i uzupełnia rozwijany zestaw do maksymalnie ośmiu unikalnych tematów.",
         "rule_en": "The section keeps at least two visible cards and completes the expanded set with up to eight unique topics."
@@ -126,8 +166,9 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--backup", action="store_true")
     group.add_argument("--validate", action="store_true")
+    parser.add_argument("--require-fresh-posts", action="store_true")
     args = parser.parse_args()
-    backup() if args.backup else validate()
+    backup() if args.backup else validate(require_fresh_posts=args.require_fresh_posts)
 
 
 if __name__ == "__main__":

@@ -172,6 +172,17 @@ class HotXSelectionTests(unittest.TestCase):
             finally:
                 comments.DATA, comments.BACKUP, comments.EMERGENCY = original_paths
 
+    def test_daily_gate_counts_only_fresh_direct_posts(self) -> None:
+        now = comments.datetime.now(comments.timezone.utc)
+        values = [make_item(i) for i in range(4)]
+        for index, item in enumerate(values):
+            item["tweet_url"] = f"https://x.com/briefrooms/status/{900 + index}"
+            item["x_post_created_at"] = now.isoformat()
+        self.assertEqual(len(comments.fresh_direct_posts(values, now)), 4)
+        values[0]["tweet_url"] = ""
+        values[1]["x_post_created_at"] = "2020-01-01T00:00:00+00:00"
+        self.assertEqual(len(comments.fresh_direct_posts(values, now)), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

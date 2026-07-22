@@ -101,7 +101,7 @@ jobs:
           python scripts/validate_hot_x_comments.py --backup || true
           python scripts/update_hot_x_2x_daily.py || true
           python scripts/translate_hot_x_pl.py || true
-          python scripts/validate_hot_x_comments.py --validate
+          python scripts/validate_hot_x_comments.py --validate --require-fresh-posts
           python scripts/patch_hot_x_loader.py || true
 
       - name: Recheck content health after recovery

@@ -55,6 +55,14 @@ def age_hours(path: Path) -> float | None:
     return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
 
 
+def hot_x_success_age_hours() -> float | None:
+    data = load(HOT_X)
+    dt = parse_time(data.get("last_successful_direct_posts_at"))
+    if dt is None:
+        return None
+    return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
+
+
 def home_contract_current(path: Path, lang: str) -> bool:
     data = load(path)
     gate = data.get("comment_quality_gate") or {}
@@ -156,7 +164,7 @@ def main() -> None:
     protection_notes = run_protection()
     home_ages = (age_hours(HOME_PL), age_hours(HOME_EN))
     home_age = max(home_ages) if all(x is not None for x in home_ages) else None
-    hot_age = age_hours(HOT_X)
+    hot_age = hot_x_success_age_hours()
     home_contract_ok = home_contract_current(HOME_PL, "pl") and home_contract_current(HOME_EN, "en")
     home_stale = (
         not home_contract_ok

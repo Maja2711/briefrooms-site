@@ -20,6 +20,8 @@ LAST_GOOD = ROOT / ".cache" / "hot_tweets_comments_last_good.json"
 EMERGENCY = ROOT / "data" / "hot_x_emergency.json"
 WARSAW = timezone(timedelta(hours=2))
 SLOT_HOURS = 4
+MAX_X_POST_AGE_HOURS = 36
+SOURCE_WORDS = {"reuters", "bloomberg", "bbc", "coindesk", "the", "verge"}
 
 TOPIC_SLOTS: List[List[Dict[str, str]]] = [
     [
@@ -129,11 +131,29 @@ def exact_x_text(tweet: Dict[str, Any]) -> str:
     return str(note.get("text") or tweet.get("text") or "")
 
 
+def x_recent_query(topic: Dict[str, str]) -> str:
+    """Match useful alternatives instead of requiring every keyword."""
+    terms = []
+    for word in re.findall(r"[A-Za-z0-9+#.-]+", topic["query"]):
+        if word.casefold() in SOURCE_WORDS or len(word) < 3:
+            continue
+        terms.append(word)
+    alternatives = " OR ".join(dict.fromkeys(terms[:6]))
+    return f"({alternatives}) lang:en -is:retweet -is:reply"
+
+
+def post_datetime(value: object) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
 def x_api_pick(topic: Dict[str, str]) -> Optional[Dict[str, Any]]:
     token = os.environ.get("X_BEARER_TOKEN")
     if not token:
         return None
-    query = topic["query"] + " lang:en -is:retweet"
+    query = x_recent_query(topic)
     params = {
         "query": query,
         "max_results": "25",
@@ -149,6 +169,8 @@ def x_api_pick(topic: Dict[str, str]) -> Optional[Dict[str, Any]]:
         data = json.loads(raw.decode("utf-8"))
         tweets = data.get("data") or []
         users = {u.get("id"): u for u in (data.get("includes", {}) or {}).get("users", [])}
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=MAX_X_POST_AGE_HOURS)
+        tweets = [t for t in tweets if (post_datetime(t.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)) >= cutoff]
         if not tweets:
             return None
 
@@ -156,17 +178,20 @@ def x_api_pick(topic: Dict[str, str]) -> Optional[Dict[str, Any]]:
             m = t.get("public_metrics") or {}
             return int(m.get("like_count") or 0) + 2 * int(m.get("retweet_count") or 0) + int(m.get("reply_count") or 0)
 
-        ranked = sorted(tweets, key=score, reverse=True)
-        t = ranked[min(current_slot_index(), len(ranked) - 1)]
+        ranked = sorted(tweets, key=lambda t: (score(t), post_datetime(t.get("created_at")) or cutoff), reverse=True)
+        t = ranked[0]
         user = users.get(t.get("author_id"), {})
         username = user.get("username") or "i"
         tweet_id = t.get("id")
         raw_text = exact_x_text(t)
+        if not tweet_id or not raw_text.strip():
+            return None
         return {
             "tweet_url": f"https://x.com/{username}/status/{tweet_id}",
             "search_url": x_search_url(topic["query"]),
             "x_post_text_raw": raw_text,
             "x_post_text": raw_text,
+            "x_post_created_at": t.get("created_at"),
             "summary_en": raw_text,
             "summary_pl": raw_text,
             "source_en": f"X / @{username}",
@@ -193,7 +218,7 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
     api = x_api_pick(topic)
     if api:
         item.update(api)
-        item["title_en"] = topic["fallback_title_en"]
+        item["title_en"] = clean_text(str(api.get("x_post_text_raw") or ""), 110) or topic["fallback_title_en"]
         item["title_pl"] = topic["fallback_title_pl"]
         item["summary_pl"] = topic["fallback_summary_pl"]
         return item
