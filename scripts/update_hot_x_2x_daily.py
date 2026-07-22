@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -83,6 +84,8 @@ def normalize_metadata() -> None:
 
 
 def main() -> None:
+    if not os.environ.get("X_BEARER_TOKEN"):
+        raise RuntimeError("X_BEARER_TOKEN is missing; refusing to replace the verified Hot X feed")
     source.SLOT_HOURS = INTERVAL_HOURS
     source.current_slot_index = rotation_slot
     builder.hot.SLOT_HOURS = INTERVAL_HOURS
