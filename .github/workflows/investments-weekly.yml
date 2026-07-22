@@ -85,6 +85,9 @@ jobs:
       - name: Re-apply shared validation gate as defense in depth
         run: python scripts/apply_instrument_validation_gate.py
 
+      - name: Persist and verify v5 governance metadata
+        run: python scripts/investments_weekly_v5_finalize.py
+
       - name: Audit model integrity and closed history
         run: python scripts/audit_weekly_model.py
 
