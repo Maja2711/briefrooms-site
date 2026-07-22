@@ -185,7 +185,7 @@ h1{
 .card > b{margin-top:auto;color:#9ffff6}
 
 /* Model direction stays available, but no longer competes with the three main entries. */
-.model{margin-top:18px;padding:15px 18px}
+.model{margin:14px 0 22px;padding:15px 18px}
 .model-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
 .model-head h2{margin:0;font-size:20px;letter-spacing:-.025em}
 .model-head span{
@@ -286,9 +286,15 @@ h1{
 <div class="page">
   <h1>Inwestycje</h1>
 
-  <section class="quotes" id="quotes" aria-label="Bieżące kwotowania" aria-live="polite">
-    <div class="quote quote-error">Ładowanie kwotowań…</div>
-  </section>
+  <aside class="model">
+    <div class="model-head"><h2>Kierunek modelu</h2><span>Panel pomocniczy</span></div>
+    <div class="model-grid">
+      <div class="row" data-model-id="eurusd"><div><b>EUR/USD</b><small>FX</small></div><div class="pos short">SHORT</div></div>
+      <div class="row" data-model-id="sp500_futures"><div><b>S&amp;P 500 futures</b><small>indeks</small></div><div class="pos long">LONG</div></div>
+      <div class="row"><div><b>PL 10Y</b><small>polskie obligacje 10Y</small></div><div class="pos bullish">BULLISH</div></div>
+      <div class="row" data-model-id="btcusd"><div><b>BTC/USD</b><small>krypto</small></div><div class="pos long">LONG</div></div>
+    </div>
+  </aside>
 
   <section class="focus-grid" aria-label="Najważniejsze sekcje inwestycyjne">
     <a class="card weekly" href="/pl/inwestycje/prognozy-tygodniowe.html">
@@ -313,15 +319,12 @@ h1{
     </a>
   </section>
 
-  <aside class="model">
-    <div class="model-head"><h2>Kierunek modelu</h2><span>Panel pomocniczy</span></div>
-    <div class="model-grid">
-      <div class="row" data-model-id="eurusd"><div><b>EUR/USD</b><small>FX</small></div><div class="pos short">SHORT</div></div>
-      <div class="row" data-model-id="sp500_futures"><div><b>S&amp;P 500 futures</b><small>indeks</small></div><div class="pos long">LONG</div></div>
-      <div class="row"><div><b>PL 10Y</b><small>polskie obligacje 10Y</small></div><div class="pos bullish">BULLISH</div></div>
-      <div class="row" data-model-id="btcusd"><div><b>BTC/USD</b><small>krypto</small></div><div class="pos long">LONG</div></div>
-    </div>
-  </aside>
+  <section class="quotes" id="quotes" aria-label="Bieżące kwotowania" aria-live="polite">
+    <div class="quote quote-error">Ładowanie kwotowań…</div>
+  </section>
+
+
+
 
   <p class="legal">Treści mają charakter edukacyjny i analityczny. To nie jest rekomendacja inwestycyjna ani porada finansowa.</p>
   <footer>© 2026 BriefRooms · <a href="/pl/">Wróć do głównych pokoi</a></footer>
