@@ -1,16 +1,33 @@
 #!/usr/bin/env python3
-"""Verify that the public BriefRooms site matches the expected main commit."""
+"""Verify that public BriefRooms files match the current main checkout."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEPLOYMENT_CONTRACT = "production-parity-v2"
+PARITY_PATHS = (
+    "build-version.json",
+    "robots.txt",
+    "sitemap.xml",
+    "pl/index.html",
+    "en/index.html",
+    "pl/inwestycje.html",
+    "en/investments.html",
+    "scripts/home-briefs.js",
+    "scripts/hot-x-render.js",
+)
 
 
 @dataclass(frozen=True)
@@ -27,7 +44,7 @@ def fetch(url: str, *, timeout: float) -> FetchResult:
             "Accept": "*/*",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
-            "User-Agent": "BriefRooms-production-verifier/1.0",
+            "User-Agent": "BriefRooms-production-verifier/2.0",
         },
     )
     with urlopen(request, timeout=timeout) as response:
@@ -44,18 +61,46 @@ def cache_busted_url(base_url: str, path: str, expected_sha: str, attempt: int) 
     return f"{target}{separator}{urlencode({'sha': expected_sha, 'attempt': attempt})}"
 
 
-def verify_version(base_url: str, expected_sha: str, *, attempts: int, interval: float, timeout: float) -> None:
-    last_error = "production version file was not available"
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def local_bytes(path: str) -> bytes:
+    target = ROOT / path
+    if not target.is_file():
+        raise RuntimeError(f"Required repository file is missing: {path}")
+    return target.read_bytes()
+
+
+def verify_contract(
+    base_url: str,
+    expected_sha: str,
+    *,
+    attempts: int,
+    interval: float,
+    timeout: float,
+) -> None:
+    last_error = "production contract file was not available"
     for attempt in range(1, attempts + 1):
         url = cache_busted_url(base_url, "/build-version.json", expected_sha, attempt)
         try:
             result = fetch(url, timeout=timeout)
             payload = json.loads(result.body.decode("utf-8"))
-            actual_sha = str(payload.get("sha", ""))
-            if actual_sha == expected_sha:
-                print(f"Production reports expected SHA {expected_sha}.")
+            contract = str(payload.get("deployment_contract", ""))
+            repository = str(payload.get("repository", ""))
+            branch = str(payload.get("branch", ""))
+            if (
+                contract == DEPLOYMENT_CONTRACT
+                and repository == "Maja2711/briefrooms-site"
+                and branch == "main"
+            ):
+                print(f"Production exposes deployment contract {DEPLOYMENT_CONTRACT}.")
                 return
-            last_error = f"expected SHA {expected_sha}, received {actual_sha or 'empty SHA'}"
+            last_error = (
+                "unexpected deployment contract: "
+                f"contract={contract or 'empty'}, repository={repository or 'empty'}, "
+                f"branch={branch or 'empty'}"
+            )
         except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             last_error = f"{type(exc).__name__}: {exc}"
 
@@ -63,10 +108,34 @@ def verify_version(base_url: str, expected_sha: str, *, attempts: int, interval:
             print(f"Attempt {attempt}/{attempts}: {last_error}; retrying.", file=sys.stderr)
             time.sleep(interval)
 
-    raise RuntimeError(f"Production parity check failed: {last_error}")
+    raise RuntimeError(f"Production contract check failed: {last_error}")
 
 
-def verify_homepages(base_url: str, expected_sha: str, *, timeout: float) -> None:
+def verify_exact_files(base_url: str, expected_sha: str, *, timeout: float) -> None:
+    mismatches: list[str] = []
+    for path in PARITY_PATHS:
+        expected = local_bytes(path)
+        url = cache_busted_url(base_url, f"/{path}", expected_sha, 1)
+        try:
+            result = fetch(url, timeout=timeout)
+        except (HTTPError, URLError, TimeoutError) as exc:
+            mismatches.append(f"/{path}: {type(exc).__name__}: {exc}")
+            continue
+
+        if result.body != expected:
+            mismatches.append(
+                f"/{path}: repository sha256={digest(expected)}, "
+                f"production sha256={digest(result.body)}, bytes={len(expected)}/{len(result.body)}"
+            )
+            continue
+        print(f"/{path} matches main exactly ({digest(expected)[:12]}).")
+
+    if mismatches:
+        formatted = "\n - ".join(mismatches)
+        raise RuntimeError(f"Production file parity failed:\n - {formatted}")
+
+
+def verify_homepage_contract() -> None:
     required_fragments = (
         '<!-- HOME_BRIEFS_START -->',
         'class="brief-card"',
@@ -75,11 +144,8 @@ def verify_homepages(base_url: str, expected_sha: str, *, timeout: float) -> Non
         "Karty uzupełnią się po wczytaniu home_brief.json",
         "The cards update when home_brief.json loads",
     )
-
     for language in ("pl", "en"):
-        url = cache_busted_url(base_url, f"/{language}/", expected_sha, 1)
-        result = fetch(url, timeout=timeout)
-        html = result.body.decode("utf-8")
+        html = local_bytes(f"{language}/index.html").decode("utf-8")
         missing = [fragment for fragment in required_fragments if fragment not in html]
         forbidden = [fragment for fragment in forbidden_fragments if fragment in html]
         if missing or forbidden:
@@ -88,8 +154,9 @@ def verify_homepages(base_url: str, expected_sha: str, *, timeout: float) -> Non
                 details.append(f"missing {missing}")
             if forbidden:
                 details.append(f"contains stale placeholders {forbidden}")
-            raise RuntimeError(f"/{language}/ failed static-content verification: {'; '.join(details)}")
-        print(f"/{language}/ contains static brief cards and no stale placeholder.")
+            raise RuntimeError(
+                f"Repository /{language}/ violates static-content contract: {'; '.join(details)}"
+            )
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,19 +184,20 @@ def main() -> int:
         return 2
 
     try:
-        verify_version(
+        verify_homepage_contract()
+        verify_contract(
             args.base_url,
             expected_sha,
             attempts=args.attempts,
             interval=args.interval,
             timeout=args.timeout,
         )
-        verify_homepages(args.base_url, expected_sha, timeout=args.timeout)
+        verify_exact_files(args.base_url, expected_sha, timeout=args.timeout)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    print(f"Production matches {expected_sha}.")
+    print(f"Production files match main checkout {expected_sha}.")
     return 0
 
 
