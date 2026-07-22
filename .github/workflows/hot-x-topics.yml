@@ -50,7 +50,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: python scripts/update_hot_x_2x_daily.py
-        continue-on-error: true
+
 
       - name: Final Polish-language gate
         run: python scripts/translate_hot_x_pl.py
@@ -66,7 +66,8 @@ jobs:
         continue-on-error: true
 
       - name: Commit updated Hot X data
-        if: always()
+        # Never publish an empty or invalid feed when the X API/update gate fails.
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
