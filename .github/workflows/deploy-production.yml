@@ -21,7 +21,7 @@ on:
     types: [completed]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -46,6 +46,30 @@ jobs:
         with:
           ref: main
           fetch-depth: 1
+
+      - name: Record controlled trigger
+        if: github.event_name == 'issues'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          cat > data/production_deployment_trigger.json <<EOF
+          {
+            "event": "issues.opened",
+            "issue": ${GITHUB_EVENT_ISSUE_NUMBER},
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}",
+            "triggered_at": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/production_deployment_trigger.json
+          git commit -m "Record production deployment trigger"
+          git pull --rebase origin main
+          git push
+        env:
+          GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
 
       - name: Validate static homepage contract
         run: python -m unittest discover -s tests -p "test_homepage_static.py"
