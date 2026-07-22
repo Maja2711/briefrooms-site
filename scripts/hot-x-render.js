@@ -22,7 +22,9 @@
       more: pl ? 'Więcej z X' : 'More from X',
       less: pl ? 'Pokaż mniej' : 'Show less',
       postType: pl ? 'Konkretny post' : 'Specific post',
-      postCta: pl ? 'Otwórz post na X →' : 'Open post on X →'
+      postCta: pl ? 'Otwórz post na X →' : 'Open post on X →',
+      unavailableTitle: pl ? 'Posty z X są chwilowo niedostępne' : 'X posts are temporarily unavailable',
+      unavailableText: pl ? 'Nie publikujemy zastępczych linków ani nieistniejących wątków. Sekcja wróci po pobraniu zweryfikowanych, bezpośrednich postów z X.' : 'We do not publish substitute search links or nonexistent threads. The section will return after verified direct X posts are fetched.'
     };
   }
 
@@ -143,6 +145,15 @@
     return '<div class="hot-x-more-wrap"><button type="button" class="hot-x-more" aria-expanded="false">'+esc(L.more)+'</button></div>';
   }
 
+  function renderUnavailable(){
+    var feed = document.querySelector('.source-feed');
+    if(!feed) return false;
+    var L = labels();
+    feed.setAttribute('data-hot-x-count','0');
+    feed.innerHTML = '<div class="source-card hot-x-unavailable" role="status"><h3>'+esc(L.unavailableTitle)+'</h3><p>'+esc(L.unavailableText)+'</p></div>';
+    return true;
+  }
+
   function render(items){
     var feed = document.querySelector('.source-feed');
     if(!feed) return false;
@@ -181,7 +192,7 @@
 
   function addCss(){
     if(document.getElementById('hot-x-render-style')) return;
-    var css = '.source-feed{gap:10px}.source-card.hot-tweet{display:block;overflow:hidden;padding:13px;border-radius:17px}.source-card.hot-tweet .tweet-img{height:92px;margin:-2px -2px 10px;border-radius:13px}.source-card.hot-tweet h3{margin:0 0 7px;font-size:16px;line-height:1.22}.hot-x-card-link{display:block;color:inherit;text-decoration:none}.hot-x-card-link:hover{text-decoration:none}.hot-x-badges{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px}.source-card.hot-tweet .tweet-kicker{margin:0;padding:4px 8px;font-size:12px}.hot-x-link-type{display:inline-flex;border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:4px 7px;color:#aebfd0;font-size:12px;font-weight:800}.hot-x-mode{margin:8px 0 4px;font-size:12px;font-weight:900;color:#8ffff6;text-transform:uppercase;letter-spacing:.04em}.source-card.hot-tweet .hot-x-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;margin:0 0 8px;color:#c8d7e5;font-size:12.5px;line-height:1.42}.hot-x-source{display:inline-flex;margin-top:2px;color:#38d6c9;font-size:12px;font-weight:950}.hot-x-source:hover{text-decoration:underline}.source-card.hot-tweet.hot-x-extra{display:none;opacity:0;transform:translateY(-6px)}.hot-x-expanded .source-card.hot-tweet.hot-x-extra{display:block;animation:hot-x-reveal .2s ease both}.hot-x-more-wrap{display:flex;justify-content:center;padding-top:3px}.hot-x-more{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(56,214,201,.30);border-radius:999px;padding:9px 15px;background:rgba(56,214,201,.09);box-shadow:0 10px 24px rgba(0,0,0,.18);color:#38d6c9;font:850 12px/1.2 inherit;cursor:pointer}.hot-x-more:hover{background:rgba(56,214,201,.16);color:#fff}.hot-x-more:focus-visible{outline:2px solid #8ffff6;outline-offset:3px}@keyframes hot-x-reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.hot-x-expanded .source-card.hot-tweet.hot-x-extra{animation:none}.hot-x-more{scroll-behavior:auto}}';
+    var css = '.source-feed{gap:10px}.hot-x-unavailable{padding:18px;border:1px solid rgba(255,190,92,.28);background:rgba(255,190,92,.07)}.hot-x-unavailable h3{margin:0 0 8px;font-size:16px;color:#f6d48b}.hot-x-unavailable p{margin:0;color:#b9c9d8;font-size:13px;line-height:1.5}.source-card.hot-tweet{display:block;overflow:hidden;padding:13px;border-radius:17px}.source-card.hot-tweet .tweet-img{height:92px;margin:-2px -2px 10px;border-radius:13px}.source-card.hot-tweet h3{margin:0 0 7px;font-size:16px;line-height:1.22}.hot-x-card-link{display:block;color:inherit;text-decoration:none}.hot-x-card-link:hover{text-decoration:none}.hot-x-badges{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px}.source-card.hot-tweet .tweet-kicker{margin:0;padding:4px 8px;font-size:12px}.hot-x-link-type{display:inline-flex;border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:4px 7px;color:#aebfd0;font-size:12px;font-weight:800}.hot-x-mode{margin:8px 0 4px;font-size:12px;font-weight:900;color:#8ffff6;text-transform:uppercase;letter-spacing:.04em}.source-card.hot-tweet .hot-x-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;margin:0 0 8px;color:#c8d7e5;font-size:12.5px;line-height:1.42}.hot-x-source{display:inline-flex;margin-top:2px;color:#38d6c9;font-size:12px;font-weight:950}.hot-x-source:hover{text-decoration:underline}.source-card.hot-tweet.hot-x-extra{display:none;opacity:0;transform:translateY(-6px)}.hot-x-expanded .source-card.hot-tweet.hot-x-extra{display:block;animation:hot-x-reveal .2s ease both}.hot-x-more-wrap{display:flex;justify-content:center;padding-top:3px}.hot-x-more{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(56,214,201,.30);border-radius:999px;padding:9px 15px;background:rgba(56,214,201,.09);box-shadow:0 10px 24px rgba(0,0,0,.18);color:#38d6c9;font:850 12px/1.2 inherit;cursor:pointer}.hot-x-more:hover{background:rgba(56,214,201,.16);color:#fff}.hot-x-more:focus-visible{outline:2px solid #8ffff6;outline-offset:3px}@keyframes hot-x-reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.hot-x-expanded .source-card.hot-tweet.hot-x-extra{animation:none}.hot-x-more{scroll-behavior:auto}}';
     var style = document.createElement('style');
     style.id = 'hot-x-render-style';
     style.textContent = css;
@@ -207,7 +218,7 @@
       })
       .catch(function(){
         var lastResort = usableItems((seed || []).concat(cached || []));
-        return lastResort.length ? render(lastResort) : false;
+        return lastResort.length ? render(lastResort) : renderUnavailable();
       });
   }
 
@@ -242,7 +253,8 @@
     cardHtml: cardHtml,
     attachToggle: attachToggle,
     moreButtonHtml: moreButtonHtml,
-    renderEmergency: renderEmergency
+    renderEmergency: renderEmergency,
+    renderUnavailable: renderUnavailable
   };
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',load);
