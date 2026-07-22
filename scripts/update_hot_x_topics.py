@@ -222,6 +222,8 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
         item["title_pl"] = topic["fallback_title_pl"]
         item["summary_pl"] = topic["fallback_summary_pl"]
         return item
+    # A news headline is not an X post. Never turn it into an X search link:
+    # that produced convincing-looking cards which led to nonexistent threads.
     picked = bing_news_pick(topic["query"])
     if picked:
         title, desc, source = picked
@@ -230,9 +232,9 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
             "title_pl": topic["fallback_title_pl"],
             "summary_en": desc or topic["fallback_summary_en"],
             "summary_pl": topic["fallback_summary_pl"],
-            "source_en": f"{source} / X search",
-            "source_pl": f"{source} / wyszukiwanie X",
-            "selected_by": "rotating-news-to-x-search-4h",
+            "source_en": source,
+            "source_pl": source,
+            "selected_by": "news-context-not-publishable-without-x-post",
         })
         return item
     item.update({
@@ -242,7 +244,7 @@ def build_item(topic: Dict[str, str], slot: int) -> Dict[str, Any]:
         "summary_pl": topic["fallback_summary_pl"],
         "source_en": "Automatic rotating topic / X search",
         "source_pl": "Automatyczny rotacyjny temat / wyszukiwanie X",
-        "selected_by": "rotating-fallback-4h",
+        "selected_by": "fallback-not-publishable-without-x-post",
     })
     return item
 

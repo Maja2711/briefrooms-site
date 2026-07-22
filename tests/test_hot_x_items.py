@@ -36,7 +36,7 @@ def make_item(index: int, category: str | None = None) -> dict:
         "comment_en": LONG_EN,
         "summary_pl": LONG_PL,
         "summary_en": LONG_EN,
-        "tweet_url": "" if index else "https://x.com/briefrooms/status/100?utm_source=test",
+        "tweet_url": f"https://x.com/briefrooms/status/{100 + index}?utm_source=test",
         "search_url": f"https://x.com/search?q=unique%20topic%20{index}&src=typed_query&f=top",
         "image": "/assets/hot-x/topic-news.svg",
     }
@@ -70,6 +70,12 @@ class HotXSelectionTests(unittest.TestCase):
         self.assertFalse(hot.valid_item(missing_pl))
         self.assertFalse(hot.valid_item(missing_en))
 
+    def test_search_link_without_concrete_post_is_rejected(self) -> None:
+        item = make_item(20)
+        item["tweet_url"] = ""
+        self.assertFalse(hot.valid_item(item))
+        self.assertEqual(hot.item_url(item), "")
+
     def test_generator_walks_from_current_into_following_slots(self) -> None:
         original_slots = generator.TOPIC_SLOTS
         original_builder = generator.build_item
@@ -82,7 +88,6 @@ class HotXSelectionTests(unittest.TestCase):
             def build(topic: dict, slot: int) -> dict:
                 index = int(topic["query"].rsplit("-", 1)[-1]) + slot * 3
                 item = make_item(index, topic["category"])
-                item["tweet_url"] = ""
                 return item
 
             generator.build_item = build
@@ -95,10 +100,10 @@ class HotXSelectionTests(unittest.TestCase):
             generator.TOPIC_SLOTS = original_slots
             generator.build_item = original_builder
 
-    def test_emergency_feed_contains_eight_valid_unique_topics(self) -> None:
+    def test_search_only_emergency_feed_is_not_publishable_as_x_posts(self) -> None:
         emergency = json.loads((ROOT / "data" / "hot_x_emergency.json").read_text(encoding="utf-8"))
         selected = hot.select_unique([emergency["items"]], substantive=True)
-        self.assertEqual(len(selected), 8)
+        self.assertEqual(len(selected), 0)
 
     def test_failed_update_keeps_last_good_and_fills_to_eight(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

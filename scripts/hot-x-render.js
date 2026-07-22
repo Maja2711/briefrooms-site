@@ -22,9 +22,7 @@
       more: pl ? 'Więcej z X' : 'More from X',
       less: pl ? 'Pokaż mniej' : 'Show less',
       postType: pl ? 'Konkretny post' : 'Specific post',
-      searchType: pl ? 'Przegląd dyskusji' : 'Discussion overview',
-      postCta: pl ? 'Otwórz post na X →' : 'Open post on X →',
-      searchCta: pl ? 'Otwórz dyskusję na X →' : 'Open discussion on X →'
+      postCta: pl ? 'Otwórz post na X →' : 'Open post on X →'
     };
   }
 
@@ -57,7 +55,7 @@
   function itemUrl(item){
     var direct = cleanXUrl(item && item.tweet_url);
     if(isConcreteXPost(direct)) return direct;
-    return cleanXUrl(item && item.search_url);
+    return '';
   }
 
   function normalizedTitle(value){
@@ -119,10 +117,10 @@
     var extra = index >= INITIAL_VISIBLE_ITEMS ? ' hot-x-extra' : '';
     return '<article class="source-card hot-tweet hot-x-card'+extra+'">'
       +'<a class="hot-x-card-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+image
-      +'<div class="hot-x-badges"><span class="tweet-kicker">'+esc(category)+'</span><span class="hot-x-link-type">'+esc(direct ? L.postType : L.searchType)+'</span></div>'
+      +'<div class="hot-x-badges"><span class="tweet-kicker">'+esc(category)+'</span><span class="hot-x-link-type">'+esc(L.postType)+'</span></div>'
       +'<h3>'+esc(title)+'</h3></a>'
       +'<p class="hot-x-mode">'+esc(L.comment)+'</p><p class="hot-x-text">'+esc(commentText(item))+'</p>'
-      +'<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(direct ? L.postCta : L.searchCta)+'</a>'
+      +'<a class="hot-x-source" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(L.postCta)+'</a>'
       +'</article>';
   }
 

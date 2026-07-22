@@ -68,7 +68,7 @@ def item_url(item: dict) -> str:
     tweet = clean_x_url(item.get("tweet_url"))
     if is_direct_post(tweet):
         return tweet
-    return clean_x_url(item.get("search_url"))
+    return ""
 
 
 def comment_text(item: dict, lang: str) -> str:
@@ -76,6 +76,7 @@ def comment_text(item: dict, lang: str) -> str:
 
 
 def valid_item(item: object, *, substantive: bool = False) -> bool:
+    """Accept only cards backed by a concrete X status URL."""
     if not isinstance(item, dict) or not item_url(item):
         return False
     if not str(item.get("title_pl") or "").strip() or not str(item.get("title_en") or "").strip():
