@@ -17,6 +17,7 @@ if "dateutil" not in sys.modules:
 
 import fetch_news_pl as news  # noqa: E402
 import fetch_news_pl_deep as deep  # noqa: E402
+from news_story_dedupe import assert_no_duplicate_stories, same_story  # noqa: E402
 
 FULL_COMMENT = (
     "Rząd opublikował szczegółowe zasady programu po zakończeniu konsultacji społecznych. "
@@ -112,6 +113,36 @@ class PolishNewsBuilderTests(unittest.TestCase):
         with mock.patch.object(news.requests, "get", return_value=response):
             image = news.article_image("https://example.com/politics/story")
         self.assertEqual("https://example.com/media/politics.jpg", image)
+
+    def test_same_sanctions_event_from_two_sources_is_a_duplicate(self):
+        rmf = {
+            "title": "21. pakiet sankcji wobec Rosji. Jest decyzja ambasadorów państw UE",
+            "link": "https://rmf24.pl/a",
+        }
+        polsat = {
+            "title": "21. pakiet sankcji wobec Rosji. Ambasadorowie państw UE jednomyślni",
+            "link": "https://polsatnews.pl/b",
+        }
+        self.assertTrue(same_story(rmf, polsat))
+
+    def test_related_but_distinct_russia_events_are_not_duplicates(self):
+        sanctions = {
+            "title": "21. pakiet sankcji wobec Rosji przyjęty przez ambasadorów UE",
+            "link": "https://example.com/sanctions",
+        }
+        talks = {
+            "title": "Ambasadorowie UE omawiają rozmowy pokojowe z Rosją",
+            "link": "https://example.com/talks",
+        }
+        self.assertFalse(same_story(sanctions, talks))
+
+    def test_final_quality_gate_blocks_duplicate_events(self):
+        first = approved_item(101)
+        second = approved_item(102)
+        first["title"] = "21. pakiet sankcji wobec Rosji. Jest decyzja ambasadorów państw UE"
+        second["title"] = "21. pakiet sankcji wobec Rosji. Ambasadorowie państw UE jednomyślni"
+        with self.assertRaisesRegex(RuntimeError, "duplicate event"):
+            assert_no_duplicate_stories({"polityka": [first, second]})
 
     def test_missing_ai_never_publishes_rss_fallback(self):
         with mock.patch.dict("os.environ", {"OPENAI_API_KEY": ""}), mock.patch.object(news, "CACHE", {}), mock.patch.object(news, "save_cache") as save_cache:
