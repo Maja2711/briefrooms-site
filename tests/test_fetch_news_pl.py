@@ -75,11 +75,19 @@ class PolishNewsBuilderTests(unittest.TestCase):
     def test_topic_filters_reject_unrelated_items(self):
         self.assertFalse(news.is_rejected_item("zdrowie", "Nowe badanie kliniczne terapii raka", "Lekarze opisali wyniki pacjentów.", "https://example.com/zdrowie"))
         self.assertTrue(news.is_rejected_item("nauka", "Zmiana składu zarządu spółki", "Firma ogłosiła decyzję właścicielską.", "https://example.com/biznes"))
+        self.assertTrue(news.is_rejected_item("polityka", "Inwazyjne modliszki panoszą się w Europie", "Gatunek zagraża pszczołom.", "https://example.com/swiat"))
+        self.assertFalse(news.is_rejected_item("polityka", "Ambasadorowie UE przyjęli pakiet sankcji", "Decyzja dotyczy Rosji.", "https://example.com/polityka"))
 
     def test_source_names_are_contextual(self):
         link = "https://www.reuters.com/world/example-story/"
         self.assertEqual(news.source_name_for(link, section_key="zdrowie"), "Reuters")
         self.assertEqual(news.source_name_for(link, section_key="sport"), "Reuters Sports")
+
+    def test_foreign_source_disclosure_is_idempotent(self):
+        once = deep.hybrid.polish_source_label("The Guardian")
+        twice = deep.hybrid.polish_source_label(once)
+        self.assertEqual(once, twice)
+        self.assertEqual(1, twice.count("źródło anglojęzyczne"))
 
     def test_rendered_page_uses_homepage_cards_and_sections(self):
         page = deep.render_html_strict(self.strict_sections())
