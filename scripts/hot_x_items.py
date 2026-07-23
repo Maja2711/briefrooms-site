@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Shared Hot X validation, URL cleanup and unique-item selection."""
+"""Shared Hot X validation, URL cleanup and unique-item selection.
+
+Direct X posts remain the default. Search/explore links are accepted only when an
+editor explicitly marks the item with ``editorial_pin=true`` and
+``link_kind=x_search``. This prevents generated or arbitrary search links from
+entering the public feed.
+"""
 from __future__ import annotations
 
 import re
@@ -8,23 +14,14 @@ import urllib.parse
 from collections import Counter
 from typing import Iterable, Sequence
 
-TOTAL_ITEMS = 8
-INITIAL_VISIBLE_ITEMS = 2
+TOTAL_ITEMS = 10
+INITIAL_VISIBLE_ITEMS = 4
 MAX_ITEMS_PER_CATEGORY = 2
 
 X_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}
 TRACKING_PARAMS = {
-    "src",
-    "ref",
-    "ref_src",
-    "s",
-    "t",
-    "twclid",
-    "utm_campaign",
-    "utm_content",
-    "utm_medium",
-    "utm_source",
-    "utm_term",
+    "src", "ref", "ref_src", "s", "t", "twclid",
+    "utm_campaign", "utm_content", "utm_medium", "utm_source", "utm_term",
 }
 DIRECT_POST = re.compile(r"^/[^/\s]+/status/\d+(?:/)?$", re.I)
 SEARCH_PATH = re.compile(r"^/(?:search|explore)(?:/)?$", re.I)
@@ -52,7 +49,8 @@ def clean_x_url(value: object) -> str:
         return ""
     kept = []
     for key, item in urllib.parse.parse_qsl(parsed.query, keep_blank_values=False):
-        if key.casefold() in TRACKING_PARAMS or key.casefold().startswith("utm_"):
+        folded = key.casefold()
+        if folded in TRACKING_PARAMS or folded.startswith("utm_"):
             continue
         kept.append((key, re.sub(r"\s+", " ", item).strip()))
     query = urllib.parse.urlencode(sorted(kept), doseq=True)
@@ -64,10 +62,28 @@ def is_direct_post(value: object) -> bool:
     return bool(cleaned and DIRECT_POST.match(urllib.parse.urlsplit(cleaned).path))
 
 
+def is_editorial_search(item: object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    if item.get("editorial_pin") is not True or item.get("link_kind") != "x_search":
+        return False
+    cleaned = clean_x_url(item.get("search_url"))
+    if not cleaned:
+        return False
+    parsed = urllib.parse.urlsplit(cleaned)
+    if not SEARCH_PATH.match(parsed.path):
+        return False
+    if parsed.path.rstrip("/").casefold() == "/explore":
+        return True
+    return bool(dict(urllib.parse.parse_qsl(parsed.query)).get("q"))
+
+
 def item_url(item: dict) -> str:
     tweet = clean_x_url(item.get("tweet_url"))
     if is_direct_post(tweet):
         return tweet
+    if is_editorial_search(item):
+        return clean_x_url(item.get("search_url"))
     return ""
 
 
@@ -76,13 +92,12 @@ def comment_text(item: dict, lang: str) -> str:
 
 
 def valid_item(item: object, *, substantive: bool = False) -> bool:
-    """Accept only cards backed by a concrete X status URL."""
     if not isinstance(item, dict) or not item_url(item):
         return False
     if not str(item.get("title_pl") or "").strip() or not str(item.get("title_en") or "").strip():
         return False
-    for lang in ("pl", "en"):
-        comment = re.sub(r"\s+", " ", comment_text(item, lang)).strip()
+    for language in ("pl", "en"):
+        comment = re.sub(r"\s+", " ", comment_text(item, language)).strip()
         if not comment:
             return False
         if substantive and (len(comment) < 100 or len(comment.split()) < 14):
@@ -103,9 +118,17 @@ def fingerprints(item: dict) -> set[str]:
     return values
 
 
+def _priority(item: dict) -> int:
+    if is_editorial_search(item):
+        return 0
+    if is_direct_post(item.get("tweet_url")):
+        return 1
+    return 2
+
+
 def _ordered_group(items: Iterable[dict]) -> list[dict]:
     indexed = list(enumerate(items))
-    indexed.sort(key=lambda pair: (not is_direct_post(pair[1].get("tweet_url")), pair[0]))
+    indexed.sort(key=lambda pair: (_priority(pair[1]), pair[0]))
     return [item for _, item in indexed]
 
 
@@ -116,7 +139,7 @@ def select_unique(
     max_per_category: int = MAX_ITEMS_PER_CATEGORY,
     substantive: bool = False,
 ) -> list[dict]:
-    """Merge groups in priority order and reject any repeated URL or title."""
+    """Merge priority groups and reject repeated URLs, titles and categories."""
     selected: list[dict] = []
     seen: set[str] = set()
     category_counts: Counter[str] = Counter()
