@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Run the Hot X pipeline twice per day with a 12-hour rotation."""
+"""Run the Hot X pipeline twice daily while preserving editorial pins."""
 from __future__ import annotations
 
 import json
@@ -20,6 +20,7 @@ from hot_x_items import (
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "hot_tweets.json"
+PINS = ROOT / "data" / "hot_x_editorial_pins.json"
 LAST_GOOD = ROOT / ".cache" / "hot_tweets_comments_last_good.json"
 EMERGENCY = ROOT / "data" / "hot_x_emergency.json"
 INTERVAL_HOURS = 12
@@ -50,13 +51,18 @@ def validate_payload(data: dict) -> None:
         raise RuntimeError("Hot X update rejected: duplicate URL, title or category overflow")
     for index, item in enumerate(items, start=1):
         if not valid_item(item):
-            raise RuntimeError(f"Hot X item {index} lacks a valid X URL or bilingual content")
+            raise RuntimeError(f"Hot X item {index} lacks an approved X destination or bilingual content")
+    pins = load_items(PINS)
+    if pins and [item.get("search_url") for item in items[: len(pins)]] != [item.get("search_url") for item in pins]:
+        raise RuntimeError("Hot X update rejected: editorial pins were not preserved at the top")
 
 
 def normalize_metadata() -> None:
     data = json.loads(OUT.read_text(encoding="utf-8"))
+    pins = load_items(PINS)
+    generated = data.get("items") or []
     data["items"] = select_unique(
-        [data.get("items") or [], load_items(LAST_GOOD), load_items(EMERGENCY)],
+        [pins, generated, load_items(LAST_GOOD), load_items(EMERGENCY)],
         target=TARGET_ITEMS,
     )
     data["refresh_interval_hours"] = INTERVAL_HOURS
@@ -65,15 +71,14 @@ def normalize_metadata() -> None:
     data["rotation_slots_total"] = len(source.TOPIC_SLOTS)
     data["initial_visible_items"] = MIN_VISIBLE_ITEMS
     data["target_items"] = TARGET_ITEMS
+    data["editorial_pins_count"] = len(pins)
     data["method_pl"] = (
-        "Hot X jest odświeżany dwa razy dziennie. Sekcja zachowuje co najmniej dwie widoczne karty "
-        "i uzupełnia rozwijany zestaw do maksymalnie ośmiu unikalnych tematów. Pusty lub ogólnikowy "
-        "wynik nie usuwa ostatnich poprawnych kart."
+        "Cztery tematy redakcyjne pozostają przypięte na początku sekcji. Automatyczne odświeżenie dwa razy "
+        "dziennie uzupełnia je zweryfikowanymi, bezpośrednimi postami z X i nie może zastąpić przypiętych linków."
     )
     data["method_en"] = (
-        "Hot X refreshes twice daily. A new card may replace the previous one only when it has "
-        "a valid X destination and a substantive comment. The section keeps at least two visible cards and "
-        "completes the expanded set with up to eight unique topics."
+        "Four editorial topics remain pinned at the top. Twice-daily automation supplements them with verified "
+        "direct X posts and cannot replace the pinned links."
     )
     for item in data.get("items", []):
         selected = str(item.get("selected_by") or "")
@@ -92,7 +97,7 @@ def main() -> None:
     builder.hot.current_slot_index = rotation_slot
     builder.main()
     normalize_metadata()
-    print("Hot X updated automatically: twice daily / every 12 hours")
+    print("Hot X updated automatically with four preserved editorial pins")
 
 
 if __name__ == "__main__":
