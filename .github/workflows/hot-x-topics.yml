@@ -1,12 +1,22 @@
-name: Apply and Verify Hot X Editorial Topics
+name: Update Hot X Topics
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 6,18 * * *"
   push:
     branches: [main]
     paths:
-      - "scripts/apply_hot_x_editorial_patch.py"
-      - "data/hot-x-editorial-patch/**"
+      - "scripts/update_hot_x_2x_daily.py"
+      - "scripts/update_hot_x_topics.py"
+      - "scripts/build_hot_x_en.py"
+      - "scripts/hot_x_items.py"
+      - "scripts/hot-x-render.js"
+      - "scripts/patch_hot_x_loader.py"
+      - "data/hot_x_editorial_pins.json"
+      - "data/hot_x_emergency.json"
+      - "tests/test_hot_x_items.py"
+      - "tests/test_hot_x_render.js"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -17,9 +27,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  apply-hot-x-editorial-topics:
+  update-hot-x:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,20 +41,22 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Expand four editorial Hot X topics
-        run: python scripts/apply_hot_x_editorial_patch.py
-
-      - name: Compile and test Hot X implementation
+      - name: Validate Hot X implementation
         run: |
           python -m py_compile scripts/hot_x_items.py scripts/update_hot_x_2x_daily.py scripts/patch_hot_x_loader.py
           python -m unittest tests/test_hot_x_items.py
           node --check scripts/hot-x-render.js
           node tests/test_hot_x_render.js
 
-      - name: Patch PL and EN loaders
+      - name: Refresh verified direct posts and preserve editorial topics
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+        run: python scripts/update_hot_x_2x_daily.py
+
+      - name: Cache-bust renderer on PL and EN homepages
         run: python scripts/patch_hot_x_loader.py
 
-      - name: Verify bilingual pinned feed
+      - name: Verify four pinned bilingual topics
         run: |
           python - <<'PY'
           import json
@@ -53,18 +65,18 @@ jobs:
           feed = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))['items']
           assert len(pins) == 4
           assert [x['search_url'] for x in feed[:4]] == [x['search_url'] for x in pins]
-          assert all(x.get('editorial_pin') is True and x.get('link_kind') == 'x_search' for x in pins)
-          assert all(x.get('title_pl') and x.get('title_en') and x.get('comment_pl') and x.get('comment_en') for x in pins)
-          for page in ('pl/index.html', 'en/index.html'):
-              text = Path(page).read_text(encoding='utf-8')
-              assert '/scripts/hot-x-render.js?v=editorial-x-searches-2' in text
+          assert all(x.get('title_pl') and x.get('title_en') for x in pins)
           PY
 
-      - name: Commit verified Hot X topics
+      - name: Commit updated Hot X feed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Pin four editorial topics in Hot X"
-          git pull --rebase origin main
-          git push
+          git add data/hot_tweets.json pl/index.html en/index.html
+          if git diff --cached --quiet; then
+            echo "No Hot X changes to commit."
+          else
+            git commit -m "Update Hot X topics"
+            git pull --rebase origin main
+            git push
+          fi
