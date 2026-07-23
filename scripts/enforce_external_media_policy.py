@@ -65,14 +65,6 @@ def media_img(src: str, source_url: str, extra: str = "") -> str:
     )
 
 
-def fallback_markup(lang: str, label: str = "BRs") -> str:
-    sub = "źródło" if lang == "pl" else "source"
-    return (
-        '<span class="media-fallback" aria-hidden="true">'
-        f'<strong>{html.escape(label)}</strong><small>{sub}</small></span>'
-    )
-
-
 def preview_label(lang: str) -> str:
     return "Podgląd źródła" if lang == "pl" else "Source preview"
 
@@ -138,10 +130,7 @@ def sanitize_home_page(path: Path, mapping: dict[str, dict], lang: str) -> None:
         body = body[: inner.start()] + replacement + body[inner.end() :]
         return opening + body + closing
 
-    card_re = re.compile(
-        r'(<a class="brief-card" href="([^"]+)">)(.*?)(</a>)',
-        re.S,
-    )
+    card_re = re.compile(r'(<a class="brief-card" href="([^"]+)">)(.*?)(</a>)', re.S)
     value = card_re.sub(card, value)
     value = ensure_assets(value)
     value = re.sub(r'<a\b[^>]*target=["\']_blank["\'][^>]*>', lambda m: clean_rel(m.group(0)), value, flags=re.I)
@@ -153,25 +142,26 @@ def sanitize_news_page(path: Path, lang: str) -> None:
 
     def anchor(match: re.Match[str]) -> str:
         tag, source_url, body = match.group(1), html.unescape(match.group(2)), match.group(3)
-        image_match = re.search(r'<span class="news-thumb has-image">.*?<img[^>]+src="([^"]+)"[^>]*>.*?</span>', body, re.S)
+        image_match = re.search(r'<img[^>]+src="([^"]+)"[^>]*>', body, re.S | re.I)
         if not image_match:
             return clean_rel(tag) + body + "</a>"
         approved = external_image_url(html.unescape(image_match.group(1)), source_url)
+        body = re.sub(r'<span class="media-source-badge">.*?</span>', "", body, flags=re.S)
         if approved:
-            wrapper = (
-                '<span class="news-thumb has-image">' + fallback_markup(lang)
-                + media_img(approved, source_url, ' width="78" height="54"')
-                + f'<span class="media-source-badge">{preview_label(lang)}</span></span>'
+            replacement = media_img(approved, source_url, ' width="78" height="54"')
+            body = body[: image_match.start()] + replacement + body[image_match.end() :]
+            body = body.replace(
+                replacement,
+                replacement + f'<span class="media-source-badge">{preview_label(lang)}</span>',
+                1,
             )
+            body = body.replace('class="news-thumb media-fallback-active"', 'class="news-thumb has-image"', 1)
         else:
-            wrapper = '<span class="news-thumb media-fallback-active">' + fallback_markup(lang) + "</span>"
-        body = body[: image_match.start()] + wrapper + body[image_match.end() :]
+            body = body[: image_match.start()] + body[image_match.end() :]
+            body = body.replace('class="news-thumb has-image"', 'class="news-thumb media-fallback-active"', 1)
         return clean_rel(tag) + body + "</a>"
 
-    pattern = re.compile(
-        r'(<a\s+class="news-main-link"\s+href="([^"]+)"[^>]*>)(.*?)</a>',
-        re.S | re.I,
-    )
+    pattern = re.compile(r'(<a\s+class="news-main-link"\s+href="([^"]+)"[^>]*>)(.*?)</a>', re.S | re.I)
     value = pattern.sub(anchor, value)
     value = ensure_assets(value)
     write_if_changed(path, value)
@@ -184,18 +174,22 @@ def sanitize_brief_page(path: Path, lang: str) -> None:
     if not source_match or not image_match:
         return
     source_url = html.unescape(source_match.group(1))
-    old_image = html.unescape(image_match.group(1))
-    approved = external_image_url(old_image, source_url)
+    old_raw = image_match.group(1)
+    approved = external_image_url(html.unescape(old_raw), source_url)
+    value = re.sub(r'<span class="media-source-badge">.*?</span>', "", value, flags=re.S)
     if approved:
         replacement = media_img(approved, source_url)
         badge = f'<span class="media-source-badge">{preview_label(lang)}</span>'
+        public_image = html.escape(approved, quote=True)
     else:
-        approved = "https://briefrooms.com/assets/og-cover.jpg"
         replacement = '<img src="/assets/og-cover.jpg" alt="" loading="lazy" decoding="async">'
         badge = ""
-    value = value.replace(old_image, approved)
-    value = re.sub(r'<img src="[^"]+"[^>]*>', replacement, value, count=1, flags=re.I)
-    value = re.sub(r'(<div class="image">.*?)(?:<span class="media-source-badge">.*?</span>)?(</div>)', rf'\1{badge}\2', value, count=1, flags=re.S)
+        public_image = "https://briefrooms.com/assets/og-cover.jpg"
+    value = value.replace(old_raw, public_image)
+    value = re.sub(r'<div class="image"><img src="[^"]+"[^>]*>', '<div class="image">' + replacement, value, count=1, flags=re.I)
+    target = '</div>\n      <div class="body">'
+    if target in value:
+        value = value.replace(target, badge + target, 1)
     value = re.sub(r'<a\b[^>]*target=["\']_blank["\'][^>]*>', lambda m: clean_rel(m.group(0)), value, flags=re.I)
     value = ensure_assets(value)
     write_if_changed(path, value)
