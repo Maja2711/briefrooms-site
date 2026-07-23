@@ -87,9 +87,8 @@ def summarize_sections_pl_full(sections: dict) -> None:
                 translated = hybrid.translate_english_item_to_polish(item, section_key)
                 if not translated or not translated.get("title_pl"):
                     continue
-                original_source = item.get("source_name", "Źródło")
                 item["title"] = translated["title_pl"]
-                item["source_name"] = f"{original_source} · źródło anglojęzyczne — brief po polsku"
+                item["source_name"] = hybrid.polish_source_label(item.get("source_name", "Źródło"))
             translated_items.append(item)
         sections[section_key] = translated_items
 
