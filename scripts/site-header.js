@@ -517,7 +517,7 @@
   ready(function () {
     if (!isInvestmentHub(root.location && root.location.pathname)) return;
     if (doc.getElementById('br-daily-market-alert')) return;
-    var anchor = doc.querySelector('.model');
+    var anchor = doc.querySelector('#daily-market-alert-anchor');
     if (!anchor) return;
     var language = normalizePath(root.location.pathname).indexOf('/en/') === 0 ? 'en' : 'pl';
     root.fetch(DATA_URL + '?v=' + Date.now(), { cache: 'no-store' })

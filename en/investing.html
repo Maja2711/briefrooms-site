@@ -291,23 +291,13 @@ h1{
 }
 </style>
 <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
-<script src="/scripts/site-header.js?v=20260723-3" defer></script>
+<script src="/scripts/site-header.js?v=20260723-4" defer></script>
 </head>
 <body>
 <header id="site-header"></header>
 <div class="page">
   <h1>Investing</h1>
-
-  <aside class="model">
-    <div class="model-head"><h2>Model direction</h2><span>Supporting panel</span></div>
-    <div class="model-grid">
-      <div class="row" data-model-id="eurusd"><div><b>EUR/USD</b><small>FX</small></div><div class="pos short">SHORT</div></div>
-      <div class="row" data-model-id="sp500_futures"><div><b>S&amp;P 500 futures</b><small>index</small></div><div class="pos long">LONG</div></div>
-      <div class="row"><div><b>US 10Y</b><small>US 10Y bonds</small></div><div class="pos watch">WATCH</div></div>
-      <div class="row" data-model-id="btcusd"><div><b>BTC/USD</b><small>crypto</small></div><div class="pos long">LONG</div></div>
-    </div>
-  </aside>
-
+  <span id="daily-market-alert-anchor" hidden></span>
   <section class="focus-grid" aria-label="Key investing sections">
     <a class="card weekly" href="/en/investing/weekly-forecasts.html">
       <span>Weekly</span>
@@ -352,16 +342,6 @@ async function loadQuotes(){try{const r=await fetch('/data/investments/room_quot
 loadQuotes();
 setInterval(loadQuotes,15*60*1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadQuotes();});
-</script>
-<script>
-(function(){
-  const closedText='POSITION CLOSED!';
-  const noTradeText='NO POSITION';
-  function isoWeek(d){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);const y=new Date(Date.UTC(x.getUTCFullYear(),0,1));return x.getUTCFullYear()+'-W'+String(Math.ceil((((x-y)/86400000)+1)/7)).padStart(2,'0');}
-  async function latestWeek(){for(let i=0;i<8;i++){const d=new Date();d.setUTCDate(d.getUTCDate()-i*7);try{const r=await fetch('/data/investments/weekly/'+isoWeek(d)+'.json?v='+Date.now(),{cache:'no-store'});if(r.ok)return r.json();}catch(e){}}return null;}
-  function apply(it){const el=document.querySelector('[data-model-id="'+it.instrument_id+'"] .pos');if(!el)return;const closed=it.trade_status==='closed'||(it.exit_price!==null&&it.exit_price!==undefined&&it.exit_price!=='');const noTrade=it.trade_status==='no_trade'||it.direction==='neutral';if(closed){el.textContent=closedText;el.className='pos closed';}else if(noTrade){el.textContent=noTradeText;el.className='pos neutral';}else{el.textContent=String(it.direction||'neutral').toUpperCase();el.className='pos '+(it.direction==='short'?'short':it.direction==='long'?'long':'neutral');}}
-  latestWeek().then(w=>(w?.instruments||[]).forEach(apply));
-})();
 </script>
 </body>
 </html>
