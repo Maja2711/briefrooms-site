@@ -78,7 +78,7 @@ def same_story(first: dict, second: dict) -> bool:
 
     return (
         sequence >= 0.78
-        or (len(shared) >= 4 and overlap >= 0.55 and jaccard >= 0.34)
+        or (len(shared) >= 3 and overlap >= 0.50 and jaccard >= 0.30)
         or (matching_number and len(shared) >= 3 and overlap >= 0.45)
     )
 
