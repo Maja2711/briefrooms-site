@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
-      - name: Check out repository
+      - name: Check out source
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -48,7 +48,7 @@ jobs:
         run: node --check scripts/portfolio-10k-brace-public.js
 
       - name: Train BRACE on longest honest historical price record
-        run: python scripts/brace_historical_accelerator.py --start 1995-01-01 --patience 6
+        run: python scripts/brace_historical_accelerator.py --start 1995-01-01 --patience 18
 
       - name: Calibrate historical lessons to validated multiplier strength
         run: python scripts/brace_historical_seed_calibration.py
@@ -68,7 +68,19 @@ jobs:
       - name: Apply champion-challenger promotion gate
         run: python scripts/portfolio_10k_brace_promotion.py
 
-      - name: Commit refreshed BRACE data memory and verdict
+      - name: Upload verified trained outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-historical-trained-output
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            data/investments/portfolio_10k_brace_historical_learning.json
+            data/investments/portfolio_10k_brace.json
+            data/investments/portfolio_10k_brace_backtest.json
+            data/investments/portfolio_10k_brace_memory.json
+
+      - name: Commit refreshed BRACE data memory and verdict on main
         if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
