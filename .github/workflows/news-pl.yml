@@ -52,7 +52,7 @@ jobs:
           pip install feedparser python-dateutil requests
 
       - name: Test PL news builder
-        run: python -m unittest tests.test_fetch_news_pl -v
+        run: python -m unittest tests.test_fetch_news_pl tests.test_news_story_dedupe -v
 
       - name: Test strict PL and EN comment contract
         run: python -m unittest discover -s tests -p "test_comment_quality.py"
@@ -65,6 +65,7 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          BR_NEWS_PERSIST_HISTORY: "1"
         run: python scripts/fetch_news_pl_deep.py
 
       - name: Commit and push if changed
@@ -72,11 +73,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py tests/test_news_story_dedupe.py; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi
-          git add -A pl/aktualnosci.html .cache || true
+          git add -A pl/aktualnosci.html data/news_story_history_pl.json .cache || true
           if git diff --cached --quiet; then
             echo "No PL news changes to commit."
           else
