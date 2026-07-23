@@ -14,6 +14,7 @@ if "dateutil" not in sys.modules:
     sys.modules["dateutil"] = dateutil_stub
 
 import fetch_news_en_context as context  # noqa: E402
+from news_story_dedupe import same_story  # noqa: E402
 
 base = context.base
 FULL_COMMENT = (
@@ -113,6 +114,17 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         with mock.patch.object(base.requests, "get", return_value=response):
             self.assertTrue(base.image_is_fetchable("https://example.com/photo.jpg"))
         response.close.assert_called_once_with()
+
+    def test_same_event_from_different_publishers_is_deduplicated(self):
+        first = {
+            "title": "EU ambassadors unanimously approve 21st sanctions package against Russia",
+            "link": "https://reuters.com/example",
+        }
+        second = {
+            "title": "EU envoys agree on the 21st package of sanctions targeting Russia",
+            "link": "https://apnews.com/example",
+        }
+        self.assertTrue(same_story(first, second))
 
     def test_fetch_section_skips_a_hotlink_blocked_thumbnail(self):
         entries = [
