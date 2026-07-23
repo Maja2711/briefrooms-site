@@ -24,6 +24,7 @@ from comment_quality import (
     validate_news_comment,
 )
 from news_comment_batch import summarize_news_items
+from news_story_dedupe import same_story
 
 # =========================
 # TIMEZONE (UTC dla wersji EN jest bezpieczniejsze)
@@ -778,7 +779,10 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
     for it in items:
         duplicate_idx = None
         for idx, got in enumerate(kept):
-            if jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD:
+            if (
+                jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD
+                or same_story(it, got)
+            ):
                 duplicate_idx = idx
                 break
         if duplicate_idx is None:
