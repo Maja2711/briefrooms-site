@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/portfolio-10k-brace-bootstrap.yml"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -16,7 +17,7 @@ concurrency:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -29,17 +30,25 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
-      - name: Validate complete 10K model suite
-        run: python -m pytest -q tests/test_portfolio_10k*.py
+      - name: Validate complete 10K model suite and historical accelerator
+        run: |
+          python -m py_compile scripts/brace_historical_accelerator.py scripts/brace_historical_publish.py
+          python -m pytest -q tests/test_brace_historical_accelerator.py tests/test_portfolio_10k*.py
 
       - name: Validate BRACE public JavaScript
         run: node --check scripts/portfolio-10k-brace-public.js
+
+      - name: Train BRACE on longest honest historical price record
+        run: python scripts/brace_historical_accelerator.py --start 1995-01-01 --patience 6
 
       - name: Refresh live BRACE snapshot
         run: python scripts/portfolio_10k_brace.py
 
       - name: Build immutable memory and adaptive evidence learning
         run: python scripts/portfolio_10k_brace_learning_runtime.py
+
+      - name: Publish historical-learning audit state
+        run: python scripts/brace_historical_publish.py
 
       - name: Refresh long-history no-look-ahead BRACE-Lite backtest
         run: python scripts/portfolio_10k_brace_backtest.py
@@ -51,11 +60,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k_brace.json data/investments/portfolio_10k_brace_backtest.json data/investments/portfolio_10k_brace_memory.json
+          git add \
+            data/investments/portfolio_10k_brace_historical_learning.json \
+            data/investments/portfolio_10k_brace.json \
+            data/investments/portfolio_10k_brace_backtest.json \
+            data/investments/portfolio_10k_brace_memory.json
           if git diff --cached --quiet; then
             echo "BRACE outputs already current."
           else
-            git commit -m "Bootstrap BRACE 2.0 learning memory"
+            git commit -m "Train BRACE on guarded historical lessons"
             git pull --rebase origin main
             git push
           fi
