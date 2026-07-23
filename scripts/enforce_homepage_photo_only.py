@@ -53,13 +53,21 @@ def ensure_runtime(source: str) -> str:
     return source
 
 
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def process(path: Path) -> bool:
     old = path.read_text(encoding="utf-8")
-    new = ensure_runtime(filter_marker_block(old, str(path.relative_to(ROOT))))
+    label = display_path(path)
+    new = ensure_runtime(filter_marker_block(old, label))
     if new == old:
         return False
     path.write_text(new, encoding="utf-8", newline="\n")
-    print(f"updated {path.relative_to(ROOT)}")
+    print(f"updated {label}")
     return True
 
 
