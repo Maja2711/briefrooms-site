@@ -5,12 +5,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CHANGES = {
     ROOT / "pl" / "o-projekcie.html": (
-        '        <p><strong>Przykład:</strong> system może porównać, czy strategia łącząca trend, momentum i zmienność daje stabilniejsze wyniki niż strategia oparta wyłącznie na trendzie — osobno podczas silnego trendu, konsolidacji i podwyższonej zmienności. Nowa metoda jest uwzględniana dopiero wtedy, gdy poprawę potwierdzają testy historyczne i kolejne obserwacje, a pełne wyniki pozostają możliwe do oceny.</p>\n',
-        '',
+        '        <p>Sztuczna inteligencja jest wykorzystywana przede wszystkim jako narzędzie badawcze do testowania nowych algorytmów, porównywania metod oceny sygnałów i rozwijania zasad zarządzania ryzykiem. Nie podejmuje samodzielnie decyzji inwestycyjnych i nie zastępuje danych rynkowych, jawnej metodologii ani kontroli wyników.</p>',
+        '        <p>Sztuczna inteligencja jest wykorzystywana przede wszystkim jako narzędzie badawcze do testowania nowych algorytmów, porównywania metod oceny sygnałów i rozwijania zasad zarządzania ryzykiem.</p>',
     ),
     ROOT / "en" / "about.html": (
-        '        <p><strong>Example:</strong> the system can compare whether a strategy combining trend, momentum and volatility produces more stable results than a trend-only strategy — separately during strong trends, consolidation and periods of elevated volatility. A new method is included only when historical tests and subsequent observations confirm an improvement, while the complete results remain available for evaluation.</p>\n',
-        '',
+        '        <p>Artificial intelligence is used primarily as a research tool for testing new algorithms, comparing signal-evaluation methods and developing risk-management rules. It does not make investment decisions independently and does not replace market data, a transparent methodology or performance controls.</p>',
+        '        <p>Artificial intelligence is used primarily as a research tool for testing new algorithms, comparing signal-evaluation methods and developing risk-management rules.</p>',
     ),
 }
 
@@ -21,9 +21,9 @@ for path, (old, new) in CHANGES.items():
         path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
         print(f"updated {path.relative_to(ROOT)}")
         changed = True
-    elif new == "" and "<strong>Przykład:</strong>" not in text and "<strong>Example:</strong>" not in text:
+    elif new in text:
         print(f"already updated {path.relative_to(ROOT)}")
     else:
-        raise SystemExit(f"Expected paragraph not found in {path.relative_to(ROOT)}")
+        raise SystemExit(f"Expected AI paragraph not found in {path.relative_to(ROOT)}")
 
 print("done" if changed else "no changes")
