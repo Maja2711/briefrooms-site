@@ -4,7 +4,7 @@
   var SOURCE_TO_IMAGE_HOSTS = {
     'tvn24.pl':['tvn24.pl'],
     'rmf24.pl':['rmf24.pl','rmffm.pl'],
-    'polsatnews.pl':['polsatnews.pl','grupapolsatplus.pl'],
+    'polsatnews.pl':['polsatnews.pl','grupapolsatplus.pl','pluscdn.pl'],
     'bankier.pl':['bankier.pl'],
     'businessinsider.com.pl':['businessinsider.com.pl','onet.pl','ocdn.eu'],
     'pap.pl':['pap.pl'],
@@ -21,7 +21,7 @@
     'nasa.gov':['nasa.gov'],
     'esa.int':['esa.int'],
     'sport.tvp.pl':['tvp.pl'],
-    'polsatsport.pl':['polsatsport.pl','grupapolsatplus.pl'],
+    'polsatsport.pl':['polsatsport.pl','grupapolsatplus.pl','pluscdn.pl'],
     'przegladsportowy.onet.pl':['onet.pl','ocdn.eu'],
     'sport.onet.pl':['onet.pl','ocdn.eu'],
     'sportowefakty.wp.pl':['wp.pl','wpcdn.pl'],
