@@ -43,6 +43,11 @@ YOUTUBE_PICKS_BLOCK = """<section class="youtube-picks" aria-labelledby="youtube
       <span class="youtube-pick__meta">Rozmowy, publicystyka i analiza bieżących wydarzeń.</span>
       <strong>Otwórz kanał →</strong>
     </a>
+    <a class="youtube-pick" href="https://www.youtube.com/@KanalZeroPL" target="_blank" rel="noopener noreferrer">
+      <span class="youtube-pick__label">Kanał Zero</span>
+      <span class="youtube-pick__meta">Publicystyka, rozmowy i komentarze o polityce, społeczeństwie oraz bieżących wydarzeniach.</span>
+      <strong>Otwórz kanał →</strong>
+    </a>
     <a class="youtube-pick" href="https://www.youtube.com/@nawschododbliskiegowschodu/videos" target="_blank" rel="noopener noreferrer">
       <span class="youtube-pick__label">Szewko — Na Wschód od Bliskiego Wschodu</span>
       <span class="youtube-pick__meta">Najnowsze odcinki o polityce międzynarodowej, Bliskim Wschodzie, Afryce i Azji.</span>
@@ -51,6 +56,11 @@ YOUTUBE_PICKS_BLOCK = """<section class="youtube-picks" aria-labelledby="youtube
   </div>
   <p class="youtube-picks__note">Polecenia redakcyjne. Brak współpracy komercyjnej.</p>
 </section>"""
+
+YOUTUBE_PICKS_BLOCK_RE = re.compile(
+    r'<section\s+class=["\']youtube-picks["\'][^>]*>.*?</section>',
+    re.I | re.S,
+)
 
 
 def write(path: str, html: str) -> None:
@@ -91,7 +101,9 @@ def inject_pl_youtube_picks(html: str) -> str:
             raise RuntimeError('Could not add YouTube picks styles: </head> is missing')
         html = html.replace('</head>', YOUTUBE_PICKS_STYLE + '\n</head>', 1)
 
-    if 'class="youtube-picks"' not in html:
+    if YOUTUBE_PICKS_BLOCK_RE.search(html):
+        html = YOUTUBE_PICKS_BLOCK_RE.sub(YOUTUBE_PICKS_BLOCK, html, count=1)
+    else:
         pattern = re.compile(r'(<div\s+class="source-feed"[^>]*></div>)', re.I)
         if not pattern.search(html):
             raise RuntimeError('Could not add YouTube picks: Hot X source-feed is missing')
