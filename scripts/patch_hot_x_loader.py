@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Ensure PL/EN homepages load exactly one resilient Hot X renderer."""
+"""Ensure PL/EN homepages load the editorial-search-aware Hot X renderer."""
 from pathlib import Path
 import re
 
 FILES = [Path("pl/index.html"), Path("en/index.html")]
-NEW = "/scripts/hot-x-render.js?v=manual-curated-x-1"
+NEW = "/scripts/hot-x-render.js?v=editorial-x-searches-2"
 SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js\?v=[^"\']+["\']\s+defer></script>\s*', re.I)
 
 for path in FILES:
