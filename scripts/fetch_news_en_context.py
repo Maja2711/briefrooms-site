@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import Path
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
@@ -22,11 +23,18 @@ import fetch_news_en as base  # noqa: E402
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
 from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
 from newsroom_style import apply_newsroom_style  # noqa: E402
-from news_story_dedupe import assert_no_duplicate_stories  # noqa: E402
+from news_story_dedupe import (  # noqa: E402
+    audit_html,
+    assert_no_duplicate_stories,
+    deduplicate_sections,
+    load_recent_history,
+    save_history,
+)
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
 _original_finalize_sections = base.finalize_sections
+HISTORY_PATH = Path(__file__).resolve().parents[1] / "data" / "news_story_history_en.json"
 
 WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
@@ -112,6 +120,12 @@ def finalize_sections_full(sections: dict) -> dict:
             item["ai_uncertain"] = ""
             approved.append(item)
         final[section_key] = approved[:MAX_PER_SECTION]
+    final, rejected = deduplicate_sections(
+        final,
+        load_recent_history(HISTORY_PATH),
+    )
+    if rejected:
+        print(f"NEWS_QUALITY_DEDUPE_EN rejected={len(rejected)} details={rejected}")
     return final
 
 
@@ -156,6 +170,9 @@ def render_html_full(sections: dict) -> str:
             )
     assert_no_duplicate_stories(sections)
     html = _original_render_html(sections)
+    audit_html(html)
+    if os.environ.get("BR_NEWS_PERSIST_HISTORY") == "1":
+        save_history(sections, HISTORY_PATH)
     html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', "", html, flags=re.I | re.S)
     html = html.replace("<strong>Key point:</strong> ", "")
     html = add_news_tabs_en(html)
