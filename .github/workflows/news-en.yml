@@ -55,7 +55,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_comment_quality.py"
 
       - name: Test EN news builder
-        run: python -m unittest tests.test_fetch_news_en -v
+        run: python -m unittest tests.test_fetch_news_en tests.test_news_story_dedupe -v
 
       - name: Generate EN News with homepage-grade full-article comments
         env:
@@ -65,6 +65,7 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          BR_NEWS_PERSIST_HISTORY: "1"
         run: |
           python scripts/fetch_news_en_context.py
           python scripts/add_en_news_hook.py
@@ -74,12 +75,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-en.yml scripts/fetch_news_en.py scripts/fetch_news_en_context.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_en.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-en.yml scripts/fetch_news_en.py scripts/fetch_news_en_context.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_en.py tests/test_news_story_dedupe.py; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi
-          if [[ -n "$(git status --porcelain en/news.html .cache)" ]]; then
-            git add en/news.html .cache
+          if [[ -n "$(git status --porcelain en/news.html data/news_story_history_en.json .cache)" ]]; then
+            git add en/news.html data/news_story_history_en.json .cache
             git commit -m "chore(news-en): publish homepage-grade EN news"
             git pull --rebase -X theirs origin main
             git push
