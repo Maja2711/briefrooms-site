@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+# One-time verified installer for the four manually pinned Hot X topics.
 import base64
 import gzip
 import json
