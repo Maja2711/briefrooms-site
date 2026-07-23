@@ -17,6 +17,7 @@ import fetch_news_pl_hybrid as hybrid
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
 from newsroom_articles import enrich_sections_with_homepage_quality
 from newsroom_style import apply_newsroom_style
+from news_story_dedupe import assert_no_duplicate_stories
 
 base = hybrid.base
 _original_fetch = base.fetch_section
@@ -155,6 +156,7 @@ def render_html_strict(sections: dict) -> str:
             raise RuntimeError(
                 f"PL news publication blocked by full-article comment audit: {item.get('title', '')[:80]}"
             )
+    assert_no_duplicate_stories(sections)
     html = _original_render(sections)
     html = _add_section_tabs(html)
     html = re.sub(r'\n\s*<div class="sec"><strong>Dlaczego to ważne:</strong>.*?</div>', "", html, flags=re.I | re.S)
