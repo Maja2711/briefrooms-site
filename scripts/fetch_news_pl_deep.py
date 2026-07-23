@@ -11,15 +11,24 @@ Polityka, Ekonomia, Zdrowie, Nauka and Sport sections.
 
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 
 import fetch_news_pl_hybrid as hybrid
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
 from newsroom_articles import enrich_sections_with_homepage_quality
 from newsroom_style import apply_newsroom_style
-from news_story_dedupe import assert_no_duplicate_stories
+from news_story_dedupe import (
+    audit_html,
+    assert_no_duplicate_stories,
+    deduplicate_sections,
+    load_recent_history,
+    save_history,
+)
 
 base = hybrid.base
+HISTORY_PATH = Path(__file__).resolve().parents[1] / "data" / "news_story_history_pl.json"
 _original_fetch = base.fetch_section
 _original_render = base.render_html
 _original_finalize_sections = base.finalize_sections
@@ -120,6 +129,12 @@ def finalize_sections_strict(sections: dict) -> dict:
             item["ai_uncertain"] = ""
             approved.append(item)
         final[section_key] = approved[: SECTION_MAXIMUMS.get(section_key, 10)]
+    final, rejected = deduplicate_sections(
+        final,
+        load_recent_history(HISTORY_PATH),
+    )
+    if rejected:
+        print(f"NEWS_QUALITY_DEDUPE_PL rejected={len(rejected)} details={rejected}")
     return final
 
 
@@ -157,6 +172,9 @@ def render_html_strict(sections: dict) -> str:
             )
     assert_no_duplicate_stories(sections)
     html = _original_render(sections)
+    audit_html(html)
+    if os.environ.get("BR_NEWS_PERSIST_HISTORY") == "1":
+        save_history(sections, HISTORY_PATH)
     html = _add_section_tabs(html)
     html = re.sub(r'\n\s*<div class="sec"><strong>Dlaczego to ważne:</strong>.*?</div>', "", html, flags=re.I | re.S)
     html = html.replace("<strong>Najważniejsze:</strong> ", "")
