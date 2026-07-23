@@ -332,12 +332,17 @@
       '.br-daily-alert__title{margin:0;font-size:22px;line-height:1.1;letter-spacing:-.025em}',
       '.br-daily-alert__regime{display:inline-flex;align-items:center;min-height:24px;padding:4px 9px;border:1px solid rgba(255,191,63,.30);border-radius:999px;background:rgba(255,191,63,.10);color:#ffd36f;font-size:10px;font-weight:900}',
       '.br-daily-alert__snapshot{margin:7px 0 0;color:#aebfd0;font-size:12px;line-height:1.45}',
-      '.br-daily-alert__meta{display:flex;align-items:center;justify-content:flex-end;gap:10px;color:#91a6ba;font-size:10px;font-weight:850;white-space:nowrap}',
+      '.br-daily-alert__meta{display:flex;align-items:center;justify-content:flex-end;gap:12px;color:#91a6ba;font-size:10px;font-weight:850;white-space:nowrap}',
+      '.br-daily-alert__meta-copy{display:flex;flex-direction:column;align-items:flex-end;gap:3px}',
+      '.br-daily-alert__edition{color:#c5d4e2;font-size:9px;font-weight:900}',
+      '.br-daily-alert__action{display:flex;flex-direction:column;align-items:center;gap:3px}',
+      '.br-daily-alert__expand{color:#9ffff6;font-size:9px;font-weight:950;letter-spacing:.045em;text-transform:uppercase}',
       '.br-daily-alert__freshness.is-stale{color:#ffbf3f}',
       '.br-daily-alert__chevron{display:inline-grid;width:28px;height:28px;place-items:center;border:1px solid rgba(255,255,255,.13);border-radius:50%;font-size:16px;transition:transform .2s ease}',
       '.br-daily-alert.is-open .br-daily-alert__chevron{transform:rotate(180deg)}',
       '.br-daily-alert__body{padding:20px;border-top:1px solid rgba(255,255,255,.10)}',
-      '.br-daily-alert__summary{max-width:960px;margin:0 0 17px;color:#c7d6e4;font-size:13px;line-height:1.65}',
+      '.br-daily-alert__summary{max-width:960px;margin:0 0 12px;color:#c7d6e4;font-size:13px;line-height:1.65}',
+      '.br-daily-alert__session-note{margin:0 0 17px;padding:10px 12px;border:1px solid rgba(56,214,201,.16);border-radius:12px;background:rgba(56,214,201,.055);color:#aee5df;font-size:11px;line-height:1.55}',
       '.br-daily-alert__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}',
       '.br-daily-alert__card{min-width:0;padding:16px;border:1px solid rgba(255,255,255,.10);border-radius:17px;background:rgba(3,10,18,.52);box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}',
       '.br-daily-alert__instrument-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}',
@@ -366,7 +371,7 @@
       '.br-daily-alert__sources{display:flex;flex-wrap:wrap;gap:8px}',
       '.br-daily-alert__sources a{color:#8fe9e0;text-decoration:underline;text-decoration-color:rgba(143,233,224,.28);text-underline-offset:3px}',
       '@media(max-width:980px){.br-daily-alert__grid{grid-template-columns:1fr}.br-daily-alert__card{padding:15px}}',
-      '@media(max-width:620px){.br-daily-alert__toggle{grid-template-columns:1fr;padding:16px}.br-daily-alert__meta{justify-content:space-between}.br-daily-alert__body{padding:15px}.br-daily-alert__title{font-size:20px}.br-daily-alert__snapshot{font-size:11px}.br-daily-alert__reason{font-size:11.5px}}',
+      '@media(max-width:620px){.br-daily-alert__toggle{grid-template-columns:1fr;padding:16px}.br-daily-alert__meta{justify-content:space-between}.br-daily-alert__meta-copy{align-items:flex-start}.br-daily-alert__body{padding:15px}.br-daily-alert__title{font-size:20px}.br-daily-alert__snapshot{font-size:11px}.br-daily-alert__reason{font-size:11.5px}}',
       '@media(prefers-reduced-motion:reduce){.br-daily-alert__chevron{transition:none}}'
     ].join('');
     doc.head.appendChild(style);
@@ -379,6 +384,10 @@
       current: 'Aktualny alert',
       stale: 'Ostatni dostępny alert',
       updated: 'Aktualizacja',
+      expand: 'Rozwiń',
+      collapse: 'Zwiń',
+      openingEdition: 'Alert po otwarciu',
+      precloseEdition: 'Aktualizacja przed zamknięciem',
       reason: 'Co nowego i dlaczego rynek reaguje',
       support: 'Wsparcie',
       resistance: 'Opór',
@@ -392,6 +401,10 @@
       current: 'Current alert',
       stale: 'Latest available alert',
       updated: 'Updated',
+      expand: 'Expand',
+      collapse: 'Collapse',
+      openingEdition: 'Post-open alert',
+      precloseEdition: 'Pre-close update',
       reason: 'What is new and why the market is reacting',
       support: 'Support',
       resistance: 'Resistance',
@@ -463,6 +476,8 @@
 
     var labels = labelsFor(language);
     var stale = isStale(data.updated_at);
+    var editionLabel = data.edition === 'preclose' ? labels.precloseEdition : labels.openingEdition;
+    var sessionNote = data.preclose_check && data.preclose_check.note ? localized(data.preclose_check.note, language) : '';
     var snapshot = data.instruments.map(function (instrument) {
       return instrument.name + ' ' + instrument.change;
     }).join(' · ');
@@ -476,10 +491,11 @@
         '<span><span class="br-daily-alert__eyebrow">' + labels.eyebrow + '</span>' +
         '<span class="br-daily-alert__title-row"><strong class="br-daily-alert__title">' + labels.title + '</strong><span class="br-daily-alert__regime">' + escapeHtml(localized(data.market_regime, language)) + '</span></span>' +
         '<span class="br-daily-alert__snapshot">' + escapeHtml(snapshot) + '</span></span>' +
-        '<span class="br-daily-alert__meta"><span class="br-daily-alert__freshness' + (stale ? ' is-stale' : '') + '">' + (stale ? labels.stale : labels.current) + '</span><span>' + labels.updated + ': ' + escapeHtml(formatUpdated(data.updated_at, language)) + '</span><span class="br-daily-alert__chevron" aria-hidden="true">⌄</span></span>' +
+        '<span class="br-daily-alert__meta"><span class="br-daily-alert__meta-copy"><span class="br-daily-alert__freshness' + (stale ? ' is-stale' : '') + '">' + (stale ? labels.stale : labels.current) + '</span><span class="br-daily-alert__edition">' + escapeHtml(editionLabel) + ' · ' + labels.updated + ': ' + escapeHtml(formatUpdated(data.updated_at, language)) + '</span></span><span class="br-daily-alert__action"><span class="br-daily-alert__expand">' + labels.expand + '</span><span class="br-daily-alert__chevron" aria-hidden="true">⌄</span></span></span>' +
       '</button>' +
       '<div class="br-daily-alert__body" id="br-daily-market-alert-body" hidden>' +
         '<p class="br-daily-alert__summary">' + escapeHtml(localized(data.summary, language)) + '</p>' +
+        (sessionNote ? '<p class="br-daily-alert__session-note">' + escapeHtml(sessionNote) + '</p>' : '') +
         '<div class="br-daily-alert__grid">' + data.instruments.map(function (instrument) { return instrumentMarkup(instrument, language, labels); }).join('') + '</div>' +
         '<div class="br-daily-alert__footer"><span>' + labels.disclaimer + '</span><span class="br-daily-alert__sources"><b>' + labels.sources + ':</b> ' + sourceMarkup(data.sources) + '</span></div>' +
       '</div>';
@@ -488,11 +504,13 @@
 
     var toggle = section.querySelector('.br-daily-alert__toggle');
     var body = section.querySelector('.br-daily-alert__body');
+    var expandLabel = section.querySelector('.br-daily-alert__expand');
     toggle.addEventListener('click', function () {
       var open = toggle.getAttribute('aria-expanded') === 'true';
       toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
       body.hidden = open;
       section.classList.toggle('is-open', !open);
+      if (expandLabel) expandLabel.textContent = open ? labels.expand : labels.collapse;
     });
   }
 
