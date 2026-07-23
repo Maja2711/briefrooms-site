@@ -28,11 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
-      - name: Check out writable source branch
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +68,20 @@ jobs:
       - name: Apply champion-challenger promotion gate
         run: python scripts/portfolio_10k_brace_promotion.py
 
-      - name: Commit refreshed BRACE data memory and verdict
+      - name: Upload verified trained outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-historical-trained-output
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            data/investments/portfolio_10k_brace_historical_learning.json
+            data/investments/portfolio_10k_brace.json
+            data/investments/portfolio_10k_brace_backtest.json
+            data/investments/portfolio_10k_brace_memory.json
+
+      - name: Commit refreshed BRACE data memory and verdict on main
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -84,11 +94,6 @@ jobs:
             echo "BRACE outputs already current."
           else
             git commit -m "Train BRACE on guarded historical lessons"
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              git pull --rebase origin main
-              git push origin HEAD:${{ github.head_ref }}
-            else
-              git pull --rebase origin main
-              git push
-            fi
+            git pull --rebase origin main
+            git push
           fi
