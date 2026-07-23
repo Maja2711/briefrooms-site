@@ -1,18 +1,26 @@
 name: Bootstrap BRACE 2.0 Learning
 
-# Technical merge trigger: run the guarded historical accelerator immediately.
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/portfolio-10k-brace-bootstrap.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/portfolio-10k-brace-bootstrap.yml"
+      - "scripts/brace_historical_accelerator.py"
+      - "scripts/brace_historical_seed_calibration.py"
+      - "scripts/brace_historical_publish.py"
+      - "tests/test_brace_historical_accelerator.py"
+      - "tests/test_brace_historical_seed_calibration.py"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 concurrency:
-  group: portfolio-10k-brace-bootstrap
+  group: portfolio-10k-brace-bootstrap-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -61,6 +69,7 @@ jobs:
         run: python scripts/portfolio_10k_brace_promotion.py
 
       - name: Commit refreshed BRACE data memory and verdict
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
