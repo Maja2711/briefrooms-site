@@ -1,0 +1,75 @@
+name: Apply Hot X Editorial Topics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/apply_hot_x_editorial_patch.py"
+      - ".github/workflows/apply-hot-x-editorial-patch.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hot-x-editorial-patch
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Expand editorial Hot X patch
+        run: python scripts/apply_hot_x_editorial_patch.py
+
+      - name: Compile Python files
+        run: |
+          python -m py_compile scripts/hot_x_items.py
+          python -m py_compile scripts/update_hot_x_2x_daily.py
+          python -m py_compile scripts/patch_hot_x_loader.py
+
+      - name: Run Hot X Python tests
+        run: python -m unittest tests/test_hot_x_items.py
+
+      - name: Run Hot X JavaScript tests
+        run: |
+          node --check scripts/hot-x-render.js
+          node tests/test_hot_x_render.js
+
+      - name: Apply PL and EN cache-busted loader
+        run: python scripts/patch_hot_x_loader.py
+
+      - name: Verify four pinned topics in both language payloads
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          pins = json.loads(Path('data/hot_x_editorial_pins.json').read_text(encoding='utf-8'))['items']
+          feed = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))['items']
+          assert len(pins) == 4
+          assert [x['title_pl'] for x in feed[:4]] == [x['title_pl'] for x in pins]
+          assert all(x.get('editorial_pin') is True and x.get('link_kind') == 'x_search' for x in pins)
+          assert all(x.get('title_pl') and x.get('title_en') and x.get('comment_pl') and x.get('comment_en') for x in pins)
+          for page in ('pl/index.html', 'en/index.html'):
+              text = Path(page).read_text(encoding='utf-8')
+              assert '/scripts/hot-x-render.js?v=editorial-x-searches-2' in text
+          PY
+
+      - name: Commit verified implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Pin four editorial topics in Hot X"
+          git pull --rebase origin main
+          git push
