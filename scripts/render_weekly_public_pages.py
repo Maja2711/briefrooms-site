@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "governance-9"
+ASSET_VERSION = "governance-10"
 
 PAGES = {
     ROOT / "pl/inwestycje/prognozy-tygodniowe.html": {
