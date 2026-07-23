@@ -1,20 +1,12 @@
-name: Update Hot X Topics
+name: Apply and Verify Hot X Editorial Topics
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "scripts/update_hot_x_2x_daily.py"
-      - "scripts/build_hot_x_en.py"
-      - "scripts/update_hot_x_topics.py"
-      - "scripts/hot_x_items.py"
-      - "scripts/translate_hot_x_pl.py"
-      - "scripts/validate_hot_x_comments.py"
-      - "scripts/validate_hot_x_feed.py"
-      - "scripts/patch_hot_x_loader.py"
-      - "scripts/hot-x-render.js"
-      - "data/hot_x_emergency.json"
+      - "scripts/apply_hot_x_editorial_patch.py"
+      - "data/hot-x-editorial-patch/**"
       - ".github/workflows/hot-x-topics.yml"
 
 permissions:
@@ -25,54 +17,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-hot-x-topics:
+  apply-hot-x-editorial-topics:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Save last known good Hot X comments
-        run: python scripts/validate_hot_x_comments.py --backup
-        continue-on-error: true
+      - name: Expand four editorial Hot X topics
+        run: python scripts/apply_hot_x_editorial_patch.py
 
-      - name: Update Hot X automatically twice daily
-        env:
-          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
-        run: python scripts/update_hot_x_2x_daily.py
+      - name: Compile and test Hot X implementation
+        run: |
+          python -m py_compile scripts/hot_x_items.py scripts/update_hot_x_2x_daily.py scripts/patch_hot_x_loader.py
+          python -m unittest tests/test_hot_x_items.py
+          node --check scripts/hot-x-render.js
+          node tests/test_hot_x_render.js
 
-
-      - name: Final Polish-language gate
-        run: python scripts/translate_hot_x_pl.py
-        continue-on-error: true
-
-      - name: Reject empty or generic cards and preserve comments
-        if: always()
-        run: python scripts/validate_hot_x_comments.py --validate --require-fresh-posts
-
-      - name: Load resilient Hot X renderer
-        if: always()
+      - name: Patch PL and EN loaders
         run: python scripts/patch_hot_x_loader.py
-        continue-on-error: true
 
-      - name: Commit updated Hot X data
-        # Never publish an empty or invalid feed when the X API/update gate fails.
-        if: success()
+      - name: Verify bilingual pinned feed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          pins = json.loads(Path('data/hot_x_editorial_pins.json').read_text(encoding='utf-8'))['items']
+          feed = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))['items']
+          assert len(pins) == 4
+          assert [x['search_url'] for x in feed[:4]] == [x['search_url'] for x in pins]
+          assert all(x.get('editorial_pin') is True and x.get('link_kind') == 'x_search' for x in pins)
+          assert all(x.get('title_pl') and x.get('title_en') and x.get('comment_pl') and x.get('comment_en') for x in pins)
+          for page in ('pl/index.html', 'en/index.html'):
+              text = Path(page).read_text(encoding='utf-8')
+              assert '/scripts/hot-x-render.js?v=editorial-x-searches-2' in text
+          PY
+
+      - name: Commit verified Hot X topics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_tweets.json .cache pl/index.html en/index.html || true
-          if git diff --cached --quiet; then
-            echo "No Hot X changes to commit."
-          else
-            git commit -m "Update Hot X topics"
-            git pull --rebase origin main
-            git push
-          fi
+          git add -A
+          git commit -m "Pin four editorial topics in Hot X"
+          git pull --rebase origin main
+          git push
