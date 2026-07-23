@@ -22,6 +22,7 @@ import fetch_news_en as base  # noqa: E402
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
 from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
 from newsroom_style import apply_newsroom_style  # noqa: E402
+from news_story_dedupe import assert_no_duplicate_stories  # noqa: E402
 
 _original_fetch_section = base.fetch_section
 _original_render_html = base.render_html
@@ -153,6 +154,7 @@ def render_html_full(sections: dict) -> str:
             raise RuntimeError(
                 f"EN news publication blocked by full-article comment audit: {item.get('title', '')[:80]}"
             )
+    assert_no_duplicate_stories(sections)
     html = _original_render_html(sections)
     html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', "", html, flags=re.I | re.S)
     html = html.replace("<strong>Key point:</strong> ", "")
