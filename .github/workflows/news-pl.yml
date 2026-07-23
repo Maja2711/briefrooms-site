@@ -11,6 +11,7 @@ on:
       - "scripts/fetch_news_pl.py"
       - "scripts/fetch_news_pl_hybrid.py"
       - "scripts/fetch_news_pl_deep.py"
+      - "scripts/news_story_dedupe.py"
       - "scripts/read_and_summarize_articles.py"
       - "scripts/newsroom_articles.py"
       - "scripts/newsroom_style.py"
@@ -71,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py; then
             echo "Skip stale publish because generator code changed on main."
             exit 0
           fi
