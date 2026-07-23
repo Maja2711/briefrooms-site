@@ -126,6 +126,17 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         }
         self.assertTrue(same_story(first, second))
 
+    def test_same_transfer_from_different_publishers_is_deduplicated(self):
+        first = {
+            "title": "Arsenal sign Greek forward Tzolis for £34m",
+            "link": "https://bbc.co.uk/example",
+        }
+        second = {
+            "title": "Arsenal complete deal to sign winger Tzolis",
+            "link": "https://skysports.com/example",
+        }
+        self.assertTrue(same_story(first, second))
+
     def test_fetch_section_skips_a_hotlink_blocked_thumbnail(self):
         entries = [
             {"title": "Blocked image report", "link": "https://example.com/blocked", "summary": "First report."},
