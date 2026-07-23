@@ -9,8 +9,10 @@ on:
     branches: [main]
     paths:
       - "scripts/brace_historical_accelerator.py"
+      - "scripts/brace_historical_seed_calibration.py"
       - "scripts/brace_historical_publish.py"
       - "tests/test_brace_historical_accelerator.py"
+      - "tests/test_brace_historical_seed_calibration.py"
       - ".github/workflows/brace-historical-accelerator.yml"
 
 permissions:
@@ -38,11 +40,14 @@ jobs:
 
       - name: Validate accelerator and BRACE suite
         run: |
-          python -m py_compile scripts/brace_historical_accelerator.py scripts/brace_historical_publish.py
-          python -m pytest -q tests/test_brace_historical_accelerator.py tests/test_portfolio_10k_brace*.py
+          python -m py_compile scripts/brace_historical_accelerator.py scripts/brace_historical_seed_calibration.py scripts/brace_historical_publish.py
+          python -m pytest -q tests/test_brace_historical_accelerator.py tests/test_brace_historical_seed_calibration.py tests/test_portfolio_10k_brace*.py
 
       - name: Train on the longest honest price history
         run: python scripts/brace_historical_accelerator.py --start 1995-01-01 --patience 6
+
+      - name: Calibrate lessons to validated strength
+        run: python scripts/brace_historical_seed_calibration.py
 
       - name: Rebuild current BRACE snapshot
         run: python scripts/portfolio_10k_brace.py
