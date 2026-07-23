@@ -11,6 +11,9 @@ on:
       - "scripts/external_media_policy.py"
       - "scripts/external-media-guard.js"
       - "scripts/enforce_external_media_policy.py"
+      - "scripts/homepage-photo-only.js"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "tests/test_homepage_photo_only.py"
       - ".github/workflows/external-media-policy.yml"
       - "pl/home_brief.json"
       - "en/home_brief.json"
@@ -47,23 +50,30 @@ jobs:
 
       - name: Validate policy scripts
         run: |
-          python -m py_compile scripts/external_media_policy.py scripts/enforce_external_media_policy.py
+          python -m py_compile scripts/external_media_policy.py scripts/enforce_external_media_policy.py scripts/enforce_homepage_photo_only.py
           node --check scripts/external-media-guard.js
+          node --check scripts/homepage-photo-only.js
 
       - name: Enforce external-media policy
-        run: python scripts/enforce_external_media_policy.py
+        run: |
+          python scripts/enforce_external_media_policy.py
+          python scripts/enforce_homepage_photo_only.py
+
+      - name: Test photo-only homepage rule
+        run: python -m unittest tests.test_homepage_photo_only
 
       - name: Commit guarded output
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/external_media_policy.json scripts/external_media_policy.py scripts/external-media-guard.js scripts/enforce_external_media_policy.py \
+            scripts/homepage-photo-only.js scripts/enforce_homepage_photo_only.py tests/test_homepage_photo_only.py \
             pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/aktualnosci.html en/news.html \
             pl/briefy en/briefs || true
           if git diff --cached --quiet; then
-            echo "External-media policy already satisfied."
+            echo "External-media and homepage photo-only policies already satisfied."
           else
-            git commit -m "fix(media): enforce source-linked external images"
+            git commit -m "fix(media): enforce source-linked photo-only homepages"
             git pull --rebase origin main
             git push
           fi
