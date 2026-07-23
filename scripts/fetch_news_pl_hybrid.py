@@ -356,6 +356,12 @@ def source_badge_for_hybrid(source: str) -> str:
     return _original_source_badge_for((source or "").split(" · ", 1)[0])
 
 
+def polish_source_label(source: str) -> str:
+    """Add the foreign-source disclosure exactly once."""
+    original = (source or "Źródło").split(" · ", 1)[0].strip()
+    return f"{original} · źródło anglojęzyczne — brief po polsku"
+
+
 def ai_summarize_pl_hybrid(title: str, snippet: str, url: str, section_key: str = "") -> dict:
     out = _original_ai_summarize_pl(title, snippet, url, section_key)
     if not isinstance(out, dict):
@@ -386,7 +392,6 @@ def fetch_section_hybrid(section_key: str, summarize: bool = True):
         if not translated:
             continue
 
-        original_source = it.get("source_name", "Źródło")
         it["title"] = translated["title_pl"]
         it["ai_summary"] = translated["summary"]
         it["ai_why"] = translated["why"]
@@ -396,7 +401,7 @@ def fetch_section_hybrid(section_key: str, summarize: bool = True):
         it["comment_quality_status"] = translated.get("quality_status", "")
         it["comment_quality_version"] = translated.get("quality_version")
         it["comment_generation_status"] = "ai_review_approved" if translated.get("reviewed") is True else "rejected_or_unavailable"
-        it["source_name"] = f"{original_source} · Źródło anglojęzyczne — brief po polsku"
+        it["source_name"] = polish_source_label(it.get("source_name", "Źródło"))
         out.append(it)
 
     return out
@@ -408,8 +413,7 @@ def finalize_sections_hybrid(sections: dict) -> dict:
         for item in items:
             if not item.get("_source_was_english"):
                 continue
-            original_source = item.get("source_name", "Źródło")
-            item["source_name"] = f"{original_source} · źródło anglojęzyczne — brief po polsku"
+            item["source_name"] = polish_source_label(item.get("source_name", "Źródło"))
     return sections
 
 
