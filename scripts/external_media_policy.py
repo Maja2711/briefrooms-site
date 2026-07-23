@@ -64,7 +64,6 @@ def allowed_image_hosts(source_url: str) -> tuple[str, ...]:
     for source_suffix, image_hosts in SOURCE_TO_IMAGE_HOSTS.items():
         if host_matches(source_host, source_suffix):
             allowed.extend(image_hosts)
-    # Preserve order while removing duplicates.
     return tuple(dict.fromkeys(host for host in allowed if host))
 
 
@@ -94,8 +93,10 @@ def external_image_url(value: object, source_url: object, base_url: object = "")
     same_family = host_matches(image_host, source_host) or host_matches(source_host, image_host)
     if not same_family and not any(host_matches(image_host, host) for host in allowed):
         return ""
-    clean = parsed._replace(scheme="https", fragment="", username=None, password=None)
-    return urlunsplit(clean)
+    port = parsed.port
+    default_port = port in (None, 443)
+    netloc = image_host if default_port else f"{image_host}:{port}"
+    return urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
 
 
 def image_is_fetchable(value: object, source_url: object, timeout: int = 8) -> bool:
