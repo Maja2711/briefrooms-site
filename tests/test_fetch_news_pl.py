@@ -152,6 +152,30 @@ class PolishNewsBuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "duplicate event"):
             assert_no_duplicate_stories({"polityka": [first, second]})
 
+    def test_published_pl_page_has_no_duplicate_events_or_repeated_disclosures(self):
+        import html
+        import re
+
+        page = (ROOT / "pl" / "aktualnosci.html").read_text(encoding="utf-8")
+        cards = []
+        for block in re.findall(r"<li>.*?</li>", page, flags=re.S):
+            title = re.search(r'class="news-text">(.*?)</span>', block, flags=re.S)
+            link = re.search(r'class="news-main-link" href="(.*?)"', block, flags=re.S)
+            if title and link:
+                cards.append({
+                    "title": html.unescape(re.sub(r"<.*?>", "", title.group(1))),
+                    "link": html.unescape(link.group(1)),
+                })
+        assert_no_duplicate_stories({"published": cards})
+        self.assertNotIn(
+            "źródło anglojęzyczne — brief po polsku · źródło anglojęzyczne — brief po polsku",
+            page,
+        )
+        politics = re.search(
+            r'<section class="card" id="polityka">(.*?)</section>', page, flags=re.S
+        ).group(1)
+        self.assertNotIn("Niedźwiedź utknął", politics)
+
     def test_missing_ai_never_publishes_rss_fallback(self):
         with mock.patch.dict("os.environ", {"OPENAI_API_KEY": ""}), mock.patch.object(news, "CACHE", {}), mock.patch.object(news, "save_cache") as save_cache:
             result = news.ai_summarize_pl("Testowy tytuł", "Opis materiału zawiera wystarczająco dużo treści do komentarza.", "https://example.com/test", "nauka")
