@@ -23,6 +23,7 @@ from comment_quality import (
     validate_news_comment,
 )
 from news_comment_batch import summarize_news_items
+from news_story_dedupe import same_story
 
 # =========================
 # STREFA CZASOWA
@@ -847,10 +848,15 @@ def fetch_section(section_key: str, summarize: bool = True):
     # sortuj po score
     items.sort(key=lambda x: x["_score"], reverse=True)
 
-    # deduplikacja semantyczna (Jaccard na tokenach tytułu)
+    # Deduplikacja zdarzeń, nie tylko podobnych ciągów znaków w tytule.
+    # Jedno wydarzenie z dwóch redakcji może dać tylko jedną kartę.
     kept = []
     for it in items:
-        if not any(jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD for got in kept):
+        if not any(
+            jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD
+            or same_story(it, got)
+            for got in kept
+        ):
             kept.append(it)
 
     # limit na host + total
