@@ -123,6 +123,7 @@ jobs:
             echo "::error::EN publication produced no changes"
             exit 1
           fi
+          git restore --worktree .
           git commit -m "chore(news-en): publish news and homepage atomically"
           for attempt in 1 2 3; do
             git pull --rebase -X theirs origin main
