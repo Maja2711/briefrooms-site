@@ -21,15 +21,15 @@ on:
       - "tests/test_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
-    # Candidate UTC times for 09:45 New York, across EDT/EST.
-    - cron: "45 13 * * 1-5"
-    - cron: "45 14 * * 1-5"
-    # Candidate UTC times for one hour before a 13:00 ET shortened session close.
-    - cron: "0 16 * * 1-5"
-    - cron: "0 17 * * 1-5"
-    # Candidate UTC times for one hour before the normal 16:00 ET close.
-    - cron: "0 19 * * 1-5"
-    - cron: "0 20 * * 1-5"
+    # Candidate UTC times for 10:00 New York (30 minutes after open), EDT/EST.
+    - cron: "0 14 * * 1-5"
+    - cron: "0 15 * * 1-5"
+    # Candidate UTC times for 12:30 New York on shortened sessions, EDT/EST.
+    - cron: "30 16 * * 1-5"
+    - cron: "30 17 * * 1-5"
+    # Candidate UTC times for 15:30 New York (30 minutes before close), EDT/EST.
+    - cron: "30 19 * * 1-5"
+    - cron: "30 20 * * 1-5"
 
 permissions:
   contents: write
@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            MODE="ui-only"
+            MODE="catchup"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             MODE="${{ inputs.mode }}"
           else
@@ -90,6 +90,7 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          BR_ALERT_SCHEDULE: ${{ github.event.schedule }}
         run: python scripts/update_daily_market_alert.py --mode "${{ steps.mode.outputs.mode }}"
 
       - name: Validate generated alert
