@@ -18,6 +18,15 @@ BRACE-SPX is hypothesis-agnostic. Human suggestions, macro data, event intellige
 
 A component survives only when it adds stable incremental value over stronger baselines outside the sample used to design it. If performance is statistically indistinguishable, the simpler and more reproducible candidate wins. No feature family, model class or narrative is privileged.
 
+### Challenger admission protocol
+
+1. Every proposed feature family or rule enters as a named challenger with a reproducible specification.
+2. The challenger is evaluated first on development folds against price-only and simple-rule baselines.
+3. Incremental value must be stable across folds, remain positive after realistic costs and survive multiple-testing controls.
+4. A challenger that merely changes the story but not the out-of-sample evidence is rejected.
+5. No challenger may inspect, influence or repeatedly reuse the sealed holdout.
+6. Complexity is accepted only when its improvement is material enough to justify the added estimation and execution risk.
+
 ## Research loop
 
 1. Download the longest reliable SPY history plus exogenous market features.
