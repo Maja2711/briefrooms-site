@@ -131,6 +131,7 @@ jobs:
             echo "::error::PL publication produced no changes"
             exit 1
           else
+            git restore --worktree .
             git commit -m "chore(news-pl): publish news and homepage atomically"
             for attempt in 1 2 3; do
               git pull --rebase -X theirs origin main
