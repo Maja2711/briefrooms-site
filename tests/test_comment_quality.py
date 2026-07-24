@@ -729,7 +729,7 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", source, relative)
             self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", source, relative)
             self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
-            self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"', source, relative)
+            self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', source, relative)
         for relative in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
