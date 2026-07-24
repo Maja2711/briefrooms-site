@@ -11,7 +11,12 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from validate_news_home_publish import ALLOWED_HOMEPAGE_COUNTS, assert_fresh, parse_datetime
+from validate_news_home_publish import (
+    ALLOWED_HOMEPAGE_COUNTS,
+    assert_fresh,
+    homepage_timestamp,
+    parse_datetime,
+)
 
 
 class NewsHomePublishValidationTests(unittest.TestCase):
@@ -32,6 +37,16 @@ class NewsHomePublishValidationTests(unittest.TestCase):
         self.assertEqual(ALLOWED_HOMEPAGE_COUNTS, {8, 10})
         self.assertNotIn(9, ALLOWED_HOMEPAGE_COUNTS)
         self.assertNotIn(11, ALLOWED_HOMEPAGE_COUNTS)
+
+    def test_homepage_timestamp_accepts_equivalent_second_precision(self) -> None:
+        source = (
+            '<div id="latest-briefs" class="brief-grid" data-home-photo-only="true" '
+            'data-home-updated-at="2026-07-24T21:37:00+00:00">'
+        )
+        self.assertEqual(
+            homepage_timestamp(source, "en"),
+            parse_datetime("2026-07-24T21:37+00:00"),
+        )
 
 
 if __name__ == "__main__":
