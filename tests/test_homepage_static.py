@@ -106,6 +106,26 @@ class HomepageStaticTests(unittest.TestCase):
             )
             self.assertIn(f'<span class="pill" id="updated-at">{label}</span>', source, lang)
 
+    def test_timestamp_update_preserves_additional_grid_attributes(self) -> None:
+        source = (
+            '<span class="pill" id="updated-at">Update: old</span>'
+            '<div id="latest-briefs" class="brief-grid" data-home-photo-only="true" '
+            'data-home-updated-at="2026-07-18T10:00:00+00:00">'
+            f"{permanent.HOME_BRIEFS_START}{permanent.HOME_BRIEFS_END}</div>"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "index.html"
+            path.write_text(source, encoding="utf-8")
+            feed = json.loads((ROOT / "en/home_brief.json").read_text(encoding="utf-8"))
+            rendered = permanent.render_homepage_static(path, feed, "en")
+        self.assertIsNotNone(rendered)
+        output = rendered.decode("utf-8")
+        self.assertIn('data-home-photo-only="true"', output)
+        self.assertIn(
+            f'data-home-updated-at="{permanent.iso_datetime(feed["updated_at"])}"',
+            output,
+        )
+
     def test_repository_homepages_have_balanced_html(self) -> None:
         for lang in ("pl", "en"):
             parser = BalancedHTMLParser()
