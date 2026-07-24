@@ -19,11 +19,13 @@ on:
       - "scripts/brace_spx_research_controls.py"
       - "scripts/brace_spx_macro_events.py"
       - "scripts/brace_spx_selection_audit.py"
+      - "scripts/brace_spx_statistical_governance.py"
       - "tests/test_brace_spx_research.py"
       - "tests/test_brace_spx_generation_research.py"
       - "tests/test_brace_spx_research_controls.py"
       - "tests/test_brace_spx_macro_events.py"
       - "tests/test_brace_spx_selection_audit.py"
+      - "tests/test_brace_spx_statistical_governance.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
   pull_request:
@@ -34,11 +36,13 @@ on:
       - "scripts/brace_spx_research_controls.py"
       - "scripts/brace_spx_macro_events.py"
       - "scripts/brace_spx_selection_audit.py"
+      - "scripts/brace_spx_statistical_governance.py"
       - "tests/test_brace_spx_research.py"
       - "tests/test_brace_spx_generation_research.py"
       - "tests/test_brace_spx_research_controls.py"
       - "tests/test_brace_spx_macro_events.py"
       - "tests/test_brace_spx_selection_audit.py"
+      - "tests/test_brace_spx_statistical_governance.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
 
@@ -75,13 +79,15 @@ jobs:
             scripts/brace_spx_generation_research.py \
             scripts/brace_spx_research_controls.py \
             scripts/brace_spx_macro_events.py \
-            scripts/brace_spx_selection_audit.py
+            scripts/brace_spx_selection_audit.py \
+            scripts/brace_spx_statistical_governance.py
           python -m pytest -q \
             tests/test_brace_spx_research.py \
             tests/test_brace_spx_generation_research.py \
             tests/test_brace_spx_research_controls.py \
             tests/test_brace_spx_macro_events.py \
-            tests/test_brace_spx_selection_audit.py
+            tests/test_brace_spx_selection_audit.py \
+            tests/test_brace_spx_statistical_governance.py
 
       - name: Run sealed generation search
         env:
@@ -90,6 +96,13 @@ jobs:
 
       - name: Run hypothesis-agnostic selection audit
         run: python scripts/brace_spx_selection_audit.py
+
+      - name: Reconcile active evidence with verified public snapshot
+        run: |
+          python scripts/brace_spx_statistical_governance.py \
+            --active-report data/research/brace_spx_generation_research.json \
+            --public-snapshot data/public/brace_spx_public.json \
+            --output data/research/brace_spx_reconciliation.json
 
       - name: Upload research evidence
         uses: actions/upload-artifact@v4
@@ -102,6 +115,7 @@ jobs:
             data/research/brace_spx_generation_experiments.json
             data/research/brace_spx_generation_manifest.json
             data/research/brace_spx_selection_audit.json
+            data/research/brace_spx_reconciliation.json
 
       - name: Persist experiment memory
         if: github.event_name != 'pull_request'
@@ -112,7 +126,8 @@ jobs:
             data/research/brace_spx_generation_research.json \
             data/research/brace_spx_generation_experiments.json \
             data/research/brace_spx_generation_manifest.json \
-            data/research/brace_spx_selection_audit.json
+            data/research/brace_spx_selection_audit.json \
+            data/research/brace_spx_reconciliation.json
           if git diff --cached --quiet; then
             echo "No new BRACE-SPX sealed-generation evidence."
           else
