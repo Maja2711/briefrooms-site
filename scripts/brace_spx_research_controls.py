@@ -114,7 +114,8 @@ def probability_of_backtest_overfitting(
     frame = strategy_returns.replace([np.inf, -np.inf], np.nan).dropna(how="all")
     if frame.shape[1] < 2 or len(frame) < partitions * 3 or partitions < 4 or partitions % 2:
         return {"pbo": 1.0, "splits": 0, "median_oos_rank": 0.0}
-    blocks = [block for block in np.array_split(frame, partitions) if not block.empty]
+    index_blocks = np.array_split(np.arange(len(frame)), partitions)
+    blocks = [frame.iloc[positions].copy() for positions in index_blocks if len(positions)]
     half = len(blocks) // 2
     logits: list[float] = []
     ranks: list[float] = []
