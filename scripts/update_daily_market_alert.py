@@ -173,11 +173,36 @@ def resolve_mode(requested: str, moment: datetime) -> str:
     if not schedule:
         return "skip"
     market_open, market_close = schedule
+    if requested == "catchup":
+        if moment >= market_close - timedelta(minutes=30):
+            return "preclose"
+        if moment >= market_open + timedelta(minutes=30):
+            return "open"
+        return "skip"
+    scheduled_cron = os.getenv("BR_ALERT_SCHEDULE", "").strip()
+    if scheduled_cron:
+        fields = scheduled_cron.split()
+        if len(fields) != 5:
+            raise ValueError(f"Invalid BR_ALERT_SCHEDULE: {scheduled_cron}")
+        minute, hour = int(fields[0]), int(fields[1])
+        nominal = moment.astimezone(UTC).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
+        targets = {
+            "open": market_open + timedelta(minutes=30),
+            "preclose": market_close - timedelta(minutes=30),
+        }
+        matches = [
+            (abs(nominal - target), mode)
+            for mode, target in targets.items()
+            if abs(nominal - target) <= timedelta(minutes=1)
+        ]
+        return min(matches)[1] if matches else "skip"
     targets = {
-        "open": market_open + timedelta(minutes=15),
-        "preclose": market_close - timedelta(hours=1),
+        "open": market_open + timedelta(minutes=30),
+        "preclose": market_close - timedelta(minutes=30),
     }
-    tolerance = timedelta(minutes=32)
+    tolerance = timedelta(minutes=45)
     matches = [
         (abs(moment - target), mode)
         for mode, target in targets.items()
@@ -1003,7 +1028,9 @@ def run(mode_requested: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("auto", "open", "preclose"), default="auto")
+    parser.add_argument(
+        "--mode", choices=("auto", "open", "preclose", "catchup"), default="auto"
+    )
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     if args.validate_only:
