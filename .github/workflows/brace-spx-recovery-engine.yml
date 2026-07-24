@@ -164,7 +164,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          git add -f \
+          for path in \
             data/research/brace_spx_generation_research.json \
             data/research/brace_spx_generation_experiments.json \
             data/research/brace_spx_generation_manifest.json \
@@ -172,7 +172,12 @@ jobs:
             data/research/brace_spx_reconciliation.json \
             data/research/brace_spx_recovery_started.json \
             data/research/brace_spx_recovery_status.json \
-            data/research/brace_spx_recovery.log 2>/dev/null || true
+            data/research/brace_spx_recovery.log
+          do
+            if [ -e "$path" ]; then
+              git add -f "$path"
+            fi
+          done
           if ! git diff --cached --quiet; then
             git commit -m "Persist BRACE-SPX recovery research batch"
             git fetch origin brace-spx-research
