@@ -25,9 +25,12 @@ on:
       - ".github/workflows/build-home-brief.yml"
       - ".github/workflows/hot-x-topics.yml"
       - ".github/workflows/content-update-watchdog.yml"
+      - "scripts/validate_news_home_publish.py"
+      - "tests/test_validate_news_home_publish.py"
 
 permissions:
   contents: write
+  issues: write
   models: read
 
 concurrency:
@@ -78,9 +81,23 @@ jobs:
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: |
-          python scripts/protect_home_feed.py --backup || true
-          python scripts/build_home_brief_pl.py || true
-          python scripts/build_home_brief_en.py || true
+          python scripts/protect_home_feed.py --backup
+          for attempt in 1 2 3; do
+            if python scripts/build_home_brief_pl.py; then break; fi
+            if [[ "$attempt" == "3" ]]; then
+              echo "::error::PL homepage recovery failed after 3 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 60))
+          done
+          for attempt in 1 2 3; do
+            if python scripts/build_home_brief_en.py; then break; fi
+            if [[ "$attempt" == "3" ]]; then
+              echo "::error::EN homepage recovery failed after 3 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 60))
+          done
           python scripts/read_and_summarize_articles.py
           python scripts/enforce_brief_length.py
           python scripts/remove_urgent_badge_categories.py
@@ -98,15 +115,17 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
         run: |
-          python scripts/validate_hot_x_comments.py --backup || true
-          python scripts/update_hot_x_2x_daily.py || true
-          python scripts/translate_hot_x_pl.py || true
+          python scripts/validate_hot_x_comments.py --backup
+          python scripts/update_hot_x_2x_daily.py
+          python scripts/translate_hot_x_pl.py
           python scripts/validate_hot_x_comments.py --validate --require-fresh-posts
-          python scripts/patch_hot_x_loader.py || true
+          python scripts/patch_hot_x_loader.py
 
       - name: Recheck content health after recovery
-        if: always()
-        run: python scripts/content_update_watchdog.py || true
+        run: |
+          python scripts/content_update_watchdog.py
+          python scripts/validate_news_home_publish.py --lang pl --max-age-minutes 360
+          python scripts/validate_news_home_publish.py --lang en --max-age-minutes 360
 
       - name: Commit watchdog repairs and recovered content
         if: success()
@@ -115,14 +134,60 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
           if ! git diff --quiet HEAD..origin/main -- .github/workflows/content-update-watchdog.yml .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml data/content_update_contract.json scripts/content_update_watchdog.py scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/dedupe_home_brief_stories.py scripts/hide_urgent_home_labels.py scripts/patch_brief_comment_source.py scripts/protect_home_feed.py scripts/generate_permanent_briefs.py scripts/home-briefs.js tests/test_comment_quality.py tests/test_permanent_briefs.py tests/test_homepage_static.py tests/test_home_briefs.js; then
-            echo "Skip stale publish because generator code changed on main."
-            exit 0
+            echo "::error::Recovery code changed during watchdog run; refusing stale output."
+            exit 1
           fi
-          git add .github/workflows/build-home-brief.yml .github/workflows/hot-x-topics.yml data/content_update_health.json data/hot_tweets.json pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html pl/briefy en/briefs data/permanent_briefs_pl.json data/permanent_briefs_en.json sitemap.xml .cache || true
+          git add .github/workflows/build-home-brief.yml .github/workflows/hot-x-topics.yml data/content_update_health.json data/hot_tweets.json pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html pl/briefy en/briefs data/permanent_briefs_pl.json data/permanent_briefs_en.json sitemap.xml .cache
           if git diff --cached --quiet; then
             echo "No watchdog changes to commit."
           else
             git commit -m "Repair content update availability"
-            git pull --rebase -X ours origin main
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase -X ours origin main
+              if git push; then exit 0; fi
+              sleep $((attempt * 30))
+            done
+            echo "::error::Could not push watchdog repair after 3 attempts"
+            exit 1
           fi
+
+  alarm:
+    needs: watchdog
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update content publication alarm
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "[ALARM] BriefRooms content publication failed";
+            const body = [
+              "The independent content watchdog could not restore a valid PL/EN publication.",
+              "",
+              `Workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `Commit: ${context.sha}`,
+              "",
+              "The run is red by design: stale or incomplete content was not silently accepted."
+            ].join("\n");
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100
+            });
+            const existing = issues.find(issue => issue.title === title && !issue.pull_request);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
