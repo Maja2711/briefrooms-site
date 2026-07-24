@@ -16,8 +16,12 @@ on:
     paths:
       - "scripts/brace_spx_research.py"
       - "scripts/brace_spx_generation_research.py"
+      - "scripts/brace_spx_research_controls.py"
+      - "scripts/brace_spx_macro_events.py"
       - "tests/test_brace_spx_research.py"
       - "tests/test_brace_spx_generation_research.py"
+      - "tests/test_brace_spx_research_controls.py"
+      - "tests/test_brace_spx_macro_events.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
   pull_request:
@@ -25,8 +29,12 @@ on:
     paths:
       - "scripts/brace_spx_research.py"
       - "scripts/brace_spx_generation_research.py"
+      - "scripts/brace_spx_research_controls.py"
+      - "scripts/brace_spx_macro_events.py"
       - "tests/test_brace_spx_research.py"
       - "tests/test_brace_spx_generation_research.py"
+      - "tests/test_brace_spx_research_controls.py"
+      - "tests/test_brace_spx_macro_events.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
 
@@ -58,8 +66,16 @@ jobs:
 
       - name: Validate BRACE-SPX laboratory
         run: |
-          python -m py_compile scripts/brace_spx_research.py scripts/brace_spx_generation_research.py
-          python -m pytest -q tests/test_brace_spx_research.py tests/test_brace_spx_generation_research.py
+          python -m py_compile \
+            scripts/brace_spx_research.py \
+            scripts/brace_spx_generation_research.py \
+            scripts/brace_spx_research_controls.py \
+            scripts/brace_spx_macro_events.py
+          python -m pytest -q \
+            tests/test_brace_spx_research.py \
+            tests/test_brace_spx_generation_research.py \
+            tests/test_brace_spx_research_controls.py \
+            tests/test_brace_spx_macro_events.py
 
       - name: Run sealed generation search
         env:
