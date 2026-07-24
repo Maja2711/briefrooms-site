@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BRACE-SPX Lab — S&amp;P 500 research results | BriefRooms</title>
+  <meta name="description" content="BRACE-SPX Lab public dashboard: research progress, walk-forward metrics, benchmarks and sealed holdout status without exposing private model code.">
+  <link rel="icon" href="/assets/favicon.svg">
+  <link rel="canonical" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/inwestycje/brace-spx-lab.html">
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
+  <meta property="og:title" content="BRACE-SPX Lab — public research dashboard | BriefRooms">
+  <meta property="og:description" content="BRACE-SPX progress, walk-forward results, benchmarks and a strictly separated private engine.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://briefrooms.com/en/investing/brace-spx-lab.html">
+  <meta property="og:site_name" content="BriefRooms">
+  <meta property="og:locale" content="en_US">
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
+  <link rel="stylesheet" href="/assets/brace-spx-lab.css?v=20260724-1">
+  <script src="/scripts/site-header.js?v=20260723-4" defer></script>
+  <script src="/scripts/brace-spx-lab-public.js?v=20260724-1" defer></script>
+</head>
+<body class="brace-lab-page">
+  <header id="site-header"></header>
+  <main class="brace-shell brace-skeleton" data-brace-lab-root>
+    <header class="brace-hero">
+      <p><strong>BriefRooms Research</strong></p>
+      <h1>BRACE-SPX Lab</h1>
+      <p>A champion–challenger laboratory for S&amp;P 500 exposure. This page publishes only sanitized results and statistics. Code, parameters and the full experiment memory remain outside the public website.</p>
+    </header>
+
+    <nav class="brace-tabs" aria-label="S&P 500 Scenario tabs">
+      <a href="/en/investing/spx-scenarios-2026.html">S&amp;P Scenarios</a>
+      <a href="/en/investing/brace-spx-lab.html" aria-current="page">BRACE-SPX Lab</a>
+    </nav>
+
+    <p id="brace-loading" class="brace-panel">Loading the sanitized research report…</p>
+    <div id="brace-error" class="brace-panel brace-error" role="alert"></div>
+
+    <section class="brace-panel" aria-labelledby="status-heading">
+      <div class="brace-status-row">
+        <div>
+          <h2 id="status-heading">Laboratory status</h2>
+          <span id="brace-status" class="brace-status">—</span>
+        </div>
+        <div id="brace-updated" class="brace-updated">—</div>
+      </div>
+      <div class="brace-progress-track" aria-label="Experiment progress">
+        <div id="brace-progress-bar" class="brace-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      </div>
+      <div class="brace-progress-copy">
+        <span id="brace-completed">—</span>
+        <strong id="brace-progress-percent">—</strong>
+        <span id="brace-remaining">—</span>
+      </div>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="generation-heading">
+      <div class="brace-status-row">
+        <div>
+          <h2 id="generation-heading">Current generation</h2>
+          <strong id="brace-generation">—</strong>
+        </div>
+        <span id="brace-generation-version" class="brace-status">—</span>
+      </div>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="champion-heading">
+      <h2 id="champion-heading">Champion — development walk-forward</h2>
+      <div class="brace-grid">
+        <div class="brace-metric"><small>CAGR</small><strong id="metric-cagr">—</strong><span>annual growth rate</span></div>
+        <div class="brace-metric"><small>Volatility</small><strong id="metric-volatility">—</strong><span>annualized</span></div>
+        <div class="brace-metric"><small>Sharpe</small><strong id="metric-sharpe">—</strong><span>zero risk-free rate</span></div>
+        <div class="brace-metric"><small>Max drawdown</small><strong id="metric-drawdown">—</strong><span>deepest equity decline</span></div>
+        <div class="brace-metric"><small>Calmar</small><strong id="metric-calmar">—</strong><span>CAGR / drawdown</span></div>
+        <div class="brace-metric"><small>Average exposure</small><strong id="metric-exposure">—</strong><span>market participation</span></div>
+        <div class="brace-metric"><small>Annual turnover</small><strong id="metric-turnover">—</strong><span>after exposure changes</span></div>
+        <div class="brace-metric"><small>Positive years</small><strong id="metric-positive-years">—</strong><span>share of positive calendar years</span></div>
+      </div>
+      <p><strong>Robustness gate:</strong> <span id="brace-gate">—</span></p>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="comparison-heading">
+      <h2 id="comparison-heading">Benchmark comparison</h2>
+      <div class="brace-table-wrap">
+        <table class="brace-table">
+          <thead><tr><th>Method</th><th>CAGR</th><th>Volatility</th><th>Sharpe</th><th>Max drawdown</th><th>Calmar</th></tr></thead>
+          <tbody id="brace-comparison-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="brace-panel brace-sealed" aria-labelledby="holdout-heading">
+      <div class="brace-status-row">
+        <div>
+          <h2 id="holdout-heading">Sealed holdout</h2>
+          <strong id="brace-holdout">—</strong>
+        </div>
+        <strong id="brace-holdout-months">—</strong>
+      </div>
+      <p class="brace-note">The final test period remains closed while new generations are developed, preventing models from being tuned to a known final result.</p>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="boundary-heading">
+      <h2 id="boundary-heading">Publication boundary</h2>
+      <p class="brace-note">The browser receives only a restricted JSON report. The private research engine is not part of the website code.</p>
+      <ul class="brace-boundary">
+        <li id="boundary-code">—</li>
+        <li id="boundary-params">—</li>
+        <li id="boundary-predictions">—</li>
+        <li id="boundary-ledger">—</li>
+      </ul>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="note-heading">
+      <h2 id="note-heading">Research disclaimer</h2>
+      <p id="brace-note" class="brace-note">—</p>
+    </section>
+
+    <p class="brace-footer">© 2026 BriefRooms · BRACE-SPX Lab · Historical results do not guarantee future performance.</p>
+  </main>
+</body>
+</html>

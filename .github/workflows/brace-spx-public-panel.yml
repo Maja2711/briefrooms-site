@@ -1,0 +1,68 @@
+name: BRACE-SPX Public Panel
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - brace-spx-public-panel
+    paths:
+      - "scripts/install_brace_spx_public_panel.py"
+      - ".github/workflows/brace-spx-public-panel.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "pl/inwestycje/brace-spx-lab.html"
+      - "en/investing/brace-spx-lab.html"
+      - "assets/brace-spx-lab.css"
+      - "scripts/brace-spx-lab-public.js"
+      - "scripts/publish_brace_spx_public.py"
+      - "scripts/install_brace_spx_public_panel.py"
+      - "data/public/brace_spx_public.json"
+      - "tests/test_brace_spx_public_boundary.py"
+      - ".github/workflows/brace-spx-public-panel.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-public-panel-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  install-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out panel branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-public-panel
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tabs and sitemap entries
+        run: python scripts/install_brace_spx_public_panel.py
+
+      - name: Validate public privacy boundary
+        run: |
+          python -m py_compile scripts/publish_brace_spx_public.py scripts/install_brace_spx_public_panel.py
+          python -m unittest -v tests/test_brace_spx_public_boundary.py
+          python scripts/install_brace_spx_public_panel.py --check
+
+      - name: Persist generated page links
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/spx-scenariusze-2026.html en/investing/spx-scenarios-2026.html sitemap.xml
+          if git diff --cached --quiet; then
+            echo "BRACE-SPX public panel links are already current."
+          else
+            git commit -m "Link BRACE-SPX Lab from S&P scenario pages"
+            git pull --rebase origin brace-spx-public-panel
+            git push origin HEAD:brace-spx-public-panel
+          fi
