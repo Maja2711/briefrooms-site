@@ -160,10 +160,11 @@ jobs:
           )
           PY
 
-      - name: Persist results or diagnostics
+      - name: Snapshot generated files for safe persistence
         if: always()
         run: |
-          set -euo pipefail
+          rm -rf /tmp/brace-spx-output
+          mkdir -p /tmp/brace-spx-output
           for path in \
             data/research/brace_spx_generation_research.json \
             data/research/brace_spx_generation_experiments.json \
@@ -175,15 +176,53 @@ jobs:
             data/research/brace_spx_recovery.log
           do
             if [ -e "$path" ]; then
-              git add -f "$path"
+              cp --parents "$path" /tmp/brace-spx-output
             fi
           done
-          if ! git diff --cached --quiet; then
-            git commit -m "Persist BRACE-SPX recovery research batch"
+
+      - name: Upload emergency evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-recovery-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: error
+          path: /tmp/brace-spx-output/data/research
+
+      - name: Persist results without rebase conflicts
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
             git fetch origin brace-spx-research
-            git rebase origin/brace-spx-research
-            git push origin HEAD:brace-spx-research
-          fi
+            git reset --hard origin/brace-spx-research
+            if [ -d /tmp/brace-spx-output/data ]; then
+              cp -R /tmp/brace-spx-output/data/. data/
+            fi
+            git add -f data/research/brace_spx_generation_research.json \
+                       data/research/brace_spx_generation_experiments.json \
+                       data/research/brace_spx_generation_manifest.json \
+                       data/research/brace_spx_selection_audit.json \
+                       data/research/brace_spx_reconciliation.json \
+                       data/research/brace_spx_recovery_started.json \
+                       data/research/brace_spx_recovery_status.json 2>/dev/null || true
+            if [ -e data/research/brace_spx_recovery.log ]; then
+              git add -f data/research/brace_spx_recovery.log
+            fi
+            if git diff --cached --quiet; then
+              echo "No BRACE-SPX recovery changes to persist."
+              exit 0
+            fi
+            git commit -m "Persist BRACE-SPX recovery research batch"
+            if git push origin HEAD:brace-spx-research; then
+              exit 0
+            fi
+            sleep $((attempt * 20))
+          done
+          echo "Unable to persist BRACE-SPX results after three conflict-safe attempts." >&2
+          exit 1
 
       - name: Fail visibly on critical failure
         if: >-
