@@ -1,0 +1,44 @@
+name: BRACE-SPX Runner Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-spx-runner-probe.yml"
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX probe')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Write runner probe
+        run: |
+          mkdir -p data/research
+          printf '{\n  "status": "runner_alive",\n  "checked_at": "%s",\n  "event": "%s",\n  "run_id": "%s"\n}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ github.event_name }}" \
+            "${{ github.run_id }}" \
+            > data/research/brace_spx_runner_probe.json
+
+      - name: Persist runner probe
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/research/brace_spx_runner_probe.json
+          git commit -m "Record BRACE-SPX runner probe"
+          git fetch origin brace-spx-research
+          git rebase origin/brace-spx-research
+          git push origin HEAD:brace-spx-research
