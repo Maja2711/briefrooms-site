@@ -733,12 +733,15 @@ class PipelineContractTests(unittest.TestCase):
         for relative in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
-            ".github/workflows/news-en.yml",
             ".github/workflows/content-update-watchdog.yml",
         ):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("group: content-publishing", source, relative)
             self.assertIn("cancel-in-progress: false", source, relative)
+        self.assertIn(
+            "group: news-en-publishing",
+            (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
+        )
         self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
         self.assertIn('cron: "40 */4 * * *"', (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"))
         watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
