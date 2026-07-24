@@ -1,0 +1,64 @@
+name: BRACE-SPX Private Migration Bundle
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/brace-spx-private-bundle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out complete research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Build migration manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          patterns = (
+              'scripts/brace_spx*.py',
+              'tests/test_brace_spx*.py',
+              'data/research/brace_spx*.json',
+              'research/brace-spx/**/*',
+              '.github/workflows/brace-spx-research.yml',
+          )
+          files = []
+          for pattern in patterns:
+              files.extend(path for path in Path('.').glob(pattern) if path.is_file())
+          unique = sorted({str(path) for path in files})
+          if not unique:
+              raise SystemExit('No BRACE-SPX research files found')
+          Path('BRACE-SPX-MIGRATION-MANIFEST.txt').write_text(
+              'BRACE-SPX private migration bundle\n'
+              'Source branch: brace-spx-research\n'
+              'Files: %d\n\n%s\n' % (len(unique), '\n'.join(unique)),
+              encoding='utf-8',
+          )
+          print('\n'.join(unique))
+          PY
+
+      - name: Upload private migration bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-private-migration-bundle
+          retention-days: 7
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            scripts/brace_spx*.py
+            tests/test_brace_spx*.py
+            data/research/brace_spx*.json
+            research/brace-spx/
+            .github/workflows/brace-spx-research.yml
+            BRACE-SPX-MIGRATION-MANIFEST.txt
