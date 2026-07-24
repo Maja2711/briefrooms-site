@@ -8,6 +8,7 @@ from unittest.mock import patch
 from scripts.update_daily_market_alert import (
     INSTRUMENTS,
     convert_tnx,
+    latest_intraday,
     material_reasons,
     normalize_probabilities,
     resolve_mode,
@@ -16,10 +17,16 @@ from scripts.update_daily_market_alert import (
 
 
 def instrument(instrument_id: str, price: float, probabilities=None, drivers=None):
+    config = INSTRUMENTS[instrument_id]
     return {
         "id": instrument_id,
         "price_value": price,
+        "reference_close_value": price,
         "change_numeric": 0.0,
+        "change_period": "previous_regular_close",
+        "quote_symbol": config["symbol"],
+        "quote_as_of": "2026-07-24T19:00:00+00:00",
+        "direction": "flat",
         "support_value": price * 0.98,
         "resistance_value": price * 1.02,
         "driver_keys": drivers or ["baseline"],
@@ -29,6 +36,31 @@ def instrument(instrument_id: str, price: float, probabilities=None, drivers=Non
 
 
 class DailyMarketAlertTests(unittest.TestCase):
+    @patch("scripts.update_daily_market_alert.yahoo_chart")
+    def test_intraday_change_uses_regular_previous_close_not_five_day_baseline(self, chart):
+        chart.return_value = {
+            "meta": {
+                "regularMarketPreviousClose": 101.00,
+                "chartPreviousClose": 89.22,
+            },
+            "timestamp": [1784920800],
+            "indicators": {"quote": [{"close": [96.91]}]},
+        }
+        current, previous_close, _ = latest_intraday("BZ=F")
+        self.assertEqual(current, 96.91)
+        self.assertEqual(previous_close, 101.00)
+        self.assertAlmostEqual((current / previous_close - 1) * 100, -4.05, places=2)
+
+    @patch("scripts.update_daily_market_alert.yahoo_chart")
+    def test_intraday_quote_fails_closed_without_session_baseline(self, chart):
+        chart.return_value = {
+            "meta": {"chartPreviousClose": 89.22},
+            "timestamp": [1784920800],
+            "indicators": {"quote": [{"close": [96.91]}]},
+        }
+        with self.assertRaisesRegex(RuntimeError, "previous regular close"):
+            latest_intraday("BZ=F")
+
     @patch(
         "scripts.update_daily_market_alert.session_schedule",
         return_value=(
@@ -116,6 +148,31 @@ class DailyMarketAlertTests(unittest.TestCase):
             "reversal": 20,
         }
         with self.assertRaises(ValueError):
+            validate_payload(payload)
+
+    def test_payload_rejects_wrong_symbol_period_change_and_direction(self):
+        payload = {
+            "schema_version": "2.0",
+            "instruments": [
+                instrument("sp500", 7500.0),
+                instrument("brent", 98.0),
+                instrument("us10y", 4.60),
+            ],
+        }
+        payload["instruments"][1]["quote_symbol"] = "CL=F"
+        with self.assertRaisesRegex(ValueError, "Wrong quote symbol"):
+            validate_payload(payload)
+        payload["instruments"][1]["quote_symbol"] = "BZ=F"
+        payload["instruments"][1]["change_period"] = "five_days"
+        with self.assertRaisesRegex(ValueError, "Wrong change period"):
+            validate_payload(payload)
+        payload["instruments"][1]["change_period"] = "previous_regular_close"
+        payload["instruments"][1]["change_numeric"] = 8.62
+        with self.assertRaisesRegex(ValueError, "Inconsistent session change"):
+            validate_payload(payload)
+        payload["instruments"][1]["change_numeric"] = 0.0
+        payload["instruments"][1]["direction"] = "up"
+        with self.assertRaisesRegex(ValueError, "Direction contradicts"):
             validate_payload(payload)
 
     def test_instrument_contract_is_stable(self):

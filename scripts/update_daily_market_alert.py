@@ -115,6 +115,7 @@ class MarketSnapshot:
     five_day_change: float
     twenty_day_change: float
     volatility_20d: float
+    quote_as_of: datetime
 
     def prompt_dict(self) -> dict[str, Any]:
         return {
@@ -132,6 +133,8 @@ class MarketSnapshot:
             "five_day_change": round(self.five_day_change, 3),
             "twenty_day_change": round(self.twenty_day_change, 3),
             "volatility_20d": round(self.volatility_20d, 3),
+            "change_period": "previous_regular_close",
+            "quote_as_of": self.quote_as_of.isoformat(),
         }
 
 
@@ -264,9 +267,18 @@ def latest_intraday(symbol: str) -> tuple[float, float, datetime]:
     stamp = points[-1][0] if points else datetime.fromtimestamp(
         int(meta.get("regularMarketTime") or now_utc().timestamp()), tz=UTC
     )
-    previous_close = finite(meta.get("chartPreviousClose") or meta.get("previousClose"))
+    # chartPreviousClose is the close immediately before the requested chart
+    # range. With range=5d it can therefore be a weekly, not a session,
+    # reference. Only use the immediately preceding regular-session close for
+    # the session change displayed by the alert.
+    previous_close = finite(
+        meta.get("regularMarketPreviousClose") or meta.get("previousClose")
+    )
     if current is None or previous_close in (None, 0):
-        raise RuntimeError(f"Incomplete intraday quote for {symbol}")
+        raise RuntimeError(
+            f"Incomplete session quote for {symbol}: "
+            "previous regular close is unavailable"
+        )
     return current, previous_close, stamp
 
 
@@ -430,7 +442,7 @@ def format_number(value: float, instrument_id: str, *, level: bool = False) -> s
 
 def fetch_snapshot(instrument_id: str) -> MarketSnapshot:
     config = INSTRUMENTS[instrument_id]
-    current_raw, previous_raw, _ = latest_intraday(config["symbol"])
+    current_raw, previous_raw, quote_as_of = latest_intraday(config["symbol"])
     rows = daily_history(config["symbol"])
     current = convert_tnx(current_raw, instrument_id)
     previous_close = convert_tnx(previous_raw, instrument_id)
@@ -469,7 +481,28 @@ def fetch_snapshot(instrument_id: str) -> MarketSnapshot:
         five_day_change=percent_change(rows, 5, instrument_id),
         twenty_day_change=percent_change(rows, 20, instrument_id),
         volatility_20d=volatility(rows, instrument_id),
+        quote_as_of=quote_as_of,
     )
+
+
+def deterministic_summary(snapshots: list[MarketSnapshot]) -> dict[str, str]:
+    by_id = {snapshot.instrument_id: snapshot for snapshot in snapshots}
+    sp500, brent, us10y = (by_id[key] for key in ("sp500", "brent", "us10y"))
+    return {
+        "pl": (
+            f"S&P 500: {sp500.price_text} ({sp500.change_text} od poprzedniego zamknięcia). "
+            f"Brent: {brent.price_text} ({brent.change_text} od poprzedniego zamknięcia). "
+            f"Rentowność US 10Y: {us10y.price_text} "
+            f"({us10y.change_text} od poprzedniego zamknięcia)."
+        ),
+        "en": (
+            f"S&P 500: {sp500.price_text} ({sp500.change_text.replace(',', '.')} versus the previous close). "
+            f"Brent: {brent.price_text.replace(',', '.')} "
+            f"({brent.change_text.replace(',', '.')} versus the previous close). "
+            f"US 10Y yield: {us10y.price_text.replace(',', '.')} "
+            f"({us10y.change_text} versus the previous close)."
+        ),
+    }
 
 
 def parse_published(entry: Any) -> datetime | None:
@@ -616,6 +649,7 @@ def generate_editorial(
     system = """
 You are the governed market editor for BriefRooms. Produce a calm, evidence-led intraday market alert in Polish and English.
 Use ONLY the supplied market data and news candidates. Never invent an event, quote, number, support, resistance, institution action or causal link.
+daily_change always means change from the immediately preceding regular-session close. Never describe five-day or twenty-day change as today's move.
 The movement reason must be concise but exhaustive: normally 2 sentences and 240-650 characters in Polish. It must say what is NEW, identify the concrete catalyst, and explain the transmission mechanism into the instrument. Do not merely restate that price rose or fell.
 When evidence does not establish one fresh catalyst, explicitly say that no single new catalyst is confirmed and explain the observable cross-asset mechanism without pretending certainty.
 Treat causality as the most likely interpretation, not proven fact. Avoid emotional words and buy/sell instructions.
@@ -812,6 +846,10 @@ def build_alert(
                 "change": snapshot.change_text,
                 "change_numeric": round(snapshot.change_numeric, 6),
                 "change_kind": INSTRUMENTS[snapshot.instrument_id]["kind"],
+                "change_period": "previous_regular_close",
+                "reference_close_value": round(snapshot.previous_close, 6),
+                "quote_symbol": snapshot.symbol,
+                "quote_as_of": snapshot.quote_as_of.isoformat(),
                 "direction": snapshot.direction,
                 "reason": reason,
                 "driver_keys": driver_keys,
@@ -848,11 +886,9 @@ def build_alert(
         "edition": mode,
         "updated_at": moment.astimezone(WARSAW).isoformat(timespec="seconds"),
         "market_regime": ensure_localized(editorial.get("market_regime"), "Rynek mieszany", "Mixed market"),
-        "summary": ensure_localized(
-            editorial.get("summary"),
-            "Ruchy są oceniane na podstawie bieżących danych cenowych i potwierdzonych informacji.",
-            "Moves are assessed from current price data and confirmed information.",
-        ),
+        # Numeric market summaries are deterministic. AI explains catalysts,
+        # but cannot rewrite prices, directions or time horizons.
+        "summary": deterministic_summary(snapshots),
         "instruments": instruments,
         "sources": sources,
         "preclose_check": None,
@@ -943,6 +979,38 @@ def validate_payload(payload: dict[str, Any]) -> None:
     if not isinstance(instruments, list) or {item.get("id") for item in instruments} != set(INSTRUMENTS):
         raise ValueError("Payload must contain exactly sp500, brent and us10y")
     for item in instruments:
+        instrument_id = item.get("id")
+        config = INSTRUMENTS[instrument_id]
+        price = finite(item.get("price_value"))
+        reference = finite(item.get("reference_close_value"))
+        reported_change = finite(item.get("change_numeric"))
+        if item.get("quote_symbol") != config["symbol"]:
+            raise ValueError(f"Wrong quote symbol for {instrument_id}")
+        if item.get("change_period") != "previous_regular_close":
+            raise ValueError(f"Wrong change period for {instrument_id}")
+        if price is None or reference in (None, 0) or reported_change is None:
+            raise ValueError(f"Missing quote provenance for {instrument_id}")
+        expected_change = (
+            (price - reference) * 100.0
+            if config["kind"] == "basis_points"
+            else (price / reference - 1.0) * 100.0
+        )
+        if not math.isclose(reported_change, expected_change, abs_tol=0.02):
+            raise ValueError(
+                f"Inconsistent session change for {instrument_id}: "
+                f"reported={reported_change}, expected={expected_change}"
+            )
+        expected_direction = (
+            "up" if expected_change > 0 else "down" if expected_change < 0 else "flat"
+        )
+        if item.get("direction") != expected_direction:
+            raise ValueError(f"Direction contradicts quote data for {instrument_id}")
+        if instrument_id == "us10y" and not 0.1 <= price <= 20.0:
+            raise ValueError(f"Implausible US 10Y yield: {price}")
+        if instrument_id == "brent" and not 10.0 <= price <= 300.0:
+            raise ValueError(f"Implausible Brent price: {price}")
+        if instrument_id == "sp500" and not 100.0 <= price <= 50000.0:
+            raise ValueError(f"Implausible S&P 500 level: {price}")
         probabilities = item.get("scenario_probabilities", {})
         values = [int(probabilities.get(key, 0)) for key in ("range", "continuation", "reversal")]
         if sum(values) != 100 or any(value % 5 for value in values):
