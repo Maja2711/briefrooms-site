@@ -15,14 +15,18 @@ on:
       - brace-spx-research
     paths:
       - "scripts/brace_spx_research.py"
+      - "scripts/brace_spx_generation_research.py"
       - "tests/test_brace_spx_research.py"
+      - "tests/test_brace_spx_generation_research.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
   pull_request:
     branches: [main]
     paths:
       - "scripts/brace_spx_research.py"
+      - "scripts/brace_spx_generation_research.py"
       - "tests/test_brace_spx_research.py"
+      - "tests/test_brace_spx_generation_research.py"
       - "research/brace-spx/README.md"
       - ".github/workflows/brace-spx-research.yml"
 
@@ -42,6 +46,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: brace-spx-research
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -53,34 +58,35 @@ jobs:
 
       - name: Validate BRACE-SPX laboratory
         run: |
-          python -m py_compile scripts/brace_spx_research.py
-          python -m pytest -q tests/test_brace_spx_research.py
+          python -m py_compile scripts/brace_spx_research.py scripts/brace_spx_generation_research.py
+          python -m pytest -q tests/test_brace_spx_research.py tests/test_brace_spx_generation_research.py
 
-      - name: Run bounded champion-challenger search
+      - name: Run sealed generation search
         env:
           BUDGET: ${{ github.event.inputs.budget || '36' }}
-        run: python scripts/brace_spx_research.py --start 1993-01-01 --budget "$BUDGET"
+        run: python scripts/brace_spx_generation_research.py --start 1993-01-01 --budget "$BUDGET"
 
       - name: Upload research evidence
         uses: actions/upload-artifact@v4
         with:
-          name: brace-spx-research-output
+          name: brace-spx-sealed-generation-output
           retention-days: 30
           if-no-files-found: error
           path: |
-            data/research/brace_spx_research.json
-            data/research/brace_spx_experiments.json
+            data/research/brace_spx_generation_research.json
+            data/research/brace_spx_generation_experiments.json
+            data/research/brace_spx_generation_manifest.json
 
       - name: Persist experiment memory
         if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/research/brace_spx_research.json data/research/brace_spx_experiments.json
+          git add data/research/brace_spx_generation_research.json data/research/brace_spx_generation_experiments.json data/research/brace_spx_generation_manifest.json
           if git diff --cached --quiet; then
-            echo "No new BRACE-SPX experiments."
+            echo "No new BRACE-SPX sealed-generation experiments."
           else
-            git commit -m "Research BRACE-SPX champion candidates"
+            git commit -m "Research BRACE-SPX sealed generation"
             git pull --rebase origin brace-spx-research
             git push origin HEAD:brace-spx-research
           fi
