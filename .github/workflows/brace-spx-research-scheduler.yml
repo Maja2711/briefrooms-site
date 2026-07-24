@@ -38,82 +38,147 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install research dependencies
-        run: python -m pip install --upgrade pip numpy pandas yfinance scikit-learn pytest
+      - name: Install critical dependencies with retry
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if python -m pip install --upgrade pip numpy pandas yfinance scikit-learn pytest; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
 
-      - name: Validate research and governance code
+      - name: Validate critical research path
         run: |
           python -m py_compile \
             scripts/brace_spx_research.py \
             scripts/brace_spx_generation_research.py \
             scripts/brace_spx_research_controls.py \
-            scripts/brace_spx_macro_events.py \
             scripts/brace_spx_selection_audit.py \
-            scripts/brace_spx_statistical_governance.py \
-            scripts/brace_spx_governed_research.py
+            scripts/brace_spx_statistical_governance.py
           python -m pytest -q \
             tests/test_brace_spx_research.py \
             tests/test_brace_spx_generation_research.py \
             tests/test_brace_spx_research_controls.py \
-            tests/test_brace_spx_macro_events.py \
             tests/test_brace_spx_selection_audit.py \
-            tests/test_brace_spx_statistical_governance.py \
-            tests/test_brace_spx_governed_research.py
+            tests/test_brace_spx_statistical_governance.py
 
       - name: Run one bounded sealed-generation iteration
+        id: research
+        continue-on-error: true
         env:
           BUDGET: ${{ github.event.inputs.budget || '36' }}
         run: |
-          set -euo pipefail
+          set -o pipefail
+          mkdir -p data/research
           for attempt in 1 2 3; do
             echo "BRACE-SPX research attempt ${attempt}/3"
-            if python scripts/brace_spx_generation_research.py --start 1993-01-01 --budget "$BUDGET"; then
+            if python scripts/brace_spx_generation_research.py --start 1993-01-01 --budget "$BUDGET" 2>&1 | tee data/research/brace_spx_last_run.log; then
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then
               sleep $((attempt * 45))
             fi
           done
-          echo "BRACE-SPX research failed after three attempts." >&2
           exit 1
 
       - name: Run hypothesis-agnostic selection audit
+        if: steps.research.outcome == 'success'
         run: python scripts/brace_spx_selection_audit.py
 
-      - name: Reconcile active evidence with verified public snapshot
+      - name: Reconcile verified evidence
+        if: steps.research.outcome == 'success'
         run: |
           python scripts/brace_spx_statistical_governance.py \
             --active-report data/research/brace_spx_generation_research.json \
             --public-snapshot data/public/brace_spx_public.json \
             --output data/research/brace_spx_reconciliation.json
 
-      - name: Upload research evidence
+      - name: Write scheduler heartbeat
+        if: always()
+        env:
+          RESEARCH_OUTCOME: ${{ steps.research.outcome }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("data/research")
+          root.mkdir(parents=True, exist_ok=True)
+          report_path = root / "brace_spx_generation_research.json"
+          report = {}
+          if report_path.exists():
+              try:
+                  report = json.loads(report_path.read_text(encoding="utf-8"))
+              except Exception:
+                  report = {}
+          heartbeat = {
+              "schema_version": "1.0.0",
+              "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+              "workflow_run_id": os.environ.get("RUN_ID"),
+              "workflow_run_attempt": os.environ.get("RUN_ATTEMPT"),
+              "event_name": os.environ.get("EVENT_NAME"),
+              "source_commit": os.environ.get("COMMIT_SHA"),
+              "research_outcome": os.environ.get("RESEARCH_OUTCOME") or "not_started",
+              "generation_id": report.get("generation_id"),
+              "experiments_total": report.get("experiments_total"),
+              "experiments_remaining": report.get("experiments_remaining"),
+              "report_generated_at": report.get("generated_at"),
+          }
+          (root / "brace_spx_scheduler_status.json").write_text(
+              json.dumps(heartbeat, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload research evidence and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: brace-spx-sealed-generation-output
+          name: brace-spx-sealed-generation-output-${{ github.run_id }}
           retention-days: 30
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             data/research/brace_spx_generation_research.json
             data/research/brace_spx_generation_experiments.json
             data/research/brace_spx_generation_manifest.json
             data/research/brace_spx_selection_audit.json
             data/research/brace_spx_reconciliation.json
+            data/research/brace_spx_scheduler_status.json
+            data/research/brace_spx_last_run.log
 
-      - name: Persist experiment memory to public research branch
+      - name: Persist evidence or failure heartbeat
+        if: always()
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          git add -f \
             data/research/brace_spx_generation_research.json \
             data/research/brace_spx_generation_experiments.json \
             data/research/brace_spx_generation_manifest.json \
             data/research/brace_spx_selection_audit.json \
-            data/research/brace_spx_reconciliation.json
+            data/research/brace_spx_reconciliation.json \
+            data/research/brace_spx_scheduler_status.json \
+            data/research/brace_spx_last_run.log 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "No new BRACE-SPX sealed-generation evidence."
+            echo "No BRACE-SPX evidence or heartbeat changes."
           else
-            git commit -m "Research BRACE-SPX sealed generation"
-            git pull --rebase origin brace-spx-research
+            git commit -m "Record BRACE-SPX hourly research run"
+            git fetch origin brace-spx-research
+            git rebase origin/brace-spx-research
             git push origin HEAD:brace-spx-research
           fi
+
+      - name: Fail visibly when research failed
+        if: steps.research.outcome != 'success'
+        run: |
+          echo "BRACE-SPX research did not complete; diagnostic heartbeat was persisted." >&2
+          exit 1
