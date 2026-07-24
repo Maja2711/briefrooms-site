@@ -6,10 +6,10 @@ on:
       budget:
         description: "Number of new candidates to evaluate"
         required: false
-        default: "18"
+        default: "36"
   schedule:
-    # Two research cycles per day. Research outputs never activate live orders.
-    - cron: "17 2,14 * * *"
+    # One bounded research cycle per hour. Research outputs never activate live orders.
+    - cron: "17 * * * *"
   push:
     branches:
       - brace-spx-research
@@ -58,7 +58,7 @@ jobs:
 
       - name: Run bounded champion-challenger search
         env:
-          BUDGET: ${{ github.event.inputs.budget || '18' }}
+          BUDGET: ${{ github.event.inputs.budget || '36' }}
         run: python scripts/brace_spx_research.py --start 1993-01-01 --budget "$BUDGET"
 
       - name: Upload research evidence
