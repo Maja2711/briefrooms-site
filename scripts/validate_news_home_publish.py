@@ -14,6 +14,7 @@ LANG_PATHS = {
     "pl": ("pl/aktualnosci.html", "pl/home_brief.json", "pl/index.html"),
     "en": ("en/news.html", "en/home_brief.json", "en/index.html"),
 }
+ALLOWED_HOMEPAGE_COUNTS = {8, 10}
 
 
 def parse_datetime(value: str) -> datetime:
@@ -60,8 +61,12 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
     assert_fresh(updated_at, now, max_age_minutes, f"{lang} homepage feed")
 
     latest = feed.get("latest")
-    if feed.get("language") != lang or not isinstance(latest, list) or len(latest) < 3:
+    if feed.get("language") != lang or not isinstance(latest, list):
         raise AssertionError(f"{lang} homepage feed is incomplete")
+    if len(latest) not in ALLOWED_HOMEPAGE_COUNTS:
+        raise AssertionError(
+            f"{lang} homepage must contain exactly 8 or 10 briefs; got {len(latest)}"
+        )
     if int(feed.get("count", -1)) != len(latest):
         raise AssertionError(f"{lang} homepage count does not match latest items")
 
