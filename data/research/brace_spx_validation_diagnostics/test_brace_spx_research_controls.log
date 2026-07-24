@@ -1,0 +1,36 @@
+....F                                                                    [100%]
+=================================== FAILURES ===================================
+__________ ResearchControlsTests.test_pbo_returns_bounded_probability __________
+
+self = <test_brace_spx_research_controls.ResearchControlsTests testMethod=test_pbo_returns_bounded_probability>
+
+    def test_pbo_returns_bounded_probability(self):
+        rng = np.random.default_rng(11)
+        frame = pd.DataFrame(
+            {
+                "stable": rng.normal(0.008, 0.03, 160),
+                "noise_a": rng.normal(0.0, 0.04, 160),
+                "noise_b": rng.normal(0.0, 0.04, 160),
+                "noise_c": rng.normal(0.0, 0.04, 160),
+            }
+        )
+>       result = probability_of_backtest_overfitting(frame, partitions=8)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_brace_spx_research_controls.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/brace_spx_research_controls.py:117: in probability_of_backtest_overfitting
+    blocks = [block for block in np.array_split(frame, partitions) if not block.empty]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x7f6eb0934070>
+
+>   blocks = [block for block in np.array_split(frame, partitions) if not block.empty]
+                                                                          ^^^^^^^^^^^
+E   AttributeError: 'numpy.ndarray' object has no attribute 'empty'
+
+scripts/brace_spx_research_controls.py:117: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_brace_spx_research_controls.py::ResearchControlsTests::test_pbo_returns_bounded_probability - AttributeError: 'numpy.ndarray' object has no attribute 'empty'
+1 failed, 4 passed in 0.36s
