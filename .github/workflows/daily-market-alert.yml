@@ -19,6 +19,8 @@ on:
       - "scripts/update_daily_market_alert.py"
       - "scripts/patch_daily_alert_ui.py"
       - "tests/test_daily_market_alert.py"
+      - "tests/test_daily_market_alert_watchdog.py"
+      - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
     # Candidate UTC times for 10:00 New York (30 minutes after open), EDT/EST.
@@ -42,7 +44,7 @@ concurrency:
 jobs:
   build-daily-market-alert:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
@@ -61,7 +63,8 @@ jobs:
           pip install requests feedparser pandas_market_calendars
 
       - name: Test daily alert contract
-        run: python -m unittest tests.test_daily_market_alert -v
+        run: |
+          python -m unittest tests.test_daily_market_alert tests.test_daily_market_alert_watchdog -v
 
       - name: Patch Daily Market Alert interface
         run: python scripts/patch_daily_alert_ui.py
@@ -91,7 +94,20 @@ jobs:
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
           BR_ALERT_SCHEDULE: ${{ github.event.schedule }}
-        run: python scripts/update_daily_market_alert.py --mode "${{ steps.mode.outputs.mode }}"
+        shell: bash
+        run: |
+          set -o pipefail
+          delays=(0 60 180)
+          for attempt in 1 2 3; do
+            sleep "${delays[$((attempt-1))]}"
+            echo "Full alert attempt $attempt/3"
+            if python scripts/update_daily_market_alert.py --mode "${{ steps.mode.outputs.mode }}"; then
+              exit 0
+            fi
+            git restore --worktree -- data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
+          done
+          echo "::error title=Daily Market Alert generation failed::All three full-process attempts failed."
+          exit 1
 
       - name: Validate generated alert
         if: steps.mode.outputs.mode != 'ui-only'
