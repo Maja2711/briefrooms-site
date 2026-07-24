@@ -1,0 +1,117 @@
+name: Daily Market Alert Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Independent checks after the opening slot, for EDT and EST.
+    - cron: "0 15 * * 1-5"
+    - cron: "0 16 * * 1-5"
+    # Independent checks after shortened-session pre-close slots.
+    - cron: "0 18 * * 1-5"
+    - cron: "0 19 * * 1-5"
+    # Independent checks after normal-session pre-close slots.
+    - cron: "0 21 * * 1-5"
+    - cron: "0 22 * * 1-5"
+
+permissions:
+  contents: write
+  issues: write
+  models: read
+
+concurrency:
+  group: daily-market-alert-watchdog
+  cancel-in-progress: false
+
+jobs:
+  verify-and-recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install governed alert dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests feedparser pandas_market_calendars
+
+      - name: Test alert and watchdog contracts
+        run: |
+          python -m unittest tests.test_daily_market_alert tests.test_daily_market_alert_watchdog -v
+
+      - name: Check whether the due slot exists
+        id: initial
+        continue-on-error: true
+        run: python scripts/check_daily_market_alert.py --mode auto --grace-minutes 45
+
+      - name: Recover a missing alert with full-process retries
+        if: steps.initial.outcome == 'failure'
+        id: recovery
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+        shell: bash
+        run: |
+          set -o pipefail
+          delays=(0 60 180)
+          for attempt in 1 2 3; do
+            sleep "${delays[$((attempt-1))]}"
+            echo "Watchdog recovery attempt $attempt/3"
+            if python scripts/update_daily_market_alert.py --mode catchup &&
+               python scripts/update_daily_market_alert.py --validate-only; then
+              exit 0
+            fi
+            git restore --worktree -- data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
+          done
+          exit 1
+
+      - name: Verify the recovered slot
+        id: final
+        continue-on-error: true
+        run: python scripts/check_daily_market_alert.py --mode auto --grace-minutes 45
+
+      - name: Commit recovered alert
+        if: steps.final.outcome == 'success'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Recover missing Daily Market Alert"
+            git pull --rebase -X theirs origin main
+            git push
+          fi
+
+      - name: Open or update a missing-alert alarm
+        if: steps.final.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          DAY="$(TZ=America/New_York date +%F)"
+          TITLE="[ALARM] Daily Market Alert missing - $DAY"
+          BODY="The independent watchdog did not find the due Daily Market Alert slot for $DAY after three recovery attempts. Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EXISTING="$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')"
+          if [[ -n "$EXISTING" ]]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label "bug"
+          fi
+
+      - name: Fail visibly when recovery did not succeed
+        if: steps.final.outcome == 'failure'
+        run: |
+          echo "::error title=Daily Market Alert missing::The due alert slot is still missing after watchdog recovery."
+          exit 1
