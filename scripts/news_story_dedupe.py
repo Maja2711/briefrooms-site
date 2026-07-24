@@ -220,7 +220,12 @@ def audit_html(html: str) -> None:
     for card in cards:
         heading = re.search(r'class="news-text"[^>]*>(.*?)</span>', card, re.S | re.I)
         title = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", heading.group(1))).strip() if heading else ""
-        summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", card)).strip()
+        # Compare editorial content only. Using the whole card polluted every
+        # signature with repeated UI labels, source names and link text, which
+        # could turn distinct releases from one institution into false matches.
+        note = re.search(r'<div\s+class="ai-note"[^>]*>(.*?)</div>\s*</li>', card, re.S | re.I)
+        summary_source = note.group(1) if note else ""
+        summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", summary_source)).strip()
         if title:
             stories.append({"title": title, "summary": summary})
     assert_no_duplicate_stories({"rendered_html": stories})
