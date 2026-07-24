@@ -32,7 +32,7 @@ permissions:
 concurrency:
   # Serialize every AI publication because PL and EN share one GitHub Models rate-limit budget.
   group: content-publishing
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   build:
