@@ -42,6 +42,18 @@ def news_timestamp(source: str, lang: str) -> datetime:
     return datetime.fromisoformat(match.group(1)).replace(tzinfo=timezone.utc)
 
 
+def homepage_timestamp(source: str, lang: str) -> datetime:
+    match = re.search(
+        r'<div\b(?=[^>]*\bid=["\']latest-briefs["\'])'
+        r'[^>]*\bdata-home-updated-at=["\']([^"\']+)["\']',
+        source,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        raise AssertionError(f"{lang} index.html homepage timestamp is missing")
+    return parse_datetime(match.group(1))
+
+
 def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> None:
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     news_rel, feed_rel, index_rel = LANG_PATHS[lang]
@@ -74,8 +86,8 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
     if news_cards < 3:
         raise AssertionError(f"{lang} news page has only {news_cards} rendered cards")
 
-    marker = updated_at.isoformat(timespec="minutes")
-    if f'data-home-updated-at="{marker}"' not in index:
+    rendered_home_at = homepage_timestamp(index, lang)
+    if rendered_home_at != updated_at:
         raise AssertionError(f"{lang} index.html does not contain the current homepage feed timestamp")
 
     for item in latest:
