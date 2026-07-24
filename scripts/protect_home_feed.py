@@ -23,6 +23,7 @@ FILES = {
     "en": (Path("en/home_brief.json"), Path(".cache/home_brief_en_last_good.json")),
 }
 MIN_VISIBLE_ITEMS = {"pl": 8, "en": 8}
+ALLOWED_VISIBLE_COUNTS = (8, 10)
 MAX_FEED_AGE_HOURS = 12
 URL_RE = re.compile(r"^https?://", re.I)
 
@@ -144,6 +145,18 @@ def merge(new: dict[str, Any], old: dict[str, Any], lang: str) -> dict[str, Any]
             break
         append(merged_radar, item)
 
+    # The homepage layout has an editorial contract of exactly 8 or 10 cards.
+    # Keep the ten best approved cards when available; otherwise publish eight.
+    # A ninth card is deliberately held for the next refresh instead of creating
+    # an uneven layout. This only removes already-approved surplus cards and
+    # never relaxes any quality gate.
+    combined = merged_latest + merged_radar
+    target = 10 if len(combined) >= 10 else 8
+    combined = combined[:target]
+    latest_count = min(len(merged_latest), target)
+    merged_latest = combined[:latest_count]
+    merged_radar = combined[latest_count:]
+
     out = dict(new or old)
     out["latest"] = merged_latest
     out["radar"] = merged_radar
@@ -154,8 +167,14 @@ def merge(new: dict[str, Any], old: dict[str, Any], lang: str) -> dict[str, Any]
     return out
 
 
-def backup_current() -> None:
-    for lang, (data_path, backup_path) in FILES.items():
+def selected_files(lang: str | None = None):
+    if lang is not None:
+        return ((lang, FILES[lang]),)
+    return FILES.items()
+
+
+def backup_current(lang: str | None = None) -> None:
+    for lang, (data_path, backup_path) in selected_files(lang):
         current = load(data_path)
         count = total_valid(current, lang)
         if count == 0:
@@ -170,9 +189,9 @@ def backup_current() -> None:
         print(f"{lang}: saved {count} last-good homepage cards")
 
 
-def validate_current(passive: bool = False) -> bool:
+def validate_current(passive: bool = False, lang: str | None = None) -> bool:
     complete = True
-    for lang, (data_path, backup_path) in FILES.items():
+    for lang, (data_path, backup_path) in selected_files(lang):
         current = load(data_path)
         previous = load(backup_path)
         new_count = total_valid(current, lang)
@@ -248,11 +267,12 @@ def main() -> None:
     group.add_argument("--backup", action="store_true")
     group.add_argument("--validate", action="store_true")
     group.add_argument("--validate-passive", action="store_true")
+    parser.add_argument("--lang", choices=sorted(FILES))
     args = parser.parse_args()
     if args.backup:
-        backup_current()
+        backup_current(args.lang)
         return
-    complete = validate_current(passive=args.validate_passive)
+    complete = validate_current(passive=args.validate_passive, lang=args.lang)
     if args.validate and not complete:
         raise SystemExit("Homepage update incomplete: fewer than 8 fresh, reviewed cards")
 
