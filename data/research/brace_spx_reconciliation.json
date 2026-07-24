@@ -1,42 +1,21 @@
 {
-  "schema_version": "1.0.0",
-  "reconciled_at": "2026-07-24T08:43:00Z",
-  "active_checkpoint_before_reconciliation": {
-    "model_version": "0.1.0",
-    "candidate_space_size": 270,
-    "experiments_visible_in_active_ledger": 18
+  "strongest_known_evidence": {
+    "source": "public_verified_snapshot",
+    "version": "0.6.0",
+    "experiments": 540
   },
-  "latest_preserved_public_generation": {
-    "model_version": "0.6.0",
-    "label": "Stability across successive market regimes",
-    "source_snapshot_at": "2026-07-24T07:43:27Z",
-    "experiments_completed": 540,
-    "candidate_space_size": 789,
-    "experiments_remaining": 249,
-    "development_champion": {
-      "cagr": 0.129236,
-      "annualized_volatility": 0.122064,
-      "sharpe_zero_rf": 1.0588,
-      "max_drawdown": -0.179676,
-      "calmar": 0.7193,
-      "annualized_turnover": 0.1603,
-      "positive_year_ratio": 0.9,
-      "months": 108,
-      "average_exposure": 0.926804,
-      "robustness_gate_passed": false,
-      "positive_folds": 4,
-      "required_positive_folds": 5
-    },
-    "reported_holdout_status": {
-      "months": 48,
-      "accessed": false
-    }
+  "active_branch": {
+    "source": "active_branch",
+    "version": "0.0.0",
+    "experiments": 72
   },
-  "reconciliation_decision": {
-    "legacy_evidence_discarded": false,
-    "legacy_candidate_rows_imported_into_new_ledger": false,
-    "reason": "The sanitized public snapshot proves later-generation progress but does not contain candidate identities, parameters or monthly return paths. Importing synthetic rows would fabricate experiment memory and invalidate DSR/PBO. The v0.6 evidence is therefore preserved as an immutable legacy summary while a new predeclared sealed generation builds a complete auditable ledger.",
-    "new_generation_id": "spx-sealed-v1",
-    "new_generation_holdout_policy": "single-use after candidate-space exhaustion and frozen champion hash"
-  }
+  "public_verified_snapshot": {
+    "source": "public_verified_snapshot",
+    "version": "0.6.0",
+    "experiments": 540
+  },
+  "active_branch_is_downgrade": true,
+  "raw_experiment_memory_reconciled": false,
+  "publication_allowed": false,
+  "policy": "Never overwrite a stronger verified snapshot with an older or smaller active report."
 }
