@@ -2,6 +2,12 @@ name: Daily Market Alert Watchdog
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/check_daily_market_alert.py"
+      - "tests/test_daily_market_alert_watchdog.py"
+      - ".github/workflows/daily-market-alert-watchdog.yml"
   schedule:
     # Independent checks after the opening slot, for EDT and EST.
     - cron: "0 15 * * 1-5"
