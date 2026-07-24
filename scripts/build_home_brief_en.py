@@ -20,7 +20,7 @@ TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
 MIN_ITEMS = 8
 MAX_ITEMS = max(MIN_ITEMS, int(os.getenv("BR_HOME_CANDIDATE_LIMIT", "36")))
-MAX_STORY_AGE_HOURS = max(12, int(os.getenv("BR_HOME_MAX_STORY_AGE_HOURS", "18")))
+MAX_STORY_AGE_HOURS = 12
 
 # "Breaking" is first on purpose: publisher-marked urgent/breaking items get first chance and extra score.
 FEEDS = {
