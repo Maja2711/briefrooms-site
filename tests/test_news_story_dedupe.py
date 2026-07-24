@@ -14,6 +14,23 @@ from scripts.news_story_dedupe import (
 
 
 class StoryDedupeTests(unittest.TestCase):
+    def test_html_audit_ignores_repeated_source_and_ui_labels(self):
+        html = """
+        <ul>
+          <li>
+            <span class="news-text">Decisions taken by the Governing Council of the ECB</span>
+            <div class="source-line">Source: ECB</div>
+            <div class="ai-note"><div>Interest-rate and operational decisions were published.</div></div>
+          </li>
+          <li>
+            <span class="news-text">ECB extends climate factors in collateral framework</span>
+            <div class="source-line">Source: ECB</div>
+            <div class="ai-note"><div>The collateral framework will include climate-related factors.</div></div>
+          </li>
+        </ul>
+        """
+        audit_html(html)
+
     def test_different_languages_map_to_one_event(self):
         pl = {"title": "Ambasadorowie UE zatwierdzili 21. pakiet sankcji wobec Rosji"}
         en = {"title": "EU envoys approved the 21st sanctions package against Russia"}
