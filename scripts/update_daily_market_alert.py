@@ -174,7 +174,7 @@ def resolve_mode(requested: str, moment: datetime) -> str:
         return "skip"
     market_open, market_close = schedule
     if requested == "catchup":
-        if moment >= market_close - timedelta(minutes=30):
+        if moment >= market_close - timedelta(minutes=60):
             return "preclose"
         if moment >= market_open + timedelta(minutes=30):
             return "open"
@@ -295,7 +295,11 @@ def daily_history(symbol: str) -> list[dict[str, float]]:
 
 
 def convert_tnx(value: float, instrument_id: str) -> float:
-    return value / 10.0 if instrument_id == "us10y" else value
+    if instrument_id != "us10y":
+        return value
+    # Yahoo has exposed ^TNX both as 46.x (tenths of a percent) and 4.6x
+    # (percent) depending on the chart response. Normalize only the former.
+    return value / 10.0 if value > 20.0 else value
 
 
 def true_range(rows: list[dict[str, float]], instrument_id: str) -> float:
