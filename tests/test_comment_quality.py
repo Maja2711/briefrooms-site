@@ -743,7 +743,7 @@ class PipelineContractTests(unittest.TestCase):
             (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
         )
         self.assertIn(
-            "cancel-in-progress: false",
+            "cancel-in-progress: ${{ github.event_name == 'push' }}",
             (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
         )
         self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
