@@ -44,7 +44,9 @@ jobs:
           fetch-depth: 1
 
       - name: Validate static homepage contract
-        run: python -m unittest discover -s tests -p "test_homepage_static.py"
+        run: |
+          python -m unittest discover -s tests -p "test_homepage_static.py"
+          python -m unittest tests/test_root_language_redirect.py
 
       - name: Confirm actual Pages publishing source
         shell: bash
