@@ -739,7 +739,11 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("group: content-publishing", source, relative)
             self.assertIn("cancel-in-progress: false", source, relative)
         self.assertIn(
-            "group: news-en-publishing",
+            "group: content-publishing",
+            (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "cancel-in-progress: false",
             (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
         )
         self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
