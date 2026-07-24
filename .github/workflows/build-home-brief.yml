@@ -74,7 +74,7 @@ jobs:
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
         run: |
           for attempt in 1 2 3; do
             if python scripts/build_home_brief_pl.py; then break; fi
@@ -92,7 +92,7 @@ jobs:
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
         run: |
           for attempt in 1 2 3; do
             if python scripts/build_home_brief_en.py; then break; fi
@@ -110,7 +110,7 @@ jobs:
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
         run: python scripts/read_and_summarize_articles.py
 
       - name: Enforce article brief methodology
