@@ -113,6 +113,11 @@ def same_story(first: dict, second: dict) -> bool:
     duplicate = (
         sequence >= 0.76
         or (len(shared) >= 4 and overlap >= 0.52 and jaccard >= 0.30)
+        # Two reports can describe the same transfer with very different
+        # newsroom wording. Three shared event anchors (for example club,
+        # action and player) are sufficient when they cover at least half of
+        # the shorter report and a meaningful part of both reports.
+        or (len(shared) >= 3 and overlap >= 0.50 and jaccard >= 0.30)
         or (matching_number and len(shared) >= 3 and overlap >= 0.42)
     )
     return duplicate and not _material_update(a, b)
