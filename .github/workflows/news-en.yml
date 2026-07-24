@@ -30,7 +30,7 @@ permissions:
   models: read
 
 concurrency:
-  group: news-en-publishing
+  group: content-publishing
   cancel-in-progress: false
 
 jobs:
@@ -69,7 +69,7 @@ jobs:
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
           BR_NEWS_PERSIST_HISTORY: "1"
         run: |
           for attempt in 1 2 3; do
@@ -91,7 +91,7 @@ jobs:
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
         run: |
           python scripts/protect_home_feed.py --backup --lang en
           published=false
