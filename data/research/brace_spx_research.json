@@ -3,7 +3,7 @@
   "model": "BRACE-SPX Research Lab",
   "model_version": "0.1.0",
   "status": "searching",
-  "generated_at": "2026-07-23T21:25:01+00:00",
+  "generated_at": "2026-07-24T08:41:37+00:00",
   "research_only": true,
   "live_activation": false,
   "target_instrument": "SPY",
@@ -16,7 +16,6 @@
     "XLB",
     "XLC",
     "XLE",
-    "XLF",
     "XLI",
     "XLK",
     "XLP",
@@ -32,12 +31,12 @@
   "development_end": "2022-06-30",
   "sealed_holdout_start": "2022-07-31",
   "sealed_holdout_end": "2026-06-30",
-  "new_experiments": 18,
-  "experiments_total": 18,
+  "new_experiments": 36,
+  "experiments_total": 54,
   "candidate_space_size": 270,
   "development_baselines": {
     "buy_hold": {
-      "total_return": 13.666397,
+      "total_return": 13.666406,
       "cagr": 0.095591,
       "annualized_volatility": 0.147309,
       "sharpe_zero_rf": 0.6489,
@@ -49,7 +48,7 @@
       "months": 353
     },
     "trend_200d": {
-      "total_return": 15.611834,
+      "total_return": 15.611796,
       "cagr": 0.10024,
       "annualized_volatility": 0.105857,
       "sharpe_zero_rf": 0.9469,
@@ -61,12 +60,12 @@
       "months": 353
     },
     "dual_trend": {
-      "total_return": 10.448427,
+      "total_return": 10.448415,
       "cagr": 0.086404,
       "annualized_volatility": 0.104051,
       "sharpe_zero_rf": 0.8304,
       "sortino_zero_rf": 1.0061,
-      "max_drawdown": -0.209133,
+      "max_drawdown": -0.209134,
       "calmar": 0.4132,
       "annualized_turnover": 1.4278,
       "positive_year_ratio": 0.7,
@@ -75,7 +74,7 @@
   },
   "holdout_baselines": {
     "buy_hold": {
-      "total_return": 0.911183,
+      "total_return": 0.911184,
       "cagr": 0.175779,
       "annualized_volatility": 0.145648,
       "sharpe_zero_rf": 1.2069,
@@ -904,6 +903,163 @@
       }
     },
     {
+      "candidate_id": "2238c1432ae0653a",
+      "candidate": {
+        "family": "logistic",
+        "feature_set": "rich",
+        "threshold_high": 0.56,
+        "threshold_low": 0.49,
+        "max_exposure": 1.0,
+        "volatility_target": 0.12,
+        "params": {
+          "C": 1.0,
+          "class_weight": null
+        }
+      },
+      "evaluated_at": "2026-07-24T08:40:54+00:00",
+      "walk_forward": {
+        "metrics": {
+          "total_return": 1.21035,
+          "cagr": 0.092128,
+          "annualized_volatility": 0.07791,
+          "sharpe_zero_rf": 1.1825,
+          "sortino_zero_rf": 1.222,
+          "max_drawdown": -0.13619,
+          "calmar": 0.6765,
+          "annualized_turnover": 4.1212,
+          "positive_year_ratio": 0.9,
+          "months": 108
+        },
+        "objective": 0.2649832,
+        "baseline_metrics": {
+          "buy_hold": {
+            "total_return": 2.212698,
+            "cagr": 0.138463,
+            "annualized_volatility": 0.131758,
+            "sharpe_zero_rf": 1.0509,
+            "sortino_zero_rf": 1.3715,
+            "max_drawdown": -0.194477,
+            "calmar": 0.712,
+            "annualized_turnover": 0.1111,
+            "positive_year_ratio": 0.9,
+            "months": 108
+          },
+          "trend_200d": {
+            "total_return": 1.374571,
+            "cagr": 0.100859,
+            "annualized_volatility": 0.105892,
+            "sharpe_zero_rf": 0.9525,
+            "sortino_zero_rf": 1.165,
+            "max_drawdown": -0.161889,
+            "calmar": 0.623,
+            "annualized_turnover": 1.4444,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          },
+          "dual_trend": {
+            "total_return": 1.024986,
+            "cagr": 0.081551,
+            "annualized_volatility": 0.103601,
+            "sharpe_zero_rf": 0.7872,
+            "sortino_zero_rf": 0.9272,
+            "max_drawdown": -0.209134,
+            "calmar": 0.3899,
+            "annualized_turnover": 1.6667,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          }
+        },
+        "fold_metrics": [
+          {
+            "total_return": 0.114778,
+            "cagr": 0.075125,
+            "annualized_volatility": 0.04315,
+            "sharpe_zero_rf": 1.741,
+            "sortino_zero_rf": 148.6148,
+            "max_drawdown": -0.0005,
+            "calmar": 150.2505,
+            "annualized_turnover": 3.818,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 8.893758
+          },
+          {
+            "total_return": 0.187778,
+            "cagr": 0.121563,
+            "annualized_volatility": 0.060143,
+            "sharpe_zero_rf": 2.0212,
+            "sortino_zero_rf": 5.6223,
+            "max_drawdown": -0.015014,
+            "calmar": 8.0965,
+            "annualized_turnover": 4.9118,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1060378
+          },
+          {
+            "total_return": 0.072476,
+            "cagr": 0.047752,
+            "annualized_volatility": 0.084233,
+            "sharpe_zero_rf": 0.5669,
+            "sortino_zero_rf": 0.6129,
+            "max_drawdown": -0.071682,
+            "calmar": 0.6662,
+            "annualized_turnover": 3.1454,
+            "positive_year_ratio": 0.5,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": -0.0063816
+          },
+          {
+            "total_return": 0.246175,
+            "cagr": 0.158029,
+            "annualized_volatility": 0.066622,
+            "sharpe_zero_rf": 2.372,
+            "sortino_zero_rf": 4.8535,
+            "max_drawdown": -0.01843,
+            "calmar": 8.5744,
+            "annualized_turnover": 5.6667,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1583742
+          },
+          {
+            "total_return": 0.212136,
+            "cagr": 0.136844,
+            "annualized_volatility": 0.086146,
+            "sharpe_zero_rf": 1.5885,
+            "sortino_zero_rf": 1.502,
+            "max_drawdown": -0.056363,
+            "calmar": 2.4279,
+            "annualized_turnover": 4.0148,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.2576778
+          },
+          {
+            "total_return": 0.036418,
+            "cagr": 0.024134,
+            "annualized_volatility": 0.111559,
+            "sharpe_zero_rf": 0.2163,
+            "sortino_zero_rf": 0.187,
+            "max_drawdown": -0.13619,
+            "calmar": 0.1772,
+            "annualized_turnover": 3.5114,
+            "positive_year_ratio": 0.6667,
+            "months": 18,
+            "strongest_baseline": "trend_200d",
+            "objective_advantage": -0.3757701
+          }
+        ],
+        "folds": 6,
+        "months": 108
+      }
+    },
+    {
       "candidate_id": "c99e3ac5f3d0d083",
       "candidate": {
         "family": "logistic",
@@ -1054,6 +1210,163 @@
             "months": 18,
             "strongest_baseline": "trend_200d",
             "objective_advantage": -0.3435683
+          }
+        ],
+        "folds": 6,
+        "months": 108
+      }
+    },
+    {
+      "candidate_id": "81d8231c7597bc85",
+      "candidate": {
+        "family": "logistic",
+        "feature_set": "rich",
+        "threshold_high": 0.6,
+        "threshold_low": 0.5,
+        "max_exposure": 1.0,
+        "volatility_target": 0.16,
+        "params": {
+          "C": 1.0,
+          "class_weight": null
+        }
+      },
+      "evaluated_at": "2026-07-24T08:40:40+00:00",
+      "walk_forward": {
+        "metrics": {
+          "total_return": 1.141087,
+          "cagr": 0.088271,
+          "annualized_volatility": 0.084029,
+          "sharpe_zero_rf": 1.0505,
+          "sortino_zero_rf": 1.009,
+          "max_drawdown": -0.154719,
+          "calmar": 0.5705,
+          "annualized_turnover": 3.6183,
+          "positive_year_ratio": 0.9,
+          "months": 108
+        },
+        "objective": 0.2435778,
+        "baseline_metrics": {
+          "buy_hold": {
+            "total_return": 2.212698,
+            "cagr": 0.138463,
+            "annualized_volatility": 0.131758,
+            "sharpe_zero_rf": 1.0509,
+            "sortino_zero_rf": 1.3715,
+            "max_drawdown": -0.194477,
+            "calmar": 0.712,
+            "annualized_turnover": 0.1111,
+            "positive_year_ratio": 0.9,
+            "months": 108
+          },
+          "trend_200d": {
+            "total_return": 1.374571,
+            "cagr": 0.100859,
+            "annualized_volatility": 0.105892,
+            "sharpe_zero_rf": 0.9525,
+            "sortino_zero_rf": 1.165,
+            "max_drawdown": -0.161889,
+            "calmar": 0.623,
+            "annualized_turnover": 1.4444,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          },
+          "dual_trend": {
+            "total_return": 1.024986,
+            "cagr": 0.081551,
+            "annualized_volatility": 0.103601,
+            "sharpe_zero_rf": 0.7872,
+            "sortino_zero_rf": 0.9272,
+            "max_drawdown": -0.209134,
+            "calmar": 0.3899,
+            "annualized_turnover": 1.6667,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          }
+        },
+        "fold_metrics": [
+          {
+            "total_return": 0.077479,
+            "cagr": 0.051007,
+            "annualized_volatility": 0.026277,
+            "sharpe_zero_rf": 1.9412,
+            "sortino_zero_rf": 94.7271,
+            "max_drawdown": -0.0005,
+            "calmar": 102.015,
+            "annualized_turnover": 3.2399,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 5.9978424
+          },
+          {
+            "total_return": 0.194145,
+            "cagr": 0.125567,
+            "annualized_volatility": 0.064557,
+            "sharpe_zero_rf": 1.945,
+            "sortino_zero_rf": 5.7919,
+            "max_drawdown": -0.015036,
+            "calmar": 8.3513,
+            "annualized_turnover": 5.2158,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1164938
+          },
+          {
+            "total_return": 0.112291,
+            "cagr": 0.073525,
+            "annualized_volatility": 0.097742,
+            "sharpe_zero_rf": 0.7522,
+            "sortino_zero_rf": 0.9311,
+            "max_drawdown": -0.068261,
+            "calmar": 1.0771,
+            "annualized_turnover": 3.4711,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.0737726
+          },
+          {
+            "total_return": 0.184824,
+            "cagr": 0.119702,
+            "annualized_volatility": 0.055836,
+            "sharpe_zero_rf": 2.1438,
+            "sortino_zero_rf": 3.3936,
+            "max_drawdown": -0.01818,
+            "calmar": 6.5842,
+            "annualized_turnover": 4.3333,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": -0.0168512
+          },
+          {
+            "total_return": 0.204523,
+            "cagr": 0.132079,
+            "annualized_volatility": 0.093994,
+            "sharpe_zero_rf": 1.4052,
+            "sortino_zero_rf": 1.0563,
+            "max_drawdown": -0.075067,
+            "calmar": 1.7595,
+            "annualized_turnover": 3.4012,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1969332
+          },
+          {
+            "total_return": 0.050231,
+            "cagr": 0.033213,
+            "annualized_volatility": 0.130846,
+            "sharpe_zero_rf": 0.2538,
+            "sortino_zero_rf": 0.2276,
+            "max_drawdown": -0.154719,
+            "calmar": 0.2147,
+            "annualized_turnover": 3.3486,
+            "positive_year_ratio": 0.6667,
+            "months": 18,
+            "strongest_baseline": "trend_200d",
+            "objective_advantage": -0.3600399
           }
         ],
         "folds": 6,
@@ -1218,508 +1531,37 @@
       }
     },
     {
-      "candidate_id": "febc71f021a01c2d",
-      "candidate": {
-        "family": "logistic",
-        "feature_set": "rich",
-        "threshold_high": 0.64,
-        "threshold_low": 0.52,
-        "max_exposure": 1.0,
-        "volatility_target": 0.2,
-        "params": {
-          "C": 1.0,
-          "class_weight": null
-        }
-      },
-      "evaluated_at": "2026-07-23T21:24:47+00:00",
-      "walk_forward": {
-        "metrics": {
-          "total_return": 1.061803,
-          "cagr": 0.083718,
-          "annualized_volatility": 0.092292,
-          "sharpe_zero_rf": 0.9071,
-          "sortino_zero_rf": 0.8927,
-          "max_drawdown": -0.173244,
-          "calmar": 0.4832,
-          "annualized_turnover": 3.5407,
-          "positive_year_ratio": 0.8,
-          "months": 108
-        },
-        "objective": 0.2172572,
-        "baseline_metrics": {
-          "buy_hold": {
-            "total_return": 2.212698,
-            "cagr": 0.138463,
-            "annualized_volatility": 0.131758,
-            "sharpe_zero_rf": 1.0509,
-            "sortino_zero_rf": 1.3715,
-            "max_drawdown": -0.194477,
-            "calmar": 0.712,
-            "annualized_turnover": 0.1111,
-            "positive_year_ratio": 0.9,
-            "months": 108
-          },
-          "trend_200d": {
-            "total_return": 1.374573,
-            "cagr": 0.100859,
-            "annualized_volatility": 0.105892,
-            "sharpe_zero_rf": 0.9525,
-            "sortino_zero_rf": 1.165,
-            "max_drawdown": -0.161888,
-            "calmar": 0.623,
-            "annualized_turnover": 1.4444,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          },
-          "dual_trend": {
-            "total_return": 1.024986,
-            "cagr": 0.081551,
-            "annualized_volatility": 0.103601,
-            "sharpe_zero_rf": 0.7872,
-            "sortino_zero_rf": 0.9272,
-            "max_drawdown": -0.209133,
-            "calmar": 0.3899,
-            "annualized_turnover": 1.6667,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          }
-        },
-        "fold_metrics": [
-          {
-            "total_return": 0.023342,
-            "cagr": 0.015501,
-            "annualized_volatility": 0.012318,
-            "sharpe_zero_rf": 1.2584,
-            "sortino_zero_rf": 31.0028,
-            "max_drawdown": -0.0005,
-            "calmar": 31.0028,
-            "annualized_turnover": 2.6667,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 1.6356172
-          },
-          {
-            "total_return": 0.199276,
-            "cagr": 0.128789,
-            "annualized_volatility": 0.065931,
-            "sharpe_zero_rf": 1.9534,
-            "sortino_zero_rf": 5.9442,
-            "max_drawdown": -0.015035,
-            "calmar": 8.5659,
-            "annualized_turnover": 5.3333,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.1329618
-          },
-          {
-            "total_return": 0.178707,
-            "cagr": 0.115845,
-            "annualized_volatility": 0.100006,
-            "sharpe_zero_rf": 1.1584,
-            "sortino_zero_rf": 2.5759,
-            "max_drawdown": -0.039795,
-            "calmar": 2.9111,
-            "annualized_turnover": 3.4848,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.2666978
-          },
-          {
-            "total_return": 0.184825,
-            "cagr": 0.119703,
-            "annualized_volatility": 0.055836,
-            "sharpe_zero_rf": 2.1438,
-            "sortino_zero_rf": 3.3937,
-            "max_drawdown": -0.01818,
-            "calmar": 6.5842,
-            "annualized_turnover": 4.3333,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.0168502
-          },
-          {
-            "total_return": 0.146129,
-            "cagr": 0.095189,
-            "annualized_volatility": 0.110934,
-            "sharpe_zero_rf": 0.8581,
-            "sortino_zero_rf": 0.7338,
-            "max_drawdown": -0.120261,
-            "calmar": 0.7915,
-            "annualized_turnover": 3.4263,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.0346528
-          },
-          {
-            "total_return": 0.048123,
-            "cagr": 0.03183,
-            "annualized_volatility": 0.149824,
-            "sharpe_zero_rf": 0.2124,
-            "sortino_zero_rf": 0.1908,
-            "max_drawdown": -0.173244,
-            "calmar": 0.1837,
-            "annualized_turnover": 3.3333,
-            "positive_year_ratio": 0.6667,
-            "months": 18,
-            "strongest_baseline": "trend_200d",
-            "objective_advantage": -0.3673627
-          }
-        ],
-        "folds": 6,
-        "months": 108
-      }
-    },
-    {
-      "candidate_id": "d918545c8e0f459d",
-      "candidate": {
-        "family": "logistic",
-        "feature_set": "risk",
-        "threshold_high": 0.6,
-        "threshold_low": 0.5,
-        "max_exposure": 1.0,
-        "volatility_target": 0.2,
-        "params": {
-          "C": 0.2,
-          "class_weight": null
-        }
-      },
-      "evaluated_at": "2026-07-23T21:24:46+00:00",
-      "walk_forward": {
-        "metrics": {
-          "total_return": 1.149709,
-          "cagr": 0.088757,
-          "annualized_volatility": 0.107595,
-          "sharpe_zero_rf": 0.8249,
-          "sortino_zero_rf": 0.9164,
-          "max_drawdown": -0.177129,
-          "calmar": 0.5011,
-          "annualized_turnover": 2.0062,
-          "positive_year_ratio": 0.6,
-          "months": 108
-        },
-        "objective": 0.2162882,
-        "baseline_metrics": {
-          "buy_hold": {
-            "total_return": 2.212698,
-            "cagr": 0.138463,
-            "annualized_volatility": 0.131758,
-            "sharpe_zero_rf": 1.0509,
-            "sortino_zero_rf": 1.3715,
-            "max_drawdown": -0.194477,
-            "calmar": 0.712,
-            "annualized_turnover": 0.1111,
-            "positive_year_ratio": 0.9,
-            "months": 108
-          },
-          "trend_200d": {
-            "total_return": 1.374573,
-            "cagr": 0.100859,
-            "annualized_volatility": 0.105892,
-            "sharpe_zero_rf": 0.9525,
-            "sortino_zero_rf": 1.165,
-            "max_drawdown": -0.161888,
-            "calmar": 0.623,
-            "annualized_turnover": 1.4444,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          },
-          "dual_trend": {
-            "total_return": 1.024986,
-            "cagr": 0.081551,
-            "annualized_volatility": 0.103601,
-            "sharpe_zero_rf": 0.7872,
-            "sortino_zero_rf": 0.9272,
-            "max_drawdown": -0.209133,
-            "calmar": 0.3899,
-            "annualized_turnover": 1.6667,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          }
-        },
-        "fold_metrics": [
-          {
-            "total_return": 0.098122,
-            "cagr": 0.064389,
-            "annualized_volatility": 0.08313,
-            "sharpe_zero_rf": 0.7746,
-            "sortino_zero_rf": 0.8879,
-            "max_drawdown": -0.066801,
-            "calmar": 0.9639,
-            "annualized_turnover": 3.3333,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.1813752
-          },
-          {
-            "total_return": 0.2312,
-            "cagr": 0.148733,
-            "annualized_volatility": 0.0759,
-            "sharpe_zero_rf": 1.9596,
-            "sortino_zero_rf": 3.5298,
-            "max_drawdown": -0.035248,
-            "calmar": 4.2196,
-            "annualized_turnover": 2.3333,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.0952522
-          },
-          {
-            "total_return": 0.099224,
-            "cagr": 0.065101,
-            "annualized_volatility": 0.095178,
-            "sharpe_zero_rf": 0.684,
-            "sortino_zero_rf": 0.8246,
-            "max_drawdown": -0.06142,
-            "calmar": 1.0599,
-            "annualized_turnover": 2.6667,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.0482142
-          },
-          {
-            "total_return": 0.287202,
-            "cagr": 0.183308,
-            "annualized_volatility": 0.073071,
-            "sharpe_zero_rf": 2.5086,
-            "sortino_zero_rf": 4.0399,
-            "max_drawdown": -0.036361,
-            "calmar": 5.0414,
-            "annualized_turnover": 0.6667,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.0
-          },
-          {
-            "total_return": 0.069495,
-            "cagr": 0.04581,
-            "annualized_volatility": 0.141846,
-            "sharpe_zero_rf": 0.323,
-            "sortino_zero_rf": 0.4352,
-            "max_drawdown": -0.144901,
-            "calmar": 0.3161,
-            "annualized_turnover": 2.3141,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.0923114
-          },
-          {
-            "total_return": 0.043579,
-            "cagr": 0.028846,
-            "annualized_volatility": 0.154441,
-            "sharpe_zero_rf": 0.1868,
-            "sortino_zero_rf": 0.2066,
-            "max_drawdown": -0.177129,
-            "calmar": 0.1629,
-            "annualized_turnover": 2.0,
-            "positive_year_ratio": 0.6667,
-            "months": 18,
-            "strongest_baseline": "trend_200d",
-            "objective_advantage": -0.3688215
-          }
-        ],
-        "folds": 6,
-        "months": 108
-      }
-    },
-    {
-      "candidate_id": "ff9a2cf43fce3a68",
-      "candidate": {
-        "family": "logistic",
-        "feature_set": "core",
-        "threshold_high": 0.6,
-        "threshold_low": 0.5,
-        "max_exposure": 1.0,
-        "volatility_target": 0.12,
-        "params": {
-          "C": 0.2,
-          "class_weight": null
-        }
-      },
-      "evaluated_at": "2026-07-23T21:24:51+00:00",
-      "walk_forward": {
-        "metrics": {
-          "total_return": 0.969952,
-          "cagr": 0.078245,
-          "annualized_volatility": 0.094282,
-          "sharpe_zero_rf": 0.8299,
-          "sortino_zero_rf": 0.9888,
-          "max_drawdown": -0.135637,
-          "calmar": 0.5769,
-          "annualized_turnover": 2.4149,
-          "positive_year_ratio": 0.6,
-          "months": 108
-        },
-        "objective": 0.2091894,
-        "baseline_metrics": {
-          "buy_hold": {
-            "total_return": 2.212698,
-            "cagr": 0.138463,
-            "annualized_volatility": 0.131758,
-            "sharpe_zero_rf": 1.0509,
-            "sortino_zero_rf": 1.3715,
-            "max_drawdown": -0.194477,
-            "calmar": 0.712,
-            "annualized_turnover": 0.1111,
-            "positive_year_ratio": 0.9,
-            "months": 108
-          },
-          "trend_200d": {
-            "total_return": 1.374573,
-            "cagr": 0.100859,
-            "annualized_volatility": 0.105892,
-            "sharpe_zero_rf": 0.9525,
-            "sortino_zero_rf": 1.165,
-            "max_drawdown": -0.161888,
-            "calmar": 0.623,
-            "annualized_turnover": 1.4444,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          },
-          "dual_trend": {
-            "total_return": 1.024986,
-            "cagr": 0.081551,
-            "annualized_volatility": 0.103601,
-            "sharpe_zero_rf": 0.7872,
-            "sortino_zero_rf": 0.9272,
-            "max_drawdown": -0.209133,
-            "calmar": 0.3899,
-            "annualized_turnover": 1.6667,
-            "positive_year_ratio": 0.8,
-            "months": 108
-          }
-        },
-        "fold_metrics": [
-          {
-            "total_return": 0.094595,
-            "cagr": 0.062109,
-            "annualized_volatility": 0.081471,
-            "sharpe_zero_rf": 0.7623,
-            "sortino_zero_rf": 1.0596,
-            "max_drawdown": -0.056917,
-            "calmar": 1.0912,
-            "annualized_turnover": 3.6208,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.1783972
-          },
-          {
-            "total_return": 0.229026,
-            "cagr": 0.147381,
-            "annualized_volatility": 0.081717,
-            "sharpe_zero_rf": 1.8035,
-            "sortino_zero_rf": 3.5108,
-            "max_drawdown": -0.035248,
-            "calmar": 4.1812,
-            "annualized_turnover": 2.151,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.113789
-          },
-          {
-            "total_return": 0.003675,
-            "cagr": 0.002449,
-            "annualized_volatility": 0.082755,
-            "sharpe_zero_rf": 0.0296,
-            "sortino_zero_rf": 0.0336,
-            "max_drawdown": -0.071682,
-            "calmar": 0.0342,
-            "annualized_turnover": 3.6612,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.1453978
-          },
-          {
-            "total_return": 0.291205,
-            "cagr": 0.18576,
-            "annualized_volatility": 0.072116,
-            "sharpe_zero_rf": 2.5759,
-            "sortino_zero_rf": 3.5009,
-            "max_drawdown": -0.036361,
-            "calmar": 5.1088,
-            "annualized_turnover": 0.6667,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": 0.013226
-          },
-          {
-            "total_return": 0.061995,
-            "cagr": 0.040915,
-            "annualized_volatility": 0.121001,
-            "sharpe_zero_rf": 0.3381,
-            "sortino_zero_rf": 0.498,
-            "max_drawdown": -0.113031,
-            "calmar": 0.362,
-            "annualized_turnover": 2.1803,
-            "positive_year_ratio": 0.5,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.0924072
-          },
-          {
-            "total_return": 0.04855,
-            "cagr": 0.03211,
-            "annualized_volatility": 0.115114,
-            "sharpe_zero_rf": 0.2789,
-            "sortino_zero_rf": 0.2863,
-            "max_drawdown": -0.135637,
-            "calmar": 0.2367,
-            "annualized_turnover": 2.8448,
-            "positive_year_ratio": 0.6667,
-            "months": 18,
-            "strongest_baseline": "trend_200d",
-            "objective_advantage": -0.3552987
-          }
-        ],
-        "folds": 6,
-        "months": 108
-      }
-    },
-    {
-      "candidate_id": "0c6e5df1ace922f0",
+      "candidate_id": "d06e75ee38ca5a9f",
       "candidate": {
         "family": "hist_gb",
-        "feature_set": "core",
-        "threshold_high": 0.56,
-        "threshold_low": 0.49,
+        "feature_set": "risk",
+        "threshold_high": 0.64,
+        "threshold_low": 0.52,
         "max_exposure": 1.0,
         "volatility_target": 0.16,
         "params": {
           "learning_rate": 0.06,
           "max_iter": 180,
-          "max_leaf_nodes": 15,
+          "max_leaf_nodes": 7,
           "min_samples_leaf": 12,
           "l2_regularization": 1.0
         }
       },
-      "evaluated_at": "2026-07-23T21:24:46+00:00",
+      "evaluated_at": "2026-07-24T08:40:40+00:00",
       "walk_forward": {
         "metrics": {
-          "total_return": 1.011252,
-          "cagr": 0.080733,
-          "annualized_volatility": 0.108359,
-          "sharpe_zero_rf": 0.7451,
-          "sortino_zero_rf": 0.9222,
-          "max_drawdown": -0.153904,
-          "calmar": 0.5246,
-          "annualized_turnover": 4.6088,
-          "positive_year_ratio": 0.9,
+          "total_return": 1.219237,
+          "cagr": 0.092615,
+          "annualized_volatility": 0.096957,
+          "sharpe_zero_rf": 0.9552,
+          "sortino_zero_rf": 1.1165,
+          "max_drawdown": -0.127742,
+          "calmar": 0.725,
+          "annualized_turnover": 4.6476,
+          "positive_year_ratio": 0.8,
           "months": 108
         },
-        "objective": 0.1987838,
+        "objective": 0.2410446,
         "baseline_metrics": {
           "buy_hold": {
             "total_return": 2.212698,
@@ -1734,12 +1576,12 @@
             "months": 108
           },
           "trend_200d": {
-            "total_return": 1.374573,
+            "total_return": 1.374571,
             "cagr": 0.100859,
             "annualized_volatility": 0.105892,
             "sharpe_zero_rf": 0.9525,
             "sortino_zero_rf": 1.165,
-            "max_drawdown": -0.161888,
+            "max_drawdown": -0.161889,
             "calmar": 0.623,
             "annualized_turnover": 1.4444,
             "positive_year_ratio": 0.8,
@@ -1751,7 +1593,7 @@
             "annualized_volatility": 0.103601,
             "sharpe_zero_rf": 0.7872,
             "sortino_zero_rf": 0.9272,
-            "max_drawdown": -0.209133,
+            "max_drawdown": -0.209134,
             "calmar": 0.3899,
             "annualized_turnover": 1.6667,
             "positive_year_ratio": 0.8,
@@ -1760,88 +1602,245 @@
         },
         "fold_metrics": [
           {
-            "total_return": 0.119565,
-            "cagr": 0.0782,
-            "annualized_volatility": 0.093781,
-            "sharpe_zero_rf": 0.8339,
-            "sortino_zero_rf": 1.0694,
+            "total_return": 0.174702,
+            "cagr": 0.113316,
+            "annualized_volatility": 0.09191,
+            "sharpe_zero_rf": 1.2329,
+            "sortino_zero_rf": 1.495,
             "max_drawdown": -0.066801,
-            "calmar": 1.1706,
-            "annualized_turnover": 3.3333,
+            "calmar": 1.6963,
+            "annualized_turnover": 4.2295,
             "positive_year_ratio": 1.0,
             "months": 18,
             "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.1367322
+            "objective_advantage": -0.033759
           },
           {
-            "total_return": 0.242006,
-            "cagr": 0.155445,
-            "annualized_volatility": 0.086809,
-            "sharpe_zero_rf": 1.7907,
-            "sortino_zero_rf": 2.9886,
-            "max_drawdown": -0.035248,
-            "calmar": 4.41,
-            "annualized_turnover": 5.3666,
+            "total_return": 0.254175,
+            "cagr": 0.16298,
+            "annualized_volatility": 0.079192,
+            "sharpe_zero_rf": 2.058,
+            "sortino_zero_rf": 4.2176,
+            "max_drawdown": -0.032364,
+            "calmar": 5.0358,
+            "annualized_turnover": 6.0332,
             "positive_year_ratio": 1.0,
             "months": 18,
             "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.1061394
+            "objective_advantage": -0.0369928
           },
           {
-            "total_return": 0.051615,
-            "cagr": 0.03412,
-            "annualized_volatility": 0.10395,
-            "sharpe_zero_rf": 0.3282,
-            "sortino_zero_rf": 0.4256,
+            "total_return": 0.01962,
+            "cagr": 0.013038,
+            "annualized_volatility": 0.07675,
+            "sharpe_zero_rf": 0.1699,
+            "sortino_zero_rf": 0.1738,
             "max_drawdown": -0.075103,
-            "calmar": 0.4543,
-            "annualized_turnover": 5.4229,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.0532076
-          },
-          {
-            "total_return": 0.171021,
-            "cagr": 0.110989,
-            "annualized_volatility": 0.074991,
-            "sharpe_zero_rf": 1.48,
-            "sortino_zero_rf": 2.0006,
-            "max_drawdown": -0.036361,
-            "calmar": 3.0525,
-            "annualized_turnover": 5.3333,
-            "positive_year_ratio": 1.0,
-            "months": 18,
-            "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.3078462
-          },
-          {
-            "total_return": -0.004274,
-            "cagr": -0.002852,
-            "annualized_volatility": 0.129739,
-            "sharpe_zero_rf": -0.022,
-            "sortino_zero_rf": -0.0234,
-            "max_drawdown": -0.127742,
-            "calmar": -0.0223,
-            "annualized_turnover": 5.5885,
+            "calmar": 0.1736,
+            "annualized_turnover": 3.245,
             "positive_year_ratio": 0.5,
             "months": 18,
             "strongest_baseline": "buy_hold",
-            "objective_advantage": -0.208875
+            "objective_advantage": -0.11075
           },
           {
-            "total_return": 0.16474,
-            "cagr": 0.107013,
-            "annualized_volatility": 0.148317,
-            "sharpe_zero_rf": 0.7215,
-            "sortino_zero_rf": 0.8416,
-            "max_drawdown": -0.153904,
-            "calmar": 0.6953,
-            "annualized_turnover": 3.5911,
+            "total_return": 0.232081,
+            "cagr": 0.149281,
+            "annualized_volatility": 0.069776,
+            "sharpe_zero_rf": 2.1394,
+            "sortino_zero_rf": 2.0741,
+            "max_drawdown": -0.036361,
+            "calmar": 4.1056,
+            "annualized_turnover": 4.6667,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": -0.1377618
+          },
+          {
+            "total_return": 0.001436,
+            "cagr": 0.000957,
+            "annualized_volatility": 0.130502,
+            "sharpe_zero_rf": 0.0073,
+            "sortino_zero_rf": 0.0079,
+            "max_drawdown": -0.127742,
+            "calmar": 0.0075,
+            "annualized_turnover": 5.555,
+            "positive_year_ratio": 0.5,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": -0.200214
+          },
+          {
+            "total_return": 0.156083,
+            "cagr": 0.101521,
+            "annualized_volatility": 0.120048,
+            "sharpe_zero_rf": 0.8457,
+            "sortino_zero_rf": 0.9767,
+            "max_drawdown": -0.079998,
+            "calmar": 1.269,
+            "annualized_turnover": 2.9176,
             "positive_year_ratio": 1.0,
             "months": 18,
             "strongest_baseline": "trend_200d",
-            "objective_advantage": -0.2032724
+            "objective_advantage": -0.1592274
+          }
+        ],
+        "folds": 6,
+        "months": 108
+      }
+    },
+    {
+      "candidate_id": "e46cbef4b2ddd648",
+      "candidate": {
+        "family": "logistic",
+        "feature_set": "rich",
+        "threshold_high": 0.56,
+        "threshold_low": 0.49,
+        "max_exposure": 1.0,
+        "volatility_target": 0.16,
+        "params": {
+          "C": 5.0,
+          "class_weight": null
+        }
+      },
+      "evaluated_at": "2026-07-24T08:41:37+00:00",
+      "walk_forward": {
+        "metrics": {
+          "total_return": 1.130549,
+          "cagr": 0.087675,
+          "annualized_volatility": 0.084351,
+          "sharpe_zero_rf": 1.0394,
+          "sortino_zero_rf": 1.0246,
+          "max_drawdown": -0.154719,
+          "calmar": 0.5667,
+          "annualized_turnover": 3.9987,
+          "positive_year_ratio": 0.9,
+          "months": 108
+        },
+        "objective": 0.2401222,
+        "baseline_metrics": {
+          "buy_hold": {
+            "total_return": 2.212698,
+            "cagr": 0.138463,
+            "annualized_volatility": 0.131758,
+            "sharpe_zero_rf": 1.0509,
+            "sortino_zero_rf": 1.3715,
+            "max_drawdown": -0.194477,
+            "calmar": 0.712,
+            "annualized_turnover": 0.1111,
+            "positive_year_ratio": 0.9,
+            "months": 108
+          },
+          "trend_200d": {
+            "total_return": 1.374571,
+            "cagr": 0.100859,
+            "annualized_volatility": 0.105892,
+            "sharpe_zero_rf": 0.9525,
+            "sortino_zero_rf": 1.165,
+            "max_drawdown": -0.161889,
+            "calmar": 0.623,
+            "annualized_turnover": 1.4444,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          },
+          "dual_trend": {
+            "total_return": 1.024986,
+            "cagr": 0.081551,
+            "annualized_volatility": 0.103601,
+            "sharpe_zero_rf": 0.7872,
+            "sortino_zero_rf": 0.9272,
+            "max_drawdown": -0.209134,
+            "calmar": 0.3899,
+            "annualized_turnover": 1.6667,
+            "positive_year_ratio": 0.8,
+            "months": 108
+          }
+        },
+        "fold_metrics": [
+          {
+            "total_return": 0.030494,
+            "cagr": 0.020227,
+            "annualized_volatility": 0.012966,
+            "sharpe_zero_rf": 1.56,
+            "sortino_zero_rf": 37.6439,
+            "max_drawdown": -0.0005,
+            "calmar": 40.4542,
+            "annualized_turnover": 3.9066,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 2.2326276
+          },
+          {
+            "total_return": 0.225416,
+            "cagr": 0.145132,
+            "annualized_volatility": 0.067304,
+            "sharpe_zero_rf": 2.1564,
+            "sortino_zero_rf": 6.7511,
+            "max_drawdown": -0.015036,
+            "calmar": 9.6526,
+            "annualized_turnover": 5.7981,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.2329476
+          },
+          {
+            "total_return": 0.127083,
+            "cagr": 0.083022,
+            "annualized_volatility": 0.096041,
+            "sharpe_zero_rf": 0.8644,
+            "sortino_zero_rf": 0.9246,
+            "max_drawdown": -0.075103,
+            "calmar": 1.1054,
+            "annualized_turnover": 2.5044,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1000544
+          },
+          {
+            "total_return": 0.19864,
+            "cagr": 0.12839,
+            "annualized_volatility": 0.05862,
+            "sharpe_zero_rf": 2.1902,
+            "sortino_zero_rf": 4.0841,
+            "max_drawdown": -0.01818,
+            "calmar": 7.062,
+            "annualized_turnover": 5.6667,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.0198112
+          },
+          {
+            "total_return": 0.191343,
+            "cagr": 0.123805,
+            "annualized_volatility": 0.094631,
+            "sharpe_zero_rf": 1.3083,
+            "sortino_zero_rf": 1.0977,
+            "max_drawdown": -0.075298,
+            "calmar": 1.6442,
+            "annualized_turnover": 4.0679,
+            "positive_year_ratio": 1.0,
+            "months": 18,
+            "strongest_baseline": "buy_hold",
+            "objective_advantage": 0.1693844
+          },
+          {
+            "total_return": 0.050231,
+            "cagr": 0.033213,
+            "annualized_volatility": 0.130846,
+            "sharpe_zero_rf": 0.2538,
+            "sortino_zero_rf": 0.2276,
+            "max_drawdown": -0.154719,
+            "calmar": 0.2147,
+            "annualized_turnover": 3.3486,
+            "positive_year_ratio": 0.6667,
+            "months": 18,
+            "strongest_baseline": "trend_200d",
+            "objective_advantage": -0.3600399
           }
         ],
         "folds": 6,
