@@ -341,10 +341,22 @@ def render_homepage_static(index_path: Path, home: dict, lang: str) -> bytes | N
         if replacements != 1:
             raise ValueError(f"homepage card container not found in {index_path}")
     updated_at = iso_datetime(home.get("updated_at"))
+    def update_timestamp(match: re.Match[str]) -> str:
+        opening = match.group(0)
+        attribute = f'data-home-updated-at="{html.escape(updated_at, quote=True)}"'
+        if re.search(r'\sdata-home-updated-at=["\'][^"\']*["\']', opening, re.IGNORECASE):
+            return re.sub(
+                r'data-home-updated-at=["\'][^"\']*["\']',
+                attribute,
+                opening,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        return opening[:-1].rstrip() + f" {attribute}>"
+
     source, replacements = re.subn(
-        r'(<div\s+id=["\']latest-briefs["\']\s+class=["\']brief-grid["\'])'
-        r'(?:\s+data-home-updated-at=["\'][^"\']*["\'])?\s*>',
-        rf'\1 data-home-updated-at="{html.escape(updated_at, quote=True)}">',
+        r'<div\b(?=[^>]*\bid=["\']latest-briefs["\'])[^>]*>',
+        update_timestamp,
         source,
         count=1,
         flags=re.IGNORECASE,
