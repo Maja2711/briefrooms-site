@@ -18,9 +18,9 @@ from comment_quality import decode_http_response
 OUT_PATH = "en/home_brief.json"
 TIMEOUT = 9
 HEADERS = {"User-Agent": "BriefRoomsBot/2.0 (+https://briefrooms.com)"}
-MAX_ITEMS = 20
 MIN_ITEMS = 8
-MAX_STORY_AGE_HOURS = 12
+MAX_ITEMS = max(MIN_ITEMS, int(os.getenv("BR_HOME_CANDIDATE_LIMIT", "36")))
+MAX_STORY_AGE_HOURS = max(12, int(os.getenv("BR_HOME_MAX_STORY_AGE_HOURS", "18")))
 
 # "Breaking" is first on purpose: publisher-marked urgent/breaking items get first chance and extra score.
 FEEDS = {
