@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import os
 import unittest
+from datetime import datetime, timezone
+from unittest.mock import patch
 
 from scripts.update_daily_market_alert import (
     INSTRUMENTS,
     material_reasons,
     normalize_probabilities,
+    resolve_mode,
     validate_payload,
 )
 
@@ -24,6 +28,41 @@ def instrument(instrument_id: str, price: float, probabilities=None, drivers=Non
 
 
 class DailyMarketAlertTests(unittest.TestCase):
+    @patch(
+        "scripts.update_daily_market_alert.session_schedule",
+        return_value=(
+            datetime(2026, 7, 24, 13, 30, tzinfo=timezone.utc),
+            datetime(2026, 7, 24, 20, 0, tzinfo=timezone.utc),
+        ),
+    )
+    def test_delayed_scheduled_run_uses_nominal_cron_slot(self, _schedule):
+        delayed = datetime(2026, 7, 24, 15, 16, tzinfo=timezone.utc)
+        with patch.dict(os.environ, {"BR_ALERT_SCHEDULE": "0 14 * * 1-5"}):
+            self.assertEqual(resolve_mode("auto", delayed), "open")
+
+    @patch(
+        "scripts.update_daily_market_alert.session_schedule",
+        return_value=(
+            datetime(2026, 7, 24, 13, 30, tzinfo=timezone.utc),
+            datetime(2026, 7, 24, 20, 0, tzinfo=timezone.utc),
+        ),
+    )
+    def test_wrong_dst_candidate_is_skipped(self, _schedule):
+        delayed = datetime(2026, 7, 24, 15, 16, tzinfo=timezone.utc)
+        with patch.dict(os.environ, {"BR_ALERT_SCHEDULE": "0 15 * * 1-5"}):
+            self.assertEqual(resolve_mode("auto", delayed), "skip")
+
+    @patch(
+        "scripts.update_daily_market_alert.session_schedule",
+        return_value=(
+            datetime(2026, 7, 24, 13, 30, tzinfo=timezone.utc),
+            datetime(2026, 7, 24, 20, 0, tzinfo=timezone.utc),
+        ),
+    )
+    def test_catchup_after_close_publishes_preclose_edition(self, _schedule):
+        after_close = datetime(2026, 7, 24, 21, 0, tzinfo=timezone.utc)
+        self.assertEqual(resolve_mode("catchup", after_close), "preclose")
+
     def test_probability_normalization_is_governed(self):
         result = normalize_probabilities({"range": 47, "continuation": 34, "reversal": 19})
         self.assertEqual(sum(result.values()), 100)
