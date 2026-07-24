@@ -23,9 +23,8 @@ on:
       - "tests/test_homepage_static.py"
       - "tests/test_home_briefs.js"
       - ".github/workflows/build-home-brief.yml"
-  schedule:
-    # Six times daily, offset from the PL (:10) and EN (:40) AI news windows.
-    - cron: "55 1,5,9,13,17,21 * * *"
+      - "scripts/validate_news_home_publish.py"
+      - "tests/test_validate_news_home_publish.py"
 
 permissions:
   contents: write
@@ -67,7 +66,6 @@ jobs:
 
       - name: Save last known good homepage feeds
         run: python scripts/protect_home_feed.py --backup
-        continue-on-error: true
 
       - name: Build Polish homepage brief JSON
         env:
@@ -77,8 +75,15 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
-        run: python scripts/build_home_brief_pl.py
-        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if python scripts/build_home_brief_pl.py; then break; fi
+            if [[ "$attempt" == "3" ]]; then
+              echo "::error::PL homepage build failed after 3 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 60))
+          done
 
       - name: Build English homepage brief JSON
         env:
@@ -88,8 +93,15 @@ jobs:
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
-        run: python scripts/build_home_brief_en.py
-        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            if python scripts/build_home_brief_en.py; then break; fi
+            if [[ "$attempt" == "3" ]]; then
+              echo "::error::EN homepage build failed after 3 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 60))
+          done
 
       - name: Read source articles and summarise meaning
         env:
@@ -126,6 +138,12 @@ jobs:
       - name: Generate permanent brief archive
         run: python scripts/generate_permanent_briefs.py
 
+      - name: Validate fresh PL and EN publication unit
+        run: |
+          python -m unittest tests.test_validate_news_home_publish tests.test_homepage_static -v
+          python scripts/validate_news_home_publish.py --lang pl --max-age-minutes 360
+          python scripts/validate_news_home_publish.py --lang en --max-age-minutes 360
+
       - name: Commit updated homepage brief data
         if: success()
         run: |
@@ -133,15 +151,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
           if ! git diff --quiet HEAD..origin/main -- .github/workflows/build-home-brief.yml config/workflow_templates/build-home-brief.yml scripts/build_home_brief_pl.py scripts/build_home_brief_en.py scripts/read_and_summarize_articles.py scripts/comment_quality.py scripts/enforce_brief_length.py scripts/remove_urgent_badge_categories.py scripts/validate_brief_quality.py scripts/dedupe_home_brief_stories.py scripts/hide_urgent_home_labels.py scripts/patch_brief_comment_source.py scripts/protect_home_feed.py scripts/generate_permanent_briefs.py scripts/home-briefs.js tests/test_comment_quality.py tests/test_permanent_briefs.py tests/test_homepage_static.py tests/test_home_briefs.js; then
-            echo "Skip stale publish because generator code changed on main."
-            exit 0
+            echo "::error::Homepage code changed during publication; refusing stale output."
+            exit 1
           fi
-          git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html pl/briefy en/briefs data/permanent_briefs_pl.json data/permanent_briefs_en.json sitemap.xml .cache || true
+          git add pl/home_brief.json en/home_brief.json pl/index.html en/index.html pl/brief.html en/brief.html pl/briefy en/briefs data/permanent_briefs_pl.json data/permanent_briefs_en.json sitemap.xml .cache
           if git diff --cached --quiet; then
             echo "No homepage brief changes to commit."
           else
             git commit -m "Update homepage live brief data"
             # During rebase, "theirs" is this newer generated commit; keep it on same-file conflicts.
-            git pull --rebase -X theirs origin main
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase -X theirs origin main
+              if git push; then exit 0; fi
+              sleep $((attempt * 30))
+            done
+            echo "::error::Could not push homepage publication after 3 attempts"
+            exit 1
           fi
