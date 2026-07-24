@@ -43,6 +43,7 @@ WEATHER_RE = re.compile(
 MIN_TOTAL_APPROVED = 24
 MIN_PER_SECTION = 3
 MAX_PER_SECTION = 9
+CANDIDATE_RESERVE_PER_SECTION = 18
 
 NEWS_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -86,7 +87,14 @@ def _item_text(item: dict) -> str:
 
 
 def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
-    items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
+    # Quality checks happen after collection. Keep a reserve so rejected or
+    # duplicate stories can be replaced without starving a section.
+    previous_limit = base.MAX_PER_SECTION
+    base.MAX_PER_SECTION = CANDIDATE_RESERVE_PER_SECTION
+    try:
+        items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
+    finally:
+        base.MAX_PER_SECTION = previous_limit
     return [item for item in items if not WEATHER_RE.search(_item_text(item))]
 
 
