@@ -1,0 +1,189 @@
+name: BRACE-SPX Recovery Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: "Number of new candidates"
+        required: false
+        default: "36"
+  schedule:
+    - cron: "23 * * * *"
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-hourly-sealed-research
+  cancel-in-progress: false
+
+jobs:
+  recover-and-research:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX recovery')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Persist immediate start marker
+        run: |
+          mkdir -p data/research
+          printf '{\n  "status": "started",\n  "started_at": "%s",\n  "event": "%s",\n  "run_id": "%s"\n}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ github.event_name }}" \
+            "${{ github.run_id }}" \
+            > data/research/brace_spx_recovery_started.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/research/brace_spx_recovery_started.json
+          git commit -m "Mark BRACE-SPX recovery run started"
+          git fetch origin brace-spx-research
+          git rebase origin/brace-spx-research
+          git push origin HEAD:brace-spx-research
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies with retry
+        id: install
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if python -m pip install --upgrade pip numpy pandas yfinance scikit-learn pytest; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
+
+      - name: Validate critical engine
+        id: validate
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_research.py \
+            scripts/brace_spx_generation_research.py \
+            scripts/brace_spx_research_controls.py \
+            scripts/brace_spx_selection_audit.py \
+            scripts/brace_spx_statistical_governance.py
+          python -m pytest -q \
+            tests/test_brace_spx_generation_research.py \
+            tests/test_brace_spx_research_controls.py \
+            tests/test_brace_spx_selection_audit.py \
+            tests/test_brace_spx_statistical_governance.py
+
+      - name: Run research batch
+        id: research
+        if: steps.validate.outcome == 'success'
+        continue-on-error: true
+        env:
+          BUDGET: ${{ github.event.inputs.budget || '36' }}
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if python scripts/brace_spx_generation_research.py --start 1993-01-01 --budget "$BUDGET" 2>&1 | tee data/research/brace_spx_recovery.log; then
+              exit 0
+            fi
+            sleep $((attempt * 45))
+          done
+          exit 1
+
+      - name: Audit selected candidate
+        id: audit
+        if: steps.research.outcome == 'success'
+        continue-on-error: true
+        run: python scripts/brace_spx_selection_audit.py
+
+      - name: Reconcile evidence
+        id: reconcile
+        if: steps.research.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python scripts/brace_spx_statistical_governance.py \
+            --active-report data/research/brace_spx_generation_research.json \
+            --public-snapshot data/public/brace_spx_public.json \
+            --output data/research/brace_spx_reconciliation.json
+
+      - name: Write final recovery status
+        if: always()
+        env:
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          RESEARCH_OUTCOME: ${{ steps.research.outcome }}
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          RECONCILE_OUTCOME: ${{ steps.reconcile.outcome }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("data/research")
+          report = {}
+          report_path = root / "brace_spx_generation_research.json"
+          if report_path.exists():
+              try:
+                  report = json.loads(report_path.read_text(encoding="utf-8"))
+              except Exception:
+                  pass
+          status = {
+              "status": "finished",
+              "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+              "run_id": os.environ.get("RUN_ID"),
+              "stages": {
+                  "install": os.environ.get("INSTALL_OUTCOME") or "not_started",
+                  "validate": os.environ.get("VALIDATE_OUTCOME") or "not_started",
+                  "research": os.environ.get("RESEARCH_OUTCOME") or "not_started",
+                  "audit": os.environ.get("AUDIT_OUTCOME") or "not_started",
+                  "reconcile": os.environ.get("RECONCILE_OUTCOME") or "not_started",
+              },
+              "generation_id": report.get("generation_id"),
+              "experiments_total": report.get("experiments_total"),
+              "experiments_remaining": report.get("experiments_remaining"),
+              "report_generated_at": report.get("generated_at"),
+          }
+          (root / "brace_spx_recovery_status.json").write_text(
+              json.dumps(status, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Persist results or diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          git add -f \
+            data/research/brace_spx_generation_research.json \
+            data/research/brace_spx_generation_experiments.json \
+            data/research/brace_spx_generation_manifest.json \
+            data/research/brace_spx_selection_audit.json \
+            data/research/brace_spx_reconciliation.json \
+            data/research/brace_spx_recovery_started.json \
+            data/research/brace_spx_recovery_status.json \
+            data/research/brace_spx_recovery.log 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Persist BRACE-SPX recovery research batch"
+            git fetch origin brace-spx-research
+            git rebase origin/brace-spx-research
+            git push origin HEAD:brace-spx-research
+          fi
+
+      - name: Fail visibly on critical failure
+        if: >-
+          always() &&
+          (steps.install.outcome != 'success' ||
+           steps.validate.outcome != 'success' ||
+           steps.research.outcome != 'success')
+        run: exit 1
