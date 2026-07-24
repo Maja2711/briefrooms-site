@@ -219,12 +219,20 @@ def request_json_completion(
             )
             status = int(getattr(response, "status_code", 200) or 200)
             if status in {429, 500, 502, 503, 504} and attempt < 3:
-                retry_after = getattr(response, "headers", {}).get("Retry-After", "")
+                headers = getattr(response, "headers", {})
+                retry_after = headers.get("Retry-After", "")
+                rate_limit_reset = headers.get("X-RateLimit-Reset", "")
                 try:
-                    delay = min(20.0, max(1.0, float(retry_after)))
+                    delay = max(1.0, float(retry_after))
                 except (TypeError, ValueError):
-                    delay = float(2 ** attempt)
-                time.sleep(delay)
+                    try:
+                        delay = max(1.0, float(rate_limit_reset) - time.time() + 1.0)
+                    except (TypeError, ValueError):
+                        delay = float(15 * (2 ** attempt))
+                # Respect the provider's cooldown instead of retrying early and
+                # extending the throttling window. The workflow timeout remains
+                # the outer safety bound.
+                time.sleep(min(1800.0, delay))
                 continue
             response.raise_for_status()
             raw = response.json()["choices"][0]["message"]["content"].strip()
