@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "model": "BRACE-SPX Lab",
+  "target_instrument": "SPY / S&P 500",
+  "status": "private_migration",
+  "status_labels": {
+    "pl": "Migracja silnika do środowiska prywatnego",
+    "en": "Engine migration to a private environment"
+  },
+  "research_only": true,
+  "live_activation": false,
+  "source_snapshot_at": "2026-07-24T07:43:27+00:00",
+  "public_report_at": "2026-07-24T07:50:00+00:00",
+  "generation": {
+    "version": "0.6.0",
+    "labels": {
+      "pl": "Stabilność w kolejnych reżimach rynkowych",
+      "en": "Stability across successive market regimes"
+    }
+  },
+  "progress": {
+    "experiments_completed": 540,
+    "candidate_space_size": 789,
+    "experiments_remaining": 249,
+    "completion_ratio": 0.684411
+  },
+  "sealed_holdout": {
+    "status": "sealed",
+    "months": 48,
+    "accessed": false,
+    "labels": {
+      "pl": "Nienaruszony — wynik końcowy nie był używany do strojenia",
+      "en": "Untouched — the final result has not been used for tuning"
+    }
+  },
+  "development_champion": {
+    "metrics": {
+      "cagr": 0.129236,
+      "annualized_volatility": 0.122064,
+      "sharpe_zero_rf": 1.0588,
+      "max_drawdown": -0.179676,
+      "calmar": 0.7193,
+      "annualized_turnover": 0.1603,
+      "positive_year_ratio": 0.9,
+      "months": 108,
+      "average_exposure": 0.926804
+    },
+    "robustness_gate": {
+      "passed": false,
+      "positive_folds": 4,
+      "required_positive_folds": 5,
+      "labels": {
+        "pl": "4 z 6 prób dodatnich; wymagane minimum 5",
+        "en": "4 of 6 folds positive; at least 5 required"
+      }
+    }
+  },
+  "benchmarks": {
+    "buy_and_hold": {
+      "cagr": 0.138463,
+      "annualized_volatility": 0.131758,
+      "sharpe_zero_rf": 1.0509,
+      "max_drawdown": -0.194477,
+      "calmar": 0.712
+    },
+    "trend_200d": {
+      "cagr": 0.100859,
+      "annualized_volatility": 0.105892,
+      "sharpe_zero_rf": 0.9525,
+      "max_drawdown": -0.161889,
+      "calmar": 0.623
+    }
+  },
+  "public_boundary": {
+    "code_exposed": false,
+    "parameters_exposed": false,
+    "raw_predictions_exposed": false,
+    "full_experiment_ledger_exposed": false
+  },
+  "notes": {
+    "pl": "To raport badawczy, nie sygnał transakcyjny. Silnik nie składa zleceń i nie został dopuszczony do użycia live.",
+    "en": "This is a research report, not a trading signal. The engine places no orders and has not been approved for live use."
+  }
+}
