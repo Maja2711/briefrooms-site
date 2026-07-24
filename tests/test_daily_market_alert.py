@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from scripts.update_daily_market_alert import (
     INSTRUMENTS,
+    convert_tnx,
     material_reasons,
     normalize_probabilities,
     resolve_mode,
@@ -62,6 +63,11 @@ class DailyMarketAlertTests(unittest.TestCase):
     def test_catchup_after_close_publishes_preclose_edition(self, _schedule):
         after_close = datetime(2026, 7, 24, 21, 0, tzinfo=timezone.utc)
         self.assertEqual(resolve_mode("catchup", after_close), "preclose")
+
+    def test_us10y_normalization_supports_both_yahoo_scales(self):
+        self.assertAlmostEqual(convert_tnx(46.8, "us10y"), 4.68)
+        self.assertAlmostEqual(convert_tnx(4.68, "us10y"), 4.68)
+        self.assertAlmostEqual(convert_tnx(96.8, "brent"), 96.8)
 
     def test_probability_normalization_is_governed(self):
         result = normalize_probabilities({"range": 47, "continuation": 34, "reversal": 19})
