@@ -1,7 +1,47 @@
 <!doctype html>
-<html lang="pl">
+<html lang="pl" data-language-redirect="pending" style="background:#06131f">
 <head>
   <meta charset="utf-8">
+
+  <!--
+    Run the language decision before the browser can paint the fallback page.
+    This removes the visible one-second jump from / to /pl/ or /en/.
+  -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+
+      function revealFallback() {
+        root.removeAttribute("data-language-redirect");
+      }
+
+      function languageTarget() {
+        var languages = (navigator.languages && navigator.languages.length)
+          ? navigator.languages
+          : [navigator.language || navigator.userLanguage || ""];
+
+        for (var i = 0; i < languages.length; i += 1) {
+          var language = String(languages[i] || "").toLowerCase();
+          if (language.indexOf("pl") === 0) return "/pl/";
+          if (language.indexOf("en") === 0) return "/en/";
+        }
+
+        return "/pl/";
+      }
+
+      try {
+        var target = languageTarget();
+        var destination = target + (window.location.search || "") + (window.location.hash || "");
+
+        // If navigation is blocked for any unusual browser reason, reveal the links.
+        window.setTimeout(revealFallback, 2500);
+        window.location.replace(destination);
+      } catch (error) {
+        revealFallback();
+      }
+    })();
+  </script>
+
   <title>BriefRooms — wybór języka</title>
 
   <!-- SEO / Internationalization -->
@@ -10,14 +50,14 @@
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/">
   <meta name="robots" content="noindex,follow">
-
-  <!-- Minimal styling tylko po to, by ładnie wyglądał fallback -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
-    :root{ color-scheme: light dark; }
+    :root{ color-scheme:dark; background:#06131f; }
+    html[data-language-redirect="pending"] body{ visibility:hidden; }
     body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
           display:grid; place-items:center; min-height:100svh; padding:24px;
-          background: linear-gradient(180deg,#0a1626,#08111d); color:#e7eef9; }
+          background:linear-gradient(180deg,#0a1626,#08111d); color:#e7eef9; }
     .card{ max-width:680px; width:100%; padding:20px; border-radius:14px;
            background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08);
            box-shadow:0 18px 48px rgba(0,0,0,.35); }
@@ -31,50 +71,25 @@
     small{ opacity:.75 }
   </style>
 
-  <!-- Fallback: jeśli z jakiegoś powodu JS nie wystartuje, po 3 s przenieś na /pl/ -->
-  <meta http-equiv="refresh" content="3; url=/pl/">
+  <!-- No-JavaScript fallback only. JavaScript redirects immediately in the head. -->
+  <noscript><meta http-equiv="refresh" content="0; url=/pl/"></noscript>
 </head>
 <body>
   <div class="card" role="main" aria-live="polite">
-    <h1>Przekierowanie do odpowiedniej wersji językowej…</h1>
-    <p><small>(Jeśli nic się nie dzieje w kilka sekund, skorzystaj z odnośników poniżej)</small></p>
+    <h1>Wybierz wersję językową</h1>
+    <p><small>Automatyczne przekierowanie nie zadziałało. Wybierz język ręcznie.</small></p>
     <div class="links">
       <a class="btn" href="/pl/" hreflang="pl">Polski / PL</a>
       <a class="btn" href="/en/" hreflang="en">English / EN</a>
     </div>
-    <p><small>Robots: noindex, follow • hreflang: pl, en, x-default • canonical: /</small></p>
   </div>
 
-  <script>
-    (function () {
-      // Zmapuj pref. język na folder
-      function mapLangToPath(lang) {
-        if (!lang) return "/pl/";
-        lang = String(lang).toLowerCase();
-        if (lang.startsWith("pl")) return "/pl/";
-        if (lang.startsWith("en")) return "/en/";
-        return "/pl/"; // domyślnie PL
-      }
-
-      // Weź najlepszą kandydaturę z navigator.languages / language
-      var langs = (navigator.languages && navigator.languages.length)
-        ? navigator.languages
-        : [navigator.language || navigator.userLanguage || ""];
-
-      var target = mapLangToPath(langs[0]);
-
-      // Zachowaj query i hash (np. ?ref=… #sekcja)
-      var q = window.location.search || "";
-      var h = window.location.hash   || "";
-
-      // replace() nie zostawia "śmieci" w historii
-      window.location.replace(target + q + h);
-    })();
-  </script>
-
   <noscript>
-    <!-- Gdy JS wyłączony: zostają linki wyżej + meta refresh do /pl/ -->
+    <style>html[data-language-redirect="pending"] body{visibility:visible}</style>
   </noscript>
-<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
+
+  <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"9adde99e330a4b0d991627986ac34246"}'></script>
+  <!-- End Cloudflare Web Analytics -->
 </body>
 </html>
