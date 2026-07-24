@@ -94,28 +94,21 @@ jobs:
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: |
           python scripts/protect_home_feed.py --backup
+          published=false
           for attempt in 1 2 3; do
-            echo "Attempt $attempt/3: python scripts/build_home_brief_en.py"
-            if python scripts/build_home_brief_en.py; then
+            export BR_HOME_CANDIDATE_LIMIT=$((24 + attempt * 12))
+            export BR_HOME_MAX_STORY_AGE_HOURS=$((12 + attempt * 6))
+            echo "Attempt $attempt/3: complete EN homepage publication with $BR_HOME_CANDIDATE_LIMIT candidates from the last $BR_HOME_MAX_STORY_AGE_HOURS hours"
+            if python scripts/build_home_brief_en.py               && python scripts/read_and_summarize_articles.py               && python scripts/enforce_brief_length.py               && python scripts/remove_urgent_badge_categories.py               && python scripts/validate_brief_quality.py               && python scripts/dedupe_home_brief_stories.py               && python scripts/hide_urgent_home_labels.py               && python scripts/patch_brief_comment_source.py               && python scripts/protect_home_feed.py --validate               && python scripts/generate_permanent_briefs.py               && python -m unittest tests.test_validate_news_home_publish tests.test_homepage_static -v               && python scripts/validate_news_home_publish.py --lang en --max-age-minutes 360; then
+              published=true
               break
-            fi
-            if [[ "$attempt" == "3" ]]; then
-              echo "::error::python scripts/build_home_brief_en.py failed after 3 attempts"
-              exit 1
             fi
             sleep $((attempt * 60))
           done
-          python scripts/read_and_summarize_articles.py
-          python scripts/enforce_brief_length.py
-          python scripts/remove_urgent_badge_categories.py
-          python scripts/validate_brief_quality.py
-          python scripts/dedupe_home_brief_stories.py
-          python scripts/hide_urgent_home_labels.py
-          python scripts/patch_brief_comment_source.py
-          python scripts/protect_home_feed.py --validate
-          python scripts/generate_permanent_briefs.py
-          python -m unittest tests.test_validate_news_home_publish tests.test_homepage_static -v
-          python scripts/validate_news_home_publish.py --lang en --max-age-minutes 360
+          if [[ "$published" != "true" ]]; then
+            echo "::error::Complete EN publication failed after exhausting 36, 48 and 60 candidate pools"
+            exit 1
+          fi
 
       - name: Commit and push the complete publication
         run: |
