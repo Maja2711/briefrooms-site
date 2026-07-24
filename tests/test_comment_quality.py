@@ -730,14 +730,15 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", source, relative)
             self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
             self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"', source, relative)
-        workflow_groups = {
-            ".github/workflows/news-pl.yml": "group: news-pl-publishing",
-            ".github/workflows/news-en.yml": "group: news-en-publishing",
-        }
-        for relative, marker in workflow_groups.items():
+        for relative in (
+            ".github/workflows/build-home-brief.yml",
+            ".github/workflows/news-pl.yml",
+            ".github/workflows/news-en.yml",
+            ".github/workflows/content-update-watchdog.yml",
+        ):
             source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn(marker, source, relative)
-            self.assertIn("cancel-in-progress: true", source, relative)
+            self.assertIn("group: content-publishing", source, relative)
+            self.assertIn("cancel-in-progress: false", source, relative)
         self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
         self.assertIn('cron: "40 */4 * * *"', (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"))
         watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
@@ -751,12 +752,12 @@ class PipelineContractTests(unittest.TestCase):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("git pull --ff-only origin main", source, relative)
             self.assertIn("git diff --quiet HEAD..origin/main --", source, relative)
-            self.assertIn("Skip stale publish because generator code changed on main.", source, relative)
+            self.assertIn("refusing stale output", source, relative)
             self.assertIn("git pull --rebase -X theirs origin main", source, relative)
         watchdog_workflow = (ROOT / ".github/workflows/content-update-watchdog.yml").read_text(encoding="utf-8")
         self.assertIn("git pull --ff-only origin main", watchdog_workflow)
         self.assertIn("git diff --quiet HEAD..origin/main --", watchdog_workflow)
-        self.assertIn("Skip stale publish because generator code changed on main.", watchdog_workflow)
+        self.assertIn("refusing stale output", watchdog_workflow)
         self.assertIn("git pull --rebase -X ours origin main", watchdog_workflow)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
