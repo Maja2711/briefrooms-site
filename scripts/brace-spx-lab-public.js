@@ -10,24 +10,11 @@
     error:'Nie udało się pobrać aktualnego raportu BRACE-SPX Lab.',
     completed:'wykonanych eksperymentów',
     remaining:'pozostało',
-    generation:'Generacja',
     updated:'Snapshot',
-    champion:'Champion — walk-forward development',
-    benchmark:'Benchmark',
-    cagr:'CAGR',
-    volatility:'Zmienność',
-    sharpe:'Sharpe',
-    drawdown:'Maks. obsunięcie',
-    calmar:'Calmar',
-    exposure:'Śr. ekspozycja',
-    turnover:'Roczny obrót',
-    positiveYears:'Dodatnie lata',
     gate:'Bramka odporności',
-    sealed:'Zapieczętowany holdout',
     model:'BRACE-SPX',
     buyHold:'Buy & Hold',
     trend:'Trend 200D',
-    protected:'Granica publikacji',
     noCode:'Kod modeli nie jest wysyłany do przeglądarki',
     noParams:'Parametry i progi pozostają prywatne',
     noPredictions:'Surowe prognozy pozostają prywatne',
@@ -38,24 +25,11 @@
     error:'The current BRACE-SPX Lab report could not be loaded.',
     completed:'experiments completed',
     remaining:'remaining',
-    generation:'Generation',
     updated:'Snapshot',
-    champion:'Champion — development walk-forward',
-    benchmark:'Benchmark',
-    cagr:'CAGR',
-    volatility:'Volatility',
-    sharpe:'Sharpe',
-    drawdown:'Max drawdown',
-    calmar:'Calmar',
-    exposure:'Average exposure',
-    turnover:'Annual turnover',
-    positiveYears:'Positive years',
     gate:'Robustness gate',
-    sealed:'Sealed holdout',
     model:'BRACE-SPX',
     buyHold:'Buy & Hold',
     trend:'200D trend',
-    protected:'Publication boundary',
     noCode:'Model code is never sent to the browser',
     noParams:'Parameters and thresholds remain private',
     noPredictions:'Raw predictions remain private',
@@ -66,12 +40,12 @@
   function byId(id){ return document.getElementById(id); }
   function text(id, value){ var node=byId(id); if(node) node.textContent=value == null ? '—' : String(value); }
   function pct(value, digits){
-    var number=Number(value);
-    return Number.isFinite(number) ? (number*100).toLocaleString(language==='pl'?'pl-PL':'en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})+'%' : '—';
+    var numeric=Number(value);
+    return Number.isFinite(numeric) ? (numeric*100).toLocaleString(language==='pl'?'pl-PL':'en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})+'%' : '—';
   }
   function number(value, digits){
-    var n=Number(value);
-    return Number.isFinite(n) ? n.toLocaleString(language==='pl'?'pl-PL':'en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits}) : '—';
+    var numeric=Number(value);
+    return Number.isFinite(numeric) ? numeric.toLocaleString(language==='pl'?'pl-PL':'en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits}) : '—';
   }
   function dateTime(value){
     var date=new Date(value);
@@ -81,7 +55,12 @@
   function metricRow(name, metrics){
     var tr=document.createElement('tr');
     var values=[name,pct(metrics.cagr,1),pct(metrics.annualized_volatility,1),number(metrics.sharpe_zero_rf,2),pct(metrics.max_drawdown,1),number(metrics.calmar,2)];
-    values.forEach(function(value){var cell=document.createElement(values.indexOf(value)===0?'th':'td');cell.textContent=value;tr.appendChild(cell);});
+    values.forEach(function(value,index){
+      var cell=document.createElement(index===0?'th':'td');
+      if(index===0) cell.setAttribute('scope','row');
+      cell.textContent=value;
+      tr.appendChild(cell);
+    });
     return tr;
   }
 
