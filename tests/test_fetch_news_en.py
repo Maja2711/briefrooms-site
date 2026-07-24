@@ -158,6 +158,20 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         )
         self.assertEqual("", selected[1]["thumbnail_url"])
 
+    def test_fetch_keeps_a_reserve_for_post_fetch_quality_rejections(self):
+        observed_limits = []
+
+        def fake_fetch(*args, **kwargs):
+            observed_limits.append(base.MAX_PER_SECTION)
+            return [approved_item(index) for index in range(context.CANDIDATE_RESERVE_PER_SECTION)]
+
+        with mock.patch.object(context, "_original_fetch_section", side_effect=fake_fetch):
+            items = context.fetch_section_full("world", summarize=False)
+
+        self.assertEqual([context.CANDIDATE_RESERVE_PER_SECTION], observed_limits)
+        self.assertEqual(context.CANDIDATE_RESERVE_PER_SECTION, len(items))
+        self.assertEqual(9, base.MAX_PER_SECTION)
+
     def test_finalizer_requires_homepage_quality_metadata(self):
         sections = self.empty_sections()
         for index, section in enumerate(sections, 1):
