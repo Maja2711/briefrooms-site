@@ -93,7 +93,7 @@ jobs:
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
         run: |
-          python scripts/protect_home_feed.py --backup
+          python scripts/protect_home_feed.py --backup --lang pl
           for attempt in 1 2 3; do
             echo "Attempt $attempt/3: python scripts/build_home_brief_pl.py"
             if python scripts/build_home_brief_pl.py; then
@@ -112,7 +112,7 @@ jobs:
           python scripts/dedupe_home_brief_stories.py
           python scripts/hide_urgent_home_labels.py
           python scripts/patch_brief_comment_source.py
-          python scripts/protect_home_feed.py --validate
+          python scripts/protect_home_feed.py --validate --lang pl
           python scripts/generate_permanent_briefs.py
           python -m unittest tests.test_validate_news_home_publish tests.test_homepage_static -v
           python scripts/validate_news_home_publish.py --lang pl --max-age-minutes 360
