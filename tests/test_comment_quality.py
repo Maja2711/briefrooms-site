@@ -756,6 +756,12 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn("git pull --ff-only origin main", source, relative)
             self.assertIn("git diff --quiet HEAD..origin/main --", source, relative)
             self.assertIn("refusing stale output", source, relative)
+        for relative in (
+            ".github/workflows/news-pl.yml",
+            ".github/workflows/news-en.yml",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("git restore --worktree .", source, relative)
             self.assertIn("git pull --rebase -X theirs origin main", source, relative)
         watchdog_workflow = (ROOT / ".github/workflows/content-update-watchdog.yml").read_text(encoding="utf-8")
         self.assertIn("git pull --ff-only origin main", watchdog_workflow)
