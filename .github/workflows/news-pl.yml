@@ -32,7 +32,7 @@ permissions:
 concurrency:
   # Shared multi-provider cooldown queue; PL is re-queued after EN completes.
   group: content-publishing
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   build:
