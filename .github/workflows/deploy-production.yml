@@ -24,9 +24,10 @@ permissions:
   pages: write
 
 concurrency:
-  # Every deployment checks out the latest validated main.
+  # A newer request always deploys the latest validated main, so an older
+  # verification must not keep the current production release waiting.
   group: briefrooms-production-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-and-verify:
