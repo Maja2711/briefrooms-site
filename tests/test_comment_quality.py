@@ -732,12 +732,15 @@ class PipelineContractTests(unittest.TestCase):
             self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', source, relative)
         for relative in (
             ".github/workflows/build-home-brief.yml",
-            ".github/workflows/news-pl.yml",
             ".github/workflows/content-update-watchdog.yml",
         ):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("group: content-publishing", source, relative)
             self.assertIn("cancel-in-progress: false", source, relative)
+        self.assertIn(
+            "cancel-in-progress: ${{ github.event_name == 'push' }}",
+            (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"),
+        )
         self.assertIn(
             "group: content-publishing",
             (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
