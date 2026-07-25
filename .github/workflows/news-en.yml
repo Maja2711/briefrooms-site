@@ -30,7 +30,7 @@ permissions:
   models: read
 
 concurrency:
-  # Serialize every AI publication because PL and EN share one GitHub Models rate-limit budget.
+  # Serialize every cooldown-aware AI publication because PL and EN share one models budget.
   group: content-publishing
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
