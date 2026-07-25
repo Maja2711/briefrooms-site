@@ -107,6 +107,12 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
         permalink = str(item.get("permalink", ""))
         if not permalink.startswith(f"/{lang}/") or not (ROOT / permalink.lstrip("/")).is_file():
             raise AssertionError(f"{lang} permanent brief is missing: {permalink or '<empty>'}")
+        image = str(item.get("image", "")).strip()
+        if not re.match(r"^https?://[^\\s]+$", image, flags=re.IGNORECASE):
+            raise AssertionError(
+                f"{lang} homepage brief has no publishable source image: "
+                f"{item.get('title') or permalink or '<untitled>'}"
+            )
 
     print(f"OK {lang}: news={rendered_news_at.isoformat()}, home={updated_at.isoformat()}, cards={news_cards}, briefs={len(latest)}, rendered={rendered_count}")
 
