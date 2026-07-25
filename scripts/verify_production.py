@@ -24,7 +24,7 @@ PARITY_PATHS = (
     "pl/index.html",
     "en/index.html",
     "pl/inwestycje.html",
-    "en/investments.html",
+    "en/investing.html",
     "scripts/home-briefs.js",
     "scripts/hot-x-render.js",
 )
