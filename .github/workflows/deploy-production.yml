@@ -26,7 +26,7 @@ permissions:
 concurrency:
   # Keep one deployment alive; the pending run checks out the newest main.
   group: briefrooms-production-pages
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'issues' }}
 
 jobs:
   deploy-and-verify:
