@@ -19,6 +19,7 @@ on:
       - "tests/test_fetch_news_pl.py"
       - "tests/test_validate_news_home_publish.py"
       - "scripts/validate_news_home_publish.py"
+      - "scripts/normalize_home_publish_count.py"
       - "scripts/build_home_brief_pl.py"
       - "scripts/generate_permanent_briefs.py"
       - "scripts/protect_home_feed.py"
@@ -30,7 +31,6 @@ permissions:
   models: read
 
 concurrency:
-  # Shared multi-provider cooldown queue; PL is re-queued after EN completes.
   group: content-publishing
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
@@ -117,6 +117,7 @@ jobs:
           python scripts/dedupe_home_brief_stories.py
           python scripts/hide_urgent_home_labels.py
           python scripts/patch_brief_comment_source.py
+          python scripts/normalize_home_publish_count.py --lang pl
           python scripts/protect_home_feed.py --validate --lang pl
           python scripts/generate_permanent_briefs.py
           python -m unittest tests.test_validate_news_home_publish tests.test_homepage_static -v
@@ -127,7 +128,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main:refs/remotes/origin/main
-          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py tests/test_comment_quality.py tests/test_fetch_news_pl.py tests/test_news_story_dedupe.py; then
+          if ! git diff --quiet HEAD..origin/main -- .github/workflows/news-pl.yml scripts/fetch_news_pl.py scripts/fetch_news_pl_hybrid.py scripts/fetch_news_pl_deep.py scripts/news_story_dedupe.py scripts/read_and_summarize_articles.py scripts/newsroom_articles.py scripts/newsroom_style.py scripts/comment_quality.py scripts/normalize_home_publish_count.py tests/test_comment_quality.py tests/test_fetch_news_pl.py tests/test_news_story_dedupe.py; then
             echo "::error::Generator code changed during PL publication; refusing stale output."
             exit 1
           fi
