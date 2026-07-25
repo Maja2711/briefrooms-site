@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
 SCRIPT = '<script src="/scripts/homepage-photo-only.js?v=1" defer></script>'
+ALLOWED_HOMEPAGE_COUNTS = {8, 10}
 
 
 def photo_card(card: str) -> bool:
@@ -31,8 +32,15 @@ def filter_marker_block(source: str, label: str) -> str:
 
     cards = re.findall(r'<a class="brief-card" href="[^"]+">.*?</a>', match.group(2), re.S)
     kept = [card for card in cards if photo_card(card)]
-    if not kept:
-        print(f"WARNING: {label} has no source-linked photo cards after filtering")
+    if len(cards) not in ALLOWED_HOMEPAGE_COUNTS:
+        raise RuntimeError(
+            f"{label} must start with exactly 8 or 10 homepage cards; got {len(cards)}"
+        )
+    if len(kept) != len(cards):
+        raise RuntimeError(
+            f"{label} has {len(cards) - len(kept)} card(s) without a source-linked photo; "
+            "refusing to create an invalid 7- or 9-card publication"
+        )
     block = "\n" + "\n".join(kept) + "\n"
     return source[: match.start()] + match.group(1) + block + match.group(3) + source[match.end() :]
 
