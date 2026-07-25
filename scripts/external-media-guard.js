@@ -14,6 +14,7 @@
     'reuters.com':['reuters.com','reutersmedia.net'],
     'apnews.com':['apnews.com'],
     'theguardian.com':['theguardian.com','guim.co.uk'],
+    'theverge.com':['theverge.com','platform.theverge.com'],
     'who.int':['who.int'],
     'cdc.gov':['cdc.gov'],
     'nhs.uk':['nhs.uk'],
