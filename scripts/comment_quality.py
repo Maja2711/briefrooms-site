@@ -232,7 +232,7 @@ def request_json_completion(
                 # Respect the provider's cooldown instead of retrying early and
                 # extending the throttling window. The workflow timeout remains
                 # the outer safety bound.
-                time.sleep(min(1800.0, delay))
+                time.sleep(min(300.0, delay))
                 continue
             response.raise_for_status()
             raw = response.json()["choices"][0]["message"]["content"].strip()
