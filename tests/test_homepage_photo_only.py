@@ -39,26 +39,31 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
                 self.assertIn('data-br-external-media="source-linked"', card)
                 self.assertNotIn("media-fallback-active", card)
 
-    def test_filter_removes_homepage_card_without_photo(self) -> None:
+    def test_filter_fails_closed_instead_of_reducing_the_card_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "index.html"
-            path.write_text(
-                '<!doctype html><html><body><div id="latest-briefs" class="brief-grid">'
-                f'{photo_only.START}'
-                '<a class="brief-card" href="/pl/briefy/no-photo-aaaaaaaaaaaa.html">'
+            cards = [
+                (
+                    '<a class="brief-card" href="/pl/briefy/photo-'
+                    f'{index:012x}.html"><div class="thumb has-image">'
+                    '<img src="https://example.com/a.jpg" '
+                    'data-br-external-media="source-linked"></div><div>Text</div></a>'
+                )
+                for index in range(7)
+            ]
+            cards.append(
+                '<a class="brief-card" href="/pl/briefy/no-photo-ffffffffffff.html">'
                 '<div class="thumb media-fallback-active"></div><div>Text</div></a>'
-                '<a class="brief-card" href="/pl/briefy/photo-bbbbbbbbbbbb.html">'
-                '<div class="thumb has-image"><img src="https://example.com/a.jpg" '
-                'data-br-external-media="source-linked"></div><div>Text</div></a>'
-                f'{photo_only.END}</div></body></html>',
-                encoding="utf-8",
             )
-            self.assertTrue(photo_only.process(path))
-            output = path.read_text(encoding="utf-8")
-            cards = marker_cards(output)
-            self.assertEqual(len(cards), 1)
-            self.assertIn("photo-bbbbbbbbbbbb", cards[0])
-            self.assertNotIn("no-photo-aaaaaaaaaaaa", output)
+            original = (
+                '<!doctype html><html><body><div id="latest-briefs" class="brief-grid">'
+                f'{photo_only.START}' + ''.join(cards) +
+                f'{photo_only.END}</div></body></html>'
+            )
+            path.write_text(original, encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "refusing to create an invalid"):
+                photo_only.process(path)
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
 
 
 if __name__ == "__main__":
