@@ -184,7 +184,10 @@ def request_json_completion(
     if not runtime.available:
         raise RuntimeError("AI provider is unavailable")
 
-    model = runtime.review_model if review else runtime.generation_model
+    primary_model = runtime.review_model if review else runtime.generation_model
+    fallback_env = "GITHUB_MODELS_FALLBACK_REVIEW_MODEL" if review else "GITHUB_MODELS_FALLBACK_MODEL"
+    fallback_model = os.getenv(fallback_env, "").strip() if runtime.provider == "github-models" else ""
+    model = primary_model
     last_error: Exception | None = None
     for attempt in range(4):
         try:
@@ -220,6 +223,10 @@ def request_json_completion(
             status = int(getattr(response, "status_code", 200) or 200)
             if status in {429, 500, 502, 503, 504} and attempt < 3:
                 headers = getattr(response, "headers", {})
+                if status == 429 and fallback_model and model != fallback_model:
+                    model = fallback_model
+                    time.sleep(max(1.0, min_interval))
+                    continue
                 retry_after = headers.get("Retry-After", "")
                 rate_limit_reset = headers.get("X-RateLimit-Reset", "")
                 try:
