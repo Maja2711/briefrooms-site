@@ -8,7 +8,6 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 LANG_PATHS = {
     "pl": ("pl/aktualnosci.html", "pl/home_brief.json", "pl/index.html"),
@@ -54,6 +53,18 @@ def homepage_timestamp(source: str, lang: str) -> datetime:
     return parse_datetime(match.group(1))
 
 
+def rendered_home_count(source: str, lang: str) -> int:
+    start = "<!-- HOME_BRIEFS_START -->"
+    end = "<!-- HOME_BRIEFS_END -->"
+    before, separator, remainder = source.partition(start)
+    if not separator:
+        raise AssertionError(f"{lang} homepage start marker is missing")
+    block, separator, _ = remainder.partition(end)
+    if not separator:
+        raise AssertionError(f"{lang} homepage end marker is missing")
+    return len(re.findall(r'<a\s+class="brief-card"\s+href=', block, flags=re.IGNORECASE))
+
+
 def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> None:
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     news_rel, feed_rel, index_rel = LANG_PATHS[lang]
@@ -64,9 +75,7 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
     rendered_news_at = news_timestamp(news, lang)
     if lang == "en":
         if rendered_news_at.date() != now.date():
-            raise AssertionError(
-                f"en news is stale: rendered={rendered_news_at.date()}, expected={now.date()}"
-            )
+            raise AssertionError(f"en news is stale: rendered={rendered_news_at.date()}, expected={now.date()}")
     else:
         assert_fresh(rendered_news_at, now, max_age_minutes, f"{lang} news")
     updated_at = parse_datetime(str(feed.get("updated_at", "")))
@@ -76,11 +85,15 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
     if feed.get("language") != lang or not isinstance(latest, list):
         raise AssertionError(f"{lang} homepage feed is incomplete")
     if len(latest) not in ALLOWED_HOMEPAGE_COUNTS:
-        raise AssertionError(
-            f"{lang} homepage must contain exactly 8 or 10 briefs; got {len(latest)}"
-        )
+        raise AssertionError(f"{lang} homepage must contain exactly 8 or 10 briefs; got {len(latest)}")
     if int(feed.get("count", -1)) != len(latest):
         raise AssertionError(f"{lang} homepage count does not match latest items")
+
+    rendered_count = rendered_home_count(index, lang)
+    if rendered_count not in ALLOWED_HOMEPAGE_COUNTS:
+        raise AssertionError(f"{lang} rendered homepage must contain exactly 8 or 10 briefs; got {rendered_count}")
+    if rendered_count != len(latest):
+        raise AssertionError(f"{lang} rendered homepage count {rendered_count} does not match feed {len(latest)}")
 
     news_cards = news.count('class="ai-note"')
     if news_cards < 3:
@@ -95,10 +108,7 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
         if not permalink.startswith(f"/{lang}/") or not (ROOT / permalink.lstrip("/")).is_file():
             raise AssertionError(f"{lang} permanent brief is missing: {permalink or '<empty>'}")
 
-    print(
-        f"OK {lang}: news={rendered_news_at.isoformat()}, "
-        f"home={updated_at.isoformat()}, cards={news_cards}, briefs={len(latest)}"
-    )
+    print(f"OK {lang}: news={rendered_news_at.isoformat()}, home={updated_at.isoformat()}, cards={news_cards}, briefs={len(latest)}, rendered={rendered_count}")
 
 
 def main() -> None:
