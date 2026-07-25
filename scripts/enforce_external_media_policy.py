@@ -16,7 +16,7 @@ from pathlib import Path
 from external_media_policy import external_image_url
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = '<script src="/scripts/external-media-guard.js?v=1" defer></script>'
+RUNTIME = '<script src="/scripts/external-media-guard.js?v=2" defer></script>'
 STYLE = """<style id="br-external-media-policy-style">
 .news-thumb,.thumb,.image{position:relative;overflow:hidden}
 .media-fallback{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.28),transparent 42%),linear-gradient(135deg,#0d344a,#081827);color:#dff7ff;text-align:center}
@@ -43,7 +43,15 @@ def write_if_changed(path: Path, value: str) -> bool:
 def ensure_assets(value: str) -> str:
     if 'id="br-external-media-policy-style"' not in value and "</head>" in value:
         value = value.replace("</head>", STYLE + "\n</head>", 1)
-    if "/scripts/external-media-guard.js" not in value and "</body>" in value:
+    if "/scripts/external-media-guard.js" in value:
+        value = re.sub(
+            r'<script\s+src=["\']/scripts/external-media-guard\.js(?:\?[^"\']*)?["\']\s+defer></script>',
+            RUNTIME,
+            value,
+            count=1,
+            flags=re.I,
+        )
+    elif "</body>" in value:
         value = value.replace("</body>", RUNTIME + "\n</body>", 1)
     return value
 
