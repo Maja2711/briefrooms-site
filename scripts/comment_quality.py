@@ -189,7 +189,7 @@ def request_json_completion(
     fallback_model = os.getenv(fallback_env, "").strip() if runtime.provider == "github-models" else ""
     model = primary_model
     last_error: Exception | None = None
-    for attempt in range(4):
+    for attempt in range(3):
         try:
             if runtime.provider == "github-models":
                 global _LAST_GITHUB_MODELS_REQUEST_AT
@@ -221,7 +221,7 @@ def request_json_completion(
                 timeout=timeout,
             )
             status = int(getattr(response, "status_code", 200) or 200)
-            if status in {429, 500, 502, 503, 504} and attempt < 3:
+            if status in {429, 500, 502, 503, 504} and attempt < 2:
                 headers = getattr(response, "headers", {})
                 if status == 429 and fallback_model and model != fallback_model:
                     model = fallback_model
@@ -239,7 +239,7 @@ def request_json_completion(
                 # Respect the provider's cooldown instead of retrying early and
                 # extending the throttling window. The workflow timeout remains
                 # the outer safety bound.
-                time.sleep(min(300.0, delay))
+                time.sleep(min(45.0, delay))
                 continue
             response.raise_for_status()
             raw = response.json()["choices"][0]["message"]["content"].strip()
@@ -251,7 +251,7 @@ def request_json_completion(
         except Exception as exc:
             last_error = exc
             is_timeout = "timeout" in type(exc).__name__.lower()
-            if attempt >= 3 or (is_timeout and attempt >= 1):
+            if attempt >= 2 or (is_timeout and attempt >= 1):
                 break
     raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
 
