@@ -444,7 +444,7 @@ def independent_ai_review_batch(
     if current:
         chunks.append(current)
 
-    for chunk in chunks:
+    def review_chunk(chunk: list[dict[str, str]]) -> None:
         expected_ids = {entry["id"] for entry in chunk if entry["id"]}
         prompt = (
             f"{instruction}\n"
@@ -480,9 +480,17 @@ def independent_ai_review_batch(
                 approved = review.get("approved") is True
                 results[item_id] = (approved, str(review.get("reason") or ("approved" if approved else "rejected")))
         except Exception as exc:
+            if len(chunk) > 1:
+                midpoint = len(chunk) // 2
+                review_chunk(chunk[:midpoint])
+                review_chunk(chunk[midpoint:])
+                return
             reason = f"batch_review_error:{type(exc).__name__}:{exc}"
             for item_id in expected_ids:
                 results[item_id] = (False, reason)
+
+    for chunk in chunks:
+        review_chunk(chunk)
     return results
 
 

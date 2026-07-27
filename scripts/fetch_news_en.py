@@ -94,6 +94,10 @@ SOURCE_PROFILES = {
     "japantimes.co.jp": {"name": "Japan Times", "score": 42, "sections": {"asia_pacific"}},
     "kyodonews.net": {"name": "Kyodo News", "score": 44, "sections": {"asia_pacific"}},
     "yna.co.kr": {"name": "Yonhap", "score": 44, "sections": {"asia_pacific"}},
+    "euronews.com": {"name": "Euronews", "score": 47, "sections": {"europe"}},
+    "france24.com": {"name": "France 24", "score": 46, "sections": {"europe"}},
+    "consilium.europa.eu": {"name": "Council of the EU", "score": 50, "sections": {"europe"}},
+    "dw.com": {"name": "DW", "score": 46, "sections": {"europe"}},
 }
 
 CATEGORY_SEGMENTS = {
@@ -125,15 +129,10 @@ SPORT_TOPIC_RE = re.compile(
 FEEDS = {
     "world": [
         "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "https://feeds.reuters.com/reuters/worldNews",
-        "https://apnews.com/hub/ap-top-news?output=rss",
         "https://feeds.bloomberg.com/politics/news.rss",
         "https://www.theguardian.com/world/rss",
-        "https://www.politico.com/rss/politicopicks.xml",
     ],
     "asia_pacific": [
-        "https://feeds.reuters.com/reuters/worldNews",
-        "https://apnews.com/hub/ap-top-news?output=rss",
         "https://feeds.bloomberg.com/politics/news.rss",
         "http://feeds.bbci.co.uk/news/world/asia/rss.xml",
         "https://asia.nikkei.com/rss/feed/nar",
@@ -144,18 +143,15 @@ FEEDS = {
         "https://en.yna.co.kr/RSS/news.xml",
     ],
     "europe": [
-        "https://feeds.reuters.com/reuters/worldNews",
-        "https://apnews.com/hub/ap-top-news?output=rss",
-        "https://feeds.bloomberg.com/politics/news.rss",
         "http://feeds.bbci.co.uk/news/world/europe/rss.xml",
+        "https://www.euronews.com/rss?format=mrss&level=vertical&name=my-europe",
+        "https://www.france24.com/en/europe/rss",
         "https://www.theguardian.com/world/europe-news/rss",
-        "https://www.politico.com/rss/politicopicks.xml",
-        "https://www.nato.int/cps/en/natohq/news.xml",
-        "https://commission.europa.eu/node/126/rss_en",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "https://www.consilium.europa.eu/en/rss/pressreleases.ashx",
+        "https://rss.dw.com/rdf/rss-en-eu",
     ],
     "middle_east": [
-        "https://feeds.reuters.com/reuters/worldNews",
-        "https://apnews.com/hub/ap-top-news?output=rss",
         "https://feeds.bloomberg.com/politics/news.rss",
         "http://feeds.bbci.co.uk/news/world/middle_east/rss.xml",
         "https://www.theguardian.com/world/middleeast/rss",
@@ -164,12 +160,9 @@ FEEDS = {
     ],
     "business": [
         "http://feeds.bbci.co.uk/news/business/rss.xml",
-        "https://feeds.reuters.com/reuters/businessNews",
-        "https://apnews.com/hub/business?output=rss",
         "https://feeds.bloomberg.com/markets/news.rss",
         "https://feeds.bloomberg.com/economics/news.rss",
         "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-        "https://www.politico.com/rss/politicopicks.xml",
         "https://home.treasury.gov/news/press-releases/rss",
         "https://www.federalreserve.gov/feeds/press_all.xml",
         "https://www.bls.gov/feed/news_release.rss",
@@ -181,15 +174,12 @@ FEEDS = {
     ],
     "science": [
         "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-        "https://apnews.com/hub/science?output=rss",
         "https://www.theguardian.com/science/rss",
         "https://www.nasa.gov/rss/dyn/breaking_news.rss",
         "https://www.esa.int/rssfeed/Our_Activities/Space_News",
     ],
     "health": [
         "http://feeds.bbci.co.uk/news/health/rss.xml",
-        "https://feeds.reuters.com/reuters/healthNews",
-        "https://apnews.com/hub/health?output=rss",
         "https://www.theguardian.com/society/health/rss",
         "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
     ],
@@ -197,8 +187,6 @@ FEEDS = {
         "http://feeds.bbci.co.uk/sport/rss.xml?edition=int",
         "https://www.espn.com/espn/rss/news",
         "https://www.skysports.com/rss/12040",
-        "https://feeds.reuters.com/reuters/sportsNews",
-        "https://apnews.com/hub/sports?output=rss",
         "https://www.formula1.com/en/latest/all.xml",
         "https://www.uefa.com/rssfeed/news/rss.xml",
         "https://www.fifa.com/fifaplus/en/rss",
@@ -208,6 +196,20 @@ FEEDS = {
         "https://www.mlb.com/feeds/news/rss.xml",
     ],
 }
+
+# Specific desks claim their stories first. The broad World feed runs last so
+# it cannot consume Europe, Asia-Pacific, Middle East, business, science or
+# health topics before those desks have a chance to publish them.
+SECTION_FETCH_ORDER = (
+    "asia_pacific",
+    "europe",
+    "middle_east",
+    "business",
+    "science",
+    "health",
+    "sport",
+    "world",
+)
 
 # Słowa kluczowe do podbijania ważności
 BOOST = {
@@ -1119,7 +1121,7 @@ def main():
     sections = {}
     seen_links = set()
     seen_topics = []
-    for section_key in ("world", "asia_pacific", "europe", "middle_east", "business", "science", "health", "sport"):
+    for section_key in SECTION_FETCH_ORDER:
         items = fetch_section(section_key, seen_links, seen_topics, summarize=False)
         sections[section_key] = items
         for it in items:
