@@ -24,6 +24,7 @@ from comment_quality import (
     validate_news_comment,
 )
 from news_comment_batch import summarize_news_items
+from news_publication_diagnostics import parsed_time_iso, record_feed, record_item
 from news_story_dedupe import same_story
 
 # =========================
@@ -747,14 +748,41 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
     for feed_url in FEEDS[section_key]:
         try:
             parsed = feedparser.parse(feed_url)
+            feed_error = ""
+            if getattr(parsed, "bozo", False) and not getattr(parsed, "entries", []):
+                feed_error = str(getattr(parsed, "bozo_exception", "invalid RSS response"))
+            record_feed(
+                "en",
+                feed_url,
+                parsed=len(getattr(parsed, "entries", []) or []),
+                pipeline="news",
+                error=feed_error,
+            )
             for e in parsed.entries:
                 title = e.get("title", "") or ""
                 link  = e.get("link", "") or ""
+                published_at = parsed_time_iso(
+                    e.get("published_parsed") or e.get("updated_parsed")
+                )
                 if not title or not link:
+                    record_item(
+                        "en",
+                        feed_url,
+                        "rejected_invalid",
+                        published_at=published_at,
+                        pipeline="news",
+                    )
                     continue
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 summary_raw = clean_rss_text(snippet)
                 if not should_keep_item(title, link, summary_raw, section_key):
+                    record_item(
+                        "en",
+                        feed_url,
+                        "rejected_invalid",
+                        published_at=published_at,
+                        pipeline="news",
+                    )
                     continue
                 items.append({
                     "title": title.strip(),
@@ -762,8 +790,14 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
                     "summary_raw": topic_safe_snippet(title, summary_raw),
                     "thumbnail_url": entry_image(e, feed_url),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
+                    "published_at_inferred": not bool(
+                        e.get("published_parsed") or e.get("updated_parsed")
+                    ),
+                    "_diagnostic_feed_url": feed_url,
+                    "_diagnostic_published_at": published_at,
                 })
         except Exception as ex:
+            record_feed("en", feed_url, pipeline="news", error=str(ex))
             print(f"[WARN] RSS error: {feed_url} -> {ex}", file=sys.stderr)
 
     # Scoring, tokenizacja, deduplikacja i limitowanie (przywrócone)
@@ -792,7 +826,22 @@ def fetch_section(section_key: str, excluded_links=None, excluded_topics=None, s
         candidate_rank = (it.get("_source_score", 0), it.get("_score", 0), len(it.get("summary_raw", "")))
         current_rank = (got.get("_source_score", 0), got.get("_score", 0), len(got.get("summary_raw", "")))
         if candidate_rank > current_rank:
+            record_item(
+                "en",
+                got.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=got.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
             kept[duplicate_idx] = it
+        else:
+            record_item(
+                "en",
+                it.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=it.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
 
     per_host = {}
     pool = []

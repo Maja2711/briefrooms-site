@@ -88,10 +88,10 @@ function localFile(route) {
 }
 
 test('PL and EN navigation remain independent and complete', () => {
-  assert.deepEqual(header.navigation.pl.map((item) => item.label), ['Aktualności', 'Geopolityka', 'Zdrowie', 'Nauka', 'Inwestycje']);
-  assert.deepEqual(header.navigation.en.map((item) => item.label), ['News', 'Geopolitics', 'Health', 'Science', 'Investing']);
-  assert.equal(header.navigation.pl.length, 5);
-  assert.equal(header.navigation.en.length, 5);
+  assert.deepEqual(header.navigation.pl.map((item) => item.label), ['Aktualności', 'Geopolityka', 'Zdrowie', 'Nauka', 'Inwestycje', 'O nas']);
+  assert.deepEqual(header.navigation.en.map((item) => item.label), ['News', 'Geopolitics', 'Health', 'Science', 'Investing', 'About']);
+  assert.equal(header.navigation.pl.length, 6);
+  assert.equal(header.navigation.en.length, 6);
   assert.ok(header.navigation.pl.every((item) => item.href.startsWith('/pl/')));
   assert.ok(header.navigation.en.every((item) => item.href.startsWith('/en/')));
 });
@@ -105,7 +105,7 @@ test('active sections are detected for hubs and articles', () => {
     '/pl/zdrowie/kalkulator-cholesterolu.html': 'health',
     '/en/science/dark-oxygen.html': 'science',
     '/pl/inwestycje/portfel-10k.html': 'investing',
-    '/en/about.html': '',
+    '/en/about.html': 'about',
   };
   for (const [route, expected] of Object.entries(cases)) assert.equal(header.sectionForPath(route), expected, route);
 });
@@ -139,8 +139,8 @@ test('rendered header exposes active state, language link and accessible mobile 
   const toggle = host.querySelector('.br-site-header__toggle');
   const languageLink = host.querySelector('.br-site-header__lang');
 
-  assert.equal(links.length, 5);
-  assert.equal(active.textContent, 'Nauka');
+  assert.equal(links.length, 6);
+  assert.equal(active.querySelector('.br-site-header__label').textContent, 'Nauka');
   assert.equal(languageLink.href, '/en/science/venus-flytrap-biomechanics.html');
   assert.equal(toggle.getAttribute('aria-controls'), 'br-site-navigation');
   assert.equal(toggle.getAttribute('aria-expanded'), 'false');

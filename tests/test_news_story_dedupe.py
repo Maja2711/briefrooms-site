@@ -79,6 +79,30 @@ class StoryDedupeTests(unittest.TestCase):
             story = json.loads(path.read_text(encoding="utf-8"))["stories"][0]
             self.assertTrue(story["event_signature"])
 
+    def test_history_compacts_repeated_tracking_variants_of_the_same_url(self):
+        now = datetime(2026, 7, 23, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "history.json"
+            save_history(
+                {
+                    "world": [
+                        {
+                            "title": "First version of the report",
+                            "link": "https://example.com/story?utm_source=rss",
+                        },
+                        {
+                            "title": "Updated headline for the report",
+                            "link": "https://example.com/story",
+                        },
+                    ]
+                },
+                path,
+                now,
+            )
+            stories = json.loads(path.read_text(encoding="utf-8"))["stories"]
+        self.assertEqual(1, len(stories))
+        self.assertEqual("Updated headline for the report", stories[0]["title"])
+
     def test_rendered_html_gate_blocks_duplicate_cards(self):
         html = """
         <ul class="news">
