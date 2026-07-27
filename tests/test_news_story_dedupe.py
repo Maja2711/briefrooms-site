@@ -60,6 +60,38 @@ class StoryDedupeTests(unittest.TestCase):
         self.assertEqual([same_url], sections["world"])
         self.assertEqual("same_event_within_72h", rejected[0]["reason"])
 
+    def test_same_current_card_is_kept_only_once_even_when_it_matches_history(self):
+        old = {
+            "title": "Sztuczna inteligencja a bron biologiczna",
+            "link": "https://example.com/ai-biosecurity",
+        }
+        first = dict(old)
+        duplicate = dict(old)
+        sections, rejected = deduplicate_sections(
+            {"health": [first], "science": [duplicate]},
+            [old],
+        )
+        self.assertEqual([first], sections["health"])
+        self.assertEqual([], sections["science"])
+        self.assertEqual(1, len(rejected))
+        self.assertEqual(first["title"], rejected[0]["duplicate_of"])
+
+    def test_tracking_variant_of_current_url_is_kept_only_once(self):
+        first = {
+            "title": "AI and biological weapons require public health safeguards",
+            "link": "https://example.com/ai-biosecurity?utm_source=rss",
+        }
+        duplicate = {
+            "title": first["title"],
+            "link": "https://example.com/ai-biosecurity",
+        }
+        sections, rejected = deduplicate_sections(
+            {"health": [first], "science": [duplicate]},
+        )
+        self.assertEqual([first], sections["health"])
+        self.assertEqual([], sections["science"])
+        self.assertEqual(1, len(rejected))
+
     def test_history_expires_after_72_hours(self):
         now = datetime(2026, 7, 23, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
