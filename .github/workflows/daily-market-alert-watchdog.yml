@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/check_daily_market_alert.py"
+      - "scripts/run_daily_market_alert_resilient.py"
       - "tests/test_daily_market_alert_watchdog.py"
       - ".github/workflows/daily-market-alert-watchdog.yml"
   schedule:
@@ -49,13 +50,14 @@ jobs:
       - name: Test alert and watchdog contracts
         run: |
           python -m unittest tests.test_daily_market_alert tests.test_daily_market_alert_watchdog -v
+          python -m py_compile scripts/run_daily_market_alert_resilient.py
 
       - name: Check whether the due slot exists
         id: initial
         continue-on-error: true
         run: python scripts/check_daily_market_alert.py --mode auto --grace-minutes 45
 
-      - name: Recover a missing alert with full-process retries
+      - name: Recover a missing alert with resilient full-process retries
         if: steps.initial.outcome == 'failure'
         id: recovery
         continue-on-error: true
@@ -73,9 +75,9 @@ jobs:
           delays=(0 60 180)
           for attempt in 1 2 3; do
             sleep "${delays[$((attempt-1))]}"
-            echo "Watchdog recovery attempt $attempt/3"
-            if python scripts/update_daily_market_alert.py --mode catchup &&
-               python scripts/update_daily_market_alert.py --validate-only; then
+            echo "Watchdog resilient recovery attempt $attempt/3"
+            if python scripts/run_daily_market_alert_resilient.py --mode catchup &&
+               python scripts/run_daily_market_alert_resilient.py --validate-only; then
               exit 0
             fi
             git restore --worktree -- data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
@@ -108,7 +110,7 @@ jobs:
         run: |
           DAY="$(TZ=America/New_York date +%F)"
           TITLE="[ALARM] Daily Market Alert missing - $DAY"
-          BODY="The independent watchdog did not find the due Daily Market Alert slot for $DAY after three recovery attempts. Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="The independent watchdog did not find the due Daily Market Alert slot for $DAY after three resilient recovery attempts. Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING="$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')"
           if [[ -n "$EXISTING" ]]; then
             gh issue comment "$EXISTING" --body "$BODY"
