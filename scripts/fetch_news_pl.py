@@ -23,6 +23,7 @@ from comment_quality import (
     validate_news_comment,
 )
 from news_comment_batch import summarize_news_items
+from news_publication_diagnostics import parsed_time_iso, record_feed, record_item
 from news_story_dedupe import same_story
 
 # =========================
@@ -824,10 +825,30 @@ def fetch_section(section_key: str, summarize: bool = True):
         f_source = feed_source(feed)
         try:
             parsed = feedparser.parse(f_url)
+            feed_error = ""
+            if getattr(parsed, "bozo", False) and not getattr(parsed, "entries", []):
+                feed_error = str(getattr(parsed, "bozo_exception", "invalid RSS response"))
+            record_feed(
+                "pl",
+                f_url,
+                parsed=len(getattr(parsed, "entries", []) or []),
+                pipeline="news",
+                error=feed_error,
+            )
             for e in parsed.entries:
                 title = e.get("title", "") or ""
                 link  = e.get("link", "") or ""
+                published_at = parsed_time_iso(
+                    e.get("published_parsed") or e.get("updated_parsed")
+                )
                 if not title or not link:
+                    record_item(
+                        "pl",
+                        f_url,
+                        "rejected_invalid",
+                        published_at=published_at,
+                        pipeline="news",
+                    )
                     continue
                 snippet = e.get("summary", "") or e.get("description", "") or ""
                 clean_snippet = re.sub("<[^<]+?>", "", snippet).strip()
@@ -836,6 +857,13 @@ def fetch_section(section_key: str, summarize: bool = True):
                     title = repair_polish_feed_encoding(title)
                     clean_snippet = repair_polish_feed_encoding(clean_snippet)
                 if is_rejected_item(section_key, title, clean_snippet, link, source_name):
+                    record_item(
+                        "pl",
+                        f_url,
+                        "rejected_invalid",
+                        published_at=published_at,
+                        pipeline="news",
+                    )
                     continue
                 items.append({
                     "title": title.strip(),
@@ -845,8 +873,14 @@ def fetch_section(section_key: str, summarize: bool = True):
                     "summary_raw": clean_snippet,
                     "thumbnail_url": entry_image(e, f_url),
                     "published_parsed": e.get("published_parsed") or e.get("updated_parsed"),
+                    "published_at_inferred": not bool(
+                        e.get("published_parsed") or e.get("updated_parsed")
+                    ),
+                    "_diagnostic_feed_url": f_url,
+                    "_diagnostic_published_at": published_at,
                 })
         except Exception as ex:
+            record_feed("pl", f_url, pipeline="news", error=str(ex))
             print(f"[WARN] RSS error: {f_url} -> {ex}", file=sys.stderr)
 
     # scoring + tokeny
@@ -861,12 +895,20 @@ def fetch_section(section_key: str, summarize: bool = True):
     # Jedno wydarzenie z dwóch redakcji może dać tylko jedną kartę.
     kept = []
     for it in items:
-        if not any(
+        if any(
             jaccard(it["_tok"], got["_tok"]) >= SIMILARITY_THRESHOLD
             or same_story(it, got)
             for got in kept
         ):
-            kept.append(it)
+            record_item(
+                "pl",
+                it.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=it.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
+            continue
+        kept.append(it)
 
     # limit na host + total
     per_host = {}

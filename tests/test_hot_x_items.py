@@ -22,7 +22,7 @@ def direct(url="https://x.com/example/status/123456789"):
         "category": "markets",
         "title_pl": "Polski tytuł rynkowy",
         "title_en": "English market title",
-        "comment_pl": "To jest wystarczająco długi, konkretny komentarz redakcyjny dotyczący bezpośredniego postu na platformie X.",
+        "comment_pl": "To jest wystarczająco długi, konkretny komentarz redakcyjny dotyczący bezpośredniego publicznego postu na platformie X.",
         "comment_en": "This is a sufficiently long and substantive editorial comment concerning a direct public post on the X platform.",
         "tweet_url": url,
         "search_url": "",

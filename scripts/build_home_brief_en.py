@@ -14,6 +14,8 @@ import feedparser
 import requests
 
 from comment_quality import decode_http_response
+from external_media_policy import external_image_url
+from news_publication_diagnostics import parsed_time_iso, record_feed, record_item
 
 OUT_PATH = "en/home_brief.json"
 TIMEOUT = 9
@@ -231,14 +233,23 @@ def quality_score(item):
 
 
 def make_item(entry, category):
+    diagnostic_feed = str(entry.get("_diagnostic_feed_url") or "")
+    source_published_at = parsed_time_iso(
+        entry.get("published_parsed") or entry.get("updated_parsed")
+    )
     title = clean_text(entry.get("title", ""), 96).rstrip(".")
     link = entry.get("link", "")
     rss_raw = entry.get("summary", "") or entry.get("description", "") or title
     rss_summary = clean_text(rss_raw, 260)
     if not title or not link or BAN.search(title + " " + rss_summary) or LOW_VALUE.search(title + " " + rss_summary):
+        record_item("en", diagnostic_feed, "rejected_invalid", published_at=source_published_at, pipeline="homepage")
         return None
+    published_at_inferred = not bool(
+        entry.get("published_parsed") or entry.get("updated_parsed")
+    )
     published_ts = timestamp(entry)
     if not is_fresh_timestamp(published_ts):
+        record_item("en", diagnostic_feed, "rejected_stale", published_at=source_published_at, pipeline="homepage")
         return None
     article_text = article_excerpt(link)
     source = source_name(link, f"{title} {rss_summary}")
@@ -247,6 +258,14 @@ def make_item(entry, category):
     summary = editorial_summary(article_text, rss_summary, title)
     details = details_summary(article_text, summary)
     if BAN.search(f"{title} {summary} {details}") or LOW_VALUE.search(f"{title} {summary} {details}"):
+        record_item("en", diagnostic_feed, "rejected_invalid", published_at=source_published_at, pipeline="homepage")
+        return None
+    image = external_image_url(
+        image_from_entry(entry, link, shown_category),
+        link,
+    )
+    if not image:
+        record_item("en", diagnostic_feed, "rejected_invalid", published_at=source_published_at, pipeline="homepage")
         return None
     item = {
         "category": shown_category,
@@ -255,15 +274,19 @@ def make_item(entry, category):
         "details": details,
         "source": source,
         "link": link,
-        "image": image_from_entry(entry, link, shown_category),
+        "image": image,
         "time": "today",
         "urgent": urgent,
         "priority_reason": "publisher_marked_breaking" if urgent else "standard_importance",
         "ts": published_ts,
         "published_at": datetime.fromtimestamp(published_ts, timezone.utc).isoformat(timespec="seconds"),
+        "published_at_inferred": published_at_inferred,
+        "_diagnostic_feed_url": diagnostic_feed,
+        "_diagnostic_published_at": source_published_at,
     }
     item["quality_score"] = quality_score(item)
     if item["quality_score"] < 15:
+        record_item("en", diagnostic_feed, "rejected_invalid", published_at=source_published_at, pipeline="homepage")
         return None
     return item
 
@@ -275,14 +298,33 @@ def collect_items():
         for url in urls:
             try:
                 feed = feedparser.parse(url)
-            except Exception:
+            except Exception as exc:
+                record_feed("en", url, pipeline="homepage", error=str(exc))
                 continue
+            feed_error = ""
+            if getattr(feed, "bozo", False) and not getattr(feed, "entries", []):
+                feed_error = str(getattr(feed, "bozo_exception", "invalid RSS response"))
+            record_feed(
+                "en",
+                url,
+                parsed=len(getattr(feed, "entries", []) or []),
+                pipeline="homepage",
+                error=feed_error,
+            )
             for entry in feed.entries[:per_feed_limit]:
+                entry["_diagnostic_feed_url"] = url
                 item = make_item(entry, category)
                 if not item:
                     continue
                 key = re.sub(r"\W+", "", item["title"].lower())[:90]
                 if key in seen:
+                    record_item(
+                        "en",
+                        item.get("_diagnostic_feed_url", ""),
+                        "rejected_duplicate",
+                        published_at=item.get("_diagnostic_published_at", ""),
+                        pipeline="homepage",
+                    )
                     continue
                 seen.add(key)
                 items.append(item)
@@ -296,6 +338,8 @@ def strip_internal(items):
         copy = dict(item)
         copy.pop("ts", None)
         copy.pop("quality_score", None)
+        copy.pop("_diagnostic_feed_url", None)
+        copy.pop("_diagnostic_published_at", None)
         result.append(copy)
     return result
 
@@ -382,11 +426,32 @@ def build_payload(items):
     seen = set()
     for item in items:
         if item["link"] in seen:
+            record_item(
+                "en",
+                item.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="homepage",
+            )
             continue
         if is_duplicate_story(item, latest):
+            record_item(
+                "en",
+                item.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="homepage",
+            )
             print(f"[INFO] duplicate story skipped: {item.get('source')} | {item.get('title')[:90]}")
             continue
         latest.append(item)
+        record_item(
+            "en",
+            item.get("_diagnostic_feed_url", ""),
+            "accepted",
+            published_at=item.get("_diagnostic_published_at", ""),
+            pipeline="homepage",
+        )
         seen.add(item["link"])
         if len(latest) >= MAX_ITEMS:
             break

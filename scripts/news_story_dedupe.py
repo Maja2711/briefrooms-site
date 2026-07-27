@@ -9,6 +9,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 HISTORY_HOURS = 72
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +40,10 @@ UPDATE_MARKERS = {
     "implemented", "injured", "investigation", "lawsuit", "podpis", "published",
     "ratified", "released", "resigned", "result", "skutek", "trial", "verdict",
     "wesz", "wyrok",
+}
+TRACKING_QUERY_KEYS = {
+    "fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src",
+    "utm_campaign", "utm_content", "utm_medium", "utm_source", "utm_term",
 }
 
 
@@ -85,7 +90,25 @@ def event_signature(item: dict) -> str:
 
 
 def _canonical_url(item: dict) -> str:
-    return str(item.get("link") or "").split("?", 1)[0].rstrip("/")
+    raw = str(item.get("link") or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlsplit(raw)
+    except ValueError:
+        return ""
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        return ""
+    query = urlencode(sorted(
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key.lower() not in TRACKING_QUERY_KEYS
+    ))
+    port = f":{parsed.port}" if parsed.port else ""
+    path = re.sub(r"/+", "/", parsed.path or "/").rstrip("/") or "/"
+    return urlunsplit(
+        (parsed.scheme.lower(), parsed.hostname.lower() + port, path, query, "")
+    )
 
 
 def _material_update(first: set[str], second: set[str]) -> bool:
@@ -168,6 +191,10 @@ def deduplicate_sections(
                     "source": item.get("source", ""),
                     "duplicate_of": duplicate.get("title", ""),
                     "reason": "same_event_within_72h",
+                    "_diagnostic_feed_url": item.get("_diagnostic_feed_url", ""),
+                    "_diagnostic_published_at": item.get(
+                        "_diagnostic_published_at", ""
+                    ),
                 })
                 continue
             result[section].append(item)
@@ -188,12 +215,32 @@ def save_history(
         "link": item.get("link", ""),
         "source": item.get("source", ""),
         "published_at": _published_at(item, now).isoformat(),
+        "published_at_inferred": bool(item.get("published_at_inferred")),
         "event_signature": event_signature(item),
     } for items in sections.values() for item in items]
-    merged, _ = deduplicate_sections({"stories": recent + current})
+    compacted: list[dict] = []
+    for item in recent + current:
+        duplicate_index = next(
+            (
+                index
+                for index, previous in enumerate(compacted)
+                if (
+                    _canonical_url(item)
+                    and _canonical_url(item) == _canonical_url(previous)
+                )
+                or same_story(item, previous)
+            ),
+            None,
+        )
+        if duplicate_index is None:
+            compacted.append(item)
+        elif _published_at(item, now) >= _published_at(
+            compacted[duplicate_index], now
+        ):
+            compacted[duplicate_index] = item
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps({"window_hours": HISTORY_HOURS, "stories": merged["stories"]},
+        json.dumps({"window_hours": HISTORY_HOURS, "stories": compacted},
                    ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )

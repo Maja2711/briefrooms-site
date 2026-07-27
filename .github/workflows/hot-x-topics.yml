@@ -53,9 +53,6 @@ jobs:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
         run: python scripts/update_hot_x_2x_daily.py
 
-      - name: Cache-bust renderer on PL and EN homepages
-        run: python scripts/patch_hot_x_loader.py
-
       - name: Verify four pinned bilingual topics
         run: |
           python - <<'PY'
@@ -72,11 +69,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_tweets.json pl/index.html en/index.html
+          git add data/hot_tweets.json
           if git diff --cached --quiet; then
             echo "No Hot X changes to commit."
           else
             git commit -m "Update Hot X topics"
-            git pull --rebase origin main
-            git push
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              echo "::error::main changed while Hot X data was prepared; rerun from current main."
+              exit 1
+            fi
+            git push origin HEAD:main
           fi

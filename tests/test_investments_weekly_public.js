@@ -48,7 +48,12 @@ async function renderWithLive(updatedAt) {
   };
   const context = vm.createContext({
     console,
-    document: { getElementById: (id) => elements[id] || null },
+    document: {
+      hidden: false,
+      getElementById: (id) => elements[id] || null,
+      addEventListener() {},
+      dispatchEvent() {},
+    },
     fetch: async (url) => {
       if (url.startsWith('/data/investments/live_prices.json')) {
         return { ok: true, json: async () => live };
@@ -59,6 +64,10 @@ async function renderWithLive(updatedAt) {
       return { ok: false, json: async () => ({}) };
     },
     setTimeout,
+    setInterval() { return 1; },
+    CustomEvent: class CustomEvent {
+      constructor(type, init) { this.type = type; this.detail = init?.detail; }
+    },
     window: { BR_WEEKLY: { lang: 'pl' } },
   });
   vm.runInContext(script, context);
@@ -77,10 +86,10 @@ test('shows normalized investment results with units and notional', async () => 
   }
 });
 
-test('hides current prices when live data is stale', async () => {
+test('marks stored current prices as delayed when live data is stale', async () => {
   const { elements, classes } = await renderWithLive('2000-01-01T00:00:00Z');
   assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
   assert.equal(classes.has('stale'), true);
-  assert.doesNotMatch(elements.app.innerHTML, /1,14456/);
-  assert.doesNotMatch(elements.app.innerHTML, /7607,50/);
+  assert.match(elements.app.innerHTML, /1,14456/);
+  assert.match(elements.app.innerHTML, /7607,50/);
 });

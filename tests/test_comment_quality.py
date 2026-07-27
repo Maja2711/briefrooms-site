@@ -345,8 +345,11 @@ class PipelineContractTests(unittest.TestCase):
     def test_homepage_contract_requires_eight_fresh_items_in_both_languages(self):
         self.assertEqual({"pl": 8, "en": 8}, protect.MIN_VISIBLE_ITEMS)
         contract = json.loads((ROOT / "data/content_update_contract.json").read_text(encoding="utf-8"))
-        self.assertEqual(8, contract["homepage_and_news"]["minimum_visible_cards"])
-        self.assertEqual(12, contract["homepage_and_news"]["maximum_story_age_hours"])
+        self.assertEqual(4, contract["news_publication"]["interval_hours"])
+        self.assertTrue(contract["news_publication"]["atomic_languages_required"])
+        self.assertFalse(
+            contract["news_publication"]["empty_update_may_refresh_content_timestamps"]
+        )
         self.assertGreaterEqual(home_pl.MAX_ITEMS, 16)
         self.assertGreaterEqual(home_en.MAX_ITEMS, 16)
         now = 1_800_000_000.0
@@ -494,34 +497,11 @@ class PipelineContractTests(unittest.TestCase):
             after = current_path.read_bytes()
         self.assertEqual(before, after)
 
-    def test_watchdog_requires_current_quality_contract_in_both_feed_and_cards(self):
-        items = []
-        for index in range(8):
-            item = approved_item(VALID_EN, "en")
-            item["title"] = f"Reviewed English article {index + 1}"
-            item["link"] = f"https://example.com/watchdog-en-{index + 1}"
-            items.append(item)
-        payload = {
-            "latest": items,
-            "radar": [],
-            "count": 8,
-            "comment_quality_gate": {
-                "status": quality.QUALITY_STATUS,
-                "version": quality.QUALITY_VERSION,
-            },
-        }
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "home.json"
-            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-            self.assertTrue(watchdog.home_contract_current(path, "en"))
-            payload["latest"][0]["comment_quality_version"] = quality.QUALITY_VERSION - 1
-            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-            self.assertFalse(watchdog.home_contract_current(path, "en"))
-            payload["latest"][0]["comment_quality_version"] = quality.QUALITY_VERSION
-            payload["latest"] = payload["latest"][:4]
-            payload["count"] = 4
-            path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-            self.assertFalse(watchdog.home_contract_current(path, "en"))
+    def test_watchdog_uses_manifest_times_instead_of_touching_content(self):
+        source = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
+        self.assertIn("last_successful_fetch_at", source)
+        self.assertIn("last_new_publication_at", source)
+        self.assertNotIn("os.utime", source)
 
     def test_bad_reviewed_cache_entry_cannot_bypass_validator(self):
         title = "Test title"
@@ -716,65 +696,33 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(2, post.call_count)
 
     def test_production_workflows_grant_and_pass_github_models_access(self):
-        for relative in (
+        publisher = (ROOT / ".github/workflows/publish-news.yml").read_text(encoding="utf-8")
+        self.assertIn("models: read", publisher)
+        self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", publisher)
+        self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", publisher)
+        self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", publisher)
+        self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", publisher)
+        self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', publisher)
+        self.assertIn("group: content-publishing", publisher)
+        self.assertIn("cancel-in-progress: false", publisher)
+        self.assertIn('cron: "15 */4 * * *"', publisher)
+        self.assertIn("workflow_dispatch:", publisher)
+        self.assertIn("workflow_call:", publisher)
+        self.assertIn("git merge --ff-only origin/main", publisher)
+        self.assertIn("refusing stale output", publisher)
+        self.assertNotIn("git pull --rebase", publisher)
+
+        watchdog_workflow = (
+            ROOT / ".github/workflows/content-update-watchdog.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("uses: ./.github/workflows/publish-news.yml", watchdog_workflow)
+        self.assertIn('cron: "25 * * * *"', watchdog_workflow)
+        for retired in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
             ".github/workflows/news-en.yml",
-            ".github/workflows/content-update-watchdog.yml",
-            "config/workflow_templates/build-home-brief.yml",
         ):
-            source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("models: read", source, relative)
-            self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", source, relative)
-            self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", source, relative)
-            self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", source, relative)
-            self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", source, relative)
-            self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', source, relative)
-        for relative in (
-            ".github/workflows/build-home-brief.yml",
-            ".github/workflows/content-update-watchdog.yml",
-        ):
-            source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("group: content-publishing", source, relative)
-            self.assertIn("cancel-in-progress: false", source, relative)
-        self.assertIn(
-            "cancel-in-progress: ${{ github.event_name == 'push' }}",
-            (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            "group: content-publishing",
-            (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
-        )
-        self.assertIn(
-            "cancel-in-progress: ${{ github.event_name == 'push' }}",
-            (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"),
-        )
-        self.assertIn('cron: "10 */4 * * *"', (ROOT / ".github/workflows/news-pl.yml").read_text(encoding="utf-8"))
-        self.assertIn('cron: "40 */4 * * *"', (ROOT / ".github/workflows/news-en.yml").read_text(encoding="utf-8"))
-        watchdog = (ROOT / "scripts/content_update_watchdog.py").read_text(encoding="utf-8")
-        self.assertIn('"--validate-passive"', watchdog)
-        for relative in (
-            ".github/workflows/build-home-brief.yml",
-            ".github/workflows/news-pl.yml",
-            ".github/workflows/news-en.yml",
-            "config/workflow_templates/build-home-brief.yml",
-        ):
-            source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("git pull --ff-only origin main", source, relative)
-            self.assertIn("git diff --quiet HEAD..origin/main --", source, relative)
-            self.assertIn("refusing stale output", source, relative)
-        for relative in (
-            ".github/workflows/news-pl.yml",
-            ".github/workflows/news-en.yml",
-        ):
-            source = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("git restore --worktree .", source, relative)
-            self.assertIn("git pull --rebase -X theirs origin main", source, relative)
-        watchdog_workflow = (ROOT / ".github/workflows/content-update-watchdog.yml").read_text(encoding="utf-8")
-        self.assertIn("git pull --ff-only origin main", watchdog_workflow)
-        self.assertIn("git diff --quiet HEAD..origin/main --", watchdog_workflow)
-        self.assertIn("refusing stale output", watchdog_workflow)
-        self.assertIn("git pull --rebase -X ours origin main", watchdog_workflow)
+            self.assertFalse((ROOT / retired).exists(), retired)
 
     def test_article_reader_preserves_polish_characters_from_realistic_http_bytes(self):
         paragraph = (

@@ -23,6 +23,7 @@ import fetch_news_en as base  # noqa: E402
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
 from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
 from newsroom_style import apply_newsroom_style  # noqa: E402
+from news_publication_diagnostics import record_item  # noqa: E402
 from news_story_dedupe import (  # noqa: E402
     audit_html,
     assert_no_duplicate_stories,
@@ -134,6 +135,23 @@ def finalize_sections_full(sections: dict) -> dict:
     )
     if rejected:
         print(f"NEWS_QUALITY_DEDUPE_EN rejected={len(rejected)} details={rejected}")
+        for item in rejected:
+            record_item(
+                "en",
+                item.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
+    for items in final.values():
+        for item in items:
+            record_item(
+                "en",
+                item.get("_diagnostic_feed_url", ""),
+                "accepted",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
     return final
 
 

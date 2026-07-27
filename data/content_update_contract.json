@@ -1,32 +1,33 @@
 {
-  "contract_version": "1.2.0",
-  "homepage_and_news": {
+  "contract_version": "2.0.0",
+  "news_publication": {
+    "workflow": ".github/workflows/publish-news.yml",
+    "required_cron": "15 */4 * * *",
     "interval_hours": 4,
-    "minimum_visible_cards": 8,
-    "maximum_story_age_hours": 12,
-    "workflow": ".github/workflows/build-home-brief.yml",
-    "required_cron": "55 1,5,9,13,17,21 * * *",
+    "languages": [
+      "pl",
+      "en"
+    ],
+    "manifest": "data/news_publication_status.json",
+    "source_report": "data/news_source_report.json",
+    "atomic_languages_required": true,
     "last_good_fallback_required": true,
-    "empty_update_may_replace_visible_feed": false
-  },
-  "hot_x": {
-    "interval_hours": 12,
-    "updates_per_day": 2,
-    "minimum_fresh_direct_posts_per_day": 3,
-    "maximum_direct_post_age_hours": 36,
-    "minimum_visible_cards": 2,
-    "target_expanded_cards": 8,
-    "maximum_cards_per_category": 2,
-    "workflow": ".github/workflows/hot-x-topics.yml",
-    "required_cron": "17 6,18 * * *",
-    "substantive_comment_required": true,
-    "generic_or_empty_update_may_replace_visible_feed": false,
-    "last_good_or_emergency_fallback_required": true
+    "empty_update_may_refresh_content_timestamps": false
   },
   "watchdog": {
+    "workflow": ".github/workflows/content-update-watchdog.yml",
     "check_interval_hours": 1,
-    "homepage_stale_after_hours": 5,
-    "hot_x_stale_after_hours": 13,
-    "repair_data_from_last_good": true
+    "successful_fetch_stale_after_hours": 8,
+    "successful_publication_stale_after_hours": 8,
+    "new_publication_stale_after_hours": 24,
+    "production_main_parity_required": true,
+    "automatic_recovery_after_hours": 8,
+    "single_open_alarm_issue": true
+  },
+  "hot_x": {
+    "workflow": ".github/workflows/hot-x-topics.yml",
+    "interval_hours": 12,
+    "required_cron": "17 6,18 * * *",
+    "data_only_publication": true
   }
 }

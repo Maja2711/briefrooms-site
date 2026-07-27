@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Homepage-grade PL Aktualności builder.
 
-This is the active wrapper used by news-pl.yml. Selection and section structure
+This is the active Polish builder used by publish-news.yml. Selection and section structure
 remain unchanged, but comments now use the exact full-article pipeline and
 quality contract used by the homepage. RSS-only comments are never published.
 The page is rendered as large two-column homepage-style cards while preserving
@@ -19,6 +19,7 @@ import fetch_news_pl_hybrid as hybrid
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
 from newsroom_articles import enrich_sections_with_homepage_quality
 from newsroom_style import apply_newsroom_style
+from news_publication_diagnostics import record_item
 from news_story_dedupe import (
     audit_html,
     assert_no_duplicate_stories,
@@ -135,6 +136,23 @@ def finalize_sections_strict(sections: dict) -> dict:
     )
     if rejected:
         print(f"NEWS_QUALITY_DEDUPE_PL rejected={len(rejected)} details={rejected}")
+        for item in rejected:
+            record_item(
+                "pl",
+                item.get("_diagnostic_feed_url", ""),
+                "rejected_duplicate",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
+    for items in final.values():
+        for item in items:
+            record_item(
+                "pl",
+                item.get("_diagnostic_feed_url", ""),
+                "accepted",
+                published_at=item.get("_diagnostic_published_at", ""),
+                pipeline="news",
+            )
     return final
 
 
