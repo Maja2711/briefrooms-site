@@ -9,11 +9,11 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "governance-11"
+ASSET_VERSION = "governance-12"
 TZ = ZoneInfo("Europe/Warsaw")
 
 PAGES = {
-    ROOT / "pl/inwestycje/prognozy-tygodniowe.html": {
+    ROOT / "pl/inwestycje/pozycje-tygodniowe.html": {
         "lang": "pl", "title": "Otwarte pozycje tygodniowe — BriefRooms",
         "desc": "Otwarte pozycje paper-trading EUR/USD, S&P 500 futures i BTC/USD.",
         "invest": "/pl/inwestycje.html", "h1": "Otwarte pozycje tygodniowe",
@@ -23,7 +23,7 @@ PAGES = {
         "back": "← Wróć do Inwestycji",
         "legal": "Treści mają charakter edukacyjny i analityczny. Są to wyłącznie pozycje paper-trading, a nie rekomendacje ani rzeczywiste zlecenia."
     },
-    ROOT / "en/investing/weekly-forecasts.html": {
+    ROOT / "en/investing/open-weekly-positions.html": {
         "lang": "en", "title": "Open weekly positions — BriefRooms",
         "desc": "Open EUR/USD, S&P 500 futures and BTC/USD paper-trading positions.",
         "invest": "/en/investing.html", "h1": "Open weekly positions",
@@ -33,6 +33,16 @@ PAGES = {
         "back": "← Back to Investing",
         "legal": "Content is educational and analytical. These are paper-trading positions only, not recommendations or real broker orders."
     },
+}
+
+ALIASES = {
+    ROOT / "pl/inwestycje/prognozy-tygodniowe.html": ROOT / "pl/inwestycje/pozycje-tygodniowe.html",
+    ROOT / "en/investing/weekly-forecasts.html": ROOT / "en/investing/open-weekly-positions.html",
+}
+
+ROOM_LINKS = {
+    ROOT / "pl/inwestycje.html": ("/pl/inwestycje/prognozy-tygodniowe.html", "/pl/inwestycje/pozycje-tygodniowe.html"),
+    ROOT / "en/investing.html": ("/en/investing/weekly-forecasts.html", "/en/investing/open-weekly-positions.html"),
 }
 
 
@@ -76,12 +86,25 @@ def page(cfg: dict, week: dict) -> str:
     return f'''<!doctype html><html lang="{cfg['lang']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{cfg['title']}</title><meta name="description" content="{cfg['desc']}"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/investments-weekly-public.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-weekly-governance.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/site-header.css?v={HEADER_VERSION}"><script src="/scripts/site-header.js?v={HEADER_VERSION}" defer></script></head><body><header id="site-header"></header><div class="wrap"><section class="hero"><span class="pill">EUR/USD · S&amp;P 500 · BTC/USD</span><h1>{cfg['h1']}</h1><p id="updated" class="lead">{cfg['lead']}</p></section><main id="app"><section class="panel"><h2>{cfg['current']}: {html.escape(str(week.get('week_id') or ''))}</h2><div class="cards">{rendered_cards}</div></section><p class="legal">{cfg['legal']}</p></main><a class="back" href="{cfg['invest']}">{cfg['back']}</a></div><footer>© BriefRooms</footer><script>window.BR_WEEKLY={{lang:'{cfg['lang']}'}};</script><script src="/scripts/investments-weekly-public.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-weekly-governance.js?v={ASSET_VERSION}" defer></script></body></html>\n'''
 
 
+def update_room_links() -> None:
+    for path, (old, new) in ROOM_LINKS.items():
+        text = path.read_text(encoding="utf-8")
+        updated = text.replace(old, new)
+        if updated != text:
+            path.write_text(updated, encoding="utf-8", newline="\n")
+            print(f"updated weekly link in {path}")
+
+
 def main() -> None:
     week = current_week()
     for path, cfg in PAGES.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(page(cfg, week), encoding="utf-8", newline="\n")
         print(f"wrote {path}")
+    for alias, canonical in ALIASES.items():
+        alias.write_text(canonical.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        print(f"updated alias {alias}")
+    update_room_links()
 
 
 if __name__ == "__main__":
