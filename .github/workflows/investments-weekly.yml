@@ -10,6 +10,7 @@ on:
         type: choice
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
+    # Hourly safety run. A push to this workflow also triggers the full auto cycle.
     - cron: "17 * * * *"
   push:
     branches: [main]
