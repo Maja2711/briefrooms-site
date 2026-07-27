@@ -181,6 +181,36 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertEqual(3, base.MIN_PER_SECTION)
         self.assertEqual(9, base.MAX_PER_SECTION)
 
+    def test_specific_desks_claim_topics_before_world(self):
+        self.assertEqual("world", base.SECTION_FETCH_ORDER[-1])
+        self.assertEqual(
+            {
+                "world",
+                "asia_pacific",
+                "europe",
+                "middle_east",
+                "business",
+                "science",
+                "health",
+                "sport",
+            },
+            set(base.SECTION_FETCH_ORDER),
+        )
+
+    def test_europe_uses_verified_official_feeds(self):
+        feeds = set(base.FEEDS["europe"])
+        self.assertIn(
+            "https://www.euronews.com/rss?format=mrss&level=vertical&name=my-europe",
+            feeds,
+        )
+        self.assertIn("https://www.france24.com/en/europe/rss", feeds)
+        self.assertIn(
+            "https://www.consilium.europa.eu/en/rss/pressreleases.ashx",
+            feeds,
+        )
+        self.assertNotIn("https://feeds.reuters.com/reuters/worldNews", feeds)
+        self.assertNotIn("https://apnews.com/hub/ap-top-news?output=rss", feeds)
+
     def test_finalizer_requires_homepage_quality_metadata(self):
         sections = self.empty_sections()
         for index, section in enumerate(sections, 1):

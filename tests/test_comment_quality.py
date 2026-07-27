@@ -638,6 +638,92 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(1, post.call_count)
         self.assertTrue(all(approved for approved, _reason in result.values()))
 
+    def test_article_batch_failure_is_split_without_losing_candidates(self):
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        candidates = [
+            {
+                "id": f"en-{index}",
+                "title": f"Government publishes programme rules {index}",
+                "link": f"https://example.com/article-{index}",
+                "article_text": "Source material. " * 80,
+            }
+            for index in range(2)
+        ]
+
+        def generate(*, messages, **_kwargs):
+            prompt = messages[-1]["content"]
+            ids = [candidate["id"] for candidate in candidates if candidate["id"] in prompt]
+            if len(ids) > 1:
+                raise RuntimeError("request too large")
+            return {"items": [{"id": ids[0], "full_brief": VALID_EN}]}
+
+        with (
+            mock.patch.object(reader, "get_ai_runtime", return_value=runtime),
+            mock.patch.object(reader, "request_json_completion", side_effect=generate) as request,
+            mock.patch.object(
+                reader,
+                "independent_ai_review_batch",
+                side_effect=lambda **kwargs: {
+                    entry["id"]: (True, "approved")
+                    for entry in kwargs["entries"]
+                },
+            ),
+        ):
+            result = reader.ai_summarize_batch(candidates, "en", {})
+
+        self.assertEqual({"en-0", "en-1"}, set(result))
+        self.assertEqual(3, request.call_count)
+
+    def test_review_batch_failure_is_split_without_losing_reviews(self):
+        entries = [
+            {
+                "id": f"en-{index}",
+                "title": f"Government publishes programme rules {index}",
+                "source_text": "The source confirms the programme rules.",
+                "summary": VALID_EN,
+            }
+            for index in range(2)
+        ]
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+
+        def review(*, messages, **_kwargs):
+            prompt = messages[-1]["content"]
+            ids = [entry["id"] for entry in entries if entry["id"] in prompt]
+            if len(ids) > 1:
+                raise RuntimeError("request too large")
+            return {
+                "reviews": [
+                    {"id": ids[0], "approved": True, "reason": "approved"}
+                ]
+            }
+
+        with mock.patch.object(
+            quality,
+            "request_json_completion",
+            side_effect=review,
+        ) as request:
+            result = quality.independent_ai_review_batch(
+                post=mock.Mock(),
+                runtime=runtime,
+                entries=entries,
+                lang="en",
+            )
+
+        self.assertTrue(all(approved for approved, _reason in result.values()))
+        self.assertEqual(3, request.call_count)
+
     def test_read_timeouts_are_bounded_to_two_attempts(self):
         class ReadTimeout(Exception):
             pass

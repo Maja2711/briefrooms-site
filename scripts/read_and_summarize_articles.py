@@ -300,7 +300,8 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
 
     generated: dict[str, str] = {}
     candidate_by_id = {candidate["id"]: candidate for candidate in pending}
-    for chunk in chunks:
+
+    def generate_chunk(chunk: list[dict]) -> None:
         source_items = [
             {
                 "id": candidate["id"],
@@ -364,7 +365,20 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                 else:
                     print(f"[WARN] batch comment rejected: {candidate_by_id[item_id]['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
         except Exception as exc:
+            if len(chunk) > 1:
+                midpoint = len(chunk) // 2
+                print(
+                    f"[WARN] AI article batch failed ({lang}, {len(chunk)} items); "
+                    "retrying smaller batches",
+                    file=sys.stderr,
+                )
+                generate_chunk(chunk[:midpoint])
+                generate_chunk(chunk[midpoint:])
+                return
             print(f"[WARN] AI article batch failed ({lang}, {len(chunk)} items): {exc}", file=sys.stderr)
+
+    for chunk in chunks:
+        generate_chunk(chunk)
 
     review_entries = [
         {
