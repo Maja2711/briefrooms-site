@@ -104,8 +104,8 @@
       "symbol": "ES=F",
       "label_pl": "S&P 500 futures",
       "label_en": "S&P 500 futures",
-      "direction": "neutral",
-      "score": 21,
+      "direction": "long",
+      "score": 57.0,
       "signal_strength": 0.21,
       "confidence": 0.21,
       "confidence_type": "heuristic_signal_strength_not_probability",
@@ -140,29 +140,40 @@
       },
       "risk_distance": {
         "source": "ATR14_sqrt5_frozen_at_forecast",
-        "stop_price_distance": 99.30936905,
-        "take_price_distance": 162.50624026,
-        "stop_units": 99.3094,
-        "take_units": 162.5062,
+        "stop_price_distance": 100.01213327,
+        "take_price_distance": 163.65621808,
+        "stop_units": 100.0121,
+        "take_units": 163.6562,
         "reward_to_risk": 1.6364
       },
       "entry_thresholds": {
         "long": 35.0,
         "short": -42.0
       },
-      "entry_price": null,
-      "entry_captured_at": null,
-      "entry_source": null,
-      "entry_quality_status": "waiting_for_first_completed_5m_bar_after_decision",
-      "trade_status": "planned",
-      "risk_plan": null,
+      "entry_price": 7511.25,
+      "entry_captured_at": "2026-07-27T08:55:00+02:00",
+      "entry_source": "Yahoo Finance:ES=F:5m:first_bar_at_or_after_target",
+      "entry_quality_status": "v4_mandatory_monday",
+      "trade_status": "open",
+      "risk_plan": {
+        "model_version": "2.0.0",
+        "created_from_frozen_forecast": true,
+        "generated_at": "2026-07-27T11:38:22+02:00",
+        "direction": "long",
+        "stop_loss_price": 7411.23786673,
+        "take_profit_price": 7674.90621808,
+        "stop_loss_distance": 100.01213327,
+        "take_profit_distance": 163.65621808,
+        "reward_to_risk": 1.6364,
+        "same_bar_rule": "stop_loss_first_conservative"
+      },
       "exit_price": null,
       "exit_captured_at": null,
       "exit_source": null,
       "exit_reason": null,
-      "result": "no_trade",
-      "result_value": 0.0,
-      "result_percent": 0.0,
+      "result": null,
+      "result_value": null,
+      "result_percent": null,
       "rationale_pl": [
         "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pliku z niedzielnego przebiegu.",
         "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
@@ -172,74 +183,95 @@
         "The continuous-exposure layer remains an experimental paper-trading exercise only."
       ],
       "validation_gate": "enabled_for_paper_trading",
-      "pending_entry_decision": {
-        "decided_at": "2026-07-27T08:50:39+02:00",
-        "entry_not_before": "2026-07-27T08:50:39+02:00",
-        "decision": {
-          "direction": "long",
-          "raw_score": 57.0,
-          "conviction": 8.55,
-          "strategy_id": "weekly_trend",
-          "learning_count": 0,
-          "learning_adjustment": 0.0,
-          "exploration_bonus": 2.5,
-          "utility": 11.05,
-          "candidates": {
-            "weekly_trend": {
-              "direction": "long",
-              "raw_score": 57.0,
-              "conviction": 8.55,
-              "strategy_id": "weekly_trend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 11.05
-            },
-            "daily_weekly_blend": {
-              "direction": "long",
-              "raw_score": 37.8,
-              "conviction": 5.67,
-              "strategy_id": "daily_weekly_blend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 8.17
-            },
-            "inverse_v2": {
-              "direction": "short",
-              "raw_score": -25.0,
-              "conviction": 3.75,
-              "strategy_id": "inverse_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 6.25
-            },
-            "base_v2": {
-              "direction": "long",
-              "raw_score": 25.0,
-              "conviction": 3.75,
-              "strategy_id": "base_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 6.25
-            },
-            "ema_mean_reversion": {
-              "direction": "long",
-              "raw_score": 1.4165740226862384,
-              "conviction": 0.2125,
-              "strategy_id": "ema_mean_reversion",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 2.7125
-            }
+      "pending_entry_decision": null,
+      "forecast_direction": "neutral",
+      "forecast_score": 21,
+      "continuous_entry_decision": {
+        "direction": "long",
+        "raw_score": 57.0,
+        "conviction": 8.55,
+        "strategy_id": "weekly_trend",
+        "learning_count": 0,
+        "learning_adjustment": 0.0,
+        "exploration_bonus": 2.5,
+        "utility": 11.05,
+        "candidates": {
+          "weekly_trend": {
+            "direction": "long",
+            "raw_score": 57.0,
+            "conviction": 8.55,
+            "strategy_id": "weekly_trend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 11.05
           },
-          "decided_at": "2026-07-27T08:50:39+02:00",
-          "validation_gate": "enabled_for_paper_trading"
+          "daily_weekly_blend": {
+            "direction": "long",
+            "raw_score": 37.8,
+            "conviction": 5.67,
+            "strategy_id": "daily_weekly_blend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 8.17
+          },
+          "inverse_v2": {
+            "direction": "short",
+            "raw_score": -25.0,
+            "conviction": 3.75,
+            "strategy_id": "inverse_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 6.25
+          },
+          "base_v2": {
+            "direction": "long",
+            "raw_score": 25.0,
+            "conviction": 3.75,
+            "strategy_id": "base_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 6.25
+          },
+          "ema_mean_reversion": {
+            "direction": "long",
+            "raw_score": 1.4165740226862384,
+            "conviction": 0.2125,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 2.7125
+          }
         },
-        "fresh_signal": {
+        "decided_at": "2026-07-27T08:50:39+02:00",
+        "validation_gate": "enabled_for_paper_trading",
+        "regime": "trend_up:vol_normal",
+        "weekly_features": {
+          "data_quality": "passed",
+          "score": 57,
+          "regime": "trend_up:vol_normal",
+          "last_week_close": 7514.5,
+          "ema_fast": 7455.48160367,
+          "ema_slow": 7194.81512766,
+          "weekly_atr13": 183.69230769,
+          "return_4w_percent": -0.1826,
+          "return_13w_percent": 3.534,
+          "volatility_ratio_13w_52w": 0.8776,
+          "range_26w_position": 0.9125,
+          "components": {
+            "trend": 33.11,
+            "momentum_fast": -1.06,
+            "momentum_slow": 9.11,
+            "breakout": 12.37,
+            "last_candle": 3.6,
+            "volatility_scale": 1.0
+          }
+        },
+        "fresh_v2_signal": {
           "direction": "neutral",
           "score": 25,
           "signal_strength": 0.25,
@@ -282,30 +314,18 @@
             "take_units": 163.6562,
             "reward_to_risk": 1.6364
           }
-        },
-        "weekly_signal": {
-          "data_quality": "passed",
-          "score": 57,
-          "regime": "trend_up:vol_normal",
-          "last_week_close": 7514.5,
-          "ema_fast": 7455.48160367,
-          "ema_slow": 7194.81512766,
-          "weekly_atr13": 183.69230769,
-          "return_4w_percent": -0.1826,
-          "return_13w_percent": 3.534,
-          "volatility_ratio_13w_52w": 0.8776,
-          "range_26w_position": 0.9125,
-          "components": {
-            "trend": 33.11,
-            "momentum_fast": -1.06,
-            "momentum_slow": 9.11,
-            "breakout": 12.37,
-            "last_candle": 3.6,
-            "volatility_scale": 1.0
-          }
-        },
-        "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
-      }
+        }
+      },
+      "continuous_entry_regime": "trend_up:vol_normal",
+      "risk_status": "open_multi_instrument_continuous_exposure",
+      "continuous_exposure_active": true,
+      "continuous_exposure_status": "open",
+      "continuous_exposure_policy_version": "4.0.0",
+      "continuous_reentry_count": 0,
+      "last_risk_review_at": "2026-07-27T08:55:00+02:00",
+      "entry_decision_at": "2026-07-27T08:50:39+02:00",
+      "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
+      "next_entry_status": "open"
     },
     {
       "instrument_id": "btcusd",
@@ -405,6 +425,6 @@
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-07-27T08:50:42+02:00"
+    "last_checked_at": "2026-07-27T11:38:24+02:00"
   }
 }
