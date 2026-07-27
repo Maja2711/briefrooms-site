@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,6 +13,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import normalize_home_publish_count
 from validate_news_home_publish import (
     ALLOWED_HOMEPAGE_COUNTS,
     assert_fresh,
@@ -47,6 +50,47 @@ class NewsHomePublishValidationTests(unittest.TestCase):
             homepage_timestamp(source, "en"),
             parse_datetime("2026-07-24T21:37+00:00"),
         )
+
+    def test_normalizer_skips_stale_rendered_card_not_in_current_feed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            feed_path = root / "home_brief.json"
+            index_path = root / "index.html"
+            valid_links = [f"/pl/briefy/current-{index}.html" for index in range(8)]
+            feed_path.write_text(
+                json.dumps(
+                    {
+                        "count": 8,
+                        "latest": [
+                            {"permalink": link, "title": f"Current {index}"}
+                            for index, link in enumerate(valid_links)
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            cards = [
+                '<a class="brief-card" href="/pl/briefy/stale.html">Stale</a>',
+                *[
+                    f'<a class="brief-card" href="{link}">Current</a>'
+                    for link in valid_links
+                ],
+            ]
+            index_path.write_text(
+                normalize_home_publish_count.START
+                + "\n".join(cards)
+                + normalize_home_publish_count.END,
+                encoding="utf-8",
+            )
+            original = normalize_home_publish_count.PATHS["pl"]
+            normalize_home_publish_count.PATHS["pl"] = (feed_path, index_path)
+            try:
+                self.assertEqual(normalize_home_publish_count.normalize("pl"), 8)
+            finally:
+                normalize_home_publish_count.PATHS["pl"] = original
+            normalized = index_path.read_text(encoding="utf-8")
+            self.assertNotIn("stale.html", normalized)
+            self.assertEqual(normalized.count('class="brief-card"'), 8)
 
 
 if __name__ == "__main__":
