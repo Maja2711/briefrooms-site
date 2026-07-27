@@ -1,15 +1,15 @@
 {
-  "method_version": "2.0.0",
+  "method_version": "2.1.0-continuous-exposure",
   "name": "BriefRooms Weekly Market Direction Model",
-  "model_status": "paper_trading_only_sp500_provisional",
-  "language_note": "Version 2.0.0 replaces the unvalidated prototype. Forecasts are frozen before the week, neutral signals never receive entries, volatility is an actual model input, entry and exit timestamps are reconstructed from fixed target windows, and closed history is not rewritten.",
+  "model_status": "paper_trading_only_continuous_exposure",
+  "language_note": "Every enabled instrument must hold a LONG or SHORT paper position. Neutral signals are resolved by the strategy tournament and instrument default tie direction. No real broker orders are sent.",
   "timezone": "Europe/Warsaw",
   "market_window": {
     "forecast_day": "Sunday",
     "entry_target": "Monday 08:00 Europe/Warsaw",
     "entry_latest": "Monday 10:00 Europe/Warsaw",
     "planned_exit": "Friday 22:00 Europe/Warsaw",
-    "entry_execution": "first available 5-minute bar at or after the fixed target",
+    "entry_execution": "first available 5-minute bar at or after the fixed decision timestamp",
     "scheduled_exit_execution": "first available 5-minute bar at or after the fixed target",
     "same_bar_sl_tp_rule": "stop_loss_first_conservative"
   },
@@ -24,8 +24,8 @@
       "pip_size": 0.0001,
       "notional_eur": 10000,
       "result_currency": "USD",
-      "enabled_for_new_positions": false,
-      "validation_gate_reason": "disabled_after_negative_fixed_rule_validation_after_costs"
+      "enabled_for_new_positions": true,
+      "validation_gate_reason": "continuous_paper_exposure_required_not_a_live_validation_claim"
     },
     {
       "id": "sp500_futures",
@@ -38,7 +38,7 @@
       "notional_usd": 10000,
       "result_currency": "USD",
       "enabled_for_new_positions": true,
-      "validation_gate_reason": "provisional_paper_trading_only_positive_fixed_rule_test_not_live_validated"
+      "validation_gate_reason": "continuous_paper_exposure_required_not_a_live_validation_claim"
     },
     {
       "id": "btcusd",
@@ -50,124 +50,60 @@
       "point_size": 1.0,
       "notional_usd": 10000,
       "result_currency": "USD",
-      "enabled_for_new_positions": false,
-      "validation_gate_reason": "disabled_after_negative_fixed_rule_validation_and_excess_drawdown"
+      "enabled_for_new_positions": true,
+      "validation_gate_reason": "continuous_paper_exposure_required_not_a_live_validation_claim"
     }
   ],
   "signal_model": {
     "minimum_daily_closes": 260,
-    "trend_components": {
-      "ema20_vs_ema50_normalized_by_atr14": 20,
-      "last_close_vs_ema20_normalized_by_atr14": 10
-    },
-    "momentum_components": {
-      "five_day_return_normalized_by_realized_volatility": 15,
-      "twenty_day_return_normalized_by_realized_volatility": 20
-    },
-    "breakout_component": {
-      "position_in_prior_55_day_range": 15
-    },
-    "volatility_regime": {
-      "input": "annualized 20-day volatility divided by annualized 60-day volatility",
-      "rule": "high volatility scales down the directional score instead of adding directional points"
-    },
-    "agreement_rule": "at least two of trend, momentum and breakout groups must agree with the direction",
+    "trend_components": {"ema20_vs_ema50_normalized_by_atr14": 20, "last_close_vs_ema20_normalized_by_atr14": 10},
+    "momentum_components": {"five_day_return_normalized_by_realized_volatility": 15, "twenty_day_return_normalized_by_realized_volatility": 20},
+    "breakout_component": {"position_in_prior_55_day_range": 15},
+    "volatility_regime": {"input": "annualized 20-day volatility divided by annualized 60-day volatility", "rule": "high volatility scales down the directional score instead of adding directional points"},
+    "agreement_rule": "Strategy tournament selects a directional candidate even when the base signal is neutral.",
     "manual_override_rule": "manual macro overrides are ignored unless timestamped before forecast creation and explicitly marked valid for the forecast week",
     "confidence_definition": "heuristic signal strength only; never a probability of success"
   },
   "manual_overrides": {
-    "eurusd": {
-      "macro_bias": 0,
-      "event_risk_penalty": 0,
-      "valid_for_week": "",
-      "set_at": null
-    },
-    "sp500_futures": {
-      "macro_bias": 0,
-      "event_risk_penalty": 0,
-      "valid_for_week": "",
-      "set_at": null
-    },
-    "btcusd": {
-      "macro_bias": 0,
-      "event_risk_penalty": 0,
-      "valid_for_week": "",
-      "set_at": null
-    }
+    "eurusd": {"macro_bias": 0, "event_risk_penalty": 0, "valid_for_week": "", "set_at": null},
+    "sp500_futures": {"macro_bias": 0, "event_risk_penalty": 0, "valid_for_week": "", "set_at": null},
+    "btcusd": {"macro_bias": 0, "event_risk_penalty": 0, "valid_for_week": "", "set_at": null}
   },
   "decision_rules": {
-    "neutral_label": "neutral/no-trade",
+    "neutral_label": "direction_resolved_by_tournament_or_default_tie_direction",
+    "continuous_position_required": true,
     "entry_thresholds": {
-      "eurusd": {
-        "long": 35,
-        "short": -35
-      },
-      "sp500_futures": {
-        "long": 35,
-        "short": -42
-      },
-      "btcusd": {
-        "long": 45,
-        "short": -45
-      }
+      "eurusd": {"long": 35, "short": -35},
+      "sp500_futures": {"long": 35, "short": -42},
+      "btcusd": {"long": 45, "short": -45}
     }
   },
   "risk_model": {
-    "source": "ATR14 multiplied by square root of five and frozen at forecast time",
+    "source": "ATR14 multiplied by square root of five and frozen at decision time",
     "stop_atr_week_multiplier": 0.55,
     "take_atr_week_multiplier": 0.9,
     "same_bar_rule": "stop loss first when both SL and TP are inside one 5-minute bar",
-    "reentry_after_stop_loss": false,
+    "reentry_after_stop_loss": true,
     "unit_limits": {
-      "eurusd": {
-        "min_stop_units": 35,
-        "max_stop_units": 95,
-        "min_take_units": 55,
-        "max_take_units": 150
-      },
-      "sp500_futures": {
-        "min_stop_units": 55,
-        "max_stop_units": 170,
-        "min_take_units": 85,
-        "max_take_units": 260
-      },
-      "btcusd": {
-        "min_stop_units": 3.5,
-        "max_stop_units": 6.0,
-        "min_take_units": 5.5,
-        "max_take_units": 9.5
-      }
+      "eurusd": {"min_stop_units": 35, "max_stop_units": 95, "min_take_units": 55, "max_take_units": 150},
+      "sp500_futures": {"min_stop_units": 55, "max_stop_units": 170, "min_take_units": 85, "max_take_units": 260},
+      "btcusd": {"min_stop_units": 3.5, "max_stop_units": 6.0, "min_take_units": 5.5, "max_take_units": 9.5}
     }
   },
   "validation": {
-    "status": "eurusd_and_btc_failed_fixed_rule_test_sp500_provisional_only",
+    "status": "paper_trading_continuous_exposure_experiment_not_live_validated",
     "last_report": "data/investments/model_validation_v2.json",
-    "policy": "Do not retune failed instruments after seeing test results. Disable them and require a separately specified future model version plus new validation.",
-    "transaction_cost_assumptions": {
-      "eurusd_round_trip_pips": 1.5,
-      "sp500_futures_round_trip_points": 1.0,
-      "btcusd_round_trip_percent": 0.2
-    },
-    "minimum_requirements_before_claiming_validation": {
-      "aggregate_closed_trades": 150,
-      "minimum_trades_per_instrument": 40,
-      "positive_net_expectancy_after_costs": true,
-      "profit_factor_above": 1.05,
-      "maximum_drawdown_below_percent": 20
-    },
-    "live_paper_requirement": {
-      "minimum_closed_positions": 30,
-      "must_be_positive_after_costs": true,
-      "must_match_frozen_forecast_and_execution_rules": true
-    }
+    "policy": "Historical validation results remain disclosed, but do not disable experimental paper positions. Never describe these positions as validated live signals.",
+    "transaction_cost_assumptions": {"eurusd_round_trip_pips": 1.5, "sp500_futures_round_trip_points": 1.0, "btcusd_round_trip_percent": 0.2},
+    "minimum_requirements_before_claiming_validation": {"aggregate_closed_trades": 150, "minimum_trades_per_instrument": 40, "positive_net_expectancy_after_costs": true, "profit_factor_above": 1.05, "maximum_drawdown_below_percent": 20},
+    "live_paper_requirement": {"minimum_closed_positions": 30, "must_be_positive_after_costs": true, "must_match_frozen_forecast_and_execution_rules": true}
   },
   "publishing_rules": {
     "forecast_must_include_method_version": true,
     "forecast_must_include_hash": true,
     "do_not_edit_closed_history": true,
-    "do_not_open_neutral_scenarios": true,
-    "do_not_open_instruments_disabled_by_validation_gate": true,
-    "do_not_use_current_price_as_late_entry_or_late_close_fallback": true,
+    "open_direction_for_every_enabled_instrument": true,
+    "do_not_use_current_price_as_retroactive_entry": true,
     "show_educational_disclaimer": true,
     "use_model_scenario_language_only": true,
     "avoid_order_instruction_language": true
