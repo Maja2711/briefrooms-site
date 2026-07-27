@@ -1,0 +1,98 @@
+name: Keep Weekly Paper Positions Open
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/investments-weekly-exposure-watchdog.yml"
+      - "scripts/investments_weekly_v4.py"
+      - "scripts/render_simple_investments.py"
+      - "data/investments/methodology.json"
+      - "data/investments/multi_instrument_exposure_policy.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investments-paper-publishing
+  cancel-in-progress: false
+
+jobs:
+  keep-open:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install market data dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
+
+      - name: Open every missing paper position
+        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
+
+      - name: Verify all enabled instruments are open
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(ZoneInfo('Europe/Warsaw'))
+          iso = now.isocalendar()
+          week_id = f"{iso.year}-W{iso.week:02d}"
+          week_path = Path(f'data/investments/weekly/{week_id}.json')
+          if not week_path.exists():
+              raise SystemExit(f'Missing current week: {week_path}')
+          week = json.loads(week_path.read_text(encoding='utf-8'))
+          policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
+          required = {str(x['instrument_id']) for x in policy.get('instruments', []) if x.get('enabled')}
+          rows = {str(x.get('instrument_id')): x for x in week.get('instruments', [])}
+          failures = []
+          for instrument_id in sorted(required):
+              item = rows.get(instrument_id) or {}
+              opened = (
+                  item.get('direction') in {'long', 'short'}
+                  and item.get('entry_price') is not None
+                  and item.get('exit_price') is None
+                  and item.get('trade_status') == 'open'
+              )
+              if not opened:
+                  failures.append(
+                      f"{instrument_id}: direction={item.get('direction')} "
+                      f"entry={item.get('entry_price')} status={item.get('trade_status')}"
+                  )
+          if failures:
+              raise SystemExit('Enabled instruments are not all open:\n' + '\n'.join(failures))
+          print('All enabled weekly paper positions are OPEN.')
+          PY
+
+      - name: Render PL and EN pages
+        run: python scripts/render_simple_investments.py
+
+      - name: Commit open positions and rendered pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json \
+                  data/investments/weekly \
+                  data/investments/multi_instrument_exposure_state.json \
+                  data/investments/multi_instrument_exposure_report.json \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "All positions already open; no commit needed."
+          else
+            git commit -m "Keep every weekly paper position open"
+            git pull --rebase origin main
+            git push
+          fi
