@@ -709,7 +709,8 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", publisher)
         self.assertIn("workflow_call:", publisher)
         self.assertIn("git merge --ff-only origin/main", publisher)
-        self.assertIn("refusing stale output", publisher)
+        self.assertIn("--refresh-plan", publisher)
+        self.assertIn("News inputs changed during preparation", publisher)
         self.assertNotIn("git pull --rebase", publisher)
 
         watchdog_workflow = (

@@ -21,6 +21,7 @@ from scripts.publish_news import (
     failed_manifest,
     prepare,
     promote,
+    refresh_plan,
     repository_fingerprint,
 )
 
@@ -38,6 +39,50 @@ def context(run_id: str, hour: int) -> PublicationContext:
 
 
 class AtomicNewsPublicationTests(unittest.TestCase):
+    def test_failed_attempt_preserves_ai_cache_for_the_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sandbox = Path(directory)
+            repository = sandbox / "repository"
+            copy_repository(ROOT, repository)
+            stage = sandbox / "stage"
+
+            def fail_after_cache(site_root: Path, _diagnostics: Path) -> None:
+                cache = site_root / ".cache/retry-proof.json"
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text('{"approved": true}\n', encoding="utf-8")
+                raise PublicationError("transient provider failure")
+
+            with mock.patch(
+                "scripts.publish_news.run_production_build",
+                side_effect=fail_after_cache,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationError,
+                    "transient provider failure",
+                ):
+                    prepare(repository, stage, context("retry-first", 8))
+
+            prepare(repository, stage, context("retry-second", 9), FIXTURES)
+            self.assertTrue((stage / "site/.cache/retry-proof.json").is_file())
+
+    def test_plan_refresh_allows_unrelated_main_data_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sandbox = Path(directory)
+            repository = sandbox / "repository"
+            copy_repository(ROOT, repository)
+            stage = sandbox / "stage"
+            prepare(repository, stage, context("refresh-plan", 9), FIXTURES)
+
+            unrelated = repository / "data/investments/unrelated.json"
+            unrelated.parent.mkdir(parents=True, exist_ok=True)
+            unrelated.write_text('{"updated": true}\n', encoding="utf-8")
+            refresh_plan(repository, stage)
+
+            generator_change = repository / "scripts/new-news-input.py"
+            generator_change.write_text("VALUE = 1\n", encoding="utf-8")
+            with self.assertRaisesRegex(PublicationError, "generator inputs changed"):
+                refresh_plan(repository, stage)
+
     def test_production_pipeline_enforces_external_homepage_photos(self) -> None:
         commands = {name: script for name, script, *_args in PRODUCTION_COMMANDS}
         self.assertEqual(

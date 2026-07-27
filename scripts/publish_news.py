@@ -64,6 +64,13 @@ SHARED_PATHS = (
     Path("data/news_publication_status.json"),
     Path("data/news_source_report.json"),
 )
+BUILD_INPUT_PATHS = (
+    Path("scripts"),
+    Path("data/external_media_policy.json"),
+    Path("data/content_update_contract.json"),
+    Path("assets/site.css"),
+    Path(".github/workflows/publish-news.yml"),
+)
 IGNORED_COPY_NAMES = {
     ".git",
     ".build",
@@ -307,12 +314,18 @@ def run_command(
         handle.write(result.stdout or "")
         handle.write(result.stderr or "")
     if result.returncode != 0:
+        output = "\n".join(
+            (str(result.stdout or "") + "\n" + str(result.stderr or "")).splitlines()[-80:]
+        )
+        if output:
+            print(f"\n===== {label} failure tail =====\n{output}", file=sys.stderr)
         raise PublicationError(f"{label} failed with exit code {result.returncode}")
 
 
 def run_production_build(stage_root: Path, diagnostics_dir: Path) -> None:
-    events_path = diagnostics_dir / "source-events.jsonl"
-    commands_log = diagnostics_dir / "commands.log"
+    attempt = len(list(diagnostics_dir.glob("commands-attempt-*.log"))) + 1
+    events_path = diagnostics_dir / f"source-events-attempt-{attempt}.jsonl"
+    commands_log = diagnostics_dir / f"commands-attempt-{attempt}.log"
     env = os.environ.copy()
     env.update(
         {
@@ -329,6 +342,7 @@ def run_production_build(stage_root: Path, diagnostics_dir: Path) -> None:
             env=env,
             log_path=commands_log,
         )
+    shutil.copy2(events_path, diagnostics_dir / "source-events.jsonl")
 
 
 def _fixture_entries(path: Path) -> list[dict[str, Any]]:
@@ -693,6 +707,17 @@ def repository_fingerprint(root: Path) -> str:
     return digest.hexdigest()
 
 
+def repository_build_input_fingerprint(root: Path) -> str:
+    digest = hashlib.sha256()
+    for relative in BUILD_INPUT_PATHS:
+        digest.update(relative.as_posix().encode("utf-8"))
+        path = root / relative
+        digest.update(b"1" if path.exists() else b"0")
+        if path.exists():
+            digest.update(_path_hash(path).encode("ascii"))
+    return digest.hexdigest()
+
+
 def changed_paths(source_root: Path, stage_root: Path) -> list[str]:
     changed = []
     for relative in controlled_paths():
@@ -742,7 +767,13 @@ def prepare(
 ) -> dict[str, Any]:
     site_root = stage_dir / "site"
     diagnostics_dir = stage_dir / "diagnostics"
+    retry_cache = stage_dir / "retry-cache"
+    previous_cache = site_root / ".cache"
+    if previous_cache.is_dir():
+        shutil.copytree(previous_cache, retry_cache, dirs_exist_ok=True)
     copy_repository(source_root, site_root)
+    if retry_cache.is_dir():
+        shutil.copytree(retry_cache, site_root / ".cache", dirs_exist_ok=True)
     diagnostics_dir.mkdir(parents=True, exist_ok=True)
     try:
         if fixture_dir:
@@ -787,13 +818,41 @@ def prepare(
                 "site_root": str(site_root.resolve()),
                 "source_commit_sha": context.source_commit_sha,
                 "source_fingerprint": repository_fingerprint(source_root),
+                "source_input_fingerprint": repository_build_input_fingerprint(
+                    source_root
+                ),
                 "changed_paths": changed,
             },
         )
         return manifest
     except Exception as exc:
+        current_cache = site_root / ".cache"
+        if current_cache.is_dir():
+            shutil.copytree(current_cache, retry_cache, dirs_exist_ok=True)
         write_json(diagnostics_dir / "failed-manifest.json", failed_manifest(context, exc))
         raise
+
+
+def refresh_plan(source_root: Path, stage_dir: Path) -> dict[str, Any]:
+    plan_path = stage_dir / "publication-plan.json"
+    plan = load_json(plan_path)
+    if not plan or Path(str(plan.get("source_root"))).resolve() != source_root.resolve():
+        raise PublicationError("publication plan does not belong to this repository")
+    if repository_fingerprint(source_root) != str(plan.get("source_fingerprint") or ""):
+        raise PublicationError(
+            "news publication files changed on main; publication must be regenerated"
+        )
+    if repository_build_input_fingerprint(source_root) != str(
+        plan.get("source_input_fingerprint") or ""
+    ):
+        raise PublicationError(
+            "news generator inputs changed on main; publication must be regenerated"
+        )
+    plan["source_commit_sha"] = _source_commit(source_root)
+    plan["source_fingerprint"] = repository_fingerprint(source_root)
+    plan["source_input_fingerprint"] = repository_build_input_fingerprint(source_root)
+    write_json(plan_path, plan)
+    return plan
 
 
 def promote(source_root: Path, stage_dir: Path) -> list[str]:
@@ -840,6 +899,7 @@ def parse_args() -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--prepare", action="store_true")
     mode.add_argument("--promote", action="store_true")
+    mode.add_argument("--refresh-plan", action="store_true")
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--stage-dir", type=Path, required=True)
     parser.add_argument("--run-id", default=os.environ.get("GITHUB_RUN_ID", "local"))
@@ -852,6 +912,18 @@ def main() -> int:
     args = parse_args()
     root = args.root.resolve()
     stage_dir = args.stage_dir.resolve()
+    if args.refresh_plan:
+        plan = refresh_plan(root, stage_dir)
+        print(
+            json.dumps(
+                {
+                    "refreshed": True,
+                    "source_commit_sha": plan.get("source_commit_sha"),
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 0
     if args.promote:
         changed = promote(root, stage_dir)
         print(json.dumps({"promoted": changed}, ensure_ascii=False))
