@@ -804,6 +804,13 @@ class PipelineContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("uses: ./.github/workflows/publish-news.yml", watchdog_workflow)
         self.assertIn('cron: "25 * * * *"', watchdog_workflow)
+        self.assertIn("actions: read", watchdog_workflow)
+        self.assertIn('workflow_id: "publish-news.yml"', watchdog_workflow)
+        self.assertIn("PUBLISHER_ACTIVE", watchdog_workflow)
+        self.assertIn(
+            "needs.check.outputs.publisher_active != 'true'",
+            watchdog_workflow,
+        )
         for retired in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
