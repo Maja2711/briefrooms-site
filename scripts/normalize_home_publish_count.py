@@ -31,22 +31,20 @@ def normalize(lang: str) -> int:
         raise AssertionError(f"{lang}: homepage end marker missing")
 
     cards = CARD_RE.findall(block)
-    if len(cards) < 8:
-        raise AssertionError(f"{lang}: only {len(cards)} rendered homepage cards")
-    target = 10 if len(cards) >= 10 else 8
-    selected_cards = cards[:target]
-    selected_links = [href for _, href in selected_cards]
 
     latest = feed.get("latest")
     if not isinstance(latest, list):
         raise AssertionError(f"{lang}: homepage feed latest is not a list")
     by_link = {str(item.get("permalink", "")): item for item in latest}
-    selected_items = []
-    for link in selected_links:
-        item = by_link.get(link)
-        if item is None:
-            raise AssertionError(f"{lang}: rendered card missing from feed: {link}")
-        selected_items.append(item)
+    matching_cards = [(card, href) for card, href in cards if href in by_link]
+    if len(matching_cards) < 8:
+        raise AssertionError(
+            f"{lang}: only {len(matching_cards)} rendered homepage cards match the current feed"
+        )
+    target = 10 if len(matching_cards) >= 10 else 8
+    selected_cards = matching_cards[:target]
+    selected_links = [href for _, href in selected_cards]
+    selected_items = [by_link[link] for link in selected_links]
 
     feed["latest"] = selected_items
     feed["count"] = target
