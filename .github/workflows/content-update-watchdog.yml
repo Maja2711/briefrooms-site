@@ -6,6 +6,7 @@ on:
     - cron: "25 * * * *"
 
 permissions:
+  actions: read
   contents: write
   issues: write
   models: read
@@ -18,12 +19,43 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      recovery_needed: ${{ steps.watch.outputs.recovery_needed }}
+      publisher_active: ${{ steps.publisher.outputs.active }}
+      recovery_needed: ${{ steps.recovery.outputs.recovery_needed }}
     steps:
       - name: Check out latest main
         uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Detect an active atomic publisher
+        id: publisher
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const activeStates = new Set([
+              "queued",
+              "in_progress",
+              "waiting",
+              "pending",
+              "requested"
+            ]);
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "publish-news.yml",
+              per_page: 100
+            });
+            const active = response.data.workflow_runs.filter(
+              run => activeStates.has(run.status)
+            );
+            core.setOutput("active", active.length > 0 ? "true" : "false");
+            if (active.length > 0) {
+              core.info(
+                `Atomic publisher already active: ${active.map(run => `#${run.id} (${run.status})`).join(", ")}`
+              );
+            } else {
+              core.info("No atomic publisher is currently active.");
+            }
 
       - name: Inspect fetch, publication and production health
         id: watch
@@ -34,6 +66,18 @@ jobs:
             --interval 10 \
             --github-output "$GITHUB_OUTPUT" \
             --output "$RUNNER_TEMP/content-update-health.json"
+
+      - name: Decide whether recovery may start
+        id: recovery
+        env:
+          HEALTH_RECOVERY_NEEDED: ${{ steps.watch.outputs.recovery_needed }}
+          PUBLISHER_ACTIVE: ${{ steps.publisher.outputs.active }}
+        run: |
+          if [[ "$HEALTH_RECOVERY_NEEDED" == "true" && "$PUBLISHER_ACTIVE" != "true" ]]; then
+            echo "recovery_needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "recovery_needed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload watchdog diagnostics
         uses: actions/upload-artifact@v4
@@ -55,6 +99,7 @@ jobs:
     if: >-
       always() &&
       needs.check.result == 'success' &&
+      needs.check.outputs.publisher_active != 'true' &&
       (needs.recover.result == 'success' || needs.recover.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +119,10 @@ jobs:
 
   alarm:
     needs: [check, recover, postcheck]
-    if: always() && needs.postcheck.result != 'success'
+    if: >-
+      always() &&
+      needs.check.outputs.publisher_active != 'true' &&
+      needs.postcheck.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Create or update the single publication alarm
