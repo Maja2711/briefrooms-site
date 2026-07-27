@@ -178,13 +178,22 @@ def deduplicate_sections(
     result = {key: [] for key in sections}
     for section, items in sections.items():
         for item in items:
+            # A matching URL is allowed against history so the current
+            # last-good card can remain visible. That exception must never
+            # apply to another item selected in this same publication run.
             duplicate = next(
-                (
-                    old for old in history + selected
-                    if _canonical_url(item) != _canonical_url(old) and same_story(item, old)
-                ),
+                (current for current in selected if same_story(item, current)),
                 None,
             )
+            if duplicate is None:
+                duplicate = next(
+                    (
+                        old for old in history
+                        if _canonical_url(item) != _canonical_url(old)
+                        and same_story(item, old)
+                    ),
+                    None,
+                )
             if duplicate:
                 rejected.append({
                     "title": item.get("title", ""),
