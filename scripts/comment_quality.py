@@ -190,6 +190,7 @@ def request_json_completion(
     model = primary_model
     last_error: Exception | None = None
     for attempt in range(3):
+        status: int | None = None
         try:
             if runtime.provider == "github-models":
                 global _LAST_GITHUB_MODELS_REQUEST_AT
@@ -251,7 +252,12 @@ def request_json_completion(
         except Exception as exc:
             last_error = exc
             is_timeout = "timeout" in type(exc).__name__.lower()
-            if attempt >= 2 or (is_timeout and attempt >= 1):
+            permanent_http_error = (
+                status is not None
+                and 400 <= status < 500
+                and status != 429
+            )
+            if permanent_http_error or attempt >= 2 or (is_timeout and attempt >= 1):
                 break
     raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
 

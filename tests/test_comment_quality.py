@@ -749,6 +749,35 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual(2, post.call_count)
 
+    def test_permanent_ai_http_error_is_not_retried(self):
+        class BadRequestResponse:
+            status_code = 400
+            headers = {}
+
+            def raise_for_status(self):
+                raise RuntimeError("400 Bad Request")
+
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(return_value=BadRequestResponse())
+        with (
+            mock.patch.object(quality.time, "sleep"),
+            self.assertRaisesRegex(RuntimeError, "after retries"),
+        ):
+            quality.request_json_completion(
+                post=post,
+                runtime=runtime,
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=100,
+                temperature=0,
+            )
+        self.assertEqual(1, post.call_count)
+
     def test_github_models_requests_are_paced_when_configured(self):
         runtime = quality.AiRuntime(
             "github-models",
