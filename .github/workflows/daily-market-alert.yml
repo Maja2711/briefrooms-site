@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "scripts/update_daily_market_alert.py"
+      - "scripts/run_daily_market_alert_resilient.py"
       - "scripts/patch_daily_alert_ui.py"
       - "tests/test_daily_market_alert.py"
       - "tests/test_daily_market_alert_watchdog.py"
@@ -64,6 +65,7 @@ jobs:
       - name: Test daily alert contract
         run: |
           python -m unittest tests.test_daily_market_alert tests.test_daily_market_alert_watchdog -v
+          python -m py_compile scripts/run_daily_market_alert_resilient.py
 
       - name: Patch Daily Market Alert interface
         run: python scripts/patch_daily_alert_ui.py
@@ -99,23 +101,20 @@ jobs:
           delays=(0 60 180)
           for attempt in 1 2 3; do
             sleep "${delays[$((attempt-1))]}"
-            echo "Full alert attempt $attempt/3"
-            if python scripts/update_daily_market_alert.py --mode "${{ steps.mode.outputs.mode }}"; then
+            echo "Resilient alert attempt $attempt/3"
+            if python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"; then
               exit 0
             fi
             git restore --worktree -- data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
           done
-          echo "::error title=Daily Market Alert generation failed::All three full-process attempts failed."
+          echo "::error title=Daily Market Alert generation failed::All three resilient full-process attempts failed."
           exit 1
 
       - name: Validate generated alert
         if: steps.mode.outputs.mode != 'ui-only'
         run: |
-          if [[ -f data/investments/daily_market_alert.json ]] && grep -q '"schema_version": "2.0"' data/investments/daily_market_alert.json; then
-            python scripts/update_daily_market_alert.py --validate-only
-          else
-            echo "No schema 2.0 alert was generated in this run."
-          fi
+          test -f data/investments/daily_market_alert.json
+          python scripts/run_daily_market_alert_resilient.py --validate-only
 
       - name: Commit interface or alert updates
         shell: bash
