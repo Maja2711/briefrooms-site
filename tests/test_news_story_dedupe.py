@@ -52,6 +52,29 @@ class StoryDedupeTests(unittest.TestCase):
         implementation = {"title": "EU sanctions against Russia become effective after publication"}
         self.assertFalse(same_story(agreement, implementation))
 
+    def test_background_update_word_does_not_split_one_current_event(self):
+        first = {
+            "title": "Why has the US halted its bombing of Iran?",
+            "full_brief": (
+                "The United States halted the bombing campaign. "
+                "An earlier attack injured civilians."
+            ),
+        }
+        second = {
+            "title": "US pauses Iran attacks after Trump advised to halt bombing",
+            "full_brief": (
+                "President Trump was advised to pause the operation. "
+                "The decision covers the current bombing campaign."
+            ),
+        }
+        self.assertTrue(same_story(first, second))
+        sections, rejected = deduplicate_sections(
+            {"world": [first], "middle_east": [second]},
+        )
+        self.assertEqual([first], sections["world"])
+        self.assertEqual([], sections["middle_east"])
+        self.assertEqual(1, len(rejected))
+
     def test_history_blocks_another_source_but_allows_same_card_to_remain(self):
         old = {"title": "EU envoys approve sanctions against Russia", "link": "https://a.example/story"}
         same_url = dict(old)
