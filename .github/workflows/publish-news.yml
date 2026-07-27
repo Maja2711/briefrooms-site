@@ -102,11 +102,18 @@ jobs:
               --stage-dir "${STAGE_DIR}" \
               --run-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; then
               git fetch origin main
-              if [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]]; then
-                ready=true
-                break
+              if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+                git merge --ff-only origin/main
+                if ! python scripts/publish_news.py \
+                  --refresh-plan \
+                  --stage-dir "${STAGE_DIR}"; then
+                  echo "::warning::News inputs changed during preparation; rebuilding from the new main."
+                  sleep $((attempt * 30))
+                  continue
+                fi
               fi
-              echo "::warning::main changed during preparation; rebuilding from the new main."
+              ready=true
+              break
             else
               echo "::warning::Publication attempt ${attempt}/3 failed; last-good production remains untouched."
             fi
@@ -123,8 +130,10 @@ jobs:
           set -euo pipefail
           git fetch origin main
           if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::main changed before promotion; refusing stale output."
-            exit 1
+            git merge --ff-only origin/main
+            python scripts/publish_news.py \
+              --refresh-plan \
+              --stage-dir "${STAGE_DIR}"
           fi
           python scripts/publish_news.py --promote --stage-dir "${STAGE_DIR}"
 
