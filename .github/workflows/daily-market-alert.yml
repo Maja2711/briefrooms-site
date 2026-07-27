@@ -23,13 +23,12 @@ on:
       - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
-    # Candidate UTC times for 10:00 New York (30 minutes after open), EDT/EST.
+    # Two governed editions per NYSE session. Candidate UTC times cover EDT and EST.
+    # Non-matching DST candidates exit without publishing.
     - cron: "0 14 * * 1-5"
     - cron: "0 15 * * 1-5"
-    # Candidate UTC times for 12:30 New York on shortened sessions, EDT/EST.
     - cron: "30 16 * * 1-5"
     - cron: "30 17 * * 1-5"
-    # Candidate UTC times for 15:30 New York (30 minutes before close), EDT/EST.
     - cron: "30 19 * * 1-5"
     - cron: "30 20 * * 1-5"
 
