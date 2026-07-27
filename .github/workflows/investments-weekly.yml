@@ -10,7 +10,6 @@ on:
         type: choice
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
-    # Hourly safety run. A push to this workflow also triggers the full auto cycle.
     - cron: "17 * * * *"
   push:
     branches: [main]
@@ -69,8 +68,11 @@ jobs:
       - name: Recover missing current-week forecast
         run: python scripts/ensure_current_week_forecast.py
 
-      - name: Apply shared validation gate before any new entry
+      - name: Apply shared paper-trading gate
         run: python scripts/apply_instrument_validation_gate.py
+
+      - name: Open every missing weekly paper position
+        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
 
       - name: Run governed weekly model v5
         env:
@@ -80,11 +82,41 @@ jobs:
       - name: Once-daily thesis review and conditional close
         run: python scripts/daily_position_review.py
 
-      - name: Re-evaluate exposure with locks and NO_TRADE
+      - name: Restore continuous exposure after any close
+        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
+
+      - name: Re-evaluate governed exposure
         run: python scripts/investments_weekly_v5.py --mode ensure-exposure
 
-      - name: Re-apply shared validation gate as defense in depth
+      - name: Re-apply shared paper-trading gate as defense in depth
         run: python scripts/apply_instrument_validation_gate.py
+
+      - name: Verify every enabled instrument has an open or pending directional position
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(ZoneInfo('Europe/Warsaw'))
+          week_id = f"{now.isocalendar().year}-W{now.isocalendar().week:02d}"
+          week = json.loads(Path(f'data/investments/weekly/{week_id}.json').read_text(encoding='utf-8'))
+          policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
+          required = {str(x['instrument_id']) for x in policy.get('instruments', []) if x.get('enabled')}
+          rows = {str(x.get('instrument_id')): x for x in week.get('instruments', [])}
+          errors = []
+          for instrument_id in sorted(required):
+              item = rows.get(instrument_id) or {}
+              is_open = item.get('direction') in {'long', 'short'} and item.get('entry_price') is not None and item.get('exit_price') is None
+              pending = item.get('pending_entry_decision') or {}
+              pending_direction = (pending.get('decision') or {}).get('direction') in {'long', 'short'}
+              if not is_open and not pending_direction:
+                  errors.append(f'{instrument_id}: neither open nor pending directional entry')
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print('Every enabled instrument is open or has a valid directional execution pending.')
+          PY
 
       - name: Persist and verify v5 governance metadata
         run: python scripts/investments_weekly_v5_finalize.py
@@ -117,6 +149,8 @@ jobs:
                   data/investments/model_audit.json \
                   data/investments/closed_week_manifest.json \
                   data/investments/model_validation_v2.json \
+                  data/investments/multi_instrument_exposure_state.json \
+                  data/investments/multi_instrument_exposure_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/multi_instrument_validation_v4.json \
@@ -126,7 +160,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No governed weekly changes to commit."
           else
-            git commit -m "Update governed weekly investments forecasts"
+            git commit -m "Maintain governed weekly paper positions"
             git pull --rebase origin main
             git push
           fi
