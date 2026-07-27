@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/investments-weekly-exposure-watchdog.yml"
       - "scripts/investments_weekly_v4.py"
+      - "scripts/normalize_open_weekly_positions.py"
       - "scripts/render_simple_investments.py"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
@@ -39,6 +40,9 @@ jobs:
       - name: Open every missing paper position
         run: python scripts/investments_weekly_v4.py --mode ensure-exposure
 
+      - name: Normalize open-position metadata
+        run: python scripts/normalize_open_weekly_positions.py
+
       - name: Verify all enabled instruments are open
         run: |
           python - <<'PY'
@@ -65,15 +69,18 @@ jobs:
                   and item.get('entry_price') is not None
                   and item.get('exit_price') is None
                   and item.get('trade_status') == 'open'
+                  and item.get('pending_entry_decision') is None
+                  and not item.get('no_trade_decision')
               )
               if not opened:
                   failures.append(
                       f"{instrument_id}: direction={item.get('direction')} "
-                      f"entry={item.get('entry_price')} status={item.get('trade_status')}"
+                      f"entry={item.get('entry_price')} status={item.get('trade_status')} "
+                      f"pending={bool(item.get('pending_entry_decision'))}"
                   )
           if failures:
-              raise SystemExit('Enabled instruments are not all open:\n' + '\n'.join(failures))
-          print('All enabled weekly paper positions are OPEN.')
+              raise SystemExit('Enabled instruments are not cleanly open:\n' + '\n'.join(failures))
+          print('All enabled weekly paper positions are cleanly OPEN.')
           PY
 
       - name: Render PL and EN pages
