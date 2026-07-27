@@ -162,14 +162,23 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         observed_limits = []
 
         def fake_fetch(*args, **kwargs):
-            observed_limits.append(base.MAX_PER_SECTION)
+            observed_limits.append((base.MIN_PER_SECTION, base.MAX_PER_SECTION))
             return [approved_item(index) for index in range(context.CANDIDATE_RESERVE_PER_SECTION)]
 
         with mock.patch.object(context, "_original_fetch_section", side_effect=fake_fetch):
             items = context.fetch_section_full("world", summarize=False)
 
-        self.assertEqual([context.CANDIDATE_RESERVE_PER_SECTION], observed_limits)
+        self.assertEqual(
+            [
+                (
+                    context.CANDIDATE_RESERVE_PER_SECTION,
+                    context.CANDIDATE_RESERVE_PER_SECTION,
+                )
+            ],
+            observed_limits,
+        )
         self.assertEqual(context.CANDIDATE_RESERVE_PER_SECTION, len(items))
+        self.assertEqual(3, base.MIN_PER_SECTION)
         self.assertEqual(9, base.MAX_PER_SECTION)
 
     def test_finalizer_requires_homepage_quality_metadata(self):

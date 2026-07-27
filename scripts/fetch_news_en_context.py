@@ -89,13 +89,18 @@ def _item_text(item: dict) -> str:
 
 def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
     # Quality checks happen after collection. Keep a reserve so rejected or
-    # duplicate stories can be replaced without starving a section.
+    # duplicate stories can be replaced without starving a section. The base
+    # fetcher uses MIN_PER_SECTION as its no-image fallback limit, so raise it
+    # with the candidate limit while collecting and restore both afterwards.
     previous_limit = base.MAX_PER_SECTION
+    previous_minimum = base.MIN_PER_SECTION
     base.MAX_PER_SECTION = CANDIDATE_RESERVE_PER_SECTION
+    base.MIN_PER_SECTION = CANDIDATE_RESERVE_PER_SECTION
     try:
         items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
     finally:
         base.MAX_PER_SECTION = previous_limit
+        base.MIN_PER_SECTION = previous_minimum
     return [item for item in items if not WEATHER_RE.search(_item_text(item))]
 
 

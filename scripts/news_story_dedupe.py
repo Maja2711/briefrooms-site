@@ -115,13 +115,7 @@ def _material_update(first: set[str], second: set[str]) -> bool:
     return bool((first ^ second) & UPDATE_MARKERS)
 
 
-def same_story(first: dict, second: dict) -> bool:
-    """True for the same event; false for a genuinely new event stage."""
-    first_url, second_url = _canonical_url(first), _canonical_url(second)
-    if first_url and first_url == second_url:
-        return True
-
-    a, b = event_tokens(story_text(first)), event_tokens(story_text(second))
+def _tokens_describe_same_event(a: set[str], b: set[str]) -> bool:
     if not a or not b:
         return False
     shared = a & b
@@ -143,7 +137,31 @@ def same_story(first: dict, second: dict) -> bool:
         or (len(shared) >= 3 and overlap >= 0.50 and jaccard >= 0.30)
         or (matching_number and len(shared) >= 3 and overlap >= 0.42)
     )
-    return duplicate and not _material_update(a, b)
+    return duplicate
+
+
+def same_story(first: dict, second: dict) -> bool:
+    """True for the same event; false for a genuinely new event stage."""
+    first_url, second_url = _canonical_url(first), _canonical_url(second)
+    if first_url and first_url == second_url:
+        return True
+
+    first_title = event_tokens(str(first.get("title") or ""))
+    second_title = event_tokens(str(second.get("title") or ""))
+    material_update = _material_update(first_title, second_title)
+    if _tokens_describe_same_event(first_title, second_title):
+        return not material_update
+
+    # Full comments improve matching when headlines use different wording.
+    # They must not define the event stage: a background sentence mentioning
+    # injuries, an investigation or an earlier result otherwise makes two
+    # reports about the same current event look different.
+    first_story = event_tokens(story_text(first))
+    second_story = event_tokens(story_text(second))
+    return (
+        _tokens_describe_same_event(first_story, second_story)
+        and not material_update
+    )
 
 
 def _published_at(item: dict, fallback: datetime) -> datetime:
