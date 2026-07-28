@@ -439,7 +439,10 @@ def independent_ai_review_batch(
         " Reject any grammar or inflection error, clipped fragment, malformed quotation, punctuation defect, "
         "or repeated information. A concise 3-4 sentence summary does not need to include every source detail; "
         "omission alone is not a defect unless it makes the summary misleading. Judge support only from the "
-        "supplied source, not from outside knowledge. One actual defect means approved=false."
+        "supplied source, not from outside knowledge. Treat the supplied source as authoritative for this review: "
+        "do not reject a supported statement because outside information gives a different officeholder, date, "
+        "chronology or interpretation, and do not grade defects in the source itself. One actual defect in the "
+        "comment means approved=false."
     )
 
     chunks: list[list[dict[str, str]]] = []

@@ -358,7 +358,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertTrue(home_en.is_fresh_timestamp(now - 11 * 3600, now))
         self.assertFalse(home_pl.is_fresh_timestamp(now - 13 * 3600, now))
         self.assertFalse(home_en.is_fresh_timestamp(now - 13 * 3600, now))
-        self.assertEqual(12, protect.MAX_FEED_AGE_HOURS)
+        self.assertEqual(24, protect.MAX_FEED_AGE_HOURS)
         self.assertEqual("Sądu", home_pl.repair_polish_feed_encoding("Sšdu"))
 
     def test_homepage_images_have_no_visible_category_labels(self):
@@ -991,7 +991,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", publisher)
         self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', publisher)
         self.assertIn("group: content-publishing", publisher)
-        self.assertIn("cancel-in-progress: false", publisher)
+        self.assertIn("cancel-in-progress: true", publisher)
         self.assertIn('cron: "15 */4 * * *"', publisher)
         self.assertIn("workflow_dispatch:", publisher)
         self.assertIn("workflow_call:", publisher)

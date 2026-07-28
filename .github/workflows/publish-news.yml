@@ -42,12 +42,12 @@ permissions:
 
 concurrency:
   group: content-publishing
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 90
     env:
       STAGE_DIR: /tmp/briefrooms-publication/${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -71,12 +71,14 @@ jobs:
         run: |
           python -m py_compile \
             scripts/publish_news.py \
+            scripts/news_section_reserve.py \
             scripts/news_publication_diagnostics.py \
             scripts/verify_news_production.py \
             scripts/content_update_watchdog.py
           python -m unittest \
             tests.test_publish_news \
             tests.test_news_story_dedupe \
+            tests.test_news_section_reserve \
             tests.test_content_update_watchdog \
             tests.test_validate_news_home_publish -v
 

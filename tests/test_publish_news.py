@@ -97,6 +97,8 @@ class AtomicNewsPublicationTests(unittest.TestCase):
     def test_permanent_briefs_are_rendered_before_homepage_normalization(self) -> None:
         labels = [command[0] for command in PRODUCTION_COMMANDS]
         generated = labels.index("generate_briefs")
+        self.assertLess(labels.index("complete_pl_home"), generated)
+        self.assertLess(labels.index("complete_en_home"), generated)
         self.assertLess(generated, labels.index("normalize_pl"))
         self.assertLess(generated, labels.index("normalize_en"))
         self.assertLess(labels.index("quality_gate"), generated)

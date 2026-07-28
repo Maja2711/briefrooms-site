@@ -22,6 +22,7 @@ from newsroom_articles import (
     enrich_sections_with_homepage_quality,
     round_robin_section_items,
 )
+from news_section_reserve import load_news_section_reserve
 from newsroom_style import apply_newsroom_style
 from news_publication_diagnostics import record_item
 from news_story_dedupe import (
@@ -129,6 +130,10 @@ def summarize_sections_pl_full(sections: dict) -> None:
             translated_items.append(item)
         sections[section_key] = translated_items
     base.save_cache(base.AI_CACHE_PATH, base.CACHE)
+
+    reserve = load_news_section_reserve("pl", image_lookup=base.article_image)
+    for section_key, items in sections.items():
+        items.extend(reserve.get(section_key, []))
 
     enriched = enrich_sections_with_homepage_quality(sections, "pl")
     sections.clear()

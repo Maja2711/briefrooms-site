@@ -24,7 +24,7 @@ FILES = {
 }
 MIN_VISIBLE_ITEMS = {"pl": 8, "en": 8}
 ALLOWED_VISIBLE_COUNTS = (8, 10)
-MAX_FEED_AGE_HOURS = 12
+MAX_FEED_AGE_HOURS = 24
 URL_RE = re.compile(r"^https?://", re.I)
 
 
@@ -237,7 +237,8 @@ def validate_current(passive: bool = False, lang: str | None = None) -> bool:
             save(data_path, restored)
             save(backup_path, restored)
             print(f"{lang}: rejected incomplete update and kept {total_valid(restored, lang)} valid cards")
-            complete = False
+            if total_valid(restored, lang) < MIN_VISIBLE_ITEMS[lang]:
+                complete = False
             continue
 
         if passive:
