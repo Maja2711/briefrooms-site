@@ -47,6 +47,25 @@ class StoryDedupeTests(unittest.TestCase):
         }
         self.assertTrue(same_story(first, second))
 
+    def test_same_parliamentary_decision_with_rewritten_headlines_is_one_event(self):
+        first = {
+            "title": "Decyzja PiS po rozpadzie. Czarzasty: Sejm zajmie się sprawą",
+            "full_brief": (
+                "Włodzimierz Czarzasty zapowiedział rozpatrzenie wyboru nowego "
+                "wicemarszałka dla PiS na wrześniowym posiedzeniu Sejmu. "
+                "Marszałek nie planuje zmian podczas bieżącego posiedzenia."
+            ),
+        }
+        second = {
+            "title": "Sejm zagłosuje w sprawie wicemarszałka PiS? Czarzasty odpowiada",
+            "full_brief": (
+                "Włodzimierz Czarzasty poinformował, że podczas najbliższego "
+                "posiedzenia Sejmu nie planuje głosowania nad wyborem "
+                "wicemarszałka. W Sejmie pozostaje jeden wakat na to stanowisko."
+            ),
+        }
+        self.assertTrue(same_story(first, second))
+
     def test_new_material_stage_is_not_hidden(self):
         agreement = {"title": "EU envoys approve sanctions against Russia"}
         implementation = {"title": "EU sanctions against Russia become effective after publication"}

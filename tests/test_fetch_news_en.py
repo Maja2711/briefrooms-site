@@ -60,16 +60,16 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         sections = self.empty_sections()
         index = 1
         for section in sections:
-            for _ in range(3):
+            for _ in range(context.MIN_PER_SECTION):
                 sections[section].append(approved_item(index))
                 index += 1
         return sections
 
     def test_render_is_fail_closed_when_comments_are_missing(self):
-        with self.assertRaisesRegex(RuntimeError, "each section requires 3-9 approved items"):
+        with self.assertRaisesRegex(RuntimeError, "each section requires 6-9 approved items"):
             context.render_html_full(self.empty_sections())
 
-    def test_render_is_blocked_when_any_section_has_fewer_than_three_items(self):
+    def test_render_is_blocked_when_any_section_has_fewer_than_six_items(self):
         sections = self.strict_sections()
         sections["world"] = sections["world"][:1]
         with self.assertRaisesRegex(RuntimeError, "world=1"):
@@ -80,7 +80,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertIn('<a href="#health">Health</a>', page)
         self.assertIn('<a href="#science">Science</a>', page)
         self.assertIn("Test report number 1", page)
-        self.assertEqual(24, page.count('<span class="news-thumb has-image">'))
+        self.assertEqual(48, page.count('<span class="news-thumb has-image">'))
         self.assertIn("briefrooms-newsroom-v2", page)
         self.assertIn("grid-template-columns:1fr!important", page)
         self.assertIn("@media(min-width:900px)", page)
@@ -90,11 +90,11 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertIn("height:172px", page)
         self.assertNotIn("BriefRooms • AI comment", page)
 
-    def test_missing_thumbnail_uses_visual_fallback(self):
+    def test_missing_thumbnail_blocks_publication(self):
         sections = self.strict_sections()
         sections["world"][0]["thumbnail_url"] = ""
-        page = context.render_html_full(sections)
-        self.assertIn('class="news-thumb"', page)
+        with self.assertRaisesRegex(RuntimeError, "missing source thumbnail"):
+            context.render_html_full(sections)
 
     def test_rss_thumbnail_uses_the_largest_available_image(self):
         entry = {
@@ -180,6 +180,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertEqual(context.CANDIDATE_RESERVE_PER_SECTION, len(items))
         self.assertEqual(3, base.MIN_PER_SECTION)
         self.assertEqual(9, base.MAX_PER_SECTION)
+        self.assertEqual(2, base.MAX_PER_HOST)
 
     def test_specific_desks_claim_topics_before_world(self):
         self.assertEqual("world", base.SECTION_FETCH_ORDER[-1])
@@ -210,6 +211,13 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         )
         self.assertNotIn("https://feeds.reuters.com/reuters/worldNews", feeds)
         self.assertNotIn("https://apnews.com/hub/ap-top-news?output=rss", feeds)
+
+    def test_photo_capable_guardian_feeds_expand_asia_and_sport_reserves(self):
+        self.assertIn(
+            "https://www.theguardian.com/world/asia-pacific/rss",
+            base.FEEDS["asia_pacific"],
+        )
+        self.assertIn("https://www.theguardian.com/sport/rss", base.FEEDS["sport"])
 
     def test_finalizer_requires_homepage_quality_metadata(self):
         sections = self.empty_sections()

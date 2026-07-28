@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from news_story_dedupe import audit_html
 
 ROOT = Path(__file__).resolve().parents[1]
 LANG_PATHS = {
@@ -14,6 +18,34 @@ LANG_PATHS = {
     "en": ("en/news.html", "en/home_brief.json", "en/index.html"),
 }
 ALLOWED_HOMEPAGE_COUNTS = {8, 10}
+NEWS_SECTION_IDS = {
+    "pl": ("polityka", "ekonomia", "zdrowie", "nauka", "sport"),
+    "en": (
+        "world-news",
+        "asia-pacific",
+        "europe",
+        "middle-east",
+        "business",
+        "science",
+        "health",
+        "sport",
+    ),
+}
+NEWS_SECTION_MINIMUM = 6
+NEWS_SECTION_MAXIMUM = {"pl": 10, "en": 9}
+TRACKING_KEYS = {
+    "at_campaign",
+    "at_medium",
+    "fbclid",
+    "gclid",
+    "ref",
+    "ref_src",
+    "utm_campaign",
+    "utm_content",
+    "utm_medium",
+    "utm_source",
+    "utm_term",
+}
 
 
 def parse_datetime(value: str) -> datetime:
@@ -65,6 +97,76 @@ def rendered_home_count(source: str, lang: str) -> int:
     return len(re.findall(r'<a\s+class="brief-card"\s+href=', block, flags=re.IGNORECASE))
 
 
+def canonical_card_url(value: str) -> str:
+    parsed = urlsplit(html.unescape(value).strip())
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        return ""
+    query = urlencode(
+        sorted(
+            (key, item_value)
+            for key, item_value in parse_qsl(parsed.query, keep_blank_values=True)
+            if key.lower() not in TRACKING_KEYS
+        )
+    )
+    path = re.sub(r"/+", "/", parsed.path or "/").rstrip("/") or "/"
+    return urlunsplit(
+        (parsed.scheme.lower(), parsed.netloc.lower(), path, query, "")
+    )
+
+
+def validate_news_sections(source: str, lang: str) -> dict[str, int]:
+    if not re.search(
+        rf"<html\b[^>]*\blang=[\"']{lang}[\"']",
+        source,
+        flags=re.IGNORECASE,
+    ):
+        raise AssertionError(f"{lang} news page has the wrong document language")
+
+    counts: dict[str, int] = {}
+    urls: list[str] = []
+    for section_id in NEWS_SECTION_IDS[lang]:
+        match = re.search(
+            rf'<section\s+class=["\']card["\']\s+id=["\']{re.escape(section_id)}["\']>'
+            r"([\s\S]*?)</section>",
+            source,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            raise AssertionError(f"{lang} news section is missing: {section_id}")
+        cards = re.findall(r"<li\b[^>]*>([\s\S]*?)</li>", match.group(1), flags=re.IGNORECASE)
+        count = len(cards)
+        counts[section_id] = count
+        if not NEWS_SECTION_MINIMUM <= count <= NEWS_SECTION_MAXIMUM[lang]:
+            raise AssertionError(
+                f"{lang} section {section_id} must contain "
+                f"{NEWS_SECTION_MINIMUM}-{NEWS_SECTION_MAXIMUM[lang]} cards; got {count}"
+            )
+        for card in cards:
+            if not re.search(
+                r'<span\s+class=["\']news-thumb has-image["\'][^>]*>\s*<img\b',
+                card,
+                flags=re.IGNORECASE,
+            ):
+                raise AssertionError(
+                    f"{lang} section {section_id} contains a card without a source thumbnail"
+                )
+            link = re.search(
+                r'<a\s+class=["\']news-main-link["\']\s+href=["\']([^"\']+)',
+                card,
+                flags=re.IGNORECASE,
+            )
+            canonical = canonical_card_url(link.group(1) if link else "")
+            if not canonical:
+                raise AssertionError(
+                    f"{lang} section {section_id} contains an invalid source URL"
+                )
+            urls.append(canonical)
+    if len(urls) != len(set(urls)):
+        raise AssertionError(f"{lang} news page contains duplicate source URLs")
+    audit_html(source)
+    return counts
+
+
 def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> None:
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     news_rel, feed_rel, index_rel = LANG_PATHS[lang]
@@ -95,9 +197,8 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
     if rendered_count != len(latest):
         raise AssertionError(f"{lang} rendered homepage count {rendered_count} does not match feed {len(latest)}")
 
-    news_cards = news.count('class="ai-note"')
-    if news_cards < 3:
-        raise AssertionError(f"{lang} news page has only {news_cards} rendered cards")
+    section_counts = validate_news_sections(news, lang)
+    news_cards = sum(section_counts.values())
 
     rendered_home_at = homepage_timestamp(index, lang)
     if rendered_home_at != updated_at:
@@ -114,7 +215,11 @@ def validate(lang: str, max_age_minutes: int, now: datetime | None = None) -> No
                 f"{item.get('title') or permalink or '<untitled>'}"
             )
 
-    print(f"OK {lang}: news={rendered_news_at.isoformat()}, home={updated_at.isoformat()}, cards={news_cards}, briefs={len(latest)}, rendered={rendered_count}")
+    print(
+        f"OK {lang}: news={rendered_news_at.isoformat()}, home={updated_at.isoformat()}, "
+        f"cards={news_cards}, sections={section_counts}, briefs={len(latest)}, "
+        f"rendered={rendered_count}"
+    )
 
 
 def main() -> None:

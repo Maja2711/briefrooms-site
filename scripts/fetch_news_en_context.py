@@ -41,10 +41,11 @@ WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
     re.I,
 )
-MIN_TOTAL_APPROVED = 24
-MIN_PER_SECTION = 3
+MIN_TOTAL_APPROVED = 48
+MIN_PER_SECTION = 6
 MAX_PER_SECTION = 9
-CANDIDATE_RESERVE_PER_SECTION = 12
+CANDIDATE_RESERVE_PER_SECTION = 18
+CANDIDATE_MAX_PER_HOST = 4
 
 NEWS_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -94,17 +95,29 @@ def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=No
     # with the candidate limit while collecting and restore both afterwards.
     previous_limit = base.MAX_PER_SECTION
     previous_minimum = base.MIN_PER_SECTION
+    previous_host_limit = base.MAX_PER_HOST
     base.MAX_PER_SECTION = CANDIDATE_RESERVE_PER_SECTION
     base.MIN_PER_SECTION = CANDIDATE_RESERVE_PER_SECTION
+    base.MAX_PER_HOST = CANDIDATE_MAX_PER_HOST
     try:
         items = _original_fetch_section(section_key, excluded_links, excluded_topics, summarize=summarize)
     finally:
         base.MAX_PER_SECTION = previous_limit
         base.MIN_PER_SECTION = previous_minimum
+        base.MAX_PER_HOST = previous_host_limit
     return [item for item in items if not WEATHER_RE.search(_item_text(item))]
 
 
 def summarize_sections_en_full(sections: dict) -> None:
+    unique, rejected = deduplicate_sections(
+        sections,
+        load_recent_history(HISTORY_PATH),
+    )
+    if rejected:
+        print(f"NEWS_CANDIDATE_DEDUPE_EN rejected={len(rejected)}")
+    sections.clear()
+    sections.update(unique)
+
     enriched = enrich_sections_with_homepage_quality(sections, "en")
     sections.clear()
     sections.update(enriched)
@@ -116,6 +129,8 @@ def finalize_sections_full(sections: dict) -> dict:
     for section_key, items in sections.items():
         approved: list[dict] = []
         for item in items:
+            if not str(item.get("thumbnail_url") or "").strip():
+                continue
             text = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "")
             quality = validate_comment(text, "en")
             if not quality.valid:
@@ -191,6 +206,11 @@ def render_html_full(sections: dict) -> str:
             f"EN news publication kept on last-good version: only {len(accepted)} homepage-grade comments"
         )
     for item in accepted:
+        if not str(item.get("thumbnail_url") or "").strip():
+            raise RuntimeError(
+                "EN news publication blocked by missing source thumbnail: "
+                f"{item.get('title', '')[:80]}"
+            )
         quality = validate_comment(
             item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary", ""),
             "en",

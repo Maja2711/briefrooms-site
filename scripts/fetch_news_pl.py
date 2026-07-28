@@ -34,21 +34,21 @@ TZ = tz.gettz("Europe/Warsaw")
 # =========================
 # KONFIG
 # =========================
-MAX_PER_SECTION = 12
+MAX_PER_SECTION = 20
 MAX_PER_HOST = 6
 SECTION_LIMITS = {
-    "polityka": 14,
-    "biznes": 10,
-    "zdrowie": 10,
-    "nauka": 10,
-    "sport": 18,
+    "polityka": 18,
+    "biznes": 18,
+    "zdrowie": 18,
+    "nauka": 20,
+    "sport": 20,
 }
 SECTION_PUBLISH_BOUNDS = {
-    "polityka": (5, 10),
-    "biznes": (3, 6),
-    "zdrowie": (3, 5),
-    "nauka": (3, 5),
-    "sport": (5, 10),
+    "polityka": (6, 10),
+    "biznes": (6, 10),
+    "zdrowie": (6, 10),
+    "nauka": (6, 10),
+    "sport": (6, 10),
 }
 SECTION_MAX_PER_HOST = {
     "biznes": 2,
@@ -977,10 +977,9 @@ def fetch_section(section_key: str, summarize: bool = True):
     else:
         picked = pool[:limit]
 
-    if section_key in ("polityka", "biznes"):
-        for item in picked:
-            if not item.get("thumbnail_url"):
-                item["thumbnail_url"] = article_image(item.get("link", ""))
+    for item in picked:
+        if not item.get("thumbnail_url"):
+            item["thumbnail_url"] = article_image(item.get("link", ""))
 
     if not summarize:
         return picked
