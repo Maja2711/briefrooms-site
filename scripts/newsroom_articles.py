@@ -32,6 +32,17 @@ HOME_FILES = {
 }
 
 
+def round_robin_section_items(
+    sections: dict[str, list[dict]],
+):
+    """Yield one candidate per section per round to keep AI capacity balanced."""
+    longest = max((len(items) for items in sections.values()), default=0)
+    for index in range(longest):
+        for section_key, items in sections.items():
+            if index < len(items):
+                yield section_key, items[index]
+
+
 def _read_json(path: Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -96,36 +107,35 @@ def enrich_sections_with_homepage_quality(sections: dict[str, list[dict]], lang:
     records: dict[str, dict] = {}
     sequence = 0
 
-    for section_key, items in sections.items():
-        for item in items:
-            item["_full_article_comment_approved"] = False
-            link = str(item.get("link") or "").strip()
-            title = str(item.get("title") or "").strip()
+    for _section_key, item in round_robin_section_items(sections):
+        item["_full_article_comment_approved"] = False
+        link = str(item.get("link") or "").strip()
+        title = str(item.get("title") or "").strip()
 
-            existing = homepage.get(link)
-            if existing and _accept(item, existing, lang, "approved_homepage_comment"):
-                item["article_read_status"] = "reused_homepage_article_review"
-                continue
+        existing = homepage.get(link)
+        if existing and _accept(item, existing, lang, "approved_homepage_comment"):
+            item["article_read_status"] = "reused_homepage_article_review"
+            continue
 
-            article_text, status = fetch_article_text(link)
-            item["article_read_status"] = status
-            item["article_text_chars"] = len(article_text)
-            if len(article_text) < MIN_ARTICLE_CHARS:
-                item["comment_generation_status"] = "rejected_or_unavailable"
-                item["summary_basis"] = "rss_only_insufficient_article_text"
-                continue
+        article_text, status = fetch_article_text(link)
+        item["article_read_status"] = status
+        item["article_text_chars"] = len(article_text)
+        if len(article_text) < MIN_ARTICLE_CHARS:
+            item["comment_generation_status"] = "rejected_or_unavailable"
+            item["summary_basis"] = "rss_only_insufficient_article_text"
+            continue
 
-            item_id = f"section-{lang}-{sequence}"
-            sequence += 1
-            candidates.append(
-                {
-                    "id": item_id,
-                    "title": title,
-                    "link": link,
-                    "article_text": article_text,
-                }
-            )
-            records[item_id] = item
+        item_id = f"section-{lang}-{sequence}"
+        sequence += 1
+        candidates.append(
+            {
+                "id": item_id,
+                "title": title,
+                "link": link,
+                "article_text": article_text,
+            }
+        )
+        records[item_id] = item
 
     generated = ai_summarize_batch(candidates, lang, cache)
     for item_id, item in records.items():

@@ -58,10 +58,9 @@ class PolishNewsBuilderTests(unittest.TestCase):
         return sections
 
     def test_publication_ranges_match_the_product_contract(self):
-        self.assertEqual((5, 10), news.SECTION_PUBLISH_BOUNDS["polityka"])
-        self.assertEqual((3, 5), news.SECTION_PUBLISH_BOUNDS["zdrowie"])
-        self.assertEqual((3, 5), news.SECTION_PUBLISH_BOUNDS["nauka"])
-        self.assertEqual((5, 10), news.SECTION_PUBLISH_BOUNDS["sport"])
+        self.assertTrue(
+            all(bounds == (6, 10) for bounds in news.SECTION_PUBLISH_BOUNDS.values())
+        )
 
     def test_native_polish_feed_encoding_is_repaired_before_publication(self):
         broken = "USA rozważajš uderzenie. Mówiš o tysišcach żołnierzy."
@@ -152,14 +151,14 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertIn("height:172px", page)
 
     def test_render_is_fail_closed_when_full_comments_are_missing(self):
-        with self.assertRaisesRegex(RuntimeError, "only 0 homepage-grade comments"):
+        with self.assertRaisesRegex(RuntimeError, "each section requires at least 6"):
             deep.render_html_strict(self.empty_sections())
 
-    def test_missing_thumbnail_uses_fallback_art(self):
+    def test_missing_thumbnail_blocks_publication(self):
         sections = self.strict_sections()
         sections["polityka"][0]["thumbnail_url"] = ""
-        page = deep.render_html_strict(sections)
-        self.assertIn('class="news-thumb"', page)
+        with self.assertRaisesRegex(RuntimeError, "missing source thumbnail"):
+            deep.render_html_strict(sections)
 
     def test_rss_image_is_extracted(self):
         entry = {"media_thumbnail": [{"url": "/images/story.jpg"}]}

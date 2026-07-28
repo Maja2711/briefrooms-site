@@ -158,8 +158,21 @@ def same_story(first: dict, second: dict) -> bool:
     # reports about the same current event look different.
     first_story = event_tokens(story_text(first))
     second_story = event_tokens(story_text(second))
+    title_shared = first_title & second_title
+    story_shared = first_story & second_story
+    first_numbers = {token for token in first_title if token.isdigit()}
+    second_numbers = {token for token in second_title if token.isdigit()}
+    conflicting_numbers = bool(
+        first_numbers and second_numbers and not (first_numbers & second_numbers)
+    )
+    anchored_rewrite = (
+        not conflicting_numbers
+        and len(title_shared) >= 3
+        and len(story_shared) >= 6
+        and len(story_shared) / min(len(first_story), len(second_story)) >= 0.20
+    )
     return (
-        _tokens_describe_same_event(first_story, second_story)
+        (_tokens_describe_same_event(first_story, second_story) or anchored_rewrite)
         and not material_update
     )
 

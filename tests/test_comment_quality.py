@@ -33,6 +33,7 @@ import build_home_brief_pl as home_pl
 import fetch_news_en as news_en
 import fetch_news_pl as news_pl
 import news_comment_batch as news_batch
+import newsroom_articles as newsroom
 import validate_brief_quality as gate
 
 
@@ -604,6 +605,74 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(2, post.call_count)
         self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
         self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
+
+    def test_polish_title_translation_survives_an_invalid_rss_comment(self):
+        item = {
+            "title": "Scientists publish new space telescope findings",
+            "summary_raw": (
+                "Researchers published new observations from a space telescope "
+                "after a multi-year scientific programme."
+            ),
+            "link": "https://example.com/science",
+            "_source_was_english": True,
+        }
+        post = mock.Mock(
+            return_value=self.FakeResponse(
+                {
+                    "items": [
+                        {
+                            "id": "pl-0",
+                            "summary": "",
+                            "title_pl": "Naukowcy opisują nowe wyniki teleskopu kosmicznego",
+                        }
+                    ]
+                }
+            )
+        )
+        with mock.patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "",
+                "GITHUB_MODELS_TOKEN": "github-test-token",
+                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
+                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+            },
+        ):
+            result = news_batch.summarize_news_items(
+                items=[item],
+                lang="pl",
+                cache={},
+                post=post,
+            )
+        self.assertEqual(
+            "Naukowcy opisują nowe wyniki teleskopu kosmicznego",
+            result["pl-0"]["title_pl"],
+        )
+        self.assertTrue(result["pl-0"]["translation_only"])
+        self.assertFalse(result["pl-0"]["reviewed"])
+        self.assertEqual(1, post.call_count)
+
+    def test_section_candidates_are_processed_round_robin(self):
+        sections = {
+            "politics": [{"title": "p1"}, {"title": "p2"}, {"title": "p3"}],
+            "science": [{"title": "s1"}, {"title": "s2"}],
+            "sport": [{"title": "t1"}],
+        }
+        observed = [
+            (section, item["title"])
+            for section, item in newsroom.round_robin_section_items(sections)
+        ]
+        self.assertEqual(
+            [
+                ("politics", "p1"),
+                ("science", "s1"),
+                ("sport", "t1"),
+                ("politics", "p2"),
+                ("science", "s2"),
+                ("politics", "p3"),
+            ],
+            observed,
+        )
 
     def test_batch_review_combines_entries_within_the_daily_request_budget(self):
         entries = [

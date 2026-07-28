@@ -17,7 +17,10 @@ from pathlib import Path
 
 import fetch_news_pl_hybrid as hybrid
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
-from newsroom_articles import enrich_sections_with_homepage_quality
+from newsroom_articles import (
+    enrich_sections_with_homepage_quality,
+    round_robin_section_items,
+)
 from newsroom_style import apply_newsroom_style
 from news_publication_diagnostics import record_item
 from news_story_dedupe import (
@@ -40,7 +43,7 @@ WEATHER_RE = re.compile(
 )
 TVN24_RE = re.compile(r"(TVN24|tvn24\.pl)", re.I)
 SECTION_MAXIMUMS = {key: bounds[1] for key, bounds in base.SECTION_PUBLISH_BOUNDS.items()}
-MIN_TOTAL_APPROVED = 8
+MIN_TOTAL_APPROVED = sum(bounds[0] for bounds in base.SECTION_PUBLISH_BOUNDS.values())
 
 SECTION_TABS_CSS = """
     html{ scroll-behavior:smooth; }
@@ -88,12 +91,20 @@ def fetch_section_strict(section_key: str, summarize: bool = True):
 
 
 def summarize_sections_pl_full(sections: dict) -> None:
+    unique, rejected = deduplicate_sections(
+        sections,
+        load_recent_history(HISTORY_PATH),
+    )
+    if rejected:
+        print(f"NEWS_CANDIDATE_DEDUPE_PL rejected={len(rejected)}")
+    sections.clear()
+    sections.update(unique)
+
     # Translate foreign-source titles in bounded batches before generating the
     # full-article comments. Per-item translation exhausts provider quotas.
     english_items = [
         item
-        for items in sections.values()
-        for item in items
+        for _section_key, item in round_robin_section_items(sections)
         if item.get("_source_was_english")
     ]
     translations = base.summarize_news_items(
@@ -129,6 +140,8 @@ def finalize_sections_strict(sections: dict) -> dict:
     for section_key, items in sections.items():
         approved: list[dict] = []
         for item in items:
+            if not str(item.get("thumbnail_url") or "").strip():
+                continue
             text = str(item.get("full_brief") or item.get("ai_summary") or "")
             quality = validate_comment(text, "pl")
             if not quality.valid:
@@ -194,11 +207,29 @@ def _add_section_tabs(html: str) -> str:
 
 def render_html_strict(sections: dict) -> str:
     accepted = [item for items in sections.values() for item in items]
+    underfilled = {
+        section_key: len(items)
+        for section_key, items in sections.items()
+        if len(items) < base.SECTION_PUBLISH_BOUNDS[section_key][0]
+    }
+    if underfilled:
+        details = ", ".join(
+            f"{section}={count}" for section, count in underfilled.items()
+        )
+        raise RuntimeError(
+            "PL news publication kept on last-good version: "
+            f"each section requires at least 6 approved photo items; {details}"
+        )
     if len(accepted) < MIN_TOTAL_APPROVED:
         raise RuntimeError(
             f"PL news publication kept on last-good version: only {len(accepted)} homepage-grade comments"
         )
     for item in accepted:
+        if not str(item.get("thumbnail_url") or "").strip():
+            raise RuntimeError(
+                "PL news publication blocked by missing source thumbnail: "
+                f"{item.get('title', '')[:80]}"
+            )
         quality = validate_comment(item.get("full_brief") or item.get("ai_summary", ""), "pl")
         if not quality.valid:
             raise RuntimeError(

@@ -110,6 +110,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
         chunks.append(current)
 
     generated: dict[str, dict] = {}
+    translated_titles: dict[str, str] = {}
     pending_by_id = {candidate["id"]: candidate for candidate in pending}
     rate_limited = False
     for chunk in chunks:
@@ -172,15 +173,17 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 candidate = pending_by_id[item_id]
                 quality = validate_news_comment(str(row.get("summary") or ""), lang)
                 title_pl = str(row.get("title_pl") or "").strip()
+                if candidate["translate_title"]:
+                    if not valid_display_title(title_pl, "pl"):
+                        print(f"[WARN] PL translated title rejected: {candidate['title'][:80]}", file=sys.stderr)
+                        continue
+                    translated_titles[item_id] = title_pl
                 if not _meets_comment_contract(
                     quality.text,
                     lang,
                     candidate["longer_polish_comment"],
                 ):
                     print(f"[WARN] {lang.upper()} batch comment rejected: {candidate['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
-                    continue
-                if candidate["translate_title"] and not valid_display_title(title_pl, "pl"):
-                    print(f"[WARN] PL translated title rejected: {candidate['title'][:80]}", file=sys.stderr)
                     continue
                 generated[item_id] = {
                     "summary": quality.text,
@@ -197,6 +200,11 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
             print(f"[WARN] {lang.upper()} news batch failed ({len(chunk)} items): {exc}", file=sys.stderr)
 
     if rate_limited:
+        for item_id, title_pl in translated_titles.items():
+            accepted.setdefault(
+                item_id,
+                {"title_pl": title_pl, "reviewed": False, "translation_only": True},
+            )
         return accepted
 
     reviews = independent_ai_review_batch(
@@ -231,4 +239,9 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
         }
         cache[candidate["cache_key"]] = out
         accepted[item_id] = out
+    for item_id, title_pl in translated_titles.items():
+        accepted.setdefault(
+            item_id,
+            {"title_pl": title_pl, "reviewed": False, "translation_only": True},
+        )
     return accepted
