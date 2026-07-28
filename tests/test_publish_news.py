@@ -94,6 +94,14 @@ class AtomicNewsPublicationTests(unittest.TestCase):
             commands["homepage_photo_policy"],
         )
 
+    def test_permanent_briefs_are_rendered_before_homepage_normalization(self) -> None:
+        labels = [command[0] for command in PRODUCTION_COMMANDS]
+        generated = labels.index("generate_briefs")
+        self.assertLess(generated, labels.index("normalize_pl"))
+        self.assertLess(generated, labels.index("normalize_en"))
+        self.assertLess(labels.index("quality_gate"), generated)
+        self.assertLess(labels.index("dedupe_home"), generated)
+
     def test_publish_news_is_the_only_workflow_owner_of_shared_news_outputs(self) -> None:
         shared_markers = (
             "pl/index.html",
