@@ -21,6 +21,7 @@ if SCRIPT_DIR not in sys.path:
 
 import fetch_news_en as base  # noqa: E402
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
+from external_media_policy import external_image_url  # noqa: E402
 from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
 from newsroom_style import apply_newsroom_style  # noqa: E402
 from news_publication_diagnostics import record_item  # noqa: E402
@@ -129,8 +130,13 @@ def finalize_sections_full(sections: dict) -> dict:
     for section_key, items in sections.items():
         approved: list[dict] = []
         for item in items:
-            if not str(item.get("thumbnail_url") or "").strip():
+            thumbnail_url = external_image_url(
+                item.get("thumbnail_url"),
+                item.get("link"),
+            )
+            if not thumbnail_url:
                 continue
+            item["thumbnail_url"] = thumbnail_url
             text = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "")
             quality = validate_comment(text, "en")
             if not quality.valid:

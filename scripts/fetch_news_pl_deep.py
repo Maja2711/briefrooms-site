@@ -17,6 +17,7 @@ from pathlib import Path
 
 import fetch_news_pl_hybrid as hybrid
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment
+from external_media_policy import external_image_url
 from newsroom_articles import (
     enrich_sections_with_homepage_quality,
     round_robin_section_items,
@@ -140,8 +141,13 @@ def finalize_sections_strict(sections: dict) -> dict:
     for section_key, items in sections.items():
         approved: list[dict] = []
         for item in items:
-            if not str(item.get("thumbnail_url") or "").strip():
+            thumbnail_url = external_image_url(
+                item.get("thumbnail_url"),
+                item.get("link"),
+            )
+            if not thumbnail_url:
                 continue
+            item["thumbnail_url"] = thumbnail_url
             text = str(item.get("full_brief") or item.get("ai_summary") or "")
             quality = validate_comment(text, "pl")
             if not quality.valid:
