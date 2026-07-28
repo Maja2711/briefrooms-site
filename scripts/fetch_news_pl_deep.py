@@ -88,19 +88,35 @@ def fetch_section_strict(section_key: str, summarize: bool = True):
 
 
 def summarize_sections_pl_full(sections: dict) -> None:
-    # English-source items still need a Polish visible title before the shared
-    # full-article comment is generated.
+    # Translate foreign-source titles in bounded batches before generating the
+    # full-article comments. Per-item translation exhausts provider quotas.
+    english_items = [
+        item
+        for items in sections.values()
+        for item in items
+        if item.get("_source_was_english")
+    ]
+    translations = base.summarize_news_items(
+        items=english_items,
+        lang="pl",
+        cache=base.CACHE,
+        post=base.requests.post,
+    )
     for section_key, items in sections.items():
         translated_items: list[dict] = []
         for item in items:
             if item.get("_source_was_english"):
-                translated = hybrid.translate_english_item_to_polish(item, section_key)
+                translated = translations.get(
+                    str(item.get("_comment_batch_id") or ""),
+                    {},
+                )
                 if not translated or not translated.get("title_pl"):
                     continue
                 item["title"] = translated["title_pl"]
                 item["source_name"] = hybrid.polish_source_label(item.get("source_name", "Źródło"))
             translated_items.append(item)
         sections[section_key] = translated_items
+    base.save_cache(base.AI_CACHE_PATH, base.CACHE)
 
     enriched = enrich_sections_with_homepage_quality(sections, "pl")
     sections.clear()

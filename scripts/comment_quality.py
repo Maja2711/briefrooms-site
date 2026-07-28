@@ -136,6 +136,10 @@ class AiRuntime:
         return bool(self.api_key and self.endpoint and self.generation_model and self.review_model)
 
 
+class AiRateLimitError(RuntimeError):
+    """The AI provider rejected the request because its quota is exhausted."""
+
+
 def get_ai_runtime() -> AiRuntime:
     """Prefer a configured OpenAI key, then GitHub Models in Actions."""
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -189,6 +193,7 @@ def request_json_completion(
     fallback_model = os.getenv(fallback_env, "").strip() if runtime.provider == "github-models" else ""
     model = primary_model
     last_error: Exception | None = None
+    last_status: int | None = None
     for attempt in range(3):
         status: int | None = None
         try:
@@ -222,6 +227,7 @@ def request_json_completion(
                 timeout=timeout,
             )
             status = int(getattr(response, "status_code", 200) or 200)
+            last_status = status
             if status in {429, 500, 502, 503, 504} and attempt < 2:
                 headers = getattr(response, "headers", {})
                 if status == 429 and fallback_model and model != fallback_model:
@@ -259,6 +265,10 @@ def request_json_completion(
             )
             if permanent_http_error or attempt >= 2 or (is_timeout and attempt >= 1):
                 break
+    if last_status == 429:
+        raise AiRateLimitError(
+            f"AI provider rate limit remained active after bounded retries: {last_error}"
+        ) from last_error
     raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
 
 
@@ -450,7 +460,12 @@ def independent_ai_review_batch(
     if current:
         chunks.append(current)
 
+    rate_limited = False
+
     def review_chunk(chunk: list[dict[str, str]]) -> None:
+        nonlocal rate_limited
+        if rate_limited:
+            return
         expected_ids = {entry["id"] for entry in chunk if entry["id"]}
         prompt = (
             f"{instruction}\n"
@@ -485,6 +500,11 @@ def independent_ai_review_batch(
                 seen.add(item_id)
                 approved = review.get("approved") is True
                 results[item_id] = (approved, str(review.get("reason") or ("approved" if approved else "rejected")))
+        except AiRateLimitError:
+            rate_limited = True
+            for item_id in expected_ids:
+                results[item_id] = (False, "rate_limited")
+            return
         except Exception as exc:
             if len(chunk) > 1:
                 midpoint = len(chunk) // 2
@@ -496,7 +516,13 @@ def independent_ai_review_batch(
                 results[item_id] = (False, reason)
 
     for chunk in chunks:
+        if rate_limited:
+            break
         review_chunk(chunk)
+    if rate_limited:
+        for item_id, (approved, reason) in list(results.items()):
+            if not approved and reason == default_reason:
+                results[item_id] = (False, "rate_limited")
     return results
 
 

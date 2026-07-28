@@ -23,6 +23,7 @@ from pathlib import Path
 import requests
 
 from comment_quality import (
+    AiRateLimitError,
     QUALITY_VERSION,
     clip_complete_text,
     decode_http_response,
@@ -301,7 +302,12 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
     generated: dict[str, str] = {}
     candidate_by_id = {candidate["id"]: candidate for candidate in pending}
 
+    rate_limited = False
+
     def generate_chunk(chunk: list[dict]) -> None:
+        nonlocal rate_limited
+        if rate_limited:
+            return
         source_items = [
             {
                 "id": candidate["id"],
@@ -364,6 +370,13 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                     generated[item_id] = quality.text
                 else:
                     print(f"[WARN] batch comment rejected: {candidate_by_id[item_id]['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+        except AiRateLimitError as exc:
+            rate_limited = True
+            print(
+                f"[WARN] AI article generation paused after provider rate limit ({lang}): {exc}",
+                file=sys.stderr,
+            )
+            return
         except Exception as exc:
             if len(chunk) > 1:
                 midpoint = len(chunk) // 2
@@ -378,6 +391,8 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
             print(f"[WARN] AI article batch failed ({lang}, {len(chunk)} items): {exc}", file=sys.stderr)
 
     for chunk in chunks:
+        if rate_limited:
+            break
         generate_chunk(chunk)
 
     review_entries = [
