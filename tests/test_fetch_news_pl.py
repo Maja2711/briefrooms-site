@@ -240,5 +240,15 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertEqual(8, len(accepted))
         self.assertTrue(all(item["comment_generation_status"] == "ai_review_approved" for item in accepted))
 
+    def test_finalizer_rejects_image_that_the_publication_guard_would_remove(self):
+        sections = self.empty_sections()
+        item = approved_item(1)
+        item["thumbnail_url"] = "https://unrelated-cdn.example/photo.jpg"
+        sections["nauka"].append(item)
+
+        finalized = deep.finalize_sections_strict(sections)
+
+        self.assertEqual([], finalized["nauka"])
+
 if __name__ == "__main__":
     unittest.main()

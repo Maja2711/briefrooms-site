@@ -1,6 +1,7 @@
 import sys
 import types
 import unittest
+from datetime import timezone
 from unittest import mock
 from pathlib import Path
 
@@ -11,6 +12,7 @@ sys.modules.setdefault("requests", mock.Mock())
 if "dateutil" not in sys.modules:
     dateutil_stub = types.ModuleType("dateutil")
     dateutil_stub.tz = mock.Mock()
+    dateutil_stub.tz.gettz.return_value = timezone.utc
     sys.modules["dateutil"] = dateutil_stub
 
 import fetch_news_en_context as context  # noqa: E402
@@ -227,6 +229,32 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         accepted = [item for items in finalized.values() for item in items]
         self.assertEqual(8, len(accepted))
         self.assertTrue(all(item["comment_generation_status"] == "ai_review_approved" for item in accepted))
+
+    def test_finalizer_rejects_image_that_the_publication_guard_would_remove(self):
+        sections = self.empty_sections()
+        item = approved_item(1)
+        item["thumbnail_url"] = "https://unrelated-cdn.example/photo.jpg"
+        sections["asia_pacific"].append(item)
+
+        finalized = context.finalize_sections_full(sections)
+
+        self.assertEqual([], finalized["asia_pacific"])
+
+    def test_verified_asia_pacific_cdn_images_survive_finalization(self):
+        sections = self.empty_sections()
+        scmp = approved_item(1)
+        scmp["link"] = "https://www.scmp.com/news/china/example"
+        scmp["thumbnail_url"] = "https://cdn.i-scmp.com/sites/default/files/photo.jpg"
+        cna = approved_item(2)
+        cna["link"] = "https://www.channelnewsasia.com/asia/example"
+        cna["thumbnail_url"] = "https://dam.mediacorp.sg/image/upload/photo.jpg"
+        sections["asia_pacific"].extend([scmp, cna])
+
+        finalized = context.finalize_sections_full(sections)
+
+        self.assertEqual([scmp["thumbnail_url"], cna["thumbnail_url"]], [
+            item["thumbnail_url"] for item in finalized["asia_pacific"]
+        ])
 
 if __name__ == "__main__":
     unittest.main()
