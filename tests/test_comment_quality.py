@@ -680,6 +680,39 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual({"en-0", "en-1"}, set(result))
         self.assertEqual(3, request.call_count)
 
+    def test_article_batch_rate_limit_stops_without_recursive_requests(self):
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        candidates = [
+            {
+                "id": f"pl-{index}",
+                "title": f"Rząd publikuje zasady programu {index}",
+                "link": f"https://example.com/article-{index}",
+                "article_text": "Materiał źródłowy. " * 80,
+            }
+            for index in range(12)
+        ]
+        with (
+            mock.patch.object(reader, "get_ai_runtime", return_value=runtime),
+            mock.patch.object(
+                reader,
+                "request_json_completion",
+                side_effect=quality.AiRateLimitError("quota exhausted"),
+            ) as request,
+            mock.patch.object(reader, "independent_ai_review_batch") as review,
+        ):
+            result = reader.ai_summarize_batch(candidates, "pl", {})
+
+        self.assertEqual({}, result)
+        self.assertEqual(1, request.call_count)
+        review.assert_called_once()
+        self.assertEqual([], review.call_args.kwargs["entries"])
+
     def test_review_batch_failure_is_split_without_losing_reviews(self):
         entries = [
             {
@@ -723,6 +756,40 @@ class PipelineContractTests(unittest.TestCase):
 
         self.assertTrue(all(approved for approved, _reason in result.values()))
         self.assertEqual(3, request.call_count)
+
+    def test_review_batch_rate_limit_stops_without_recursive_requests(self):
+        entries = [
+            {
+                "id": f"en-{index}",
+                "title": f"Government publishes programme rules {index}",
+                "source_text": "The source confirms the programme rules.",
+                "summary": VALID_EN,
+            }
+            for index in range(12)
+        ]
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        with mock.patch.object(
+            quality,
+            "request_json_completion",
+            side_effect=quality.AiRateLimitError("quota exhausted"),
+        ) as request:
+            result = quality.independent_ai_review_batch(
+                post=mock.Mock(),
+                runtime=runtime,
+                entries=entries,
+                lang="en",
+            )
+
+        self.assertEqual(1, request.call_count)
+        self.assertTrue(
+            all(not approved and reason == "rate_limited" for approved, reason in result.values())
+        )
 
     def test_read_timeouts_are_bounded_to_two_attempts(self):
         class ReadTimeout(Exception):
@@ -777,6 +844,42 @@ class PipelineContractTests(unittest.TestCase):
                 temperature=0,
             )
         self.assertEqual(1, post.call_count)
+
+    def test_rate_limit_raises_typed_error_after_bounded_retries(self):
+        class RateLimitResponse:
+            status_code = 429
+            headers = {"Retry-After": "0"}
+
+            def raise_for_status(self):
+                raise RuntimeError("429 Too Many Requests")
+
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(return_value=RateLimitResponse())
+        with (
+            mock.patch.dict(
+                os.environ,
+                {
+                    "GITHUB_MODELS_FALLBACK_MODEL": "",
+                    "GITHUB_MODELS_MIN_INTERVAL_SECONDS": "0",
+                },
+            ),
+            mock.patch.object(quality.time, "sleep"),
+            self.assertRaises(quality.AiRateLimitError),
+        ):
+            quality.request_json_completion(
+                post=post,
+                runtime=runtime,
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=100,
+                temperature=0,
+            )
+        self.assertEqual(3, post.call_count)
 
     def test_github_models_requests_are_paced_when_configured(self):
         runtime = quality.AiRuntime(

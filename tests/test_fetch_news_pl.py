@@ -89,6 +89,55 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertEqual(once, twice)
         self.assertEqual(1, twice.count("źródło anglojęzyczne"))
 
+    def test_foreign_titles_are_translated_in_one_bounded_batch(self):
+        english = {
+            "title": "Scientists publish new telescope results",
+            "link": "https://example.com/science",
+            "source_name": "Example",
+            "summary_raw": "Scientists published new telescope results after a multi-year observing programme.",
+            "_source_was_english": True,
+        }
+        native = {
+            "title": "Polscy naukowcy opisali nowe wyniki",
+            "link": "https://example.pl/nauka",
+            "source_name": "Example PL",
+            "summary_raw": "Polscy naukowcy przedstawili wyniki programu obserwacyjnego.",
+            "_source_was_english": False,
+        }
+        sections = {"nauka": [english, native]}
+
+        def translate_batch(*, items, **_kwargs):
+            self.assertEqual([english], items)
+            english["_comment_batch_id"] = "pl-0"
+            return {
+                "pl-0": {
+                    "title_pl": "Naukowcy opublikowali nowe wyniki obserwacji",
+                    "reviewed": True,
+                }
+            }
+
+        with (
+            mock.patch.object(deep.base, "summarize_news_items", side_effect=translate_batch) as batch,
+            mock.patch.object(deep.base, "save_cache"),
+            mock.patch.object(
+                deep,
+                "enrich_sections_with_homepage_quality",
+                side_effect=lambda value, _lang: {
+                    key: list(items) for key, items in value.items()
+                },
+            ),
+            mock.patch.object(deep.hybrid, "translate_english_item_to_polish") as single,
+        ):
+            deep.summarize_sections_pl_full(sections)
+
+        self.assertEqual(1, batch.call_count)
+        single.assert_not_called()
+        self.assertEqual(
+            "Naukowcy opublikowali nowe wyniki obserwacji",
+            sections["nauka"][0]["title"],
+        )
+        self.assertEqual(2, len(sections["nauka"]))
+
     def test_rendered_page_uses_homepage_cards_and_sections(self):
         page = deep.render_html_strict(self.strict_sections())
         self.assertIn('<a href="#zdrowie">Zdrowie</a>', page)

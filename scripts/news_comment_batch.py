@@ -9,6 +9,7 @@ import re
 import sys
 
 from comment_quality import (
+    AiRateLimitError,
     QUALITY_STATUS,
     QUALITY_VERSION,
     clip_complete_text,
@@ -110,6 +111,7 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
 
     generated: dict[str, dict] = {}
     pending_by_id = {candidate["id"]: candidate for candidate in pending}
+    rate_limited = False
     for chunk in chunks:
         source_items = [
             {
@@ -184,8 +186,18 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                     "summary": quality.text,
                     "title_pl": title_pl if candidate["translate_title"] else "",
                 }
+        except AiRateLimitError as exc:
+            rate_limited = True
+            print(
+                f"[WARN] {lang.upper()} news generation paused after provider rate limit: {exc}",
+                file=sys.stderr,
+            )
+            break
         except Exception as exc:
             print(f"[WARN] {lang.upper()} news batch failed ({len(chunk)} items): {exc}", file=sys.stderr)
+
+    if rate_limited:
+        return accepted
 
     reviews = independent_ai_review_batch(
         post=post,
