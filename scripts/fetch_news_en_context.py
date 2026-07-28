@@ -23,6 +23,7 @@ import fetch_news_en as base  # noqa: E402
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION, validate_comment  # noqa: E402
 from external_media_policy import external_image_url  # noqa: E402
 from newsroom_articles import enrich_sections_with_homepage_quality  # noqa: E402
+from news_section_reserve import load_news_section_reserve  # noqa: E402
 from newsroom_style import apply_newsroom_style  # noqa: E402
 from news_publication_diagnostics import record_item  # noqa: E402
 from news_story_dedupe import (  # noqa: E402
@@ -118,6 +119,10 @@ def summarize_sections_en_full(sections: dict) -> None:
         print(f"NEWS_CANDIDATE_DEDUPE_EN rejected={len(rejected)}")
     sections.clear()
     sections.update(unique)
+
+    reserve = load_news_section_reserve("en", image_lookup=base.article_image)
+    for section_key, items in sections.items():
+        items.extend(reserve.get(section_key, []))
 
     enriched = enrich_sections_with_homepage_quality(sections, "en")
     sections.clear()

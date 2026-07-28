@@ -30,6 +30,10 @@ HOME_FILES = {
     "pl": ROOT / "pl" / "home_brief.json",
     "en": ROOT / "en" / "home_brief.json",
 }
+MIN_APPROVED_PER_SECTION = 6
+BASE_NEW_ITEMS_PER_SECTION = 4
+REJECTION_RESERVE = 3
+MAX_NEW_ITEMS_PER_SECTION = 10
 
 
 def round_robin_section_items(
@@ -91,6 +95,22 @@ def _accept(item: dict, text: str, lang: str, source: str) -> bool:
     return True
 
 
+def _bounded_section_candidates(items: list[dict]) -> list[dict]:
+    approved_reserve = [
+        item
+        for item in items
+        if item.get("_section_reserve") is True
+        and item.get("_full_article_comment_approved") is True
+    ]
+    fresh = [item for item in items if item.get("_section_reserve") is not True]
+    needed = max(0, MIN_APPROVED_PER_SECTION - len(approved_reserve))
+    fresh_limit = min(
+        MAX_NEW_ITEMS_PER_SECTION,
+        max(BASE_NEW_ITEMS_PER_SECTION, needed + REJECTION_RESERVE),
+    )
+    return fresh[:fresh_limit] + approved_reserve
+
+
 def enrich_sections_with_homepage_quality(sections: dict[str, list[dict]], lang: str) -> dict[str, list[dict]]:
     """Attach homepage-grade comments and remove items that do not pass.
 
@@ -106,8 +126,17 @@ def enrich_sections_with_homepage_quality(sections: dict[str, list[dict]], lang:
     candidates: list[dict] = []
     records: dict[str, dict] = {}
     sequence = 0
+    bounded_sections = {
+        section_key: _bounded_section_candidates(items)
+        for section_key, items in sections.items()
+    }
 
-    for _section_key, item in round_robin_section_items(sections):
+    for _section_key, item in round_robin_section_items(bounded_sections):
+        if (
+            item.get("_section_reserve") is True
+            and item.get("_full_article_comment_approved") is True
+        ):
+            continue
         item["_full_article_comment_approved"] = False
         link = str(item.get("link") or "").strip()
         title = str(item.get("title") or "").strip()
@@ -152,5 +181,5 @@ def enrich_sections_with_homepage_quality(sections: dict[str, list[dict]], lang:
             for item in items
             if item.get("_full_article_comment_approved") is True
         ]
-        for section_key, items in sections.items()
+        for section_key, items in bounded_sections.items()
     }

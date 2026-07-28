@@ -92,6 +92,8 @@ PRODUCTION_COMMANDS = (
     ("dedupe_home", "scripts/dedupe_home_brief_stories.py"),
     ("hide_labels", "scripts/hide_urgent_home_labels.py"),
     ("comment_source", "scripts/patch_brief_comment_source.py"),
+    ("complete_pl_home", "scripts/protect_home_feed.py", "--validate", "--lang", "pl"),
+    ("complete_en_home", "scripts/protect_home_feed.py", "--validate", "--lang", "en"),
     ("generate_briefs", "scripts/generate_permanent_briefs.py"),
     ("normalize_pl", "scripts/normalize_home_publish_count.py", "--lang", "pl"),
     ("normalize_en", "scripts/normalize_home_publish_count.py", "--lang", "en"),
