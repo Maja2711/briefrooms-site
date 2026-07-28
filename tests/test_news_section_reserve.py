@@ -219,11 +219,21 @@ class NewsSectionReserveTests(unittest.TestCase):
 
     def test_ai_work_is_bounded_by_the_actual_section_shortage(self) -> None:
         reserve = [
-            {"title": f"reserve-{index}", "_section_reserve": True,
-             "_full_article_comment_approved": True}
+            {
+                "title": f"reserve-{index}",
+                "link": f"https://example.com/reserve-{index}",
+                "_section_reserve": True,
+                "_full_article_comment_approved": True,
+            }
             for index in range(6)
         ]
-        fresh = [{"title": f"fresh-{index}"} for index in range(20)]
+        fresh = [
+            {
+                "title": f"fresh-{index}",
+                "link": f"https://example.com/fresh-{index}",
+            }
+            for index in range(20)
+        ]
         selected = _bounded_section_candidates(fresh + reserve)
         self.assertEqual(4, len([item for item in selected if "fresh" in item["title"]]))
         self.assertEqual(6, len([item for item in selected if "reserve" in item["title"]]))
@@ -231,6 +241,34 @@ class NewsSectionReserveTests(unittest.TestCase):
         sparse = _bounded_section_candidates(fresh + reserve[:2])
         self.assertEqual(7, len([item for item in sparse if "fresh" in item["title"]]))
         self.assertEqual(2, len([item for item in sparse if "reserve" in item["title"]]))
+
+    def test_current_copy_of_a_reserve_url_does_not_consume_ai_budget(self) -> None:
+        repeated = {
+            "title": "Current copy",
+            "link": "https://example.com/repeated?utm_source=rss",
+        }
+        reserve = {
+            "title": "Approved reserve",
+            "link": "https://example.com/repeated",
+            "_section_reserve": True,
+            "_full_article_comment_approved": True,
+        }
+        fresh = [
+            {
+                "title": f"Different fresh report {index}",
+                "link": f"https://example.com/different-{index}",
+            }
+            for index in range(8)
+        ]
+
+        selected = _bounded_section_candidates([repeated, *fresh, reserve])
+
+        self.assertNotIn(repeated, selected)
+        self.assertIn(reserve, selected)
+        self.assertEqual(
+            8,
+            len([item for item in selected if "Different fresh" in item["title"]]),
+        )
 
 
 if __name__ == "__main__":
