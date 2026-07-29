@@ -184,6 +184,35 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         self.assertEqual(9, base.MAX_PER_SECTION)
         self.assertEqual(2, base.MAX_PER_HOST)
 
+    def test_reserve_is_semantically_deduplicated_before_quality_generation(self):
+        fresh = approved_item(1)
+        fresh["title"] = "Central bank cuts interest rates after inflation falls"
+        reserve = approved_item(2)
+        reserve["title"] = "Interest rates cut by central bank as inflation declines"
+        captured = {}
+
+        def enrich(value, _lang):
+            captured.update({key: list(items) for key, items in value.items()})
+            return value
+
+        sections = {"business": [fresh]}
+        with (
+            mock.patch.object(context, "load_recent_history", return_value=[]),
+            mock.patch.object(
+                context,
+                "load_news_section_reserve",
+                return_value={"business": [reserve]},
+            ),
+            mock.patch.object(
+                context,
+                "enrich_sections_with_homepage_quality",
+                side_effect=enrich,
+            ),
+        ):
+            context.summarize_sections_en_full(sections)
+
+        self.assertEqual(1, len(captured["business"]))
+
     def test_specific_desks_claim_topics_before_world(self):
         self.assertEqual("world", base.SECTION_FETCH_ORDER[-1])
         self.assertEqual(

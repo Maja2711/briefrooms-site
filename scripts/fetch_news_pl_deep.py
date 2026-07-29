@@ -135,6 +135,15 @@ def summarize_sections_pl_full(sections: dict) -> None:
     for section_key, items in sections.items():
         items.extend(reserve.get(section_key, []))
 
+    combined, reserve_rejected = deduplicate_sections(
+        sections,
+        load_recent_history(HISTORY_PATH),
+    )
+    if reserve_rejected:
+        print(f"NEWS_RESERVE_DEDUPE_PL rejected={len(reserve_rejected)}")
+    sections.clear()
+    sections.update(combined)
+
     enriched = enrich_sections_with_homepage_quality(sections, "pl")
     sections.clear()
     sections.update(enriched)

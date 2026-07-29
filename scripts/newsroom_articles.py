@@ -32,9 +32,10 @@ HOME_FILES = {
     "en": ROOT / "en" / "home_brief.json",
 }
 MIN_APPROVED_PER_SECTION = 6
+APPROVED_TARGET_PER_SECTION = 8
 BASE_NEW_ITEMS_PER_SECTION = 4
 REJECTION_RESERVE = 3
-MAX_NEW_ITEMS_PER_SECTION = 10
+MAX_NEW_ITEMS_PER_SECTION = 18
 
 
 def round_robin_section_items(
@@ -96,7 +97,7 @@ def _accept(item: dict, text: str, lang: str, source: str) -> bool:
     return True
 
 
-def _bounded_section_candidates(items: list[dict]) -> list[dict]:
+def _section_candidate_parts(items: list[dict]) -> tuple[list[dict], list[dict]]:
     approved_reserve = [
         item
         for item in items
@@ -108,12 +109,22 @@ def _bounded_section_candidates(items: list[dict]) -> list[dict]:
         for item in approved_reserve
         if _canonical_url(item)
     }
-    fresh = [
-        item
-        for item in items
-        if item.get("_section_reserve") is not True
-        and _canonical_url(item) not in reserve_urls
-    ]
+    fresh: list[dict] = []
+    seen_fresh_urls: set[str] = set()
+    for item in items:
+        if item.get("_section_reserve") is True:
+            continue
+        canonical = _canonical_url(item)
+        if canonical and (canonical in reserve_urls or canonical in seen_fresh_urls):
+            continue
+        if canonical:
+            seen_fresh_urls.add(canonical)
+        fresh.append(item)
+    return fresh[:MAX_NEW_ITEMS_PER_SECTION], approved_reserve
+
+
+def _bounded_section_candidates(items: list[dict]) -> list[dict]:
+    fresh, approved_reserve = _section_candidate_parts(items)
     needed = max(0, MIN_APPROVED_PER_SECTION - len(approved_reserve))
     fresh_limit = min(
         MAX_NEW_ITEMS_PER_SECTION,
@@ -134,63 +145,95 @@ def enrich_sections_with_homepage_quality(sections: dict[str, list[dict]], lang:
 
     homepage = approved_homepage_comments(lang)
     cache = load_cache()
-    candidates: list[dict] = []
-    records: dict[str, dict] = {}
     sequence = 0
-    bounded_sections = {
-        section_key: _bounded_section_candidates(items)
+    candidate_parts = {
+        section_key: _section_candidate_parts(items)
         for section_key, items in sections.items()
     }
+    processed: dict[str, list[dict]] = {
+        section_key: []
+        for section_key in sections
+    }
+    offsets: dict[str, int] = {}
 
-    for _section_key, item in round_robin_section_items(bounded_sections):
-        if (
-            item.get("_section_reserve") is True
-            and item.get("_full_article_comment_approved") is True
-        ):
-            continue
-        item["_full_article_comment_approved"] = False
-        link = str(item.get("link") or "").strip()
-        title = str(item.get("title") or "").strip()
+    def process_wave(wave: dict[str, list[dict]]) -> None:
+        nonlocal sequence
+        candidates: list[dict] = []
+        records: dict[str, dict] = {}
+        for section_key, item in round_robin_section_items(wave):
+            processed[section_key].append(item)
+            item["_full_article_comment_approved"] = False
+            link = str(item.get("link") or "").strip()
+            title = str(item.get("title") or "").strip()
 
-        existing = homepage.get(link)
-        if existing and _accept(item, existing, lang, "approved_homepage_comment"):
-            item["article_read_status"] = "reused_homepage_article_review"
-            continue
+            existing = homepage.get(link)
+            if existing and _accept(item, existing, lang, "approved_homepage_comment"):
+                item["article_read_status"] = "reused_homepage_article_review"
+                continue
 
-        article_text, status = fetch_article_text(link)
-        item["article_read_status"] = status
-        item["article_text_chars"] = len(article_text)
-        if len(article_text) < MIN_ARTICLE_CHARS:
+            article_text, status = fetch_article_text(link)
+            item["article_read_status"] = status
+            item["article_text_chars"] = len(article_text)
+            if len(article_text) < MIN_ARTICLE_CHARS:
+                item["comment_generation_status"] = "rejected_or_unavailable"
+                item["summary_basis"] = "rss_only_insufficient_article_text"
+                continue
+
+            item_id = f"section-{lang}-{sequence}"
+            sequence += 1
+            candidates.append(
+                {
+                    "id": item_id,
+                    "title": title,
+                    "link": link,
+                    "article_text": article_text,
+                }
+            )
+            records[item_id] = item
+
+        generated = ai_summarize_batch(candidates, lang, cache) if candidates else {}
+        for item_id, item in records.items():
+            text = str(generated.get(item_id) or "").strip()
+            if text and _accept(item, text, lang, "shared_full_article_pipeline"):
+                continue
             item["comment_generation_status"] = "rejected_or_unavailable"
-            item["summary_basis"] = "rss_only_insufficient_article_text"
-            continue
+            item["summary_basis"] = "article_text_ai_rejected"
 
-        item_id = f"section-{lang}-{sequence}"
-        sequence += 1
-        candidates.append(
-            {
-                "id": item_id,
-                "title": title,
-                "link": link,
-                "article_text": article_text,
-            }
+    initial_wave: dict[str, list[dict]] = {}
+    for section_key, (fresh, approved_reserve) in candidate_parts.items():
+        needed = max(0, MIN_APPROVED_PER_SECTION - len(approved_reserve))
+        initial_count = min(
+            len(fresh),
+            max(BASE_NEW_ITEMS_PER_SECTION, needed + REJECTION_RESERVE),
         )
-        records[item_id] = item
+        initial_wave[section_key] = fresh[:initial_count]
+        offsets[section_key] = initial_count
+    process_wave(initial_wave)
 
-    generated = ai_summarize_batch(candidates, lang, cache)
-    for item_id, item in records.items():
-        text = str(generated.get(item_id) or "").strip()
-        if text and _accept(item, text, lang, "shared_full_article_pipeline"):
-            continue
-        item["comment_generation_status"] = "rejected_or_unavailable"
-        item["summary_basis"] = "article_text_ai_rejected"
+    while True:
+        backfill_wave: dict[str, list[dict]] = {}
+        for section_key, (fresh, approved_reserve) in candidate_parts.items():
+            approved_count = len(approved_reserve) + sum(
+                item.get("_full_article_comment_approved") is True
+                for item in processed[section_key]
+            )
+            shortage = max(0, APPROVED_TARGET_PER_SECTION - approved_count)
+            start = offsets[section_key]
+            if not shortage or start >= len(fresh):
+                continue
+            count = min(len(fresh) - start, shortage + REJECTION_RESERVE)
+            backfill_wave[section_key] = fresh[start : start + count]
+            offsets[section_key] += count
+        if not backfill_wave:
+            break
+        process_wave(backfill_wave)
 
     save_cache(cache)
     return {
         section_key: [
             item
-            for item in items
+            for item in processed[section_key] + candidate_parts[section_key][1]
             if item.get("_full_article_comment_approved") is True
         ]
-        for section_key, items in bounded_sections.items()
+        for section_key in sections
     }

@@ -97,10 +97,10 @@ class PolishNewsBuilderTests(unittest.TestCase):
             "_source_was_english": True,
         }
         native = {
-            "title": "Polscy naukowcy opisali nowe wyniki",
+            "title": "Polscy naukowcy opisali nowy materiał do baterii",
             "link": "https://example.pl/nauka",
             "source_name": "Example PL",
-            "summary_raw": "Polscy naukowcy przedstawili wyniki programu obserwacyjnego.",
+            "summary_raw": "Zespół przedstawił parametry materiału używanego w nowych ogniwach.",
             "_source_was_english": False,
         }
         sections = {"nauka": [english, native]}

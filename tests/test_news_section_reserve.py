@@ -17,7 +17,10 @@ sys.modules.setdefault("requests", mock.Mock())
 
 from comment_quality import QUALITY_STATUS, QUALITY_VERSION
 from news_section_reserve import load_news_section_reserve, parse_news_page
-from newsroom_articles import _bounded_section_candidates
+from newsroom_articles import (
+    _bounded_section_candidates,
+    enrich_sections_with_homepage_quality,
+)
 
 
 PL_COMMENT = (
@@ -269,6 +272,50 @@ class NewsSectionReserveTests(unittest.TestCase):
             8,
             len([item for item in selected if "Different fresh" in item["title"]]),
         )
+
+    def test_quality_rejections_trigger_another_candidate_wave(self) -> None:
+        reserve = [
+            {
+                "title": f"Approved reserve {index}",
+                "link": f"https://example.com/reserve-{index}",
+                "full_brief": EN_COMMENT,
+                "_section_reserve": True,
+                "_full_article_comment_approved": True,
+            }
+            for index in range(2)
+        ]
+        fresh = [
+            {
+                "title": f"Fresh business report {index}",
+                "link": f"https://example.com/fresh-{index}",
+            }
+            for index in range(12)
+        ]
+        generation_calls: list[list[str]] = []
+
+        def summarize(candidates: list[dict], _lang: str, _cache: dict) -> dict[str, str]:
+            generation_calls.append([candidate["id"] for candidate in candidates])
+            approved = candidates[:3]
+            return {candidate["id"]: EN_COMMENT for candidate in approved}
+
+        with (
+            mock.patch("newsroom_articles.approved_homepage_comments", return_value={}),
+            mock.patch("newsroom_articles.load_cache", return_value={}),
+            mock.patch("newsroom_articles.save_cache"),
+            mock.patch(
+                "newsroom_articles.fetch_article_text",
+                return_value=("Complete source article text. " * 80, "article_read"),
+            ),
+            mock.patch("newsroom_articles.ai_summarize_batch", side_effect=summarize),
+        ):
+            result = enrich_sections_with_homepage_quality(
+                {"business": fresh + reserve},
+                "en",
+            )
+
+        self.assertEqual(8, len(result["business"]))
+        self.assertEqual(2, len(generation_calls))
+        self.assertTrue(set(generation_calls[0]).isdisjoint(generation_calls[1]))
 
 
 if __name__ == "__main__":
