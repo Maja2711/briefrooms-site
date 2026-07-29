@@ -3,7 +3,9 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,6 +68,26 @@ class Generation3Tests(unittest.TestCase):
         exposure = gen3.probabilities_to_exposure(probabilities, volatility, candidate)
         self.assertGreaterEqual(float(exposure.min()), 0.0)
         self.assertLessEqual(float(exposure.max()), 1.0)
+
+    def test_development_baselines_use_fold_positions_not_fake_dates(self):
+        index = pd.date_range("2020-01-31", periods=8, freq="ME")
+        frame = pd.DataFrame({
+            "asset_return": [0.01, -0.01, 0.02, 0.01, -0.02, 0.03, 0.01, 0.02],
+            "spy_ma_gap_200": [0.1, 0.1, -0.1, 0.1, -0.1, 0.1, 0.1, 0.1],
+        }, index=index)
+        folds = [
+            (np.array([0, 1]), np.array([2, 3])),
+            (np.array([0, 1, 2, 3]), np.array([4, 5])),
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7])),
+        ]
+        with patch.object(gen3.base, "monthly_dataset", return_value=frame), \
+             patch.object(gen3.base, "holdout_split", return_value=(frame, frame.iloc[0:0])), \
+             patch.object(gen3.base, "chronological_folds", return_value=folds), \
+             patch.object(gen3.engine, "monthly_risk_free", return_value=pd.Series(0.0, index=index[2:])):
+            baselines = gen3.development_baselines(pd.DataFrame())
+        self.assertIn("buy_and_hold", baselines)
+        self.assertIn("trend_200d", baselines)
+        self.assertGreater(baselines["buy_and_hold"]["months"], 0)
 
 
 if __name__ == "__main__":
