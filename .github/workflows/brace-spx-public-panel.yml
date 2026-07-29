@@ -2,42 +2,35 @@ name: BRACE-SPX Public Panel
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   push:
-    branches:
-      - brace-spx-public-panel
-    paths:
-      - "scripts/install_brace_spx_public_panel.py"
-      - ".github/workflows/brace-spx-public-panel.yml"
-  pull_request:
     branches:
       - main
     paths:
+      - "scripts/install_brace_spx_public_panel.py"
+      - "scripts/brace-spx-generation3-card.js"
       - "pl/inwestycje/brace-spx-lab.html"
       - "en/investing/brace-spx-lab.html"
-      - "assets/brace-spx-lab.css"
-      - "scripts/brace-spx-lab-public.js"
-      - "scripts/publish_brace_spx_public.py"
-      - "scripts/install_brace_spx_public_panel.py"
-      - "data/public/brace_spx_public.json"
-      - "tests/test_brace_spx_public_boundary.py"
       - ".github/workflows/brace-spx-public-panel.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: brace-spx-public-panel-${{ github.ref }}
+  group: brace-spx-public-panel-main
   cancel-in-progress: false
 
 jobs:
   install-and-validate:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX panel')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out panel branch
+      - name: Check out main
         uses: actions/checkout@v4
         with:
-          ref: brace-spx-public-panel
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -45,24 +38,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install tabs and sitemap entries
+      - name: Install tabs and Generation 3 blocks
         run: python scripts/install_brace_spx_public_panel.py
 
-      - name: Validate public privacy boundary
+      - name: Validate public integration
         run: |
           python -m py_compile scripts/publish_brace_spx_public.py scripts/install_brace_spx_public_panel.py
           python -m unittest -v tests/test_brace_spx_public_boundary.py
           python scripts/install_brace_spx_public_panel.py --check
+          test -f scripts/brace-spx-generation3-card.js
 
-      - name: Persist generated page links
+      - name: Persist generated scenario blocks
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/inwestycje/spx-scenariusze-2026.html en/investing/spx-scenarios-2026.html sitemap.xml
           if git diff --cached --quiet; then
-            echo "BRACE-SPX public panel links are already current."
-          else
-            git commit -m "Link BRACE-SPX Lab from S&P scenario pages"
-            git pull --rebase origin brace-spx-public-panel
-            git push origin HEAD:brace-spx-public-panel
+            echo "BRACE-SPX Generation 3 blocks are already current."
+            exit 0
           fi
+          git commit -m "Show BRACE-SPX Generation 3 on S&P scenario pages"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
