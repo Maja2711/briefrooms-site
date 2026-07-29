@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "generation_id": "spx-focused-v3",
+  "target_instrument": "SPY / S&P 500",
+  "status": "predeclared",
+  "derived_from_generation": "spx-sealed-v2",
+  "candidate_space_size": 48,
+  "search_scope": {
+    "model_family_count": 1,
+    "model_family": "elastic_logistic_focus",
+    "feature_group_count": 2,
+    "feature_groups": [
+      "breadth_credit_focus",
+      "cross_asset_focus"
+    ],
+    "threshold_pair_count": 2,
+    "volatility_target_count": 2,
+    "exposure_mode_count": 2,
+    "regularization_spec_count": 3
+  },
+  "scientific_rationale": [
+    "Generation 2 evidence concentrated in regularized logistic candidates.",
+    "Breadth-credit and cross-asset groups were the most persistent across chronological folds.",
+    "A smaller homogeneous universe reduces multiple-testing dispersion and makes DSR more informative.",
+    "All exact configurations are new and the final holdout is excluded from design and tuning."
+  ],
+  "strict_gate": {
+    "candidate_space_must_be_exhausted": true,
+    "holdout_must_remain_sealed": true,
+    "minimum_positive_folds": 6,
+    "minimum_excess_sharpe": 1.2,
+    "minimum_sharpe_advantage_over_best_baseline": 0.15,
+    "maximum_drawdown": -0.15,
+    "maximum_fold_sharpe_std": 0.8,
+    "minimum_deflated_sharpe_probability": 0.95,
+    "maximum_probability_of_backtest_overfitting": 0.2,
+    "human_approval_required_before_holdout": true
+  },
+  "execution_constraints": {
+    "maximum_exposure": 1.0,
+    "leverage": false,
+    "live_orders": false,
+    "research_only": true
+  }
+}
