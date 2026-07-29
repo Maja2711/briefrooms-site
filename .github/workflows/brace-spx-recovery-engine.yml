@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       budget:
-        description: "Number of genuinely new v2 candidates"
+        description: "Number of genuinely new v3 candidates"
         required: false
-        default: "36"
+        default: "12"
   schedule:
     - cron: "23 * * * *"
   issues:
@@ -31,27 +31,49 @@ jobs:
           ref: brace-spx-research
           fetch-depth: 0
 
+      - name: Check whether generation 3 still has unseen candidates
+        id: precheck
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("data/research/brace_spx_generation3_research.json")
+          should_run = True
+          if path.exists():
+              try:
+                  report = json.loads(path.read_text(encoding="utf-8"))
+                  should_run = int(report.get("experiments_remaining", 1)) > 0
+              except Exception:
+                  should_run = True
+          with open("/tmp/brace_spx_should_run", "w", encoding="utf-8") as handle:
+              handle.write("true" if should_run else "false")
+          PY
+          echo "should_run=$(cat /tmp/brace_spx_should_run)" >> "$GITHUB_OUTPUT"
+
       - name: Persist immediate start marker
+        if: steps.precheck.outputs.should_run == 'true'
         run: |
           mkdir -p data/research
-          printf '{\n  "status": "started",\n  "generation_id": "spx-sealed-v2",\n  "started_at": "%s",\n  "event": "%s",\n  "run_id": "%s"\n}\n' \
+          printf '{\n  "status": "started",\n  "generation_id": "spx-focused-v3",\n  "started_at": "%s",\n  "event": "%s",\n  "run_id": "%s"\n}\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${{ github.event_name }}" "${{ github.run_id }}" \
-            > data/research/brace_spx_generation2_started.json
+            > data/research/brace_spx_generation3_started.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/research/brace_spx_generation2_started.json
-          git commit -m "Mark BRACE-SPX v2 run started"
+          git add -f data/research/brace_spx_generation3_started.json
+          git commit -m "Mark BRACE-SPX v3 run started"
           git fetch origin brace-spx-research
           git rebase origin/brace-spx-research
           git push origin HEAD:brace-spx-research
 
       - name: Set up Python
+        if: steps.precheck.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies with retry
         id: install
+        if: steps.precheck.outputs.should_run == 'true'
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -61,50 +83,64 @@ jobs:
           done
           exit 1
 
-      - name: Validate governance and v2 engine
+      - name: Validate focused generation 3 engine
         id: validate
-        if: steps.install.outcome == 'success'
+        if: steps.precheck.outputs.should_run == 'true' && steps.install.outcome == 'success'
         continue-on-error: true
         run: |
           python -m py_compile \
             scripts/brace_spx_research.py \
             scripts/brace_spx_generation_research.py \
             scripts/brace_spx_generation2_research.py \
-            scripts/brace_spx_v1_governance_resolution.py \
+            scripts/brace_spx_generation3_research.py \
+            scripts/brace_spx_generation3_verdict.py \
+            scripts/publish_brace_spx_generation3_public.py \
             scripts/brace_spx_research_controls.py \
             scripts/brace_spx_selection_audit.py \
             scripts/brace_spx_statistical_governance.py
           python -m pytest -q \
             tests/test_brace_spx_generation_research.py \
             tests/test_brace_spx_generation2_research.py \
+            tests/test_brace_spx_generation3_research.py \
+            tests/test_brace_spx_generation3_governance.py \
             tests/test_brace_spx_research_controls.py \
             tests/test_brace_spx_selection_audit.py \
             tests/test_brace_spx_statistical_governance.py
-          python scripts/brace_spx_v1_governance_resolution.py
 
-      - name: Run sealed generation 2 batch
+      - name: Run sealed generation 3 batch
         id: research
-        if: steps.validate.outcome == 'success'
+        if: steps.precheck.outputs.should_run == 'true' && steps.validate.outcome == 'success'
         continue-on-error: true
         env:
-          BUDGET: ${{ github.event.inputs.budget || '36' }}
+          BUDGET: ${{ github.event.inputs.budget || '12' }}
         run: |
           set -o pipefail
           for attempt in 1 2 3; do
-            if python scripts/brace_spx_generation2_research.py --start 1993-01-01 --budget "$BUDGET" 2>&1 | tee data/research/brace_spx_generation2.log; then exit 0; fi
+            if python scripts/brace_spx_generation3_research.py --start 1993-01-01 --budget "$BUDGET" 2>&1 | tee data/research/brace_spx_generation3.log; then exit 0; fi
             sleep $((attempt * 45))
           done
           exit 1
 
-      - name: Audit generation 2 selection
+      - name: Audit generation 3 selection
         id: audit
         if: steps.research.outcome == 'success'
         continue-on-error: true
         run: |
           python scripts/brace_spx_selection_audit.py \
-            --ledger data/research/brace_spx_generation2_experiments.json \
-            --report data/research/brace_spx_generation2_research.json \
-            --output data/research/brace_spx_generation2_selection_audit.json
+            --ledger data/research/brace_spx_generation3_experiments.json \
+            --report data/research/brace_spx_generation3_research.json \
+            --output data/research/brace_spx_generation3_selection_audit.json
+
+      - name: Evaluate predeclared generation 3 gate
+        id: verdict
+        if: steps.audit.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python scripts/brace_spx_generation3_verdict.py \
+            --report data/research/brace_spx_generation3_research.json \
+            --audit data/research/brace_spx_generation3_selection_audit.json \
+            --manifest data/research/brace_spx_generation3_manifest.json \
+            --output data/research/brace_spx_generation3_verdict.json
 
       - name: Reconcile without downgrading public evidence
         id: reconcile
@@ -112,18 +148,31 @@ jobs:
         continue-on-error: true
         run: |
           python scripts/brace_spx_statistical_governance.py \
-            --active-report data/research/brace_spx_generation2_research.json \
+            --active-report data/research/brace_spx_generation3_research.json \
             --public-snapshot data/public/brace_spx_public.json \
-            --output data/research/brace_spx_generation2_reconciliation.json
+            --output data/research/brace_spx_generation3_reconciliation.json
+
+      - name: Build sanitized generation 3 snapshot
+        id: public_snapshot
+        if: steps.verdict.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python scripts/publish_brace_spx_generation3_public.py \
+            --report data/research/brace_spx_generation3_research.json \
+            --manifest data/research/brace_spx_generation3_manifest.json \
+            --verdict data/research/brace_spx_generation3_verdict.json \
+            --output data/public/brace_spx_generation3_public.json
 
       - name: Write final status
-        if: always()
+        if: steps.precheck.outputs.should_run == 'true' && always()
         env:
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
           RESEARCH_OUTCOME: ${{ steps.research.outcome }}
           AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          VERDICT_OUTCOME: ${{ steps.verdict.outcome }}
           RECONCILE_OUTCOME: ${{ steps.reconcile.outcome }}
+          PUBLIC_OUTCOME: ${{ steps.public_snapshot.outcome }}
           RUN_ID: ${{ github.run_id }}
         run: |
           python - <<'PY'
@@ -132,7 +181,7 @@ jobs:
           from pathlib import Path
           root = Path("data/research")
           report = {}
-          path = root / "brace_spx_generation2_research.json"
+          path = root / "brace_spx_generation3_research.json"
           if path.exists():
               try: report = json.loads(path.read_text(encoding="utf-8"))
               except Exception: pass
@@ -140,51 +189,55 @@ jobs:
               "status": "finished",
               "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "run_id": os.environ.get("RUN_ID"),
-              "generation_id": "spx-sealed-v2",
+              "generation_id": "spx-focused-v3",
               "stages": {
                   "install": os.environ.get("INSTALL_OUTCOME") or "not_started",
                   "validate": os.environ.get("VALIDATE_OUTCOME") or "not_started",
                   "research": os.environ.get("RESEARCH_OUTCOME") or "not_started",
                   "audit": os.environ.get("AUDIT_OUTCOME") or "not_started",
+                  "verdict": os.environ.get("VERDICT_OUTCOME") or "not_started",
                   "reconcile": os.environ.get("RECONCILE_OUTCOME") or "not_started",
+                  "public_snapshot": os.environ.get("PUBLIC_OUTCOME") or "not_started"
               },
               "experiments_total": report.get("experiments_total"),
               "experiments_remaining": report.get("experiments_remaining"),
-              "report_generated_at": report.get("generated_at"),
+              "report_generated_at": report.get("generated_at")
           }
-          (root / "brace_spx_generation2_status.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+          (root / "brace_spx_generation3_status.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
           PY
 
       - name: Snapshot generated evidence
-        if: always()
+        if: steps.precheck.outputs.should_run == 'true' && always()
         run: |
           rm -rf /tmp/brace-spx-output
           mkdir -p /tmp/brace-spx-output
           for path in \
-            data/research/brace_spx_v1_governance_resolution.json \
-            data/research/brace_spx_generation2_research.json \
-            data/research/brace_spx_generation2_experiments.json \
-            data/research/brace_spx_generation2_manifest.json \
-            data/research/brace_spx_generation2_selection_audit.json \
-            data/research/brace_spx_generation2_reconciliation.json \
-            data/research/brace_spx_generation2_started.json \
-            data/research/brace_spx_generation2_status.json \
-            data/research/brace_spx_generation2.log
+            data/research/brace_spx_generation3_design.json \
+            data/research/brace_spx_generation3_research.json \
+            data/research/brace_spx_generation3_experiments.json \
+            data/research/brace_spx_generation3_manifest.json \
+            data/research/brace_spx_generation3_selection_audit.json \
+            data/research/brace_spx_generation3_verdict.json \
+            data/research/brace_spx_generation3_reconciliation.json \
+            data/research/brace_spx_generation3_started.json \
+            data/research/brace_spx_generation3_status.json \
+            data/research/brace_spx_generation3.log \
+            data/public/brace_spx_generation3_public.json
           do
             if [ -e "$path" ]; then cp --parents "$path" /tmp/brace-spx-output; fi
           done
 
       - name: Upload emergency evidence artifact
-        if: always()
+        if: steps.precheck.outputs.should_run == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: brace-spx-v2-${{ github.run_id }}
+          name: brace-spx-v3-${{ github.run_id }}
           retention-days: 30
           if-no-files-found: error
-          path: /tmp/brace-spx-output/data/research
+          path: /tmp/brace-spx-output
 
-      - name: Persist results conflict-safely
-        if: always()
+      - name: Persist generation 3 evidence conflict-safely
+        if: steps.precheck.outputs.should_run == 'true' && always()
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -193,18 +246,49 @@ jobs:
             git fetch origin brace-spx-research
             git reset --hard origin/brace-spx-research
             if [ -d /tmp/brace-spx-output/data ]; then cp -R /tmp/brace-spx-output/data/. data/; fi
-            find data/research -maxdepth 1 -type f \( -name 'brace_spx_v1_governance_resolution.json' -o -name 'brace_spx_generation2*' \) -print0 | xargs -0 -r git add -f
-            if git diff --cached --quiet; then echo "No new BRACE-SPX v2 changes."; exit 0; fi
-            git commit -m "Persist BRACE-SPX sealed generation 2 batch"
+            find data/research -maxdepth 1 -type f -name 'brace_spx_generation3*' -print0 | xargs -0 -r git add -f
+            if [ -e data/public/brace_spx_generation3_public.json ]; then git add -f data/public/brace_spx_generation3_public.json; fi
+            if git diff --cached --quiet; then echo "No new BRACE-SPX v3 changes."; exit 0; fi
+            git commit -m "Persist BRACE-SPX focused generation 3 batch"
             if git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 20))
+          done
+          exit 1
+
+      - name: Publish sanitized generation 3 status to main
+        if: steps.public_snapshot.outcome == 'success'
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            rm -rf /tmp/brace-spx-main
+            git fetch origin main
+            git worktree add --detach /tmp/brace-spx-main origin/main
+            mkdir -p /tmp/brace-spx-main/data/public
+            cp /tmp/brace-spx-output/data/public/brace_spx_generation3_public.json /tmp/brace-spx-main/data/public/
+            git -C /tmp/brace-spx-main config user.name "github-actions[bot]"
+            git -C /tmp/brace-spx-main config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C /tmp/brace-spx-main add data/public/brace_spx_generation3_public.json
+            if git -C /tmp/brace-spx-main diff --cached --quiet; then
+              git worktree remove --force /tmp/brace-spx-main
+              exit 0
+            fi
+            git -C /tmp/brace-spx-main commit -m "Update BRACE-SPX generation 3 public status"
+            if git -C /tmp/brace-spx-main push origin HEAD:main; then
+              git worktree remove --force /tmp/brace-spx-main
+              exit 0
+            fi
+            git worktree remove --force /tmp/brace-spx-main
             sleep $((attempt * 20))
           done
           exit 1
 
       - name: Fail visibly on critical failure
         if: >-
-          always() &&
+          steps.precheck.outputs.should_run == 'true' && always() &&
           (steps.install.outcome != 'success' ||
            steps.validate.outcome != 'success' ||
-           steps.research.outcome != 'success')
+           steps.research.outcome != 'success' ||
+           steps.audit.outcome != 'success' ||
+           steps.verdict.outcome != 'success' ||
+           steps.public_snapshot.outcome != 'success')
         run: exit 1
