@@ -1,0 +1,81 @@
+name: BRACE-SPX Generation 3 Scenario Panel
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-generation3-scenario-panel
+  cancel-in-progress: false
+
+jobs:
+  install:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX v3 panel')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Persist start marker
+        run: |
+          mkdir -p data/public
+          printf '{\n  "status": "started",\n  "run_id": "%s",\n  "started_at": "%s"\n}\n' \
+            "${{ github.run_id }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > data/public/brace_spx_generation3_panel_install.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/public/brace_spx_generation3_panel_install.json
+          git commit -m "Mark BRACE-SPX Generation 3 panel install started"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Generation 3 blocks
+        run: python scripts/install_brace_spx_public_panel.py
+
+      - name: Validate installed pages
+        run: |
+          python scripts/install_brace_spx_public_panel.py --check
+          grep -q 'data-brace-spx-generation3' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'data-brace-spx-generation3' en/investing/spx-scenarios-2026.html
+          grep -q 'brace-spx-generation3-card.js' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'brace-spx-generation3-card.js' en/investing/spx-scenarios-2026.html
+
+      - name: Persist installed pages and final marker
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          path = Path('data/public/brace_spx_generation3_panel_install.json')
+          path.write_text(json.dumps({
+              'status': 'finished',
+              'run_id': '${{ github.run_id }}',
+              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'pl_installed': True,
+              'en_installed': True
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+          git add \
+            pl/inwestycje/spx-scenariusze-2026.html \
+            en/investing/spx-scenarios-2026.html \
+            sitemap.xml \
+            data/public/brace_spx_generation3_panel_install.json
+          git commit -m "Show BRACE-SPX Generation 3 on S&P scenario pages"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
