@@ -12,6 +12,7 @@ import argparse
 from pathlib import Path
 from typing import Any, Iterable, List
 
+import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -141,9 +142,14 @@ def development_baselines(prices: pd.DataFrame) -> dict[str, dict[str, float]]:
     """Compute strong baselines on the same chronological validation months."""
     frame = base.monthly_dataset(prices)
     development, _sealed_holdout = base.holdout_split(frame)
-    validation_parts = [valid for _train, valid in base.chronological_folds(development.index)]
-    validation_index = pd.DatetimeIndex(sorted(set().union(*(set(part) for part in validation_parts))))
-    valid = development.loc[validation_index]
+    validation_parts = [
+        np.asarray(valid_positions, dtype=int)
+        for _train_positions, valid_positions in base.chronological_folds(development.index)
+    ]
+    if not validation_parts:
+        raise RuntimeError("No chronological validation folds are available for baseline comparison")
+    validation_positions = np.unique(np.concatenate(validation_parts))
+    valid = development.iloc[validation_positions].sort_index()
     risk_free = engine.monthly_risk_free(prices, valid.index)
 
     buy_exposure = pd.Series(1.0, index=valid.index)
