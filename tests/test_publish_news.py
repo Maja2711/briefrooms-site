@@ -122,6 +122,24 @@ class AtomicNewsPublicationTests(unittest.TestCase):
                 owners.append(path.name)
         self.assertEqual(["publish-news.yml"], sorted(owners))
 
+    def test_workflow_watches_all_newsroom_publication_inputs(self) -> None:
+        workflow = (ROOT / ".github/workflows/publish-news.yml").read_text(
+            encoding="utf-8"
+        )
+        required_paths = (
+            "scripts/newsroom_*.py",
+            "scripts/comment_quality.py",
+            "scripts/read_and_summarize_articles.py",
+            "scripts/protect_home_feed.py",
+            "scripts/normalize_home_publish_count.py",
+            "tests/test_news_section_reserve.py",
+            "tests/test_comment_quality.py",
+            "tests/test_protect_home_feed_count.py",
+        )
+        for path in required_paths:
+            with self.subTest(path=path):
+                self.assertIn(f'- "{path}"', workflow)
+
     def test_tracking_parameters_do_not_create_new_story_urls(self) -> None:
         first = canonical_url(
             "https://Example.com/news/item/?utm_source=rss&article=42#top"
