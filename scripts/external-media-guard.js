@@ -1,40 +1,25 @@
 (function(root){
   'use strict';
 
-  var SOURCE_TO_IMAGE_HOSTS = {
-    'tvn24.pl':['tvn24.pl'],
-    'rmf24.pl':['rmf24.pl','rmffm.pl'],
-    'polsatnews.pl':['polsatnews.pl','grupapolsatplus.pl','pluscdn.pl'],
-    'bankier.pl':['bankier.pl'],
-    'businessinsider.com.pl':['businessinsider.com.pl','onet.pl','ocdn.eu'],
-    'pap.pl':['pap.pl'],
-    'naukawpolsce.pl':['naukawpolsce.pl','pap.pl'],
-    'bbc.co.uk':['bbc.co.uk','bbc.com','bbci.co.uk'],
-    'bbc.com':['bbc.co.uk','bbc.com','bbci.co.uk'],
-    'reuters.com':['reuters.com','reutersmedia.net'],
-    'apnews.com':['apnews.com'],
-    'theguardian.com':['theguardian.com','guim.co.uk'],
-    'theverge.com':['theverge.com','platform.theverge.com'],
-    'who.int':['who.int'],
-    'cdc.gov':['cdc.gov'],
-    'nhs.uk':['nhs.uk'],
-    'cochrane.org':['cochrane.org'],
-    'nasa.gov':['nasa.gov'],
-    'esa.int':['esa.int'],
-    'sport.tvp.pl':['tvp.pl'],
-    'polsatsport.pl':['polsatsport.pl','grupapolsatplus.pl','pluscdn.pl'],
-    'przegladsportowy.onet.pl':['onet.pl','ocdn.eu'],
-    'sport.onet.pl':['onet.pl','ocdn.eu'],
-    'sportowefakty.wp.pl':['wp.pl','wpcdn.pl'],
-    'eurosport.tvn24.pl':['tvn24.pl'],
-    'laczynaspilka.pl':['laczynaspilka.pl','pzpn.pl'],
-    'pzpn.pl':['laczynaspilka.pl','pzpn.pl'],
-    'atptour.com':['atptour.com'],
-    'wtatennis.com':['wtatennis.com'],
-    'fifa.com':['fifa.com'],
-    'uefa.com':['uefa.com'],
-    'espn.com':['espn.com','espncdn.com']
-  };
+  function sourceToImageHosts(){
+    var result={};
+    if(!root.document) return result;
+    var node=root.document.getElementById('br-external-media-policy-data');
+    if(!node) return result;
+    try{
+      var payload=JSON.parse(node.textContent||'{}');
+      var configured=payload&&payload.source_to_image_hosts;
+      if(!configured||typeof configured!=='object') return result;
+      Object.keys(configured).forEach(function(source){
+        if(!Array.isArray(configured[source])) return;
+        result[String(source).toLowerCase()]=configured[source].map(function(host){
+          return String(host).toLowerCase();
+        });
+      });
+    }catch(error){}
+    return result;
+  }
+  var SOURCE_TO_IMAGE_HOSTS = sourceToImageHosts();
   var BLOCKED_NAME = /(?:^|[-_./])(?:pixel|tracking|spacer|blank|beacon)(?:[-_./]|$)/i;
 
   function hostMatches(host,suffix){

@@ -32,6 +32,7 @@ on:
       - "scripts/generate_permanent_briefs.py"
       - "scripts/external_media_policy.py"
       - "scripts/enforce_external_media_policy.py"
+      - "scripts/external-media-guard.js"
       - "scripts/enforce_homepage_photo_only.py"
       - "scripts/homepage-photo-only.js"
       - "scripts/validate_news_home_publish.py"
@@ -42,6 +43,7 @@ on:
       - "tests/test_comment_quality.py"
       - "tests/test_protect_home_feed_count.py"
       - "tests/test_content_update_watchdog.py"
+      - "tests/test_external_media_policy.py"
       - ".github/workflows/publish-news.yml"
 
 permissions:
@@ -88,6 +90,7 @@ jobs:
             tests.test_news_story_dedupe \
             tests.test_news_section_reserve \
             tests.test_content_update_watchdog \
+            tests.test_external_media_policy \
             tests.test_validate_news_home_publish -v
 
       - name: Prepare one isolated PL and EN publication

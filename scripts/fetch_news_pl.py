@@ -337,6 +337,13 @@ POLITICS_TOPIC_RE = re.compile(
     r"lawmakers?|constitution|ambassadors?|diplomac|sanctions?)\b",
     re.I,
 )
+NON_POLITICAL_DISASTER_RE = re.compile(
+    r"\b(trzęsieni\w* ziemi|tsunami|huragan\w*|tajfun\w*|cyklon\w*|tornado|"
+    r"powódź|powodzie|pożar\w* las\w*|erupcj\w* wulkan\w*|lawin\w*|"
+    r"earthquake\w*|hurricane\w*|typhoon\w*|cyclone\w*|wildfire\w*|"
+    r"volcanic eruption\w*|avalanche\w*)\b",
+    re.I,
+)
 BUSINESS_TOPIC_RE = re.compile(
     r"(?:gospodar\w*|ekonom\w*|biznes\w*|firm\w*|spółk\w*|przedsiębior\w*|rynk\w*|giełd\w*|GPW|WIG|akcj\w*|obligacj\w*|"
     r"bank\w*|kredyt\w*|pożycz\w*|hipotek\w*|finans\w*|walut\w*|złot\w*|dolar\w*|euro|inflac\w*|deflac\w*|PKB|NBP|RPP|"
@@ -474,6 +481,8 @@ def is_rejected_item(section_key: str, title: str, snippet: str, link: str, sour
     if path in ("", "/") or URL_REJECT_RE.search(path):
         return True
     if section_key == "polityka" and not POLITICS_TOPIC_RE.search(f"{text} {link}"):
+        return True
+    if section_key == "polityka" and NON_POLITICAL_DISASTER_RE.search(text):
         return True
     if section_key == "biznes" and not BUSINESS_TOPIC_RE.search(f"{text} {link}"):
         return True

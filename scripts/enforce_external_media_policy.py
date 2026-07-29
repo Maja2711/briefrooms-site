@@ -16,7 +16,9 @@ from pathlib import Path
 from external_media_policy import external_image_url
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = '<script src="/scripts/external-media-guard.js?v=2" defer></script>'
+POLICY_PATH = ROOT / "data" / "external_media_policy.json"
+POLICY_DATA_ID = "br-external-media-policy-data"
+RUNTIME = '<script src="/scripts/external-media-guard.js?v=3" defer></script>'
 STYLE = """<style id="br-external-media-policy-style">
 .news-thumb,.thumb,.image{position:relative;overflow:hidden}
 .media-fallback{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px;background:radial-gradient(circle at 25% 15%,rgba(56,214,201,.28),transparent 42%),linear-gradient(135deg,#0d344a,#081827);color:#dff7ff;text-align:center}
@@ -40,7 +42,35 @@ def write_if_changed(path: Path, value: str) -> bool:
     return True
 
 
+def policy_data_markup() -> str:
+    payload = json.loads(read(POLICY_PATH))
+    browser_policy = {
+        "source_to_image_hosts": payload.get("source_to_image_hosts") or {},
+        "blocked_name_patterns": payload.get("blocked_name_patterns") or [],
+    }
+    serialized = json.dumps(
+        browser_policy,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).replace("</", "<\\/")
+    return (
+        f'<script id="{POLICY_DATA_ID}" type="application/json">'
+        f"{serialized}</script>"
+    )
+
+
 def ensure_assets(value: str) -> str:
+    policy_markup = policy_data_markup()
+    policy_pattern = re.compile(
+        rf'<script\s+id=["\']{POLICY_DATA_ID}["\']\s+'
+        r'type=["\']application/json["\']>.*?</script>',
+        flags=re.I | re.S,
+    )
+    if policy_pattern.search(value):
+        value = policy_pattern.sub(policy_markup, value, count=1)
+    elif "</head>" in value:
+        value = value.replace("</head>", policy_markup + "\n</head>", 1)
     if 'id="br-external-media-policy-style"' not in value and "</head>" in value:
         value = value.replace("</head>", STYLE + "\n</head>", 1)
     if "/scripts/external-media-guard.js" in value:
