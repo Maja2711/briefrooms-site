@@ -24,6 +24,7 @@ from read_and_summarize_articles import (
     load_cache,
     save_cache,
 )
+from news_story_dedupe import _canonical_url
 
 ROOT = Path(__file__).resolve().parents[1]
 HOME_FILES = {
@@ -102,7 +103,17 @@ def _bounded_section_candidates(items: list[dict]) -> list[dict]:
         if item.get("_section_reserve") is True
         and item.get("_full_article_comment_approved") is True
     ]
-    fresh = [item for item in items if item.get("_section_reserve") is not True]
+    reserve_urls = {
+        _canonical_url(item)
+        for item in approved_reserve
+        if _canonical_url(item)
+    }
+    fresh = [
+        item
+        for item in items
+        if item.get("_section_reserve") is not True
+        and _canonical_url(item) not in reserve_urls
+    ]
     needed = max(0, MIN_APPROVED_PER_SECTION - len(approved_reserve))
     fresh_limit = min(
         MAX_NEW_ITEMS_PER_SECTION,
