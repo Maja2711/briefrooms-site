@@ -75,6 +75,7 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertFalse(news.is_rejected_item("zdrowie", "Nowe badanie kliniczne terapii raka", "Lekarze opisali wyniki pacjentów.", "https://example.com/zdrowie"))
         self.assertTrue(news.is_rejected_item("nauka", "Zmiana składu zarządu spółki", "Firma ogłosiła decyzję właścicielską.", "https://example.com/biznes"))
         self.assertTrue(news.is_rejected_item("polityka", "Inwazyjne modliszki panoszą się w Europie", "Gatunek zagraża pszczołom.", "https://example.com/swiat"))
+        self.assertTrue(news.is_rejected_item("polityka", "Potężne trzęsienie ziemi w Japonii", "Rząd wysłał alerty ostrzegawcze.", "https://example.com/swiat"))
         self.assertFalse(news.is_rejected_item("polityka", "Ambasadorowie UE przyjęli pakiet sankcji", "Decyzja dotyczy Rosji.", "https://example.com/polityka"))
 
     def test_source_names_are_contextual(self):
@@ -118,6 +119,7 @@ class PolishNewsBuilderTests(unittest.TestCase):
         with (
             mock.patch.object(deep.base, "summarize_news_items", side_effect=translate_batch) as batch,
             mock.patch.object(deep.base, "save_cache"),
+            mock.patch.object(deep, "load_news_section_reserve", return_value={}),
             mock.patch.object(
                 deep,
                 "enrich_sections_with_homepage_quality",
