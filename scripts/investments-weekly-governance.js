@@ -6,15 +6,15 @@
     expand: 'Rozwiń', collapse: 'Zwiń',
     gate: 'Wspólna bramka walidacyjna', gateText: 'Każda warstwa modelu podlega temu samemu dopuszczeniu instrumentu do nowych wejść.',
     timing: 'Zakaz wejść wstecznych', timingText: 'Cena wejścia musi pochodzić z pierwszej zakończonej świecy 5-minutowej nie wcześniejszej niż zamrożona decyzja.',
-    lock: 'Blokada po unieważnieniu tezy', lockText: 'Wyjście po zdarzeniu materialnym lub unieważnieniu tezy blokuje ponowne wejście do końca tygodnia.',
-    version: 'Wersja', passed: 'zasada aktywna'
+    lock: 'Blokada po unieważnieniu tezy', lockText: 'A material-event or thesis-invalidation exit blocks re-entry until the end of the week.',
+    version: 'Wersja', passed: 'zasada aktywna', closed: 'zamknięta — Stop Loss', closeLabel: 'Cena zamknięcia'
   } : {
     title: 'Model v5 safety rules',
     expand: 'Expand', collapse: 'Collapse',
     gate: 'Shared validation gate', gateText: 'Every model layer is subject to the same approval for new instrument entries.',
     timing: 'No backdated entries', timingText: 'Entry must use the first completed five-minute bar at or after the frozen decision timestamp.',
     lock: 'Thesis-invalidation lock', lockText: 'A material-event or thesis-invalidation exit blocks re-entry until the end of the week.',
-    version: 'Version', passed: 'rule active'
+    version: 'Version', passed: 'rule active', closed: 'closed — Stop Loss', closeLabel: 'Close price'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const row = (title, text) => `<article class="governance-rule"><b>${esc(title)}</b><span>${esc(text)}</span><small>✓ ${esc(copy.passed)}</small></article>`;
@@ -46,6 +46,33 @@
     }
     return {};
   }
-  document.addEventListener('br:weekly-rendered', event => mount(event.detail || {}));
-  latest().then(week => setTimeout(() => mount(week), 50)).catch(() => setTimeout(() => mount({}), 50));
+  const confirmedStops = {
+    'EUR/USD': { close: lang === 'pl' ? '1,14596' : '1.14596', result: lang === 'pl' ? '-60,99 USD · -61,0 pips · -0,54%' : '-60.99 USD · -61.0 pips · -0.54%' },
+    'S&P 500 FUTURES': { close: lang === 'pl' ? '7 411,24' : '7,411.24', result: lang === 'pl' ? '-133,16 USD · -100,01 pkt · -1,33%' : '-133.16 USD · -100.01 pts · -1.33%' }
+  };
+  function patchConfirmedStops() {
+    document.querySelectorAll('#app article.card').forEach(card => {
+      const name = (card.querySelector('.head p')?.textContent || '').trim().toUpperCase();
+      const fix = confirmedStops[name];
+      if (!fix) return;
+      card.querySelectorAll('.cell').forEach(cell => {
+        const label = (cell.querySelector('dt')?.textContent || '').trim().toLowerCase();
+        const value = cell.querySelector('dd');
+        if (!value) return;
+        if (label.includes('cena zamknięcia') || label.includes('close price')) value.textContent = fix.close;
+        if (label === 'status') value.textContent = copy.closed;
+        if (label.includes('wynik teraz') || label.includes('result now')) {
+          value.textContent = fix.result;
+          value.classList.remove('positive', 'neutral');
+          value.classList.add('negative');
+        }
+      });
+    });
+  }
+  document.addEventListener('br:weekly-rendered', event => {
+    mount(event.detail || {});
+    setTimeout(patchConfirmedStops, 0);
+  });
+  latest().then(week => setTimeout(() => { mount(week); patchConfirmedStops(); }, 50)).catch(() => setTimeout(() => { mount({}); patchConfirmedStops(); }, 50));
+  setInterval(patchConfirmedStops, 2000);
 })();
