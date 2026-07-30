@@ -3,8 +3,7 @@ name: Governed Weekly Paper Exposure Watch
 on:
   workflow_dispatch:
   schedule:
-    # Lightweight monitoring every 15 minutes on trading days.
-    # BRACE-SPX backup-trigger validation: 2026-07-24.
+    # Critical paper-risk monitoring every 15 minutes on trading days.
     - cron: "*/15 * * * 1-5"
   push:
     branches: [main]
@@ -15,6 +14,7 @@ on:
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
+      - "scripts/enforce_weekly_risk_exit_lock.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-governance.js"
@@ -54,8 +54,40 @@ jobs:
       - name: Apply shared validation gate before any entry
         run: python scripts/apply_instrument_validation_gate.py
 
-      - name: Check SL TP and scheduled closes under model v5
+      # This is the critical path. It must run and persist before heavier
+      # governance, learning or replay work can fail or time out.
+      - name: Check every 5-minute bar for SL TP and scheduled closes
         run: python scripts/investments_weekly_v5.py --mode close
+
+      - name: Block same-week re-entry after SL or TP
+        run: python scripts/enforce_weekly_risk_exit_lock.py
+
+      - name: Render public position pages immediately after risk review
+        run: python scripts/render_simple_investments.py
+
+      - name: Persist risk exits immediately
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json \
+                  data/investments/weekly \
+                  pl/inwestycje/pozycje-tygodniowe.html \
+                  en/investing/open-weekly-positions.html \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "No SL/TP or public-page changes to persist."
+          else
+            git commit -m "Apply 15-minute weekly position risk review"
+            for attempt in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              sleep $((attempt * 10))
+            done
+          fi
 
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
@@ -77,6 +109,7 @@ jobs:
 
       - name: Commit governed paper-position updates
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/live_prices.json \
@@ -86,12 +119,19 @@ jobs:
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/weekly_execution_parity_v5.json \
+                  pl/inwestycje/pozycje-tygodniowe.html \
+                  en/investing/open-weekly-positions.html \
                   pl/inwestycje/prognozy-tygodniowe.html \
                   en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No governed exposure changes to commit."
           else
             git commit -m "Maintain governed weekly paper positions"
-            git pull --rebase origin main
-            git push
+            for attempt in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              sleep $((attempt * 10))
+            done
           fi
