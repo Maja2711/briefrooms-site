@@ -9,8 +9,10 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
+      - "scripts/build_portfolio_10k_usd.py"
       - "scripts/patch_portfolio_10k_hourly_ui.py"
       - "scripts/portfolio-10k-public.js"
+      - "scripts/portfolio-10k-dashboard-en.js"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-hourly-prices.yml"
@@ -43,6 +45,9 @@ jobs:
       - name: Refresh current prices and portfolio valuation
         run: python scripts/portfolio_10k_hourly_prices.py
 
+      - name: Build independent USD 10K portfolio
+        run: python scripts/build_portfolio_10k_usd.py
+
       - name: Apply one-time PL and EN hourly-price UI patch
         if: ${{ hashFiles('scripts/patch_portfolio_10k_hourly_ui.py') != '' }}
         run: python scripts/patch_portfolio_10k_hourly_ui.py
@@ -51,7 +56,9 @@ jobs:
         run: python scripts/validate_portfolio_10k_state.py
 
       - name: Validate public JavaScript
-        run: node --check scripts/portfolio-10k-public.js
+        run: |
+          node --check scripts/portfolio-10k-public.js
+          node --check scripts/portfolio-10k-dashboard-en.js
 
       - name: Commit hourly valuation and UI
         run: |
