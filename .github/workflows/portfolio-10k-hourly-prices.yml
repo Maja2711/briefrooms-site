@@ -10,6 +10,8 @@ on:
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
       - "scripts/build_portfolio_10k_usd.py"
+      - "scripts/patch_portfolio_10k_en_usd.py"
+      - "scripts/portfolio-10k-usd-source.js"
       - "scripts/patch_portfolio_10k_hourly_ui.py"
       - "scripts/portfolio-10k-public.js"
       - "scripts/portfolio-10k-dashboard-en.js"
@@ -48,6 +50,9 @@ jobs:
       - name: Build independent USD 10K portfolio
         run: python scripts/build_portfolio_10k_usd.py
 
+      - name: Patch English page for native USD source
+        run: python scripts/patch_portfolio_10k_en_usd.py
+
       - name: Apply one-time PL and EN hourly-price UI patch
         if: ${{ hashFiles('scripts/patch_portfolio_10k_hourly_ui.py') != '' }}
         run: python scripts/patch_portfolio_10k_hourly_ui.py
@@ -59,6 +64,7 @@ jobs:
         run: |
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-dashboard-en.js
+          node --check scripts/portfolio-10k-usd-source.js
 
       - name: Commit hourly valuation and UI
         run: |
