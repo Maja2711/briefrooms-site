@@ -15,10 +15,12 @@ on:
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/apply_manual_risk_exit_overrides.py"
       - "scripts/enforce_weekly_risk_exit_lock.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-governance.js"
+      - "data/investments/manual_risk_exit_overrides.json"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/investments-exposure-watch.yml"
@@ -55,6 +57,9 @@ jobs:
       - name: Apply shared validation gate before any entry
         run: python scripts/apply_instrument_validation_gate.py
 
+      - name: Apply confirmed missed threshold corrections
+        run: python scripts/apply_manual_risk_exit_overrides.py
+
       # Independent fail-safe audit. It scans completed OHLC bars from entry,
       # using 5-minute data first and a 60-minute fallback when necessary.
       - name: Fail-safe audit of all frozen SL TP levels
@@ -78,6 +83,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/live_prices.json \
                   data/investments/intraday_risk_audit.json \
+                  data/investments/manual_risk_exit_overrides.json \
                   data/investments/weekly \
                   pl/inwestycje/pozycje-tygodniowe.html \
                   en/investing/open-weekly-positions.html \
@@ -121,6 +127,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/live_prices.json \
                   data/investments/intraday_risk_audit.json \
+                  data/investments/manual_risk_exit_overrides.json \
                   data/investments/weekly \
                   data/investments/daily_review_report.json \
                   data/investments/event_exit_requests.json \
