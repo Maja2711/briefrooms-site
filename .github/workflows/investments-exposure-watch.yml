@@ -16,7 +16,9 @@ on:
       - "scripts/daily_position_review.py"
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/apply_manual_risk_exit_overrides.py"
+      - "scripts/apply_week31_verified_sl_corrections.py"
       - "scripts/enforce_weekly_risk_exit_lock.py"
+      - "scripts/render_investment_positions_public.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-governance.js"
@@ -60,6 +62,9 @@ jobs:
       - name: Apply confirmed missed threshold corrections
         run: python scripts/apply_manual_risk_exit_overrides.py
 
+      - name: Apply verified W31 stop-loss corrections idempotently
+        run: python scripts/apply_week31_verified_sl_corrections.py
+
       # Independent fail-safe audit. It scans completed OHLC bars from entry,
       # using 5-minute data first and a 60-minute fallback when necessary.
       - name: Fail-safe audit of all frozen SL TP levels
@@ -73,8 +78,8 @@ jobs:
       - name: Block same-week re-entry after SL or TP
         run: python scripts/enforce_weekly_risk_exit_lock.py
 
-      - name: Render public position pages immediately after risk review
-        run: python scripts/render_simple_investments.py
+      - name: Render actual weekly positions dashboard after risk review
+        run: python scripts/render_investment_positions_public.py
 
       - name: Persist risk exits immediately
         run: |
@@ -118,7 +123,7 @@ jobs:
         run: python scripts/backtest_weekly_execution_parity_v5.py
 
       - name: Render Polish and English public pages
-        run: python scripts/render_simple_investments.py
+        run: python scripts/render_investment_positions_public.py
 
       - name: Commit governed paper-position updates
         run: |
