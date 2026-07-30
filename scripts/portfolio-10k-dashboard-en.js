@@ -8,7 +8,8 @@ const contestants=[
 {name:'BRACE',status:'active contestant',signal:'decisions from the existing BRACE Engine'},
 {name:'OpenAI',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},
 {name:'Claude',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},
-{name:'Gemini',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'}
+{name:'Gemini',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},
+{name:'DeepSeek',status:'awaiting launch',signal:'Chinese model · timestamped portfolio decision + rationale'}
 ];
 function openTab(name,scroll=true){$$('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.i10k-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));history.replaceState(null,'',`#${name}`);if(scroll)scrollTo({top:0,behavior:'smooth'})}
 function bindTabs(){$$('[data-tab]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();openTab(el.dataset.tab)}));const hash=location.hash.slice(1);if(hash&&$(`[data-panel="${hash}"]`))openTab(hash,false)}
@@ -17,7 +18,7 @@ function renameTournament(){
   $$('.i10k-projects a[href="#agents"]').forEach(a=>a.textContent='AI Tournament');
   $$('[data-panel="agents"] h2,.agents-wide h2').forEach(h=>h.textContent='AI TOURNAMENT');
   const preview=$('.agents-wide .card-head p');if(preview)preview.textContent='A tournament of models using the same capital, data, costs and risk limits. No rewriting decisions after the fact.';
-  const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, BRACE and the human portfolio compete under one auditable rulebook.';
+  const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, DeepSeek, BRACE and the human portfolio compete under one auditable rulebook.';
   const full=$('.agents-wide button[data-tab="agents"]');if(full)full.textContent='Open full AI Tournament →';
   const rules=$('[data-panel="agents"] h3');if(rules)rules.textContent='Tournament rules';
 }
