@@ -1,0 +1,59 @@
+name: Publish EN YouTube Recommendations
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_en_youtube_recommendations.py"
+      - ".github/workflows/publish-en-youtube-recommendations.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: en-youtube-recommendations
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Patch EN homepage and rooms
+        run: python scripts/patch_en_youtube_recommendations.py
+
+      - name: Validate links and generated sections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files=['en/index.html','en/health.html','en/science.html','en/geopolitics.html']
+          for name in files:
+              text=Path(name).read_text(encoding='utf-8')
+              assert 'BR_EN_YOUTUBE_START' in text
+              assert 'Recommended on YouTube' in text
+              assert 'https://www.youtube.com/' in text or 'https://music.youtube.com/' in text
+          print('EN YouTube recommendations validated')
+          PY
+
+      - name: Commit generated recommendations
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add en/index.html en/health.html en/science.html en/geopolitics.html
+          if git diff --cached --quiet; then
+            echo "No recommendation changes to commit."
+          else
+            git commit -m "Publish EN YouTube recommendations"
+            git pull --rebase origin main
+            git push
+          fi
