@@ -8,7 +8,8 @@ const contestants=[
 {name:'BRACE',status:'aktywny uczestnik',signal:'decyzje z istniejącego BRACE Engine'},
 {name:'OpenAI',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
 {name:'Claude',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
-{name:'Gemini',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'}
+{name:'Gemini',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
+{name:'DeepSeek',status:'oczekuje na start',signal:'chiński model · datowana decyzja portfelowa + uzasadnienie'}
 ];
 function openTab(name,scroll=true){$$('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.i10k-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));history.replaceState(null,'',`#${name}`);if(scroll)scrollTo({top:0,behavior:'smooth'})}
 function bindTabs(){$$('[data-tab]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();openTab(el.dataset.tab)}));const hash=location.hash.slice(1);if(hash&&$(`[data-panel="${hash}"]`))openTab(hash,false)}
@@ -17,7 +18,7 @@ function renameTournament(){
   $$('.i10k-projects a[href="#agents"]').forEach(a=>a.textContent='AI Tournament');
   $$('[data-panel="agents"] h2,.agents-wide h2').forEach(h=>h.textContent='AI TOURNAMENT');
   const preview=$('.agents-wide .card-head p');if(preview)preview.textContent='Turniej modeli na identycznym kapitale, danych, kosztach i limitach ryzyka. Bez poprawiania decyzji po fakcie.';
-  const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, BRACE i portfel człowieka rywalizują według wspólnych, audytowalnych zasad.';
+  const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, DeepSeek, BRACE i portfel człowieka rywalizują według wspólnych, audytowalnych zasad.';
   const full=$('.agents-wide button[data-tab="agents"]');if(full)full.textContent='Otwórz pełny AI Tournament →';
   const rules=$('[data-panel="agents"] h3');if(rules)rules.textContent='Reguły turnieju';
 }
