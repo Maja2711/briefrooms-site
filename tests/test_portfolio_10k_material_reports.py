@@ -138,6 +138,24 @@ def test_generator_skips_pending_and_is_idempotent(tmp_path, monkeypatch):
     assert second == first
 
 
+def test_rate_limit_preserves_last_good_report_bytes(tmp_path, monkeypatch):
+    portfolio_path = tmp_path / "portfolio.json"
+    reports_path = tmp_path / "reports.json"
+    portfolio_path.write_text(json.dumps(portfolio()), encoding="utf-8")
+    reports_path.write_text(json.dumps(payload([valid_report()])), encoding="utf-8")
+    before = reports_path.read_bytes()
+
+    class YFRateLimitError(Exception):
+        pass
+
+    def fetcher(_current, _cache):
+        raise YFRateLimitError("Too Many Requests")
+
+    monkeypatch.setattr(GENERATOR.base, "validate_config", lambda data: None)
+    assert GENERATOR.run(portfolio_path, reports_path, fetcher) == 0
+    assert reports_path.read_bytes() == before
+
+
 def test_existing_report_order_is_append_only():
     existing = [valid_report("older"), valid_report("newer")]
     candidate = valid_report("appended")

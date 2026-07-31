@@ -24,6 +24,13 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORTS_PATH = ROOT / "data" / "investments" / "portfolio_10k_material_reports.json"
 SCHEMA_VERSION = "1.0.0"
 DEFAULT_DAILY_MOVE_THRESHOLD = 0.07
+TRANSIENT_MARKET_ERROR_NAMES = {
+    "ConnectionError",
+    "ReadTimeout",
+    "Timeout",
+    "TimeoutError",
+    "YFRateLimitError",
+}
 
 NEWS_PATTERNS = (
     ("GUIDANCE", re.compile(r"\b(raises?|cuts?|lowers?|withdraws?) guidance\b", re.I)),
@@ -35,6 +42,18 @@ NEWS_PATTERNS = (
     ("DIVIDEND", re.compile(r"\b(dividend|special distribution)\b", re.I)),
     ("BUYBACK", re.compile(r"\b(buyback|share repurchase)\b", re.I)),
 )
+
+
+def is_transient_market_error(error: BaseException) -> bool:
+    current: BaseException | None = error
+    while current is not None:
+        if type(current).__name__ in TRANSIENT_MARKET_ERROR_NAMES:
+            return True
+        message = str(current).lower()
+        if "too many requests" in message or "rate limit" in message:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def empty_payload(portfolio_id: str) -> Dict[str, Any]:
@@ -353,7 +372,16 @@ def run(
         monitoring = position.get("report_monitoring") or {}
         if monitoring.get("enabled", True) is False:
             continue
-        record, fx_to_pln, headlines = fetcher(position, fx_cache)
+        try:
+            record, fx_to_pln, headlines = fetcher(position, fx_cache)
+        except Exception as exc:
+            if not is_transient_market_error(exc):
+                raise
+            print(
+                "Material reports unchanged: transient market-data failure "
+                f"({type(exc).__name__})."
+            )
+            return 0
         candidates.extend(generate_candidates(position, record, fx_to_pln, headlines))
         monitoring_state[str(position.get("id"))] = {
             "market_date": record.market_date,
