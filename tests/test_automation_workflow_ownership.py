@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -19,6 +20,16 @@ def owners(marker: str) -> list[str]:
         for name, source in workflow_sources().items()
         if marker in source and ("git add" in source or "git -C" in source)
     )
+
+
+def push_path_owners(marker: str) -> list[str]:
+    matching = []
+    for name, source in workflow_sources().items():
+        trigger_block = source.split("\npermissions:", 1)[0]
+        paths = set(re.findall(r'^\s+- "([^"]+)"$', trigger_block, re.MULTILINE))
+        if marker in paths:
+            matching.append(name)
+    return sorted(matching)
 
 
 class AutomationWorkflowOwnershipTests(unittest.TestCase):
@@ -49,6 +60,19 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             self.assertIn("cancel-in-progress: false", sources[owner])
             self.assertIn("ref: main", sources[owner])
 
+    def test_portfolio_push_paths_have_single_validation_owners(self) -> None:
+        expected = {
+            "scripts/portfolio_10k_material_reports.py": [
+                "portfolio-10k-weekly.yml"
+            ],
+            "tests/test_portfolio_10k_staged_entry.py": [
+                "portfolio-10k-live-entry.yml"
+            ],
+        }
+        for path, workflows in expected.items():
+            with self.subTest(path=path):
+                self.assertEqual(workflows, push_path_owners(path))
+
     def test_domain_queues_are_isolated(self) -> None:
         sources = workflow_sources()
         expected_groups = {
@@ -70,6 +94,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertIn('cron: "42 * * * *"', audit)
         self.assertIn("actions: read", audit)
         self.assertIn("issues: write", audit)
+        self.assertIn('"scripts/automation_health_audit.py"', audit)
         self.assertNotIn("workflow run", audit)
         self.assertFalse((WORKFLOWS / "content-update-watchdog.yml").exists())
         self.assertFalse((WORKFLOWS / "publish-news-recovery-now.yml").exists())

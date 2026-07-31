@@ -2,6 +2,13 @@ name: Audit Automation Health
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/automation_health_audit.py"
+      - "tests/test_automation_health_audit.py"
+      - "tests/test_automation_workflow_ownership.py"
+      - ".github/workflows/automation-health-audit.yml"
   schedule:
     - cron: "42 * * * *"
 
