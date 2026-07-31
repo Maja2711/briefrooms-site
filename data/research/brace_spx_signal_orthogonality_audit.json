@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "audit_id": "brace-spx-a2-signal-orthogonality-v1",
+  "generated_at": "2026-07-31T21:43:21+00:00",
+  "architecture_id": "spx-multisignal-regime-a2",
+  "candidate_signature_unchanged": "c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9",
+  "method": {
+    "supervised_by_market_returns": false,
+    "uses_sharpe_or_cagr_for_source_selection": false,
+    "uses_holdout": false,
+    "source_selection": "greedy minimum-correlation with unique-variance floor",
+    "orthogonalization": "sequential OLS residualization in selected diversity order",
+    "maximum_selected_sources": 4
+  },
+  "development": {
+    "start": "2007-04-04",
+    "end": "2022-07-29",
+    "observations": 3858
+  },
+  "holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "accessed": false,
+    "access_count": 0
+  },
+  "raw_signal_diagnostics": {
+    "sources": [
+      "trend",
+      "breadth",
+      "liquidity",
+      "options",
+      "rates"
+    ],
+    "correlation_matrix": {
+      "trend": {
+        "trend": 1.0,
+        "breadth": 0.920555,
+        "liquidity": 0.430934,
+        "options": 0.621677,
+        "rates": -0.218429
+      },
+      "breadth": {
+        "trend": 0.920555,
+        "breadth": 1.0,
+        "liquidity": 0.49946,
+        "options": 0.626281,
+        "rates": -0.23145
+      },
+      "liquidity": {
+        "trend": 0.430934,
+        "breadth": 0.49946,
+        "liquidity": 1.0,
+        "options": 0.307866,
+        "rates": -0.043123
+      },
+      "options": {
+        "trend": 0.621677,
+        "breadth": 0.626281,
+        "liquidity": 0.307866,
+        "options": 1.0,
+        "rates": -0.178562
+      },
+      "rates": {
+        "trend": -0.218429,
+        "breadth": -0.23145,
+        "liquidity": -0.043123,
+        "options": -0.178562,
+        "rates": 1.0
+      }
+    },
+    "median_absolute_pairwise_correlation": 0.3694,
+    "mean_absolute_pairwise_correlation": 0.407834,
+    "effective_rank": 3.294889,
+    "principal_components_for_85pct_variance": 3,
+    "principal_components_for_90pct_variance": 4,
+    "data_quality": {
+      "trend": {
+        "coverage": 0.990819,
+        "standard_deviation": 0.425767,
+        "lag1_autocorrelation": 0.981083,
+        "unique_variance_fraction": 0.148144
+      },
+      "breadth": {
+        "coverage": 1.0,
+        "standard_deviation": 0.339993,
+        "lag1_autocorrelation": 0.976865,
+        "unique_variance_fraction": 0.134528
+      },
+      "liquidity": {
+        "coverage": 0.983933,
+        "standard_deviation": 0.224121,
+        "lag1_autocorrelation": 0.950634,
+        "unique_variance_fraction": 0.739627
+      },
+      "options": {
+        "coverage": 1.0,
+        "standard_deviation": 0.36305,
+        "lag1_autocorrelation": 0.883986,
+        "unique_variance_fraction": 0.593278
+      },
+      "rates": {
+        "coverage": 0.994644,
+        "standard_deviation": 0.341365,
+        "lag1_autocorrelation": 0.976352,
+        "unique_variance_fraction": 0.937626
+      }
+    }
+  },
+  "recommendation": {
+    "selected_raw_sources": [
+      "rates",
+      "liquidity",
+      "options"
+    ],
+    "selected_count": 3,
+    "excluded_sources": {
+      "breadth": "unique_variance_below_0.15",
+      "trend": "unique_variance_below_0.15"
+    },
+    "next_experiment_candidate_limit": 3,
+    "do_not_select_by_backtest_performance": true,
+    "requires_new_predeclared_signature_before_any_backtest": true
+  },
+  "orthogonal_factor_diagnostics": {
+    "factor_names": [
+      "orth_1_rates",
+      "orth_2_liquidity",
+      "orth_3_options"
+    ],
+    "maximum_absolute_pairwise_correlation": 0.0,
+    "correlation_matrix": {
+      "orth_1_rates": {
+        "orth_1_rates": 1.0,
+        "orth_2_liquidity": 0.0,
+        "orth_3_options": 0.0
+      },
+      "orth_2_liquidity": {
+        "orth_1_rates": 0.0,
+        "orth_2_liquidity": 1.0,
+        "orth_3_options": 0.0
+      },
+      "orth_3_options": {
+        "orth_1_rates": 0.0,
+        "orth_2_liquidity": 0.0,
+        "orth_3_options": 1.0
+      }
+    }
+  }
+}
