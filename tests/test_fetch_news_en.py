@@ -68,7 +68,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         return sections
 
     def test_render_is_fail_closed_when_comments_are_missing(self):
-        with self.assertRaisesRegex(RuntimeError, "each section requires 6-9 approved items"):
+        with self.assertRaisesRegex(RuntimeError, "each section requires 6-9 source-linked photo items"):
             context.render_html_full(self.empty_sections())
 
     def test_render_is_blocked_when_any_section_has_fewer_than_six_items(self):
@@ -191,7 +191,7 @@ class EnglishNewsBuilderTests(unittest.TestCase):
         reserve["title"] = "Interest rates cut by central bank as inflation declines"
         captured = {}
 
-        def enrich(value, _lang):
+        def enrich(value, _lang, **_kwargs):
             captured.update({key: list(items) for key, items in value.items()})
             return value
 
