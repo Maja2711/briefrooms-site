@@ -1,0 +1,85 @@
+name: BRACE-SPX Signal Orthogonality Audit
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-signal-orthogonality-audit
+  cancel-in-progress: false
+
+jobs:
+  audit-development-signals:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX Signal Orthogonality Audit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance pytest
+
+      - name: Compile and test unsupervised audit
+        run: |
+          python -m py_compile scripts/brace_spx_architecture_v2.py scripts/brace_spx_signal_orthogonality_audit.py
+          python -m pytest -q tests/test_brace_spx_signal_orthogonality_audit.py
+
+      - name: Download development data only
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as a2
+          prices = a2.download_prices(a2.START_DATE, a2.DEVELOPMENT_END_EXCLUSIVE)
+          prices.to_csv('/tmp/brace_spx_orthogonality_prices.csv', index_label='date')
+          assert prices.index.max().strftime('%Y-%m-%d') < a2.SEALED_HOLDOUT_START
+          PY
+
+      - name: Run signal orthogonality audit
+        run: |
+          python scripts/brace_spx_signal_orthogonality_audit.py \
+            --prices-csv /tmp/brace_spx_orthogonality_prices.csv \
+            --output data/research/brace_spx_signal_orthogonality_audit.json
+
+      - name: Validate audit governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/research/brace_spx_signal_orthogonality_audit.json').read_text())
+          assert report['method']['supervised_by_market_returns'] is False
+          assert report['method']['uses_sharpe_or_cagr_for_source_selection'] is False
+          assert report['method']['uses_holdout'] is False
+          assert report['holdout']['status'] == 'sealed_not_downloaded'
+          assert report['holdout']['accessed'] is False
+          assert 2 <= report['recommendation']['selected_count'] <= 4
+          assert report['recommendation']['requires_new_predeclared_signature_before_any_backtest'] is True
+          assert report['orthogonal_factor_diagnostics']['maximum_absolute_pairwise_correlation'] <= 1e-8
+          PY
+
+      - name: Persist audit evidence
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f data/research/brace_spx_signal_orthogonality_audit.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Persist BRACE-SPX signal orthogonality audit'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
