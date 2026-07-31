@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0.0",
+  "architecture_id": "spx-multisignal-regime-a2",
+  "status": "predeclared_before_first_result",
+  "derived_from_terminal_reference": "spx-state-geometry-v5/evaluation-v2",
+  "research_question": "Can genuinely distinct point-in-time signal sources, daily shock detection and transparent regime switching produce stable SPY exposure management after correcting for all prior BRACE-SPX hypothesis trials?",
+  "candidate_space_size": 10,
+  "candidate_signature": "c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9",
+  "candidate_sources": [
+    "trend",
+    "breadth",
+    "credit_and_liquidity",
+    "VIX_spot_vs_VIX3M_term_structure",
+    "market_implied_rates_and_dollar"
+  ],
+  "sampling": {
+    "signal_frequency": "daily",
+    "scheduled_rebalance": "weekly on Friday",
+    "unscheduled_override": "daily shock gate may only reduce exposure",
+    "execution_lag": "next trading session",
+    "transaction_cost_per_unit_turnover": 0.0005
+  },
+  "regime_switching": {
+    "primary": "transparent deterministic low-vol, high-vol, panic and recovery states",
+    "HMM_core": false,
+    "HMM_status": "deferred challenger",
+    "reason": "HMM complexity, state-label instability and additional hypothesis burden are not justified until the transparent regime model passes the strict development gate."
+  },
+  "macro_policy": {
+    "revised_macro_series_allowed": false,
+    "active_macro_proxy": "market-implied rates, Treasury duration and US dollar",
+    "vintage_macro_challenger": "allowed only after point-in-time release-vintage data and publication-lag tests are supplied"
+  },
+  "options_policy": {
+    "active_source": "VIX and VIX3M term structure",
+    "data_quality": "fail closed if the historical series is unavailable or insufficient",
+    "unavailable_source_fallback": "none"
+  },
+  "development": {
+    "data_end_exclusive": "2022-08-01",
+    "sealed_holdout_start": "2022-08-01",
+    "sealed_holdout_end": "2026-07-31",
+    "holdout_downloaded_by_research": false,
+    "chronological_validation": "six one-year daily folds with five-trading-day purge",
+    "minimum_training_days": 756
+  },
+  "multiple_testing": {
+    "prior_candidates": 634,
+    "new_candidates": 10,
+    "global_trial_count": 644,
+    "global_DSR_required": 0.95,
+    "PBO_required_maximum": 0.20,
+    "correction_scope": "all BRACE-SPX candidate spaces from generations 1-5 plus Architecture 2"
+  },
+  "champion_policy": {
+    "single_champion_default": false,
+    "single_champion_allowed_only_if": [
+      "strict gate passes",
+      "median fold-rank correlation is at least 0.30",
+      "no more than three unique fold winners",
+      "PBO is at most 0.20"
+    ],
+    "otherwise": "no champion; track every predeclared candidate in parallel"
+  },
+  "strict_gate": {
+    "signal_median_absolute_correlation_max": 0.70,
+    "signal_effective_rank_min": 3.0,
+    "PBO_max": 0.20,
+    "global_DSR_probability_min": 0.95,
+    "positive_folds_min": 5,
+    "median_fold_rank_correlation_min": 0.30,
+    "unique_fold_winners_max": 3,
+    "bootstrap_probability_CAGR_advantage_positive_min": 0.95,
+    "bootstrap_probability_Sharpe_advantage_positive_min": 0.95,
+    "drawdown_improvement_vs_buy_hold_min": 0.20
+  },
+  "external_validation": {
+    "engine": "Backtrader independent reference implementation",
+    "promotion_requires_reconciliation": true,
+    "primary_and_external_engine_must_match": "signal dates, exposure path, turnover and net returns within declared tolerances"
+  },
+  "shadow_trading": {
+    "start": "2026-08-03",
+    "orders": false,
+    "autonomous_trading": false,
+    "cold_start": true,
+    "post_holdout_observations_required_before_signals": 252,
+    "reason": "Using holdout observations to warm indicators would constitute holdout access."
+  }
+}
