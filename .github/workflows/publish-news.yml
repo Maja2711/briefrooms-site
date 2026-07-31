@@ -100,12 +100,12 @@ jobs:
             tests.test_external_media_policy \
             tests.test_validate_news_home_publish -v
 
-      - name: Check AI provider once before publication
+      - name: Check AI provider or enter approved-cache-only mode
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
           NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
-        run: python scripts/check_ai_provider.py
+        run: python scripts/check_ai_provider.py --allow-approved-cache
 
       - name: Prepare one isolated PL and EN publication
         env:

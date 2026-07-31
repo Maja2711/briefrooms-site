@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from dataclasses import dataclass
@@ -149,8 +150,28 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--allow-approved-cache",
+        action="store_true",
+        help="Continue in approved-cache-only mode when no AI provider is configured.",
+    )
+    args = parser.parse_args()
     runtime = get_ai_runtime()
     print(json.dumps(diagnostic(runtime, status="checking"), sort_keys=True))
+    if not runtime.available and args.allow_approved_cache:
+        print(
+            json.dumps(
+                diagnostic(
+                    runtime,
+                    status="approved_cache_only",
+                    error_class="missing_provider_credentials",
+                    permanent=True,
+                ),
+                sort_keys=True,
+            )
+        )
+        return 0
     try:
         result = check_provider(runtime=runtime)
     except PreflightError as exc:

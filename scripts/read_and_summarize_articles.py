@@ -172,7 +172,7 @@ def fetch_article_text(url: str) -> tuple[str, str]:
 
 def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dict) -> str:
     runtime = get_ai_runtime()
-    if not runtime.available or not article_text:
+    if not article_text:
         return ""
     article_text = clip_complete_text(article_text, MAX_ARTICLE_CHARS)
     if not article_text:
@@ -188,6 +188,8 @@ def ai_summarize(title: str, lang: str, article_text: str, link: str, cache: dic
         result = validate_comment(cached["summary"], lang)
         if result.valid:
             return result.text
+    if not runtime.available:
+        return ""
     if lang == "pl":
         prompt = (
             "Przeczytaj tekst artykułu i zrób streszczenie do BriefRooms. "
@@ -268,9 +270,6 @@ def ai_review(title: str, lang: str, article_text: str, summary: str) -> bool:
 def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[str, str]:
     """Generate and independently review homepage comments in bounded batches."""
     runtime = get_ai_runtime()
-    if not runtime.available:
-        return {}
-
     accepted: dict[str, str] = {}
     pending: list[dict] = []
     for candidate in candidates:
@@ -285,6 +284,9 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                 accepted[candidate["id"]] = quality.text
                 continue
         pending.append(candidate)
+
+    if not runtime.available:
+        return accepted
 
     chunks: list[list[dict]] = []
     current: list[dict] = []

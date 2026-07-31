@@ -68,9 +68,6 @@ def _cached_result(cache: dict, key: str, lang: str, needs_title_translation: bo
 def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> dict[str, dict]:
     """Generate all uncached page comments, then review them with a separate model."""
     runtime = get_ai_runtime()
-    if not runtime.available:
-        return {}
-
     accepted: dict[str, dict] = {}
     pending: list[dict] = []
     for index, item in enumerate(items):
@@ -95,6 +92,9 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
             "longer_polish_comment": needs_title_translation,
             "cache_key": key,
         })
+
+    if not runtime.available:
+        return accepted
 
     chunks: list[list[dict]] = []
     current: list[dict] = []

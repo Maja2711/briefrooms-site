@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import unittest
 from unittest import mock
 
@@ -81,6 +82,18 @@ class AiProviderPreflightTests(unittest.TestCase):
         details = preflight.diagnostic(runtime, status="failed")
         self.assertEqual("OPENAI_API_KEY", details["required_secret"])
         self.assertIn("retired", details["provider_note"])
+
+    def test_cli_allows_explicit_approved_cache_mode_without_credentials(self):
+        runtime = quality.AiRuntime("unavailable", "", "", "", "")
+        with (
+            mock.patch.object(preflight, "get_ai_runtime", return_value=runtime),
+            mock.patch.object(
+                sys,
+                "argv",
+                ["check_ai_provider.py", "--allow-approved-cache"],
+            ),
+        ):
+            self.assertEqual(0, preflight.main())
 
 
 if __name__ == "__main__":

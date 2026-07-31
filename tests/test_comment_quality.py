@@ -522,6 +522,53 @@ class PipelineContractTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
             self.assertEqual("", reader.ai_summarize(title, "pl", article, link, cache))
 
+    def test_good_reviewed_article_cache_is_reused_without_provider(self):
+        title = "Government publishes programme rules"
+        link = "https://example.com/cache-approved"
+        article = "The government published detailed programme rules. " * 100
+        key = hashlib.sha256(
+            f"{reader.CACHE_VERSION}|en|{link}|{title}|{article[:1600]}".encode("utf-8")
+        ).hexdigest()[:48]
+        cache = {
+            key: {
+                "summary": VALID_EN,
+                "reviewed": True,
+                "quality_version": quality.QUALITY_VERSION,
+            }
+        }
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+            self.assertEqual(
+                VALID_EN,
+                reader.ai_summarize(title, "en", article, link, cache),
+            )
+
+    def test_good_reviewed_news_cache_is_reused_without_provider(self):
+        approved_summary = (
+            "The government published detailed programme rules after public consultation ended."
+        )
+        item = {
+            "title": "Government publishes programme rules",
+            "summary_raw": approved_summary,
+            "link": "https://example.com/news-cache-approved",
+        }
+        source_text = news_batch._clean_source(item["summary_raw"])
+        key = news_batch._cache_key(item, "en", source_text)
+        cache = {
+            key: {
+                "summary": approved_summary,
+                "title_pl": "",
+                "reviewed": True,
+                "quality_version": quality.QUALITY_VERSION,
+            }
+        }
+        post = mock.Mock()
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+            result = news_batch.summarize_news_items(
+                items=[item], lang="en", cache=cache, post=post
+            )
+        self.assertEqual(approved_summary, result["en-0"]["summary"])
+        post.assert_not_called()
+
     def test_generation_requires_independent_ai_approval(self):
         responses = [
             self.FakeResponse({"full_brief": VALID_PL}),
