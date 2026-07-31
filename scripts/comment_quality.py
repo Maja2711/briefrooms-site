@@ -18,6 +18,9 @@ MAX_SENTENCES = 4
 MIN_COMMENT_CHARS = 180
 MAX_COMMENT_CHARS = 1600
 _LAST_GITHUB_MODELS_REQUEST_AT = 0.0
+GITHUB_MODELS_API_VERSION = "2026-03-10"
+PERMANENT_HTTP_STATUSES = frozenset({400, 401, 403, 404, 410, 422})
+TRANSIENT_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
 def review_digest(value: str) -> str:
@@ -140,6 +143,35 @@ class AiRateLimitError(RuntimeError):
     """The AI provider rejected the request because its quota is exhausted."""
 
 
+class AiPermanentError(RuntimeError):
+    """The AI request cannot succeed without a configuration or access change."""
+
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class AiTransientError(RuntimeError):
+    """The AI provider remained unavailable after bounded retries."""
+
+
+def provider_headers(runtime: AiRuntime) -> dict[str, str]:
+    headers = {
+        "Accept": (
+            "application/vnd.github+json"
+            if runtime.provider == "github-models"
+            else "application/json"
+        ),
+        "Authorization": f"Bearer {runtime.api_key}",
+        "Content-Type": "application/json",
+    }
+    if runtime.provider == "github-models":
+        headers["X-GitHub-Api-Version"] = os.getenv(
+            "GITHUB_MODELS_API_VERSION", GITHUB_MODELS_API_VERSION
+        ).strip() or GITHUB_MODELS_API_VERSION
+    return headers
+
+
 def get_ai_runtime() -> AiRuntime:
     """Prefer a configured OpenAI key, then GitHub Models in Actions."""
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -212,11 +244,7 @@ def request_json_completion(
                 _LAST_GITHUB_MODELS_REQUEST_AT = time.monotonic()
             response = post(
                 runtime.endpoint,
-                headers={
-                    "Accept": "application/vnd.github+json" if runtime.provider == "github-models" else "application/json",
-                    "Authorization": f"Bearer {runtime.api_key}",
-                    "Content-Type": "application/json",
-                },
+                headers=provider_headers(runtime),
                 json={
                     "model": model,
                     "messages": messages,
@@ -268,6 +296,15 @@ def request_json_completion(
     if last_status == 429:
         raise AiRateLimitError(
             f"AI provider rate limit remained active after bounded retries: {last_error}"
+        ) from last_error
+    if last_status in PERMANENT_HTTP_STATUSES:
+        raise AiPermanentError(
+            last_status,
+            f"AI provider returned permanent HTTP {last_status}; request was not retried: {last_error}",
+        ) from last_error
+    if last_status in TRANSIENT_HTTP_STATUSES:
+        raise AiTransientError(
+            f"AI provider remained unavailable after bounded retries (HTTP {last_status}): {last_error}"
         ) from last_error
     raise RuntimeError(f"AI request failed after retries: {last_error}") from last_error
 
@@ -401,6 +438,8 @@ def independent_ai_review(
         if payload.get("approved") is True:
             return True, str(payload.get("reason") or "approved")
         return False, str(payload.get("reason") or "rejected")
+    except (AiPermanentError, AiRateLimitError):
+        raise
     except Exception as exc:
         return False, f"review_error:{type(exc).__name__}:{exc}"
 
@@ -510,6 +549,8 @@ def independent_ai_review_batch(
             for item_id in expected_ids:
                 results[item_id] = (False, "rate_limited")
             return
+        except AiPermanentError:
+            raise
         except Exception as exc:
             if len(chunk) > 1:
                 midpoint = len(chunk) // 2
