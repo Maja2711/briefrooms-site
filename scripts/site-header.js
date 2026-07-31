@@ -486,6 +486,8 @@
     section.id = 'br-daily-market-alert';
     section.className = 'br-daily-alert';
     section.setAttribute('aria-label', labels.title);
+    section.setAttribute('data-alert-id', String(data.alert_id || ''));
+    section.setAttribute('data-updated-at', String(data.updated_at || ''));
     section.innerHTML =
       '<button class="br-daily-alert__toggle" type="button" aria-expanded="false" aria-controls="br-daily-market-alert-body">' +
         '<span><span class="br-daily-alert__eyebrow">' + labels.eyebrow + '</span>' +

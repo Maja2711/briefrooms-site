@@ -20,7 +20,6 @@ on:
       - "scripts/run_daily_market_alert_resilient.py"
       - "scripts/patch_daily_alert_ui.py"
       - "tests/test_daily_market_alert.py"
-      - "tests/test_daily_market_alert_watchdog.py"
       - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
@@ -38,8 +37,8 @@ permissions:
   models: read
 
 concurrency:
-  group: daily-market-alert
-  cancel-in-progress: true
+  group: investment-alert
+  cancel-in-progress: false
 
 jobs:
   build-daily-market-alert:
@@ -96,19 +95,7 @@ jobs:
           GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
           BR_ALERT_SCHEDULE: ${{ github.event.schedule }}
         shell: bash
-        run: |
-          set -o pipefail
-          delays=(0 60 180)
-          for attempt in 1 2 3; do
-            sleep "${delays[$((attempt-1))]}"
-            echo "Resilient alert attempt $attempt/3"
-            if python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"; then
-              exit 0
-            fi
-            git restore --worktree -- data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
-          done
-          echo "::error title=Daily Market Alert generation failed::All three resilient full-process attempts failed."
-          exit 1
+        run: python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"
 
       - name: Validate generated alert
         if: steps.mode.outputs.mode != 'ui-only'
@@ -127,6 +114,11 @@ jobs:
             echo "No Daily Market Alert changes to commit."
           else
             git commit -m "Update Daily Market Alert"
-            git pull --rebase -X theirs origin main
+            if ! git diff --quiet; then
+              echo "::error::Alert generator left unstaged files; refusing a partial publication."
+              git status --short
+              exit 1
+            fi
+            git pull --rebase origin main
             git push
           fi
