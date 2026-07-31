@@ -208,8 +208,8 @@ baseline, not proof that the branch repair is deployed.
 7. `a818f3f2` - workflow tests aligned with the governed production state.
 8. `6cfddc89` - terminal BRACE-SPX and Hot X last-good handling.
 
-Production verification remains `NOT_VERIFIED` until the branch is merged and
-new run IDs, publication IDs, timestamps and production SHA are observed.
+This was the pre-deployment verification marker. The authoritative production
+results after all controlled merges are recorded in the final section below.
 
 ## Controlled deployment evidence
 
@@ -234,3 +234,72 @@ versioned active Portfolio 10K execution. Local validation preserved a
 `2.2-staged-reconciled` active entry unchanged and the complete current
 Portfolio 10K state validator passed. Their post-deployment run IDs are recorded
 after the follow-up controlled merge.
+
+## Final production verification
+
+The following evidence was observed from GitHub Actions and from
+`https://briefrooms.com` after the controlled production merges. The functional
+production checkout verified end to end was
+`8031339cdf04bf733692a22a1c388b3ffd45980f`.
+
+| Domain | Production evidence | Public evidence | Final status |
+| --- | --- | --- | --- |
+| PL+EN news and AI comments | Run `30654620293`, job `91235859468`, stopped at provider preflight before publication. Diagnostic: `missing_provider_credentials`; required secret: `OPENAI_API_KEY`; GitHub Models retired 2026-07-30. | Last-good publication remains `30535162845-1`, generated `2026-07-30T10:34:24Z`; no false success timestamp was written. | `BLOCKED_BY_MISSING_SECRET` |
+| Daily Market Alert | Run `30657050694` completed successfully. | `alert_id=2026-07-31-open-20260731T181859Z`, `updated_at=2026-07-31T20:18:59+02:00`; PL and EN investment pages both rendered the same 20:18 alert. | `VERIFIED_WORKING` |
+| Portfolio 10K prices and valuation | Hourly run `30656111107`, staged-entry run `30659475434` / job `91251955482`, and weekly model run `30657598018` all completed successfully. The staged-entry run passed 67 Python tests, the material-report UI test and the full state validator. | `last_updated_at=2026-07-31T20:41:21+02:00`, `last_market_session=2026-07-31`, PLN value `9912.51`, USD value `10068.23`, eight active positions, 57 snapshots and no `last_run_error`. | `VERIFIED_WORKING` |
+| Weekly investments and risk exits | Governed weekly run `30654620290` succeeded. Initial exposure run `30655085373`, job `91237387500`, exposed two unstaged generated files. After the ownership repair, run `30659986660`, job `91253648868`, completed every step, including both atomic commits. | Weekly PL/EN pages and v5 exposure state were published by commits `64c8cb35` and `ae754085`. | `VERIFIED_WORKING` |
+| BRACE Portfolio | Run `30651132972` completed successfully. | Methodology registry still contains `portfolio-10k-baseline` as `ACTIVE_BASELINE` and `brace-portfolio-engine` as `SHADOW`; historical entries were not rewritten. | `VERIFIED_WORKING` |
+| BRACE-SPX | Research run `30656558671` and public-panel run `30651132953` completed successfully. Irrelevant `issues` events that conditionally skip jobs no longer replace the meaningful success in health state. | Public registry reports BRACE-SPX healthy and retains the completed sealed-holdout freshness exemption. | `VERIFIED_WORKING` |
+| Hot X | Run `30651132937` completed while deliberately retaining the last-good direct-post feed. Provider evidence remains X HTTP 402. | The feed timestamp remains `2026-07-30T16:25:00Z`; the public registry truthfully reports it stale instead of fabricating freshness. | `BLOCKED_BY_EXTERNAL_PROVIDER` |
+| EN YouTube recommendations | Run `30651132933` completed successfully after homepage ownership was removed from this workflow. | EN recommendation pages remain separate from the PL+EN news homepage owner. | `VERIFIED_WORKING` |
+| Central automation health | Final run `30660339004`, job `91254798911`, read Actions, validated the public registry and committed sanitized state successfully. | Public `automation_status.json` was generated at `2026-07-31T19:46:06Z`: alert, portfolio, BRACE Portfolio and BRACE-SPX healthy; news missing-secret; Hot X stale. | `VERIFIED_WORKING` |
+| Production deployment | Final run `30660363872`, job `91254882200`, validated homepage contracts, confirmed Pages source `main:/`, queued a build and compared production files with the current checkout. | Production matched checkout `8031339cdf04bf733692a22a1c388b3ffd45980f`. | `VERIFIED_WORKING` |
+
+### Additional production-derived root causes
+
+1. GitHub Actions commits made with `GITHUB_TOKEN` do not emit another `push`
+   workflow event. `deploy-production.yml` now listens for successful completion
+   of every canonical publisher and always deploys the newest `main`.
+2. Staged-entry reconciliation reused historical entry dates and regressed
+   `last_market_session` from 2026-07-31 to 2026-07-20. Session selection is now
+   monotonic across the existing portfolio session, current position quote dates
+   and staged executions. No entry price or historical decision changed.
+3. The immediate weekly risk-exit commit omitted two files generated by the
+   exposure engine. Both state and report are now part of the immediate and final
+   atomic owner sets.
+4. Unrelated GitHub issues created conditionally skipped BRACE-SPX runs. The
+   health registry now ignores only `event=issues` plus `conclusion=skipped`;
+   scheduled, push and real failure conclusions remain visible.
+
+### Final repair and deployment commits
+
+- `562e4f9b` - OpenAI-only news provider and production-derived follow-ups.
+- `1f0bc5e0` - missing Yahoo earnings-date handling.
+- `68df830f` - last-good material reports during Yahoo rate limiting.
+- `49363968` - current-main checkout after the Portfolio 10K queue.
+- `dc4c390f` - health verification trigger and Portfolio 10K trigger ownership.
+- `60b54082` - deployment after action-owned publisher commits.
+- `6ad9ac3e` - monotonic Portfolio 10K market-session metadata.
+- `07701819` - complete atomic weekly risk-exit publication.
+- `8d04f288` - meaningful-run filtering in automation health.
+
+### Final test evidence
+
+- Original audit suite: 391 Python tests plus 52 subtests; 13 JavaScript tests;
+  28 focused central-health tests.
+- Final ownership and health regression suite: 25 tests passed locally.
+- Final Portfolio 10K production run: 67 Python tests and the material-report UI
+  test passed; state and material-report validators passed.
+- Final deploy run: 13 homepage/redirect tests passed and production parity was
+  verified for both homepages, both investment pages, sitemap, robots, build
+  version, home briefs and Hot X renderer.
+- `git diff --check` and Python compilation passed for every final repair.
+
+### Required owner actions
+
+- Configure repository secret `OPENAI_API_KEY` to resume new PL+EN news and AI
+  comment publication. Until then the correct status is
+  `BLOCKED_BY_MISSING_SECRET`.
+- Restore paid/authorized X API access, or replace the provider with another
+  source that legally supplies verifiable direct-post URLs. Until then the
+  correct status is `BLOCKED_BY_EXTERNAL_PROVIDER`.
