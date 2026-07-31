@@ -98,11 +98,12 @@ FEEDS = {
     "zdrowie": [
         {"url": "https://naukawpolsce.pl/zdrowie/rss.xml", "source": "Nauka w Polsce"},
         {"url": "https://www.rmf24.pl/zdrowie/feed", "source": "RMF24"},
-        "http://feeds.bbci.co.uk/news/health/rss.xml",
-        "https://feeds.reuters.com/reuters/healthNews",
-        "https://apnews.com/hub/health?output=rss",
-        "https://www.theguardian.com/society/health/rss",
-        "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
+        {"url": "https://feeds.bbci.co.uk/news/health/rss.xml", "source": "BBC Health"},
+        {"url": "https://www.theguardian.com/society/health/rss", "source": "The Guardian Health"},
+        {"url": "https://medicalxpress.com/rss-feed/", "source": "Medical Xpress"},
+        {"url": "https://www.sciencedaily.com/rss/health_medicine.xml", "source": "ScienceDaily Health"},
+        {"url": "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml", "source": "FDA"},
+        {"url": "https://www.fda.gov/AboutFDA/ContactFDA/StayInformed/RSSFeeds/MedWatch/rss.xml", "source": "FDA MedWatch"},
     ],
     "nauka": [
         {"url": "https://naukawpolsce.pl/naukowy/rss.xml", "source": "Nauka w Polsce"},
@@ -148,9 +149,8 @@ TRUSTED_CORRO_FEEDS = [
 
 # Zaufane źródła do weryfikacji zdrowia i nauki
 OFFICIAL_HEALTH_FEEDS = [
-    "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
-    "https://www.cdc.gov/media/rss.htm",
-    "https://www.nhs.uk/news/feed/",
+    "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+    "https://www.fda.gov/AboutFDA/ContactFDA/StayInformed/RSSFeeds/MedWatch/rss.xml",
     "https://www.cochrane.org/news-feed.xml",
 ]
 OFFICIAL_SCIENCE_FEEDS = [
@@ -170,7 +170,8 @@ SOURCE_PRIORITY = [
     (re.compile(r"businessinsider\.com\.pl", re.I), 20),
     (re.compile(r"rmf24\.pl", re.I), 18),
     (re.compile(r"naukawpolsce\.pl", re.I), 25),
-    (re.compile(r"who\.int", re.I), 24),
+    (re.compile(r"fda\.gov", re.I), 24),
+    (re.compile(r"medicalxpress\.com|sciencedaily\.com", re.I), 19),
     (re.compile(r"nasa\.gov|esa\.int", re.I), 22),
     (re.compile(r"theguardian\.com", re.I), 16),
     (re.compile(r"reuters\.com", re.I), 24),
@@ -189,7 +190,9 @@ SOURCE_PRIORITY = [
 SOURCE_NAME_RULES = [
     (re.compile(r"pap\.pl", re.I), "PAP"),
     (re.compile(r"naukawpolsce\.pl", re.I), "Nauka w Polsce"),
-    (re.compile(r"who\.int", re.I), "WHO"),
+    (re.compile(r"fda\.gov", re.I), "FDA"),
+    (re.compile(r"medicalxpress\.com", re.I), "Medical Xpress"),
+    (re.compile(r"sciencedaily\.com", re.I), "ScienceDaily"),
     (re.compile(r"nasa\.gov", re.I), "NASA"),
     (re.compile(r"esa\.int", re.I), "ESA"),
     (re.compile(r"theguardian\.com", re.I), "The Guardian"),
