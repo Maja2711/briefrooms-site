@@ -1,0 +1,152 @@
+name: BRACE-SPX Generation 5
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-generation5-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX v5 research')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Check whether Generation 5 remains open
+        id: precheck
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/research/brace_spx_generation5_research.json')
+          should_run = True
+          if path.exists():
+              try:
+                  should_run = int(json.loads(path.read_text()).get('experiments_remaining', 1)) > 0
+              except Exception:
+                  should_run = True
+          with open('/tmp/brace_v5_run', 'w', encoding='utf-8') as handle:
+              handle.write('true' if should_run else 'false')
+          PY
+          echo "should_run=$(cat /tmp/brace_v5_run)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.precheck.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.precheck.outputs.should_run == 'true'
+        run: python -m pip install --upgrade pip numpy pandas yfinance scikit-learn pytest
+
+      - name: Compile and test Generation 5
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_research.py \
+            scripts/brace_spx_generation_research.py \
+            scripts/brace_spx_generation4_research.py \
+            scripts/brace_spx_generation5_research.py \
+            scripts/brace_spx_generation5_selection.py \
+            scripts/brace_spx_generation5_verdict.py \
+            scripts/brace_spx_generation5_pipeline.py
+          python -m pytest -q \
+            tests/test_brace_spx_generation5_research.py \
+            tests/test_brace_spx_generation5_governance.py
+
+      - name: Run complete sealed Generation 5
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          set -o pipefail
+          python scripts/brace_spx_generation5_pipeline.py --start 1993-01-01 --budget 12 \
+            2>&1 | tee data/research/brace_spx_generation5.log
+
+      - name: Validate generated evidence
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('data/research')
+          report = json.loads((root / 'brace_spx_generation5_research.json').read_text())
+          verdict = json.loads((root / 'brace_spx_generation5_verdict.json').read_text())
+          manifest = json.loads((root / 'brace_spx_generation5_manifest.json').read_text())
+          assert report['generation_id'] == 'spx-state-geometry-v5'
+          assert report['experiments_total'] == 12
+          assert report['experiments_remaining'] == 0
+          assert manifest['candidate_space_size'] == 12
+          assert manifest['holdout']['status'] == 'sealed'
+          assert manifest['holdout']['accessed'] is False
+          assert manifest['holdout']['access_count'] == 0
+          assert report['design']['generation4_reopened'] is False
+          assert verdict['holdout_opened'] is False
+          PY
+
+      - name: Write run status
+        if: steps.precheck.outputs.should_run == 'true' && always()
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          root = Path('data/research')
+          report = {}
+          path = root / 'brace_spx_generation5_research.json'
+          if path.exists():
+              try: report = json.loads(path.read_text())
+              except Exception: pass
+          status = {
+              'status': 'finished',
+              'generation_id': 'spx-state-geometry-v5',
+              'run_id': '${{ github.run_id }}',
+              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'experiments_total': report.get('experiments_total'),
+              'experiments_remaining': report.get('experiments_remaining'),
+              'holdout_opened': False,
+          }
+          (root / 'brace_spx_generation5_status.json').write_text(json.dumps(status, indent=2) + '\n')
+          PY
+
+      - name: Persist Generation 5 evidence
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/research/brace_spx_generation5* data/public/brace_spx_generation5_public.json
+          git commit -m "Persist BRACE-SPX state geometry generation 5"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
+
+      - name: Publish aggregate status to main
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+          cp data/public/brace_spx_generation5_public.json /tmp/brace_spx_generation5_public.json
+          git fetch origin main
+          git checkout --force main
+          mkdir -p data/public
+          cp /tmp/brace_spx_generation5_public.json data/public/
+          git add data/public/brace_spx_generation5_public.json
+          git commit -m "Update BRACE-SPX generation 5 public status"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
