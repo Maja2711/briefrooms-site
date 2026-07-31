@@ -19,8 +19,21 @@
   "research_only": true,
   "live_activation": false,
   "single_champion_authorized": false,
-  "source_snapshot_at": "2026-07-31T22:07:13+00:00",
-  "public_report_at": "2026-07-31T22:07:13+00:00",
+  "source_snapshot_at": "2026-07-31T22:07:18+00:00",
+  "public_report_at": "2026-07-31T22:47:25+00:00",
+  "mandate": {
+    "position_set": "long_flat",
+    "long_allowed": true,
+    "flat_allowed": true,
+    "short_allowed": false,
+    "leverage_allowed": false,
+    "orders_allowed": false
+  },
+  "cost_model": {
+    "basis_points_per_unit_turnover": 5.0,
+    "metrics_are_net_of_costs": true,
+    "applied_equally_to_candidate_and_benchmarks": true
+  },
   "progress": {
     "experiments_completed": 10,
     "candidate_space_size": 10,
@@ -36,15 +49,29 @@
     "diagnostic_leader": {
       "authorized_as_champion": false,
       "metrics": {
-        "cagr": 0.06925,
+        "cagr": 0.069251,
         "annualized_volatility": 0.089018,
-        "sharpe_excess": 0.717218,
+        "sharpe_excess": 0.717219,
         "max_drawdown": -0.185406,
         "calmar": 0.373508,
-        "annualized_turnover": 6.727838
+        "annualized_turnover": 6.727838,
+        "average_exposure": 0.456325
+      },
+      "economics": {
+        "average_exposure": 0.456325,
+        "time_long": 0.865993,
+        "time_flat": 0.134007,
+        "time_short": 0.0,
+        "time_full_long": 0.059616,
+        "gross_cagr_before_costs": 0.072853,
+        "net_cagr_after_costs": 0.069251,
+        "cagr_cost_drag": 0.003603,
+        "annualized_turnover": 6.727838,
+        "annualized_linear_cost_drag": 0.003364,
+        "observations": 3858
       },
       "positive_folds": 6,
-      "fold_sharpe_std": 0.76683
+      "fold_sharpe_std": 0.766828
     },
     "strict_gate": {
       "passed": false,
@@ -63,17 +90,33 @@
       "cagr": 0.092332,
       "annualized_volatility": 0.204816,
       "sharpe_excess": 0.499228,
-      "max_drawdown": -0.551895,
+      "max_drawdown": -0.551894,
       "calmar": 0.1673,
-      "annualized_turnover": 0.065319
+      "annualized_turnover": 0.065319,
+      "average_exposure": 0.0
     },
     "trend_200d": {
-      "cagr": 0.072946,
+      "cagr": 0.072945,
       "annualized_volatility": 0.117258,
-      "sharpe_excess": 0.598944,
-      "max_drawdown": -0.206287,
-      "calmar": 0.353613,
-      "annualized_turnover": 3.265941
+      "sharpe_excess": 0.598943,
+      "max_drawdown": -0.206286,
+      "calmar": 0.353612,
+      "annualized_turnover": 3.265941,
+      "average_exposure": 0.0
+    }
+  },
+  "comparison_assessment": {
+    "cagr_delta": -0.003694,
+    "sharpe_delta": 0.118276,
+    "calmar_delta": 0.019896,
+    "turnover_multiple": 2.06,
+    "lower_volatility": true,
+    "shallower_drawdown": true,
+    "edge_confirmed": false,
+    "assessment": "not_confirmed",
+    "labels": {
+      "pl": "Brak potwierdzonej przewagi nad Trend 200D",
+      "en": "No confirmed edge over the 200D trend"
     }
   },
   "diversity": {
@@ -116,7 +159,7 @@
     "passed": true,
     "target_path_exact": true,
     "return_correlation": 0.99999918,
-    "total_return_difference": -0.004329
+    "total_return_difference": -0.00434
   },
   "orthogonality_audit": {
     "method": "unsupervised_development_only",
@@ -164,10 +207,12 @@
     "parameters_exposed": false,
     "raw_predictions_exposed": false,
     "full_experiment_ledger_exposed": false,
-    "candidate_snapshots_exposed": false
+    "candidate_snapshots_exposed": false,
+    "daily_paths_exposed": false,
+    "candidate_identity_exposed": false
   },
   "notes": {
-    "pl": "Architecture 2 jest badaniem zarządzania ryzykiem, nie sygnałem transakcyjnym. PBO spadło poniżej 20%, lecz pełna bramka nie została zaliczona po globalnej korekcie 644 prób i ocenie stabilności rankingu.",
-    "en": "Architecture 2 is risk-management research, not a trading signal. PBO fell below 20%, but the full gate did not pass after the cumulative 644-trial correction and rank-stability assessment."
+    "pl": "Architecture 2 jest badaniem long/flat zarządzającym ekspozycją, a nie systemem long/short. Wynik ogranicza ryzyko, lecz nie potwierdza przewagi ekonomicznej nad prostym Trend 200D.",
+    "en": "Architecture 2 is a long/flat exposure-management study, not a long/short system. It reduces risk, but does not confirm an economic edge over the simple 200D trend benchmark."
   }
 }
