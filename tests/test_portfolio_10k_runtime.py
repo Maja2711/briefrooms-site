@@ -39,6 +39,20 @@ def test_migrate_mode_does_not_reset_already_valid_active_portfolio(monkeypatch)
     assert writes == []
 
 
+def test_migrate_mode_never_downgrades_newer_active_execution(monkeypatch):
+    data = valid_active_data()
+    data["execution_model_version"] = "2.2-staged-reconciled"
+    frozen_entry = dict(data["positions"][0])
+    writes = []
+    monkeypatch.setattr(MODULE.base, "load_json", lambda path: data)
+    monkeypatch.setattr(MODULE.base, "validate_config", lambda payload: None)
+    monkeypatch.setattr(MODULE.base, "write_json_atomic", lambda path, payload: writes.append(payload))
+    MODULE.run("migrate")
+    assert data["status"] == "active"
+    assert data["positions"][0] == frozen_entry
+    assert writes == []
+
+
 def test_migrate_mode_writes_pending_state_only_when_legacy_was_corrected(monkeypatch):
     data = {
         "status": "active",

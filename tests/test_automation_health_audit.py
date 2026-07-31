@@ -99,6 +99,16 @@ class AutomationHealthAuditTests(unittest.TestCase):
         self.assertEqual("2026-07-31T12:00:00Z", result["last_success_at"])
         self.assertEqual("44", result["run_id"])
 
+    def test_missing_openai_secret_is_reported_as_configuration_blocker(self) -> None:
+        result = {"status": "healthy", "failed_stage": None, "error_class": None}
+        with mock.patch.dict(
+            "os.environ", {"OPENAI_API_KEY_CONFIGURED": "false"}, clear=False
+        ):
+            result = health.apply_configured_blockers(self.domain, result)
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("ai_provider_configuration", result["failed_stage"])
+        self.assertEqual("missing_secret", result["error_class"])
+
     def test_missing_or_invalid_data_is_failed(self) -> None:
         result = health.build_domain_status(
             self.domain,

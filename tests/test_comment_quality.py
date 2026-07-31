@@ -541,7 +541,7 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(VALID_PL, result)
         self.assertEqual(2, post.call_count)
 
-    def test_github_models_is_used_when_openai_secret_is_missing(self):
+    def test_retired_github_models_is_not_used_when_openai_secret_is_missing(self):
         with mock.patch.dict(
             os.environ,
             {
@@ -552,11 +552,8 @@ class PipelineContractTests(unittest.TestCase):
             },
         ):
             runtime = quality.get_ai_runtime()
-        self.assertTrue(runtime.available)
-        self.assertEqual("github-models", runtime.provider)
-        self.assertEqual("https://models.github.ai/inference/chat/completions", runtime.endpoint)
-        self.assertEqual("openai/gpt-4o-mini", runtime.generation_model)
-        self.assertEqual("openai/gpt-4.1-mini", runtime.review_model)
+        self.assertFalse(runtime.available)
+        self.assertEqual("unavailable", runtime.provider)
 
     def test_news_batch_uses_two_models_and_rejects_missing_review(self):
         first = "The government published detailed programme rules that will take effect after public consultation ends."
@@ -590,10 +587,9 @@ class PipelineContractTests(unittest.TestCase):
         with mock.patch.dict(
             os.environ,
             {
-                "OPENAI_API_KEY": "",
-                "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+                "OPENAI_API_KEY": "openai-test-token",
+                "NEWS_AI_MODEL": "gpt-4o-mini",
+                "NEWS_AI_REVIEW_MODEL": "gpt-4.1-mini",
             },
         ):
             result = news_batch.summarize_news_items(
@@ -604,8 +600,8 @@ class PipelineContractTests(unittest.TestCase):
             )
         self.assertEqual({"en-0"}, set(result))
         self.assertEqual(2, post.call_count)
-        self.assertEqual("openai/gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
-        self.assertEqual("openai/gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
+        self.assertEqual("gpt-4o-mini", post.call_args_list[0].kwargs["json"]["model"])
+        self.assertEqual("gpt-4.1-mini", post.call_args_list[1].kwargs["json"]["model"])
 
     def test_polish_title_translation_survives_an_invalid_rss_comment(self):
         item = {
@@ -633,10 +629,9 @@ class PipelineContractTests(unittest.TestCase):
         with mock.patch.dict(
             os.environ,
             {
-                "OPENAI_API_KEY": "",
-                "GITHUB_MODELS_TOKEN": "github-test-token",
-                "GITHUB_MODELS_MODEL": "openai/gpt-4o-mini",
-                "GITHUB_MODELS_REVIEW_MODEL": "openai/gpt-4.1-mini",
+                "OPENAI_API_KEY": "openai-test-token",
+                "NEWS_AI_MODEL": "gpt-4o-mini",
+                "NEWS_AI_REVIEW_MODEL": "gpt-4.1-mini",
             },
         ):
             result = news_batch.summarize_news_items(
@@ -1088,15 +1083,13 @@ class PipelineContractTests(unittest.TestCase):
         self.assertAlmostEqual(3.2, sleep.call_args.args[0])
         self.assertEqual(2, post.call_count)
 
-    def test_production_workflows_grant_and_pass_github_models_access(self):
+    def test_production_workflows_use_openai_after_github_models_retirement(self):
         publisher = (ROOT / ".github/workflows/publish-news.yml").read_text(encoding="utf-8")
-        self.assertIn("models: read", publisher)
-        self.assertIn("GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}", publisher)
+        self.assertNotIn("models: read", publisher)
+        self.assertNotIn("GITHUB_MODELS_TOKEN", publisher)
+        self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", publisher)
         self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", publisher)
-        self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", publisher)
-        self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", publisher)
-        self.assertIn('GITHUB_MODELS_API_VERSION: "2026-03-10"', publisher)
-        self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "2"', publisher)
+        self.assertIn("NEWS_AI_REVIEW_MODEL: gpt-4.1-mini", publisher)
         self.assertIn("group: news-publication", publisher)
         self.assertIn("cancel-in-progress: false", publisher)
         self.assertIn("python scripts/check_ai_provider.py", publisher)

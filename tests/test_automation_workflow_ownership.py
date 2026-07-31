@@ -92,6 +92,19 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertIn("paths-ignore:", deploy)
         self.assertIn('      - "data/system/**"', deploy)
 
+    def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
+        weekly = workflow_sources()["investments-weekly.yml"]
+        for path in (
+            "pl/inwestycje.html",
+            "pl/inwestycje/pozycje-tygodniowe.html",
+            "pl/inwestycje/prognozy-tygodniowe.html",
+            "en/investing.html",
+            "en/investing/open-weekly-positions.html",
+            "en/investing/weekly-forecasts.html",
+        ):
+            with self.subTest(path=path):
+                self.assertIn(path, weekly)
+
     def test_portfolio_frontends_use_registry_and_cache_busting(self) -> None:
         pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
             encoding="utf-8"

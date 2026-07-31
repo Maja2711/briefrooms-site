@@ -33,6 +33,7 @@ jobs:
       - name: Read Actions and published-data health
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY_CONFIGURED: ${{ secrets.OPENAI_API_KEY != '' }}
         run: python scripts/automation_health_audit.py --sync-issues
 
       - name: Validate public registry

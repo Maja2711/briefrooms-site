@@ -73,7 +73,10 @@ def _clear_keys(payload: Dict[str, Any], keys: Iterable[str]) -> None:
 
 def migrate_invalid_initialization(data: Dict[str, Any], now: datetime) -> bool:
     """Invalidate the close-price launch without pretending it was a real trade."""
-    if data.get("execution_model_version") == EXECUTION_MODEL_VERSION:
+    # Migration is a one-time correction for the pre-versioned launch. A later
+    # execution version (for example 2.2 staged reconciliation) is authoritative
+    # and must never be downgraded or have its frozen entries rewritten.
+    if data.get("execution_model_version"):
         return False
 
     legacy_active = data.get("status") == "active" and any(
