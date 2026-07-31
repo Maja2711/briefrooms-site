@@ -147,7 +147,11 @@ def summarize_sections_en_full(sections: dict) -> None:
     sections.update(combined)
 
     try:
-        enriched = enrich_sections_with_homepage_quality(sections, "en")
+        enriched = enrich_sections_with_homepage_quality(
+            sections,
+            "en",
+            keep_unapproved=True,
+        )
     except Exception as exc:
         print(f"[WARN] EN AI enrichment unavailable; publishing source-only cards: {exc}", file=sys.stderr)
         return
