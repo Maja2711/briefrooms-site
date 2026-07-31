@@ -2,14 +2,11 @@
 # -*- coding: utf-8 -*-
 """Shared full-article comment pipeline for PL and EN section news pages.
 
-The homepage and the section news pages use the same strict comment contract:
-- reuse an already approved homepage comment for an identical source link;
-- otherwise read the complete source article and run the shared generator and
-  independent reviewer;
-- never publish an RSS-derived text as an AI comment;
-- reject a defective comment per item without lowering the quality threshold.
-
-Section builders may explicitly keep source-only cards after comment rejection.
+The strict mode reuses or generates article-derived comments and returns only
+independently approved items. The source-first mode is used by the broad News
+pages: it selects a bounded set of source cards without spending AI quota, so a
+comment provider cannot block publication. Existing approved reserve comments
+remain attached, while fresh cards contain only title, source, image and link.
 """
 
 from __future__ import annotations
@@ -141,16 +138,21 @@ def enrich_sections_with_homepage_quality(
     *,
     keep_unapproved: bool = False,
 ) -> dict[str, list[dict]]:
-    """Attach strict article-derived comments to section candidates.
+    """Select section cards and optionally attach strict AI comments.
 
-    By default the historical fail-closed contract is preserved and only items
-    with approved comments are returned. Section news builders may set
-    ``keep_unapproved=True`` to retain processed source cards after a missing or
-    rejected comment. In that mode the rejected text is never exposed as an AI
-    comment; the caller publishes only title, source, image and link.
+    ``keep_unapproved=True`` is the source-first publication mode. It performs
+    no article fetches and no model calls; this preserves AI capacity for the
+    homepage and guarantees that a rejected comment cannot remove a valid news
+    card. The default remains the historical strict-comment mode.
     """
     if lang not in {"pl", "en"}:
         raise ValueError(f"Unsupported language: {lang}")
+
+    if keep_unapproved:
+        return {
+            section_key: _bounded_section_candidates(items)
+            for section_key, items in sections.items()
+        }
 
     homepage = approved_homepage_comments(lang)
     cache = load_cache()
@@ -238,11 +240,6 @@ def enrich_sections_with_homepage_quality(
         process_wave(backfill_wave)
 
     save_cache(cache)
-    if keep_unapproved:
-        return {
-            section_key: processed[section_key] + candidate_parts[section_key][1]
-            for section_key in sections
-        }
     return {
         section_key: [
             item
