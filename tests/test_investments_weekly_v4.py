@@ -38,13 +38,13 @@ class MultiInstrumentExposureTests(unittest.TestCase):
         self.assertGreater(v4.cost_percent("sp500_futures", 5000, {"round_trip_cost": 1, "cost_unit": "points"}), 0)
         self.assertEqual(v4.cost_percent("btcusd", 60000, {"round_trip_cost": 0.2, "cost_unit": "percent"}), 0.2)
 
-    def test_v5_policy_does_not_force_continuous_exposure(self):
+    def test_v5_policy_enforces_governed_continuous_exposure(self):
         policy = v4.read(v4.POLICY_PATH, {})
         enabled = {row["instrument_id"] for row in v4.policy_instruments(policy)}
         self.assertEqual(enabled, {"eurusd", "sp500_futures", "btcusd"})
-        self.assertFalse(policy.get("mandatory_monday_position"))
-        self.assertFalse(policy.get("reentry_after_any_close"))
-        self.assertTrue((policy.get("no_trade") or {}).get("enabled"))
+        self.assertTrue(policy.get("mandatory_monday_position"))
+        self.assertTrue(policy.get("reentry_after_any_close"))
+        self.assertFalse((policy.get("no_trade") or {}).get("enabled"))
         self.assertTrue((policy.get("learning_guardrails") or {}).get("paper_trading_only"))
 
 

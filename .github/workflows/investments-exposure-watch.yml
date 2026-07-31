@@ -31,7 +31,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: investments-paper-publishing
+  group: investment-weekly-positions
   cancel-in-progress: false
 
 jobs:
@@ -86,10 +86,11 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json \
-                  data/investments/intraday_risk_audit.json \
+          git restore --worktree -- data/investments/live_prices.json
+          git add data/investments/intraday_risk_audit.json \
                   data/investments/manual_risk_exit_overrides.json \
                   data/investments/weekly \
+                  data/investments/multi_instrument_validation_v4.json \
                   pl/inwestycje/pozycje-tygodniowe.html \
                   en/investing/open-weekly-positions.html \
                   pl/inwestycje/prognozy-tygodniowe.html \
@@ -98,6 +99,11 @@ jobs:
             echo "No SL/TP or public-page changes to persist."
           else
             git commit -m "Apply 15-minute weekly position risk review"
+            if ! git diff --quiet; then
+              echo "::error::Risk review left unstaged files; refusing a partial publication."
+              git status --short
+              exit 1
+            fi
             for attempt in 1 2 3; do
               if git pull --rebase origin main && git push origin HEAD:main; then
                 break
@@ -130,8 +136,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json \
-                  data/investments/intraday_risk_audit.json \
+          git restore --worktree -- data/investments/live_prices.json
+          git add data/investments/intraday_risk_audit.json \
                   data/investments/manual_risk_exit_overrides.json \
                   data/investments/weekly \
                   data/investments/daily_review_report.json \
@@ -147,6 +153,11 @@ jobs:
             echo "No governed exposure changes to commit."
           else
             git commit -m "Maintain governed weekly paper positions"
+            if ! git diff --quiet; then
+              echo "::error::Exposure update left unstaged files; refusing a partial publication."
+              git status --short
+              exit 1
+            fi
             for attempt in 1 2 3; do
               if git pull --rebase origin main && git push origin HEAD:main; then
                 break

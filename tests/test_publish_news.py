@@ -122,6 +122,12 @@ class AtomicNewsPublicationTests(unittest.TestCase):
                 owners.append(path.name)
         self.assertEqual(["publish-news.yml"], sorted(owners))
 
+    def test_en_youtube_patcher_does_not_touch_the_homepage(self) -> None:
+        patcher = (ROOT / "scripts/patch_en_youtube_recommendations.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("patch('en/index.html'", patcher)
+
     def test_workflow_watches_all_newsroom_publication_inputs(self) -> None:
         workflow = (ROOT / ".github/workflows/publish-news.yml").read_text(
             encoding="utf-8"

@@ -9,6 +9,7 @@ import re
 import sys
 
 from comment_quality import (
+    AiPermanentError,
     AiRateLimitError,
     QUALITY_STATUS,
     QUALITY_VERSION,
@@ -189,6 +190,12 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                     "summary": quality.text,
                     "title_pl": title_pl if candidate["translate_title"] else "",
                 }
+        except AiPermanentError as exc:
+            print(
+                f"[ERROR] {lang.upper()} news generation stopped after permanent provider error: {exc}",
+                file=sys.stderr,
+            )
+            raise
         except AiRateLimitError as exc:
             rate_limited = True
             print(

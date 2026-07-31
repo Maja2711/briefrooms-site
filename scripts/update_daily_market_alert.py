@@ -882,6 +882,10 @@ def build_alert(
     session_date = moment.astimezone(NY).date().isoformat()
     return {
         "schema_version": "2.0",
+        "alert_id": (
+            f"{session_date}-{mode}-"
+            f"{moment.astimezone(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+        ),
         "session_date": session_date,
         "edition": mode,
         "updated_at": moment.astimezone(WARSAW).isoformat(timespec="seconds"),
@@ -975,6 +979,11 @@ def material_note(candidate: dict[str, Any]) -> dict[str, str]:
 def validate_payload(payload: dict[str, Any]) -> None:
     if payload.get("schema_version") != "2.0":
         raise ValueError("Unexpected schema version")
+    if not re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}-(?:open|preclose)-\d{8}T\d{6}Z",
+        str(payload.get("alert_id") or ""),
+    ):
+        raise ValueError("Missing or invalid alert_id")
     instruments = payload.get("instruments")
     if not isinstance(instruments, list) or {item.get("id") for item in instruments} != set(INSTRUMENTS):
         raise ValueError("Payload must contain exactly sp500, brent and us10y")

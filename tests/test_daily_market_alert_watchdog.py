@@ -17,6 +17,7 @@ TARGETS = (
 def payload(edition="open", updated_at="2026-07-27T16:00:00+02:00"):
     return {
         "schema_version": "2.0",
+        "alert_id": f"2026-07-27-{edition}-20260727T140000Z",
         "session_date": "2026-07-27",
         "edition": edition,
         "updated_at": updated_at,

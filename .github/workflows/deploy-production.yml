@@ -3,6 +3,8 @@ name: Deploy production from main
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "data/system/**"
   workflow_dispatch:
   issues:
     types: [opened]

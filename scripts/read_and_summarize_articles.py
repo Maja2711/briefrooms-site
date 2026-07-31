@@ -23,6 +23,7 @@ from pathlib import Path
 import requests
 
 from comment_quality import (
+    AiPermanentError,
     AiRateLimitError,
     QUALITY_VERSION,
     clip_complete_text,
@@ -370,6 +371,12 @@ def ai_summarize_batch(candidates: list[dict], lang: str, cache: dict) -> dict[s
                     generated[item_id] = quality.text
                 else:
                     print(f"[WARN] batch comment rejected: {candidate_by_id[item_id]['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+        except AiPermanentError as exc:
+            print(
+                f"[ERROR] AI article generation stopped after permanent provider error ({lang}): {exc}",
+                file=sys.stderr,
+            )
+            raise
         except AiRateLimitError as exc:
             rate_limited = True
             print(

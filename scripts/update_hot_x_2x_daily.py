@@ -13,7 +13,9 @@ import update_hot_x_topics as source
 from hot_x_items import (
     INITIAL_VISIBLE_ITEMS,
     TOTAL_ITEMS,
+    clean_x_url,
     duplicate_free,
+    is_direct_post,
     select_unique,
     valid_item,
 )
@@ -53,7 +55,11 @@ def validate_payload(data: dict) -> None:
         if not valid_item(item):
             raise RuntimeError(f"Hot X item {index} lacks an approved X destination or bilingual content")
     pins = load_items(PINS)
-    if pins and [item.get("search_url") for item in items[: len(pins)]] != [item.get("search_url") for item in pins]:
+    visible_pin_urls = [
+        clean_x_url(item.get("search_url")) for item in items[: len(pins)]
+    ]
+    expected_pin_urls = [clean_x_url(item.get("search_url")) for item in pins]
+    if pins and visible_pin_urls != expected_pin_urls:
         raise RuntimeError("Hot X update rejected: editorial pins were not preserved at the top")
 
 
@@ -95,8 +101,28 @@ def main() -> None:
     source.current_slot_index = rotation_slot
     builder.hot.SLOT_HOURS = INTERVAL_HOURS
     builder.hot.current_slot_index = rotation_slot
+    previous_bytes = OUT.read_bytes() if OUT.exists() else b""
+    previous_direct_urls = {
+        item.get("tweet_url")
+        for item in load_items(OUT)
+        if is_direct_post(item.get("tweet_url"))
+    }
     builder.main()
     normalize_metadata()
+    current_direct_urls = {
+        item.get("tweet_url")
+        for item in load_items(OUT)
+        if is_direct_post(item.get("tweet_url"))
+    }
+    if not current_direct_urls - previous_direct_urls:
+        if previous_bytes:
+            OUT.write_bytes(previous_bytes)
+        elif OUT.exists():
+            OUT.unlink()
+        print(
+            "No new verified direct X posts; preserved the previous feed and timestamp."
+        )
+        return
     print("Hot X updated automatically with four preserved editorial pins")
 
 

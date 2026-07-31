@@ -42,7 +42,6 @@ def patch(path: str, block: str):
     text=text.replace(anchor,payload+anchor,1)
     p.write_text(text,encoding='utf-8')
 
-patch('en/index.html',HOME)
 patch('en/health.html',HEALTH)
 patch('en/science.html',SCIENCE)
 patch('en/geopolitics.html',GEO)

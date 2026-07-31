@@ -19,7 +19,8 @@ import comment_quality as quality
 import protect_home_feed as protect
 import content_update_watchdog as watchdog
 import remove_urgent_badge_categories as category_cleanup
-sys.modules.setdefault("requests", mock.Mock())
+if "requests" not in sys.modules or not hasattr(sys.modules["requests"], "post"):
+    sys.modules["requests"] = mock.Mock()
 sys.modules.setdefault("feedparser", mock.Mock())
 if "dateutil" not in sys.modules:
     dateutil_stub = types.ModuleType("dateutil")
@@ -782,6 +783,35 @@ class PipelineContractTests(unittest.TestCase):
         review.assert_called_once()
         self.assertEqual([], review.call_args.kwargs["entries"])
 
+    def test_article_batch_permanent_error_stops_without_recursive_requests(self):
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        candidates = [
+            {
+                "id": f"pl-{index}",
+                "title": f"Rzad publikuje zasady programu {index}",
+                "link": f"https://example.com/article-{index}",
+                "article_text": "Material zrodlowy. " * 80,
+            }
+            for index in range(12)
+        ]
+        with (
+            mock.patch.object(reader, "get_ai_runtime", return_value=runtime),
+            mock.patch.object(
+                reader,
+                "request_json_completion",
+                side_effect=quality.AiPermanentError(410, "provider retired endpoint"),
+            ) as request,
+            self.assertRaises(quality.AiPermanentError),
+        ):
+            reader.ai_summarize_batch(candidates, "pl", {})
+        self.assertEqual(1, request.call_count)
+
     def test_review_batch_failure_is_split_without_losing_reviews(self):
         entries = [
             {
@@ -860,6 +890,36 @@ class PipelineContractTests(unittest.TestCase):
             all(not approved and reason == "rate_limited" for approved, reason in result.values())
         )
 
+    def test_review_batch_permanent_error_stops_without_recursive_requests(self):
+        entries = [
+            {
+                "id": f"en-{index}",
+                "title": f"Government publishes programme rules {index}",
+                "source_text": "The source confirms the programme rules.",
+                "summary": VALID_EN,
+            }
+            for index in range(12)
+        ]
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        with (
+            mock.patch.object(
+                quality,
+                "request_json_completion",
+                side_effect=quality.AiPermanentError(410, "provider retired endpoint"),
+            ) as request,
+            self.assertRaises(quality.AiPermanentError),
+        ):
+            quality.independent_ai_review_batch(
+                post=mock.Mock(), runtime=runtime, entries=entries, lang="en"
+            )
+        self.assertEqual(1, request.call_count)
+
     def test_read_timeouts_are_bounded_to_two_attempts(self):
         class ReadTimeout(Exception):
             pass
@@ -903,7 +963,7 @@ class PipelineContractTests(unittest.TestCase):
         post = mock.Mock(return_value=BadRequestResponse())
         with (
             mock.patch.object(quality.time, "sleep"),
-            self.assertRaisesRegex(RuntimeError, "after retries"),
+            self.assertRaisesRegex(quality.AiPermanentError, "permanent HTTP 400"),
         ):
             quality.request_json_completion(
                 post=post,
@@ -912,6 +972,52 @@ class PipelineContractTests(unittest.TestCase):
                 max_tokens=100,
                 temperature=0,
             )
+        self.assertEqual(1, post.call_count)
+
+    def test_github_models_request_sends_current_api_version(self):
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(return_value=self.FakeResponse({"ok": True}))
+        quality.request_json_completion(
+            post=post,
+            runtime=runtime,
+            messages=[{"role": "user", "content": "test"}],
+            max_tokens=100,
+            temperature=0,
+        )
+        headers = post.call_args.kwargs["headers"]
+        self.assertEqual("2026-03-10", headers["X-GitHub-Api-Version"])
+
+    def test_http_410_raises_typed_error_after_one_request(self):
+        class GoneResponse:
+            status_code = 410
+            headers = {}
+
+            def raise_for_status(self):
+                raise RuntimeError("410 Gone")
+
+        runtime = quality.AiRuntime(
+            "github-models",
+            "token",
+            "https://models.github.ai/inference/chat/completions",
+            "openai/gpt-4o-mini",
+            "openai/gpt-4.1-mini",
+        )
+        post = mock.Mock(return_value=GoneResponse())
+        with self.assertRaises(quality.AiPermanentError) as caught:
+            quality.request_json_completion(
+                post=post,
+                runtime=runtime,
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=100,
+                temperature=0,
+            )
+        self.assertEqual(410, caught.exception.status_code)
         self.assertEqual(1, post.call_count)
 
     def test_rate_limit_raises_typed_error_after_bounded_retries(self):
@@ -989,33 +1095,31 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("NEWS_AI_MODEL: gpt-4o-mini", publisher)
         self.assertIn("GITHUB_MODELS_MODEL: openai/gpt-4o-mini", publisher)
         self.assertIn("GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini", publisher)
-        self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"', publisher)
-        self.assertIn("group: content-publishing", publisher)
-        self.assertIn("cancel-in-progress: true", publisher)
+        self.assertIn('GITHUB_MODELS_API_VERSION: "2026-03-10"', publisher)
+        self.assertIn('GITHUB_MODELS_MIN_INTERVAL_SECONDS: "2"', publisher)
+        self.assertIn("group: news-publication", publisher)
+        self.assertIn("cancel-in-progress: false", publisher)
+        self.assertIn("python scripts/check_ai_provider.py", publisher)
         self.assertIn('cron: "15 */4 * * *"', publisher)
         self.assertIn("workflow_dispatch:", publisher)
         self.assertIn("workflow_call:", publisher)
         self.assertIn("git merge --ff-only origin/main", publisher)
         self.assertIn("--refresh-plan", publisher)
-        self.assertIn("News inputs changed during preparation", publisher)
         self.assertNotIn("git pull --rebase", publisher)
 
-        watchdog_workflow = (
-            ROOT / ".github/workflows/content-update-watchdog.yml"
+        health_workflow = (
+            ROOT / ".github/workflows/automation-health-audit.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("uses: ./.github/workflows/publish-news.yml", watchdog_workflow)
-        self.assertIn('cron: "25 * * * *"', watchdog_workflow)
-        self.assertIn("actions: read", watchdog_workflow)
-        self.assertIn('workflow_id: "publish-news.yml"', watchdog_workflow)
-        self.assertIn("PUBLISHER_ACTIVE", watchdog_workflow)
-        self.assertIn(
-            "needs.check.outputs.publisher_active != 'true'",
-            watchdog_workflow,
-        )
+        self.assertIn('cron: "42 * * * *"', health_workflow)
+        self.assertIn("actions: read", health_workflow)
+        self.assertIn("issues: write", health_workflow)
+        self.assertNotIn("workflow run", health_workflow)
         for retired in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
             ".github/workflows/news-en.yml",
+            ".github/workflows/content-update-watchdog.yml",
+            ".github/workflows/publish-news-recovery-now.yml",
         ):
             self.assertFalse((ROOT / retired).exists(), retired)
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import json
+from pathlib import Path
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
@@ -135,6 +137,7 @@ class DailyMarketAlertTests(unittest.TestCase):
     def test_payload_requires_three_instruments_and_100_percent(self):
         payload = {
             "schema_version": "2.0",
+            "alert_id": "2026-07-24-open-20260724T140000Z",
             "instruments": [
                 instrument("sp500", 7500.0),
                 instrument("brent", 98.0),
@@ -153,6 +156,7 @@ class DailyMarketAlertTests(unittest.TestCase):
     def test_payload_rejects_wrong_symbol_period_change_and_direction(self):
         payload = {
             "schema_version": "2.0",
+            "alert_id": "2026-07-24-open-20260724T140000Z",
             "instruments": [
                 instrument("sp500", 7500.0),
                 instrument("brent", 98.0),
@@ -177,6 +181,39 @@ class DailyMarketAlertTests(unittest.TestCase):
 
     def test_instrument_contract_is_stable(self):
         self.assertEqual(set(INSTRUMENTS), {"sp500", "brent", "us10y"})
+
+    def test_frontend_exposes_the_source_alert_id_and_timestamp(self):
+        root = Path(__file__).resolve().parents[1]
+        payload = json.loads(
+            (root / "data/investments/daily_market_alert.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        frontend = (root / "scripts/site-header.js").read_text(encoding="utf-8")
+        self.assertRegex(
+            payload["alert_id"],
+            r"^\d{4}-\d{2}-\d{2}-(?:open|preclose)-\d{8}T\d{6}Z$",
+        )
+        self.assertIn(
+            "section.setAttribute('data-alert-id', String(data.alert_id || ''))",
+            frontend,
+        )
+        self.assertIn(
+            "section.setAttribute('data-updated-at', String(data.updated_at || ''))",
+            frontend,
+        )
+
+    def test_payload_rejects_missing_alert_id(self):
+        payload = {
+            "schema_version": "2.0",
+            "instruments": [
+                instrument("sp500", 7500.0),
+                instrument("brent", 98.0),
+                instrument("us10y", 4.60),
+            ],
+        }
+        with self.assertRaisesRegex(ValueError, "alert_id"):
+            validate_payload(payload)
 
 
 if __name__ == "__main__":

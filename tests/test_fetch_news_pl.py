@@ -71,6 +71,17 @@ class PolishNewsBuilderTests(unittest.TestCase):
         self.assertTrue(any("naukawpolsce.pl/zdrowie" in news.feed_url(feed) for feed in news.FEEDS["zdrowie"]))
         self.assertTrue(any("naukawpolsce.pl/naukowy" in news.feed_url(feed) for feed in news.FEEDS["nauka"]))
 
+    def test_health_pool_has_multiple_working_specialist_sources(self):
+        urls = {news.feed_url(feed) for feed in news.FEEDS["zdrowie"]}
+        self.assertIn("https://medicalxpress.com/rss-feed/", urls)
+        self.assertIn("https://www.sciencedaily.com/rss/health_medicine.xml", urls)
+        self.assertTrue(any("fda.gov" in url for url in urls))
+        self.assertFalse(any("feeds.reuters.com" in url for url in urls))
+        self.assertFalse(any("who.int/feeds/entity" in url for url in urls))
+
+    def test_health_minimum_remains_six_after_reserve_selection(self):
+        self.assertEqual((6, 10), news.SECTION_PUBLISH_BOUNDS["zdrowie"])
+
     def test_topic_filters_reject_unrelated_items(self):
         self.assertFalse(news.is_rejected_item("zdrowie", "Nowe badanie kliniczne terapii raka", "Lekarze opisali wyniki pacjentów.", "https://example.com/zdrowie"))
         self.assertTrue(news.is_rejected_item("nauka", "Zmiana składu zarządu spółki", "Firma ogłosiła decyzję właścicielską.", "https://example.com/biznes"))

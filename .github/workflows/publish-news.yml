@@ -24,6 +24,7 @@ on:
       - "scripts/news_*.py"
       - "scripts/newsroom_*.py"
       - "scripts/comment_quality.py"
+      - "scripts/check_ai_provider.py"
       - "scripts/read_and_summarize_articles.py"
       - "scripts/protect_home_feed.py"
       - "scripts/normalize_home_publish_count.py"
@@ -41,6 +42,8 @@ on:
       - "tests/test_news_section_reserve.py"
       - "tests/test_news_story_dedupe.py"
       - "tests/test_comment_quality.py"
+      - "tests/test_ai_provider_preflight.py"
+      - "tests/test_fetch_news_pl.py"
       - "tests/test_protect_home_feed_count.py"
       - "tests/test_content_update_watchdog.py"
       - "tests/test_external_media_policy.py"
@@ -85,14 +88,29 @@ jobs:
             scripts/news_publication_diagnostics.py \
             scripts/verify_news_production.py \
             scripts/content_update_watchdog.py \
-            scripts/comment_quality.py
+            scripts/comment_quality.py \
+            scripts/check_ai_provider.py
           python -m unittest \
+            tests.test_ai_provider_preflight \
+            tests.test_comment_quality \
+            tests.test_fetch_news_pl \
             tests.test_publish_news \
             tests.test_news_story_dedupe \
             tests.test_news_section_reserve \
             tests.test_content_update_watchdog \
             tests.test_external_media_policy \
             tests.test_validate_news_home_publish -v
+
+      - name: Check AI provider once before publication
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_ENDPOINT: https://models.github.ai/inference/chat/completions
+          GITHUB_MODELS_API_VERSION: "2026-03-10"
+          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
+          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+        run: python scripts/check_ai_provider.py
 
       - name: Prepare one isolated PL and EN publication
         env:
