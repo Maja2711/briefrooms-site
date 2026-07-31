@@ -154,6 +154,15 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, weekly)
 
+    def test_risk_exit_publisher_stages_immediate_exposure_state(self) -> None:
+        exposure = workflow_sources()["investments-exposure-watch.yml"]
+        for path in (
+            "data/investments/multi_instrument_exposure_state_v5.json",
+            "data/investments/multi_instrument_exposure_report_v5.json",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(2, exposure.count(path))
+
     def test_portfolio_frontends_use_registry_and_cache_busting(self) -> None:
         pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
             encoding="utf-8"
