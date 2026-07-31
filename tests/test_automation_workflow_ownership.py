@@ -113,10 +113,33 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
                 self.assertNotIn("-X theirs", sources[workflow])
                 self.assertNotIn("git add -A", sources[workflow])
 
-    def test_health_only_commits_do_not_trigger_a_pages_deploy(self) -> None:
+    def test_health_only_pushes_do_not_recursively_trigger_a_pages_deploy(self) -> None:
         deploy = workflow_sources()["deploy-production.yml"]
         self.assertIn("paths-ignore:", deploy)
         self.assertIn('      - "data/system/**"', deploy)
+
+    def test_action_publishers_trigger_a_pages_deploy(self) -> None:
+        deploy = workflow_sources()["deploy-production.yml"]
+        for workflow_name in (
+            "Publish PL and EN News",
+            "Update Hot X Topics",
+            "Daily Market Alert",
+            "Refresh Portfolio 10K Hourly Prices",
+            "Open Fresh 10K Positions",
+            "Update 10K Model Portfolio",
+            "Build Governed Investments Weekly Forecasts",
+            "Governed Weekly Paper Exposure Watch",
+            "Update Investment Room Quotes",
+            "Publish EN YouTube Recommendations",
+            "Audit Automation Health",
+            "BRACE Portfolio Daily Learning",
+            "BRACE Portfolio Hourly Safety Monitor",
+            "BRACE Portfolio Research and Promotion",
+            "BRACE-SPX Research Engine",
+            "BRACE-SPX Public Panel",
+        ):
+            with self.subTest(workflow_name=workflow_name):
+                self.assertIn(f'      - "{workflow_name}"', deploy)
 
     def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]

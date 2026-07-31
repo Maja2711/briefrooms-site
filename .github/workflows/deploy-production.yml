@@ -11,12 +11,30 @@ on:
   schedule:
     - cron: "27 */2 * * *"
   workflow_run:
+    # Commits pushed with GITHUB_TOKEN do not emit another push workflow event.
+    # Every canonical publisher therefore requests a Pages build explicitly here.
     workflows:
       - "Publish PL and EN News"
       - "Update Hot X Topics"
+      - "Daily Market Alert"
       - "Refresh Portfolio 10K Hourly Prices"
+      - "Open Fresh 10K Positions"
+      - "Update 10K Model Portfolio"
       - "Build Governed Investments Weekly Forecasts"
+      - "Governed Weekly Paper Exposure Watch"
       - "Update Investment Room Quotes"
+      - "Publish EN YouTube Recommendations"
+      - "Audit Automation Health"
+      - "BRACE Portfolio Daily Learning"
+      - "BRACE Portfolio Hourly Safety Monitor"
+      - "BRACE Portfolio Research and Promotion"
+      - "Bootstrap BRACE 2.0 Learning"
+      - "Accelerate BRACE Historical Learning"
+      - "BRACE-SPX Research Engine"
+      - "BRACE-SPX Public Panel"
+      - "BRACE-SPX Generation 3 Scenario Panel"
+      - "BRACE-SPX Generation 4 Archive"
+      - "BRACE-SPX Generation 5"
     types: [completed]
 
 permissions:
