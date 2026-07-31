@@ -250,7 +250,11 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
     )
 
     if not rate_limited:
-        missing = [candidate for candidate in pending if candidate["id"] not in generated]
+        missing = [
+            candidate
+            for candidate in pending
+            if candidate["id"] not in generated and candidate["id"] not in translated_titles
+        ]
         if missing:
             print(
                 f"[INFO] {lang.upper()} repairing {len(missing)} rejected or missing comments in isolated retries",
