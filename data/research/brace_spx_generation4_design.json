@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "generation_id": "spx-diversified-v4",
+  "target_instrument": "SPY / S&P 500",
+  "status": "predeclared",
+  "derived_from_generation": "spx-focused-v3",
+  "generation3_policy": {
+    "further_tuning": false,
+    "holdout_access": false,
+    "reopened": false
+  },
+  "candidate_space_size": 16,
+  "search_scope": {
+    "parameter_grid": false,
+    "fixed_rule_candidates": true,
+    "archetypes": [
+      "trend",
+      "breadth",
+      "credit",
+      "volatility_rates",
+      "recovery",
+      "predeclared_ensembles"
+    ],
+    "individual_candidates": 10,
+    "ensemble_candidates": 6
+  },
+  "scientific_rationale": [
+    "Generation 3 failed only the PBO gate and must not be tuned further.",
+    "Generation 4 replaces a dense parameter family with structurally different fixed rules.",
+    "The candidate count falls from 48 to 16, reducing the multiple-testing burden.",
+    "Selection uses both chronological performance and return-correlation diversity.",
+    "No rule is fitted to the target and neither generation 3 nor generation 4 holdout is used during design."
+  ],
+  "strict_gate": {
+    "candidate_space_must_be_exhausted": true,
+    "holdout_must_remain_sealed": true,
+    "minimum_positive_folds": 5,
+    "minimum_excess_sharpe": 1.05,
+    "minimum_sharpe_advantage_over_best_baseline": 0.10,
+    "maximum_drawdown": -0.18,
+    "maximum_fold_sharpe_std": 0.90,
+    "maximum_annualized_turnover": 3.50,
+    "maximum_probability_of_backtest_overfitting": 0.20,
+    "maximum_median_absolute_pairwise_correlation": 0.72,
+    "minimum_effective_independent_candidates": 3.50,
+    "maximum_largest_cluster_share": 0.50,
+    "maximum_selected_mean_absolute_correlation": 0.75,
+    "human_approval_required_before_holdout": true
+  },
+  "execution_constraints": {
+    "maximum_exposure": 1.0,
+    "leverage": false,
+    "live_orders": false,
+    "research_only": true
+  }
+}
