@@ -1,0 +1,74 @@
+name: BRACE-SPX Architecture 2 Shadow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 22 * * 1-5'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-architecture-v2-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow-no-orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance
+
+      - name: Verify no-order policy
+        run: |
+          python -m py_compile scripts/brace_spx_architecture_v2.py scripts/brace_spx_architecture_v2_shadow.py
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as a
+          assert a.SHADOW_START > a.SEALED_HOLDOUT_END
+          assert a.candidate_signature() == 'c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9'
+          PY
+
+      - name: Run post-holdout cold-start shadow tracker
+        run: python scripts/brace_spx_architecture_v2_shadow.py --output data/shadow/brace_spx_architecture_v2_shadow.json
+
+      - name: Validate shadow output
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('data/shadow/brace_spx_architecture_v2_shadow.json').read_text())
+          assert payload['holdout_accessed'] is False
+          assert payload['live_orders'] is False
+          assert payload['autonomous_trading'] is False
+          assert payload['single_champion_selected'] is False if payload['status'] == 'shadow_active_no_orders' else True
+          if payload['status'] == 'warming_up':
+              assert payload['candidate_snapshots'] == []
+          PY
+
+      - name: Persist shadow ledger
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f data/shadow/brace_spx_architecture_v2_shadow.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Update BRACE-SPX Architecture 2 shadow ledger'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
