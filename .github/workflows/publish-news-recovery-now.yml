@@ -1,0 +1,28 @@
+name: Recover News Publication
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-news-recovery-now.yml"
+  schedule:
+    - cron: "45 * * * *"
+
+permissions:
+  contents: write
+  models: read
+
+concurrency:
+  group: news-publication-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    uses: ./.github/workflows/publish-news.yml
+    with:
+      recovery: true
+    permissions:
+      contents: write
+      models: read
+    secrets: inherit
