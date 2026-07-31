@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Homepage-grade EN News builder.
+"""Resilient EN News builder.
 
-The active EN workflow keeps its World, Asia-Pacific, Europe, Middle East,
-Business, Science, Health and Sport sections, but visible comments now come
-from the same full-article generator, deterministic validator and independent
-reviewer as the homepage. The generated page uses the same large image cards.
+A source title, link and image are the publication baseline. Strict,
+independently reviewed AI comments are displayed when available, while provider
+failure or comment rejection degrades a card to source-only content instead of
+blocking a fresh publication.
 """
 
 from __future__ import annotations
@@ -43,17 +43,17 @@ WEATHER_RE = re.compile(
     r"\b(weather|storm|storms|thunderstorm|rain|wind|hail|heatwave|temperature|forecast|met office|weather warning|snow|flood warning)\b",
     re.I,
 )
-MIN_TOTAL_APPROVED = 48
+MIN_TOTAL_ITEMS = 48
 MIN_PER_SECTION = 6
 MAX_PER_SECTION = 9
 CANDIDATE_RESERVE_PER_SECTION = 18
 CANDIDATE_MAX_PER_HOST = 4
 
 NEWS_TABS_CSS = """
-    html{ scroll-behavior:smooth; }
+    html{scroll-behavior:smooth}
     .section-tabs{position:sticky;top:0;z-index:20;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px auto 18px;padding:10px 12px;background:rgba(8,15,30,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.10);border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
-    .section-tabs a{display:inline-flex;align-items:center;justify-content:center;min-width:96px;padding:9px 14px;border-radius:999px;color:#fdf3e3;text-decoration:none;font-weight:800;letter-spacing:.01em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);white-space:nowrap}
-    .section-tabs .brand-link{min-width:auto;gap:0;padding:8px 14px;background:linear-gradient(135deg,rgba(248,201,122,.30),rgba(255,255,255,.08));border-color:rgba(248,201,122,.46);color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.20)}
+    .section-tabs a{display:inline-flex;align-items:center;justify-content:center;min-width:96px;padding:9px 14px;border-radius:999px;color:#fdf3e3;text-decoration:none;font-weight:800;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);white-space:nowrap}
+    .section-tabs .brand-link{min-width:auto;padding:8px 14px;background:linear-gradient(135deg,rgba(248,201,122,.30),rgba(255,255,255,.08));border-color:rgba(248,201,122,.46);color:#fff}
     .section-tabs .brand-mark{display:inline-flex;align-items:center;justify-content:center;width:34px;height:28px;border-radius:10px;color:#101827;background:linear-gradient(135deg,#087f9a,#23d5cc 38%,#78e7f7 70%,#d6fbff);font-weight:950;letter-spacing:-.08em}
     .section-tabs a:hover,.section-tabs a:focus-visible{background:rgba(248,201,122,.18);border-color:rgba(248,201,122,.42);color:#fff;outline:none;transform:translateY(-1px)}
     section.card{scroll-margin-top:92px}
@@ -90,11 +90,30 @@ def _item_text(item: dict) -> str:
     return " ".join(str(item.get(key, "") or "") for key in ("title", "summary_raw", "source_name", "link"))
 
 
+def _strict_comment(item: dict) -> str:
+    text = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "")
+    quality = validate_comment(text, "en")
+    approved = (
+        quality.valid
+        and item.get("comment_quality_status") == QUALITY_STATUS
+        and item.get("comment_quality_version") == QUALITY_VERSION
+        and item.get("comment_generation_status") == "ai_review_approved"
+        and item.get("summary_basis") == "article_text_ai_reviewed"
+    )
+    return quality.text if approved else ""
+
+
+def _clear_comment(item: dict) -> None:
+    item["full_brief"] = ""
+    item["ai_key_point"] = ""
+    item["ai_summary"] = ""
+    item["ai_why_it_matters"] = ""
+    item["ai_uncertain"] = ""
+    item["comment_generation_status"] = "source_only"
+    item["summary_basis"] = "source_only"
+
+
 def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=None, summarize: bool = True):
-    # Quality checks happen after collection. Keep a reserve so rejected or
-    # duplicate stories can be replaced without starving a section. The base
-    # fetcher uses MIN_PER_SECTION as its no-image fallback limit, so raise it
-    # with the candidate limit while collecting and restore both afterwards.
     previous_limit = base.MAX_PER_SECTION
     previous_minimum = base.MIN_PER_SECTION
     previous_host_limit = base.MAX_PER_HOST
@@ -111,10 +130,7 @@ def fetch_section_full(section_key: str, excluded_links=None, excluded_topics=No
 
 
 def summarize_sections_en_full(sections: dict) -> None:
-    unique, rejected = deduplicate_sections(
-        sections,
-        load_recent_history(HISTORY_PATH),
-    )
+    unique, rejected = deduplicate_sections(sections, load_recent_history(HISTORY_PATH))
     if rejected:
         print(f"NEWS_CANDIDATE_DEDUPE_EN rejected={len(rejected)}")
     sections.clear()
@@ -124,16 +140,21 @@ def summarize_sections_en_full(sections: dict) -> None:
     for section_key, items in sections.items():
         items.extend(reserve.get(section_key, []))
 
-    combined, reserve_rejected = deduplicate_sections(
-        sections,
-        load_recent_history(HISTORY_PATH),
-    )
+    combined, reserve_rejected = deduplicate_sections(sections, load_recent_history(HISTORY_PATH))
     if reserve_rejected:
         print(f"NEWS_RESERVE_DEDUPE_EN rejected={len(reserve_rejected)}")
     sections.clear()
     sections.update(combined)
 
-    enriched = enrich_sections_with_homepage_quality(sections, "en")
+    try:
+        enriched = enrich_sections_with_homepage_quality(
+            sections,
+            "en",
+            keep_unapproved=True,
+        )
+    except Exception as exc:
+        print(f"[WARN] EN AI enrichment unavailable; publishing source-only cards: {exc}", file=sys.stderr)
+        return
     sections.clear()
     sections.update(enriched)
 
@@ -141,38 +162,30 @@ def summarize_sections_en_full(sections: dict) -> None:
 def finalize_sections_full(sections: dict) -> dict:
     sections = _original_finalize_sections(sections)
     final: dict[str, list[dict]] = {}
+    ai_comments = 0
+    source_only = 0
     for section_key, items in sections.items():
-        approved: list[dict] = []
+        publishable: list[dict] = []
         for item in items:
-            thumbnail_url = external_image_url(
-                item.get("thumbnail_url"),
-                item.get("link"),
-            )
-            if not thumbnail_url:
+            thumbnail_url = external_image_url(item.get("thumbnail_url"), item.get("link"))
+            if not thumbnail_url or not str(item.get("title") or "").strip() or not str(item.get("link") or "").strip():
                 continue
             item["thumbnail_url"] = thumbnail_url
-            text = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "")
-            quality = validate_comment(text, "en")
-            if not quality.valid:
-                continue
-            if not (
-                item.get("comment_quality_status") == QUALITY_STATUS
-                and item.get("comment_quality_version") == QUALITY_VERSION
-                and item.get("comment_generation_status") == "ai_review_approved"
-                and item.get("summary_basis") == "article_text_ai_reviewed"
-            ):
-                continue
-            item["full_brief"] = quality.text
-            item["ai_key_point"] = quality.text
-            item["ai_summary"] = quality.text
-            item["ai_why_it_matters"] = ""
-            item["ai_uncertain"] = ""
-            approved.append(item)
-        final[section_key] = approved[:MAX_PER_SECTION]
-    final, rejected = deduplicate_sections(
-        final,
-        load_recent_history(HISTORY_PATH),
-    )
+            comment = _strict_comment(item)
+            if comment:
+                item["full_brief"] = comment
+                item["ai_key_point"] = comment
+                item["ai_summary"] = comment
+                item["ai_why_it_matters"] = ""
+                item["ai_uncertain"] = ""
+                ai_comments += 1
+            else:
+                _clear_comment(item)
+                source_only += 1
+            publishable.append(item)
+        final[section_key] = publishable[:MAX_PER_SECTION]
+
+    final, rejected = deduplicate_sections(final, load_recent_history(HISTORY_PATH))
     if rejected:
         print(f"NEWS_QUALITY_DEDUPE_EN rejected={len(rejected)} details={rejected}")
         for item in rejected:
@@ -192,6 +205,7 @@ def finalize_sections_full(sections: dict) -> dict:
                 published_at=item.get("_diagnostic_published_at", ""),
                 pipeline="news",
             )
+    print(f"NEWS_GRACEFUL_DEGRADATION_EN comments={ai_comments} source_only={source_only}")
     return final
 
 
@@ -208,45 +222,57 @@ def add_news_tabs_en(html: str) -> str:
     return html
 
 
+def _remove_empty_comment_blocks(html: str) -> str:
+    return re.sub(
+        r'\s*<div class="ai-note">\s*'
+        r'<div class="ai-head">[\s\S]*?</div>\s*'
+        r'<div class="sec"><strong>Key point:</strong>\s*</div>\s*'
+        r'(?:<div class="sec"><strong>Why it matters:</strong>\s*</div>\s*)?'
+        r'</div>',
+        "",
+        html,
+        flags=re.I,
+    )
+
+
 def render_html_full(sections: dict) -> str:
-    accepted = [item for items in sections.values() for item in items]
+    items = [item for section_items in sections.values() for item in section_items]
     underfilled = {
-        section_key: len(items)
-        for section_key, items in sections.items()
-        if len(items) < MIN_PER_SECTION
+        section_key: len(section_items)
+        for section_key, section_items in sections.items()
+        if len(section_items) < MIN_PER_SECTION
     }
     if underfilled:
         details = ", ".join(f"{section}={count}" for section, count in underfilled.items())
         raise RuntimeError(
             "EN news publication kept on last-good version: "
-            f"each section requires {MIN_PER_SECTION}-{MAX_PER_SECTION} approved items; {details}"
+            f"each section requires {MIN_PER_SECTION}-{MAX_PER_SECTION} source-linked photo items; {details}"
         )
-    if len(accepted) < MIN_TOTAL_APPROVED:
+    if len(items) < MIN_TOTAL_ITEMS:
         raise RuntimeError(
-            f"EN news publication kept on last-good version: only {len(accepted)} homepage-grade comments"
+            f"EN news publication kept on last-good version: only {len(items)} source-linked photo items"
         )
-    for item in accepted:
+    for item in items:
         if not str(item.get("thumbnail_url") or "").strip():
-            raise RuntimeError(
-                "EN news publication blocked by missing source thumbnail: "
-                f"{item.get('title', '')[:80]}"
-            )
-        quality = validate_comment(
-            item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary", ""),
-            "en",
-        )
-        if not quality.valid:
-            raise RuntimeError(
-                f"EN news publication blocked by full-article comment audit: {item.get('title', '')[:80]}"
-            )
+            raise RuntimeError(f"EN news publication blocked by missing source thumbnail: {item.get('title', '')[:80]}")
+        comment = str(item.get("full_brief") or item.get("ai_key_point") or item.get("ai_summary") or "").strip()
+        if comment and not validate_comment(comment, "en").valid:
+            raise RuntimeError(f"EN news publication blocked by invalid visible comment: {item.get('title', '')[:80]}")
+
     assert_no_duplicate_stories(sections)
     html = _original_render_html(sections)
+    html = _remove_empty_comment_blocks(html)
+    html = re.sub(
+        r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>',
+        "",
+        html,
+        flags=re.I | re.S,
+    )
+    html = html.replace("<strong>Key point:</strong> ", "")
+    html = add_news_tabs_en(html)
     audit_html(html)
     if os.environ.get("BR_NEWS_PERSIST_HISTORY") == "1":
         save_history(sections, HISTORY_PATH)
-    html = re.sub(r'\n\s*<div class="sec"><strong>Why it matters:</strong>.*?</div>', "", html, flags=re.I | re.S)
-    html = html.replace("<strong>Key point:</strong> ", "")
-    html = add_news_tabs_en(html)
     return apply_newsroom_style(html, "en")
 
 
