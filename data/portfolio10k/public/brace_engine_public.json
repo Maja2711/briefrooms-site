@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-31T08:30:40+00:00",
+  "generated_at": "2026-07-31T12:56:22+00:00",
   "methodology_version": "3.0.0",
-  "data_freshness": "unsafe",
+  "data_freshness": "current",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "paper_only": true,
@@ -27,9 +27,9 @@
     "status": "SHADOW"
   },
   "promotion_progress": {
-    "passed": 24,
+    "passed": 26,
     "total": 34,
-    "percentage": 70.6,
+    "percentage": 76.5,
     "conditions": [
       {
         "group": "historical",
@@ -169,7 +169,7 @@
       {
         "group": "operational",
         "condition": "no_critical_data_errors",
-        "passed": false
+        "passed": true
       },
       {
         "group": "operational",
@@ -184,7 +184,7 @@
       {
         "group": "operational",
         "condition": "timestamps_complete",
-        "passed": false
+        "passed": true
       },
       {
         "group": "operational",
@@ -210,9 +210,7 @@
       "minimum_decisions",
       "minimum_completed_trades",
       "risk_adjusted_advantage",
-      "confidence_interval_positive",
-      "no_critical_data_errors",
-      "timestamps_complete"
+      "confidence_interval_positive"
     ],
     "reason": "No status change; promotion gates remain incomplete."
   },
@@ -221,70 +219,43 @@
     "decisions": 0,
     "completed_trades": 0,
     "shadow_return": 0.0,
-    "baseline_return": -0.023959,
+    "baseline_return": -0.032779,
     "shadow_risk_adjusted_return": 0.0,
     "baseline_risk_adjusted_return": 0.0
   },
   "risk": {
     "status": "WITHIN_LIMITS",
-    "expected_drawdown": 0.186402,
+    "expected_drawdown": 0.136233,
     "current_drawdown": null,
-    "annual_turnover": 0.65334,
-    "safe_mode": true,
-    "safe_mode_reasons": [
-      "STALE_MARKET_DATA",
-      "TOO_MANY_INVALID_INSTRUMENTS"
-    ]
+    "annual_turnover": 0.658177,
+    "safe_mode": false,
+    "safe_mode_reasons": []
   },
   "target": {
     "target_annual_return": 0.1,
-    "expected_annual_return": 0.122034,
+    "expected_annual_return": 0.067186,
     "realized_annualized_return": null,
-    "probability_of_reaching_target": 0.520984,
-    "target_shortfall": 0.0,
-    "required_risk_to_target": 0.0,
-    "status": "TARGET_NOT_CURRENTLY_JUSTIFIED",
+    "probability_of_reaching_target": 0.472013,
+    "target_shortfall": 0.03281400000000001,
+    "required_risk_to_target": 0.7038912008237164,
+    "status": "TARGET_REQUIRES_EXCESSIVE_RISK",
     "guaranteed": false
   },
   "last_incremental_learning": null,
-  "last_research_run": "2026-07-29T13:04:12+00:00",
-  "next_scheduled_analysis": "2026-08-07T06:28:39+00:00",
+  "last_research_run": "2026-07-31T12:56:22+00:00",
+  "next_scheduled_analysis": "2026-08-07T12:56:22+00:00",
   "fallback_reason": null,
   "promotion_history": [],
   "candidates": [
     {
-      "instrument_id": "jpm",
-      "broker_symbol": "JPM.US",
-      "label": "JPMorgan Chase",
-      "final_score": 63.44,
-      "risk_adjusted_score": 0.885,
-      "confidence_score": 0.8327,
-      "expected_return_base": 0.221232,
-      "expected_drawdown": 0.244239,
-      "eligible_for_rotation": true,
-      "exclusion_reasons": null
-    },
-    {
       "instrument_id": "sxr8",
       "broker_symbol": "SXR8.DE",
       "label": "iShares Core S&P 500 UCITS ETF",
-      "final_score": 56.43,
-      "risk_adjusted_score": 0.7237,
+      "final_score": 56.04,
+      "risk_adjusted_score": 0.616,
       "confidence_score": 1.0,
-      "expected_return_base": 0.110091,
+      "expected_return_base": 0.098275,
       "expected_drawdown": 0.233203,
-      "eligible_for_rotation": true,
-      "exclusion_reasons": null
-    },
-    {
-      "instrument_id": "lly",
-      "broker_symbol": "LLY.US",
-      "label": "Eli Lilly",
-      "final_score": 56.07,
-      "risk_adjusted_score": 0.6231,
-      "confidence_score": 0.925,
-      "expected_return_base": 0.26472,
-      "expected_drawdown": 0.34475,
       "eligible_for_rotation": true,
       "exclusion_reasons": null
     },
@@ -292,10 +263,10 @@
       "instrument_id": "sxrz",
       "broker_symbol": "SXRZ.DE",
       "label": "iShares Core MSCI Japan IMI UCITS ETF",
-      "final_score": 55.09,
-      "risk_adjusted_score": 0.5027,
+      "final_score": 56.12,
+      "risk_adjusted_score": 0.5587,
       "confidence_score": 1.0,
-      "expected_return_base": 0.153519,
+      "expected_return_base": 0.169806,
       "expected_drawdown": 0.201873,
       "eligible_for_rotation": true,
       "exclusion_reasons": null
@@ -304,47 +275,11 @@
       "instrument_id": "sxr0",
       "broker_symbol": "SXR0.DE",
       "label": "iShares Edge MSCI World Minimum Volatility UCITS ETF",
-      "final_score": 63.56,
-      "risk_adjusted_score": 0.456,
+      "final_score": 62.8,
+      "risk_adjusted_score": 0.3066,
       "confidence_score": 1.0,
-      "expected_return_base": 0.06378,
+      "expected_return_base": 0.05158,
       "expected_drawdown": 0.092209,
-      "eligible_for_rotation": true,
-      "exclusion_reasons": null
-    },
-    {
-      "instrument_id": "sap",
-      "broker_symbol": "SAP.DE",
-      "label": "SAP",
-      "final_score": 51.1,
-      "risk_adjusted_score": -0.0225,
-      "confidence_score": 1.0,
-      "expected_return_base": 0.015868,
-      "expected_drawdown": 0.375,
-      "eligible_for_rotation": true,
-      "exclusion_reasons": null
-    },
-    {
-      "instrument_id": "cost",
-      "broker_symbol": "COST.US",
-      "label": "Costco Wholesale",
-      "final_score": 53.06,
-      "risk_adjusted_score": -0.254,
-      "confidence_score": 0.925,
-      "expected_return_base": -0.025584,
-      "expected_drawdown": 0.207425,
-      "eligible_for_rotation": true,
-      "exclusion_reasons": null
-    },
-    {
-      "instrument_id": "msft",
-      "broker_symbol": "MSFT.US",
-      "label": "Microsoft",
-      "final_score": 51.33,
-      "risk_adjusted_score": -0.3557,
-      "confidence_score": 0.925,
-      "expected_return_base": -0.073407,
-      "expected_drawdown": 0.344984,
       "eligible_for_rotation": true,
       "exclusion_reasons": null
     },
@@ -352,10 +287,10 @@
       "instrument_id": "spyy",
       "broker_symbol": "SPYY.DE",
       "label": "SPDR MSCI All Country World UCITS ETF",
-      "final_score": 57.76,
-      "risk_adjusted_score": 0.7007,
+      "final_score": 57.8,
+      "risk_adjusted_score": 0.6712,
       "confidence_score": 1.0,
-      "expected_return_base": 0.107655,
+      "expected_return_base": 0.104865,
       "expected_drawdown": 0.212694,
       "eligible_for_rotation": false,
       "exclusion_reasons": null
@@ -363,16 +298,16 @@
   ],
   "pending_decisions": [
     {
-      "decision_id": "decision-c3ec020b0c084932",
-      "generated_at": "2026-07-31T06:28:39+00:00",
-      "action": "NO_ACTION",
-      "instrument": null,
+      "decision_id": "allocation-a2251a1e25e02d4e",
+      "generated_at": "2026-07-31T12:56:02+00:00",
+      "action": "REDUCE",
+      "instrument": "novo",
       "replacement_instrument": null,
       "expected_benefit": 0.0,
       "expected_risk": null,
-      "confidence": 0.925,
-      "rationale_pl": "Żaden kandydat nie zapewnia obecnie materialnej przewagi po kosztach i przy obowiązujących limitach ryzyka.",
-      "rationale_en": "No candidate currently offers a material post-cost advantage within the applicable risk limits.",
+      "confidence": 0.7,
+      "rationale_pl": "Rekomendacja REDUCE wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The REDUCE recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits.",
       "status": "PROPOSED"
     }
   ],
@@ -398,5 +333,5 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "c1b85ddc856f8673d896bbc302496306051aa19b82d5836c15d5afbb3d219859"
+  "content_sha256": "7dacdd259fb62bc9723cd62cef79e03a06d2bb3c6bf780984a82c103282c40fa"
 }
