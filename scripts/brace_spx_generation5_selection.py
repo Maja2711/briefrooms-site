@@ -36,11 +36,7 @@ def _standard_error(sharpe: float, months: int) -> float:
     return math.sqrt(max(0.0, 1.0 + 0.5 * sharpe * sharpe) / (months - 1.0))
 
 
-def evidence(
-    row: Mapping[str, Any],
-    mean_return_correlation: float,
-    geometry: Mapping[str, Any],
-) -> dict[str, Any]:
+def evidence(row: Mapping[str, Any], mean_return_correlation: float, geometry: Mapping[str, Any]) -> dict[str, Any]:
     metrics = _mapping(row.get("metrics"))
     folds = [item for item in row.get("fold_metrics", []) if isinstance(item, Mapping)]
     fold_sharpes = [float(item.get("sharpe_excess", 0.0)) for item in folds]
@@ -54,6 +50,7 @@ def evidence(
     max_drawdown = float(metrics.get("max_drawdown", -1.0))
     active_buckets = int(geometry.get("active_exposure_buckets", 0))
     transition_rate = float(geometry.get("annualized_transition_rate", 999.0))
+    exposure_correlation = float(geometry.get("mean_absolute_exposure_correlation_to_pool", 1.0))
     stable = (
         len(folds) >= 6
         and positive_folds >= 5
@@ -77,6 +74,7 @@ def evidence(
         "folds": len(folds),
         "fold_sharpe_std": round(fold_std, 6),
         "mean_absolute_return_correlation_to_pool": round(mean_return_correlation, 6),
+        "mean_absolute_exposure_correlation_to_pool": round(exposure_correlation, 6),
         "active_exposure_buckets": active_buckets,
         "annualized_transition_rate": transition_rate,
         "average_exposure": float(geometry.get("average_exposure", 0.0)),
@@ -108,6 +106,7 @@ def select(experiments: list[Mapping[str, Any]], report: Mapping[str, Any]) -> d
         equivalent,
         key=lambda row: (
             row["mean_absolute_return_correlation_to_pool"],
+            row["mean_absolute_exposure_correlation_to_pool"],
             -row["active_exposure_buckets"],
             row["fold_sharpe_std"],
             row["annualized_turnover"],
@@ -121,6 +120,7 @@ def select(experiments: list[Mapping[str, Any]], report: Mapping[str, Any]) -> d
             not row["stable"],
             -row["sharpe_excess"],
             row["mean_absolute_return_correlation_to_pool"],
+            row["mean_absolute_exposure_correlation_to_pool"],
             row["fold_sharpe_std"],
         ),
     )
@@ -133,7 +133,7 @@ def select(experiments: list[Mapping[str, Any]], report: Mapping[str, Any]) -> d
         "selection_rule": {
             "primary": "stable chronological excess Sharpe",
             "equivalence_band": "within one approximate Sharpe standard error of the best stable candidate",
-            "tie_break": "lowest return correlation, broader state usage, fold stability, turnover and Sharpe",
+            "tie_break": "lowest return and exposure correlation, broader state usage, fold stability, turnover and Sharpe",
             "shared_signal_for_all_candidates": True,
             "human_idea_bonus": False,
             "post_hoc_parameter_tuning": False,
