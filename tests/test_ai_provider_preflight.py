@@ -71,7 +71,7 @@ class AiProviderPreflightTests(unittest.TestCase):
         self.assertNotIn("do-not-print-me", rendered)
         self.assertNotIn("secret=bad", rendered)
 
-    def test_missing_openai_secret_fails_without_calling_retired_provider(self):
+    def test_missing_provider_secrets_fail_without_calling_retired_provider(self):
         runtime = quality.AiRuntime("unavailable", "", "", "", "")
         post = mock.Mock()
         with self.assertRaises(preflight.PreflightError) as caught:
@@ -80,8 +80,8 @@ class AiProviderPreflightTests(unittest.TestCase):
         self.assertTrue(caught.exception.permanent)
         post.assert_not_called()
         details = preflight.diagnostic(runtime, status="failed")
-        self.assertEqual("OPENAI_API_KEY", details["required_secret"])
-        self.assertIn("retired", details["provider_note"])
+        self.assertEqual("GEMINI_API_KEY or OPENAI_API_KEY", details["required_secret"])
+        self.assertIn("Gemini", details["provider_note"])
 
     def test_cli_allows_explicit_approved_cache_mode_without_credentials(self):
         runtime = quality.AiRuntime("unavailable", "", "", "", "")
