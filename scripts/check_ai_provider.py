@@ -19,7 +19,7 @@ try:
         get_ai_runtime,
         provider_headers,
     )
-except ModuleNotFoundError:  # Imported as scripts.check_ai_provider in tests.
+except ModuleNotFoundError:
     from scripts.comment_quality import (
         PERMANENT_HTTP_STATUSES,
         TRANSIENT_HTTP_STATUSES,
@@ -58,11 +58,59 @@ def diagnostic(runtime: AiRuntime, **values) -> dict:
     if runtime.provider == "unavailable":
         result.update(
             {
-                "required_secret": "OPENAI_API_KEY",
-                "provider_note": "GitHub Models retired on 2026-07-30",
+                "required_secret": "GEMINI_API_KEY or OPENAI_API_KEY",
+                "provider_note": "Gemini is preferred; OpenAI is optional fallback",
             }
         )
     return result
+
+
+def _gemini_request(runtime: AiRuntime, post):
+    url = f"{runtime.endpoint.rstrip('/')}/{runtime.generation_model}:generateContent"
+    response = post(
+        url,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "x-goog-api-key": runtime.api_key,
+        },
+        json={
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": 'Return only this JSON object: {"ok":true}'}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": 32,
+                "responseMimeType": "application/json",
+            },
+        },
+        timeout=20,
+    )
+    return response, url
+
+
+def _openai_compatible_request(runtime: AiRuntime, post):
+    response = post(
+        runtime.endpoint,
+        headers=provider_headers(runtime),
+        json={
+            "model": runtime.generation_model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": 'Return only this JSON object: {"ok":true}',
+                }
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0,
+            "max_tokens": 32,
+        },
+        timeout=20,
+    )
+    return response, runtime.endpoint
 
 
 def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
@@ -79,23 +127,10 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
         )
 
     try:
-        response = post(
-            runtime.endpoint,
-            headers=provider_headers(runtime),
-            json={
-                "model": runtime.generation_model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": 'Return only this JSON object: {"ok":true}',
-                    }
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0,
-                "max_tokens": 12,
-            },
-            timeout=20,
-        )
+        if runtime.provider == "gemini":
+            response, request_endpoint = _gemini_request(runtime, post)
+        else:
+            response, request_endpoint = _openai_compatible_request(runtime, post)
     except requests.RequestException as exc:
         raise PreflightError(
             runtime.provider,
@@ -118,7 +153,7 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
         )
         raise PreflightError(
             runtime.provider,
-            safe_endpoint(runtime.endpoint),
+            safe_endpoint(request_endpoint),
             runtime.generation_model,
             status,
             error_class,
@@ -127,11 +162,16 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
 
     try:
         payload = response.json()
-        content = payload["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        if runtime.provider == "gemini":
+            candidates = payload.get("candidates") or []
+            parts = candidates[0]["content"]["parts"]
+            content = "".join(str(part.get("text", "")) for part in parts)
+        else:
+            content = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
         raise PreflightError(
             runtime.provider,
-            safe_endpoint(runtime.endpoint),
+            safe_endpoint(request_endpoint),
             runtime.generation_model,
             status,
             "invalid_provider_response",
@@ -140,7 +180,7 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
     if not str(content).strip():
         raise PreflightError(
             runtime.provider,
-            safe_endpoint(runtime.endpoint),
+            safe_endpoint(request_endpoint),
             runtime.generation_model,
             status,
             "empty_provider_response",
