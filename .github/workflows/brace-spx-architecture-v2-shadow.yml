@@ -34,9 +34,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip numpy pandas yfinance
 
-      - name: Verify no-order policy
+      - name: Verify no-order policy and public boundary
         run: |
-          python -m py_compile scripts/brace_spx_architecture_v2.py scripts/brace_spx_architecture_v2_shadow.py
+          python -m py_compile \
+            scripts/brace_spx_architecture_v2.py \
+            scripts/brace_spx_architecture_v2_shadow.py \
+            scripts/publish_brace_spx_architecture_v2_public.py
           python - <<'PY'
           import sys
           sys.path.insert(0, 'scripts')
@@ -63,16 +66,55 @@ jobs:
               assert payload['candidate_snapshots'] == []
           PY
 
-      - name: Persist shadow ledger
+      - name: Build sanitized public snapshot
+        run: python scripts/publish_brace_spx_architecture_v2_public.py
+
+      - name: Validate sanitized public snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('data/public/brace_spx_public.json').read_text())
+          assert payload['schema_version'] == '2.0.0'
+          assert payload['architecture']['id'] == 'spx-multisignal-regime-a2'
+          assert payload['single_champion_authorized'] is False
+          assert payload['sealed_holdout']['accessed'] is False
+          assert payload['shadow']['live_orders'] is False
+          assert payload['shadow']['autonomous_trading'] is False
+          assert 'candidate_snapshots' not in payload
+          assert 'experiments' not in payload
+          PY
+
+      - name: Stage public snapshot for main
+        run: cp data/public/brace_spx_public.json /tmp/brace_spx_public.json
+
+      - name: Persist shadow ledger on research branch
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f data/shadow/brace_spx_architecture_v2_shadow.json
+          git add -f data/shadow/brace_spx_architecture_v2_shadow.json data/public/brace_spx_public.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update BRACE-SPX Architecture 2 shadow evidence'
+            for attempt in 1 2 3; do
+              if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then break; fi
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              sleep $((attempt * 15))
+            done
+          fi
+
+      - name: Publish sanitized snapshot to main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p data/public
+          cp /tmp/brace_spx_public.json data/public/brace_spx_public.json
+          git add data/public/brace_spx_public.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Update BRACE-SPX Architecture 2 shadow ledger'
+          git commit -m 'Publish BRACE-SPX Architecture 2 Lab snapshot'
           for attempt in 1 2 3; do
-            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 15))
           done
           exit 1
