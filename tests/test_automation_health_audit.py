@@ -17,11 +17,13 @@ def run(
     *,
     status: str = "completed",
     conclusion: str | None = "success",
+    event: str = "schedule",
 ) -> dict:
     return {
         "id": run_id,
         "status": status,
         "conclusion": conclusion,
+        "event": event,
         "created_at": health.isoformat(when - timedelta(minutes=2)),
         "updated_at": health.isoformat(when),
         "head_sha": f"sha-{run_id}",
@@ -72,6 +74,22 @@ class AutomationHealthAuditTests(unittest.TestCase):
         self.assertEqual("failed", result["status"])
         self.assertEqual(health.isoformat(failure_at), result["last_attempt_at"])
         self.assertEqual(health.isoformat(success_at), result["last_success_at"])
+
+    def test_irrelevant_skipped_issue_run_does_not_hide_success(self) -> None:
+        success_at = NOW - timedelta(hours=1)
+        result = health.build_domain_status(
+            self.domain,
+            [
+                run(1, success_at),
+                run(2, NOW, conclusion="skipped", event="issues"),
+            ],
+            NOW,
+            NOW - timedelta(minutes=20),
+            None,
+        )
+        self.assertEqual("healthy", result["status"])
+        self.assertEqual("1", result["run_id"])
+        self.assertEqual(health.isoformat(success_at), result["last_attempt_at"])
 
     def test_active_run_is_running_without_fabricating_success(self) -> None:
         result = health.build_domain_status(
