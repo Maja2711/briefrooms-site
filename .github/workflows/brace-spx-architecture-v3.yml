@@ -1,0 +1,168 @@
+name: BRACE-SPX Architecture 3
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-architecture-v3
+  cancel-in-progress: false
+
+jobs:
+  directional-long-short-flat:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX Architecture 3')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance pytest
+
+      - name: Compile and test frozen protocol
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_architecture_v2.py \
+            scripts/brace_spx_architecture_v3.py \
+            scripts/brace_spx_architecture_v3_run.py
+          python -m pytest -q tests/test_brace_spx_architecture_v3.py
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v3 as a3
+          design = json.loads(Path('data/research/brace_spx_architecture_v3_design.json').read_text())
+          assert a3.candidate_signature() == design['candidate_signature']
+          assert design['approved_mandate'] == 'long_short_flat'
+          assert design['base_architecture']['modified'] is False
+          assert design['multiple_testing']['global_trial_count'] == 656
+          assert design['holdout']['may_be_opened'] is False
+          PY
+
+      - name: Download development data only
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as a2
+          prices = a2.download_prices(a2.START_DATE, a2.DEVELOPMENT_END_EXCLUSIVE)
+          prices.to_csv('/tmp/brace_spx_architecture_v3_prices.csv', index_label='date')
+          assert prices.index.max().strftime('%Y-%m-%d') < a2.SEALED_HOLDOUT_START
+          print(prices.index.min(), prices.index.max(), prices.shape)
+          PY
+
+      - name: Run Architecture 3
+        id: primary
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/brace_spx_architecture_v3_run.py \
+            --prices-csv /tmp/brace_spx_architecture_v3_prices.csv \
+            --output data/research/brace_spx_architecture_v3_report.json \
+            2>&1 | tee data/research/brace_spx_architecture_v3.log
+
+      - name: Validate governance and directional evidence
+        id: validate
+        if: steps.primary.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          design = json.loads(Path('data/research/brace_spx_architecture_v3_design.json').read_text())
+          report = json.loads(Path('data/research/brace_spx_architecture_v3_report.json').read_text())
+          assert report['architecture_id'] == 'spx-directional-lsf-a3'
+          assert report['candidate_signature'] == design['candidate_signature']
+          assert report['candidate_space_size'] == 12
+          assert report['experiments_total'] == 12
+          assert report['global_trial_count'] == 656
+          assert report['mandate']['position_set'] == 'long_short_flat'
+          assert report['mandate']['short_allowed'] is True
+          assert report['mandate']['leverage_allowed'] is False
+          assert report['mandate']['orders_allowed'] is False
+          assert report['holdout']['status'] == 'sealed_not_downloaded'
+          assert report['holdout']['accessed'] is False
+          assert report['holdout']['access_count'] == 0
+          assert report['checks']['signed_exposure_within_unlevered_bounds'] is True
+          assert report['checks']['independent_validation_passed'] is False
+          assert report['single_champion_authorized'] is False
+          assert report['selected_candidate_id'] is None
+          PY
+
+      - name: Write run status
+        if: always()
+        env:
+          PRIMARY_OUTCOME: ${{ steps.primary.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          report = {}
+          try: report = json.loads(Path('data/research/brace_spx_architecture_v3_report.json').read_text())
+          except Exception: pass
+          best = report.get('raw_best_diagnostic_only') or {}
+          directional = best.get('directional_diagnostics') or {}
+          payload = {
+              'schema_version': '1.0.0',
+              'architecture_id': 'spx-directional-lsf-a3',
+              'run_id': os.environ.get('RUN_ID'),
+              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'stages': {'primary': os.environ.get('PRIMARY_OUTCOME') or 'not_started', 'validate': os.environ.get('VALIDATE_OUTCOME') or 'not_started'},
+              'strict_gate_passed': report.get('strict_gate_passed'),
+              'single_champion_authorized': report.get('single_champion_authorized'),
+              'short_excess_contribution_annualized': directional.get('short_excess_contribution_annualized'),
+              'short_hit_rate': directional.get('short_hit_rate'),
+              'holdout_opened': False,
+              'orders_allowed': False
+          }
+          Path('data/research/brace_spx_architecture_v3_status.json').write_text(json.dumps(payload, indent=2) + '\n')
+          PY
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-architecture-v3-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            data/research/brace_spx_architecture_v3_design.json
+            data/research/brace_spx_architecture_v3_report.json
+            data/research/brace_spx_architecture_v3_status.json
+            data/research/brace_spx_architecture_v3.log
+            /tmp/brace_spx_architecture_v3_prices.csv
+
+      - name: Persist evidence on research branch
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f data/research/brace_spx_architecture_v3*
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Persist BRACE-SPX Architecture 3 evidence'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
+
+      - name: Fail visibly on blocking stage
+        if: always() && (steps.primary.outcome != 'success' || steps.validate.outcome != 'success')
+        run: exit 1
