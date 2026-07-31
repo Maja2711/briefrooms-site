@@ -68,6 +68,7 @@ jobs:
         id: primary
         continue-on-error: true
         run: |
+          set -o pipefail
           python scripts/brace_spx_architecture_v2.py \
             --prices-csv /tmp/brace_spx_architecture_v2_prices.csv \
             --trace-csv /tmp/brace_spx_architecture_v2_trace.csv \
@@ -79,6 +80,7 @@ jobs:
         if: steps.primary.outcome == 'success'
         continue-on-error: true
         run: |
+          set -o pipefail
           python scripts/brace_spx_backtrader_reference.py \
             --prices-csv /tmp/brace_spx_architecture_v2_prices.csv \
             --primary-trace /tmp/brace_spx_architecture_v2_trace.csv \
@@ -169,6 +171,7 @@ jobs:
             if [ -f "$path" ]; then cp "$path" /tmp/brace-spx-a2-evidence/data/research/; fi
           done
           if [ -f /tmp/brace_spx_architecture_v2_trace.csv ]; then cp /tmp/brace_spx_architecture_v2_trace.csv /tmp/brace-spx-a2-evidence/; fi
+          if [ -f /tmp/brace_spx_architecture_v2_prices.csv ]; then cp /tmp/brace_spx_architecture_v2_prices.csv /tmp/brace-spx-a2-evidence/; fi
 
       - name: Upload evidence artifact
         if: always()
