@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "brace-spx-signal-orthogonality-v1",
+  "architecture_id": "spx-multisignal-regime-a2",
+  "status": "predeclared_before_audit_result",
+  "sources": ["trend", "breadth", "liquidity", "options", "rates"],
+  "selection_constraints": {
+    "maximum_selected_sources": 4,
+    "minimum_selected_sources": 2,
+    "maximum_pairwise_correlation": 0.75,
+    "minimum_unique_variance_fraction": 0.15,
+    "use_market_returns_for_selection": false,
+    "use_sharpe_or_cagr_for_selection": false,
+    "use_holdout": false
+  },
+  "orthogonalization": "sequential OLS residualization in diversity-selected order",
+  "next_step_policy": {
+    "audit_does_not_create_a_trading_candidate": true,
+    "new_backtest_requires_separate_predeclaration": true,
+    "new_candidate_signature_required": true,
+    "maximum_future_constructions": 4,
+    "g5_v2_remains_immutable": true,
+    "architecture_2_existing_candidates_remain_unchanged": true
+  },
+  "holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "accessed": false,
+    "access_count": 0
+  }
+}
