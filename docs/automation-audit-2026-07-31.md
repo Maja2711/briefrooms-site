@@ -142,7 +142,67 @@ The documented GitHub Models request uses
 
 ## Verification ledger
 
-This section is updated after implementation and the controlled production
-merge. At audit-commit time, news, the BRACE-SPX public panel, weekly investment
-publishing, and Hot X are not declared repaired.
+### Implemented on the audit branch
 
+| Repair | Evidence before merge | Status |
+| --- | --- | --- |
+| GitHub Models preflight and fail-fast classification | Required version header is sent; 400/401/403/404/410/422 stop after one request; 429/5xx have bounded retry tests | `NOT_VERIFIED` |
+| PL health reserve | Six-item minimum retained; dead feeds removed; Medical Xpress, ScienceDaily and two FDA feeds added | `NOT_VERIFIED` |
+| Atomic PL+EN news ownership | EN YouTube no longer writes `en/index.html`; publisher remains the only shared news-output owner | `NOT_VERIFIED` |
+| Daily Market Alert | One writer; `alert_id` and `updated_at` are validated and exposed by the frontend; duplicate watchdog retired | `NOT_VERIFIED` |
+| Portfolio 10K | Price/live-entry/weekly writers share `portfolio-market-data`, use scoped staging and preserve complete generated state | `NOT_VERIFIED` |
+| BRACE Portfolio | Research workflows use a separate queue; methodology remains `ACTIVE_BASELINE` plus BRACE `SHADOW`/`RECOMMEND_ONLY`; no entry history changed | `NOT_VERIFIED` |
+| BRACE-SPX panel | Installer test now matches the real signature; health combines research and public-panel components and recognizes a completed sealed snapshot | `NOT_VERIFIED` |
+| Hot X | The last-good direct-post feed is retained without a fabricated timestamp when X yields no new verified post; the obsolete pin-order postcheck no longer rejects that valid fallback | `BLOCKED_BY_EXTERNAL_PROVIDER` |
+| Weekly investments | Obsolete duplicate schedulers retired; governed publisher and exposure monitor share one queue and complete staging; test contract matches the current continuous paper-exposure policy | `NOT_VERIFIED` |
+| Central health state | `data/system/automation_status.json` separates attempt, success and data timestamps; stable incident fingerprints prevent duplicate issues; observer never dispatches a failed publisher | `NOT_VERIFIED` |
+
+Retired duplicate/retry workflows:
+
+- `content-update-watchdog.yml`
+- `publish-news-recovery-now.yml`
+- `daily-market-alert-watchdog.yml`
+- `investments-friendly.yml`
+- `investments-friendly-min.yml`
+- `investments-monitor.yml`
+- `investments-weekly-exposure-watchdog.yml`
+
+### Current production evidence before merge
+
+The registry was populated from the public Actions API at 2026-07-31 16:50 UTC.
+These runs predate the controlled merge, so they are evidence of the production
+baseline, not proof that the branch repair is deployed.
+
+| Domain | Latest attempt | Last success | Published data | Pre-merge status |
+| --- | --- | --- | --- | --- |
+| PL+EN news | `30643347899`, failed | 2026-07-30 10:48 UTC | 2026-07-30 10:34 UTC | `VERIFIED_FAILED` |
+| Daily Market Alert | `30648424480`, success | 2026-07-31 16:46 UTC | 2026-07-30 20:44 UTC | `VERIFIED_WORKING` |
+| Portfolio prices | `30638913429`, success | 2026-07-31 14:31 UTC | 2026-07-31 14:31 UTC | `VERIFIED_WORKING` |
+| BRACE Portfolio | `30635878500`, success | 2026-07-31 13:48 UTC | 2026-07-31 13:10 UTC | `VERIFIED_WORKING` |
+| BRACE-SPX research | `30639633355`, success | 2026-07-31 14:41 UTC | completed sealed result from 2026-07-29 | `VERIFIED_WORKING` |
+| BRACE-SPX public panel | `30620619873`, failed | no success in window | pages not republished | `VERIFIED_FAILED` |
+| Hot X | `30619270673`, failed | 2026-07-22 08:43 UTC | last-good feed 2026-07-30 16:25 UTC | `BLOCKED_BY_EXTERNAL_PROVIDER` |
+
+### Local verification
+
+- Python: 391 tests passed plus 52 subtests in 67.74 seconds.
+- JavaScript: 13 tests passed, including PL/EN home feeds, Hot X, weekly
+  investments, Portfolio 10K material reports and the shared header.
+- Central-health focused suite: 28 tests passed.
+- Current Alert JSON passed version/timestamp validation.
+- Current Hot X last-good feed contains eight unique, bilingual direct posts.
+- `git diff --check`, Python compilation and Node syntax checks passed.
+
+### Repair commits
+
+1. `0b308742` - audit evidence and collision map.
+2. `3a5cff43` - GitHub Models preflight and permanent-error handling.
+3. `efa10501` - health-source reserve and news ownership.
+4. `f9a074ae` - versioned, atomic Daily Market Alert.
+5. `27cfab18` - domain queues, complete staging and duplicate schedule retirement.
+6. `4a854783` - central health registry, incident deduplication and truthful Portfolio 10K status.
+7. `096e33d6` - workflow tests aligned with the governed production state.
+8. `f09eb4b5` - terminal BRACE-SPX and Hot X last-good handling.
+
+Production verification remains `NOT_VERIFIED` until the branch is merged and
+new run IDs, publication IDs, timestamps and production SHA are observed.
