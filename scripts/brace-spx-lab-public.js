@@ -163,11 +163,11 @@
     if(language==='pl'){
       callout.textContent=edgeConfirmed
         ?'Wariant przewyższa Trend 200D jednocześnie pod względem CAGR, Sharpe’a i Calmaru. Nadal wymaga pełnej walidacji governance.'
-        :'Wariant ogranicza zmienność i obsunięcie, ale CAGR jest niższy o '+signedPct(cagrDelta,2).replace('+','')+', a obrót wynosi '+multiple(turnoverMultiple,2)+' poziomu Trend 200D. To nie uzasadnia wyboru championa.';
+        :'Wariant ogranicza zmienność i obsunięcie, ale CAGR jest niższy o '+signedPct(Math.abs(Number(cagrDelta)),2).replace('+','')+', a obrót wynosi '+multiple(turnoverMultiple,2)+' poziomu Trend 200D. To nie uzasadnia wyboru championa.';
     }else{
       callout.textContent=edgeConfirmed
         ?'The variant exceeds the 200D trend simultaneously on CAGR, Sharpe and Calmar. Full governance validation is still required.'
-        :'The variant reduces volatility and drawdown, but CAGR is lower by '+signedPct(cagrDelta,2).replace('+','')+' while turnover is '+multiple(turnoverMultiple,2)+' the 200D trend level. This does not justify selecting a champion.';
+        :'The variant reduces volatility and drawdown, but CAGR is lower by '+signedPct(Math.abs(Number(cagrDelta)),2).replace('+','')+' while turnover is '+multiple(turnoverMultiple,2)+' the 200D trend level. This does not justify selecting a champion.';
     }
     wrapper.appendChild(callout);
 
