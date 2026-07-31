@@ -90,6 +90,15 @@ class HotXItemsTests(unittest.TestCase):
         self.assertEqual(len(selected), 1)
         self.assertTrue(duplicate_free(selected))
 
+    def test_workflow_accepts_a_preserved_direct_last_good_feed(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "hot-x-topics.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Verify the final published Hot X feed", workflow)
+        self.assertIn("duplicate_free(feed)", workflow)
+        self.assertIn("is_direct_post(item.get('tweet_url'))", workflow)
+        self.assertNotIn("[x['search_url'] for x in feed[:4]]", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

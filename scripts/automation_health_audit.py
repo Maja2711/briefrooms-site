@@ -40,6 +40,7 @@ class Domain:
     data_path: str
     timestamp_fields: tuple[str, ...]
     stale_after_minutes: int
+    related_workflows: tuple[str, ...] = ()
 
 
 DOMAINS = (
@@ -82,6 +83,7 @@ DOMAINS = (
         "data/public/brace_spx_generation3_public.json",
         ("updated_at", "generated_at"),
         1440,
+        ("brace-spx-public-panel.yml",),
     ),
     Domain(
         "hot_x",
@@ -169,6 +171,26 @@ def data_timestamp(domain: Domain, root: Path = ROOT) -> tuple[datetime | None, 
     return None, "missing_data_timestamp"
 
 
+def terminal_snapshot(domain: Domain, root: Path = ROOT) -> str | None:
+    if domain.key != "brace_spx":
+        return None
+    payload = read_json(root / domain.data_path, {})
+    progress = payload.get("progress", {}) if isinstance(payload, dict) else {}
+    completed = progress.get("completed") if isinstance(progress, dict) else None
+    total = progress.get("total") if isinstance(progress, dict) else None
+    holdout = payload.get("holdout", {}) if isinstance(payload, dict) else {}
+    if (
+        isinstance(completed, int)
+        and isinstance(total, int)
+        and total > 0
+        and completed >= total
+        and isinstance(holdout, dict)
+        and holdout.get("status") == "sealed"
+    ):
+        return "completed_research_with_sealed_holdout"
+    return None
+
+
 def effective_stale_minutes(domain: Domain, now: datetime) -> int:
     if domain.key == "portfolio_prices":
         if now.weekday() >= 5:
@@ -205,6 +227,7 @@ def build_domain_status(
     data_error: str | None,
     previous: dict[str, Any] | None = None,
     api_error: str | None = None,
+    freshness_exempt_reason: str | None = None,
 ) -> dict[str, Any]:
     previous = previous or {}
     current = latest_run(runs)
@@ -241,7 +264,7 @@ def build_domain_status(
         failed_stage = "public_data_validation"
         error_class = data_error
         error_summary = f"Public data check failed for {domain.data_path}."
-    elif age is not None and age > threshold:
+    elif age is not None and age > threshold and not freshness_exempt_reason:
         status = "stale"
         failed_stage = "published_data_freshness"
         error_class = "stale_public_data"
@@ -273,6 +296,7 @@ def build_domain_status(
         "data_updated_at": isoformat(data_updated_at),
         "data_age_minutes": age,
         "stale_after_minutes": threshold,
+        "freshness_exempt_reason": freshness_exempt_reason,
         "failed_stage": failed_stage,
         "error_class": error_class,
         "error_summary": sanitize_summary(error_summary),
@@ -329,6 +353,47 @@ def fetch_workflow_runs(repository: str, workflow_file: str, token: str | None) 
     return [run for run in runs if isinstance(run, dict)]
 
 
+def component_status(
+    workflow_file: str,
+    runs: list[dict[str, Any]],
+    previous: dict[str, Any] | None,
+    api_error: str | None,
+) -> dict[str, Any]:
+    previous = previous or {}
+    current = latest_run(runs)
+    success = latest_success(runs)
+    state = current.get("status") if current else previous.get("run_state")
+    conclusion = current.get("conclusion") if current else previous.get("run_conclusion")
+    status = "healthy"
+    if current and state in ACTIVE_RUN_STATES:
+        status = "running"
+    elif current and conclusion in FAILED_CONCLUSIONS:
+        status = "failed"
+    elif current and conclusion in DEGRADED_CONCLUSIONS:
+        status = "degraded"
+    elif api_error:
+        status = "degraded"
+    return {
+        "workflow_file": workflow_file,
+        "status": status,
+        "last_attempt_at": (
+            isoformat(run_timestamp(current)) if current else previous.get("last_attempt_at")
+        ),
+        "last_success_at": (
+            isoformat(run_timestamp(success)) if success else previous.get("last_success_at")
+        ),
+        "run_id": (
+            str(current.get("id"))
+            if current and current.get("id") is not None
+            else previous.get("run_id")
+        ),
+        "run_state": state,
+        "run_conclusion": conclusion,
+        "run_url": current.get("html_url") if current else previous.get("run_url"),
+        "api_error": sanitize_summary(api_error),
+    }
+
+
 def build_registry(
     *,
     root: Path,
@@ -342,22 +407,81 @@ def build_registry(
     workflows: dict[str, Any] = {}
     for domain in DOMAINS:
         runs: list[dict[str, Any]] = []
-        api_error = None
-        if not offline:
-            try:
-                runs = fetch_workflow_runs(repository, domain.workflow_file, token)
-            except GitHubApiError as exc:
-                api_error = sanitize_summary(exc) or "GitHub Actions API unavailable"
+        api_errors: list[str] = []
+        previous_domain = previous_workflows.get(domain.key, {})
+        previous_components = previous_domain.get("components", {})
+        components: dict[str, Any] = {}
+        for workflow_file in (domain.workflow_file, *domain.related_workflows):
+            workflow_runs: list[dict[str, Any]] = []
+            api_error = None
+            if not offline:
+                try:
+                    workflow_runs = fetch_workflow_runs(repository, workflow_file, token)
+                except GitHubApiError as exc:
+                    api_error = sanitize_summary(exc) or "GitHub Actions API unavailable"
+                    api_errors.append(api_error)
+            runs.extend(workflow_runs)
+            components[workflow_file] = component_status(
+                workflow_file,
+                workflow_runs,
+                previous_components.get(workflow_file),
+                api_error,
+            )
         timestamp, data_error = data_timestamp(domain, root)
-        workflows[domain.key] = build_domain_status(
+        result = build_domain_status(
             domain,
             runs,
             now,
             timestamp,
             data_error,
-            previous_workflows.get(domain.key, {}),
-            api_error,
+            previous_domain,
+            api_errors[0] if api_errors else None,
+            terminal_snapshot(domain, root),
         )
+        result["related_workflows"] = list(domain.related_workflows)
+        result["components"] = components
+        related_components = [
+            components[workflow_file] for workflow_file in domain.related_workflows
+        ]
+        failed_components = [
+            item for item in related_components if item["status"] == "failed"
+        ]
+        running_components = [
+            item for item in related_components if item["status"] == "running"
+        ]
+        degraded_components = [
+            item for item in related_components if item["status"] == "degraded"
+        ]
+        if failed_components:
+            failed = failed_components[0]
+            result.update(
+                {
+                    "status": "failed",
+                    "last_success_at": previous_domain.get("last_success_at"),
+                    "failed_stage": "related_workflow",
+                    "failed_run_id": failed.get("run_id"),
+                    "error_class": "component_workflow_failure",
+                    "error_summary": sanitize_summary(
+                        f"Related workflow {failed['workflow_file']} concluded "
+                        f"{failed.get('run_conclusion')}; inspect run {failed.get('run_id')}."
+                    ),
+                }
+            )
+        elif running_components:
+            result["status"] = "running"
+        elif degraded_components and result["status"] == "healthy":
+            degraded = degraded_components[0]
+            result.update(
+                {
+                    "status": "degraded",
+                    "failed_stage": "related_workflow",
+                    "error_class": "component_workflow_degraded",
+                    "error_summary": sanitize_summary(
+                        f"Related workflow {degraded['workflow_file']} is degraded."
+                    ),
+                }
+            )
+        workflows[domain.key] = result
     return {
         "schema_version": "1.0",
         "generated_at": isoformat(now),

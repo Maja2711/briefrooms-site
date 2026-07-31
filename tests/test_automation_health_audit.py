@@ -115,6 +115,83 @@ class AutomationHealthAuditTests(unittest.TestCase):
         saturday = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
         self.assertEqual(4320, health.effective_stale_minutes(portfolio, saturday))
 
+    def test_completed_brace_spx_snapshot_is_freshness_exempt(self) -> None:
+        brace_spx = next(item for item in health.DOMAINS if item.key == "brace_spx")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / brace_spx.data_path
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-07-20T12:00:00Z",
+                        "progress": {"completed": 48, "total": 48},
+                        "holdout": {"status": "sealed"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            reason = health.terminal_snapshot(brace_spx, root)
+        result = health.build_domain_status(
+            brace_spx,
+            [run(4, NOW - timedelta(hours=1))],
+            NOW,
+            datetime(2026, 7, 20, 12, 0, tzinfo=timezone.utc),
+            None,
+            freshness_exempt_reason=reason,
+        )
+        self.assertEqual("healthy", result["status"])
+        self.assertEqual("completed_research_with_sealed_holdout", reason)
+
+    def test_failed_related_workflow_fails_the_aggregate_domain(self) -> None:
+        brace_spx = next(item for item in health.DOMAINS if item.key == "brace_spx")
+        research = [run(10, NOW - timedelta(minutes=5))]
+        panel = [run(9, NOW - timedelta(minutes=20), conclusion="failure")]
+
+        def fake_runs(repository, workflow_file, token):
+            if workflow_file == "brace-spx-recovery-engine.yml":
+                return research
+            if workflow_file == "brace-spx-public-panel.yml":
+                return panel
+            return [run(1, NOW - timedelta(hours=1))]
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(
+                health,
+                "fetch_workflow_runs",
+                side_effect=fake_runs,
+            ),
+        ):
+            root = Path(directory)
+            path = root / brace_spx.data_path
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-07-20T12:00:00Z",
+                        "progress": {"completed": 48, "total": 48},
+                        "holdout": {"status": "sealed"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            registry = health.build_registry(
+                root=root,
+                now=NOW,
+                previous={"workflows": {}},
+                repository="example/repo",
+                token="token",
+                offline=False,
+            )
+        state = registry["workflows"]["brace_spx"]
+        self.assertEqual("failed", state["status"])
+        self.assertEqual(
+            "brace-spx-public-panel.yml",
+            state["components"]["brace-spx-public-panel.yml"]["workflow_file"],
+        )
+        self.assertEqual("9", state["failed_run_id"])
+
     def test_incident_fingerprint_ignores_age_and_run_id(self) -> None:
         first = {
             "status": "stale",
