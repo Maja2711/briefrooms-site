@@ -22,6 +22,9 @@ from comment_quality import (
 )
 
 FOREIGN_PL_MIN_CHARS = 130
+BATCH_MAX_ITEMS = 4
+BATCH_MAX_CHARS = 7000
+REPAIR_MAX_ITEMS = 2
 
 
 def _meets_comment_contract(text: str, lang: str, longer_polish_comment: bool) -> bool:
@@ -65,43 +68,13 @@ def _cached_result(cache: dict, key: str, lang: str, needs_title_translation: bo
     return result
 
 
-def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> dict[str, dict]:
-    """Generate all uncached page comments, then review them with a separate model."""
-    runtime = get_ai_runtime()
-    accepted: dict[str, dict] = {}
-    pending: list[dict] = []
-    for index, item in enumerate(items):
-        item_id = f"{lang}-{index}"
-        source_text = _clean_source(item.get("summary_raw", ""))
-        if len(source_text) < 55:
-            continue
-        needs_title_translation = bool(lang == "pl" and item.get("_source_was_english"))
-        key = _cache_key(item, lang, source_text)
-        cached = _cached_result(cache, key, lang, needs_title_translation)
-        if cached:
-            accepted[item_id] = cached
-            item["_comment_batch_id"] = item_id
-            continue
-        item["_comment_batch_id"] = item_id
-        pending.append({
-            "id": item_id,
-            "item": item,
-            "title": str(item.get("title") or "")[:190],
-            "source_text": source_text,
-            "translate_title": needs_title_translation,
-            "longer_polish_comment": needs_title_translation,
-            "cache_key": key,
-        })
-
-    if not runtime.available:
-        return accepted
-
+def _build_chunks(candidates: list[dict], *, max_items: int, max_chars: int) -> list[list[dict]]:
     chunks: list[list[dict]] = []
     current: list[dict] = []
     current_chars = 0
-    for candidate in pending:
+    for candidate in candidates:
         size = len(candidate["title"]) + len(candidate["source_text"])
-        if current and (len(current) >= 10 or current_chars + size > 20000):
+        if current and (len(current) >= max_items or current_chars + size > max_chars):
             chunks.append(current)
             current = []
             current_chars = 0
@@ -109,11 +82,40 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
         current_chars += size
     if current:
         chunks.append(current)
+    return chunks
 
-    generated: dict[str, dict] = {}
-    translated_titles: dict[str, str] = {}
-    pending_by_id = {candidate["id"]: candidate for candidate in pending}
-    rate_limited = False
+
+def _generation_rules(lang: str) -> str:
+    if lang == "pl":
+        return (
+            "Dla każdego elementu napisz dokładnie 2 pełne, konkretne zdania po polsku, łącznie 90-300 znaków. "
+            "Każdy wynik ma dotyczyć wyłącznie elementu o podanym id. Nie przenoś faktów, nazw, liczb ani wniosków "
+            "między elementami. Używaj tylko informacji występujących w title i source. Pierwsze zdanie ma podać fakt, "
+            "drugie jego bezpośrednie znaczenie wynikające ze źródła, bez domysłów. Jeżeli danych wystarcza tylko na "
+            "jedno zdanie albo nie da się bezpiecznie napisać dwóch zdań, zwróć pusty summary. Jeżeli "
+            "translate_title_to_polish=true, podaj także wierny i naturalny title_pl; w przeciwnym razie title_pl ma "
+            "być pusty. Gdy longer_polish_comment=true, zachowaj dokładnie 2 zdania i co najmniej 130 znaków."
+        )
+    return (
+        "For every item write exactly 2 complete, concrete English sentences, 90-300 characters total. Each result "
+        "must refer only to the item with that id. Never transfer facts, names, numbers or conclusions between items. "
+        "Use only information present in title and source. The first sentence states the fact; the second states only "
+        "its direct significance supported by the source, without inference. If the source cannot safely support two "
+        "sentences, return an empty summary. Always return an empty title_pl."
+    )
+
+
+def _generate_chunks(
+    *,
+    chunks: list[list[dict]],
+    lang: str,
+    post,
+    runtime,
+    pending_by_id: dict[str, dict],
+    generated: dict[str, dict],
+    translated_titles: dict[str, str],
+) -> bool:
+    """Generate isolated chunks. Return True when the provider rate limit stops work."""
     for chunk in chunks:
         source_items = [
             {
@@ -125,25 +127,12 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
             }
             for candidate in chunk
         ]
-        if lang == "pl":
-            rules = (
-                "Napisz dla każdego elementu krótki, neutralny komentarz po polsku: 1-2 pełne, konkretne zdania, "
-                "55-300 znaków. Używaj wyłącznie faktów z tytułu i opisu. Tekst ma być naturalny, logiczny i "
-                "zrozumiały bez dodatkowego kontekstu. Jeżeli translate_title_to_polish=true, podaj także wierny, "
-                "naturalny title_pl; w przeciwnym razie title_pl ma być pusty. Gdy longer_polish_comment=true, "
-                "komentarz musi mieć dokładnie 2 treściwe zdania i co najmniej 130 znaków."
-            )
-        else:
-            rules = (
-                "For every item write a concise, neutral English comment: 1-2 complete and concrete sentences, "
-                "55-300 characters. Use only facts in the title and source. The text must be natural, logical and "
-                "understandable without extra context. Always return an empty title_pl."
-            )
         prompt = (
-            f"{rules} Never repeat the same information. Do not infer a person's current or former office unless "
-            "the title or source states it explicitly. Use correct grammar, inflection, quotation marks and "
-            "punctuation. Never copy damaged characters, split words, bylines, publisher UI or editorial commands. "
-            "If an item cannot be summarized safely, return an empty summary. Return each id exactly once as JSON: "
+            f"{_generation_rules(lang)} Never repeat the same information. Do not infer a person's current or former "
+            "office unless the title or source states it explicitly. Use correct grammar, inflection, quotation marks "
+            "and punctuation. Never copy damaged characters, split words, bylines, publisher UI or editorial commands. "
+            "Treat every JSON object as an isolated record. Before returning a row, verify that every proper noun and "
+            "number in summary occurs in that row's title or source. Return each id exactly once as JSON: "
             '{"items":[{"id":"same id","summary":"...","title_pl":""}]}.\n\n'
             + json.dumps(source_items, ensure_ascii=False)
         )
@@ -152,10 +141,16 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                 post=post,
                 runtime=runtime,
                 messages=[
-                    {"role": "system", "content": "You are a strict multilingual news editor. Return only valid JSON."},
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a strict multilingual news editor. Records are independent and facts must never "
+                            "cross record boundaries. Return only valid JSON."
+                        ),
+                    },
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=min(4000, max(800, len(chunk) * 135)),
+                max_tokens=min(2400, max(700, len(chunk) * 210)),
                 temperature=0,
                 timeout=60,
             )
@@ -179,12 +174,12 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
                         print(f"[WARN] PL translated title rejected: {candidate['title'][:80]}", file=sys.stderr)
                         continue
                     translated_titles[item_id] = title_pl
-                if not _meets_comment_contract(
-                    quality.text,
-                    lang,
-                    candidate["longer_polish_comment"],
-                ):
-                    print(f"[WARN] {lang.upper()} batch comment rejected: {candidate['title'][:80]} :: {','.join(quality.reasons)}", file=sys.stderr)
+                if not _meets_comment_contract(quality.text, lang, candidate["longer_polish_comment"]):
+                    print(
+                        f"[WARN] {lang.upper()} batch comment rejected: {candidate['title'][:80]} :: "
+                        f"{','.join(quality.reasons)}",
+                        file=sys.stderr,
+                    )
                     continue
                 generated[item_id] = {
                     "summary": quality.text,
@@ -197,14 +192,79 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
             )
             raise
         except AiRateLimitError as exc:
-            rate_limited = True
             print(
                 f"[WARN] {lang.upper()} news generation paused after provider rate limit: {exc}",
                 file=sys.stderr,
             )
-            break
+            return True
         except Exception as exc:
             print(f"[WARN] {lang.upper()} news batch failed ({len(chunk)} items): {exc}", file=sys.stderr)
+    return False
+
+
+def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> dict[str, dict]:
+    """Generate uncached comments in isolated chunks, repair misses, then independently review."""
+    runtime = get_ai_runtime()
+    accepted: dict[str, dict] = {}
+    pending: list[dict] = []
+    for index, item in enumerate(items):
+        item_id = f"{lang}-{index}"
+        source_text = _clean_source(item.get("summary_raw", ""))
+        if len(source_text) < 55:
+            continue
+        needs_title_translation = bool(lang == "pl" and item.get("_source_was_english"))
+        key = _cache_key(item, lang, source_text)
+        cached = _cached_result(cache, key, lang, needs_title_translation)
+        if cached:
+            accepted[item_id] = cached
+            item["_comment_batch_id"] = item_id
+            continue
+        item["_comment_batch_id"] = item_id
+        pending.append(
+            {
+                "id": item_id,
+                "item": item,
+                "title": str(item.get("title") or "")[:190],
+                "source_text": source_text,
+                "translate_title": needs_title_translation,
+                "longer_polish_comment": needs_title_translation,
+                "cache_key": key,
+            }
+        )
+
+    if not runtime.available:
+        return accepted
+
+    generated: dict[str, dict] = {}
+    translated_titles: dict[str, str] = {}
+    pending_by_id = {candidate["id"]: candidate for candidate in pending}
+
+    rate_limited = _generate_chunks(
+        chunks=_build_chunks(pending, max_items=BATCH_MAX_ITEMS, max_chars=BATCH_MAX_CHARS),
+        lang=lang,
+        post=post,
+        runtime=runtime,
+        pending_by_id=pending_by_id,
+        generated=generated,
+        translated_titles=translated_titles,
+    )
+
+    if not rate_limited:
+        missing = [candidate for candidate in pending if candidate["id"] not in generated]
+        if missing:
+            print(
+                f"[INFO] {lang.upper()} repairing {len(missing)} rejected or missing comments in isolated retries",
+                file=sys.stderr,
+            )
+            rate_limited = _generate_chunks(
+                chunks=_build_chunks(missing, max_items=REPAIR_MAX_ITEMS, max_chars=3500),
+                lang=lang,
+                post=post,
+                runtime=runtime,
+                pending_by_id=pending_by_id,
+                generated=generated,
+                translated_titles=translated_titles,
+            )
 
     if rate_limited:
         for item_id, title_pl in translated_titles.items():
@@ -232,7 +292,10 @@ def summarize_news_items(*, items: list[dict], lang: str, cache: dict, post) -> 
         approved, reason = reviews.get(item_id, (False, "missing_review"))
         candidate = pending_by_id[item_id]
         if not approved:
-            print(f"[WARN] {lang.upper()} batch review rejected: {candidate['title'][:80]} :: {reason[:160]}", file=sys.stderr)
+            print(
+                f"[WARN] {lang.upper()} batch review rejected: {candidate['title'][:80]} :: {reason[:160]}",
+                file=sys.stderr,
+            )
             continue
         out = {
             "summary": result["summary"],
