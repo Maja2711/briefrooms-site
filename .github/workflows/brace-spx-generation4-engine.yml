@@ -1,1 +1,86 @@
 name: BRACE-SPX Generation 4
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 * * * *"
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-generation4-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX v4 research')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - id: precheck
+        name: Check whether Generation 4 remains open
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/research/brace_spx_generation4_research.json')
+          run = True
+          if path.exists():
+              try: run = int(json.loads(path.read_text()).get('experiments_remaining', 1)) > 0
+              except Exception: run = True
+          with open('/tmp/brace_v4_run', 'w') as handle: handle.write('true' if run else 'false')
+          PY
+          echo "should_run=$(cat /tmp/brace_v4_run)" >> "$GITHUB_OUTPUT"
+
+      - if: steps.precheck.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install and validate
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          python -m pip install --upgrade pip numpy pandas yfinance scikit-learn
+          python -m py_compile \
+            scripts/brace_spx_generation4_research.py \
+            scripts/brace_spx_generation4_selection.py \
+            scripts/brace_spx_generation4_verdict.py \
+            scripts/brace_spx_generation4_pipeline.py
+
+      - name: Run complete sealed Generation 4
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          set -o pipefail
+          python scripts/brace_spx_generation4_pipeline.py --start 1993-01-01 --budget 16 \
+            2>&1 | tee data/research/brace_spx_generation4.log
+
+      - name: Persist research evidence
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/research/brace_spx_generation4* data/public/brace_spx_generation4_public.json
+          git commit -m "Persist BRACE-SPX diversified generation 4"
+          git pull --rebase origin brace-spx-research
+          git push origin HEAD:brace-spx-research
+
+      - name: Publish aggregate status to main
+        if: steps.precheck.outputs.should_run == 'true'
+        run: |
+          cp data/public/brace_spx_generation4_public.json /tmp/brace_spx_generation4_public.json
+          git fetch origin main
+          git checkout --force main
+          mkdir -p data/public
+          cp /tmp/brace_spx_generation4_public.json data/public/
+          git add data/public/brace_spx_generation4_public.json
+          git commit -m "Update BRACE-SPX generation 4 public status"
+          git pull --rebase origin main
+          git push origin HEAD:main
