@@ -3,24 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BRACE-SPX Lab — S&amp;P 500 research results | BriefRooms</title>
-  <meta name="description" content="BRACE-SPX Lab public dashboard: research progress, walk-forward metrics, benchmarks and sealed holdout status without exposing private model code.">
+  <title>BRACE-SPX Lab — Architecture 2 and shadow trading | BriefRooms</title>
+  <meta name="description" content="BRACE-SPX Architecture 2 public dashboard: PBO, cumulative trial correction, Backtrader validation, signal orthogonality and no-order shadow tracking.">
   <link rel="icon" href="/assets/favicon.svg">
   <link rel="canonical" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
   <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/inwestycje/brace-spx-lab.html">
   <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
   <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/en/investing/brace-spx-lab.html">
-  <meta property="og:title" content="BRACE-SPX Lab — public research dashboard | BriefRooms">
-  <meta property="og:description" content="BRACE-SPX progress, walk-forward results, benchmarks and a strictly separated private engine.">
+  <meta property="og:title" content="BRACE-SPX Lab — Architecture 2 | BriefRooms">
+  <meta property="og:description" content="Multi-source signals, regime logic, independent validation and prospective no-order shadow tracking without exposing the private engine.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://briefrooms.com/en/investing/brace-spx-lab.html">
   <meta property="og:site_name" content="BriefRooms">
   <meta property="og:locale" content="en_US">
   <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
-  <link rel="stylesheet" href="/assets/brace-spx-lab.css?v=20260724-1">
+  <link rel="stylesheet" href="/assets/brace-spx-lab.css?v=20260731-2">
   <script src="/scripts/site-header.js?v=20260723-4" defer></script>
-  <script src="/scripts/brace-spx-lab-public.js?v=20260724-1" defer></script>
-  <script src="/scripts/brace-spx-generation3-card.js?v=20260729-1" defer></script>
+  <script src="/scripts/brace-spx-lab-public.js?v=20260731-2" defer></script>
 </head>
 <body class="brace-lab-page">
   <header id="site-header"></header>
@@ -28,7 +27,7 @@
     <header class="brace-hero">
       <p><strong>BriefRooms Research</strong></p>
       <h1>BRACE-SPX Lab</h1>
-      <p>A champion–challenger laboratory for S&amp;P 500 exposure. This page publishes only sanitized results and statistics. Code, parameters and the full experiment memory remain outside the public website.</p>
+      <p>A laboratory for robust S&amp;P 500 exposure management. We publish research results, governance and shadow status. Code, parameters, raw forecasts and the full ledger remain private.</p>
     </header>
 
     <nav class="brace-tabs" aria-label="S&P 500 Scenario tabs">
@@ -47,7 +46,7 @@
         </div>
         <div id="brace-updated" class="brace-updated">—</div>
       </div>
-      <div class="brace-progress-track" aria-label="Experiment progress">
+      <div class="brace-progress-track" aria-label="Research-space progress">
         <div id="brace-progress-bar" class="brace-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
       </div>
       <div class="brace-progress-copy">
@@ -57,65 +56,115 @@
       </div>
     </section>
 
-    <section class="brace-panel" aria-labelledby="generation-heading">
+    <section class="brace-panel" aria-labelledby="architecture-heading">
       <div class="brace-status-row">
         <div>
-          <h2 id="generation-heading">Current generation</h2>
+          <h2 id="architecture-heading">Current architecture</h2>
           <strong id="brace-generation">—</strong>
         </div>
-        <span id="brace-generation-version" class="brace-status">—</span>
+        <span id="brace-generation-version" class="brace-status is-neutral">A2</span>
       </div>
+      <div class="brace-grid brace-grid-3" style="margin-top:12px">
+        <div class="brace-metric"><small>Candidate signature</small><strong id="brace-signature">—</strong><span>immutable hash of ten constructions</span></div>
+        <div class="brace-metric"><small>Frequency</small><strong>Daily / Weekly</strong><span id="brace-frequency">—</span></div>
+        <div class="brace-metric"><small>Development</small><strong id="brace-development-range">—</strong><span>holdout excluded from downloads</span></div>
+      </div>
+      <ul class="brace-method-list">
+        <li><strong>Five distinct sources</strong>Trend, breadth, liquidity, options/VIX and market-implied rates.</li>
+        <li><strong>Higher frequency</strong>Daily signals, scheduled weekly rebalance and a daily shock gate.</li>
+        <li><strong>Deterministic regimes</strong>Logic changes across calm, high-volatility and panic conditions.</li>
+        <li><strong>Global multiple testing</strong>The assessment includes all prior and current trials.</li>
+      </ul>
     </section>
 
-    <section class="brace-panel is-loading" data-brace-spx-generation3 aria-labelledby="generation3-heading">
+    <section class="brace-panel" aria-labelledby="gate-heading">
       <div class="brace-status-row">
-        <div>
-          <h2 id="generation3-heading">BRACE-SPX Generation 3</h2>
-          <strong data-v3-field="generation">spx-focused-v3</strong>
-        </div>
-        <span class="brace-status" data-v3-field="status">Loading…</span>
-      </div>
-      <p class="brace-note">A smaller, predeclared space of 48 SPY candidates. Generation 3 focuses on a regularized linear model and the two data groups that were most stable in generation 2.</p>
-      <div class="brace-progress-track" aria-label="Generation 3 progress">
-        <div class="brace-progress-bar" data-v3-progress-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
-      </div>
-      <div class="brace-progress-copy">
-        <span><strong data-v3-field="completed">0</strong> / <span data-v3-field="total">48</span> tests</span>
-        <strong data-v3-field="progress">0.0%</strong>
-        <span><span data-v3-field="remaining">48</span> remaining</span>
+        <h2 id="gate-heading">Architecture 2 development gate</h2>
+        <span id="brace-gate" class="brace-status">—</span>
       </div>
       <div class="brace-grid">
-        <div class="brace-metric"><small>Candidate signature</small><strong data-v3-field="signature">—</strong><span>immutable generation hash</span></div>
-        <div class="brace-metric"><small>Holdout</small><strong data-v3-field="holdout">sealed</strong><span>48 months, no tuning</span></div>
-        <div class="brace-metric"><small>Leader CAGR</small><strong data-v3-field="cagr">—</strong><span>development data</span></div>
-        <div class="brace-metric"><small>Excess Sharpe</small><strong data-v3-field="sharpe">—</strong><span>above the risk-free rate</span></div>
-        <div class="brace-metric"><small>Max drawdown</small><strong data-v3-field="drawdown">—</strong><span>development data</span></div>
-        <div class="brace-metric"><small>Strict gate</small><strong data-v3-field="gate">pending</strong><span>DSR, PBO, stability and baselines</span></div>
+        <div class="brace-metric"><small>PBO</small><strong id="metric-pbo">—</strong><span>threshold ≤20%; lower is better</span></div>
+        <div class="brace-metric"><small>Global DSR</small><strong id="metric-global-dsr">—</strong><span>after correcting the complete trial history</span></div>
+        <div class="brace-metric"><small>Total trials</small><strong id="metric-global-trials">—</strong><span>Generations 1–5 plus Architecture 2</span></div>
+        <div class="brace-metric"><small>Rank stability</small><strong id="metric-rank-correlation">—</strong><span>median fold rank correlation</span></div>
+        <div class="brace-metric"><small>Fold winners</small><strong id="metric-fold-winners">—</strong><span>distinct leaders across six folds</span></div>
+        <div class="brace-metric"><small>External validation</small><span id="metric-external" class="brace-status">—</span><span>independent Backtrader implementation</span></div>
+        <div class="brace-metric"><small>Selection</small><span id="metric-champion" class="brace-status">—</span><span>a single leader is prohibited</span></div>
+        <div class="brace-metric"><small>Holdout</small><span id="metric-holdout" class="brace-status">—</span><span>not downloaded or opened</span></div>
       </div>
+      <p class="brace-callout"><strong>Important:</strong> PBO fell below 20%, but that was not enough. The cumulative 644-trial correction and unstable ranking block promotion of a single model.</p>
     </section>
 
-    <section class="brace-panel" aria-labelledby="champion-heading">
-      <h2 id="champion-heading">Champion — development walk-forward</h2>
+    <section class="brace-panel" aria-labelledby="diagnostic-heading">
+      <h2 id="diagnostic-heading">Best diagnostic variant — not a champion</h2>
+      <p class="brace-note">These figures describe the strongest development result. It is not authorized for the holdout or live use.</p>
       <div class="brace-grid">
         <div class="brace-metric"><small>CAGR</small><strong id="metric-cagr">—</strong><span>annual growth rate</span></div>
         <div class="brace-metric"><small>Volatility</small><strong id="metric-volatility">—</strong><span>annualized</span></div>
-        <div class="brace-metric"><small>Sharpe</small><strong id="metric-sharpe">—</strong><span>zero risk-free rate</span></div>
+        <div class="brace-metric"><small>Excess Sharpe</small><strong id="metric-sharpe">—</strong><span>above the risk-free rate</span></div>
         <div class="brace-metric"><small>Max drawdown</small><strong id="metric-drawdown">—</strong><span>deepest equity decline</span></div>
         <div class="brace-metric"><small>Calmar</small><strong id="metric-calmar">—</strong><span>CAGR / drawdown</span></div>
-        <div class="brace-metric"><small>Average exposure</small><strong id="metric-exposure">—</strong><span>market participation</span></div>
         <div class="brace-metric"><small>Annual turnover</small><strong id="metric-turnover">—</strong><span>after exposure changes</span></div>
-        <div class="brace-metric"><small>Positive years</small><strong id="metric-positive-years">—</strong><span>share of positive calendar years</span></div>
+        <div class="brace-metric"><small>Positive folds</small><strong id="metric-positive-folds">—</strong><span>chronological validation</span></div>
+        <div class="brace-metric"><small>P(CAGR advantage &gt;0)</small><strong id="metric-bootstrap-cagr">—</strong><span>bootstrap versus Buy & Hold</span></div>
+        <div class="brace-metric"><small>P(Sharpe advantage &gt;0)</small><strong id="metric-bootstrap-sharpe">—</strong><span>bootstrap versus Buy & Hold</span></div>
       </div>
-      <p><strong>Robustness gate:</strong> <span id="brace-gate">—</span></p>
     </section>
 
     <section class="brace-panel" aria-labelledby="comparison-heading">
       <h2 id="comparison-heading">Benchmark comparison</h2>
       <div class="brace-table-wrap">
         <table class="brace-table">
-          <thead><tr><th>Method</th><th>CAGR</th><th>Volatility</th><th>Sharpe</th><th>Max drawdown</th><th>Calmar</th></tr></thead>
+          <thead><tr><th>Method</th><th>CAGR</th><th>Volatility</th><th>Excess Sharpe</th><th>Max drawdown</th><th>Calmar</th><th>Turnover</th></tr></thead>
           <tbody id="brace-comparison-body"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="brace-panel" aria-labelledby="diversity-heading">
+      <h2 id="diversity-heading">Are the constructions genuinely different?</h2>
+      <div class="brace-grid">
+        <div class="brace-metric"><small>Median signal correlation</small><strong id="metric-signal-correlation">—</strong><span>before the orthogonality audit</span></div>
+        <div class="brace-metric"><small>Effective signal count</small><strong id="metric-signal-rank">—</strong><span>from five named sources</span></div>
+        <div class="brace-metric"><small>Effective exposure count</small><strong id="metric-exposure-rank">—</strong><span>diversity of position paths</span></div>
+        <div class="brace-metric"><small>Median return correlation</small><strong id="metric-return-correlation">—</strong><span>one instrument still aligns results</span></div>
+      </div>
+    </section>
+
+    <section class="brace-panel brace-audit" aria-labelledby="audit-heading">
+      <h2 id="audit-heading">Signal orthogonality audit</h2>
+      <p class="brace-note">Sources were selected without SPY returns, Sharpe, CAGR or the holdout. The criterion was informational independence and a minimum unique-variance contribution.</p>
+      <div id="brace-source-list" class="brace-source-list" aria-label="Selected signal sources"></div>
+      <div class="brace-grid brace-grid-3">
+        <div class="brace-metric"><small>Effective rank</small><strong id="metric-audit-rank">—</strong><span>independence of five raw sources</span></div>
+        <div class="brace-metric"><small>Median correlation</small><strong id="metric-audit-correlation">—</strong><span>among raw sub-signals</span></div>
+        <div class="brace-metric"><small>Components for 85%</small><strong id="metric-audit-pc">—</strong><span>main information axes</span></div>
+      </div>
+      <p class="brace-callout">Trend and breadth remain useful context filters, but neither cleared the 15% unique-variance threshold as an independent source for the next experiment.</p>
+    </section>
+
+    <section class="brace-panel brace-shadow" aria-labelledby="shadow-heading">
+      <div class="brace-status-row">
+        <div>
+          <h2 id="shadow-heading">Prospective shadow tracking</h2>
+          <span id="shadow-status" class="brace-status">—</span>
+        </div>
+        <div id="shadow-updated" class="brace-updated">—</div>
+      </div>
+      <p class="brace-note">All constructions are tracked in parallel. Shadow mode places no orders, selects no champion and does not use the historical holdout to warm the signals.</p>
+      <div class="brace-progress-track" aria-label="Shadow cold-start progress">
+        <div id="shadow-progress-bar" class="brace-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      </div>
+      <div class="brace-progress-copy">
+        <span><strong id="shadow-observations">—</strong> sessions</span>
+        <strong id="shadow-progress-percent">—</strong>
+        <span><strong id="shadow-remaining">—</strong> remaining</span>
+      </div>
+      <div class="brace-grid" style="margin-top:12px">
+        <div class="brace-metric"><small>Start</small><strong id="shadow-start">—</strong><span>first session after the holdout ends</span></div>
+        <div class="brace-metric"><small>Orders</small><span id="shadow-orders" class="brace-status">—</span><span>hypothetical records only</span></div>
+        <div class="brace-metric"><small>Champion</small><span id="shadow-champion" class="brace-status">—</span><span>ten constructions tracked in parallel</span></div>
+        <div class="brace-metric"><small>Cold start</small><strong>252 sessions</strong><span>before full signal-quality assessment</span></div>
       </div>
     </section>
 
@@ -125,24 +174,25 @@
           <h2 id="holdout-heading">Sealed holdout</h2>
           <strong id="brace-holdout">—</strong>
         </div>
-        <strong id="brace-holdout-months">—</strong>
+        <strong id="brace-holdout-range">—</strong>
       </div>
-      <p class="brace-note">The final test period remains closed while new generations are developed, preventing models from being tuned to a known final result.</p>
+      <p class="brace-note">Architecture 2 downloaded only data ending before the holdout. Shadow tracking starts after it ends and creates a new prospective history.</p>
     </section>
 
     <section class="brace-panel" aria-labelledby="boundary-heading">
       <h2 id="boundary-heading">Publication boundary</h2>
-      <p class="brace-note">The browser receives only a restricted JSON report. The private research engine is not part of the website code.</p>
+      <p class="brace-note">The browser receives only a sanitized JSON report. The private research engine is not part of the website code.</p>
       <ul class="brace-boundary">
         <li id="boundary-code">—</li>
         <li id="boundary-params">—</li>
         <li id="boundary-predictions">—</li>
         <li id="boundary-ledger">—</li>
+        <li id="boundary-snapshots">—</li>
       </ul>
     </section>
 
     <section class="brace-panel" aria-labelledby="note-heading">
-      <h2 id="note-heading">Research disclaimer</h2>
+      <h2 id="note-heading">Research conclusion</h2>
       <p id="brace-note" class="brace-note">—</p>
     </section>
 
