@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "generation_id": "spx-state-geometry-v5",
+  "target_instrument": "SPY / S&P 500",
+  "status": "predeclared",
+  "derived_from_generation": "spx-diversified-v4",
+  "generation4_policy": {
+    "further_tuning": false,
+    "holdout_access": false,
+    "reopened": false
+  },
+  "candidate_space_size": 12,
+  "research_question": "Can a fixed market-information signal produce a stable SPY exposure process when portfolio state geometry changes across chronological samples?",
+  "shared_signal": {
+    "name": "balanced_regime_score_v1",
+    "description": "Equal-weight development-only composite of slow trend, breadth, credit and volatility/rates modules inherited without tuning from Generation 4.",
+    "target_fitted": false,
+    "holdout_used": false
+  },
+  "geometry_families": {
+    "staircase": 3,
+    "hysteresis": 3,
+    "state_machine": 3,
+    "continuous_vol_target": 3
+  },
+  "candidate_definitions": [
+    "staircase-balanced",
+    "staircase-defensive",
+    "staircase-participation",
+    "hysteresis-fast-exit",
+    "hysteresis-fast-entry",
+    "hysteresis-confirmed",
+    "state-cycle-balanced",
+    "state-cycle-defensive",
+    "state-cycle-recovery",
+    "vol-target-10",
+    "vol-target-14",
+    "vol-target-adaptive"
+  ],
+  "scientific_rationale": [
+    "Generation 4 showed that different signal labels still converged to similar long/flat SPY return streams.",
+    "Generation 5 holds the information signal broadly constant and changes only exposure geometry, memory and transition rules.",
+    "Stateful rules reset at chronological validation discontinuities so no portfolio state leaks across purged folds.",
+    "The candidate count is reduced to twelve to limit multiple testing.",
+    "Selection considers chronological performance, PBO, return correlation, exposure correlation, state occupancy and transition stability.",
+    "Generation 3 and Generation 4 holdouts remain unavailable and are not used for design or tuning."
+  ],
+  "strict_gate": {
+    "candidate_space_must_be_exhausted": true,
+    "holdout_must_remain_sealed": true,
+    "minimum_positive_folds": 5,
+    "minimum_excess_sharpe": 1.0,
+    "minimum_sharpe_advantage_over_best_baseline": 0.05,
+    "maximum_drawdown": -0.16,
+    "maximum_fold_sharpe_std": 0.85,
+    "maximum_annualized_turnover": 3.5,
+    "minimum_deflated_sharpe_probability": 0.95,
+    "maximum_probability_of_backtest_overfitting": 0.2,
+    "maximum_median_absolute_return_correlation": 0.78,
+    "maximum_median_absolute_exposure_correlation": 0.75,
+    "minimum_effective_return_candidates": 3.0,
+    "minimum_effective_exposure_candidates": 3.0,
+    "maximum_largest_return_cluster_share": 0.67,
+    "maximum_largest_exposure_cluster_share": 0.67,
+    "minimum_selected_active_exposure_buckets": 3,
+    "maximum_selected_mean_absolute_return_correlation": 0.75,
+    "maximum_selected_mean_absolute_exposure_correlation": 0.75,
+    "human_approval_required_before_holdout": true
+  },
+  "execution_constraints": {
+    "maximum_exposure": 1.0,
+    "minimum_exposure": 0.0,
+    "leverage": false,
+    "short_spy": false,
+    "live_orders": false,
+    "research_only": true
+  }
+}
