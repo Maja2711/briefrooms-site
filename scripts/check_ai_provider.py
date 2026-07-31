@@ -48,12 +48,20 @@ def safe_endpoint(value: str) -> str:
 
 
 def diagnostic(runtime: AiRuntime, **values) -> dict:
-    return {
+    result = {
         "provider": runtime.provider,
         "endpoint": safe_endpoint(runtime.endpoint),
         "model": runtime.generation_model,
         **values,
     }
+    if runtime.provider == "unavailable":
+        result.update(
+            {
+                "required_secret": "OPENAI_API_KEY",
+                "provider_note": "GitHub Models retired on 2026-07-30",
+            }
+        )
+    return result
 
 
 def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:

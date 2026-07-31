@@ -109,9 +109,12 @@ Actions token, not a repository secret.
 
 ## Root causes and repair decisions
 
-1. The GitHub Models endpoint is current, but the required API-version header is
-   absent in the Python request. Add a one-request preflight and a typed permanent
-   error so 400/401/403/404/410/422 never recurse or retry.
+1. The original client omitted the API-version header, but the controlled
+   production deployment proved that this was no longer the terminal cause:
+   GitHub retired GitHub Models entirely on 2026-07-30. The corrected request
+   still returns HTTP 410. Production therefore uses OpenAI only, fails before
+   publication when `OPENAI_API_KEY` is absent, and never retries the retired
+   provider.
 2. The PL health source pool contains dead legacy Reuters, malformed AP/WHO, and
    retired NHS feeds. Add working medical/science and FDA feeds while retaining
    the six-item quality gate and 72-hour accepted-item reserve.
@@ -132,13 +135,14 @@ Actions token, not a repository secret.
 
 ## External documentation used
 
-- GitHub Models inference REST API: `https://docs.github.com/en/rest/models/inference`
+- GitHub Models retirement notice: `https://docs.github.com/en/github-models`
 - GitHub REST API versions: `https://docs.github.com/en/rest/about-the-rest-api/api-versions?apiVersion=2026-03-10`
-- GitHub Models catalog API: `https://docs.github.com/en/rest/models/catalog`
 
-The documented GitHub Models request uses
-`https://models.github.ai/inference/chat/completions`, bearer authorization,
-`Accept: application/vnd.github+json`, and `X-GitHub-Api-Version: 2026-03-10`.
+GitHub's current documentation states that the playground, catalog, inference
+API and BYOK were fully retired on 2026-07-30. A repository `GITHUB_TOKEN` is no
+longer an AI-provider credential. The production quality gate now requires the
+repository secret `OPENAI_API_KEY` and reports a configuration blocker when it
+is absent.
 
 ## Verification ledger
 
@@ -146,7 +150,7 @@ The documented GitHub Models request uses
 
 | Repair | Evidence before merge | Status |
 | --- | --- | --- |
-| GitHub Models preflight and fail-fast classification | Required version header is sent; 400/401/403/404/410/422 stop after one request; 429/5xx have bounded retry tests | `NOT_VERIFIED` |
+| AI-provider preflight and fail-fast classification | Retired GitHub Models is not selected; missing `OPENAI_API_KEY` stops before network publication; legacy 410 classification and bounded 429/5xx behavior remain tested | `BLOCKED_BY_MISSING_SECRET` |
 | PL health reserve | Six-item minimum retained; dead feeds removed; Medical Xpress, ScienceDaily and two FDA feeds added | `NOT_VERIFIED` |
 | Atomic PL+EN news ownership | EN YouTube no longer writes `en/index.html`; publisher remains the only shared news-output owner | `NOT_VERIFIED` |
 | Daily Market Alert | One writer; `alert_id` and `updated_at` are validated and exposed by the frontend; duplicate watchdog retired | `NOT_VERIFIED` |
@@ -206,3 +210,27 @@ baseline, not proof that the branch repair is deployed.
 
 Production verification remains `NOT_VERIFIED` until the branch is merged and
 new run IDs, publication IDs, timestamps and production SHA are observed.
+
+## Controlled deployment evidence
+
+Pull request `119` was merged once to `main` as
+`3854b2fe800b739f5c44d64608d5ed7fe4771588`. The resulting production runs
+exposed three additional conditions that could not be established from the
+pre-merge source alone:
+
+| Domain | Run / job / first failing step | Evidence | Status after deployment 1 |
+| --- | --- | --- | --- |
+| PL+EN news | run `30651132926`, job `91224363294`, `Check AI provider once before publication` | Corrected one-request preflight returned HTTP 410. GitHub's current documentation confirms full GitHub Models retirement on 2026-07-30; `OPENAI_API_KEY` was empty. | `BLOCKED_BY_MISSING_SECRET` |
+| Weekly investments | run `30651132934`, job `91224362940`, `Commit validated weekly updates` | Generator rendered `pl/inwestycje.html`, `pl/inwestycje/pozycje-tygodniowe.html`, `en/investing.html` and `en/investing/open-weekly-positions.html` outside the staged owner set. | `VERIFIED_FAILED` |
+| Portfolio 10K weekly | run `30651132928`, job `91224363103`, `Validate portfolio execution and accounting` | Migration compared active execution `2.2-staged-reconciled` with legacy constant `2.0`, reset positions to pending in the runner and then failed frozen-entry validation. The failed run never committed those changes. | `VERIFIED_FAILED` |
+| Daily Market Alert | run `30651132927` completed successfully and published commit `97f5b1ac`. | Versioned alert publication and atomic writer worked after the merge. | `VERIFIED_WORKING` |
+| Portfolio 10K prices | run `30651132975` completed successfully and published commit `6512ff5b`. | Fresh prices published without blocking the other domains. | `VERIFIED_WORKING` |
+| BRACE Portfolio | run `30651132972` completed successfully. | ACTIVE_BASELINE remained unchanged; BRACE remained SHADOW/RECOMMEND_ONLY. | `VERIFIED_WORKING` |
+| BRACE-SPX public panel | run `30651132953` completed successfully. | The corrected installer contract published successfully. | `VERIFIED_WORKING` |
+| Hot X | run `30651132937` completed successfully. | Last-good direct-post data was retained without a fabricated freshness timestamp. External X HTTP 402 still prevents genuinely new X retrieval. | `BLOCKED_BY_EXTERNAL_PROVIDER` |
+
+Follow-up repairs stage every rendered weekly page and prohibit migration of any
+versioned active Portfolio 10K execution. Local validation preserved a
+`2.2-staged-reconciled` active entry unchanged and the complete current
+Portfolio 10K state validator passed. Their post-deployment run IDs are recorded
+after the follow-up controlled merge.

@@ -34,7 +34,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: investment-alert
@@ -89,10 +88,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
           NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "4.2"
           BR_ALERT_SCHEDULE: ${{ github.event.schedule }}
         shell: bash
         run: python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"

@@ -51,7 +51,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: news-publication
@@ -105,25 +104,14 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_ENDPOINT: https://models.github.ai/inference/chat/completions
-          GITHUB_MODELS_API_VERSION: "2026-03-10"
-          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
+          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
         run: python scripts/check_ai_provider.py
 
       - name: Prepare one isolated PL and EN publication
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
-          GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_ENDPOINT: https://models.github.ai/inference/chat/completions
-          GITHUB_MODELS_API_VERSION: "2026-03-10"
-          GITHUB_MODELS_MODEL: openai/gpt-4o-mini
-          GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
-          GITHUB_MODELS_FALLBACK_MODEL: mistral-ai/mistral-medium-2505
-          GITHUB_MODELS_FALLBACK_REVIEW_MODEL: cohere/cohere-command-a
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "2"
+          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
         shell: bash
         run: |
           set -euo pipefail

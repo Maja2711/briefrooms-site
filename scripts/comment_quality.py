@@ -19,6 +19,7 @@ MIN_COMMENT_CHARS = 180
 MAX_COMMENT_CHARS = 1600
 _LAST_GITHUB_MODELS_REQUEST_AT = 0.0
 GITHUB_MODELS_API_VERSION = "2026-03-10"
+GITHUB_MODELS_RETIRED_AT = "2026-07-30"
 PERMANENT_HTTP_STATUSES = frozenset({400, 401, 403, 404, 410, 422})
 TRANSIENT_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
 
@@ -173,7 +174,12 @@ def provider_headers(runtime: AiRuntime) -> dict[str, str]:
 
 
 def get_ai_runtime() -> AiRuntime:
-    """Prefer a configured OpenAI key, then GitHub Models in Actions."""
+    """Use the configured OpenAI provider.
+
+    GitHub Models was retired on 2026-07-30. A GitHub Actions token must no
+    longer make the runtime appear available because every inference request
+    now returns HTTP 410.
+    """
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
     if openai_key:
         generation_model = (
@@ -188,19 +194,6 @@ def get_ai_runtime() -> AiRuntime:
             endpoint=os.getenv("OPENAI_CHAT_ENDPOINT", "https://api.openai.com/v1/chat/completions"),
             generation_model=generation_model,
             review_model=review_model,
-        )
-
-    github_token = os.getenv("GITHUB_MODELS_TOKEN", "").strip()
-    if github_token:
-        return AiRuntime(
-            provider="github-models",
-            api_key=github_token,
-            endpoint=os.getenv(
-                "GITHUB_MODELS_ENDPOINT",
-                "https://models.github.ai/inference/chat/completions",
-            ),
-            generation_model=os.getenv("GITHUB_MODELS_MODEL", "openai/gpt-4o-mini"),
-            review_model=os.getenv("GITHUB_MODELS_REVIEW_MODEL", "openai/gpt-4.1-mini"),
         )
 
     return AiRuntime("unavailable", "", "", "", "")

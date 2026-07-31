@@ -394,6 +394,28 @@ def component_status(
     }
 
 
+def apply_configured_blockers(
+    domain: Domain, result: dict[str, Any]
+) -> dict[str, Any]:
+    if (
+        domain.key == "news_pl_en"
+        and os.getenv("OPENAI_API_KEY_CONFIGURED", "").strip().lower() == "false"
+    ):
+        result = dict(result)
+        result.update(
+            {
+                "status": "failed",
+                "failed_stage": "ai_provider_configuration",
+                "error_class": "missing_secret",
+                "error_summary": (
+                    "OPENAI_API_KEY is not configured; GitHub Models retired "
+                    "on 2026-07-30."
+                ),
+            }
+        )
+    return result
+
+
 def build_registry(
     *,
     root: Path,
@@ -481,7 +503,7 @@ def build_registry(
                     ),
                 }
             )
-        workflows[domain.key] = result
+        workflows[domain.key] = apply_configured_blockers(domain, result)
     return {
         "schema_version": "1.0",
         "generated_at": isoformat(now),
