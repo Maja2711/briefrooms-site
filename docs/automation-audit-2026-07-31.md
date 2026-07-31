@@ -169,17 +169,17 @@ Retired duplicate/retry workflows:
 
 ### Current production evidence before merge
 
-The registry was populated from the public Actions API at 2026-07-31 16:50 UTC.
+The registry was populated from the public Actions API at 2026-07-31 17:02 UTC.
 These runs predate the controlled merge, so they are evidence of the production
 baseline, not proof that the branch repair is deployed.
 
 | Domain | Latest attempt | Last success | Published data | Pre-merge status |
 | --- | --- | --- | --- | --- |
 | PL+EN news | `30643347899`, failed | 2026-07-30 10:48 UTC | 2026-07-30 10:34 UTC | `VERIFIED_FAILED` |
-| Daily Market Alert | `30648424480`, success | 2026-07-31 16:46 UTC | 2026-07-30 20:44 UTC | `VERIFIED_WORKING` |
-| Portfolio prices | `30638913429`, success | 2026-07-31 14:31 UTC | 2026-07-31 14:31 UTC | `VERIFIED_WORKING` |
-| BRACE Portfolio | `30635878500`, success | 2026-07-31 13:48 UTC | 2026-07-31 13:10 UTC | `VERIFIED_WORKING` |
-| BRACE-SPX research | `30639633355`, success | 2026-07-31 14:41 UTC | completed sealed result from 2026-07-29 | `VERIFIED_WORKING` |
+| Daily Market Alert | `30648424480`, success | 2026-07-31 16:46 UTC | 2026-07-31 15:52 UTC | `VERIFIED_WORKING` |
+| Portfolio prices | `30648875952`, success | 2026-07-31 16:52 UTC | 2026-07-31 16:52 UTC | `VERIFIED_WORKING` |
+| BRACE Portfolio | `30635878500`, success | 2026-07-31 13:48 UTC | 2026-07-31 16:18 UTC | `VERIFIED_WORKING` |
+| BRACE-SPX research | `30649330748`, success | 2026-07-31 16:59 UTC | completed sealed result from 2026-07-29 | `VERIFIED_WORKING` |
 | BRACE-SPX public panel | `30620619873`, failed | no success in window | pages not republished | `VERIFIED_FAILED` |
 | Hot X | `30619270673`, failed | 2026-07-22 08:43 UTC | last-good feed 2026-07-30 16:25 UTC | `BLOCKED_BY_EXTERNAL_PROVIDER` |
 
@@ -195,14 +195,14 @@ baseline, not proof that the branch repair is deployed.
 
 ### Repair commits
 
-1. `0b308742` - audit evidence and collision map.
-2. `3a5cff43` - GitHub Models preflight and permanent-error handling.
-3. `efa10501` - health-source reserve and news ownership.
-4. `f9a074ae` - versioned, atomic Daily Market Alert.
-5. `27cfab18` - domain queues, complete staging and duplicate schedule retirement.
-6. `4a854783` - central health registry, incident deduplication and truthful Portfolio 10K status.
-7. `096e33d6` - workflow tests aligned with the governed production state.
-8. `f09eb4b5` - terminal BRACE-SPX and Hot X last-good handling.
+1. `ab9e509f` - audit evidence and collision map.
+2. `bdb2687f` - GitHub Models preflight and permanent-error handling.
+3. `00c2f258` - health-source reserve and news ownership.
+4. `7a9c68d5` - versioned, atomic Daily Market Alert.
+5. `78af9e65` - domain queues, complete staging and duplicate schedule retirement.
+6. `60856442` - central health registry, incident deduplication and truthful Portfolio 10K status.
+7. `a818f3f2` - workflow tests aligned with the governed production state.
+8. `6cfddc89` - terminal BRACE-SPX and Hot X last-good handling.
 
 Production verification remains `NOT_VERIFIED` until the branch is merged and
 new run IDs, publication IDs, timestamps and production SHA are observed.
