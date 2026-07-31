@@ -1,0 +1,202 @@
+name: BRACE-SPX Architecture 2
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-architecture-v2
+  cancel-in-progress: false
+
+jobs:
+  research-and-independent-validation:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX Architecture 2')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance pytest backtrader
+
+      - name: Compile and test immutable protocol
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_architecture_v2.py \
+            scripts/brace_spx_architecture_v2_shadow.py \
+            scripts/brace_spx_backtrader_reference.py
+          python -m pytest -q tests/test_brace_spx_architecture_v2.py
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as a
+          design = json.loads(Path('data/research/brace_spx_architecture_v2_design.json').read_text())
+          terminal = json.loads(Path('data/research/brace_spx_g5_terminal_decision.json').read_text())
+          assert a.candidate_signature() == design['candidate_signature']
+          assert design['multiple_testing']['global_trial_count'] == 644
+          assert terminal['decision']['architecture_ceiling_reached'] is True
+          assert terminal['decision']['holdout_opened'] is False
+          PY
+
+      - name: Download development data only
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as a
+          prices = a.download_prices(a.START_DATE, a.DEVELOPMENT_END_EXCLUSIVE)
+          prices.to_csv('/tmp/brace_spx_architecture_v2_prices.csv', index_label='date')
+          print(prices.index.min(), prices.index.max(), prices.shape)
+          assert prices.index.max().strftime('%Y-%m-%d') < a.SEALED_HOLDOUT_START
+          PY
+
+      - name: Run primary Architecture 2 engine
+        id: primary
+        continue-on-error: true
+        run: |
+          python scripts/brace_spx_architecture_v2.py \
+            --prices-csv /tmp/brace_spx_architecture_v2_prices.csv \
+            --trace-csv /tmp/brace_spx_architecture_v2_trace.csv \
+            --output data/research/brace_spx_architecture_v2_report.json \
+            2>&1 | tee data/research/brace_spx_architecture_v2.log
+
+      - name: Run independent Backtrader reference
+        id: external
+        if: steps.primary.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python scripts/brace_spx_backtrader_reference.py \
+            --prices-csv /tmp/brace_spx_architecture_v2_prices.csv \
+            --primary-trace /tmp/brace_spx_architecture_v2_trace.csv \
+            --output data/research/brace_spx_architecture_v2_backtrader.json \
+            2>&1 | tee data/research/brace_spx_architecture_v2_backtrader.log
+
+      - name: Validate evidence and governance
+        id: validate
+        if: steps.primary.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          design = json.loads(Path('data/research/brace_spx_architecture_v2_design.json').read_text())
+          report = json.loads(Path('data/research/brace_spx_architecture_v2_report.json').read_text())
+          assert report['candidate_signature'] == design['candidate_signature']
+          assert report['candidate_space_size'] == 10
+          assert report['experiments_total'] == 10
+          assert report['prior_trial_count'] == 634
+          assert report['global_trial_count'] == 644
+          assert report['holdout']['status'] == 'sealed_not_downloaded'
+          assert report['holdout']['accessed'] is False
+          assert report['holdout']['access_count'] == 0
+          assert report['architecture_decisions']['g5_v2_is_terminal_reference'] is True
+          assert report['architecture_decisions']['single_signal_long_flat_architecture_closed'] is True
+          if report['single_champion_authorized']:
+              assert report['strict_gate_passed'] is True
+              assert report['selected_candidate_id'] is not None
+          else:
+              assert report['selected_candidate_id'] is None
+          external_path = Path('data/research/brace_spx_architecture_v2_backtrader.json')
+          if external_path.exists():
+              external = json.loads(external_path.read_text())
+              assert external['holdout_accessed'] is False
+          PY
+
+      - name: Write run status
+        if: always()
+        env:
+          PRIMARY_OUTCOME: ${{ steps.primary.outcome }}
+          EXTERNAL_OUTCOME: ${{ steps.external.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          report = {}
+          external = {}
+          try: report = json.loads(Path('data/research/brace_spx_architecture_v2_report.json').read_text())
+          except Exception: pass
+          try: external = json.loads(Path('data/research/brace_spx_architecture_v2_backtrader.json').read_text())
+          except Exception: pass
+          payload = {
+              'schema_version': '1.0.0',
+              'architecture_id': 'spx-multisignal-regime-a2',
+              'run_id': os.environ.get('RUN_ID'),
+              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'stages': {
+                  'primary': os.environ.get('PRIMARY_OUTCOME') or 'not_started',
+                  'external': os.environ.get('EXTERNAL_OUTCOME') or 'not_started',
+                  'validate': os.environ.get('VALIDATE_OUTCOME') or 'not_started'
+              },
+              'strict_gate_passed': report.get('strict_gate_passed'),
+              'single_champion_authorized': report.get('single_champion_authorized'),
+              'external_validation_passed': external.get('passed'),
+              'holdout_opened': False
+          }
+          Path('data/research/brace_spx_architecture_v2_status.json').write_text(json.dumps(payload, indent=2) + '\n')
+          PY
+
+      - name: Snapshot evidence
+        if: always()
+        run: |
+          rm -rf /tmp/brace-spx-a2-evidence
+          mkdir -p /tmp/brace-spx-a2-evidence/data/research
+          for path in \
+            data/research/brace_spx_g5_terminal_decision.json \
+            data/research/brace_spx_architecture_v2_design.json \
+            data/research/brace_spx_architecture_v2_report.json \
+            data/research/brace_spx_architecture_v2_backtrader.json \
+            data/research/brace_spx_architecture_v2_status.json \
+            data/research/brace_spx_architecture_v2.log \
+            data/research/brace_spx_architecture_v2_backtrader.log
+          do
+            if [ -f "$path" ]; then cp "$path" /tmp/brace-spx-a2-evidence/data/research/; fi
+          done
+          if [ -f /tmp/brace_spx_architecture_v2_trace.csv ]; then cp /tmp/brace_spx_architecture_v2_trace.csv /tmp/brace-spx-a2-evidence/; fi
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-architecture-v2-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          path: /tmp/brace-spx-a2-evidence
+
+      - name: Persist verified evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin brace-spx-research
+          git reset --hard origin/brace-spx-research
+          cp -R /tmp/brace-spx-a2-evidence/data/. data/
+          git add -f data/research/brace_spx_architecture_v2* data/research/brace_spx_g5_terminal_decision.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Persist BRACE-SPX Architecture 2 evidence'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
+
+      - name: Fail visibly on blocking stage
+        if: always() && (steps.primary.outcome != 'success' || steps.external.outcome != 'success' || steps.validate.outcome != 'success')
+        run: exit 1
