@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0.0",
+  "architecture_id": "spx-directional-lsf-a3",
+  "decision": "approved_new_architecture",
+  "approved_mandate": "long_short_flat",
+  "governance_approval_at": "2026-07-31T22:52:00+00:00",
+  "governance_approval_source": "human_owner_in_conversation",
+  "base_architecture": {
+    "id": "spx-multisignal-regime-a2",
+    "candidate_signature": "c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9",
+    "status": "frozen_reference_long_flat",
+    "modified": false
+  },
+  "holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "may_be_opened": false
+  },
+  "mandate": {
+    "position_set": "long_short_flat",
+    "long_allowed": true,
+    "short_allowed": true,
+    "flat_allowed": true,
+    "leverage_allowed": false,
+    "max_abs_exposure": 1.0,
+    "orders_allowed": false,
+    "fully_collateralized_short": true
+  },
+  "cost_model": {
+    "transaction_cost_bps_per_unit_turnover": 5.0,
+    "annual_short_borrow_cost": 0.01,
+    "dividends_included_in_adjusted_spy_return": true
+  },
+  "candidate_space_size": 12,
+  "candidate_signature": "7e7c6a7fa8526c15534075c82e7f75fd58ce90ebebd2e8a9efc7b86cb74e0b61",
+  "candidate_ids": [
+    "8541ef84af052e40",
+    "d2ae44ade78444bf",
+    "12c458e6d8f439b1",
+    "abbe7f2d140a0edb",
+    "9fa8b71fad2c3e68",
+    "eac39949e2488d61",
+    "38e3d9fb7e98cac0",
+    "d9b904dd16e3fa99",
+    "e856a12d5a1e1418",
+    "fbb8ff178db83693",
+    "499665a8cb0a7117",
+    "c43b484f714632d3"
+  ],
+  "candidate_definitions": [
+    {"name":"directional-trend","signal_sources":["trend"],"combination":"mean","position_policy":"conservative_short","regime_policy":"trend","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"directional-breadth","signal_sources":["breadth"],"combination":"mean","position_policy":"conservative_short","regime_policy":"breadth","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"directional-liquidity","signal_sources":["liquidity"],"combination":"mean","position_policy":"crisis_short","regime_policy":"liquidity","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"directional-options","signal_sources":["options"],"combination":"mean","position_policy":"crisis_short","regime_policy":"options","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"directional-rates","signal_sources":["rates"],"combination":"mean","position_policy":"conservative_short","regime_policy":"rates","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"trend-liquidity","signal_sources":["trend","liquidity"],"combination":"mean","position_policy":"conservative_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"breadth-options","signal_sources":["breadth","options"],"combination":"mean","position_policy":"conservative_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"liquidity-options","signal_sources":["liquidity","options"],"combination":"minimum_veto","position_policy":"crisis_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"rates-liquidity","signal_sources":["rates","liquidity"],"combination":"mean","position_policy":"conservative_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"orthogonal-three","signal_sources":["rates","liquidity","options"],"combination":"median","position_policy":"conservative_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"all-source-median","signal_sources":["trend","breadth","liquidity","options","rates"],"combination":"median","position_policy":"symmetric","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0},
+    {"name":"crisis-consensus","signal_sources":["trend","breadth","liquidity","options","rates"],"combination":"consensus","position_policy":"crisis_short","regime_policy":"deterministic_regime","weekly_rebalance":true,"daily_crisis_gate":true,"max_abs_exposure":1.0}
+  ],
+  "multiple_testing": {
+    "prior_trials": 644,
+    "new_trials": 12,
+    "global_trial_count": 656,
+    "prior_sharpe_cross_section_std": 0.649385
+  },
+  "strict_gate": {
+    "pbo_max": 0.2,
+    "global_dsr_min": 0.95,
+    "positive_folds_min": 5,
+    "positive_short_folds_min": 4,
+    "short_days_min": 63,
+    "short_hit_rate_min": 0.5,
+    "short_excess_contribution_must_be_positive": true,
+    "median_fold_rank_correlation_min": 0.3,
+    "unique_fold_winners_max": 3,
+    "bootstrap_probability_advantage_min": 0.95,
+    "annualized_turnover_max": 10.0,
+    "independent_validation_required_before_champion": true,
+    "human_approval_required_before_holdout_or_live": true
+  },
+  "public_boundary": {
+    "candidate_identity_public": false,
+    "parameters_public": false,
+    "raw_predictions_public": false,
+    "daily_paths_public": false,
+    "full_ledger_public": false
+  }
+}
