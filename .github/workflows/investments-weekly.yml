@@ -33,7 +33,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: investments-paper-publishing
+  group: investment-weekly-positions
   cancel-in-progress: false
 
 jobs:
@@ -142,8 +142,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json \
-                  data/investments/weekly \
+          # Quotes have a separate owner; weekly pages consume but never publish them.
+          git restore --worktree -- data/investments/live_prices.json
+          git add data/investments/weekly \
                   data/investments/daily_review_report.json \
                   data/investments/event_exit_requests.json \
                   data/investments/model_audit.json \
@@ -161,6 +162,11 @@ jobs:
             echo "No governed weekly changes to commit."
           else
             git commit -m "Maintain governed weekly paper positions"
+            if ! git diff --quiet; then
+              echo "::error::Weekly generator left unstaged files; refusing a partial publication."
+              git status --short
+              exit 1
+            fi
             git pull --rebase origin main
             git push
           fi

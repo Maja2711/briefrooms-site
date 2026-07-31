@@ -69,6 +69,13 @@ class HotXItemsTests(unittest.TestCase):
         cleaned = clean_x_url("https://twitter.com/example/status/123456789?ref_src=x&utm_source=test")
         self.assertEqual(cleaned, "https://x.com/example/status/123456789")
 
+    def test_editorial_pin_comparison_uses_canonical_urls(self):
+        raw = "https://x.com/search?q=AI%20sovereignty%20Europe&f=live"
+        self.assertEqual(
+            clean_x_url(raw),
+            "https://x.com/search?f=live&q=AI+sovereignty+Europe",
+        )
+
     def test_pins_are_ordered_before_direct_posts(self):
         selected = select_unique([[direct(), pin()]], target=2)
         self.assertTrue(selected[0].get("editorial_pin"))

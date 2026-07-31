@@ -71,10 +71,15 @@ class PublicBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             page = Path(directory) / "page.html"
             page.write_text("<html><body><main>\n<p>content</p></main></body></html>\n", encoding="utf-8")
-            self.assertTrue(installer.install_page(page, installer.PL_TAB))
-            self.assertFalse(installer.install_page(page, installer.PL_TAB))
+            self.assertTrue(
+                installer.install_page(page, installer.PL_TAB, installer.PL_GEN3)
+            )
+            self.assertFalse(
+                installer.install_page(page, installer.PL_TAB, installer.PL_GEN3)
+            )
             source = page.read_text(encoding="utf-8")
-            self.assertEqual(source.count(installer.MARKER), 1)
+            self.assertEqual(source.count(installer.TAB_MARKER), 1)
+            self.assertEqual(source.count(installer.GEN3_MARKER), 1)
 
     def test_public_pages_do_not_embed_private_model_fields(self):
         forbidden_text = ("candidate_id", "feature_set", "probability_tail", "fold_metrics", '"params"')
