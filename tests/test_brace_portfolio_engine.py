@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import math
 import sys
@@ -14,12 +15,15 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import brace_portfolio_data
 from brace_portfolio_backtest import run_walk_forward
 from brace_portfolio_config import load_config
 from brace_portfolio_data import (
     assert_baseline_unchanged,
     baseline_invariants,
+    canonical_sha256,
     data_freshness_report,
+    YFinanceProvider,
 )
 from brace_portfolio_decision import build_pending_decisions
 from brace_portfolio_execution import (
@@ -27,6 +31,7 @@ from brace_portfolio_execution import (
     initialize_paper_portfolio,
     prepare_orders,
 )
+from brace_portfolio_engine import _merge_market_refresh, _record_baseline_validation
 from brace_portfolio_optimizer import optimize
 from brace_portfolio_promotion_controller import evaluate_and_apply
 from brace_portfolio_publish import build_public_snapshot
@@ -34,6 +39,17 @@ from brace_portfolio_publish import build_public_snapshot
 
 def load(path: str) -> dict:
     return json.loads((ROOT / path).read_text(encoding="utf-8"))
+
+
+def market_item(rows: int, marker: str) -> dict:
+    return {
+        "history": [
+            {"date": f"2026-01-{(index % 28) + 1:02d}", "close": 100 + index}
+            for index in range(rows)
+        ],
+        "fundamentals": {"marker": marker},
+        "errors": [],
+    }
 
 
 @pytest.fixture()
@@ -149,6 +165,30 @@ def test_baseline_entries_and_history_are_immutable():
     assert baseline_invariants(baseline)["positions"][0]["entry_price"] > 0
 
 
+def test_registry_records_separate_source_and_immutable_history_hashes():
+    baseline = load("data/investments/portfolio_10k.json")
+    registry = load("data/portfolio10k/methodology_registry.json")
+    _record_baseline_validation(
+        registry,
+        baseline,
+        datetime(2026, 7, 31, tzinfo=timezone.utc),
+    )
+    item = next(
+        row
+        for row in registry["methodologies"]
+        if row["methodology_id"] == "portfolio-10k-baseline"
+    )
+    results = item["validation_results"]
+
+    assert len(results["entry_history_sha256"]) == 64
+    assert len(results["source_snapshot_sha256"]) == 64
+    changed = copy.deepcopy(baseline)
+    changed["positions"][0]["current_price"] += 1
+    assert results["entry_history_sha256"] == canonical_sha256(
+        baseline_invariants(changed)
+    )
+
+
 def test_closed_market_quote_is_not_falsely_stale(config):
     now = datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc)
     portfolio = {
@@ -193,6 +233,81 @@ def test_optimizer_enforces_caps_no_short_and_no_leverage(config):
     assert all(value <= config.max_single_stock_weight + 1e-9 for key, value in weights.items() if key != "CASH")
     assert result["no_leverage"]
     assert result["no_short_positions"]
+
+
+def test_optimizer_falls_back_to_cash_when_no_instrument_has_usable_data(config):
+    result = optimize({"missing-instrument": 1.0}, [], config)
+    selected = next(
+        item for item in result["comparisons"] if item["name"] == result["selected"]
+    )
+
+    assert result["target_weights"] == {"CASH": 1.0}
+    assert selected["metrics"]["turnover"] == pytest.approx(0.5)
+
+
+def test_market_refresh_preserves_last_good_history_when_provider_is_empty():
+    cached = {
+        "generated_at": "2026-07-30T00:00:00+00:00",
+        "instruments": {"fwia": market_item(120, "cached")},
+    }
+    fresh = {
+        "generated_at": "2026-07-31T00:00:00+00:00",
+        "source_metadata": {"provider": "EmptyProvider"},
+        "instruments": {"fwia": market_item(0, "fresh")},
+    }
+
+    merged = _merge_market_refresh(fresh, cached)
+
+    assert len(merged["instruments"]["fwia"]["history"]) == 120
+    assert merged["instruments"]["fwia"]["fundamentals"]["marker"] == "cached"
+    assert merged["data_freshness"] == "partial_last_good_fallback"
+    assert merged["source_metadata"]["preserved_from_last_good_cache"] == 1
+    assert "NETWORK_REFRESH_INCOMPLETE_USING_LAST_GOOD_CACHE" in (
+        merged["instruments"]["fwia"]["errors"]
+    )
+
+
+def test_market_refresh_rejects_empty_provider_without_last_good_cache():
+    fresh = {
+        "generated_at": "2026-07-31T00:00:00+00:00",
+        "instruments": {"fwia": market_item(0, "fresh")},
+    }
+    with pytest.raises(ValueError, match="no usable histories"):
+        _merge_market_refresh(fresh, {})
+
+
+def test_lightweight_chart_adapter_parses_adjusted_history(monkeypatch):
+    payload = {
+        "chart": {
+            "result": [
+                {
+                    "timestamp": [1722297600, 1722384000],
+                    "indicators": {
+                        "adjclose": [{"adjclose": [101.25, 102.5]}],
+                        "quote": [{"close": [100.0, 101.0]}],
+                    },
+                }
+            ]
+        }
+    }
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            self.close()
+
+    monkeypatch.setattr(
+        brace_portfolio_data,
+        "urlopen",
+        lambda *_args, **_kwargs: FakeResponse(json.dumps(payload).encode("utf-8")),
+    )
+
+    rows = YFinanceProvider._chart_history("TEST", "10y", "1d")
+
+    assert [row["close"] for row in rows] == [101.25, 102.5]
+    assert rows[0]["date"] < rows[1]["date"]
 
 
 def test_safe_mode_never_generates_rotation(config):
@@ -511,7 +626,7 @@ def test_public_pages_share_control_panel_and_guard_paper_data_path():
     ):
         html = path.read_text(encoding="utf-8")
         assert 'id="brace-control-root"' in html
-        assert "/scripts/portfolio-10k-control-public.js?v=1" in html
+        assert "/scripts/portfolio-10k-control-public.js?v=2" in html
     script = (ROOT / "scripts" / "portfolio-10k-public.js").read_text(encoding="utf-8")
     assert "PROBATIONARY_CONTROL" in script
     assert "ACTIVE_PAPER_CONTROL" in script

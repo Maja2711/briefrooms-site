@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
 
 from brace_portfolio_config import EngineConfig
 
@@ -248,29 +250,64 @@ class InstrumentData:
 class YFinanceProvider:
     """Network adapter kept outside deterministic scoring and decision code."""
 
+    @staticmethod
+    def _chart_history(symbol: str, period: str, interval: str) -> List[Dict[str, Any]]:
+        params = urlencode(
+            {
+                "range": period,
+                "interval": interval,
+                "events": "history",
+                "includeAdjustedClose": "true",
+            }
+        )
+        request = Request(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol)}?{params}",
+            headers={"User-Agent": "BriefRooms-BRACE/1.0"},
+        )
+        with urlopen(request, timeout=30) as response:
+            payload = json.load(response)
+        result = ((payload.get("chart") or {}).get("result") or [None])[0] or {}
+        timestamps = result.get("timestamp") or []
+        indicators = result.get("indicators") or {}
+        adjusted = ((indicators.get("adjclose") or [{}])[0]).get("adjclose") or []
+        closes = ((indicators.get("quote") or [{}])[0]).get("close") or []
+        values = adjusted if len(adjusted) == len(timestamps) else closes
+        rows: Dict[str, float] = {}
+        for timestamp, raw_value in zip(timestamps, values):
+            value = _finite(raw_value)
+            if value is None or value <= 0:
+                continue
+            day = datetime.fromtimestamp(int(timestamp), timezone.utc).date().isoformat()
+            rows[day] = value
+        return [{"date": day, "close": rows[day]} for day in sorted(rows)]
+
     def history(
         self,
         symbol: str,
         period: str = "10y",
         interval: str = "1d",
     ) -> List[Dict[str, Any]]:
-        import yfinance as yf
+        try:
+            import yfinance as yf
 
-        frame = yf.Ticker(symbol).history(
-            period=period,
-            interval=interval,
-            auto_adjust=True,
-            actions=False,
-        )
-        rows: List[Dict[str, Any]] = []
-        if frame is None or frame.empty:
-            return rows
-        for index, row in frame.iterrows():
-            value = _finite(row.get("Close"))
-            if value is None or value <= 0:
-                continue
-            rows.append({"date": index.date().isoformat(), "close": value})
-        return rows
+            frame = yf.Ticker(symbol).history(
+                period=period,
+                interval=interval,
+                auto_adjust=True,
+                actions=False,
+            )
+            rows: List[Dict[str, Any]] = []
+            if frame is not None and not frame.empty:
+                for index, row in frame.iterrows():
+                    value = _finite(row.get("Close"))
+                    if value is None or value <= 0:
+                        continue
+                    rows.append({"date": index.date().isoformat(), "close": value})
+                if rows:
+                    return rows
+        except Exception:
+            pass
+        return self._chart_history(symbol, period, interval)
 
     def fundamentals(self, symbol: str) -> Dict[str, Any]:
         import yfinance as yf

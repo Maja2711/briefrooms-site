@@ -33,10 +33,15 @@ jobs:
       - name: Validate BRACE integrity controls
         run: python -m pytest -q tests/test_brace_portfolio_engine.py -k "baseline or fallback or execution"
 
+      - name: Check freshness, limits and fallback before execution
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: python scripts/brace_portfolio_engine.py --mode monitor
+
       - name: Execute eligible model-only paper orders
         run: python scripts/brace_portfolio_execution.py --network
 
-      - name: Monitor freshness, limits and fallback
+      - name: Reconcile state after paper execution
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode monitor

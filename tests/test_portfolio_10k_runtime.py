@@ -57,6 +57,11 @@ def test_migrate_mode_writes_pending_state_only_when_legacy_was_corrected(monkey
     monkeypatch.setattr(MODULE.base, "load_json", lambda path: data)
     monkeypatch.setattr(MODULE.base, "validate_config", lambda payload: None)
     monkeypatch.setattr(MODULE.base, "write_json_atomic", lambda path, payload: writes.append(dict(payload)))
+    monkeypatch.setattr(
+        MODULE.execution.base,
+        "write_json_atomic",
+        lambda path, payload: writes.append(dict(payload)),
+    )
     MODULE.run("migrate")
     assert data["status"] == "pending_open"
     assert data["cash_pln"] == 10000.0

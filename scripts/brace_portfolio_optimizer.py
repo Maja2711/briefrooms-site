@@ -40,6 +40,8 @@ def enforce_limits(
         key=lambda item: (-item[1], item[0]),
     )[: config.max_positions]
     weights = {key: value for key, value in ordered}
+    if not weights:
+        return {"CASH": 1.0}
     weights = _normalize(weights)
 
     for _ in range(12):

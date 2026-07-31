@@ -17,6 +17,7 @@ from brace_portfolio_data import (
     ENGINE_DATA_ROOT,
     YFinanceProvider,
     assert_baseline_unchanged,
+    baseline_invariants,
     canonical_sha256,
     data_freshness_report,
     read_json,
@@ -51,6 +52,32 @@ def _methodology(registry: Mapping[str, Any], methodology_id: Any) -> Dict[str, 
         if item.get("methodology_id") == methodology_id:
             return dict(item)
     return {}
+
+
+def _record_baseline_validation(
+    registry: Dict[str, Any],
+    baseline: Mapping[str, Any],
+    validated_at: datetime,
+) -> None:
+    metadata = source_metadata()
+    for item in registry.get("methodologies", []) or []:
+        if item.get("methodology_id") != "portfolio-10k-baseline":
+            continue
+        results = dict(item.get("validation_results") or {})
+        results.update(
+            {
+                "status": "production_baseline",
+                "history_preserved": True,
+                "entry_history_sha256": canonical_sha256(
+                    baseline_invariants(baseline)
+                ),
+                "source_snapshot_sha256": metadata["baseline_portfolio_sha256"],
+                "validated_at": validated_at.isoformat(timespec="seconds"),
+            }
+        )
+        item["validation_results"] = results
+        return
+    raise ValueError("Baseline methodology is missing from the registry")
 
 
 def _universe_by_id(universe: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -138,6 +165,59 @@ def _fetch_market(
         "source_metadata": {"provider": type(provider).__name__},
         "instruments": instruments,
     }
+    payload["content_sha256"] = canonical_sha256(payload)
+    return payload
+
+
+def _merge_market_refresh(
+    fresh: Mapping[str, Any],
+    cached: Mapping[str, Any],
+    *,
+    minimum_history_rows: int = 60,
+) -> Dict[str, Any]:
+    fresh_instruments = fresh.get("instruments") or {}
+    cached_instruments = cached.get("instruments") or {}
+    merged: Dict[str, Any] = {}
+    refreshed = 0
+    preserved = 0
+
+    for instrument_id in sorted(set(fresh_instruments) | set(cached_instruments)):
+        fresh_item = dict(fresh_instruments.get(instrument_id) or {})
+        cached_item = dict(cached_instruments.get(instrument_id) or {})
+        if len(fresh_item.get("history") or []) >= minimum_history_rows:
+            merged[instrument_id] = fresh_item
+            refreshed += 1
+            continue
+        if len(cached_item.get("history") or []) >= minimum_history_rows:
+            errors = list(fresh_item.get("errors") or [])
+            errors.append("NETWORK_REFRESH_INCOMPLETE_USING_LAST_GOOD_CACHE")
+            cached_item["errors"] = sorted(set(errors))
+            merged[instrument_id] = cached_item
+            preserved += 1
+            continue
+        merged[instrument_id] = fresh_item or cached_item
+
+    usable = sum(
+        len((item or {}).get("history") or []) >= minimum_history_rows
+        for item in merged.values()
+    )
+    if usable == 0:
+        raise ValueError(
+            "Market refresh returned no usable histories and no last-good cache exists"
+        )
+
+    payload = {
+        **dict(fresh),
+        "data_freshness": "current" if preserved == 0 else "partial_last_good_fallback",
+        "source_metadata": {
+            **dict(fresh.get("source_metadata") or {}),
+            "refreshed_instruments": refreshed,
+            "preserved_from_last_good_cache": preserved,
+            "usable_instruments": usable,
+        },
+        "instruments": merged,
+    }
+    payload.pop("content_sha256", None)
     payload["content_sha256"] = canonical_sha256(payload)
     return payload
 
@@ -426,7 +506,8 @@ def run_cycle(
 
     if mode in {"daily", "weekly", "research"}:
         if provider is not None:
-            market = _fetch_market(_universe_by_id(universe), provider, now)
+            fresh_market = _fetch_market(_universe_by_id(universe), provider, now)
+            market = _merge_market_refresh(fresh_market, market)
             write_json_atomic(MARKET_CACHE_PATH, market)
         if not market.get("instruments"):
             raise ValueError("Market cache is empty; a data provider is required")
@@ -497,6 +578,7 @@ def run_cycle(
             write_json_atomic(VALIDATION_PATH, validation)
 
     assert_baseline_unchanged(baseline_copy, read_json(BASELINE_PORTFOLIO_PATH))
+    _record_baseline_validation(registry, baseline_before, now)
     operational = _operational_state(freshness, True, now)
     write_json_atomic(OPERATIONAL_PATH, operational)
     validation = read_json(VALIDATION_PATH)

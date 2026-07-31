@@ -18,7 +18,7 @@
     target: 'Cel 10% rocznie',
     remaining: 'Pozostałe bramki',
     candidates: 'Najwyżej ocenieni kandydaci',
-    pending: 'Decyzje oczekujące',
+    pending: 'Decyzje shadow',
     history: 'Historia kontroli',
     noCandidates: 'Lista kandydatów pojawi się po pełnym cyklu analizy.',
     noDecisions: 'Brak rotacji spełniającej wszystkie warunki.',
@@ -45,7 +45,7 @@
     target: '10% annual target',
     remaining: 'Remaining gates',
     candidates: 'Top-ranked candidates',
-    pending: 'Pending decisions',
+    pending: 'Shadow decisions',
     history: 'Control history',
     noCandidates: 'Candidates will appear after the full analysis cycle.',
     noDecisions: 'No rotation currently passes every gate.',
@@ -89,6 +89,20 @@
     };
     return labels[value] || human(value);
   };
+  const gateLabel = value => {
+    if (lang !== 'pl') return human(value);
+    const labels = {
+      out_of_sample_beats_baseline: 'wynik poza próbą lepszy od baseline',
+      parameter_neighborhood_stable: 'stabilne sąsiedztwo parametrów',
+      expected_shortfall_within_limit: 'expected shortfall w limicie',
+      minimum_calendar_days: 'minimalny okres kalendarzowy shadow',
+      minimum_decisions: 'minimalna liczba decyzji shadow',
+      minimum_completed_trades: 'minimalna liczba zakończonych transakcji paper',
+      risk_adjusted_advantage: 'przewaga po uwzględnieniu ryzyka',
+      confidence_interval_positive: 'dodatni przedział ufności przewagi'
+    };
+    return labels[value] || human(value);
+  };
   const tone = status => {
     if (/FALLBACK|SAFE|DEGRADED|SUSPENDED/.test(status)) return 'danger';
     if (/ACTIVE_PAPER|PROBATIONARY/.test(status)) return 'active';
@@ -99,7 +113,10 @@
 
   function candidateRows(items) {
     if (!items?.length) return `<p class="brace-empty">${esc(T.noCandidates)}</p>`;
-    return `<div class="control-list">${items.slice(0, 5).map(item => `
+    const ranked = [...items].sort(
+      (left, right) => (num(right.final_score) ?? -Infinity) - (num(left.final_score) ?? -Infinity)
+    );
+    return `<div class="control-list">${ranked.slice(0, 5).map(item => `
       <article>
         <div><b>${esc(item.broker_symbol || item.instrument_id)}</b><span>${esc(item.label || '')}</span></div>
         <strong>${num(item.final_score) === null ? '—' : `${num(item.final_score).toFixed(1)}/100`}</strong>
@@ -151,7 +168,7 @@
       </section>
       ${data.fallback_reason ? `<div class="control-alert"><b>${esc(T.fallback)}</b><span>${esc(data.fallback_reason)}</span></div>` : ''}
       <div class="control-columns">
-        <section><h3>${esc(T.remaining)}</h3>${remaining.length ? `<ul>${remaining.map(item => `<li>${esc(human(item))}</li>`).join('')}</ul>` : '<p>—</p>'}</section>
+        <section><h3>${esc(T.remaining)}</h3>${remaining.length ? `<ul>${remaining.map(item => `<li>${esc(gateLabel(item))}</li>`).join('')}</ul>` : '<p>—</p>'}</section>
         <section><h3>${esc(T.candidates)}</h3>${candidateRows(data.candidates)}</section>
         <section><h3>${esc(T.pending)}</h3>${decisionRows(data.pending_decisions)}</section>
       </div>
