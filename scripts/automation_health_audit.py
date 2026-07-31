@@ -219,6 +219,16 @@ def latest_success(runs: list[dict[str, Any]]) -> dict[str, Any] | None:
     return latest_run([run for run in runs if run.get("conclusion") == "success"])
 
 
+def health_relevant_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        run
+        for run in runs
+        if not (
+            run.get("event") == "issues" and run.get("conclusion") == "skipped"
+        )
+    ]
+
+
 def build_domain_status(
     domain: Domain,
     runs: list[dict[str, Any]],
@@ -230,8 +240,9 @@ def build_domain_status(
     freshness_exempt_reason: str | None = None,
 ) -> dict[str, Any]:
     previous = previous or {}
-    current = latest_run(runs)
-    success = latest_success(runs)
+    relevant_runs = health_relevant_runs(runs)
+    current = latest_run(relevant_runs)
+    success = latest_success(relevant_runs)
     threshold = effective_stale_minutes(domain, now)
     age = None
     if data_updated_at is not None:
@@ -360,8 +371,9 @@ def component_status(
     api_error: str | None,
 ) -> dict[str, Any]:
     previous = previous or {}
-    current = latest_run(runs)
-    success = latest_success(runs)
+    relevant_runs = health_relevant_runs(runs)
+    current = latest_run(relevant_runs)
+    success = latest_success(relevant_runs)
     state = current.get("status") if current else previous.get("run_state")
     conclusion = current.get("conclusion") if current else previous.get("run_conclusion")
     status = "healthy"
