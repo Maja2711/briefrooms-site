@@ -57,7 +57,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     env:
       STAGE_DIR: /tmp/briefrooms-publication/${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -84,7 +84,8 @@ jobs:
             scripts/news_section_reserve.py \
             scripts/news_publication_diagnostics.py \
             scripts/verify_news_production.py \
-            scripts/content_update_watchdog.py
+            scripts/content_update_watchdog.py \
+            scripts/comment_quality.py
           python -m unittest \
             tests.test_publish_news \
             tests.test_news_story_dedupe \
@@ -98,44 +99,28 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
           GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODELS_ENDPOINT: https://models.github.ai/inference/chat/completions?api-version=2026-03-10
+          GITHUB_MODELS_ENDPOINT: https://models.github.ai/inference/chat/completions
+          GITHUB_MODELS_API_VERSION: "2026-03-10"
           GITHUB_MODELS_MODEL: openai/gpt-4o-mini
           GITHUB_MODELS_REVIEW_MODEL: openai/gpt-4.1-mini
           GITHUB_MODELS_FALLBACK_MODEL: mistral-ai/mistral-medium-2505
           GITHUB_MODELS_FALLBACK_REVIEW_MODEL: cohere/cohere-command-a
-          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "12"
+          GITHUB_MODELS_MIN_INTERVAL_SECONDS: "2"
         shell: bash
         run: |
           set -euo pipefail
-          ready=false
-          for attempt in 1 2 3; do
-            git fetch origin main
+          git fetch origin main
+          git merge --ff-only origin/main
+          python scripts/publish_news.py \
+            --prepare \
+            --stage-dir "${STAGE_DIR}" \
+            --run-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git fetch origin main
+          if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
             git merge --ff-only origin/main
-            if python scripts/publish_news.py \
-              --prepare \
-              --stage-dir "${STAGE_DIR}" \
-              --run-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; then
-              git fetch origin main
-              if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
-                git merge --ff-only origin/main
-                if ! python scripts/publish_news.py \
-                  --refresh-plan \
-                  --stage-dir "${STAGE_DIR}"; then
-                  echo "::warning::News inputs changed during preparation; rebuilding from the new main."
-                  sleep $((attempt * 30))
-                  continue
-                fi
-              fi
-              ready=true
-              break
-            else
-              echo "::warning::Publication attempt ${attempt}/3 failed; last-good production remains untouched."
-            fi
-            sleep $((attempt * 30))
-          done
-          if [[ "${ready}" != "true" ]]; then
-            echo "::error::Could not prepare a current, complete PL+EN publication after 3 attempts."
-            exit 1
+            python scripts/publish_news.py \
+              --refresh-plan \
+              --stage-dir "${STAGE_DIR}"
           fi
 
       - name: Promote the validated publication
@@ -173,29 +158,20 @@ jobs:
           fi
           git commit -m "chore(news): publish PL and EN atomically"
 
-          pushed=false
           for push_attempt in 1 2 3; do
             git fetch origin main
             if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              echo "::notice::main advanced during publication; rebasing the atomic news commit."
               git rebase origin/main
             fi
-
             if git push origin HEAD:main; then
-              pushed=true
               break
             fi
-
-            if [[ "${push_attempt}" != "3" ]]; then
-              echo "::warning::Push attempt ${push_attempt}/3 failed; retrying from current main."
-              sleep $((push_attempt * 15))
+            if [[ "${push_attempt}" == "3" ]]; then
+              echo "::error::Could not publish news after 3 push attempts."
+              exit 1
             fi
+            sleep $((push_attempt * 10))
           done
-
-          if [[ "${pushed}" != "true" ]]; then
-            echo "::error::Could not publish news after 3 push attempts."
-            exit 1
-          fi
 
           published_sha="$(git rev-parse HEAD)"
           publication_id="$(python -c "import json; print(json.load(open('data/news_publication_status.json', encoding='utf-8'))['publication_id'])")"
@@ -210,7 +186,7 @@ jobs:
             --publication-id "${{ steps.commit.outputs.publication_id }}" \
             --expected-sha "${{ steps.commit.outputs.published_sha }}" \
             --base-url https://briefrooms.com \
-            --attempts 64 \
+            --attempts 40 \
             --interval 15 \
             --timeout 20 \
             --output "${STAGE_DIR}/diagnostics/production-verification.json"
