@@ -39,7 +39,8 @@ jobs:
           python -m py_compile \
             scripts/brace_spx_architecture_v2.py \
             scripts/brace_spx_architecture_v2_shadow.py \
-            scripts/publish_brace_spx_architecture_v2_public.py
+            scripts/publish_brace_spx_architecture_v2_public.py \
+            scripts/enrich_brace_spx_public_economics.py
           python - <<'PY'
           import sys
           sys.path.insert(0, 'scripts')
@@ -67,7 +68,11 @@ jobs:
           PY
 
       - name: Build sanitized public snapshot
-        run: python scripts/publish_brace_spx_architecture_v2_public.py
+        run: |
+          python scripts/publish_brace_spx_architecture_v2_public.py
+          python scripts/enrich_brace_spx_public_economics.py \
+            --public data/public/brace_spx_public.json \
+            --economics data/research/brace_spx_architecture_v2_economics.json
 
       - name: Validate sanitized public snapshot
         run: |
@@ -81,8 +86,16 @@ jobs:
           assert payload['sealed_holdout']['accessed'] is False
           assert payload['shadow']['live_orders'] is False
           assert payload['shadow']['autonomous_trading'] is False
+          assert payload['mandate']['short_allowed'] is False
+          assert payload['mandate']['leverage_allowed'] is False
+          assert payload['mandate']['orders_allowed'] is False
+          assert payload['cost_model']['metrics_are_net_of_costs'] is True
+          assert payload['public_boundary']['daily_paths_exposed'] is False
+          assert payload['public_boundary']['candidate_identity_exposed'] is False
+          assert 'edge_confirmed' in payload['comparison_assessment']
           assert 'candidate_snapshots' not in payload
           assert 'experiments' not in payload
+          assert 'candidate_id' not in json.dumps(payload)
           PY
 
       - name: Stage public snapshot for main
