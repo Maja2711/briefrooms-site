@@ -9,7 +9,10 @@ on:
       - main
     paths:
       - "scripts/install_brace_spx_public_panel.py"
+      - "scripts/install_brace_spx_architecture3_panel.py"
       - "scripts/brace-spx-generation3-card.js"
+      - "scripts/brace-spx-architecture3-public.js"
+      - "data/public/brace_spx_architecture_v3_public.json"
       - "pl/inwestycje/brace-spx-lab.html"
       - "en/investing/brace-spx-lab.html"
       - ".github/workflows/brace-spx-public-panel.yml"
@@ -38,27 +41,40 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install tabs and Generation 3 blocks
-        run: python scripts/install_brace_spx_public_panel.py
+      - name: Install public BRACE-SPX integrations
+        run: |
+          python scripts/install_brace_spx_public_panel.py
+          python scripts/install_brace_spx_architecture3_panel.py
 
       - name: Validate public integration
         run: |
-          python -m py_compile scripts/publish_brace_spx_public.py scripts/install_brace_spx_public_panel.py
+          python -m py_compile \
+            scripts/publish_brace_spx_public.py \
+            scripts/install_brace_spx_public_panel.py \
+            scripts/install_brace_spx_architecture3_panel.py
           python -m unittest -v tests/test_brace_spx_public_boundary.py
           python scripts/install_brace_spx_public_panel.py --check
+          python scripts/install_brace_spx_architecture3_panel.py --check
           test -f scripts/brace-spx-generation3-card.js
+          test -f scripts/brace-spx-architecture3-public.js
+          test -f data/public/brace_spx_architecture_v3_public.json
 
-      - name: Persist generated scenario blocks
+      - name: Persist generated public integrations
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pl/inwestycje/spx-scenariusze-2026.html en/investing/spx-scenarios-2026.html sitemap.xml
+          git add \
+            pl/inwestycje/spx-scenariusze-2026.html \
+            en/investing/spx-scenarios-2026.html \
+            pl/inwestycje/brace-spx-lab.html \
+            en/investing/brace-spx-lab.html \
+            sitemap.xml
           if git diff --cached --quiet; then
-            echo "BRACE-SPX Generation 3 blocks are already current."
+            echo "BRACE-SPX public integrations are already current."
             exit 0
           fi
-          git commit -m "Show BRACE-SPX Generation 3 on S&P scenario pages"
+          git commit -m "Refresh BRACE-SPX public integrations"
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 15))
