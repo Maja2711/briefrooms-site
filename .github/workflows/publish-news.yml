@@ -24,6 +24,7 @@ on:
       - "scripts/news_*.py"
       - "scripts/newsroom_*.py"
       - "scripts/comment_quality.py"
+      - "scripts/sitecustomize.py"
       - "scripts/check_ai_provider.py"
       - "scripts/read_and_summarize_articles.py"
       - "scripts/protect_home_feed.py"
@@ -62,6 +63,7 @@ jobs:
     timeout-minutes: 45
     env:
       STAGE_DIR: /tmp/briefrooms-publication/${{ github.run_id }}-${{ github.run_attempt }}
+      PYTHONPATH: scripts
     steps:
       - name: Check out current main
         uses: actions/checkout@v4
@@ -88,6 +90,7 @@ jobs:
             scripts/verify_news_production.py \
             scripts/content_update_watchdog.py \
             scripts/comment_quality.py \
+            scripts/sitecustomize.py \
             scripts/check_ai_provider.py
           python -m unittest \
             tests.test_ai_provider_preflight \
@@ -100,15 +103,21 @@ jobs:
             tests.test_external_media_policy \
             tests.test_validate_news_home_publish -v
 
-      - name: Check AI provider or enter approved-cache-only mode
+      - name: Check Gemini provider before publication
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+          GEMINI_REVIEW_MODEL: gemini-3.5-flash
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
           NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
-        run: python scripts/check_ai_provider.py --allow-approved-cache
+        run: python scripts/check_ai_provider.py
 
       - name: Prepare one isolated PL and EN publication
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+          GEMINI_REVIEW_MODEL: gemini-3.5-flash
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
           NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
