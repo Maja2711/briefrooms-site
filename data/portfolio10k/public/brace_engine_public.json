@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-31T20:05:42+00:00",
+  "generated_at": "2026-07-31T21:41:40+00:00",
   "methodology_version": "3.0.0",
-  "data_freshness": "current",
+  "data_freshness": "unsafe",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "paper_only": true,
@@ -27,9 +27,9 @@
     "status": "SHADOW"
   },
   "promotion_progress": {
-    "passed": 26,
+    "passed": 24,
     "total": 34,
-    "percentage": 76.5,
+    "percentage": 70.6,
     "conditions": [
       {
         "group": "historical",
@@ -169,7 +169,7 @@
       {
         "group": "operational",
         "condition": "no_critical_data_errors",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -184,7 +184,7 @@
       {
         "group": "operational",
         "condition": "timestamps_complete",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -210,7 +210,9 @@
       "minimum_decisions",
       "minimum_completed_trades",
       "risk_adjusted_advantage",
-      "confidence_interval_positive"
+      "confidence_interval_positive",
+      "no_critical_data_errors",
+      "timestamps_complete"
     ],
     "reason": "No status change; promotion gates remain incomplete."
   },
@@ -228,8 +230,11 @@
     "expected_drawdown": 0.136233,
     "current_drawdown": null,
     "annual_turnover": 0.658177,
-    "safe_mode": false,
-    "safe_mode_reasons": []
+    "safe_mode": true,
+    "safe_mode_reasons": [
+      "STALE_MARKET_DATA",
+      "TOO_MANY_INVALID_INSTRUMENTS"
+    ]
   },
   "target": {
     "target_annual_return": 0.1,
@@ -333,5 +338,5 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "8fae1bc77e9ac11a7bbbd71b8c10d166f8a265bbe0d122364b49e2ec6e265d3f"
+  "content_sha256": "f723d354b0edff0b4ebf4b583fd3a3c378f33cedf5d223a8e389ed3afff6db29"
 }
