@@ -47,6 +47,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         for owner in actual:
             self.assertIn("group: portfolio-market-data", sources[owner])
             self.assertIn("cancel-in-progress: false", sources[owner])
+            self.assertIn("ref: main", sources[owner])
 
     def test_domain_queues_are_isolated(self) -> None:
         sources = workflow_sources()
