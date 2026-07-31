@@ -2,6 +2,10 @@ name: BRACE-SPX Generation 5
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-spx-generation5-engine.yml"
   issues:
     types: [opened]
 
@@ -23,6 +27,19 @@ jobs:
         with:
           ref: brace-spx-research
           fetch-depth: 0
+
+      - name: Persist verifiable start marker
+        run: |
+          mkdir -p data/research
+          printf '{\n  "status": "started",\n  "generation_id": "spx-state-geometry-v5",\n  "run_id": "%s",\n  "started_at": "%s"\n}\n' \
+            "${{ github.run_id }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > data/research/brace_spx_generation5_started.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/research/brace_spx_generation5_started.json
+          git commit -m "Mark BRACE-SPX Generation 5 run started"
+          git pull --rebase origin brace-spx-research
+          git push origin HEAD:brace-spx-research
 
       - name: Check whether Generation 5 remains open
         id: precheck
