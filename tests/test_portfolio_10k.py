@@ -61,3 +61,10 @@ def test_snapshot_upsert_preserves_other_dates():
     MODULE.upsert_snapshot(data, {"total_value_pln": 10200}, "2026-07-17")
     assert len(data["snapshots"]) == 2
     assert data["snapshots"][-1]["total_value_pln"] == 10200
+
+
+def test_calendar_date_ignores_nat_from_missing_fundamentals():
+    ticker = types.SimpleNamespace(
+        calendar={"Earnings Date": [pd.NaT, pd.Timestamp("2099-01-15")]}
+    )
+    assert MODULE.calendar_date(ticker) == "2099-01-15"

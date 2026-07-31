@@ -106,7 +106,10 @@ def calendar_date(ticker: yf.Ticker) -> Optional[str]:
         values = raw if isinstance(raw, (list, tuple)) else [raw]
         for value in values:
             try:
-                candidates.append(pd.Timestamp(value).to_pydatetime())
+                timestamp = pd.Timestamp(value)
+                if pd.isna(timestamp):
+                    continue
+                candidates.append(timestamp.to_pydatetime())
             except Exception:
                 pass
     elif isinstance(cal, pd.DataFrame) and not cal.empty:
@@ -114,7 +117,10 @@ def calendar_date(ticker: yf.Ticker) -> Optional[str]:
             if key in cal.index:
                 for value in cal.loc[key].tolist():
                     try:
-                        candidates.append(pd.Timestamp(value).to_pydatetime())
+                        timestamp = pd.Timestamp(value)
+                        if pd.isna(timestamp):
+                            continue
+                        candidates.append(timestamp.to_pydatetime())
                     except Exception:
                         pass
     today = now_local().date()
