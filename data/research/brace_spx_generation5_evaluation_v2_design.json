@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "generation_id": "spx-state-geometry-v5",
+  "evaluation_protocol_version": 2,
+  "status": "predeclared",
+  "candidate_universe_policy": {
+    "candidate_count": 12,
+    "candidate_ids_unchanged": true,
+    "candidate_signature_unchanged": true,
+    "parameters_unchanged": true,
+    "thresholds_unchanged": true,
+    "selection_rule_unchanged": true
+  },
+  "methodological_repairs": {
+    "defensive_sleeve_accounting": "portfolio_return = spy_weight * spy_return + (1 - spy_weight) * risk_free_return - transaction_cost",
+    "stateful_fold_warm_start": "derive state from observable pre-validation history and carry it into each validation fold",
+    "fold_boundary_turnover": "calculate applied weight and turnover on continuous pre-validation context before slicing validation results",
+    "family_level_pbo": true,
+    "rank_stability_audit": true,
+    "selection_regret_audit": true,
+    "moving_block_bootstrap": {
+      "enabled": true,
+      "block_months": 6,
+      "draws": 1000,
+      "seed": 78291
+    }
+  },
+  "immutable_boundaries": {
+    "development_end": "2022-07-31",
+    "holdout_start": "2022-08-31",
+    "holdout_end": "2026-07-31",
+    "holdout_months": 48,
+    "holdout_access_allowed": false,
+    "generation5_v1_evidence_must_be_preserved": true
+  },
+  "gate_policy": {
+    "reuse_generation5_v1_thresholds_without_relaxation": true,
+    "new_diagnostics_are_explanatory_not_post_hoc_promotion_overrides": true,
+    "human_approval_required_before_any_single_holdout_use": true
+  }
+}
