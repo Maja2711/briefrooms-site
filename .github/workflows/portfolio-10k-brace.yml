@@ -1,26 +1,28 @@
-name: Review BRACE Challenger
+name: BRACE Portfolio Research and Promotion
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "BRACE run mode"
+        description: "Research depth"
         required: true
-        default: "full"
+        default: "weekly"
         type: choice
         options:
-          - review
-          - backtest
-          - full
+          - weekly
+          - monthly-deep
+          - promotion-only
   schedule:
-    # Runs after the baseline Sunday portfolio review.
-    - cron: "40 7 * * 0"
+    - cron: "40 8 * * 0"
+    - cron: "15 10 1 * *"
   pull_request:
     branches: [main]
     paths:
-      - "scripts/portfolio_10k_brace*.py"
-      - "scripts/portfolio-10k-brace-public.js"
-      - "tests/test_portfolio_10k_brace*.py"
+      - "scripts/brace_portfolio_*.py"
+      - "scripts/portfolio-10k-control-public.js"
+      - "tests/test_brace_portfolio_engine.py"
+      - "data/portfolio10k/config.json"
+      - "data/portfolio10k/universe.json"
       - "assets/portfolio-10k.css"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
@@ -28,9 +30,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/portfolio_10k_brace*.py"
-      - "scripts/portfolio-10k-brace-public.js"
-      - "tests/test_portfolio_10k_brace*.py"
+      - "scripts/brace_portfolio_*.py"
+      - "scripts/portfolio-10k-control-public.js"
+      - "tests/test_brace_portfolio_engine.py"
+      - "data/portfolio10k/config.json"
+      - "data/portfolio10k/universe.json"
       - "assets/portfolio-10k.css"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
@@ -40,60 +44,78 @@ permissions:
   contents: write
 
 concurrency:
-  group: portfolio-10k-brace-${{ github.ref }}
+  group: portfolio-10k-automation
   cancel-in-progress: false
 
 jobs:
-  validate-and-review:
+  validate-research-promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip yfinance pandas numpy pytest
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip yfinance pandas pytest
 
-      - name: Validate BRACE and existing portfolio tests
-        run: python -m pytest -q tests/test_portfolio_10k*.py
+      - name: Compile deterministic engine
+        run: python -m compileall -q scripts
 
-      - name: Compile BRACE Python modules
-        run: python -m py_compile scripts/portfolio_10k_brace*.py
+      - name: Validate engine, promotion and public controls
+        run: python -m pytest -q tests/test_brace_portfolio_engine.py
 
       - name: Validate public JavaScript
-        run: node --check scripts/portfolio-10k-brace-public.js
+        run: node --check scripts/portfolio-10k-public.js && node --check scripts/portfolio-10k-control-public.js
 
-      - name: Build live BRACE challenger snapshot
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'review' || inputs.mode == 'full'))
-        run: python scripts/portfolio_10k_brace.py
+      - name: Build weekly shadow decisions
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: python scripts/brace_portfolio_engine.py --mode weekly --network
 
-      - name: Apply immutable memory and adaptive evidence learning
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'review' || inputs.mode == 'full'))
-        run: python scripts/portfolio_10k_brace_learning_runtime.py
+      - name: Run walk-forward and robustness research
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: python scripts/brace_portfolio_engine.py --mode research
 
-      - name: Run no-lookahead BRACE-Lite backtest
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
-        run: python scripts/portfolio_10k_brace_backtest.py
+      - name: Re-evaluate deterministic promotion gates
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'promotion-only'
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: python scripts/brace_portfolio_engine.py --mode monitor
 
-      - name: Apply champion-challenger promotion gate
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'backtest' || inputs.mode == 'full'))
-        run: python scripts/portfolio_10k_brace_promotion.py
-
-      - name: Commit transparent BRACE outputs
+      - name: Commit validated BRACE state
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/portfolio_10k_brace.json data/investments/portfolio_10k_brace_backtest.json data/investments/portfolio_10k_brace_memory.json
+          git add data/portfolio10k
           if git diff --cached --quiet; then
-            echo "No BRACE data changes to commit."
-          else
-            git commit -m "Update BRACE learning review"
-            git pull --rebase origin main
-            git push
+            echo "No BRACE research changes to commit."
+            exit 0
           fi
+          git commit -m "Update BRACE governed research"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Upload diagnostics after failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-research-diagnostics
+          path: data/portfolio10k
+          retention-days: 30

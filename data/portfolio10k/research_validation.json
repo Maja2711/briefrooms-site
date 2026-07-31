@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-29T13:04:12+00:00",
+  "methodology_version": "brace-portfolio-v3.0.0",
+  "data_freshness": "historical_point_in_time",
+  "source_metadata": {
+    "engine": "brace_portfolio_backtest.py",
+    "manifest_sha256": "83c1fe19675a790d61f205ffc4540008287f39f564b35a2a18e47bb7ad642374"
+  },
+  "validation_window": {
+    "training": {
+      "from": "2017-04-21",
+      "to": "2022-11-04"
+    },
+    "validation": {
+      "from": "2022-11-07",
+      "to": "2024-09-09"
+    },
+    "out_of_sample": {
+      "from": "2024-09-10",
+      "to": "2026-07-27"
+    }
+  },
+  "manifest": {
+    "dates": [
+      "2017-04-21",
+      "2022-11-07",
+      "2024-09-10",
+      "2026-07-27"
+    ],
+    "symbols": [
+      "amzn",
+      "cost",
+      "googl",
+      "jpm",
+      "lly",
+      "msft",
+      "novo",
+      "sap",
+      "spgi",
+      "spyy",
+      "sxr0",
+      "sxr8",
+      "sxrz",
+      "tsm",
+      "visa",
+      "zprv"
+    ],
+    "baseline_weights": {
+      "amzn": 0.142248,
+      "fwia": 0.253803,
+      "googl": 0.147545,
+      "novo": 0.051652,
+      "spgi": 0.076781,
+      "tsm": 0.119219,
+      "visa": 0.104764,
+      "zprv": 0.103988
+    },
+    "momentum_window": 126,
+    "transaction_cost_bps": 20.0,
+    "fx_cost_bps": 15.0,
+    "signal_delay_sessions": 1
+  },
+  "models": {
+    "brace": {
+      "total_return": 0.30553168,
+      "cagr": 0.1621873,
+      "annualized_volatility": 0.15720431,
+      "sharpe": 0.87609378,
+      "sortino": 1.26338457,
+      "maximum_drawdown": -0.20225425,
+      "calmar": 0.8018981,
+      "annual_turnover": 0.9419133,
+      "hit_rate": 0.5458613,
+      "average_gain": 0.00731424,
+      "average_loss": -0.00736961,
+      "expected_shortfall": -0.35082784,
+      "downside_volatility": 0.1090133,
+      "trades": 42,
+      "observations": 447
+    },
+    "baseline": {
+      "total_return": 0.53673628,
+      "cagr": 0.27408072,
+      "annualized_volatility": 0.19529178,
+      "sharpe": 1.21056258,
+      "sortino": 1.79910572,
+      "maximum_drawdown": -0.2421846,
+      "calmar": 1.13170171,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.53914989,
+      "average_gain": 0.00942569,
+      "average_loss": -0.00877619,
+      "expected_shortfall": -0.42905654,
+      "downside_volatility": 0.1314058,
+      "trades": 0,
+      "observations": 447
+    }
+  },
+  "relative": {
+    "oos_excess_vs_baseline": -0.11189342,
+    "information_ratio": -1.05245533,
+    "excess_return_ci_low": -0.24756444,
+    "excess_return_ci_high": 0.0260455
+  },
+  "regimes": {
+    "up_market": {
+      "total_return": 3.86721391,
+      "cagr": 4.23178731,
+      "annualized_volatility": 0.11221692,
+      "sharpe": 14.84993956,
+      "sortino": 84.19358269,
+      "maximum_drawdown": -0.00995031,
+      "calmar": 425.29213205,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.87966805,
+      "average_gain": 0.00790169,
+      "average_loss": -0.00280979,
+      "expected_shortfall": -0.0723684,
+      "downside_volatility": 0.01979265,
+      "trades": 0,
+      "observations": 241
+    },
+    "down_market": {
+      "total_return": -0.73177023,
+      "cagr": -0.80006352,
+      "annualized_volatility": 0.12694725,
+      "sharpe": -12.57564974,
+      "sortino": -10.03109013,
+      "maximum_drawdown": -0.73177023,
+      "calmar": -1.09332615,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.15533981,
+      "average_gain": 0.00342243,
+      "average_loss": -0.00812958,
+      "expected_shortfall": -0.42837791,
+      "downside_volatility": 0.15914961,
+      "trades": 0,
+      "observations": 206
+    }
+  },
+  "sensitivity": {
+    "105": 0.14971115,
+    "126": 0.1621873,
+    "147": 0.19927721
+  },
+  "oos_return_after_costs": 0.1621873,
+  "oos_excess_vs_baseline": -0.11189342,
+  "no_lookahead_audit": true,
+  "costs_and_fx_included": true,
+  "regime_stability": true,
+  "observations": 447,
+  "parameter_neighborhood_stable": false,
+  "not_single_instrument_dependent": true,
+  "reproducible_run": true,
+  "full_manifest": true,
+  "maximum_drawdown": -0.20225425,
+  "baseline_maximum_drawdown": -0.2421846,
+  "drawdown_disadvantage": 0.0,
+  "concentration_within_limits": true,
+  "no_leverage": true,
+  "no_short_sales": true,
+  "no_cfds": true,
+  "annual_turnover": 0.9419133,
+  "expected_shortfall": -0.35082784,
+  "downside_volatility": 0.1090133
+}
