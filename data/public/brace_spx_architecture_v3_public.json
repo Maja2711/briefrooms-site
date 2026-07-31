@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0.0",
+  "model": "BRACE-SPX Lab",
+  "architecture": {
+    "id": "spx-directional-lsf-a3",
+    "version": "A3",
+    "labels": {
+      "pl": "Architecture 3 — kierunkowy mandat Long / Short / Flat",
+      "en": "Architecture 3 — directional Long / Short / Flat mandate"
+    }
+  },
+  "status": "development_gate_not_passed_holdout_still_sealed",
+  "status_labels": {
+    "pl": "Bramka rozwojowa niezaliczona — brak championa",
+    "en": "Development gate not passed — no champion"
+  },
+  "generated_at": "2026-07-31T23:12:06+00:00",
+  "research_only": true,
+  "live_activation": false,
+  "single_champion_authorized": false,
+  "mandate": {
+    "position_set": "long_short_flat",
+    "long_allowed": true,
+    "short_allowed": true,
+    "flat_allowed": true,
+    "leverage_allowed": false,
+    "max_abs_exposure": 1.0,
+    "orders_allowed": false,
+    "fully_collateralized_short": true
+  },
+  "cost_model": {
+    "transaction_cost_bps_per_unit_turnover": 5.0,
+    "annual_short_borrow_cost": 0.01
+  },
+  "progress": {
+    "experiments_completed": 12,
+    "candidate_space_size": 12,
+    "global_trial_count": 656
+  },
+  "development": {
+    "start": "2007-04-04",
+    "end": "2022-07-29",
+    "days": 3858,
+    "folds": 6,
+    "frequency": "daily signals; weekly scheduled rebalance; daily crisis gate"
+  },
+  "diagnostic_leader": {
+    "authorized_as_champion": false,
+    "metrics": {
+      "cagr": 0.025451,
+      "annualized_volatility": 0.047394,
+      "sharpe_excess": 0.40477,
+      "max_drawdown": -0.105416,
+      "calmar": 0.241433,
+      "annualized_turnover": 3.484759,
+      "average_net_exposure": 0.095205,
+      "average_gross_exposure": 0.123561,
+      "time_long": 0.241058,
+      "time_short": 0.039399,
+      "time_flat": 0.719544,
+      "days": 3858
+    },
+    "directional_diagnostics": {
+      "long_excess_contribution_annualized": 0.01869,
+      "short_excess_contribution_annualized": 0.002238,
+      "transaction_cost_contribution_annualized": -0.001742,
+      "directional_hit_rate": 0.547135,
+      "short_hit_rate": 0.467105,
+      "long_days": 930,
+      "short_days": 152,
+      "flat_days": 2776
+    },
+    "positive_folds": 5,
+    "positive_short_folds": 1
+  },
+  "benchmarks": {
+    "buy_and_hold": {
+      "cagr": 0.092332,
+      "annualized_volatility": 0.204816,
+      "sharpe_excess": 0.499228,
+      "max_drawdown": -0.551894,
+      "calmar": 0.1673,
+      "annualized_turnover": 0.065319,
+      "average_net_exposure": 0.999741,
+      "average_gross_exposure": 0.999741,
+      "time_long": 0.999741,
+      "time_short": 0.0,
+      "time_flat": 0.000259,
+      "days": 3858
+    },
+    "trend_200d_long_flat": {
+      "cagr": 0.072946,
+      "annualized_volatility": 0.117258,
+      "sharpe_excess": 0.598944,
+      "max_drawdown": -0.206286,
+      "calmar": 0.353614,
+      "annualized_turnover": 3.265941,
+      "average_net_exposure": 0.747538,
+      "average_gross_exposure": 0.747538,
+      "time_long": 0.747538,
+      "time_short": 0.0,
+      "time_flat": 0.252462,
+      "days": 3858
+    },
+    "trend_200d_long_short": {
+      "cagr": 0.019467,
+      "annualized_volatility": 0.20489,
+      "sharpe_excess": 0.1624,
+      "max_drawdown": -0.431252,
+      "calmar": 0.045141,
+      "annualized_turnover": 6.597201,
+      "average_net_exposure": 0.49689,
+      "average_gross_exposure": 0.998186,
+      "time_long": 0.747538,
+      "time_short": 0.250648,
+      "time_flat": 0.001814,
+      "days": 3858,
+      "directional_diagnostics": {
+        "long_excess_contribution_annualized": 0.071874,
+        "short_excess_contribution_annualized": -0.0353,
+        "transaction_cost_contribution_annualized": -0.003299,
+        "directional_hit_rate": 0.528694,
+        "short_hit_rate": 0.455016,
+        "long_days": 2884,
+        "short_days": 967,
+        "flat_days": 7
+      }
+    }
+  },
+  "validation": {
+    "strict_gate_passed": false,
+    "pbo": 0.171429,
+    "global_dsr": 0.0,
+    "global_trials": 656,
+    "rank_correlation": 0.076923,
+    "unique_fold_winners": 4,
+    "bootstrap_vs_trend_long_flat": {
+      "cagr_advantage_probability": 0.058,
+      "sharpe_advantage_probability": 0.396
+    },
+    "bootstrap_vs_trend_long_short": {
+      "cagr_advantage_probability": 0.565,
+      "sharpe_advantage_probability": 0.913
+    },
+    "checks": {
+      "meaningful_short_sample": true,
+      "positive_short_contribution": true,
+      "short_hit_rate_passed": false,
+      "positive_short_folds_passed": false,
+      "independent_validation_passed": false
+    }
+  },
+  "sealed_holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "accessed": false,
+    "access_count": 0
+  },
+  "public_boundary": {
+    "candidate_identity_exposed": false,
+    "parameters_exposed": false,
+    "raw_predictions_exposed": false,
+    "daily_paths_exposed": false,
+    "full_ledger_exposed": false
+  },
+  "notes": {
+    "pl": "Architecture 3 jest oddzielnym eksperymentem Long / Short / Flat. Wartość 0% short pokazywana dla Architecture 2 dotyczy wyłącznie zamrożonego benchmarku Long / Flat.",
+    "en": "Architecture 3 is a separate Long / Short / Flat experiment. The 0% short value shown for Architecture 2 applies only to the frozen Long / Flat reference."
+  }
+}

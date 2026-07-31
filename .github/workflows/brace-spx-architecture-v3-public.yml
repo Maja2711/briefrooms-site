@@ -1,0 +1,151 @@
+name: BRACE-SPX Architecture 3 Public
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+  workflow_run:
+    workflows: ["BRACE-SPX Architecture 3"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brace-spx-architecture3-public.js"
+      - "scripts/install_brace_spx_architecture3_panel.py"
+      - "data/public/brace_spx_architecture_v3_public.json"
+      - ".github/workflows/brace-spx-architecture-v3-public.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-architecture-v3-public
+  cancel-in-progress: false
+
+jobs:
+  install-panel:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Architecture 3 renderer
+        run: python scripts/install_brace_spx_architecture3_panel.py
+
+      - name: Validate public files
+        run: |
+          python -m py_compile scripts/install_brace_spx_architecture3_panel.py
+          python scripts/install_brace_spx_architecture3_panel.py --check
+          test -f scripts/brace-spx-architecture3-public.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path('data/public/brace_spx_architecture_v3_public.json').read_text())
+          assert payload['architecture']['id']=='spx-directional-lsf-a3'
+          assert payload['mandate']['position_set']=='long_short_flat'
+          assert payload['mandate']['short_allowed'] is True
+          assert payload['mandate']['leverage_allowed'] is False
+          assert payload['mandate']['orders_allowed'] is False
+          assert payload['sealed_holdout']['accessed'] is False
+          assert payload['single_champion_authorized'] is False
+          serialized=json.dumps(payload)
+          for forbidden in ('candidate_id','candidate_signature','experiments','candidate_snapshots'):
+              assert forbidden not in serialized
+          PY
+
+      - name: Persist Lab page integration
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pl/inwestycje/brace-spx-lab.html en/investing/brace-spx-lab.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Show BRACE-SPX Architecture 3 on Lab pages'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
+
+  publish-snapshot:
+    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'issues' && startsWith(github.event.issue.title, 'BRACE-SPX Architecture 3 Public'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build sanitized Architecture 3 snapshot
+        run: |
+          python -m py_compile scripts/publish_brace_spx_architecture_v3_public.py
+          python scripts/publish_brace_spx_architecture_v3_public.py
+
+      - name: Validate public boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('data/public/brace_spx_architecture_v3_public.json')
+          payload=json.loads(path.read_text())
+          assert payload['schema_version']=='1.0.0'
+          assert payload['architecture']['id']=='spx-directional-lsf-a3'
+          assert payload['mandate']['position_set']=='long_short_flat'
+          assert payload['mandate']['short_allowed'] is True
+          assert payload['mandate']['leverage_allowed'] is False
+          assert payload['mandate']['orders_allowed'] is False
+          assert payload['sealed_holdout']['accessed'] is False
+          assert payload['single_champion_authorized'] is False
+          serialized=json.dumps(payload)
+          for forbidden in ('candidate_id','candidate_signature','experiments','candidate_snapshots'):
+              assert forbidden not in serialized
+          PY
+          cp data/public/brace_spx_architecture_v3_public.json /tmp/brace_spx_architecture_v3_public.json
+
+      - name: Persist sanitized snapshot on research branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f data/public/brace_spx_architecture_v3_public.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update BRACE-SPX Architecture 3 public snapshot'
+            for attempt in 1 2 3; do
+              if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then break; fi
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              sleep $((attempt * 15))
+            done
+          fi
+
+      - name: Publish sanitized snapshot to main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p data/public
+          cp /tmp/brace_spx_architecture_v3_public.json data/public/brace_spx_architecture_v3_public.json
+          git add data/public/brace_spx_architecture_v3_public.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Publish BRACE-SPX Architecture 3 Lab snapshot'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
