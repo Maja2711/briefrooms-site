@@ -1,9 +1,9 @@
-"""Runtime provider adapter loaded through PYTHONPATH in the news workflow.
+"""Gemini-first runtime adapter for the governed news publisher.
 
-Gemini is preferred when GEMINI_API_KEY is configured. Existing OpenAI
-support remains an optional fallback. This module deliberately patches only
-the shared AI transport used by the news publisher; validation, deduplication,
-cache integrity and atomic publication remain unchanged.
+The adapter keeps the existing validation and publication contracts intact,
+while translating the shared OpenAI-style transport into native Gemini API
+requests. Gemini Free Tier is rate-limited per project, so all generation and
+review calls share one bounded request clock.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ except Exception:
 if _quality is not None:
     _original_get_ai_runtime = _quality.get_ai_runtime
     _original_request_json_completion = _quality.request_json_completion
+    _last_gemini_request_at = 0.0
 
     def _get_ai_runtime():
         gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -37,7 +38,7 @@ if _quality is not None:
                     "GEMINI_GENERATION_MODEL", "gemini-3.5-flash-lite"
                 ).strip(),
                 review_model=os.getenv(
-                    "GEMINI_REVIEW_MODEL", "gemini-3.5-flash"
+                    "GEMINI_REVIEW_MODEL", "gemini-3.5-flash-lite"
                 ).strip(),
             )
         return _original_get_ai_runtime()
@@ -60,6 +61,47 @@ if _quality is not None:
         if system_parts:
             system_instruction = {"parts": [{"text": "\n\n".join(system_parts)}]}
         return contents, system_instruction
+
+    def _pace_gemini_requests() -> None:
+        global _last_gemini_request_at
+        try:
+            minimum_interval = max(
+                0.0,
+                float(os.getenv("GEMINI_MIN_INTERVAL_SECONDS", "7") or 7),
+            )
+        except ValueError:
+            minimum_interval = 7.0
+        elapsed = time.monotonic() - _last_gemini_request_at
+        if minimum_interval and elapsed < minimum_interval:
+            time.sleep(minimum_interval - elapsed)
+        _last_gemini_request_at = time.monotonic()
+
+    def _gemini_retry_delay(response, attempt: int) -> float:
+        headers = getattr(response, "headers", {}) or {}
+        retry_after = headers.get("Retry-After", "")
+        try:
+            return min(75.0, max(1.0, float(retry_after)))
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {}
+        details = (
+            payload.get("error", {}).get("details", [])
+            if isinstance(payload, dict)
+            else []
+        )
+        for detail in details:
+            if not isinstance(detail, dict):
+                continue
+            retry_delay = detail.get("retryDelay")
+            if isinstance(retry_delay, str):
+                match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", retry_delay.strip())
+                if match:
+                    return min(75.0, max(1.0, float(match.group(1))))
+        return 65.0 if attempt == 0 else 75.0
 
     def _request_json_completion(
         *,
@@ -91,7 +133,6 @@ if _quality is not None:
         body = {
             "contents": contents,
             "generationConfig": {
-                "temperature": temperature,
                 "maxOutputTokens": max_tokens,
                 "responseMimeType": "application/json",
             },
@@ -103,7 +144,9 @@ if _quality is not None:
         last_status = None
         for attempt in range(3):
             status = None
+            response = None
             try:
+                _pace_gemini_requests()
                 response = post(
                     url,
                     headers={
@@ -116,14 +159,11 @@ if _quality is not None:
                 )
                 status = int(getattr(response, "status_code", 200) or 200)
                 last_status = status
-                if status in _quality.TRANSIENT_HTTP_STATUSES and attempt < 2:
-                    headers = getattr(response, "headers", {})
-                    retry_after = headers.get("Retry-After", "")
-                    try:
-                        delay = max(1.0, float(retry_after))
-                    except (TypeError, ValueError):
-                        delay = float(5 * (2 ** attempt))
-                    time.sleep(min(20.0, delay))
+                if status == 429 and attempt < 2:
+                    time.sleep(_gemini_retry_delay(response, attempt))
+                    continue
+                if status in {500, 502, 503, 504} and attempt < 2:
+                    time.sleep(float(5 * (2 ** attempt)))
                     continue
                 response.raise_for_status()
                 data = response.json()
@@ -156,7 +196,7 @@ if _quality is not None:
 
         if last_status == 429:
             raise _quality.AiRateLimitError(
-                f"Gemini rate limit remained active after bounded retries: {last_error}"
+                f"Gemini project quota remained exhausted after paced retries: {last_error}"
             ) from last_error
         if last_status in _quality.PERMANENT_HTTP_STATUSES:
             raise _quality.AiPermanentError(
