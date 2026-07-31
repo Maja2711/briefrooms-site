@@ -1,9 +1,7 @@
-name: BRACE-SPX Generation 4
+name: BRACE-SPX Generation 4 Archive
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "37 * * * *"
   issues:
     types: [opened]
 
@@ -26,19 +24,26 @@ jobs:
           fetch-depth: 0
 
       - id: precheck
-        name: Check whether Generation 4 remains open
+        name: Refuse repeated completed Generation 4 research
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           path = Path('data/research/brace_spx_generation4_research.json')
-          run = True
+          should_run = True
           if path.exists():
-              try: run = int(json.loads(path.read_text()).get('experiments_remaining', 1)) > 0
-              except Exception: run = True
-          with open('/tmp/brace_v4_run', 'w') as handle: handle.write('true' if run else 'false')
+              try:
+                  should_run = int(json.loads(path.read_text()).get('experiments_remaining', 1)) > 0
+              except Exception:
+                  should_run = True
+          with open('/tmp/brace_v4_run', 'w', encoding='utf-8') as handle:
+              handle.write('true' if should_run else 'false')
           PY
           echo "should_run=$(cat /tmp/brace_v4_run)" >> "$GITHUB_OUTPUT"
+
+      - name: Explain archived state
+        if: steps.precheck.outputs.should_run != 'true'
+        run: echo "Generation 4 is complete and archived. No candidates will be repeated."
 
       - if: steps.precheck.outputs.should_run == 'true'
         uses: actions/setup-python@v5
@@ -55,7 +60,7 @@ jobs:
             scripts/brace_spx_generation4_verdict.py \
             scripts/brace_spx_generation4_pipeline.py
 
-      - name: Run complete sealed Generation 4
+      - name: Run only genuinely unseen Generation 4 candidates
         if: steps.precheck.outputs.should_run == 'true'
         run: |
           set -o pipefail
