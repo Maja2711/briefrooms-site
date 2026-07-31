@@ -32,7 +32,10 @@ class Generation5GovernanceTests(unittest.TestCase):
                 },
                 "fold_metrics": [{"sharpe_excess": 1.0 + number * 0.001} for _ in range(6)],
                 "monthly_returns": [
-                    {"date": f"{2014 + year:04d}-{month:02d}-28", "return": 0.005 + number * 0.00001 + month * 0.00002}
+                    {
+                        "date": f"{2014 + year:04d}-{month:02d}-28",
+                        "return": 0.004 + 0.0004 * ((month + number * 3) % 7) + 0.0001 * (year % 3),
+                    }
                     for year in range(9)
                     for month in range(1, 13)
                 ],
@@ -80,18 +83,43 @@ class Generation5GovernanceTests(unittest.TestCase):
         ledger = {"experiments": experiments}
         return experiments, report, manifest, ledger
 
+    def passing_audit(self):
+        selected = {
+            "candidate_id": "candidate-0",
+            "candidate_name": "candidate-0",
+            "geometry_family": "staircase",
+            "sharpe_excess": 1.20,
+            "sharpe_standard_error": 0.12,
+            "cagr": 0.12,
+            "max_drawdown": -0.10,
+            "calmar": 1.2,
+            "annualized_turnover": 2.0,
+            "positive_folds": 6,
+            "folds": 6,
+            "fold_sharpe_std": 0.20,
+            "mean_absolute_return_correlation_to_pool": 0.60,
+            "mean_absolute_exposure_correlation_to_pool": 0.60,
+            "active_exposure_buckets": 4,
+            "annualized_transition_rate": 3.0,
+            "average_exposure": 0.6,
+            "exposure_std": 0.2,
+            "stable": True,
+        }
+        return {"selection": {"selected": selected}}
+
     def test_selection_uses_geometry_evidence(self):
         experiments, report, _manifest, _ledger = self.sample()
         result = select(experiments, report)
         self.assertIsNotNone(result["selected"])
         self.assertGreaterEqual(result["selected"]["active_exposure_buckets"], 3)
+        self.assertIn("mean_absolute_exposure_correlation_to_pool", result["selected"])
         self.assertTrue(result["selection_rule"]["shared_signal_for_all_candidates"])
 
     def test_strict_gate_requires_exhaustion_and_sealed_holdout(self):
-        experiments, report, manifest, ledger = self.sample()
-        audit = {"selection": select(experiments, report)}
+        _experiments, report, manifest, ledger = self.sample()
+        audit = self.passing_audit()
         verdict = evaluate(report, audit, manifest, ledger)
-        self.assertTrue(verdict["strict_gate_passed"])
+        self.assertTrue(verdict["strict_gate_passed"], verdict["checks"])
         report["experiments_remaining"] = 1
         self.assertFalse(evaluate(report, audit, manifest, ledger)["strict_gate_passed"])
         report["experiments_remaining"] = 0
@@ -99,16 +127,16 @@ class Generation5GovernanceTests(unittest.TestCase):
         self.assertFalse(evaluate(report, audit, manifest, ledger)["strict_gate_passed"])
 
     def test_high_pbo_blocks_promotion(self):
-        experiments, report, manifest, ledger = self.sample()
-        audit = {"selection": select(experiments, report)}
+        _experiments, report, manifest, ledger = self.sample()
+        audit = self.passing_audit()
         report["multiple_testing"]["pbo"]["probability"] = 0.30
         verdict = evaluate(report, audit, manifest, ledger)
         self.assertFalse(verdict["strict_gate_passed"])
         self.assertFalse(verdict["checks"]["pbo_at_most_0_20"])
 
     def test_exposure_collapse_blocks_promotion(self):
-        experiments, report, manifest, ledger = self.sample()
-        audit = {"selection": select(experiments, report)}
+        _experiments, report, manifest, ledger = self.sample()
+        audit = self.passing_audit()
         report["geometry"]["exposure_diversity"]["largest_cluster_share"] = 0.90
         verdict = evaluate(report, audit, manifest, ledger)
         self.assertFalse(verdict["strict_gate_passed"])
