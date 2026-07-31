@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-31T13:10:54+00:00",
+  "methodology_version": "brace-portfolio-v3.0.0",
+  "data_freshness": "historical_point_in_time",
+  "source_metadata": {
+    "engine": "brace_portfolio_backtest.py",
+    "manifest_sha256": "c46fa0b89e210c52738577fd5adc419477259a0cc569025a32590781d6889c15"
+  },
+  "validation_window": {
+    "training": {
+      "from": "2017-04-21",
+      "to": "2022-11-08"
+    },
+    "validation": {
+      "from": "2022-11-09",
+      "to": "2024-09-12"
+    },
+    "out_of_sample": {
+      "from": "2024-09-13",
+      "to": "2026-07-30"
+    }
+  },
+  "manifest": {
+    "dates": [
+      "2017-04-21",
+      "2022-11-09",
+      "2024-09-13",
+      "2026-07-30"
+    ],
+    "symbols": [
+      "amzn",
+      "cost",
+      "googl",
+      "jpm",
+      "lly",
+      "msft",
+      "novo",
+      "sap",
+      "spgi",
+      "spyy",
+      "sxr0",
+      "sxr8",
+      "sxrz",
+      "tsm",
+      "visa",
+      "zprv"
+    ],
+    "baseline_weights": {
+      "amzn": 0.14509885490114507,
+      "fwia": 0.2559537440462559,
+      "googl": 0.14720785279214718,
+      "novo": 0.04749495250504749,
+      "spgi": 0.07488392511607488,
+      "tsm": 0.12230087769912229,
+      "visa": 0.10435189564810433,
+      "zprv": 0.10270789729210268
+    },
+    "momentum_window": 126,
+    "transaction_cost_bps": 20.0,
+    "fx_cost_bps": 15.0,
+    "signal_delay_sessions": 1
+  },
+  "models": {
+    "brace": {
+      "total_return": 0.26009914,
+      "cagr": 0.13887917,
+      "annualized_volatility": 0.15132342,
+      "sharpe": 0.77019989,
+      "sortino": 1.10490904,
+      "maximum_drawdown": -0.20188704,
+      "calmar": 0.68790533,
+      "annual_turnover": 0.91837155,
+      "hit_rate": 0.53348214,
+      "average_gain": 0.0071365,
+      "average_loss": -0.00695684,
+      "expected_shortfall": -0.33129557,
+      "downside_volatility": 0.10548314,
+      "trades": 42,
+      "observations": 448
+    },
+    "baseline": {
+      "total_return": 0.50817201,
+      "cagr": 0.26002342,
+      "annualized_volatility": 0.19608552,
+      "sharpe": 1.14980406,
+      "sortino": 1.70749242,
+      "maximum_drawdown": -0.24285869,
+      "calmar": 1.07067787,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.54017857,
+      "average_gain": 0.00937576,
+      "average_loss": -0.00885278,
+      "expected_shortfall": -0.43097467,
+      "downside_volatility": 0.13204154,
+      "trades": 0,
+      "observations": 448
+    }
+  },
+  "relative": {
+    "oos_excess_vs_baseline": -0.12114425,
+    "information_ratio": -1.17308239,
+    "excess_return_ci_low": -0.23642219,
+    "excess_return_ci_high": 0.02553682
+  },
+  "regimes": {
+    "up_market": {
+      "total_return": 3.61889524,
+      "cagr": 3.92037683,
+      "annualized_volatility": 0.10747418,
+      "sharpe": 14.92579654,
+      "sortino": 82.67301251,
+      "maximum_drawdown": -0.00986235,
+      "calmar": 397.50938887,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.87603306,
+      "average_gain": 0.00762424,
+      "average_loss": -0.00252855,
+      "expected_shortfall": -0.072442,
+      "downside_volatility": 0.0194034,
+      "trades": 0,
+      "observations": 242
+    },
+    "down_market": {
+      "total_return": -0.72718603,
+      "cagr": -0.79587553,
+      "annualized_volatility": 0.12059376,
+      "sharpe": -13.07395196,
+      "sortino": -10.22937265,
+      "maximum_drawdown": -0.72718603,
+      "calmar": -1.09445932,
+      "annual_turnover": 0.0,
+      "hit_rate": 0.13106796,
+      "average_gain": 0.00330683,
+      "average_loss": -0.00769901,
+      "expected_shortfall": -0.41029726,
+      "downside_volatility": 0.15412842,
+      "trades": 0,
+      "observations": 206
+    }
+  },
+  "sensitivity": {
+    "105": 0.13861293,
+    "126": 0.13887917,
+    "147": 0.18003534
+  },
+  "oos_return_after_costs": 0.13887917,
+  "oos_excess_vs_baseline": -0.12114425,
+  "no_lookahead_audit": true,
+  "costs_and_fx_included": true,
+  "regime_stability": true,
+  "observations": 448,
+  "parameter_neighborhood_stable": false,
+  "not_single_instrument_dependent": true,
+  "reproducible_run": true,
+  "full_manifest": true,
+  "maximum_drawdown": -0.20188704,
+  "baseline_maximum_drawdown": -0.24285869,
+  "drawdown_disadvantage": 0.0,
+  "concentration_within_limits": true,
+  "no_leverage": true,
+  "no_short_sales": true,
+  "no_cfds": true,
+  "annual_turnover": 0.91837155,
+  "expected_shortfall": -0.33129557,
+  "downside_volatility": 0.10548314
+}

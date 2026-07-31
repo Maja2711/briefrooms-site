@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-31T13:10:54+00:00",
+  "methodology_version": "registry-v1.0.0",
+  "data_freshness": "current",
+  "source_metadata": {
+    "baseline_portfolio": "data/investments/portfolio_10k.json",
+    "legacy_brace": "data/investments/portfolio_10k_brace.json",
+    "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
+  },
+  "controller_state": "ACTIVE_BASELINE",
+  "champion_methodology_id": "portfolio-10k-baseline",
+  "challenger_methodology_id": "brace-portfolio-engine",
+  "baseline_methodology_id": "portfolio-10k-baseline",
+  "methodologies": [
+    {
+      "methodology_id": "portfolio-10k-baseline",
+      "version": "1.0.0",
+      "status": "ACTIVE_BASELINE",
+      "activated_at": "2026-07-20T12:10:00+00:00",
+      "retired_at": null,
+      "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
+      "parameters": {
+        "source": "data/investments/portfolio_10k.json",
+        "review_frequency": "weekly",
+        "no_leverage": true,
+        "no_cfd": true
+      },
+      "benchmark": "FWIA.DE",
+      "validation_results": {
+        "status": "production_baseline",
+        "history_preserved": true,
+        "entry_history_sha256": "38a031703e4fbae6a73045e8914dbf4e743c303cfd3579834fee71a41c881b49",
+        "source_snapshot_sha256": "6403fd4810ec1991aea1cad14ebd3b2a31cf6b2c4f9e5d6eaec59fef477c0e21",
+        "validated_at": "2026-07-31T13:10:54+00:00"
+      }
+    },
+    {
+      "methodology_id": "brace-portfolio-engine",
+      "version": "3.0.0",
+      "status": "SHADOW",
+      "activated_at": "2026-07-29T00:00:00+00:00",
+      "retired_at": null,
+      "description": "Modular BRACE challenger with candidate ranking, constrained optimization, governed promotion and paper-only execution.",
+      "parameters": {
+        "manifest": "data/portfolio10k/config.json",
+        "immutable_parameter_manifest": true,
+        "autonomy_mode": "RECOMMEND_ONLY",
+        "paper_execution_only_after_promotion": true,
+        "real_broker_access": false
+      },
+      "benchmark": "FWIA.DE",
+      "validation_results": {
+        "legacy_backtest_status": "not_promoted",
+        "shadow_started_at": "2026-07-29T00:00:00+00:00",
+        "automatic_activation_allowed_only_by_controller": true,
+        "active_paper_control": false,
+        "latest_gate_evaluation": {
+          "evaluated_at": "2026-07-31T13:10:54+00:00",
+          "current_status": "SHADOW",
+          "conditions": {
+            "historical": {
+              "positive_after_costs": true,
+              "out_of_sample_beats_baseline": false,
+              "no_lookahead_audit": true,
+              "costs_and_fx_included": true,
+              "regime_stability": true,
+              "minimum_observations": true,
+              "parameter_neighborhood_stable": false,
+              "not_single_instrument_dependent": true,
+              "reproducible_run": true,
+              "full_manifest": true
+            },
+            "risk": {
+              "drawdown_within_limit": true,
+              "drawdown_not_materially_worse": true,
+              "concentration_within_limits": true,
+              "no_leverage": true,
+              "no_short_sales": true,
+              "no_cfds": true,
+              "turnover_within_limit": true,
+              "expected_shortfall_within_limit": false,
+              "downside_volatility_within_limit": true
+            },
+            "shadow": {
+              "minimum_calendar_days": false,
+              "minimum_decisions": false,
+              "minimum_completed_trades": false,
+              "return_advantage": true,
+              "risk_adjusted_advantage": false,
+              "drawdown_within_limit": true,
+              "turnover_within_limit": true,
+              "confidence_interval_positive": false
+            },
+            "operational": {
+              "no_critical_data_errors": true,
+              "decisions_reproducible": true,
+              "entry_history_unchanged": true,
+              "timestamps_complete": true,
+              "workflow_stable": true,
+              "public_internal_consistent": true,
+              "integrity_tests_pass": true
+            }
+          },
+          "reason": "No status change; promotion gates remain incomplete."
+        }
+      }
+    }
+  ]
+}

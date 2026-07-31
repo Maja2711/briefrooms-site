@@ -1,0 +1,263 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-31T13:11:18+00:00",
+  "methodology_version": "promotion-controller-v1.0.0",
+  "data_freshness": "synthetic_governance_test",
+  "source_metadata": {
+    "engine": "brace_portfolio_simulate_governance.py",
+    "simulation_only": true,
+    "production_registry_modified": false
+  },
+  "initial_state": "ACTIVE_BASELINE + BRACE_SHADOW",
+  "promotion_to_probation": {
+    "promotion_id": "promotion-c11cfe30835606ad",
+    "methodology_id": "brace-portfolio-engine",
+    "previous_status": "SHADOW",
+    "new_status": "PROBATIONARY_CONTROL",
+    "evaluated_at": "2026-03-05T00:00:00+00:00",
+    "conditions": {
+      "historical": {
+        "positive_after_costs": true,
+        "out_of_sample_beats_baseline": true,
+        "no_lookahead_audit": true,
+        "costs_and_fx_included": true,
+        "regime_stability": true,
+        "minimum_observations": true,
+        "parameter_neighborhood_stable": true,
+        "not_single_instrument_dependent": true,
+        "reproducible_run": true,
+        "full_manifest": true
+      },
+      "risk": {
+        "drawdown_within_limit": true,
+        "drawdown_not_materially_worse": true,
+        "concentration_within_limits": true,
+        "no_leverage": true,
+        "no_short_sales": true,
+        "no_cfds": true,
+        "turnover_within_limit": true,
+        "expected_shortfall_within_limit": true,
+        "downside_volatility_within_limit": true
+      },
+      "shadow": {
+        "minimum_calendar_days": true,
+        "minimum_decisions": true,
+        "minimum_completed_trades": true,
+        "return_advantage": true,
+        "risk_adjusted_advantage": true,
+        "drawdown_within_limit": true,
+        "turnover_within_limit": true,
+        "confidence_interval_positive": true
+      },
+      "operational": {
+        "no_critical_data_errors": true,
+        "decisions_reproducible": true,
+        "entry_history_unchanged": true,
+        "timestamps_complete": true,
+        "workflow_stable": true,
+        "public_internal_consistent": true,
+        "integrity_tests_pass": true
+      }
+    },
+    "validation_window": {
+      "out_of_sample": {
+        "from": "2024-01-01",
+        "to": "2026-01-01"
+      }
+    },
+    "all_conditions_passed": true,
+    "reason": "All historical, risk, shadow and operational gates passed.",
+    "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+    "data_manifest_sha": "5987bae8935cb78d0d33051fecfcd2d16b8d439381f7d6bf10b6957edce5fb42"
+  },
+  "promotion_to_active_paper": {
+    "promotion_id": "promotion-5c4707ea8ab8aa38",
+    "methodology_id": "brace-portfolio-engine",
+    "previous_status": "PROBATIONARY_CONTROL",
+    "new_status": "ACTIVE_PAPER_CONTROL",
+    "evaluated_at": "2026-04-05T00:00:00+00:00",
+    "conditions": {
+      "probation": {
+        "minimum_calendar_days": true,
+        "daily_rotation_limit": true,
+        "weekly_change_limit": true,
+        "weekly_turnover_limit": true,
+        "new_position_limit": true,
+        "minimum_confidence": true,
+        "no_full_portfolio_replacement": true,
+        "transaction_cost_buffer_applied": true,
+        "cooldown_applied": true,
+        "material_advantage_required": true,
+        "no_fallback_trigger": true
+      },
+      "operational": {
+        "no_critical_data_errors": true,
+        "decisions_reproducible": true,
+        "entry_history_unchanged": true,
+        "timestamps_complete": true,
+        "workflow_stable": true,
+        "public_internal_consistent": true,
+        "integrity_tests_pass": true
+      }
+    },
+    "validation_window": {
+      "out_of_sample": {
+        "from": "2024-01-01",
+        "to": "2026-01-01"
+      }
+    },
+    "all_conditions_passed": true,
+    "reason": "Probation completed with every control and integrity gate passing.",
+    "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+    "data_manifest_sha": "ddba9d601e573e2d8e29540112817344bc0e24ca5d30847d9fd69fe7adaf1f20"
+  },
+  "automatic_fallback": {
+    "promotion_id": "promotion-41dafd49e153865e",
+    "methodology_id": "brace-portfolio-engine",
+    "previous_status": "ACTIVE_PAPER_CONTROL",
+    "new_status": "FALLBACK_BASELINE",
+    "evaluated_at": "2026-04-05T01:00:00+00:00",
+    "conditions": {
+      "fallback": {
+        "STALE_DATA": true
+      }
+    },
+    "validation_window": {
+      "out_of_sample": {
+        "from": "2024-01-01",
+        "to": "2026-01-01"
+      }
+    },
+    "all_conditions_passed": true,
+    "reason": "Automatic fallback: STALE_DATA",
+    "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+    "data_manifest_sha": "e0d99e427bf2cdd86744ae6e34ba2d4604f7faa20060c2a76589ee6670ea2b4f"
+  },
+  "final_simulated_controller_state": "FALLBACK_BASELINE",
+  "records": [
+    {
+      "promotion_id": "promotion-c11cfe30835606ad",
+      "methodology_id": "brace-portfolio-engine",
+      "previous_status": "SHADOW",
+      "new_status": "PROBATIONARY_CONTROL",
+      "evaluated_at": "2026-03-05T00:00:00+00:00",
+      "conditions": {
+        "historical": {
+          "positive_after_costs": true,
+          "out_of_sample_beats_baseline": true,
+          "no_lookahead_audit": true,
+          "costs_and_fx_included": true,
+          "regime_stability": true,
+          "minimum_observations": true,
+          "parameter_neighborhood_stable": true,
+          "not_single_instrument_dependent": true,
+          "reproducible_run": true,
+          "full_manifest": true
+        },
+        "risk": {
+          "drawdown_within_limit": true,
+          "drawdown_not_materially_worse": true,
+          "concentration_within_limits": true,
+          "no_leverage": true,
+          "no_short_sales": true,
+          "no_cfds": true,
+          "turnover_within_limit": true,
+          "expected_shortfall_within_limit": true,
+          "downside_volatility_within_limit": true
+        },
+        "shadow": {
+          "minimum_calendar_days": true,
+          "minimum_decisions": true,
+          "minimum_completed_trades": true,
+          "return_advantage": true,
+          "risk_adjusted_advantage": true,
+          "drawdown_within_limit": true,
+          "turnover_within_limit": true,
+          "confidence_interval_positive": true
+        },
+        "operational": {
+          "no_critical_data_errors": true,
+          "decisions_reproducible": true,
+          "entry_history_unchanged": true,
+          "timestamps_complete": true,
+          "workflow_stable": true,
+          "public_internal_consistent": true,
+          "integrity_tests_pass": true
+        }
+      },
+      "validation_window": {
+        "out_of_sample": {
+          "from": "2024-01-01",
+          "to": "2026-01-01"
+        }
+      },
+      "all_conditions_passed": true,
+      "reason": "All historical, risk, shadow and operational gates passed.",
+      "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+      "data_manifest_sha": "5987bae8935cb78d0d33051fecfcd2d16b8d439381f7d6bf10b6957edce5fb42"
+    },
+    {
+      "promotion_id": "promotion-5c4707ea8ab8aa38",
+      "methodology_id": "brace-portfolio-engine",
+      "previous_status": "PROBATIONARY_CONTROL",
+      "new_status": "ACTIVE_PAPER_CONTROL",
+      "evaluated_at": "2026-04-05T00:00:00+00:00",
+      "conditions": {
+        "probation": {
+          "minimum_calendar_days": true,
+          "daily_rotation_limit": true,
+          "weekly_change_limit": true,
+          "weekly_turnover_limit": true,
+          "new_position_limit": true,
+          "minimum_confidence": true,
+          "no_full_portfolio_replacement": true,
+          "transaction_cost_buffer_applied": true,
+          "cooldown_applied": true,
+          "material_advantage_required": true,
+          "no_fallback_trigger": true
+        },
+        "operational": {
+          "no_critical_data_errors": true,
+          "decisions_reproducible": true,
+          "entry_history_unchanged": true,
+          "timestamps_complete": true,
+          "workflow_stable": true,
+          "public_internal_consistent": true,
+          "integrity_tests_pass": true
+        }
+      },
+      "validation_window": {
+        "out_of_sample": {
+          "from": "2024-01-01",
+          "to": "2026-01-01"
+        }
+      },
+      "all_conditions_passed": true,
+      "reason": "Probation completed with every control and integrity gate passing.",
+      "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+      "data_manifest_sha": "ddba9d601e573e2d8e29540112817344bc0e24ca5d30847d9fd69fe7adaf1f20"
+    },
+    {
+      "promotion_id": "promotion-41dafd49e153865e",
+      "methodology_id": "brace-portfolio-engine",
+      "previous_status": "ACTIVE_PAPER_CONTROL",
+      "new_status": "FALLBACK_BASELINE",
+      "evaluated_at": "2026-04-05T01:00:00+00:00",
+      "conditions": {
+        "fallback": {
+          "STALE_DATA": true
+        }
+      },
+      "validation_window": {
+        "out_of_sample": {
+          "from": "2024-01-01",
+          "to": "2026-01-01"
+        }
+      },
+      "all_conditions_passed": true,
+      "reason": "Automatic fallback: STALE_DATA",
+      "code_commit_sha": "40c15d45d05023e89a52b7d825fed802a3da0b36",
+      "data_manifest_sha": "e0d99e427bf2cdd86744ae6e34ba2d4604f7faa20060c2a76589ee6670ea2b4f"
+    }
+  ]
+}
