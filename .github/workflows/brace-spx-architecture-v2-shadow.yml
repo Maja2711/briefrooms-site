@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '15 22 * * 1-5'
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
@@ -14,6 +16,7 @@ concurrency:
 
 jobs:
   shadow-no-orders:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX Architecture 2 Shadow')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -54,8 +57,9 @@ jobs:
           assert payload['holdout_accessed'] is False
           assert payload['live_orders'] is False
           assert payload['autonomous_trading'] is False
-          assert payload['single_champion_selected'] is False if payload['status'] == 'shadow_active_no_orders' else True
-          if payload['status'] == 'warming_up':
+          if payload['status'] == 'shadow_active_no_orders':
+              assert payload['single_champion_selected'] is False
+          if payload['status'] in {'warming_up', 'not_started'}:
               assert payload['candidate_snapshots'] == []
           PY
 
