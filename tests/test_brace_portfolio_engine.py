@@ -33,7 +33,7 @@ from brace_portfolio_execution import (
 )
 from brace_portfolio_engine import _merge_market_refresh, _record_baseline_validation
 from brace_portfolio_optimizer import optimize
-from brace_portfolio_promotion_controller import evaluate_and_apply
+from brace_portfolio_promotion_controller import _code_sha, evaluate_and_apply
 from brace_portfolio_publish import build_public_snapshot
 
 
@@ -151,6 +151,12 @@ def test_registry_preserves_baseline_and_initial_shadow_state():
             "validation_results",
         ):
             assert key in item
+
+
+def test_audit_code_sha_resolves_to_a_real_commit():
+    value = _code_sha()
+    assert len(value) == 40
+    int(value, 16)
 
 
 def test_baseline_entries_and_history_are_immutable():

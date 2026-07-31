@@ -59,15 +59,26 @@ def _date(value: Any) -> Optional[date]:
 def _code_sha() -> str:
     if os.environ.get("GITHUB_SHA"):
         return str(os.environ["GITHUB_SHA"])
+    root = Path(__file__).resolve().parents[1]
+    engine_paths = [
+        str(path.relative_to(root)).replace("\\", "/")
+        for path in sorted((root / "scripts").glob("brace_portfolio_*.py"))
+    ]
     try:
-        return (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"],
-                text=True,
-                stderr=subprocess.DEVNULL,
-            )
-            .strip()
-        )
+        code_sha = subprocess.check_output(
+            ["git", "log", "-1", "--format=%H", "--", *engine_paths],
+            cwd=root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if code_sha:
+            return code_sha
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
     except Exception:
         return "UNKNOWN"
 
