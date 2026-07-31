@@ -57,6 +57,22 @@ def test_reconcile_is_idempotent():
     assert data == first
 
 
+def test_reconcile_never_regresses_a_newer_valuation_session():
+    data = staged_data()
+    data["last_market_session"] = "2026-07-31"
+    assert MODULE.reconcile_staged_entries(data) is True
+    assert data["last_market_session"] == "2026-07-31"
+
+
+def test_reconcile_repairs_session_from_current_position_quotes():
+    data = staged_data()
+    MODULE.reconcile_staged_entries(data)
+    data["last_market_session"] = "2026-07-20"
+    data["positions"][0]["market_date"] = "2026-07-31"
+    assert MODULE.reconcile_staged_entries(data) is True
+    assert data["last_market_session"] == "2026-07-31"
+
+
 def test_live_run_opens_only_pending_and_never_creates_duplicate_batch(tmp_path, monkeypatch):
     path = tmp_path / "portfolio.json"
     path.write_text(json.dumps(staged_data()), encoding="utf-8")

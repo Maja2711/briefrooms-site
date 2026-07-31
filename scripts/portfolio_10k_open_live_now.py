@@ -182,9 +182,17 @@ def reconcile_staged_entries(data: Dict[str, Any]) -> bool:
 
     data["status"] = portfolio_status(data)
     data.update(recompute_totals(data))
-    if executions:
-        latest_market_date = max(item["timestamp"].date() for item in executions.values())
-        data["last_market_session"] = latest_market_date.isoformat()
+    known_market_dates = [item["timestamp"].date() for item in executions.values()]
+    for value in [
+        data.get("last_market_session"),
+        *(position.get("market_date") for position in data.get("positions", [])),
+    ]:
+        try:
+            known_market_dates.append(datetime.strptime(str(value), "%Y-%m-%d").date())
+        except (TypeError, ValueError):
+            continue
+    if known_market_dates:
+        data["last_market_session"] = max(known_market_dates).isoformat()
     if executions and data["status"] != "pending_open":
         data["execution_model_version"] = "2.2-staged-reconciled"
     return data != before
