@@ -29,6 +29,14 @@ class PublicBoundaryTests(unittest.TestCase):
         self.assertFalse(payload["public_boundary"]["parameters_exposed"])
         self.assertFalse(payload["public_boundary"]["raw_predictions_exposed"])
         self.assertFalse(payload["public_boundary"]["full_experiment_ledger_exposed"])
+        self.assertFalse(payload["public_boundary"]["daily_paths_exposed"])
+        self.assertFalse(payload["public_boundary"]["candidate_identity_exposed"])
+        self.assertFalse(payload["mandate"]["short_allowed"])
+        self.assertFalse(payload["mandate"]["leverage_allowed"])
+        self.assertFalse(payload["mandate"]["orders_allowed"])
+        self.assertTrue(payload["cost_model"]["metrics_are_net_of_costs"])
+        self.assertIn("edge_confirmed", payload["comparison_assessment"])
+        self.assertNotIn("candidate_id", json.dumps(payload))
 
     def test_sanitizer_whitelists_aggregates_only(self):
         private = {
