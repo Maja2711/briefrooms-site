@@ -29,13 +29,19 @@ class AlternateLinkParser(HTMLParser):
 
 def test_every_public_page_has_one_shared_header() -> None:
     pages = sync_site_header.public_pages()
-    assert len(pages) == 45
+    assert len(pages) == 49
 
     for page in pages:
         text = page.read_text(encoding="utf-8")
         relative = page.relative_to(ROOT)
-        assert text.count(CSS_REFERENCE) == 1, relative
-        assert text.count(JS_REFERENCE) == 1, relative
+        css_references = re.findall(
+            r'/assets/site-header\.css\?v=[^"\']+', text, re.IGNORECASE
+        )
+        js_references = re.findall(
+            r'/scripts/site-header\.js\?v=[^"\']+', text, re.IGNORECASE
+        )
+        assert len(css_references) == 1, relative
+        assert len(js_references) == 1, relative
         assert len(re.findall(r'id=["\']site-header["\']', text, re.IGNORECASE)) == 1, relative
         assert re.search(
             r'<body\b[^>]*>\s*<header id=["\']site-header["\']></header>',
@@ -44,10 +50,10 @@ def test_every_public_page_has_one_shared_header() -> None:
         ), relative
         head = re.search(r"<head\b[^>]*>(.*?)</head>", text, re.IGNORECASE | re.DOTALL)
         assert head, relative
-        assert CSS_REFERENCE in head.group(1), relative
-        assert JS_REFERENCE in head.group(1), relative
+        assert css_references[0] in head.group(1), relative
+        assert js_references[0] in head.group(1), relative
         assert re.search(
-            rf'<script[^>]+src=["\']{re.escape(JS_REFERENCE)}["\'][^>]*\bdefer\b',
+            rf'<script[^>]+src=["\']{re.escape(js_references[0])}["\'][^>]*\bdefer\b',
             head.group(1),
             re.IGNORECASE,
         ), relative

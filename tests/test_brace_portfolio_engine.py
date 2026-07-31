@@ -649,6 +649,6 @@ def test_workflows_separate_monitor_learning_and_research():
     assert "--mode weekly --network" in research
     assert "--mode research" in research
     assert 'cron: "15 10 1 * *"' in research
-    assert "portfolio-10k-automation" in monitor
-    assert "portfolio-10k-automation" in daily
-    assert "portfolio-10k-automation" in research
+    assert "brace-portfolio-research" in monitor
+    assert "brace-portfolio-research" in daily
+    assert "brace-portfolio-research" in research
