@@ -2,27 +2,63 @@ name: Recover News Publication
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/publish-news-recovery-now.yml"
   schedule:
-    - cron: "15 */4 * * *"
+    - cron: "5,20,35,50 * * * *"
 
 permissions:
-  contents: write
-  models: read
+  contents: read
+  actions: write
 
 concurrency:
-  group: news-publication-recovery
+  group: news-publication-recovery-dispatch
   cancel-in-progress: false
 
 jobs:
-  recover:
-    uses: ./.github/workflows/publish-news.yml
-    with:
-      recovery: true
-    permissions:
-      contents: write
-      models: read
-    secrets: inherit
+  check-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check publication freshness
+        id: freshness
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path('data/news_publication_status.json')
+          stale = True
+          age_hours = None
+
+          if path.exists():
+              data = json.loads(path.read_text(encoding='utf-8'))
+              generated_at = data.get('generated_at')
+              if generated_at:
+                  published = datetime.fromisoformat(generated_at.replace('Z', '+00:00'))
+                  age_hours = (datetime.now(timezone.utc) - published).total_seconds() / 3600
+                  stale = age_hours > 4.5
+
+          print(f"stale={'true' if stale else 'false'}")
+          print(f"age_hours={age_hours if age_hours is not None else 'unknown'}")
+          PY
+
+      - name: Dispatch publisher when stale
+        if: steps.freshness.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          echo "News publication is stale by ${{ steps.freshness.outputs.age_hours }} hours. Dispatching publisher."
+          gh workflow run publish-news.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f recovery=true
+
+      - name: Confirm fresh publication
+        if: steps.freshness.outputs.stale != 'true'
+        run: echo "News publication is fresh; no recovery dispatch needed."
