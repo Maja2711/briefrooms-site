@@ -106,6 +106,9 @@ def independent_target(prices: pd.DataFrame) -> pd.DataFrame:
         -_tanh(frame["tnx21"], 0.40), -_tanh(frame["tnx63"], 0.75),
         _tanh(frame["tlt63"], 0.08), -_tanh(frame["uup63"], 0.08)
     ])
+    valid_index = signals.dropna().index
+    frame = frame.loc[valid_index]
+    signals = signals.loc[valid_index]
     score = signals.mean(axis=1).clip(-1.0, 1.0)
 
     panic = (
