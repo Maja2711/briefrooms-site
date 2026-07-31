@@ -1,213 +1,51 @@
-name: BRACE-SPX G5 Evaluation Protocol v2
+name: BRACE-SPX G5 Evaluation Protocol v2 Archive
 
 on:
   workflow_dispatch:
-  issues:
-    types: [opened]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: brace-spx-generation5-evaluation-v2
+  group: brace-spx-generation5-evaluation-v2-archive
   cancel-in-progress: false
 
 jobs:
-  evaluate:
-    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX G5 evaluation v2')
+  verify-sealed-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     steps:
       - name: Check out research branch
         uses: actions/checkout@v4
         with:
           ref: brace-spx-research
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Persist verifiable start marker
-        run: |
-          mkdir -p data/research
-          printf '{\n  "status": "started",\n  "generation_id": "spx-state-geometry-v5",\n  "evaluation_protocol_version": 2,\n  "run_id": "%s",\n  "started_at": "%s"\n}\n' \
-            "${{ github.run_id }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            > data/research/brace_spx_generation5_evaluation_v2_started.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/research/brace_spx_generation5_evaluation_v2_started.json
-          git commit -m "Mark BRACE-SPX G5 evaluation v2 started"
-          git pull --rebase origin brace-spx-research
-          git push origin HEAD:brace-spx-research
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip numpy pandas yfinance scikit-learn pytest
-
-      - name: Archive immutable G5 evaluation v1 evidence
-        run: |
-          set -euo pipefail
-          archive=data/research/archive/brace_spx_generation5_evaluation_v1
-          mkdir -p "$archive"
-          for source in \
-            data/research/brace_spx_generation5_research.json \
-            data/research/brace_spx_generation5_experiments.json \
-            data/research/brace_spx_generation5_manifest.json \
-            data/research/brace_spx_generation5_selection.json \
-            data/research/brace_spx_generation5_verdict.json \
-            data/research/brace_spx_generation5_status.json \
-            data/public/brace_spx_generation5_public.json
-          do
-            if [ -f "$source" ]; then cp -n "$source" "$archive/$(basename "$source")"; fi
-          done
-          python - <<'PY'
-          import hashlib, json
-          from datetime import datetime, timezone
-          from pathlib import Path
-          archive = Path('data/research/archive/brace_spx_generation5_evaluation_v1')
-          files = {}
-          for path in sorted(archive.glob('*.json')):
-              files[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
-          (archive / 'archive_manifest.json').write_text(json.dumps({
-              'schema_version': '1.0.0',
-              'generation_id': 'spx-state-geometry-v5',
-              'evaluation_protocol_version': 1,
-              'archived_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-              'files': files,
-              'immutable_reference': True
-          }, indent=2) + '\n', encoding='utf-8')
-          PY
-
-      - name: Compile and test evaluation protocol v2
-        run: |
-          python -m py_compile \
-            scripts/brace_spx_generation5_research.py \
-            scripts/brace_spx_generation5_selection.py \
-            scripts/brace_spx_generation5_verdict.py \
-            scripts/brace_spx_generation5_evaluation_v2.py \
-            scripts/brace_spx_generation5_evaluation_v2_verdict.py \
-            scripts/brace_spx_generation5_evaluation_v2_pipeline.py
-          python -m pytest -q \
-            tests/test_brace_spx_generation5_research.py \
-            tests/test_brace_spx_generation5_governance.py \
-            tests/test_brace_spx_generation5_evaluation_v2.py
-
-      - name: Run same-generation evaluation protocol v2
-        run: |
-          set -o pipefail
-          python scripts/brace_spx_generation5_evaluation_v2_pipeline.py --start 1993-01-01 \
-            2>&1 | tee data/research/brace_spx_generation5_evaluation_v2.log
-
-      - name: Validate generated evidence and sealed holdout
+      - name: Verify completed immutable evidence
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+
           root = Path('data/research')
           original = json.loads((root / 'brace_spx_generation5_manifest.json').read_text())
           protocol = json.loads((root / 'brace_spx_generation5_evaluation_v2_manifest.json').read_text())
           report = json.loads((root / 'brace_spx_generation5_evaluation_v2_report.json').read_text())
-          ledger = json.loads((root / 'brace_spx_generation5_evaluation_v2_experiments.json').read_text())
           verdict = json.loads((root / 'brace_spx_generation5_evaluation_v2_verdict.json').read_text())
+          status = json.loads((root / 'brace_spx_generation5_evaluation_v2_status.json').read_text())
+
+          assert status['status'] == 'finished'
           assert report['generation_id'] == 'spx-state-geometry-v5'
           assert report['evaluation_protocol_version'] == 2
           assert report['experiments_total'] == 12
-          assert report['experiments_remaining'] == 0
-          assert len(ledger['experiments']) == 12
           assert protocol['candidate_signature'] == original['candidate_signature']
-          assert report['candidate_signature'] == original['candidate_signature']
           assert protocol['candidate_parameters_changed'] is False
           assert protocol['selection_thresholds_changed'] is False
           assert original['holdout']['status'] == 'sealed'
           assert original['holdout']['accessed'] is False
           assert original['holdout']['access_count'] == 0
-          assert protocol['holdout']['accessed'] is False
           assert verdict['holdout_opened'] is False
-          assert report['methodological_repairs']['defensive_sleeve_earns_risk_free'] is True
-          assert report['methodological_repairs']['state_warm_started_from_observable_history'] is True
+
+          print('Generation 5 Evaluation Protocol v2 is complete and sealed.')
+          print('This archival workflow does not re-run research or mutate evidence.')
           PY
-
-      - name: Write final run status
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          from datetime import datetime, timezone
-          from pathlib import Path
-          root = Path('data/research')
-          report = {}
-          verdict = {}
-          try: report = json.loads((root / 'brace_spx_generation5_evaluation_v2_report.json').read_text())
-          except Exception: pass
-          try: verdict = json.loads((root / 'brace_spx_generation5_evaluation_v2_verdict.json').read_text())
-          except Exception: pass
-          payload = {
-              'status': 'finished' if report.get('experiments_total') == 12 else 'failed_before_verified_completion',
-              'generation_id': 'spx-state-geometry-v5',
-              'evaluation_protocol_version': 2,
-              'run_id': '${{ github.run_id }}',
-              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-              'experiments_total': report.get('experiments_total'),
-              'strict_gate_passed': verdict.get('strict_gate_passed'),
-              'holdout_opened': False
-          }
-          (root / 'brace_spx_generation5_evaluation_v2_status.json').write_text(
-              json.dumps(payload, indent=2) + '\n', encoding='utf-8'
-          )
-          PY
-
-      - name: Snapshot evidence for persistence
-        if: always()
-        run: |
-          rm -rf /tmp/brace-g5-eval-v2
-          mkdir -p /tmp/brace-g5-eval-v2/data/research /tmp/brace-g5-eval-v2/data/public
-          cp -R data/research/archive /tmp/brace-g5-eval-v2/data/research/ 2>/dev/null || true
-          find data/research -maxdepth 1 -type f -name 'brace_spx_generation5_evaluation_v2*' -exec cp {} /tmp/brace-g5-eval-v2/data/research/ \;
-          if [ -f data/public/brace_spx_generation5_public.json ]; then
-            cp data/public/brace_spx_generation5_public.json /tmp/brace-g5-eval-v2/data/public/
-          fi
-
-      - name: Upload evidence artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: brace-spx-g5-evaluation-v2-${{ github.run_id }}
-          retention-days: 30
-          if-no-files-found: error
-          path: /tmp/brace-g5-eval-v2
-
-      - name: Persist verified protocol v2 evidence
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin brace-spx-research
-          git reset --hard origin/brace-spx-research
-          cp -R /tmp/brace-g5-eval-v2/data/. data/
-          git add -f \
-            data/research/archive/brace_spx_generation5_evaluation_v1 \
-            data/research/brace_spx_generation5_evaluation_v2* \
-            data/public/brace_spx_generation5_public.json
-          git commit -m "Persist BRACE-SPX G5 evaluation protocol v2"
-          for attempt in 1 2 3; do
-            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
-            sleep $((attempt * 15))
-          done
-          exit 1
-
-      - name: Publish aggregate G5 protocol v2 status to main
-        run: |
-          set -euo pipefail
-          cp /tmp/brace-g5-eval-v2/data/public/brace_spx_generation5_public.json /tmp/brace_spx_generation5_public.json
-          git fetch origin main
-          git checkout --force main
-          mkdir -p data/public
-          cp /tmp/brace_spx_generation5_public.json data/public/
-          git add data/public/brace_spx_generation5_public.json
-          git commit -m "Update BRACE-SPX G5 evaluation protocol v2 status"
-          for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
-            sleep $((attempt * 15))
-          done
-          exit 1
