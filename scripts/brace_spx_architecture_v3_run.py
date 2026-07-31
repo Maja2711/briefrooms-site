@@ -101,6 +101,7 @@ def evaluate(prices: pd.DataFrame) -> dict[str, Any]:
         "annualized_turnover_at_most_10": best["metrics"]["annualized_turnover"] <= 10,
         "independent_validation_passed": False,
     }
+    checks = {key: bool(value) for key, value in checks.items()}
     strict = all(checks.values())
     champion = authorize_single_champion(strict, checks["short_excess_contribution_positive"], checks["independent_validation_passed"])
     return {
