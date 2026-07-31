@@ -213,7 +213,7 @@ def reconcile(prices: pd.DataFrame, primary_trace: pd.DataFrame) -> dict[str, An
         "total_return_difference": round(backtrader_total - primary_total, 6),
         "checks": checks,
         "passed": all(checks.values()),
-        "holdout_accessed": false
+        "holdout_accessed": False
     }
 
 
