@@ -157,7 +157,11 @@ def summarize_sections_pl_full(sections: dict) -> None:
     sections.update(combined)
 
     try:
-        enriched = enrich_sections_with_homepage_quality(sections, "pl")
+        enriched = enrich_sections_with_homepage_quality(
+            sections,
+            "pl",
+            keep_unapproved=True,
+        )
     except Exception as exc:
         print(f"[WARN] PL AI enrichment unavailable; publishing source-only cards: {exc}", file=sys.stderr)
         return
