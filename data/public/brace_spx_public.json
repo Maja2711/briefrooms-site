@@ -1,84 +1,158 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "model": "BRACE-SPX Lab",
+  "architecture": {
+    "id": "spx-multisignal-regime-a2",
+    "version": "A2",
+    "labels": {
+      "pl": "Architecture 2 — wieloźródłowy sygnał i reżimy",
+      "en": "Architecture 2 — multi-source signals and regimes"
+    },
+    "candidate_signature": "c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9"
+  },
   "target_instrument": "SPY / S&P 500",
-  "status": "private_migration",
+  "status": "development_gate_not_passed_holdout_still_sealed",
   "status_labels": {
-    "pl": "Migracja silnika do środowiska prywatnego",
-    "en": "Engine migration to a private environment"
+    "pl": "Bramka rozwojowa niezaliczona — brak pojedynczego championa",
+    "en": "Development gate not passed — no single champion"
   },
   "research_only": true,
   "live_activation": false,
-  "source_snapshot_at": "2026-07-24T07:43:27+00:00",
-  "public_report_at": "2026-07-24T07:50:00+00:00",
-  "generation": {
-    "version": "0.6.0",
-    "labels": {
-      "pl": "Stabilność w kolejnych reżimach rynkowych",
-      "en": "Stability across successive market regimes"
-    }
-  },
+  "single_champion_authorized": false,
+  "source_snapshot_at": "2026-07-31T21:43:21+00:00",
+  "public_report_at": "2026-07-31T21:43:21+00:00",
   "progress": {
-    "experiments_completed": 540,
-    "candidate_space_size": 789,
-    "experiments_remaining": 249,
-    "completion_ratio": 0.684411
+    "experiments_completed": 10,
+    "candidate_space_size": 10,
+    "experiments_remaining": 0,
+    "completion_ratio": 1.0
   },
-  "sealed_holdout": {
-    "status": "sealed",
-    "months": 48,
-    "accessed": false,
-    "labels": {
-      "pl": "Nienaruszony — wynik końcowy nie był używany do strojenia",
-      "en": "Untouched — the final result has not been used for tuning"
-    }
-  },
-  "development_champion": {
-    "metrics": {
-      "cagr": 0.129236,
-      "annualized_volatility": 0.122064,
-      "sharpe_zero_rf": 1.0588,
-      "max_drawdown": -0.179676,
-      "calmar": 0.7193,
-      "annualized_turnover": 0.1603,
-      "positive_year_ratio": 0.9,
-      "months": 108,
-      "average_exposure": 0.926804
+  "development": {
+    "start": "2007-04-04",
+    "end": "2022-07-29",
+    "days": 3858,
+    "folds": 6,
+    "frequency": "daily signals; weekly scheduled rebalance; daily shock gate",
+    "diagnostic_leader": {
+      "authorized_as_champion": false,
+      "metrics": {
+        "cagr": 0.06925,
+        "annualized_volatility": 0.089018,
+        "sharpe_excess": 0.717218,
+        "max_drawdown": -0.185406,
+        "calmar": 0.373508,
+        "annualized_turnover": 6.727838
+      },
+      "positive_folds": 6,
+      "fold_sharpe_std": 0.76683
     },
-    "robustness_gate": {
+    "strict_gate": {
       "passed": false,
-      "positive_folds": 4,
-      "required_positive_folds": 5,
-      "labels": {
-        "pl": "4 z 6 prób dodatnich; wymagane minimum 5",
-        "en": "4 of 6 folds positive; at least 5 required"
-      }
+      "pbo": 0.114286,
+      "pbo_passed": true,
+      "global_dsr": 0.0,
+      "global_trials": 644,
+      "rank_correlation": 0.29697,
+      "unique_fold_winners": 4,
+      "bootstrap_cagr_advantage_probability": 0.265,
+      "bootstrap_sharpe_advantage_probability": 0.911
     }
   },
   "benchmarks": {
     "buy_and_hold": {
-      "cagr": 0.138463,
-      "annualized_volatility": 0.131758,
-      "sharpe_zero_rf": 1.0509,
-      "max_drawdown": -0.194477,
-      "calmar": 0.712
+      "cagr": 0.092332,
+      "annualized_volatility": 0.204816,
+      "sharpe_excess": 0.499228,
+      "max_drawdown": -0.551895,
+      "calmar": 0.1673,
+      "annualized_turnover": 0.065319
     },
     "trend_200d": {
-      "cagr": 0.100859,
-      "annualized_volatility": 0.105892,
-      "sharpe_zero_rf": 0.9525,
-      "max_drawdown": -0.161889,
-      "calmar": 0.623
+      "cagr": 0.072946,
+      "annualized_volatility": 0.117258,
+      "sharpe_excess": 0.598944,
+      "max_drawdown": -0.206287,
+      "calmar": 0.353613,
+      "annualized_turnover": 3.265941
+    }
+  },
+  "diversity": {
+    "signals": {
+      "median_absolute_pairwise_correlation": 0.79433,
+      "effective_independent_series": 2.475349,
+      "cluster_count": 2,
+      "largest_cluster_share": 0.9
+    },
+    "returns": {
+      "median_absolute_pairwise_correlation": 0.916469,
+      "effective_independent_series": 1.688359,
+      "cluster_count": 2,
+      "largest_cluster_share": 0.9
+    },
+    "exposures": {
+      "median_absolute_pairwise_correlation": 0.760617,
+      "effective_independent_series": 2.957072,
+      "cluster_count": 3,
+      "largest_cluster_share": 0.8
+    }
+  },
+  "external_validation": {
+    "engine": "Backtrader independent reference",
+    "passed": true,
+    "target_path_exact": true,
+    "return_correlation": 0.99999918,
+    "total_return_difference": -0.004329
+  },
+  "orthogonality_audit": {
+    "method": "unsupervised_development_only",
+    "selected_sources": [
+      "rates",
+      "liquidity",
+      "options"
+    ],
+    "selected_count": 3,
+    "effective_rank": 3.294889,
+    "median_absolute_pairwise_correlation": 0.3694,
+    "principal_components_for_85pct_variance": 3,
+    "excluded_sources": {
+      "breadth": "unique_variance_below_0.15",
+      "trend": "unique_variance_below_0.15"
+    },
+    "uses_holdout": false,
+    "uses_backtest_performance_for_selection": false
+  },
+  "shadow": {
+    "status": "warming_up",
+    "start": "2026-08-03",
+    "updated_at": "2026-07-31T21:43:20+00:00",
+    "observations_collected": 0,
+    "warmup_required": 252,
+    "observations_remaining": 252,
+    "latest_market_date": null,
+    "live_orders": false,
+    "autonomous_trading": false,
+    "single_champion_selected": false
+  },
+  "sealed_holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "accessed": false,
+    "access_count": 0,
+    "labels": {
+      "pl": "Zapieczętowany i niepobrany przez Architecture 2",
+      "en": "Sealed and not downloaded by Architecture 2"
     }
   },
   "public_boundary": {
     "code_exposed": false,
     "parameters_exposed": false,
     "raw_predictions_exposed": false,
-    "full_experiment_ledger_exposed": false
+    "full_experiment_ledger_exposed": false,
+    "candidate_snapshots_exposed": false
   },
   "notes": {
-    "pl": "To raport badawczy, nie sygnał transakcyjny. Silnik nie składa zleceń i nie został dopuszczony do użycia live.",
-    "en": "This is a research report, not a trading signal. The engine places no orders and has not been approved for live use."
+    "pl": "Architecture 2 jest badaniem zarządzania ryzykiem, nie sygnałem transakcyjnym. PBO spadło poniżej 20%, lecz pełna bramka nie została zaliczona po globalnej korekcie 644 prób i ocenie stabilności rankingu.",
+    "en": "Architecture 2 is risk-management research, not a trading signal. PBO fell below 20%, but the full gate did not pass after the cumulative 644-trial correction and rank-stability assessment."
   }
 }
