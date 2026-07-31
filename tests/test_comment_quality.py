@@ -1107,22 +1107,19 @@ class PipelineContractTests(unittest.TestCase):
         self.assertIn("--refresh-plan", publisher)
         self.assertNotIn("git pull --rebase", publisher)
 
-        watchdog_workflow = (
-            ROOT / ".github/workflows/content-update-watchdog.yml"
+        health_workflow = (
+            ROOT / ".github/workflows/automation-health-audit.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("uses: ./.github/workflows/publish-news.yml", watchdog_workflow)
-        self.assertIn('cron: "25 * * * *"', watchdog_workflow)
-        self.assertIn("actions: read", watchdog_workflow)
-        self.assertIn('workflow_id: "publish-news.yml"', watchdog_workflow)
-        self.assertIn("PUBLISHER_ACTIVE", watchdog_workflow)
-        self.assertIn(
-            "needs.check.outputs.publisher_active != 'true'",
-            watchdog_workflow,
-        )
+        self.assertIn('cron: "42 * * * *"', health_workflow)
+        self.assertIn("actions: read", health_workflow)
+        self.assertIn("issues: write", health_workflow)
+        self.assertNotIn("workflow run", health_workflow)
         for retired in (
             ".github/workflows/build-home-brief.yml",
             ".github/workflows/news-pl.yml",
             ".github/workflows/news-en.yml",
+            ".github/workflows/content-update-watchdog.yml",
+            ".github/workflows/publish-news-recovery-now.yml",
         ):
             self.assertFalse((ROOT / retired).exists(), retired)
 

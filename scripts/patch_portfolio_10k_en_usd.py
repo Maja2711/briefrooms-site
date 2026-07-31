@@ -16,7 +16,11 @@ def main() -> None:
         html = html.replace(marker, source + marker, 1)
     html = html.replace(
         '/scripts/portfolio-10k-dashboard-en.js?v=2',
+        '/scripts/portfolio-10k-dashboard-en.js?v=5',
+    )
+    html = html.replace(
         '/scripts/portfolio-10k-dashboard-en.js?v=4',
+        '/scripts/portfolio-10k-dashboard-en.js?v=5',
     )
     PAGE.write_text(html, encoding="utf-8")
     print("Patched English 10K page for native USD portfolio")
