@@ -51,8 +51,8 @@ permissions:
   models: read
 
 concurrency:
-  group: content-publishing
-  cancel-in-progress: true
+  group: news-publication
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -171,12 +171,31 @@ jobs:
             exit 1
           fi
           git commit -m "chore(news): publish PL and EN atomically"
-          git fetch origin main
-          if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::main changed before push; publication must be regenerated."
+
+          pushed=false
+          for push_attempt in 1 2 3; do
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              echo "::notice::main advanced during publication; rebasing the atomic news commit."
+              git rebase origin/main
+            fi
+
+            if git push origin HEAD:main; then
+              pushed=true
+              break
+            fi
+
+            if [[ "${push_attempt}" != "3" ]]; then
+              echo "::warning::Push attempt ${push_attempt}/3 failed; retrying from current main."
+              sleep $((push_attempt * 15))
+            fi
+          done
+
+          if [[ "${pushed}" != "true" ]]; then
+            echo "::error::Could not publish news after 3 push attempts."
             exit 1
           fi
-          git push origin HEAD:main
+
           published_sha="$(git rev-parse HEAD)"
           publication_id="$(python -c "import json; print(json.load(open('data/news_publication_status.json', encoding='utf-8'))['publication_id'])")"
           echo "published_sha=${published_sha}" >> "$GITHUB_OUTPUT"
