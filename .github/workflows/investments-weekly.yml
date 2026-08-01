@@ -17,6 +17,7 @@ on:
       - "scripts/investments_weekly*.py"
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
+      - "scripts/audit_weekly_model.py"
       - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
@@ -24,6 +25,8 @@ on:
       - "scripts/investments-weekly-governance.js"
       - "tests/test_investments_weekly*.py"
       - "tests/test_investments_weekly_public.js"
+      - "tests/test_audit_weekly_integrity.py"
+      - "data/investments/public_quarantine.json"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - "data/investments/daily_review_policy.json"
@@ -64,6 +67,7 @@ jobs:
         run: |
           python -m unittest tests/test_investments_weekly_v4.py
           python -m unittest tests/test_investments_weekly_v5.py
+          python -m unittest tests/test_audit_weekly_integrity.py
 
       - name: Recover missing current-week forecast
         run: python scripts/ensure_current_week_forecast.py
