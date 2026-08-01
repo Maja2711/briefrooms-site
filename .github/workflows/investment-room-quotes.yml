@@ -7,10 +7,14 @@ on:
     paths:
       - "scripts/update_investment_room_quotes.py"
       - "scripts/update_investment_room_quotes_v2.py"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/homepage-photo-only.js"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
     # Avoid the busiest quarter-hour boundaries, where GitHub may delay schedules.
     - cron: "3,18,33,48 * * * *"
+    # Temporary near-term safety trigger for the compact AI Outlook publication.
+    - cron: "55 22 * * *"
 
 permissions:
   contents: write
@@ -40,15 +44,24 @@ jobs:
       - name: Update investment room quotes
         run: python scripts/update_investment_room_quotes_v2.py
 
-      - name: Commit investment room quotes
+      - name: Publish compact AI Outlook homepage asset
+        run: |
+          python scripts/enforce_homepage_photo_only.py
+          python -m py_compile scripts/enforce_homepage_photo_only.py
+          node --check scripts/homepage-photo-only.js
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
+
+      - name: Commit investment room quotes and homepage asset
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/live_prices.json data/investments/room_quotes.json
+          git add pl/index.html en/index.html
           if git diff --cached --quiet; then
-            echo "No investment room quote changes"
+            echo "No investment room quote or homepage changes"
           else
-            git commit -m "Update investment room quotes"
+            git commit -m "Update investment room quotes and AI Outlook"
             git pull --rebase origin main
             git push
           fi
