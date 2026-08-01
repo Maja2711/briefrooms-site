@@ -1,6 +1,13 @@
 name: Patch AI Outlook Compact
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-ai-outlook-compact.yml"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/homepage-photo-only.js"
+      - "tests/test_homepage_photo_only.py"
   issues:
     types: [opened]
   workflow_dispatch:
@@ -17,6 +24,7 @@ concurrency:
 jobs:
   patch-and-deploy:
     if: >-
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.issue.title == 'Patch AI Outlook compact asset'
     runs-on: ubuntu-latest
