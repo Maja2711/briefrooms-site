@@ -38,28 +38,28 @@
     }
   }[L];
 
-  function $(id) { return document.getElementById(id); }
-  function esc(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-  }
-  function n(value) {
+  const $ = (id) => document.getElementById(id);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+  const n = (value) => {
     const result = Number(value);
     return Number.isFinite(result) ? result : null;
-  }
-  function good(value) {
+  };
+  const good = (value) => {
     const result = n(value);
     return result !== null && result > 0 ? result : null;
-  }
-  function parseTime(value) {
+  };
+  const parseTime = (value) => {
     if (!value) return null;
     const date = new Date(String(value));
     return Number.isNaN(date.getTime()) ? null : date;
-  }
-  function closeEnough(a, b, tolerance) {
-    return a !== null && b !== null && Math.abs(a - b) <= tolerance;
-  }
+  };
+  const closeEnough = (a, b, tolerance) => a !== null && b !== null && Math.abs(a - b) <= tolerance;
+  const label = (item) => item[L === 'pl' ? 'label_pl' : 'label_en'] || item.symbol || item.instrument_id;
+  const dir = (item) => item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
+  const dirText = (item) => dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase();
+
   function fmt(value, instrumentId) {
     const result = good(value);
     if (result === null) return T.no;
@@ -83,16 +83,13 @@
       maximumFractionDigits: digits,
     })}`;
   }
-  function label(item) { return item[L === 'pl' ? 'label_pl' : 'label_en'] || item.symbol || item.instrument_id; }
-  function dir(item) { return item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral'; }
-  function dirText(item) { return dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase(); }
-  function liveRecord(live, id) { return (((live || {}).prices || {})[id] || {}); }
-  function livePrice(live, id) { return good(liveRecord(live, id).price); }
-  function liveTimestamp(live, id) {
-    const record = liveRecord(live, id);
-    return record.current_price_updated_at || record.timestamp || '';
+  function tone(value) {
+    const result = n(value);
+    return result === null || Math.abs(result) < 0.000001 ? 'neutral' : result > 0 ? 'positive' : 'negative';
   }
-  function notional(item) { return good(item.instrument_id === 'eurusd' ? item.notional_eur : item.notional_usd) || 10000; }
+  function notional(item) {
+    return good(item.instrument_id === 'eurusd' ? item.notional_eur : item.notional_usd) || 10000;
+  }
   function notionalText(item) {
     const currency = item.instrument_id === 'eurusd' ? 'EUR' : 'USD';
     return `${notional(item).toLocaleString(L === 'pl' ? 'pl-PL' : 'en-US', { maximumFractionDigits: 0 })} ${currency}`;
@@ -118,20 +115,17 @@
     if (dir(item) === 'neutral' || entry === null || market === null) return null;
     const move = dir(item) === 'long' ? market - entry : entry - market;
     const percent = move / entry * 100;
-    const value = item.instrument_id === 'eurusd' ? move * notional(item) : percent / 100 * notional(item);
+    const value = item.instrument_id === 'eurusd' ? move * notional(item) : move / entry * notional(item);
     const units = item.instrument_id === 'eurusd' ? move / 0.0001 : move;
     return { value, units, percent };
   }
   function metrics(item, mark) {
     const calculated = calculatedMetrics(item, mark);
     if (good(item.exit_price) === null) return calculated;
-    const value = n(item.result_value);
-    const units = n(item.result_units);
-    const percent = n(item.result_percent);
     return {
-      value: value !== null ? value : calculated?.value ?? null,
-      units: units !== null ? units : calculated?.units ?? null,
-      percent: percent !== null ? percent : calculated?.percent ?? null,
+      value: n(item.result_value) ?? calculated?.value ?? null,
+      units: n(item.result_units) ?? calculated?.units ?? null,
+      percent: n(item.result_percent) ?? calculated?.percent ?? null,
     };
   }
   function resultText(item, mark) {
@@ -143,55 +137,15 @@
     if (result.percent !== null) parts.push(`${signed(result.percent, 2)}%`);
     return parts.join(' · ');
   }
-  function tone(value) {
-    const result = n(value);
-    return result === null || Math.abs(result) < 0.000001 ? 'neutral' : result > 0 ? 'positive' : 'negative';
-  }
-  function hasClose(item) { return dir(item) !== 'neutral' && good(item.entry_price) !== null && good(item.exit_price) !== null; }
-  function isOpen(item) { return dir(item) !== 'neutral' && good(item.entry_price) !== null && !hasClose(item); }
+  const hasClose = (item) => dir(item) !== 'neutral' && good(item.entry_price) !== null && good(item.exit_price) !== null;
+  const isOpen = (item) => dir(item) !== 'neutral' && good(item.entry_price) !== null && !hasClose(item);
   function status(item) {
     if (dir(item) === 'neutral') return T.neutral;
     if (hasClose(item)) return T.closed;
     if (isOpen(item)) return T.active;
     return T.planned;
   }
-  function isoWeek(date) {
-    const x = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const day = x.getUTCDay() || 7;
-    x.setUTCDate(x.getUTCDate() + 4 - day);
-    const year = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((x - year) / 86400000) + 1) / 7);
-    return `${x.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-  }
-  async function json(url) {
-    const response = await fetch(`${url}?v=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(url);
-    return response.json();
-  }
-  async function loadWeeks() {
-    const ids = [];
-    for (let i = 0; i < 26; i += 1) {
-      const date = new Date();
-      date.setDate(date.getDate() - i * 7);
-      const id = isoWeek(date);
-      if (!ids.includes(id)) ids.push(id);
-    }
-    const out = [];
-    await Promise.all(ids.map((id) => json(`/data/investments/weekly/${id}.json`).then((week) => out.push(week)).catch(() => {})));
-    return out.filter((week) => week && week.week_id).sort((a, b) => String(b.week_id).localeCompare(String(a.week_id)));
-  }
-  async function loadQuarantine() {
-    try { return await json('/data/investments/public_quarantine.json'); }
-    catch (_) { return { records: [] }; }
-  }
-  function quarantineMap(data) {
-    const map = new Map();
-    for (const row of Array.isArray(data?.records) ? data.records : []) {
-      if (row?.public_status !== 'withheld') continue;
-      map.set(`${row.week_id}/${row.instrument_id}`, row);
-    }
-    return map;
-  }
+
   function integrityIssues(item) {
     const issues = [];
     const side = dir(item);
@@ -232,18 +186,80 @@
     }
     return issues;
   }
+
+  function quarantineMap(data) {
+    const map = new Map();
+    for (const row of Array.isArray(data?.records) ? data.records : []) {
+      if (row?.public_status !== 'withheld') continue;
+      map.set(`${row.week_id}/${row.instrument_id}`, row);
+    }
+    return map;
+  }
+  function effectiveItem(week, item, quarantine) {
+    const explicit = quarantine.get(`${week.week_id}/${item.instrument_id}`);
+    if (!explicit?.manual_public_result) return item;
+    return {
+      ...item,
+      entry_price: explicit.entry_price ?? item.entry_price,
+      exit_price: explicit.exit_price ?? item.exit_price,
+      result_value: explicit.result_value ?? item.result_value,
+      result_units: explicit.result_units ?? item.result_units,
+      result_percent: explicit.result_percent ?? item.result_percent,
+      trade_status: 'closed',
+      exit_reason: 'stop_loss',
+    };
+  }
   function auditState(week, item, quarantine) {
-    const key = `${week.week_id}/${item.instrument_id}`;
-    const explicit = quarantine.get(key) || null;
+    const explicit = quarantine.get(`${week.week_id}/${item.instrument_id}`) || null;
     const issues = integrityIssues(item);
+    if (explicit?.manual_public_result === true) {
+      return { withheld: false, manual: true, reason: explicit.reason || '', issues };
+    }
     if (explicit || issues.length) {
       return {
         withheld: true,
+        manual: false,
         reason: explicit?.reason || `${T.auditText} [${issues.join(', ')}]`,
         issues,
       };
     }
-    return { withheld: false, reason: '', issues: [] };
+    return { withheld: false, manual: false, reason: '', issues: [] };
+  }
+
+  function isoWeek(date) {
+    const x = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = x.getUTCDay() || 7;
+    x.setUTCDate(x.getUTCDate() + 4 - day);
+    const year = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((x - year) / 86400000) + 1) / 7);
+    return `${x.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+  }
+  async function json(url) {
+    const response = await fetch(`${url}?v=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(url);
+    return response.json();
+  }
+  async function loadWeeks() {
+    const ids = [];
+    for (let i = 0; i < 26; i += 1) {
+      const date = new Date();
+      date.setDate(date.getDate() - i * 7);
+      const id = isoWeek(date);
+      if (!ids.includes(id)) ids.push(id);
+    }
+    const out = [];
+    await Promise.all(ids.map((id) => json(`/data/investments/weekly/${id}.json`).then((week) => out.push(week)).catch(() => {})));
+    return out.filter((week) => week && week.week_id).sort((a, b) => String(b.week_id).localeCompare(String(a.week_id)));
+  }
+  async function loadQuarantine() {
+    try { return await json('/data/investments/public_quarantine.json'); }
+    catch (_) { return { records: [] }; }
+  }
+  function liveRecord(live, id) { return (((live || {}).prices || {})[id] || {}); }
+  function livePrice(live, id) { return good(liveRecord(live, id).price); }
+  function liveTimestamp(live, id) {
+    const record = liveRecord(live, id);
+    return record.current_price_updated_at || record.timestamp || '';
   }
   function fmtTime(value) {
     if (!value) return '';
@@ -276,6 +292,7 @@
   function auditCard(item, currentPrice, currentTime, state) {
     return `<article class="card ${esc(dir(item))} integrity-withheld"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><dl class="grid"><div class="cell"><dt>${T.price}</dt><dd>${esc(fmt(currentPrice, item.instrument_id))}</dd><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><div class="cell"><dt>${T.open}</dt><dd>${T.no}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${T.no}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${T.no}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${T.no}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${T.no}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${T.no}</dd></div><div class="cell big"><dt>${T.pnl}</dt><dd class="neutral">${esc(T.withheld)}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(T.audit)}</dd></div><div class="cell big analysis"><dt>${T.audit}</dt><dd>${esc(state.reason || T.auditText)}</dd></div></dl></article>`;
   }
+
   function render(weeks, live, quarantineData) {
     if (!weeks.length) return;
     const latest = weeks[0];
@@ -293,7 +310,8 @@
     let closed = 0;
     const rows = [];
     for (const week of weeks) {
-      for (const item of (week.instruments || [])) {
+      for (const rawItem of (week.instruments || [])) {
+        const item = effectiveItem(week, rawItem, quarantine);
         const state = auditState(week, item, quarantine);
         if (state.withheld || !hasClose(item)) continue;
         const result = metrics(item, item.exit_price);
@@ -307,7 +325,8 @@
       }
     }
 
-    const cards = (latest.instruments || []).map((item) => {
+    const cards = (latest.instruments || []).map((rawItem) => {
+      const item = effectiveItem(latest, rawItem, quarantine);
       const current = livePrice(live, item.instrument_id);
       const currentTime = fmtTime(liveTimestamp(live, item.instrument_id));
       const state = auditState(latest, item, quarantine);
