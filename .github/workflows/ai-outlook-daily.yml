@@ -1,0 +1,80 @@
+name: AI Outlook Daily
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Regenerate today's forecast"
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update_ai_outlook.py"
+      - "tests/test_ai_outlook.py"
+      - "data/ai_outlook.json"
+      - ".github/workflows/ai-outlook-daily.yml"
+  schedule:
+    # 05:35 UTC publishes in the Warsaw morning (07:35 CEST / 06:35 CET).
+    - cron: "35 5 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-outlook-daily
+  cancel-in-progress: false
+
+jobs:
+  publish-ai-outlook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Validate AI Outlook contract
+        run: |
+          python -m unittest tests.test_ai_outlook -v
+          python -m py_compile scripts/update_ai_outlook.py
+          python scripts/update_ai_outlook.py --validate-only
+
+      - name: Generate today's AI Outlook
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
+        shell: bash
+        run: |
+          ARGS=""
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            ARGS="--force"
+          fi
+          python scripts/update_ai_outlook.py $ARGS
+          python scripts/update_ai_outlook.py --validate-only
+
+      - name: Commit forecast
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_outlook.json data/ai_outlook_history 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No AI Outlook changes to commit."
+          else
+            git commit -m "Update AI Outlook"
+            git pull --rebase origin main
+            git push
+          fi
