@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - "scripts/update_ai_outlook.py"
+      - "scripts/homepage-photo-only.js"
       - "tests/test_ai_outlook.py"
       - "data/ai_outlook.json"
       - ".github/workflows/ai-outlook-daily.yml"
@@ -49,6 +50,7 @@ jobs:
         run: |
           python -m unittest tests.test_ai_outlook -v
           python -m py_compile scripts/update_ai_outlook.py
+          node --check scripts/homepage-photo-only.js
           python scripts/update_ai_outlook.py --validate-only
 
       - name: Generate today's AI Outlook
