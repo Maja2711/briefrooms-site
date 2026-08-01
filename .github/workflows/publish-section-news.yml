@@ -1,140 +1,14 @@
-name: Publish Section News Fast Lane
+name: Publish Section News Fast Lane (paused)
 
 on:
-  schedule:
-    - cron: "45 */4 * * *"
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "scripts/publish_section_news.py"
-      - "tests/test_publish_section_news.py"
-      - ".github/workflows/publish-section-news.yml"
-  push:
-    branches: [main]
-    paths:
-      - "scripts/publish_section_news.py"
-      - "tests/test_publish_section_news.py"
-      - ".github/workflows/publish-section-news.yml"
 
 permissions:
-  contents: write
-
-concurrency:
-  group: section-news-publication
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  validate:
+  paused:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Check out candidate
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Validate fast-lane contract
-        run: |
-          python -m py_compile scripts/publish_section_news.py
-          python -m unittest tests.test_publish_section_news -v
-          if grep -Eq 'secrets\.(GEMINI_API_KEY|OPENAI_API_KEY)' .github/workflows/publish-section-news.yml; then
-            echo "::error::Section-news fast lane must not receive AI secrets."
-            exit 1
-          fi
-          if ! grep -q 'group: section-news-publication' .github/workflows/publish-section-news.yml; then
-            echo "::error::Section-news fast lane must not share the atomic publisher concurrency group."
-            exit 1
-          fi
-
-  publish:
-    if: github.event_name != 'pull_request'
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      STAGE_DIR: /tmp/briefrooms-section-news/${{ github.run_id }}-${{ github.run_attempt }}
-      PUBLICATION_ID: section-${{ github.run_id }}-${{ github.run_attempt }}
-      PYTHONPATH: scripts
-      BR_SECTION_NEWS_SOURCE_ONLY: "1"
-    steps:
-      - name: Check out current main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install feed dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install feedparser python-dateutil requests
-
-      - name: Build and validate PL and EN section news
-        run: |
-          set -euo pipefail
-          unset GEMINI_API_KEY OPENAI_API_KEY
-          git fetch origin main
-          git merge --ff-only origin/main
-          python scripts/publish_section_news.py \
-            --publish \
-            --stage-dir "${STAGE_DIR}" \
-            --publication-id "${PUBLICATION_ID}"
-
-      - name: Commit fresh section news only
-        id: commit
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            pl/aktualnosci.html \
-            en/news.html \
-            data/news_story_history_pl.json \
-            data/news_story_history_en.json \
-            data/news_section_publication_status.json
-          if git diff --cached --quiet; then
-            echo "::error::Fast lane produced no section-news change."
-            exit 1
-          fi
-          git commit -m "chore(news): publish PL and EN section pages"
-          for attempt in 1 2 3; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
-            if git push origin HEAD:main; then
-              break
-            fi
-            if [[ "${attempt}" == "3" ]]; then
-              echo "::error::Could not push section news after 3 attempts."
-              exit 1
-            fi
-            sleep $((attempt * 10))
-          done
-          echo "published_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Verify both pages on production
-        run: |
-          python scripts/publish_section_news.py \
-            --verify \
-            --publication-id "${PUBLICATION_ID}" \
-            --base-url https://briefrooms.com \
-            --attempts 40 \
-            --interval 15 \
-            --timeout 20
-
-      - name: Upload fast-lane diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: section-news-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.STAGE_DIR }}/diagnostics
-          if-no-files-found: warn
-          retention-days: 30
+      - name: Section fast lane paused
+        run: echo "The section fast lane is paused. The layout-preserving source-only publisher now owns PL and EN news pages."
