@@ -4,28 +4,45 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const script = fs.readFileSync('scripts/investments-weekly-public.js', 'utf8');
-const week = JSON.parse(fs.readFileSync('data/investments/weekly/2026-W29.json', 'utf8'));
 
-function signed(value, digits) {
-  return (value >= 0 ? '+' : '') + Number(value).toLocaleString('pl-PL', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
+function isoWeek(date) {
+  const x = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = x.getUTCDay() || 7;
+  x.setUTCDate(x.getUTCDate() + 4 - day);
+  const year = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+  return `${x.getUTCFullYear()}-W${String(Math.ceil((((x - year) / 86400000) + 1) / 7)).padStart(2, '0')}`;
 }
 
-function expectedResult(item) {
-  const parts = [`${signed(item.result_value, 2)} USD`];
-  if (item.instrument_id === 'eurusd') parts.push(`${signed(item.result_units, 1)} pips`);
-  if (item.instrument_id === 'sp500_futures') parts.push(`${signed(item.result_units, 2)} pkt`);
-  parts.push(`${signed(item.result_percent, 2)}%`);
-  return parts.join(' · ');
+function validWeek() {
+  return {
+    week_id: isoWeek(new Date()),
+    forecast_created_at: new Date().toISOString(),
+    instruments: [{
+      instrument_id: 'eurusd',
+      symbol: 'EURUSD=X',
+      label_pl: 'EUR/USD',
+      label_en: 'EUR/USD',
+      direction: 'short',
+      trade_status: 'closed',
+      entry_price: 1.15,
+      entry_captured_at: '2026-07-31T10:00:00+02:00',
+      exit_price: 1.14,
+      exit_captured_at: '2026-07-31T11:00:00+02:00',
+      exit_reason: 'take_profit',
+      notional_eur: 10000,
+      result_value: 100,
+      result_units: 100,
+      result_percent: 0.869565,
+      risk_plan: {
+        stop_loss_price: 1.16,
+        take_profit_price: 1.14,
+        reward_to_risk: 1,
+      },
+    }],
+  };
 }
 
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function renderWithLive(updatedAt) {
+async function renderWithLive({ updatedAt, week = validWeek(), quarantine = { records: [] } }) {
   const classes = new Set();
   const elements = {
     updated: {
@@ -46,6 +63,7 @@ async function renderWithLive(updatedAt) {
       btcusd: { price: 64946.88 },
     },
   };
+  const window = { BR_WEEKLY: { lang: 'pl' } };
   const context = vm.createContext({
     console,
     document: {
@@ -55,12 +73,9 @@ async function renderWithLive(updatedAt) {
       dispatchEvent() {},
     },
     fetch: async (url) => {
-      if (url.startsWith('/data/investments/live_prices.json')) {
-        return { ok: true, json: async () => live };
-      }
-      if (url.startsWith(`/data/investments/weekly/${week.week_id}.json`)) {
-        return { ok: true, json: async () => week };
-      }
+      if (url.startsWith('/data/investments/live_prices.json')) return { ok: true, json: async () => live };
+      if (url.startsWith('/data/investments/public_quarantine.json')) return { ok: true, json: async () => quarantine };
+      if (url.startsWith(`/data/investments/weekly/${week.week_id}.json`)) return { ok: true, json: async () => week };
       return { ok: false, json: async () => ({}) };
     },
     setTimeout,
@@ -68,28 +83,52 @@ async function renderWithLive(updatedAt) {
     CustomEvent: class CustomEvent {
       constructor(type, init) { this.type = type; this.detail = init?.detail; }
     },
-    window: { BR_WEEKLY: { lang: 'pl' } },
+    window,
   });
   vm.runInContext(script, context);
-  await new Promise((resolve) => setTimeout(resolve, 25));
-  return { elements, classes };
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  return { elements, classes, window };
 }
 
 test('shows normalized investment results with units and notional', async () => {
-  const { elements } = await renderWithLive(new Date().toISOString());
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString() });
   const html = elements.app.innerHTML;
   assert.match(html, /<th>Tydzień<\/th>/);
   assert.match(html, /<dt>Nominał<\/dt>/);
   assert.match(html, /10(?:\s|&nbsp;|\u00a0)000 EUR/);
-  for (const item of week.instruments.filter((entry) => entry.exit_price)) {
-    assert.match(html, new RegExp(escapeRegex(expectedResult(item))));
-  }
+  assert.match(html, /\+100,00 USD · \+100,0 pips · \+0,87%/);
+  assert.doesNotMatch(html, /DANE W AUDYCIE/);
 });
 
 test('marks stored current prices as delayed when live data is stale', async () => {
-  const { elements, classes } = await renderWithLive('2000-01-01T00:00:00Z');
+  const { elements, classes } = await renderWithLive({ updatedAt: '2000-01-01T00:00:00Z' });
   assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
   assert.equal(classes.has('stale'), true);
   assert.match(elements.app.innerHTML, /1,14456/);
-  assert.match(elements.app.innerHTML, /7607,50/);
+});
+
+test('withholds a record when exit precedes entry', async () => {
+  const week = validWeek();
+  week.instruments[0].exit_captured_at = '2026-07-30T09:00:00+02:00';
+  const { elements, window } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.match(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /Wynik wstrzymany/);
+  assert.match(elements.app.innerHTML, /\+0,00 USD/);
+  assert.deepEqual(Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0])), ['exit_before_entry']);
+});
+
+test('honors explicit public quarantine even when arithmetic is valid', async () => {
+  const week = validWeek();
+  const quarantine = {
+    records: [{
+      week_id: week.week_id,
+      instrument_id: 'eurusd',
+      public_status: 'withheld',
+      reason: 'Manual reconciliation pending.',
+    }],
+  };
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week, quarantine });
+  assert.match(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /Manual reconciliation pending/);
+  assert.doesNotMatch(elements.app.innerHTML, /\+100,00 USD · \+100,0 pips/);
 });
