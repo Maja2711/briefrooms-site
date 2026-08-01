@@ -259,6 +259,119 @@
       line-height:1.5;
     }
 
+    .youtube-picks{
+      margin-top:34px;
+      padding:28px;
+      border:1px solid rgba(255,236,210,.24);
+      border-radius:24px;
+      background:linear-gradient(145deg,rgba(69,42,26,.94),rgba(27,16,11,.96));
+      box-shadow:0 24px 54px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .youtube-picks__head{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:20px;
+    }
+
+    .youtube-picks__icon{
+      display:grid;
+      place-items:center;
+      width:48px;
+      height:48px;
+      flex:0 0 48px;
+      border:1px solid rgba(255,196,120,.42);
+      border-radius:14px;
+      color:#fff5e5;
+      background:linear-gradient(145deg,#b85b3e,#74331f);
+      box-shadow:0 10px 24px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.2);
+      font-size:1.05rem;
+    }
+
+    .youtube-picks h2{
+      margin:0 0 4px;
+      color:#fff1d9;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:clamp(1.55rem,3vw,2rem);
+    }
+
+    .youtube-picks__head p{
+      margin:0;
+      color:#dfcdb7;
+      line-height:1.5;
+    }
+
+    .youtube-picks__grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+    }
+
+    .youtube-pick{
+      display:flex;
+      min-height:178px;
+      flex-direction:column;
+      padding:20px;
+      border:1px solid rgba(255,231,200,.18);
+      border-radius:18px;
+      color:#fff8ec;
+      text-decoration:none;
+      background:linear-gradient(160deg,rgba(255,255,255,.105),rgba(255,255,255,.035));
+      box-shadow:0 14px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
+      transition:transform .18s ease,border-color .18s ease,background .18s ease;
+    }
+
+    .youtube-pick:hover,
+    .youtube-pick:focus-visible{
+      transform:translateY(-4px);
+      border-color:rgba(232,158,91,.62);
+      background:linear-gradient(160deg,rgba(180,104,57,.26),rgba(255,255,255,.04));
+      outline:none;
+    }
+
+    .youtube-pick__label{
+      display:inline-flex;
+      align-self:flex-start;
+      margin-bottom:13px;
+      padding:5px 9px;
+      border:1px solid rgba(255,190,125,.3);
+      border-radius:999px;
+      color:#ffd9ad;
+      background:rgba(113,55,29,.42);
+      font-size:.68rem;
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+
+    .youtube-pick strong{
+      margin-bottom:9px;
+      color:#fff8ed;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:1.12rem;
+      line-height:1.25;
+    }
+
+    .youtube-pick span:not(.youtube-pick__label){
+      color:#dfcdb7;
+      font-size:.9rem;
+      line-height:1.5;
+    }
+
+    .youtube-pick b{
+      margin-top:auto;
+      padding-top:15px;
+      color:#ffc77d;
+      font-size:.86rem;
+    }
+
+    .youtube-picks__note{
+      margin:16px 2px 0;
+      color:#aa927b;
+      font-size:.74rem;
+    }
+
     .back{
       position:relative;
       z-index:2;
@@ -275,6 +388,7 @@
 
     @media (max-width:900px){
       .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .youtube-picks__grid{grid-template-columns:1fr}
     }
 
     @media (max-width:520px){
@@ -284,11 +398,13 @@
       .tiles{grid-template-columns:1fr}
       .tile{min-height:340px}
       .tile-link{max-width:260px;height:320px}
+      .youtube-picks{padding:22px 16px}
+      .youtube-picks__head{align-items:flex-start}
     }
 
     @media (prefers-reduced-motion:reduce){
-      .tile-link{transition:none}
-      .tile-link:hover,.tile-link:focus-visible{transform:none}
+      .tile-link,.youtube-pick{transition:none}
+      .tile-link:hover,.tile-link:focus-visible,.youtube-pick:hover,.youtube-pick:focus-visible{transform:none}
     }
   </style>
 <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
@@ -356,6 +472,40 @@
       </ul>
     </section>
 
+    <section class="youtube-picks" aria-labelledby="youtube-picks-title">
+      <div class="youtube-picks__head">
+        <span class="youtube-picks__icon" aria-hidden="true">▶</span>
+        <div>
+          <h2 id="youtube-picks-title">Polecane na YouTube</h2>
+          <p>Trzy kanały, które pomagają śledzić geopolitykę, strategię i bezpieczeństwo bez powierzchownego skrótu.</p>
+        </div>
+      </div>
+
+      <div class="youtube-picks__grid">
+        <a class="youtube-pick" href="https://www.youtube.com/@StrategyFuture" target="_blank" rel="noopener noreferrer external">
+          <span class="youtube-pick__label">Strategia i bezpieczeństwo</span>
+          <strong>Strategy&amp;Future</strong>
+          <span>Rozmowy i analizy dotyczące rywalizacji mocarstw, bezpieczeństwa Polski, wojskowości i przyszłego ładu międzynarodowego.</span>
+          <b>Otwórz kanał →</b>
+        </a>
+
+        <a class="youtube-pick" href="https://www.youtube.com/@nawschododbliskiegowschodu/videos" target="_blank" rel="noopener noreferrer external">
+          <span class="youtube-pick__label">Bliski Wschód i świat</span>
+          <strong>Szewko — Na Wschód od Bliskiego Wschodu</strong>
+          <span>Szeroki przegląd wydarzeń z Bliskiego Wschodu, Afryki i Azji, uzupełniony kontekstem historycznym, politycznym i kulturowym.</span>
+          <b>Zobacz najnowsze →</b>
+        </a>
+
+        <a class="youtube-pick" href="https://www.youtube.com/OSWOsrodekstudiowwschodnich" target="_blank" rel="noopener noreferrer external">
+          <span class="youtube-pick__label">Europa Wschodnia</span>
+          <strong>OSW — Ośrodek Studiów Wschodnich</strong>
+          <span>Rzeczowe materiały o Rosji, Ukrainie, Europie Środkowej, Kaukazie i Azji Centralnej przygotowywane przez analityków OSW.</span>
+          <b>Otwórz kanał →</b>
+        </a>
+      </div>
+
+      <p class="youtube-picks__note">Polecenia redakcyjne BriefRooms. Brak współpracy komercyjnej.</p>
+    </section>
   </main>
 
   <footer></footer>
