@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "scripts" / "site-header.js"
 PAGES = [ROOT / "pl/inwestycje.html", ROOT / "en/investing.html"]
-VERSION = "20260801-1"
+VERSION = "20260801-2"
 
 PANEL_RE = re.compile(r"\n\s*<aside class=\"model\">.*?</aside>\s*\n", re.S)
 STATUS_SCRIPT_RE = re.compile(
