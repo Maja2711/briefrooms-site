@@ -1,5 +1,5 @@
 name: Publish PL and EN News
-# Recovery trigger after transient Gemini preflight handling fix (2026-08-01 08:46 CEST).
+# Recovery trigger: latest publication supersedes stale queued or running attempts (2026-08-01).
 
 on:
   schedule:
@@ -56,7 +56,7 @@ permissions:
 
 concurrency:
   group: news-publication
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
