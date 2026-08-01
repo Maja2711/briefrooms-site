@@ -22,7 +22,7 @@ def marker_cards(source: str) -> list[str]:
     )
     if not match:
         raise AssertionError("homepage markers missing")
-    return re.findall(r'<a class="brief-card" href="[^"]+">.*?</a>', match.group(1), re.S)
+    return photo_only.CARD_RE.findall(match.group(1))
 
 
 class HomepagePhotoOnlyTests(unittest.TestCase):
@@ -36,9 +36,20 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
             self.assertEqual(len(photo_only.SCRIPT_RE.findall(source)), 1, lang)
             for card in cards:
                 self.assertTrue(photo_only.photo_card(card), f"{lang}: {card[:120]}")
-                self.assertIn('class="thumb has-image"', card)
                 self.assertIn('data-br-external-media="source-linked"', card)
                 self.assertNotIn("media-fallback-active", card)
+
+    def test_production_card_attributes_are_recognized(self) -> None:
+        card = (
+            '<a class="brief-card" href="https://example.com/story" '
+            'target="_blank" rel="noopener noreferrer external">'
+            '<div class="thumb has-image">'
+            '<img src="https://example.com/image.jpg" '
+            'data-br-external-media="source-linked">'
+            '</div></a>'
+        )
+        self.assertEqual(photo_only.CARD_RE.findall(card), [card])
+        self.assertTrue(photo_only.photo_card(card))
 
     def test_runtime_replaces_an_older_asset_version(self) -> None:
         source = (
@@ -58,14 +69,16 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
             cards = [
                 (
                     '<a class="brief-card" href="/pl/briefy/photo-'
-                    f'{index:012x}.html"><div class="thumb has-image">'
+                    f'{index:012x}.html" target="_blank" rel="noopener">'
+                    '<div class="thumb has-image">'
                     '<img src="https://example.com/a.jpg" '
                     'data-br-external-media="source-linked"></div><div>Text</div></a>'
                 )
                 for index in range(7)
             ]
             cards.append(
-                '<a class="brief-card" href="/pl/briefy/no-photo-ffffffffffff.html">'
+                '<a class="brief-card" href="/pl/briefy/no-photo-ffffffffffff.html" '
+                'target="_blank" rel="noopener">'
                 '<div class="thumb media-fallback-active"></div><div>Text</div></a>'
             )
             original = (
