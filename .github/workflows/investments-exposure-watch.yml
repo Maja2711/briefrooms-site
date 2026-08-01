@@ -15,14 +15,17 @@ on:
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/audit_weekly_model.py"
       - "scripts/apply_manual_risk_exit_overrides.py"
-      - "scripts/apply_week31_verified_sl_corrections.py"
       - "scripts/enforce_weekly_risk_exit_lock.py"
-      - "scripts/render_investment_positions_public.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
+      - "scripts/investments-weekly-public.js"
       - "scripts/investments-weekly-governance.js"
+      - "tests/test_investments_weekly_public.js"
+      - "tests/test_audit_weekly_integrity.py"
       - "data/investments/manual_risk_exit_overrides.json"
+      - "data/investments/public_quarantine.json"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/investments-exposure-watch.yml"
@@ -53,6 +56,13 @@ jobs:
       - name: Install market-data dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
+      - name: Validate publication integrity code
+        run: |
+          node --check scripts/investments-weekly-public.js
+          node --check scripts/investments-weekly-governance.js
+          node --test tests/test_investments_weekly_public.js
+          python -m unittest tests/test_audit_weekly_integrity.py
+
       - name: Recover a missing current-week paper forecast
         run: python scripts/ensure_current_week_forecast.py
 
@@ -61,9 +71,6 @@ jobs:
 
       - name: Apply confirmed missed threshold corrections
         run: python scripts/apply_manual_risk_exit_overrides.py
-
-      - name: Apply verified W31 stop-loss corrections idempotently
-        run: python scripts/apply_week31_verified_sl_corrections.py
 
       # Independent fail-safe audit. It scans completed OHLC bars from entry,
       # using 5-minute data first and a 60-minute fallback when necessary.
@@ -78,8 +85,11 @@ jobs:
       - name: Block same-week re-entry after SL or TP
         run: python scripts/enforce_weekly_risk_exit_lock.py
 
-      - name: Render actual weekly positions dashboard after risk review
-        run: python scripts/render_investment_positions_public.py
+      - name: Audit ledger integrity before publication
+        run: python scripts/audit_weekly_model.py
+
+      - name: Render audited weekly positions dashboard
+        run: python scripts/render_simple_investments.py
 
       - name: Persist risk exits immediately
         run: |
@@ -89,6 +99,8 @@ jobs:
           git restore --worktree -- data/investments/live_prices.json
           git add data/investments/intraday_risk_audit.json \
                   data/investments/manual_risk_exit_overrides.json \
+                  data/investments/model_audit.json \
+                  data/investments/closed_week_manifest.json \
                   data/investments/weekly \
                   data/investments/multi_instrument_validation_v4.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
@@ -127,11 +139,14 @@ jobs:
       - name: Persist and verify v5 governance metadata
         run: python scripts/investments_weekly_v5_finalize.py
 
+      - name: Re-audit ledger integrity after exposure changes
+        run: python scripts/audit_weekly_model.py
+
       - name: Replay exact published execution ledger
         run: python scripts/backtest_weekly_execution_parity_v5.py
 
       - name: Render Polish and English public pages
-        run: python scripts/render_investment_positions_public.py
+        run: python scripts/render_simple_investments.py
 
       - name: Commit governed paper-position updates
         run: |
@@ -141,6 +156,8 @@ jobs:
           git restore --worktree -- data/investments/live_prices.json
           git add data/investments/intraday_risk_audit.json \
                   data/investments/manual_risk_exit_overrides.json \
+                  data/investments/model_audit.json \
+                  data/investments/closed_week_manifest.json \
                   data/investments/weekly \
                   data/investments/daily_review_report.json \
                   data/investments/event_exit_requests.json \
