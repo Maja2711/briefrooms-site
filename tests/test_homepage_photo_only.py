@@ -32,12 +32,25 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
             cards = marker_cards(source)
             self.assertGreaterEqual(len(cards), 1, lang)
             self.assertIn('data-home-photo-only="true"', source, lang)
-            self.assertIn('/scripts/homepage-photo-only.js?v=1', source, lang)
+            self.assertIn(photo_only.SCRIPT, source, lang)
+            self.assertEqual(len(photo_only.SCRIPT_RE.findall(source)), 1, lang)
             for card in cards:
                 self.assertTrue(photo_only.photo_card(card), f"{lang}: {card[:120]}")
                 self.assertIn('class="thumb has-image"', card)
                 self.assertIn('data-br-external-media="source-linked"', card)
                 self.assertNotIn("media-fallback-active", card)
+
+    def test_runtime_replaces_an_older_asset_version(self) -> None:
+        source = (
+            '<!doctype html><html><body>'
+            '<div id="latest-briefs" class="brief-grid"></div>'
+            '<script src="/scripts/homepage-photo-only.js?v=1" defer></script>'
+            '</body></html>'
+        )
+        updated = photo_only.ensure_runtime(source)
+        self.assertIn(photo_only.SCRIPT, updated)
+        self.assertNotIn('homepage-photo-only.js?v=1', updated)
+        self.assertEqual(len(photo_only.SCRIPT_RE.findall(updated)), 1)
 
     def test_filter_fails_closed_instead_of_reducing_the_card_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
