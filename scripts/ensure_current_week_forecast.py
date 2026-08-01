@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """Create the current paper-trading week if the Sunday forecast run was missed.
 
-This is a resilience fallback for the experimental continuous-exposure layer.
-It never rewrites an existing week. A recovered forecast is explicitly marked
-as late so it cannot be confused with a properly frozen Sunday forecast.
+A future-week placeholder may exist so the public page can expose the next tab.
+On the first trading day that placeholder is replaced with actual model output.
+A real existing forecast is never rewritten.
 """
 from __future__ import annotations
 
@@ -33,6 +33,10 @@ def write(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
+def is_public_placeholder(data: Any) -> bool:
+    return isinstance(data, dict) and data.get("forecast_status") == "scheduled" and data.get("model_status") == "paper_only_waiting_for_weekly_generation"
+
+
 def main() -> None:
     now = legacy.now_local()
     if now.weekday() > 4:
@@ -40,7 +44,9 @@ def main() -> None:
         return
     week_id = legacy.week_id_from_date(now)
     path = WEEKLY / f"{week_id}.json"
-    if path.exists():
+    existing = read(path, {}) if path.exists() else {}
+    replacing_placeholder = is_public_placeholder(existing)
+    if path.exists() and not replacing_placeholder:
         print(f"Current-week forecast already exists: {path.name}")
         return
 
@@ -74,11 +80,11 @@ def main() -> None:
                 "result_value": 0.0 if direction == "neutral" else None,
                 "result_percent": 0.0 if direction == "neutral" else None,
                 "rationale_pl": [
-                    "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pliku z niedzielnego przebiegu.",
+                    "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
                     "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading.",
                 ],
                 "rationale_en": [
-                    "Recovery forecast created during the current week because the Sunday forecast file was missing.",
+                    "Recovery forecast created during the current week because the full Sunday run was missing.",
                     "The continuous-exposure layer remains an experimental paper-trading exercise only.",
                 ],
             }
@@ -94,7 +100,8 @@ def main() -> None:
         "forecast_for_week_end": friday.date().isoformat(),
         "timezone": "Europe/Warsaw",
         "late_forecast_recovery": True,
-        "forecast_integrity_note": "The scheduled Sunday forecast was missing. This recovery is timestamped and must not be represented as a pre-week forecast.",
+        "replaced_public_placeholder": replacing_placeholder,
+        "forecast_integrity_note": "A public placeholder contains no signal or price. It was replaced only after actual model data became available.",
         "market_window": {
             "entry_target_local": monday.isoformat(timespec="seconds"),
             "entry_latest_local": (monday + timedelta(hours=2)).isoformat(timespec="seconds"),
@@ -109,7 +116,8 @@ def main() -> None:
     }
     data["forecast_hash"] = v2.forecast_hash(data)
     write(path, data)
-    print(f"Recovered missing current-week paper forecast: {path.name}")
+    verb = "Replaced public placeholder with" if replacing_placeholder else "Recovered missing"
+    print(f"{verb} current-week paper forecast: {path.name}")
 
 
 if __name__ == "__main__":
