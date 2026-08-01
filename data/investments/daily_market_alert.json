@@ -5,8 +5,8 @@
   "edition": "open",
   "updated_at": "2026-07-31T20:18:59+02:00",
   "market_regime": {
-    "pl": "Bieżący obraz międzyrynkowy oparty na zweryfikowanych kwotowaniach",
-    "en": "Current cross-asset picture based on validated market quotes"
+    "pl": "S&P 500 rośnie, ale wzrost US 10Y do 4,74% ogranicza siłę sygnału risk-on; Brent rośnie.",
+    "en": "The S&P 500 is higher, but a rise in US 10Y to 4.74% tempers the risk-on signal; Brent is higher."
   },
   "summary": {
     "pl": "S&P 500: 7 485 (+0,64% od poprzedniego zamknięcia). Brent: 90,01 USD (+1,10% od poprzedniego zamknięcia). Rentowność US 10Y: 4,74% (+8 pb od poprzedniego zamknięcia).",
@@ -16,28 +16,16 @@
     {
       "id": "sp500",
       "name": "S&P 500",
-      "asset_class": {
-        "pl": "Indeks akcji",
-        "en": "Equity index"
-      },
+      "asset_class": {"pl": "Indeks akcji", "en": "Equity index"},
       "price": "7 485",
       "price_value": 7485.419922,
       "change": "+0,64%",
       "change_numeric": 0.642542,
       "change_kind": "percent",
-      "change_period": "previous_regular_close",
       "reference_close_value": 7437.63,
       "quote_symbol": "^GSPC",
       "quote_as_of": "2026-07-31T18:18:58+00:00",
       "direction": "up",
-      "reason": {
-        "pl": "Wartość S&P 500 wzrosła względem poprzedniego regularnego zamknięcia. Brak potwierdzonego pojedynczego nowego katalizatora; krótkoterminowy obraz wyznaczają bieżąca zmiana indeksu oraz wskazane poziomy techniczne.",
-        "en": "The S&P 500 rose versus the previous regular-session close. No single new catalyst is confirmed; the short-term picture is defined by the current index move and the stated technical levels."
-      },
-      "driver_keys": [
-        "market-price-action"
-      ],
-      "source_indexes": [],
       "support": "7 470",
       "support_value": 7470.0,
       "resistance": "7 520",
@@ -50,60 +38,46 @@
         "pl": "Zamknięcie poniżej 7 470 zwiększa ryzyko ruchu w kierunku 7 420. Trwałe wybicie ponad 7 520 otwiera przestrzeń do 7 550.",
         "en": "A close below 7 470 increases the risk of a move toward 7 420. A sustained break above 7 520 opens room toward 7 550."
       },
-      "scenario_probabilities": {
-        "range": 50,
-        "continuation": 30,
-        "reversal": 20
+      "change_period": "previous_regular_close",
+      "reason": {
+        "pl": "S&P 500 jest na 7 485, czyli +0,64% od poprzedniego zamknięcia, i handluje między wsparciem 7 470 a oporem 7 520. Położenie nad wsparciem podtrzymuje popyt na akcje, lecz rentowność US 10Y na 4,74% wpływa na koszt kapitału i może ograniczać wyceny spółek wzrostowych. Bazowo zakładamy konsolidację: zamknięcie ponad 7 520 potwierdzi ruch do 7 550, a zejście poniżej 7 470 zwiększy ryzyko spadku do 7 420.",
+        "en": "The S&P 500 is at 7 485, +0.64% from the previous close, trading between 7 470 support and 7 520 resistance. Holding above support preserves equity demand, while the US 10Y yield at 4.74% affects the cost of capital and can restrain growth-stock valuations. The base case is consolidation: a close above 7 520 confirms room to 7 550, while a break below 7 470 raises downside risk toward 7 420."
       },
-      "scenarios": [
-        {
-          "probability": 50,
-          "label": {
-            "pl": "Konsolidacja między 7 470 a 7 520",
-            "en": "Consolidation between 7 470 and 7 520"
-          }
+      "narrative": {
+        "pl": {
+          "what_changed": "S&P 500 jest na 7 485, czyli +0,64% od poprzedniego zamknięcia, i handluje między wsparciem 7 470 a oporem 7 520.",
+          "why_it_matters": "Położenie nad wsparciem podtrzymuje popyt na akcje, lecz rentowność US 10Y na 4,74% wpływa na koszt kapitału i może ograniczać wyceny spółek wzrostowych.",
+          "base_case": "Bazowo zakładamy konsolidację: zamknięcie ponad 7 520 potwierdzi ruch do 7 550, a zejście poniżej 7 470 zwiększy ryzyko spadku do 7 420."
         },
-        {
-          "probability": 30,
-          "label": {
-            "pl": "Kontynuacja wzrostu w kierunku 7 550",
-            "en": "Continued rise toward 7 550"
-          }
-        },
-        {
-          "probability": 20,
-          "label": {
-            "pl": "Odwrócenie ruchu i zejście pod 7 470",
-            "en": "Reversal and move below 7 470"
-          }
+        "en": {
+          "what_changed": "The S&P 500 is at 7 485, +0.64% from the previous close, trading between 7 470 support and 7 520 resistance.",
+          "why_it_matters": "Holding above support preserves equity demand, while the US 10Y yield at 4.74% affects the cost of capital and can restrain growth-stock valuations.",
+          "base_case": "The base case is consolidation: a close above 7 520 confirms room to 7 550, while a break below 7 470 raises downside risk toward 7 420."
         }
+      },
+      "stance": "positive",
+      "driver_keys": ["equity-price-action", "rates-valuation"],
+      "source_indexes": [],
+      "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20},
+      "scenarios": [
+        {"probability": 50, "label": {"pl": "Konsolidacja między 7 470 a 7 520", "en": "Consolidation between 7 470 and 7 520"}},
+        {"probability": 30, "label": {"pl": "Kontynuacja wzrostu w kierunku 7 550", "en": "Continued rise toward 7 550"}},
+        {"probability": 20, "label": {"pl": "Odwrócenie ruchu i zejście pod 7 470", "en": "Reversal and move below 7 470"}}
       ]
     },
     {
       "id": "brent",
       "name": "Brent",
-      "asset_class": {
-        "pl": "Ropa naftowa",
-        "en": "Crude oil"
-      },
+      "asset_class": {"pl": "Ropa naftowa", "en": "Crude oil"},
       "price": "90,01 USD",
       "price_value": 90.010002,
       "change": "+1,10%",
       "change_numeric": 1.100755,
       "change_kind": "percent",
-      "change_period": "previous_regular_close",
       "reference_close_value": 89.03,
       "quote_symbol": "BZ=F",
       "quote_as_of": "2026-07-31T17:21:09+00:00",
       "direction": "up",
-      "reason": {
-        "pl": "Cena ropy Brent wzrosła względem poprzedniego regularnego zamknięcia. Brak potwierdzonego pojedynczego nowego impulsu; dla scenariusza kluczowe pozostają bieżąca zmiana ceny oraz najbliższe wsparcie i opór.",
-        "en": "Brent crude rose versus the previous regular-session close. No single new driver is confirmed; the current price move and the nearest support and resistance remain decisive for the scenario."
-      },
-      "driver_keys": [
-        "oil-price-action"
-      ],
-      "source_indexes": [],
       "support": "89,50 USD",
       "support_value": 89.5,
       "resistance": "91,50 USD",
@@ -116,60 +90,46 @@
         "pl": "Zamknięcie poniżej 89,50 USD zwiększa ryzyko ruchu w kierunku 86,50 USD. Trwałe wybicie ponad 91,50 USD otwiera przestrzeń do 93,00 USD.",
         "en": "A close below 89.50 USD increases the risk of a move toward 86.50 USD. A sustained break above 91.50 USD opens room toward 93.00 USD."
       },
-      "scenario_probabilities": {
-        "range": 50,
-        "continuation": 30,
-        "reversal": 20
+      "change_period": "previous_regular_close",
+      "reason": {
+        "pl": "Brent kosztuje 90,01 USD i zmienia się o +1,10% od poprzedniego zamknięcia, pozostając w przedziale 89,50 USD–91,50 USD. Bez bezpośrednio potwierdzonej wiadomości przewagę popytu lub podaży najlepiej oceniać przez utrzymanie ceny wobec granic zakresu i zmianę premii za ryzyko w ropie. Bazowo obowiązuje zakres: wybicie ponad 91,50 USD otworzy drogę do 93,00 USD, a zamknięcie poniżej 89,50 USD skieruje uwagę na 86,50 USD.",
+        "en": "Brent is at 90.01 USD and +1.10% from the previous close, remaining inside the 89.50 USD–91.50 USD range. Without a directly verified headline, the balance of oil demand, supply and risk premium is best judged by whether price holds or breaks the range boundaries. The base case is range trading: a break above 91.50 USD opens room to 93.00 USD, while a close below 89.50 USD shifts focus to 86.50 USD."
       },
-      "scenarios": [
-        {
-          "probability": 50,
-          "label": {
-            "pl": "Konsolidacja między 89,50 USD a 91,50 USD",
-            "en": "Consolidation between 89.50 USD and 91.50 USD"
-          }
+      "narrative": {
+        "pl": {
+          "what_changed": "Brent kosztuje 90,01 USD i zmienia się o +1,10% od poprzedniego zamknięcia, pozostając w przedziale 89,50 USD–91,50 USD.",
+          "why_it_matters": "Bez bezpośrednio potwierdzonej wiadomości przewagę popytu lub podaży najlepiej oceniać przez utrzymanie ceny wobec granic zakresu i zmianę premii za ryzyko w ropie.",
+          "base_case": "Bazowo obowiązuje zakres: wybicie ponad 91,50 USD otworzy drogę do 93,00 USD, a zamknięcie poniżej 89,50 USD skieruje uwagę na 86,50 USD."
         },
-        {
-          "probability": 30,
-          "label": {
-            "pl": "Kontynuacja wzrostu w kierunku 93,00 USD",
-            "en": "Continued rise toward 93.00 USD"
-          }
-        },
-        {
-          "probability": 20,
-          "label": {
-            "pl": "Odwrócenie ruchu i zejście pod 89,50 USD",
-            "en": "Reversal and move below 89.50 USD"
-          }
+        "en": {
+          "what_changed": "Brent is at 90.01 USD and +1.10% from the previous close, remaining inside the 89.50 USD–91.50 USD range.",
+          "why_it_matters": "Without a directly verified headline, the balance of oil demand, supply and risk premium is best judged by whether price holds or breaks the range boundaries.",
+          "base_case": "The base case is range trading: a break above 91.50 USD opens room to 93.00 USD, while a close below 89.50 USD shifts focus to 86.50 USD."
         }
+      },
+      "stance": "positive",
+      "driver_keys": ["oil-price-action", "risk-premium"],
+      "source_indexes": [],
+      "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20},
+      "scenarios": [
+        {"probability": 50, "label": {"pl": "Konsolidacja między 89,50 USD a 91,50 USD", "en": "Consolidation between 89.50 USD and 91.50 USD"}},
+        {"probability": 30, "label": {"pl": "Kontynuacja wzrostu w kierunku 93,00 USD", "en": "Continued rise toward 93.00 USD"}},
+        {"probability": 20, "label": {"pl": "Odwrócenie ruchu i zejście pod 89,50 USD", "en": "Reversal and move below 89.50 USD"}}
       ]
     },
     {
       "id": "us10y",
       "name": "US 10Y",
-      "asset_class": {
-        "pl": "Rentowność obligacji",
-        "en": "Bond yield"
-      },
+      "asset_class": {"pl": "Rentowność obligacji", "en": "Bond yield"},
       "price": "4,74%",
       "price_value": 4.743,
       "change": "+8 pb",
       "change_numeric": 8.000003,
       "change_kind": "basis_points",
-      "change_period": "previous_regular_close",
       "reference_close_value": 4.663,
       "quote_symbol": "^TNX",
       "quote_as_of": "2026-07-31T18:03:55+00:00",
       "direction": "up",
-      "reason": {
-        "pl": "Rentowność amerykańskich obligacji 10-letnich wzrosła względem poprzedniego regularnego zamknięcia. Bez potwierdzonego jednego nowego katalizatora ocena opiera się na zmianie rentowności i najbliższych poziomach technicznych.",
-        "en": "The US 10-year Treasury yield rose versus the previous regular-session close. With no single new catalyst confirmed, the assessment is based on the yield move and the nearest technical levels."
-      },
-      "driver_keys": [
-        "rates-price-action"
-      ],
-      "source_indexes": [],
       "support": "4,71%",
       "support_value": 4.71,
       "resistance": "4,75%",
@@ -182,33 +142,31 @@
         "pl": "Wybicie ponad 4,75% zwiększy presję na wyceny spółek wzrostowych; spadek poniżej 4,71% byłby sygnałem ulgi dla rynku akcji.",
         "en": "A break above 4.75% would increase pressure on growth-stock valuations; a move below 4.71% would provide relief for equities."
       },
-      "scenario_probabilities": {
-        "range": 50,
-        "continuation": 30,
-        "reversal": 20
+      "change_period": "previous_regular_close",
+      "reason": {
+        "pl": "Rentowność US 10Y wynosi 4,74%, zmieniając się o +8 pb od poprzedniego zamknięcia, i testuje zakres 4,71%–4,75%. Wyższa rentowność podnosi stopę dyskontową i obciąża wyceny aktywów o długim duration; niższa zmniejsza presję na obligacje oraz segment wzrostowy rynku akcji. Bazowo trwa test zakresu: wybicie ponad 4,75% zwiększy presję w kierunku 4,81%, a spadek poniżej 4,71% otworzy przestrzeń do 4,69%.",
+        "en": "The US 10Y yield is 4.74%, +8 pb from the previous close, and is testing the 4.71%–4.75% range. A higher yield lifts the discount rate and pressures long-duration valuations; a lower yield eases the burden on bonds and growth-sensitive equity segments. The base case is a range test: a break above 4.75% increases pressure toward 4.81%, while a move below 4.71% opens room to 4.69%."
       },
-      "scenarios": [
-        {
-          "probability": 50,
-          "label": {
-            "pl": "Konsolidacja między 4,71% a 4,75%",
-            "en": "Consolidation between 4.71% and 4.75%"
-          }
+      "narrative": {
+        "pl": {
+          "what_changed": "Rentowność US 10Y wynosi 4,74%, zmieniając się o +8 pb od poprzedniego zamknięcia, i testuje zakres 4,71%–4,75%.",
+          "why_it_matters": "Wyższa rentowność podnosi stopę dyskontową i obciąża wyceny aktywów o długim duration; niższa zmniejsza presję na obligacje oraz segment wzrostowy rynku akcji.",
+          "base_case": "Bazowo trwa test zakresu: wybicie ponad 4,75% zwiększy presję w kierunku 4,81%, a spadek poniżej 4,71% otworzy przestrzeń do 4,69%."
         },
-        {
-          "probability": 30,
-          "label": {
-            "pl": "Kontynuacja wzrostu w kierunku 4,81%",
-            "en": "Continued rise toward 4.81%"
-          }
-        },
-        {
-          "probability": 20,
-          "label": {
-            "pl": "Odwrócenie ruchu i zejście pod 4,71%",
-            "en": "Reversal and move below 4.71%"
-          }
+        "en": {
+          "what_changed": "The US 10Y yield is 4.74%, +8 pb from the previous close, and is testing the 4.71%–4.75% range.",
+          "why_it_matters": "A higher yield lifts the discount rate and pressures long-duration valuations; a lower yield eases the burden on bonds and growth-sensitive equity segments.",
+          "base_case": "The base case is a range test: a break above 4.75% increases pressure toward 4.81%, while a move below 4.71% opens room to 4.69%."
         }
+      },
+      "stance": "mixed",
+      "driver_keys": ["rates-price-action", "duration-valuation"],
+      "source_indexes": [],
+      "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20},
+      "scenarios": [
+        {"probability": 50, "label": {"pl": "Konsolidacja między 4,71% a 4,75%", "en": "Consolidation between 4.71% and 4.75%"}},
+        {"probability": 30, "label": {"pl": "Kontynuacja wzrostu w kierunku 4,81%", "en": "Continued rise toward 4.81%"}},
+        {"probability": 20, "label": {"pl": "Odwrócenie ruchu i zejście pod 4,71%", "en": "Reversal and move below 4.71%"}}
       ]
     }
   ],
@@ -222,55 +180,27 @@
       "en": "Checked before the close at 22:43: no material change from the post-open alert."
     }
   },
-  "editorial_mode": "deterministic_fallback",
+  "editorial_mode": "structured_deterministic_fallback",
+  "editorial_quality": {
+    "spec_version": "3.0",
+    "prompt_version": "daily-market-alert-pl-en-separated-2026-08-01",
+    "separate_language_generation": true,
+    "passed": true,
+    "score": 100,
+    "issues": []
+  },
+  "editorial_contract": {
+    "data_layer": "validated_market_snapshot",
+    "narrative_layer": "language_separated_editorial_v3",
+    "pl_generated_independently": true,
+    "en_generated_independently": true
+  },
   "opening_snapshot": {
     "updated_at": "2026-07-31T20:18:59+02:00",
     "instruments": [
-      {
-        "id": "sp500",
-        "price_value": 7485.419922,
-        "change_numeric": 0.642542,
-        "support_value": 7470.0,
-        "resistance_value": 7520.0,
-        "driver_keys": [
-          "market-price-action"
-        ],
-        "scenario_probabilities": {
-          "range": 50,
-          "continuation": 30,
-          "reversal": 20
-        }
-      },
-      {
-        "id": "brent",
-        "price_value": 90.010002,
-        "change_numeric": 1.100755,
-        "support_value": 89.5,
-        "resistance_value": 91.5,
-        "driver_keys": [
-          "oil-price-action"
-        ],
-        "scenario_probabilities": {
-          "range": 50,
-          "continuation": 30,
-          "reversal": 20
-        }
-      },
-      {
-        "id": "us10y",
-        "price_value": 4.743,
-        "change_numeric": 8.000003,
-        "support_value": 4.71,
-        "resistance_value": 4.75,
-        "driver_keys": [
-          "rates-price-action"
-        ],
-        "scenario_probabilities": {
-          "range": 50,
-          "continuation": 30,
-          "reversal": 20
-        }
-      }
+      {"id": "sp500", "price_value": 7485.419922, "change_numeric": 0.642542, "support_value": 7470.0, "resistance_value": 7520.0, "driver_keys": ["equity-price-action", "rates-valuation"], "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20}},
+      {"id": "brent", "price_value": 90.010002, "change_numeric": 1.100755, "support_value": 89.5, "resistance_value": 91.5, "driver_keys": ["oil-price-action", "risk-premium"], "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20}},
+      {"id": "us10y", "price_value": 4.743, "change_numeric": 8.000003, "support_value": 4.71, "resistance_value": 4.75, "driver_keys": ["rates-price-action", "duration-valuation"], "scenario_probabilities": {"range": 50, "continuation": 30, "reversal": 20}}
     ]
   }
 }
