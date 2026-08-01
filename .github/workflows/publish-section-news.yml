@@ -40,6 +40,10 @@ jobs:
         run: |
           python -m py_compile scripts/publish_section_news.py
           python -m unittest tests.test_publish_section_news -v
+          if grep -Eq 'secrets\.(GEMINI_API_KEY|OPENAI_API_KEY)' .github/workflows/publish-section-news.yml; then
+            echo "::error::Section-news fast lane must not receive AI secrets."
+            exit 1
+          fi
 
   publish:
     if: github.event_name != 'pull_request'
@@ -50,6 +54,7 @@ jobs:
       STAGE_DIR: /tmp/briefrooms-section-news/${{ github.run_id }}-${{ github.run_attempt }}
       PUBLICATION_ID: section-${{ github.run_id }}-${{ github.run_attempt }}
       PYTHONPATH: scripts
+      BR_SECTION_NEWS_SOURCE_ONLY: "1"
     steps:
       - name: Check out current main
         uses: actions/checkout@v4
@@ -68,16 +73,9 @@ jobs:
           python -m pip install feedparser python-dateutil requests
 
       - name: Build and validate PL and EN section news
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
-          GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
-          GEMINI_MIN_INTERVAL_SECONDS: "7"
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
-          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
         run: |
           set -euo pipefail
+          unset GEMINI_API_KEY OPENAI_API_KEY
           git fetch origin main
           git merge --ff-only origin/main
           python scripts/publish_section_news.py \
