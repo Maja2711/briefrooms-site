@@ -20,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: news-publication
+  group: section-news-publication
   cancel-in-progress: true
 
 jobs:
@@ -42,6 +42,10 @@ jobs:
           python -m unittest tests.test_publish_section_news -v
           if grep -Eq 'secrets\.(GEMINI_API_KEY|OPENAI_API_KEY)' .github/workflows/publish-section-news.yml; then
             echo "::error::Section-news fast lane must not receive AI secrets."
+            exit 1
+          fi
+          if ! grep -q 'group: section-news-publication' .github/workflows/publish-section-news.yml; then
+            echo "::error::Section-news fast lane must not share the atomic publisher concurrency group."
             exit 1
           fi
 
