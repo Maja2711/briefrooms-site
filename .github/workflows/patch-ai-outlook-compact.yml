@@ -11,6 +11,8 @@ on:
   issues:
     types: [opened]
   workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -25,6 +27,7 @@ jobs:
   patch-and-deploy:
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.issue.title == 'Patch AI Outlook compact asset'
     runs-on: ubuntu-latest
