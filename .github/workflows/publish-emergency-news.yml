@@ -45,7 +45,7 @@ jobs:
       - name: Validate layout-preserving publisher
         run: |
           python -m py_compile scripts/publish_emergency_news.py scripts/enforce_homepage_photo_only.py
-          python -m unittest tests.test_publish_emergency_news tests.test_homepage_photo_only -v
+          python -m unittest tests.test_publish_emergency_news -v
           node --check scripts/homepage-photo-only.js
 
   publish:
@@ -78,6 +78,7 @@ jobs:
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
           python scripts/publish_emergency_news.py --marker "${marker}"
           python scripts/enforce_homepage_photo_only.py
+          python -m unittest tests.test_homepage_photo_only -v
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
           if grep -F '/scripts/homepage-photo-only.js?v=1' pl/index.html en/index.html; then
