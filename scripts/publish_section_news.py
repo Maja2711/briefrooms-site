@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import html
 import json
 import os
@@ -16,6 +15,7 @@ import tempfile
 import time
 import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -69,34 +69,9 @@ def iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-def _attr(tag: str, name: str) -> str:
-    match = re.search(
-        rf"\b{re.escape(name)}\s*=\s*([\"'])(.*?)\1",
-        tag,
-        flags=re.I | re.S,
-    )
-    return html.unescape(match.group(2)).strip() if match else ""
-
-
-def _text(value: str) -> str:
-    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", value))).strip()
-
-
-def _tag_with_class(block: str, tag_name: str, class_name: str) -> tuple[str, str] | None:
-    pattern = re.compile(
-        rf"(<{tag_name}\b[^>]*>)(.*?)</{tag_name}>",
-        flags=re.I | re.S,
-    )
-    for match in pattern.finditer(block):
-        classes = _attr(match.group(1), "class").split()
-        if class_name in classes:
-            return match.group(1), match.group(2)
-    return None
-
-
 def canonical_url(value: str) -> str:
     try:
-        parsed = urlsplit(value.strip())
+        parsed = urlsplit(str(value or "").strip())
     except ValueError:
         return ""
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
@@ -105,22 +80,71 @@ def canonical_url(value: str) -> str:
     return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), path, parsed.query, ""))
 
 
+def _attrs(values: list[tuple[str, str | None]]) -> dict[str, str]:
+    return {str(key).lower(): str(value or "") for key, value in values}
+
+
+class NewsPageParser(HTMLParser):
+    def __init__(self, expected_sections: set[str]) -> None:
+        super().__init__(convert_charrefs=True)
+        self.expected_sections = expected_sections
+        self.current_section = ""
+        self.current_card: dict[str, Any] | None = None
+        self.capture = ""
+        self.sections: dict[str, list[dict[str, Any]]] = {
+            section: [] for section in expected_sections
+        }
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        values = _attrs(attrs)
+        classes = set(values.get("class", "").split())
+        if tag == "section":
+            section_id = values.get("id", "")
+            self.current_section = section_id if section_id in self.expected_sections else ""
+            return
+        if tag == "li" and self.current_section:
+            self.current_card = {"href": "", "title": [], "source": [], "image": ""}
+            return
+        if self.current_card is None:
+            return
+        if tag == "a" and "news-main-link" in classes:
+            self.current_card["href"] = values.get("href", "")
+        elif tag == "span" and "news-text" in classes:
+            self.capture = "title"
+        elif tag == "span" and "source-line" in classes:
+            self.capture = "source"
+        elif tag == "img" and not self.current_card["image"]:
+            self.current_card["image"] = values.get("src") or values.get("data-src") or ""
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag == "span" and self.capture:
+            self.capture = ""
+        elif tag == "li" and self.current_card is not None:
+            if self.current_section:
+                self.sections[self.current_section].append(self.current_card)
+            self.current_card = None
+            self.capture = ""
+        elif tag == "section":
+            self.current_section = ""
+
+    def handle_data(self, data: str) -> None:
+        if self.current_card is not None and self.capture:
+            self.current_card[self.capture].append(data)
+
+
 def page_timestamp(source: str, lang: str) -> datetime | None:
-    marker = re.search(
+    patterns = (
         r'<meta\s+name=["\']briefrooms-news-updated-at["\']\s+content=["\']([^"\']+)',
-        source,
-        flags=re.I,
+        r'<time\b[^>]*datetime=["\']([^"\']+)',
     )
-    if marker:
+    for pattern in patterns:
+        match = re.search(pattern, source, flags=re.I)
+        if not match:
+            continue
         try:
-            parsed = datetime.fromisoformat(marker.group(1).replace("Z", "+00:00"))
-            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-        except ValueError:
-            return None
-    timed = re.search(r'<time\b[^>]*datetime=["\']([^"\']+)', source, flags=re.I)
-    if timed:
-        try:
-            parsed = datetime.fromisoformat(timed.group(1).replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(match.group(1).replace("Z", "+00:00"))
             return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
         except ValueError:
             return None
@@ -136,44 +160,28 @@ def validate_page(path: Path, lang: str, *, now: datetime | None = None) -> dict
         raise ValueError(f"unsupported language: {lang}")
     source = path.read_text(encoding="utf-8")
     expected = PAGE_CONFIG[lang]["sections"]
-    found: dict[str, str] = {}
-    for section in re.finditer(r"<section\b([^>]*)>(.*?)</section>", source, flags=re.I | re.S):
-        section_id = _attr(section.group(1), "id")
-        if section_id:
-            found[section_id] = section.group(2)
-
-    missing = [section_id for section_id in expected if section_id not in found]
-    if missing:
-        raise SectionPublicationError(f"{lang} missing sections: {', '.join(missing)}")
+    parser = NewsPageParser(set(expected))
+    parser.feed(source)
 
     counts: dict[str, int] = {}
     seen_urls: set[str] = set()
     for section_id, (minimum, maximum) in expected.items():
-        cards = re.findall(r"<li\b[^>]*>(.*?)</li>", found[section_id], flags=re.I | re.S)
+        cards = parser.sections.get(section_id, [])
         counts[section_id] = len(cards)
         if not minimum <= len(cards) <= maximum:
             raise SectionPublicationError(
                 f"{lang} section {section_id} has {len(cards)} cards; expected {minimum}-{maximum}"
             )
         for index, card in enumerate(cards, 1):
-            anchor_tag = None
-            for tag in re.findall(r"<a\b[^>]*>", card, flags=re.I | re.S):
-                if "news-main-link" in _attr(tag, "class").split():
-                    anchor_tag = tag
-                    break
-            href = canonical_url(_attr(anchor_tag or "", "href"))
-            title = _tag_with_class(card, "span", "news-text")
-            source_line = _tag_with_class(card, "span", "source-line")
-            image_url = ""
-            for image_tag in re.findall(r"<img\b[^>]*>", card, flags=re.I | re.S):
-                image_url = canonical_url(_attr(image_tag, "src") or _attr(image_tag, "data-src"))
-                if image_url:
-                    break
+            href = canonical_url(card.get("href", ""))
+            title = re.sub(r"\s+", " ", "".join(card.get("title", []))).strip()
+            source_label = re.sub(r"\s+", " ", "".join(card.get("source", []))).strip()
+            image_url = canonical_url(card.get("image", ""))
             if not href:
                 raise SectionPublicationError(f"{lang} {section_id} card {index} has no source URL")
-            if not title or not _text(title[1]):
+            if not title:
                 raise SectionPublicationError(f"{lang} {section_id} card {index} has no title")
-            if not source_line or not _text(source_line[1]):
+            if not source_label:
                 raise SectionPublicationError(f"{lang} {section_id} card {index} has no source label")
             if not image_url:
                 raise SectionPublicationError(f"{lang} {section_id} card {index} has no source image")
@@ -239,7 +247,7 @@ def _run(stage_root: Path, label: str, script: str, env: dict[str, str], log_pat
         handle.write(result.stdout or "")
         handle.write(result.stderr or "")
     if result.returncode:
-        tail = "\n".join((result.stdout + "\n" + result.stderr).splitlines()[-80:])
+        tail = "\n".join(((result.stdout or "") + "\n" + (result.stderr or "")).splitlines()[-80:])
         if tail:
             print(tail, file=sys.stderr)
         raise SectionPublicationError(f"{label} failed with exit code {result.returncode}")
@@ -296,8 +304,7 @@ def build_and_promote(root: Path, stage_dir: Path, publication_id: str) -> dict[
 
     selected = [STATUS_PATH]
     for config in PAGE_CONFIG.values():
-        selected.append(config["path"])
-        selected.append(config["history"])
+        selected.extend((config["path"], config["history"]))
     for relative in selected:
         source = site_root / relative
         if source.is_file():
@@ -314,7 +321,10 @@ def verify_production(base_url: str, publication_id: str, attempts: int, interva
             relative = config["path"].as_posix()
             url = f"{base_url.rstrip('/')}/{relative}?publication={publication_id}&attempt={attempt}"
             try:
-                request = urllib.request.Request(url, headers={"User-Agent": "BriefRooms-section-verifier/1.0"})
+                request = urllib.request.Request(
+                    url,
+                    headers={"User-Agent": "BriefRooms-section-verifier/1.0"},
+                )
                 with urllib.request.urlopen(request, timeout=timeout) as response:
                     body = response.read()
                 if marker not in body:
@@ -350,7 +360,11 @@ def main() -> int:
     if args.publish:
         if args.stage_dir is None:
             raise SystemExit("--stage-dir is required with --publish")
-        status = build_and_promote(args.root.resolve(), args.stage_dir.resolve(), args.publication_id)
+        status = build_and_promote(
+            args.root.resolve(),
+            args.stage_dir.resolve(),
+            args.publication_id,
+        )
         print(json.dumps(status, ensure_ascii=False, sort_keys=True))
         return 0
     verify_production(
