@@ -2,6 +2,7 @@
   'use strict';
 
   var HOME_FEED_RE = /\/(?:pl|en)\/home_brief\.json(?:\?|$)/i;
+  var AI_OUTLOOK_URL = '/data/ai_outlook.json';
 
   function approvedPhoto(item) {
     var image = String(item && item.image || '').trim();
@@ -86,8 +87,168 @@
     Array.prototype.forEach.call(target.querySelectorAll('.brief-card'), guardCard);
   }
 
+  function addOutlookStyles() {
+    if (!root.document || root.document.getElementById('br-ai-outlook-style')) return;
+    var style = root.document.createElement('style');
+    style.id = 'br-ai-outlook-style';
+    style.textContent = [
+      '.ai-outlook{position:relative;margin:0 0 24px;overflow:hidden;border:1px solid rgba(127,200,255,.28);border-radius:24px;background:radial-gradient(540px 220px at 0 0,rgba(56,214,201,.18),transparent 66%),radial-gradient(420px 220px at 100% 0,rgba(127,200,255,.15),transparent 68%),linear-gradient(145deg,rgba(17,50,73,.86),rgba(8,25,41,.92));box-shadow:0 24px 58px rgba(0,0,0,.27),inset 0 1px 0 rgba(255,255,255,.12)}',
+      '.ai-outlook:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 0 46%,rgba(255,255,255,.035) 48%,transparent 51%)}',
+      '.ai-outlook__inner{position:relative;z-index:1;padding:22px}',
+      '.ai-outlook__top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}',
+      '.ai-outlook__brand{display:flex;align-items:center;gap:10px}',
+      '.ai-outlook__mark{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(126,238,238,.34);border-radius:13px;background:linear-gradient(145deg,rgba(56,214,201,.25),rgba(127,200,255,.12));color:#8ffff6;font-size:16px;font-weight:950;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}',
+      '.ai-outlook__eyebrow{color:#8ffff6;font-size:11px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}',
+      '.ai-outlook__date{margin-top:3px;color:#90a7bb;font-size:11px}',
+      '.ai-outlook__status{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.13);border-radius:999px;background:rgba(255,255,255,.05);color:#c8d7e5;font-size:10px;font-weight:850;white-space:nowrap}',
+      '.ai-outlook__status:before{content:"";width:6px;height:6px;border-radius:50%;background:#72e5da;box-shadow:0 0 12px rgba(114,229,218,.9)}',
+      '.ai-outlook h2{max-width:920px;margin:0 0 11px;font-size:clamp(24px,3vw,36px);line-height:1.08;letter-spacing:-.04em}',
+      '.ai-outlook__thesis{max-width:980px;margin:0;color:#d7e6f2;font-size:15px;line-height:1.6}',
+      '.ai-outlook__metrics{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}',
+      '.ai-outlook__metric{min-width:138px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(5,20,34,.38)}',
+      '.ai-outlook__metric small{display:block;margin-bottom:3px;color:#8299ad;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}',
+      '.ai-outlook__metric strong{color:#f1f9ff;font-size:15px}',
+      '.ai-outlook__grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:10px}',
+      '.ai-outlook__note{padding:13px 14px;border:1px solid rgba(255,255,255,.09);border-radius:15px;background:rgba(255,255,255,.035)}',
+      '.ai-outlook__note b{display:block;margin-bottom:5px;color:#91e8e3;font-size:10px;letter-spacing:.07em;text-transform:uppercase}',
+      '.ai-outlook__note p{margin:0;color:#afc0cf;font-size:12px;line-height:1.48}',
+      '.ai-outlook__footer{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.09)}',
+      '.ai-outlook__sources{display:flex;flex-wrap:wrap;gap:8px}',
+      '.ai-outlook__source{display:inline-flex;align-items:center;gap:5px;color:#78e4df;font-size:11px;font-weight:850}',
+      '.ai-outlook__source:hover{color:#fff}',
+      '.ai-outlook__disclaimer{max-width:360px;color:#71889c;font-size:9px;line-height:1.4;text-align:right}',
+      '@media(max-width:850px){.ai-outlook__grid{grid-template-columns:1fr}.ai-outlook__footer{display:block}.ai-outlook__disclaimer{margin-top:10px;max-width:none;text-align:left}}',
+      '@media(max-width:560px){.ai-outlook__inner{padding:18px}.ai-outlook__top{align-items:flex-start}.ai-outlook__status{display:none}.ai-outlook h2{font-size:25px}.ai-outlook__thesis{font-size:14px}.ai-outlook__metric{flex:1;min-width:122px}}'
+    ].join('');
+    root.document.head.appendChild(style);
+  }
+
+  function textElement(tag, className, text) {
+    var element = root.document.createElement(tag);
+    if (className) element.className = className;
+    element.textContent = String(text || '');
+    return element;
+  }
+
+  function localizedOutlook(payload) {
+    var language = String(root.document.documentElement.lang || 'pl').toLowerCase().indexOf('en') === 0 ? 'en' : 'pl';
+    var content = payload && payload[language];
+    if (!content || typeof content !== 'object') return null;
+    return { language: language, content: content };
+  }
+
+  function validHttps(value) {
+    try {
+      var url = new URL(String(value || ''), root.location.href);
+      return url.protocol === 'https:' ? url.href : '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function renderAiOutlook(payload) {
+    if (!root.document || root.document.getElementById('ai-outlook')) return;
+    var selected = localizedOutlook(payload);
+    if (!selected) return;
+
+    var language = selected.language;
+    var item = selected.content;
+    if (!item.title || !item.thesis || !item.horizon || !item.probability) return;
+
+    var mainHead = root.document.querySelector('main .main-head');
+    if (!mainHead || !mainHead.parentNode) return;
+
+    addOutlookStyles();
+    var section = root.document.createElement('section');
+    section.id = 'ai-outlook';
+    section.className = 'ai-outlook';
+    section.setAttribute('aria-labelledby', 'ai-outlook-title');
+
+    var inner = textElement('div', 'ai-outlook__inner', '');
+    var top = textElement('div', 'ai-outlook__top', '');
+    var brand = textElement('div', 'ai-outlook__brand', '');
+    brand.appendChild(textElement('span', 'ai-outlook__mark', 'AI'));
+    var brandText = textElement('div', '', '');
+    brandText.appendChild(textElement('div', 'ai-outlook__eyebrow', 'AI Outlook'));
+    brandText.appendChild(textElement('div', 'ai-outlook__date', item.date_label || payload.date || ''));
+    brand.appendChild(brandText);
+    top.appendChild(brand);
+    top.appendChild(textElement('span', 'ai-outlook__status', language === 'pl' ? 'Prognoza dnia' : 'Forecast of the day'));
+    inner.appendChild(top);
+
+    var title = textElement('h2', '', item.title);
+    title.id = 'ai-outlook-title';
+    inner.appendChild(title);
+    inner.appendChild(textElement('p', 'ai-outlook__thesis', item.thesis));
+
+    var metrics = textElement('div', 'ai-outlook__metrics', '');
+    [
+      [language === 'pl' ? 'Prawdopodobieństwo' : 'Probability', String(item.probability) + '%'],
+      [language === 'pl' ? 'Horyzont' : 'Horizon', item.horizon],
+      [language === 'pl' ? 'Obszar' : 'Area', item.category || (language === 'pl' ? 'Gospodarka' : 'Economy')]
+    ].forEach(function (pair) {
+      var metric = textElement('div', 'ai-outlook__metric', '');
+      metric.appendChild(textElement('small', '', pair[0]));
+      metric.appendChild(textElement('strong', '', pair[1]));
+      metrics.appendChild(metric);
+    });
+    inner.appendChild(metrics);
+
+    var notes = textElement('div', 'ai-outlook__grid', '');
+    [
+      [language === 'pl' ? 'Dlaczego' : 'Why', item.rationale],
+      [language === 'pl' ? 'Co potwierdzi' : 'What would confirm it', item.confirmation],
+      [language === 'pl' ? 'Co obali' : 'What would invalidate it', item.invalidation]
+    ].forEach(function (pair) {
+      if (!pair[1]) return;
+      var note = textElement('div', 'ai-outlook__note', '');
+      note.appendChild(textElement('b', '', pair[0]));
+      note.appendChild(textElement('p', '', pair[1]));
+      notes.appendChild(note);
+    });
+    inner.appendChild(notes);
+
+    var footer = textElement('div', 'ai-outlook__footer', '');
+    var sources = textElement('div', 'ai-outlook__sources', '');
+    (Array.isArray(item.sources) ? item.sources : []).slice(0, 3).forEach(function (source) {
+      var href = validHttps(source && source.url);
+      if (!href) return;
+      var link = textElement('a', 'ai-outlook__source', (source.name || 'Source') + ' ↗');
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer external';
+      sources.appendChild(link);
+    });
+    footer.appendChild(sources);
+    footer.appendChild(textElement(
+      'div',
+      'ai-outlook__disclaimer',
+      language === 'pl'
+        ? 'Prognoza AI oparta na wskazanych źródłach. Nie jest faktem ani poradą inwestycyjną.'
+        : 'An AI forecast based on the listed sources. It is neither a fact nor investment advice.'
+    ));
+    inner.appendChild(footer);
+    section.appendChild(inner);
+    mainHead.insertAdjacentElement('afterend', section);
+  }
+
+  function loadAiOutlook() {
+    if (!root.document || typeof root.fetch !== 'function') return;
+    var day = new Date().toISOString().slice(0, 10);
+    root.fetch(AI_OUTLOOK_URL + '?v=' + encodeURIComponent(day), { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('AI Outlook unavailable');
+        return response.json();
+      })
+      .then(renderAiOutlook)
+      .catch(function () {
+        // A missing forecast must never block or damage the homepage.
+      });
+  }
+
   function start() {
     scan(root.document);
+    loadAiOutlook();
     var container = root.document.getElementById('latest-briefs');
     if (container && typeof MutationObserver === 'function') {
       new MutationObserver(function (records) {
@@ -104,7 +265,9 @@
     approvedPhoto: approvedPhoto,
     filterPayload: filterPayload,
     guardCard: guardCard,
-    scan: scan
+    scan: scan,
+    renderAiOutlook: renderAiOutlook,
+    loadAiOutlook: loadAiOutlook
   };
 
   installFeedFilter();
