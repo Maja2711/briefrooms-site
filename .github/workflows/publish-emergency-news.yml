@@ -4,19 +4,25 @@ on:
   pull_request:
     paths:
       - "scripts/publish_emergency_news.py"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/homepage-photo-only.js"
       - "tests/test_publish_emergency_news.py"
+      - "tests/test_homepage_photo_only.py"
       - ".github/workflows/publish-emergency-news.yml"
   push:
     branches: [main]
     paths:
       - "scripts/publish_emergency_news.py"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/homepage-photo-only.js"
       - "tests/test_publish_emergency_news.py"
+      - "tests/test_homepage_photo_only.py"
       - ".github/workflows/publish-emergency-news.yml"
       - "pl/aktualnosci.html"
       - "en/news.html"
   workflow_dispatch:
   schedule:
-    - cron: "5 */2 * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -38,8 +44,9 @@ jobs:
         run: python -m pip install feedparser requests
       - name: Validate layout-preserving publisher
         run: |
-          python -m py_compile scripts/publish_emergency_news.py
-          python -m unittest tests.test_publish_emergency_news -v
+          python -m py_compile scripts/publish_emergency_news.py scripts/enforce_homepage_photo_only.py
+          python -m unittest tests.test_publish_emergency_news tests.test_homepage_photo_only -v
+          node --check scripts/homepage-photo-only.js
 
   publish:
     if: github.event_name != 'pull_request'
@@ -70,6 +77,13 @@ jobs:
           marker="source-only-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
           python scripts/publish_emergency_news.py --marker "${marker}"
+          python scripts/enforce_homepage_photo_only.py
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
+          if grep -F '/scripts/homepage-photo-only.js?v=1' pl/index.html en/index.html; then
+            echo "::error::Old AI Outlook asset version remains in homepage HTML."
+            exit 1
+          fi
 
       - name: Commit and push content-only refresh
         run: |
