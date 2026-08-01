@@ -7,29 +7,29 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "integrity-14"
+ASSET_VERSION = "integrity-15"
 TZ = ZoneInfo("Europe/Warsaw")
 
 PAGES = {
     ROOT / "pl/inwestycje/pozycje-tygodniowe.html": {
         "lang": "pl",
         "title": "Otwarte pozycje tygodniowe — BriefRooms",
-        "desc": "Audytowane pozycje paper-trading EUR/USD, S&P 500 futures i BTC/USD.",
+        "desc": "Pozycje paper-trading EUR/USD, S&P 500 futures i BTC/USD.",
         "invest": "/pl/inwestycje.html",
         "h1": "Otwarte pozycje tygodniowe",
-        "lead": "Ładowanie audytowanych danych pozycji tygodniowych…",
-        "loading": "Ładowanie wyników po kontroli spójności…",
+        "lead": "Ładowanie danych pozycji tygodniowych…",
+        "loading": "Ładowanie wyników…",
         "back": "← Wróć do Inwestycji",
         "legal": "Treści mają charakter edukacyjny i analityczny. Są to wyłącznie pozycje paper-trading, a nie rekomendacje ani rzeczywiste zlecenia.",
     },
     ROOT / "en/investing/open-weekly-positions.html": {
         "lang": "en",
         "title": "Open weekly positions — BriefRooms",
-        "desc": "Audited EUR/USD, S&P 500 futures and BTC/USD paper-trading positions.",
+        "desc": "EUR/USD, S&P 500 futures and BTC/USD paper-trading positions.",
         "invest": "/en/investing.html",
         "h1": "Open weekly positions",
-        "lead": "Loading audited weekly-position data…",
-        "loading": "Loading results after integrity checks…",
+        "lead": "Loading weekly-position data…",
+        "loading": "Loading results…",
         "back": "← Back to Investing",
         "legal": "Content is educational and analytical. These are paper-trading positions only, not recommendations or real broker orders.",
     },
