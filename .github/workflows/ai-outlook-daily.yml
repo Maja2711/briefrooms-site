@@ -13,7 +13,9 @@ on:
     paths:
       - "scripts/update_ai_outlook.py"
       - "scripts/homepage-photo-only.js"
+      - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_ai_outlook.py"
+      - "tests/test_homepage_photo_only.py"
       - "data/ai_outlook.json"
       - ".github/workflows/ai-outlook-daily.yml"
   schedule:
@@ -46,12 +48,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Publish compact homepage asset URL
+        run: python scripts/enforce_homepage_photo_only.py
+
       - name: Validate AI Outlook contract
         run: |
-          python -m unittest tests.test_ai_outlook -v
-          python -m py_compile scripts/update_ai_outlook.py
+          python -m unittest tests.test_ai_outlook tests.test_homepage_photo_only -v
+          python -m py_compile scripts/update_ai_outlook.py scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
           python scripts/update_ai_outlook.py --validate-only
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
 
       - name: Generate today's AI Outlook
         env:
@@ -67,16 +74,17 @@ jobs:
           python scripts/update_ai_outlook.py $ARGS
           python scripts/update_ai_outlook.py --validate-only
 
-      - name: Commit forecast
+      - name: Commit forecast and homepage asset version
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/index.html en/index.html
           git add data/ai_outlook.json data/ai_outlook_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No AI Outlook changes to commit."
           else
-            git commit -m "Update AI Outlook"
+            git commit -m "Publish compact AI Outlook"
             git pull --rebase origin main
             git push
           fi
