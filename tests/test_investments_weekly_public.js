@@ -132,3 +132,26 @@ test('honors explicit public quarantine even when arithmetic is valid', async ()
   assert.match(elements.app.innerHTML, /Manual reconciliation pending/);
   assert.doesNotMatch(elements.app.innerHTML, /\+100,00 USD · \+100,0 pips/);
 });
+
+test('publishes an explicitly approved arithmetic stop settlement', async () => {
+  const week = validWeek();
+  week.instruments[0].exit_captured_at = '2026-07-30T09:00:00+02:00';
+  const quarantine = {
+    records: [{
+      week_id: week.week_id,
+      instrument_id: 'eurusd',
+      public_status: 'withheld',
+      manual_public_result: true,
+      entry_price: 1.15,
+      exit_price: 1.16,
+      result_value: -100,
+      result_units: -100,
+      result_percent: -0.869565,
+      reason: 'Approved arithmetic settlement.',
+    }],
+  };
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week, quarantine });
+  assert.doesNotMatch(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /-100,00 USD · -100,0 pips · -0,87%/);
+  assert.match(elements.app.innerHTML, /<strong>0 \/ 1<\/strong>/);
+});
