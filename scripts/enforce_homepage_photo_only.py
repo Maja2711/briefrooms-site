@@ -15,12 +15,16 @@ SCRIPT_RE = re.compile(
     r'<script\s+src=["\']/scripts/homepage-photo-only\.js(?:\?[^"\']*)?["\']\s+defer></script>',
     re.I,
 )
+CARD_RE = re.compile(
+    r'<a\b(?=[^>]*\bclass=["\'][^"\']*\bbrief-card\b[^"\']*["\'])[^>]*>.*?</a>',
+    re.I | re.S,
+)
 ALLOWED_HOMEPAGE_COUNTS = {8, 10}
 
 
 def photo_card(card: str) -> bool:
     return bool(
-        'class="thumb has-image"' in card
+        re.search(r'class=["\'][^"\']*\bthumb\b[^"\']*\bhas-image\b[^"\']*["\']', card, re.I)
         and re.search(r"<img\b[^>]+data-br-external-media=[\"']source-linked[\"']", card, re.I)
         and "media-fallback-active" not in card
     )
@@ -35,7 +39,9 @@ def filter_marker_block(source: str, label: str) -> str:
     if not match:
         raise RuntimeError(f"Homepage markers missing: {label}")
 
-    cards = re.findall(r'<a class="brief-card" href="[^"]+">.*?</a>', match.group(2), re.S)
+    # Production cards contain attributes such as target and rel after href.
+    # Match by the brief-card class instead of assuming href is the last attribute.
+    cards = CARD_RE.findall(match.group(2))
     kept = [card for card in cards if photo_card(card)]
     if len(cards) not in ALLOWED_HOMEPAGE_COUNTS:
         raise RuntimeError(
