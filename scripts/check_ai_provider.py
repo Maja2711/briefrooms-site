@@ -217,13 +217,16 @@ def main() -> int:
     except PreflightError as exc:
         result = diagnostic(
             runtime,
-            status="failed",
+            status="failed" if exc.permanent else "degraded_source_only_allowed",
             status_code=exc.status_code,
             error_class=exc.error_class,
             permanent=exc.permanent,
         )
         print(json.dumps(result, sort_keys=True), file=sys.stderr)
-        return 10 if exc.permanent else 11
+        # A timeout, rate limit or temporary provider outage must not freeze the
+        # source-linked news pages. The publication pipeline still validates any
+        # visible AI comment strictly and can publish source-only cards.
+        return 10 if exc.permanent else 0
     print(json.dumps(result, sort_keys=True))
     return 0
 
