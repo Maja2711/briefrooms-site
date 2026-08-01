@@ -6,10 +6,142 @@
   <title>Zdrowie — Działy | BriefRooms</title>
   <meta name="description" content="Krótkie, praktyczne streszczenia o zdrowiu. Wejdź w wybrany temat." />
   <link rel="icon" href="/assets/favicon.svg" />
- <link rel="stylesheet" href="/assets/site.css?v=health-crystal-4" />
+  <link rel="stylesheet" href="/assets/site.css?v=health-crystal-4" />
 
-<link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
-<script src="/scripts/site-header.js?v=20260719-1" defer></script>
+  <style id="health-youtube-picks-style">
+    .health-youtube-picks{
+      margin:42px 0 10px;
+      padding:28px;
+      border:1px solid rgba(157,255,220,.24);
+      border-radius:26px;
+      background:
+        radial-gradient(520px 220px at 10% 0%,rgba(93,255,205,.14),transparent 66%),
+        linear-gradient(145deg,rgba(13,55,54,.96),rgba(6,31,37,.97));
+      box-shadow:0 24px 56px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.08);
+      color:#ecfff8;
+    }
+
+    .health-youtube-picks__head{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:22px;
+    }
+
+    .health-youtube-picks__icon{
+      display:grid;
+      place-items:center;
+      width:48px;
+      height:48px;
+      flex:0 0 48px;
+      border:1px solid rgba(153,255,218,.36);
+      border-radius:15px;
+      color:#092a2d;
+      background:linear-gradient(145deg,#85f2c9,#42c7b5);
+      box-shadow:0 10px 24px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.58);
+      font-size:1.05rem;
+    }
+
+    .health-youtube-picks h2{
+      margin:0 0 4px;
+      color:#effff9;
+      font-size:clamp(1.55rem,3vw,2rem);
+      line-height:1.15;
+    }
+
+    .health-youtube-picks__head p{
+      margin:0;
+      color:#bcded4;
+      line-height:1.5;
+    }
+
+    .health-youtube-picks__grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+    }
+
+    .health-youtube-pick{
+      display:flex;
+      min-height:220px;
+      flex-direction:column;
+      padding:20px;
+      border:1px solid rgba(203,255,239,.16);
+      border-radius:19px;
+      color:#effff9;
+      text-decoration:none;
+      background:linear-gradient(160deg,rgba(255,255,255,.105),rgba(255,255,255,.035));
+      box-shadow:0 15px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.07);
+      transition:transform .18s ease,border-color .18s ease,background .18s ease;
+    }
+
+    .health-youtube-pick:hover,
+    .health-youtube-pick:focus-visible{
+      transform:translateY(-4px);
+      border-color:rgba(110,240,201,.56);
+      background:linear-gradient(160deg,rgba(72,202,171,.22),rgba(255,255,255,.04));
+      outline:none;
+    }
+
+    .health-youtube-pick__label{
+      display:inline-flex;
+      align-self:flex-start;
+      margin-bottom:13px;
+      padding:5px 9px;
+      border:1px solid rgba(142,255,219,.28);
+      border-radius:999px;
+      color:#a9ffe0;
+      background:rgba(29,103,91,.38);
+      font-size:.68rem;
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+
+    .health-youtube-pick strong{
+      margin-bottom:10px;
+      color:#f4fff9;
+      font-size:1.16rem;
+      line-height:1.28;
+    }
+
+    .health-youtube-pick span:not(.health-youtube-pick__label){
+      color:#bfddd5;
+      font-size:.92rem;
+      line-height:1.55;
+    }
+
+    .health-youtube-pick b{
+      margin-top:auto;
+      padding-top:16px;
+      color:#8af1ca;
+      font-size:.86rem;
+    }
+
+    .health-youtube-picks__note{
+      margin:16px 2px 0;
+      color:#83a79d;
+      font-size:.74rem;
+      line-height:1.45;
+    }
+
+    @media (max-width:900px){
+      .health-youtube-picks__grid{grid-template-columns:1fr}
+    }
+
+    @media (max-width:560px){
+      .health-youtube-picks{padding:22px 16px}
+      .health-youtube-picks__head{align-items:flex-start}
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .health-youtube-pick{transition:none}
+      .health-youtube-pick:hover,.health-youtube-pick:focus-visible{transform:none}
+    }
+  </style>
+
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260719-1" defer></script>
 </head>
 <body class="rooms-light health-hub">
 <header id="site-header"></header>
@@ -31,13 +163,13 @@
         </a>
       </li>
       <li class="tile">
-   <a class="tile-link" href="/pl/zdrowie/protokol-zywnosciowy.html">
-     <span class="tile-top"><span class="tile-number">02</span><span class="tile-kicker">Żywienie</span></span>
-     <span class="tile-title">Protokół żywnościowy — Dieta</span>
-     <span class="tile-desc">MedDiet, IF/CR, białko i produkty-filary: co naprawdę działa + praktyczne przykłady.</span>
-     <span class="tile-action">Otwórz protokół <span aria-hidden="true">→</span></span>
-   </a>
- </li>
+        <a class="tile-link" href="/pl/zdrowie/protokol-zywnosciowy.html">
+          <span class="tile-top"><span class="tile-number">02</span><span class="tile-kicker">Żywienie</span></span>
+          <span class="tile-title">Protokół żywnościowy — Dieta</span>
+          <span class="tile-desc">MedDiet, IF/CR, białko i produkty-filary: co naprawdę działa + praktyczne przykłady.</span>
+          <span class="tile-action">Otwórz protokół <span aria-hidden="true">→</span></span>
+        </a>
+      </li>
 
       <li class="tile tile-calculator">
         <a class="tile-link" href="/pl/zdrowie/kalkulator-cholesterolu.html">
@@ -47,7 +179,6 @@
           <span class="tile-action">Otwórz kalkulator <span aria-hidden="true">→</span></span>
         </a>
       </li>
-
 
       <!-- (opcjonalnie) tu będą kolejne kafelki, gdy dodasz następne artykuły -->
       <!--
@@ -60,10 +191,44 @@
       -->
     </ul>
 
+    <section class="health-youtube-picks" aria-labelledby="health-youtube-picks-title">
+      <div class="health-youtube-picks__head">
+        <span class="health-youtube-picks__icon" aria-hidden="true">▶</span>
+        <div>
+          <h2 id="health-youtube-picks-title">Polecane podcasty i kanały YouTube</h2>
+          <p>Wybrane polskie rozmowy o medycynie, profilaktyce, zdrowiu pacjenta i metabolizmie.</p>
+        </div>
+      </div>
+
+      <div class="health-youtube-picks__grid">
+        <a class="health-youtube-pick" href="https://www.youtube.com/channel/UCGVyo888UbDX7CIjOhO58Yw" target="_blank" rel="noopener noreferrer external">
+          <span class="health-youtube-pick__label">Medycyna akademicka</span>
+          <strong>Fakty o zdrowiu / Prosto o zdrowiu — WUM</strong>
+          <span>Rozmowy z lekarzami i ekspertami Warszawskiego Uniwersytetu Medycznego, oparte na praktyce klinicznej i aktualnej wiedzy.</span>
+          <b>Otwórz kanał →</b>
+        </a>
+
+        <a class="health-youtube-pick" href="https://www.youtube.com/@popierwszepacjent" target="_blank" rel="noopener noreferrer external">
+          <span class="health-youtube-pick__label">Świadomy pacjent</span>
+          <strong>Po pierwsze Pacjent</strong>
+          <span>Monika Rachtan rozmawia ze specjalistami o leczeniu, profilaktyce, prawach pacjenta i codziennym poruszaniu się po systemie ochrony zdrowia.</span>
+          <b>Otwórz podcast →</b>
+        </a>
+
+        <a class="health-youtube-pick" href="https://www.youtube.com/@SCETV" target="_blank" rel="noopener noreferrer external">
+          <span class="health-youtube-pick__label">Metabolizm i suplementacja</span>
+          <strong>SCE TV</strong>
+          <span>Długie materiały o metabolizmie, żywieniu i suplementacji. Traktuj jako uzupełnienie wiedzy, a nie zamiennik konsultacji medycznej.</span>
+          <b>Otwórz kanał →</b>
+        </a>
+      </div>
+
+      <p class="health-youtube-picks__note">Polecenia redakcyjne. Materiały edukacyjne nie zastępują indywidualnej diagnozy ani leczenia prowadzonego przez lekarza.</p>
+    </section>
   </main>
 
   <footer></footer>
   <script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
-<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
