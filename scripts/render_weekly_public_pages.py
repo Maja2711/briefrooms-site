@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "governance-12"
+ASSET_VERSION = "integrity-13"
 TZ = ZoneInfo("Europe/Warsaw")
 
 PAGES = {
