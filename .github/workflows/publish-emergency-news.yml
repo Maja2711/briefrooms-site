@@ -20,6 +20,8 @@ on:
       - ".github/workflows/publish-emergency-news.yml"
       - "pl/aktualnosci.html"
       - "en/news.html"
+  issues:
+    types: [opened]
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
@@ -33,7 +35,9 @@ concurrency:
 
 jobs:
   patch-homepages:
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'issues' || github.event.issue.title == 'Patch AI Outlook compact asset')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -83,6 +87,7 @@ jobs:
           exit 1
 
   validate:
+    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -99,7 +104,7 @@ jobs:
           node --check scripts/homepage-photo-only.js
 
   publish:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.event_name != 'issues'
     needs: [patch-homepages, validate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
