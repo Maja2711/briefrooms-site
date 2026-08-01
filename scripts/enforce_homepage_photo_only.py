@@ -9,7 +9,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
-SCRIPT = '<script src="/scripts/homepage-photo-only.js?v=1" defer></script>'
+SCRIPT_VERSION = "ai-outlook-compact-2"
+SCRIPT = f'<script src="/scripts/homepage-photo-only.js?v={SCRIPT_VERSION}" defer></script>'
+SCRIPT_RE = re.compile(
+    r'<script\s+src=["\']/scripts/homepage-photo-only\.js(?:\?[^"\']*)?["\']\s+defer></script>',
+    re.I,
+)
 ALLOWED_HOMEPAGE_COUNTS = {8, 10}
 
 
@@ -54,10 +59,13 @@ def ensure_runtime(source: str) -> str:
         count=1,
         flags=re.I,
     )
-    if SCRIPT not in source:
-        if "</body>" not in source:
-            raise RuntimeError("Homepage closing body tag missing")
-        source = source.replace("</body>", SCRIPT + "\n</body>", 1)
+    if "</body>" not in source:
+        raise RuntimeError("Homepage closing body tag missing")
+
+    # Remove every older cache-busted variant and insert one canonical asset URL.
+    # A changed query string forces browsers and the CDN to fetch the compact UI.
+    source = SCRIPT_RE.sub("", source)
+    source = source.replace("</body>", SCRIPT + "\n</body>", 1)
     return source
 
 
