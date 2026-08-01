@@ -34,6 +34,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install validation dependencies
+        run: python -m pip install feedparser requests
       - name: Validate layout-preserving publisher
         run: |
           python -m py_compile scripts/publish_emergency_news.py
