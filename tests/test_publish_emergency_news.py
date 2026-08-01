@@ -48,7 +48,8 @@ class LayoutPreservingNewsTests(unittest.TestCase):
             '<header>KEEP HOME HEADER</header>'
             '<span class="pill" id="updated-at">Aktualizacja: old</span>'
             '<div id="latest-briefs" class="brief-grid" data-home-updated-at="old">'
-            '<!-- HOME_BRIEFS_START --><a>OLD CARD</a><!-- HOME_BRIEFS_END -->'</n            '</div><aside>KEEP SIDEBAR</aside></body></html>'
+            '<!-- HOME_BRIEFS_START --><a>OLD CARD</a><!-- HOME_BRIEFS_END -->'
+            '</div><aside>KEEP SIDEBAR</aside></body></html>'
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "index.html"
