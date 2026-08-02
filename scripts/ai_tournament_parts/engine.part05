@@ -1,0 +1,170 @@
+
+    instruments = []
+    open_prices: dict[str, float] = {}
+    close_prices: dict[str, float] = {}
+    for ticker in config["universe"]:
+        metrics = _series_metrics(frame_for(ticker), session)
+        if not metrics:
+            continue
+        instruments.append({"ticker": ticker, **{key: round(value, 8) if isinstance(value, float) else value for key, value in metrics.items()}})
+        open_prices[ticker] = metrics["open"]
+        close_prices[ticker] = metrics["close"]
+    if len(instruments) < max(8, len(config["universe"]) // 2):
+        raise TournamentError("too few universe instruments have fresh data")
+
+    benchmark = _series_metrics(benchmark_frame, session)
+    if not benchmark:
+        raise TournamentError("benchmark metrics unavailable")
+    snapshot = {
+        "schema_version": "ai-tournament-snapshot-v1",
+        "session_date": session_date,
+        "created_at": utc_now(),
+        "data_source": "Yahoo Finance via yfinance; daily adjusted OHLC",
+        "universe_version": config["universe_version"],
+        "instruments": instruments,
+        "open_prices": open_prices,
+        "close_prices": close_prices,
+        "fx_ticker": config["fx_ticker"],
+        "fx_open": fx_open,
+        "fx_close": fx_close,
+        "benchmark": {"ticker": config["benchmark_ticker"], **benchmark},
+    }
+    snapshot["snapshot_hash"] = sha256_text(canonical_json(snapshot))
+    return snapshot
+
+
+def benchmark_return(paths: Paths, snapshot: dict[str, Any], starting_capital: float) -> tuple[dict[str, Any], float]:
+    record = load_json(paths.benchmark)
+    current_value = snapshot["benchmark"]["close"] * snapshot["fx_close"]
+    if not isinstance(record, dict):
+        record = {
+            "schema_version": "ai-tournament-benchmark-v1",
+            "ticker": snapshot["benchmark"]["ticker"],
+            "base_session": snapshot["session_date"],
+            "base_value": current_value,
+            "starting_capital_pln": starting_capital,
+        }
+    ret = current_value / float(record["base_value"]) - 1.0
+    record.update({
+        "last_session": snapshot["session_date"],
+        "current_value": current_value,
+        "return_pct": ret,
+        "updated_at": utc_now(),
+    })
+    atomic_write_json(paths.benchmark, record)
+    return record, ret
+
+
+def previous_ranks(paths: Paths) -> dict[str, int]:
+    files = sorted(paths.rounds.glob("*.json")) if paths.rounds.exists() else []
+    if not files:
+        return {}
+    latest = load_json(files[-1], {})
+    return {row["agent_id"]: int(row["rank"]) for row in latest.get("leaderboard", [])}
+
+
+def build_public(
+    config: dict[str, Any], snapshot: dict[str, Any] | None, benchmark: dict[str, Any] | None,
+    leaderboard: list[dict[str, Any]], paths: Paths,
+) -> dict[str, Any]:
+    round_files = sorted(paths.rounds.glob("*.json"), reverse=True) if paths.rounds.exists() else []
+    history = []
+    for path in round_files[:30]:
+        row = load_json(path, {})
+        history.append({
+            "session_date": row.get("session_date"),
+            "leaderboard": [
+                {"rank": item.get("rank"), "agent_id": item.get("agent_id"), "return_pct": item.get("metrics", {}).get("return_pct")}
+                for item in row.get("leaderboard", [])
+            ],
+        })
+    public = {
+        "schema_version": SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "generated_at": utc_now(),
+        "tournament": {
+            "id": config["tournament_id"],
+            "title_pl": config["title_pl"],
+            "title_en": config["title_en"],
+            "start_date": config["start_date"],
+            "end_date": config["end_date"],
+            "starting_capital_pln": config["starting_capital_pln"],
+            "status": tournament_status(config, snapshot["session_date"] if snapshot else None),
+            "ranking_rule": "cumulative_return_desc_then_drawdown_then_sharpe",
+            "decision_time": "after_us_market_close",
+            "execution_time": "next_us_session_open",
+        },
+        "latest_session": snapshot["session_date"] if snapshot else None,
+        "benchmark": benchmark,
+        "rules": config["rules"],
+        "leaderboard": leaderboard,
+        "history": history,
+        "disclaimer_pl": "Publiczny eksperyment portfeli modelowych. Nie jest rekomendacją ani poradą inwestycyjną.",
+        "disclaimer_en": "A public model-portfolio experiment. It is not investment advice or a recommendation.",
+    }
+    validate_public(public)
+    atomic_write_json(paths.public, public)
+    return public
+
+
+def tournament_status(config: dict[str, Any], session_date: str | None) -> str:
+    today = date.fromisoformat(session_date) if session_date else datetime.now(timezone.utc).date()
+    start = date.fromisoformat(config["start_date"])
+    end = date.fromisoformat(config["end_date"])
+    if today < start:
+        return "SCHEDULED"
+    if today > end:
+        return "FINISHED"
+    return "ACTIVE"
+
+
+def validate_public(public: dict[str, Any]) -> None:
+    if public.get("schema_version") != SCHEMA_VERSION:
+        raise ValidationError("invalid public schema")
+    rows = public.get("leaderboard")
+    if not isinstance(rows, list):
+        raise ValidationError("leaderboard must be a list")
+    ranks = [row.get("rank") for row in rows]
+    if ranks and ranks != list(range(1, len(ranks) + 1)):
+        raise ValidationError("leaderboard ranks are not sequential")
+    for row in rows:
+        if not isinstance(row.get("metrics"), dict):
+            raise ValidationError("missing leaderboard metrics")
+        if float(row["metrics"]["portfolio_value_pln"]) < 0:
+            raise ValidationError("negative portfolio value")
+
+
+def run(config_path: Path = DEFAULT_CONFIG, force: bool = False) -> dict[str, Any]:
+    config = load_json(config_path)
+    if not isinstance(config, dict):
+        raise ValidationError("config file is missing")
+    validate_config(config)
+    paths = config_paths(config)
+    for folder in (paths.state, paths.ledger, paths.snapshots, paths.decisions, paths.rounds):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    snapshot = fetch_market_snapshot(config)
+    session_date = snapshot["session_date"]
+    round_path = paths.rounds / f"{session_date}.json"
+    current_date = date.fromisoformat(session_date)
+    start = date.fromisoformat(config["start_date"])
+    end = date.fromisoformat(config["end_date"])
+
+    # Never create financial history before the declared start or after the declared end.
+    if current_date < start:
+        public = build_public(config, snapshot, None, [], paths)
+        print(f"AI Tournament scheduled; latest session {session_date} is before start")
+        return public
+    if current_date > end:
+        files = sorted(paths.rounds.glob("*.json")) if paths.rounds.exists() else []
+        latest_round = load_json(files[-1], {}) if files else {}
+        public = build_public(config, snapshot, load_json(paths.benchmark, {}), latest_round.get("leaderboard", []), paths)
+        print(f"AI Tournament finished; session {session_date} is after end")
+        return public
+
+    # Append-only guarantee: an already closed session is never reprocessed, even with --force.
+    if round_path.exists():
+        round_data = load_json(round_path, {})
+        benchmark = load_json(paths.benchmark, {})
+        public = build_public(config, snapshot, benchmark, round_data.get("leaderboard", []), paths)
+        print(f"AI Tournament already processed for {session_date}")
