@@ -1,14 +1,15 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "model": "BRACE-SPX Lab",
   "architecture": {
-    "id": "spx-multisignal-regime-a2",
-    "version": "A2",
+    "id": "spx-multisignal-regime-a2s",
+    "version": "A2S",
     "labels": {
-      "pl": "Architecture 2 — wieloźródłowy sygnał i reżimy",
-      "en": "Architecture 2 — multi-source signals and regimes"
+      "pl": "Architecture 2S — wieloźródłowy long / short / flat",
+      "en": "Architecture 2S — multi-source long / short / flat"
     },
-    "candidate_signature": "c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9"
+    "candidate_signature": "2c30a862e161b6c609b6a0c2c1aff12943d1920b25fe4c455b2ddb488d4e4c71",
+    "previous_frozen_reference": "spx-multisignal-regime-a2"
   },
   "target_instrument": "SPY / S&P 500",
   "status": "development_gate_not_passed_holdout_still_sealed",
@@ -19,18 +20,21 @@
   "research_only": true,
   "live_activation": false,
   "single_champion_authorized": false,
-  "source_snapshot_at": "2026-07-31T22:07:18+00:00",
-  "public_report_at": "2026-07-31T22:47:25+00:00",
+  "source_snapshot_at": "2026-08-02T20:22:45+00:00",
+  "public_report_at": "2026-08-02T20:22:46+00:00",
   "mandate": {
-    "position_set": "long_flat",
+    "position_set": "long_short_flat",
+    "minimum_exposure": -1.0,
+    "maximum_exposure": 1.0,
     "long_allowed": true,
     "flat_allowed": true,
-    "short_allowed": false,
+    "short_allowed": true,
     "leverage_allowed": false,
     "orders_allowed": false
   },
   "cost_model": {
     "basis_points_per_unit_turnover": 5.0,
+    "short_borrow_annual": 0.01,
     "metrics_are_net_of_costs": true,
     "applied_equally_to_candidate_and_benchmarks": true
   },
@@ -49,40 +53,45 @@
     "diagnostic_leader": {
       "authorized_as_champion": false,
       "metrics": {
-        "cagr": 0.069251,
-        "annualized_volatility": 0.089018,
-        "sharpe_excess": 0.717219,
-        "max_drawdown": -0.185406,
-        "calmar": 0.373508,
-        "annualized_turnover": 6.727838,
-        "average_exposure": 0.456325
+        "cagr": 0.042221,
+        "annualized_volatility": 0.105707,
+        "sharpe_excess": 0.377187,
+        "max_drawdown": -0.247741,
+        "calmar": 0.170426,
+        "annualized_turnover": 10.222395,
+        "average_exposure": 0.410187
       },
       "economics": {
-        "average_exposure": 0.456325,
-        "time_long": 0.865993,
-        "time_flat": 0.134007,
-        "time_short": 0.0,
-        "time_full_long": 0.059616,
-        "gross_cagr_before_costs": 0.072853,
-        "net_cagr_after_costs": 0.069251,
-        "cagr_cost_drag": 0.003603,
-        "annualized_turnover": 6.727838,
-        "annualized_linear_cost_drag": 0.003364,
+        "average_exposure": 0.410187,
+        "average_gross_exposure": 0.410187,
+        "average_net_exposure": 0.09098,
+        "time_long": 0.416537,
+        "time_flat": 0.174443,
+        "time_short": 0.40902,
+        "time_full_long": 0.015034,
+        "time_full_short": 0.02592,
+        "gross_cagr_before_costs": 0.049229,
+        "gross_cagr_after_borrow_before_turnover_costs": 0.047563,
+        "net_cagr_after_costs": 0.042221,
+        "cagr_cost_drag": 0.007007,
+        "annualized_turnover": 10.222395,
+        "annualized_linear_cost_drag": 0.005111,
+        "annualized_borrow_drag": 0.001588,
         "observations": 3858
       },
-      "positive_folds": 6,
-      "fold_sharpe_std": 0.766828
+      "positive_folds": 5,
+      "fold_sharpe_std": 0.743411
     },
     "strict_gate": {
       "passed": false,
-      "pbo": 0.114286,
+      "pbo": 0.2,
       "pbo_passed": true,
       "global_dsr": 0.0,
       "global_trials": 644,
-      "rank_correlation": 0.29697,
+      "rank_correlation": 0.369697,
       "unique_fold_winners": 4,
-      "bootstrap_cagr_advantage_probability": 0.265,
-      "bootstrap_sharpe_advantage_probability": 0.911
+      "bootstrap_cagr_advantage_probability": 0.195,
+      "bootstrap_sharpe_advantage_probability": 0.39
     }
   },
   "benchmarks": {
@@ -93,25 +102,25 @@
       "max_drawdown": -0.551894,
       "calmar": 0.1673,
       "annualized_turnover": 0.065319,
-      "average_exposure": 0.0
+      "average_exposure": 1.0
     },
     "trend_200d": {
-      "cagr": 0.072945,
+      "cagr": 0.072946,
       "annualized_volatility": 0.117258,
       "sharpe_excess": 0.598943,
       "max_drawdown": -0.206286,
-      "calmar": 0.353612,
+      "calmar": 0.353613,
       "annualized_turnover": 3.265941,
       "average_exposure": 0.0
     }
   },
   "comparison_assessment": {
-    "cagr_delta": -0.003694,
-    "sharpe_delta": 0.118276,
-    "calmar_delta": 0.019896,
-    "turnover_multiple": 2.06,
+    "cagr_delta": -0.030725,
+    "sharpe_delta": -0.221756,
+    "calmar_delta": -0.183187,
+    "turnover_multiple": 3.13,
     "lower_volatility": true,
-    "shallower_drawdown": true,
+    "shallower_drawdown": false,
     "edge_confirmed": false,
     "assessment": "not_confirmed",
     "labels": {
@@ -133,10 +142,10 @@
     },
     "returns": {
       "available": true,
-      "mean_absolute_pairwise_correlation": 0.873299,
-      "median_absolute_pairwise_correlation": 0.916469,
-      "maximum_absolute_pairwise_correlation": 0.980781,
-      "effective_independent_series": 1.688359,
+      "mean_absolute_pairwise_correlation": 0.813197,
+      "median_absolute_pairwise_correlation": 0.878044,
+      "maximum_absolute_pairwise_correlation": 0.955203,
+      "effective_independent_series": 2.004663,
       "cluster_threshold": 0.8,
       "cluster_count": 2,
       "largest_cluster_size": 9,
@@ -144,10 +153,10 @@
     },
     "exposures": {
       "available": true,
-      "mean_absolute_pairwise_correlation": 0.624687,
-      "median_absolute_pairwise_correlation": 0.760617,
-      "maximum_absolute_pairwise_correlation": 0.933914,
-      "effective_independent_series": 2.957072,
+      "mean_absolute_pairwise_correlation": 0.638899,
+      "median_absolute_pairwise_correlation": 0.769731,
+      "maximum_absolute_pairwise_correlation": 0.905003,
+      "effective_independent_series": 2.854626,
       "cluster_threshold": 0.8,
       "cluster_count": 3,
       "largest_cluster_size": 8,
@@ -155,34 +164,28 @@
     }
   },
   "external_validation": {
-    "engine": "Backtrader independent reference",
+    "engine": "Deterministic trace economics reconciliation",
     "passed": true,
     "target_path_exact": true,
-    "return_correlation": 0.99999918,
-    "total_return_difference": -0.00434
+    "return_correlation": null,
+    "total_return_difference": 0.0,
+    "scope": "return reconciliation only; no independent Backtrader rerun for A2S"
   },
   "orthogonality_audit": {
-    "method": "unsupervised_development_only",
-    "selected_sources": [
-      "rates",
-      "liquidity",
-      "options"
-    ],
-    "selected_count": 3,
-    "effective_rank": 3.294889,
-    "median_absolute_pairwise_correlation": 0.3694,
-    "principal_components_for_85pct_variance": 3,
-    "excluded_sources": {
-      "breadth": "unique_variance_below_0.15",
-      "trend": "unique_variance_below_0.15"
-    },
+    "method": "not_reselected_for_a2s",
+    "selected_sources": [],
+    "selected_count": 0,
+    "effective_rank": null,
+    "median_absolute_pairwise_correlation": null,
+    "principal_components_for_85pct_variance": null,
+    "excluded_sources": {},
     "uses_holdout": false,
     "uses_backtest_performance_for_selection": false
   },
   "shadow": {
     "status": "warming_up",
     "start": "2026-08-03",
-    "updated_at": "2026-07-31T22:07:13+00:00",
+    "updated_at": "2026-08-02T20:22:46+00:00",
     "observations_collected": 0,
     "warmup_required": 252,
     "observations_remaining": 252,
@@ -198,8 +201,8 @@
     "accessed": false,
     "access_count": 0,
     "labels": {
-      "pl": "Zapieczętowany i niepobrany przez Architecture 2",
-      "en": "Sealed and not downloaded by Architecture 2"
+      "pl": "Zapieczętowany i niepobrany przez Architecture 2S",
+      "en": "Sealed and not downloaded by Architecture 2S"
     }
   },
   "public_boundary": {
@@ -211,8 +214,16 @@
     "daily_paths_exposed": false,
     "candidate_identity_exposed": false
   },
+  "methodology_transition": {
+    "old_architecture_preserved": true,
+    "old_architecture_id": "spx-multisignal-regime-a2",
+    "old_position_set": "long_flat",
+    "old_metrics_relabelled": false,
+    "new_architecture_independently_validated": true,
+    "short_state_observed_in_development": true
+  },
   "notes": {
-    "pl": "Architecture 2 jest badaniem long/flat zarządzającym ekspozycją, a nie systemem long/short. Wynik ogranicza ryzyko, lecz nie potwierdza przewagi ekonomicznej nad prostym Trend 200D.",
-    "en": "Architecture 2 is a long/flat exposure-management study, not a long/short system. It reduces risk, but does not confirm an economic edge over the simple 200D trend benchmark."
+    "pl": "Architecture 2S rzeczywiście korzystała w badaniu ze stanów long, short i flat, ale nie przeszła ścisłej bramki: miała niższy CAGR, Sharpe i Calmar od prostego Trend 200D oraz bardzo wysoki obrót. Nie ma championa, nie ma zleceń i nie ma zgody na użycie live. Poprzednia Architecture 2 long/flat pozostaje nienaruszonym punktem odniesienia.",
+    "en": "Architecture 2S genuinely used long, short and flat states in development, but failed the strict gate: CAGR, Sharpe and Calmar were below the simple 200D trend and turnover was very high. There is no champion, no orders and no live authorization. The previous long/flat Architecture 2 remains an untouched reference."
   }
 }
