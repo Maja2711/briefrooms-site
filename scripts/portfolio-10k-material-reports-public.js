@@ -150,3 +150,14 @@
 
   return {esc, safeHttpsUrl, reportsForPosition, renderReport, renderForPosition};
 });
+
+(function (root) {
+  'use strict';
+  if (!root || !root.document || !/^\/(?:pl\/inwestycje\/portfel-10k|en\/investing\/portfolio-10k)\.html$/.test(root.location.pathname)) return;
+  if (root.document.querySelector('script[src*="/scripts/ai-tournament-public.js"]')) return;
+  var script = root.document.createElement('script');
+  script.src = '/scripts/ai-tournament-public.js?v=1';
+  script.defer = true;
+  script.setAttribute('data-ai-tournament-loader', 'portfolio-runtime');
+  root.document.head.appendChild(script);
+})(typeof window !== 'undefined' ? window : null);
