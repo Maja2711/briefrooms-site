@@ -61,6 +61,34 @@ def call_openai(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]
     if not key:
         raise TournamentError("missing OPENAI_API_KEY")
     model = resolve_model(agent)
+    openai_user = json.loads(user)
+    openai_user["required_json"] = {
+        "allocations": [{"ticker": "MSFT", "weight": 0.25}, {"ticker": "SPY", "weight": 0.25}],
+        "rationale": "Concise evidence-based reason.",
+        "confidence": 65,
+    }
+    allocation_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["allocations", "rationale", "confidence"],
+        "properties": {
+            "allocations": {
+                "type": "array",
+                "maxItems": 30,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["ticker", "weight"],
+                    "properties": {
+                        "ticker": {"type": "string", "minLength": 1, "maxLength": 16},
+                        "weight": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                },
+            },
+            "rationale": {"type": "string", "maxLength": 900},
+            "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+        },
+    }
 
     def invoke() -> dict[str, Any]:
         response = requests.post(
@@ -70,12 +98,12 @@ def call_openai(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]
                 "model": model,
                 "store": False,
                 "instructions": system,
-                "input": user,
+                "input": json.dumps(openai_user, ensure_ascii=False, separators=(",", ":")),
                 "text": {
                     "format": {
                         "type": "json_schema",
                         "name": "ai_tournament_decision",
-                        "schema": decision_schema(),
+                        "schema": allocation_schema,
                         "strict": True,
                     }
                 },
@@ -92,7 +120,17 @@ def call_openai(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]
                     if content.get("type") in {"output_text", "text"}:
                         chunks.append(content.get("text", ""))
             text = "".join(chunks)
-        return parse_json_text(text)
+        parsed = parse_json_text(text)
+        target_weights: dict[str, float] = {}
+        for item in parsed.get("allocations") or []:
+            if not isinstance(item, dict):
+                continue
+            ticker = str(item.get("ticker") or "").upper().strip()
+            weight = item.get("weight")
+            if ticker and _finite(weight):
+                target_weights[ticker] = float(weight)
+        parsed["target_weights"] = target_weights
+        return parsed
 
     return _request_with_retry(invoke)
 
