@@ -12,6 +12,8 @@ on:
           - weekly
           - monthly-deep
           - promotion-only
+  issues:
+    types: [opened]
   schedule:
     - cron: "40 8 * * 0"
     - cron: "15 10 1 * *"
@@ -51,8 +53,14 @@ concurrency:
   group: brace-portfolio-research
   cancel-in-progress: false
 
+env:
+  BRACE_LEARNING_TRIGGER_TITLE: "Run BRACE governed self-learning"
+
 jobs:
   validate-research-promote:
+    if: >-
+      github.event_name != 'issues' ||
+      github.event.issue.title == 'Run BRACE governed self-learning'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -82,19 +90,28 @@ jobs:
         run: node --check scripts/portfolio-10k-public.js && node --check scripts/portfolio-10k-control-public.js
 
       - name: Build weekly shadow decisions
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        if: >-
+          github.event_name == 'schedule' ||
+          github.event_name == 'issues' ||
+          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode weekly --network
 
       - name: Run walk-forward and robustness research
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        if: >-
+          github.event_name == 'schedule' ||
+          github.event_name == 'issues' ||
+          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode research
 
       - name: Run governed weekly self-learning
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        if: >-
+          github.event_name == 'schedule' ||
+          github.event_name == 'issues' ||
+          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
         env:
           BRACE_TESTS_PASSED: "1"
         run: |
@@ -121,7 +138,10 @@ jobs:
         run: python scripts/brace_portfolio_engine.py --mode monitor
 
       - name: Commit validated BRACE state
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        if: >-
+          github.event_name == 'schedule' ||
+          github.event_name == 'issues' ||
+          github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
