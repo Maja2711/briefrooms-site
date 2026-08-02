@@ -6,13 +6,25 @@
     reports: 'Istotne raporty to zweryfikowane zdarzenia używane jako wejście do decyzji modelu. „Najnowsze informacje” są szerszą listą nagłówków źródłowych — nie każdy nagłówek zmienia decyzję.',
     paperControl: 'KONTROLA PAPER',
     paperTitle: 'BRACE steruje oddzielnym portfelem modelowym. Brak połączenia z rachunkiem brokerskim.',
-    learningTitle: 'Stan pętli uczenia'
+    learningTitle: 'Stan pętli uczenia',
+    methodology: [
+      'Aktualizacja cen instrumentów co godzinę podczas ich sesji oraz kursów walut wymaganych do raportowania.',
+      'Sprawdzenie kalendarza wyników, zweryfikowanych raportów istotnych i nagłówków dotyczących prognoz, regulacji, marż, produktów i badań klinicznych. Raporty istotne trafiają bezpośrednio do oceny BRACE.',
+      'Cotygodniowe przeliczenie trendu 50/200 sesji, momentum 6M, zmienności, obsunięcia i odchylenia udziału od celu. Wskaźniki zmieniają ocenę oraz rekomendację, lecz nie są pojedynczym automatycznym zleceniem.',
+      'BRACE podejmuje decyzję paper dopiero po połączeniu tezy, raportów istotnych, wskaźników, kosztów i limitów ryzyka. Możliwe działania: TRZYMAJ, OBSERWUJ, REDUKUJ, WYJDŹ, DOKUP lub ZAMIEŃ.'
+    ]
   } : {
     signals: 'Indicators are recalculated in the weekly review. They affect the model score and HOLD / REVIEW / REDUCE flag, but no single indicator is an automatic order.',
     reports: 'Material reports are verified events used as model-decision inputs. “Recent information” is a broader source-headline list — not every headline changes a decision.',
     paperControl: 'PAPER CONTROL',
     paperTitle: 'BRACE controls a separate model portfolio. No brokerage-account connection.',
-    learningTitle: 'Learning-loop status'
+    learningTitle: 'Learning-loop status',
+    methodology: [
+      'Refresh instrument prices hourly during their trading sessions and update the FX rates required for reporting.',
+      'Check earnings dates, verified material reports and source headlines concerning guidance, regulation, margins, products and clinical trials. Material reports feed directly into the BRACE assessment.',
+      'Recalculate the 50/200-session trend, six-month momentum, volatility, drawdown and target-weight deviation every week. Indicators change the score and recommendation, but no single indicator is an automatic order.',
+      'BRACE makes a paper decision only after combining the thesis, material reports, indicators, costs and risk limits. Available actions are HOLD, WATCH, REDUCE, EXIT, ADD and REPLACE.'
+    ]
   };
 
   function apply(root = document) {
@@ -31,6 +43,13 @@
         const note = document.createElement('p'); note.className = 'material-reports__explanation'; note.textContent = copy.reports;
         header.insertAdjacentElement('afterend', note);
       }
+    });
+  }
+
+  function applyMethodology() {
+    document.querySelectorAll('#method .method-card').forEach((card, index) => {
+      const paragraph = card.querySelector('p');
+      if (paragraph && copy.methodology[index]) paragraph.textContent = copy.methodology[index];
     });
   }
 
@@ -68,9 +87,14 @@
   }
 
   apply();
+  applyMethodology();
   applyControlStatus();
   const positions = document.getElementById('positions');
   if (positions && typeof MutationObserver !== 'undefined') {
     new MutationObserver(() => apply()).observe(positions, {childList:true, subtree:true});
+  }
+  const method = document.getElementById('method');
+  if (method && typeof MutationObserver !== 'undefined') {
+    new MutationObserver(applyMethodology).observe(method, {childList:true, subtree:true});
   }
 })();
