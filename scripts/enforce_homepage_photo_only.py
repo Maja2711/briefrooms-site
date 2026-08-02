@@ -9,10 +9,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
-SCRIPT_VERSION = "ai-outlook-compact-2"
+SCRIPT_VERSION = "ai-outlook-compact-3"
+GUARD_VERSION = "governance-v1"
 SCRIPT = f'<script src="/scripts/homepage-photo-only.js?v={SCRIPT_VERSION}" defer></script>'
+GUARD_SCRIPT = f'<script src="/scripts/ai-outlook-governance-guard.js?v={GUARD_VERSION}" defer></script>'
 SCRIPT_RE = re.compile(
     r'<script\s+src=["\']/scripts/homepage-photo-only\.js(?:\?[^"\']*)?["\']\s+defer></script>',
+    re.I,
+)
+GUARD_RE = re.compile(
+    r'<script\s+src=["\']/scripts/ai-outlook-governance-guard\.js(?:\?[^"\']*)?["\']\s+defer></script>',
     re.I,
 )
 CARD_RE = re.compile(
@@ -31,22 +37,14 @@ def photo_card(card: str) -> bool:
 
 
 def filter_marker_block(source: str, label: str) -> str:
-    marker = re.compile(
-        rf"({re.escape(START)})(.*?)({re.escape(END)})",
-        re.S,
-    )
+    marker = re.compile(rf"({re.escape(START)})(.*?)({re.escape(END)})", re.S)
     match = marker.search(source)
     if not match:
         raise RuntimeError(f"Homepage markers missing: {label}")
-
-    # Production cards contain attributes such as target and rel after href.
-    # Match by the brief-card class instead of assuming href is the last attribute.
     cards = CARD_RE.findall(match.group(2))
     kept = [card for card in cards if photo_card(card)]
     if len(cards) not in ALLOWED_HOMEPAGE_COUNTS:
-        raise RuntimeError(
-            f"{label} must start with exactly 8 or 10 homepage cards; got {len(cards)}"
-        )
+        raise RuntimeError(f"{label} must start with exactly 8 or 10 homepage cards; got {len(cards)}")
     if len(kept) != len(cards):
         raise RuntimeError(
             f"{label} has {len(cards) - len(kept)} card(s) without a source-linked photo; "
@@ -67,11 +65,10 @@ def ensure_runtime(source: str) -> str:
     )
     if "</body>" not in source:
         raise RuntimeError("Homepage closing body tag missing")
-
-    # Remove every older cache-busted variant and insert one canonical asset URL.
-    # A changed query string forces browsers and the CDN to fetch the compact UI.
     source = SCRIPT_RE.sub("", source)
-    source = source.replace("</body>", SCRIPT + "\n</body>", 1)
+    source = GUARD_RE.sub("", source)
+    runtime = GUARD_SCRIPT + "\n" + SCRIPT
+    source = source.replace("</body>", runtime + "\n</body>", 1)
     return source
 
 
