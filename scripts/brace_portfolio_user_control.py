@@ -24,6 +24,8 @@ PENDING = ENGINE_DATA_ROOT / "pending_decisions.json"
 SHADOW = ENGINE_DATA_ROOT / "shadow_log.json"
 HISTORY = ENGINE_DATA_ROOT / "promotion_history.json"
 OPERATIONAL = ENGINE_DATA_ROOT / "operational_state.json"
+ADAPTIVE = ENGINE_DATA_ROOT / "adaptive_policy.json"
+LEARNING = ENGINE_DATA_ROOT / "learning_state.json"
 
 
 def methodology(registry: Mapping[str, Any], methodology_id: str) -> dict[str, Any]:
@@ -42,6 +44,41 @@ def validate(auth: Mapping[str, Any]) -> None:
         raise ValueError("Only probationary paper control can be explicitly authorized")
 
 
+def learning_public_state() -> dict[str, Any]:
+    policy = read_json(ADAPTIVE)
+    state = read_json(LEARNING)
+    statistics = policy.get("statistics") or {}
+    active = policy.get("active_overrides") or {}
+    status = str(policy.get("status") or "NOT_CONFIGURED")
+    effective = float(statistics.get("effective_samples") or 0.0)
+    minimum = float(policy.get("minimum_effective_samples") or 12.0)
+    active_now = bool(policy.get("apply_to_shadow_decisions") and active)
+    return {
+        "status": status,
+        "active_parameters": active_now,
+        "effective_samples": effective,
+        "minimum_effective_samples": minimum,
+        "outcome_events": int(statistics.get("outcome_events") or 0),
+        "eligible_events": int(statistics.get("eligible_events") or 0),
+        "active_overrides": deepcopy(active),
+        "candidate_overrides": deepcopy(policy.get("candidate_overrides") or {}),
+        "reason": policy.get("learning_reason"),
+        "last_review_at": policy.get("generated_at") or state.get("generated_at"),
+        "next_changes_apply_weekly": True,
+        "real_broker_prohibited": True,
+        "explanation_pl": (
+            "Pętla uczenia jest uruchamiana cotygodniowo, ale parametry nie są jeszcze zmieniane: "
+            f"stan {status}, dojrzałe próbki {effective:g}/{minimum:g}. Zmiany mogą zostać aktywowane dopiero "
+            "po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej."
+        ),
+        "explanation_en": (
+            "The learning loop runs weekly, but parameters are not being changed yet: "
+            f"status {status}, mature effective samples {effective:g}/{minimum:g}. Changes may activate only "
+            "after the sample requirement, two consecutive confirmations and the research gate are satisfied."
+        ),
+    }
+
+
 def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: datetime) -> dict[str, Any]:
     config, _ = load_config()
     pending = read_json(PENDING)
@@ -51,6 +88,7 @@ def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: d
     )
     snapshot["control_authorization"] = deepcopy(dict(auth))
     snapshot["position_recommendations"] = deepcopy((pending.get("recommendations") or [])[:20])
+    snapshot["learning_loop"] = learning_public_state()
     snapshot["display_status"] = "BRACE_PROBATIONARY_PAPER_CONTROL"
     snapshot["control_summary_pl"] = (
         "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, "
