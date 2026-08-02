@@ -61,7 +61,15 @@
     if (!target) return;
     const rows = data.leaderboard || [];
     if (!rows.length) {
-      target.innerHTML = `<div class="ait-summary"><strong>0</strong><span>${esc(T.unavailable)}</span></div>`;
+      const participants = data.participants || [];
+      target.innerHTML = participants.length ? `<div class="ait-ranking">${participants.map(participant => `
+        <div class="ait-row">
+          <span class="ait-rank">—</span>
+          <span class="ait-agent"><strong>${esc(participant.agent_id)}</strong><small>${esc(T.scheduled)} · ${esc(participant.model || '')}</small></span>
+          <span class="ait-number"><strong>—</strong><small>${esc(T.ret)}</small></span>
+          <span class="ait-number"><strong>${money(data.tournament?.starting_capital_pln)}</strong><small>${esc(T.value)}</small></span>
+          <span class="ait-change same">${esc(T.same)}</span>
+        </div>`).join('')}</div>` : `<div class="ait-summary"><strong>0</strong><span>${esc(T.unavailable)}</span></div>`;
       return;
     }
     target.innerHTML = `<div class="ait-ranking">${rows.map(row => `
@@ -79,7 +87,8 @@
     if (!target) return;
     const rows = data.leaderboard || [];
     if (!rows.length) {
-      target.innerHTML = `<div class="ait-note">${esc(T.unavailable)}</div>`;
+      const participants = data.participants || [];
+      target.innerHTML = participants.length ? `<div class="ait-meta"><span>${esc(T.nextOpen)}</span><span>${esc(T.rankRule)}</span></div><div class="ait-card-grid">${participants.map(participant => `<article class="ait-card"><div class="ait-card-head"><div><small class="ait-status">${esc(T.scheduled)} · ${esc(participant.model || '')}</small><h3>${esc(participant.agent_id)}</h3></div><span class="ait-rank">—</span></div><div class="ait-kpis"><div><small>${esc(T.value)}</small><strong>${money(data.tournament?.starting_capital_pln)}</strong></div><div><small>${esc(T.ret)}</small><strong>—</strong></div><div><small>${esc(T.cash)}</small><strong>100.00%</strong></div></div><div class="ait-decision"><b>${esc(T.decision)}:</b> ${esc(T.noDecision)}</div><div class="ait-holdings"><span>${esc(T.cash)} 100%</span></div></article>`).join('')}</div>` : `<div class="ait-note">${esc(T.unavailable)}</div>`;
       return;
     }
     target.innerHTML = `<div class="ait-meta"><span>${esc(T.lastSession)}: ${esc(data.latest_session || '—')}</span><span>${esc(T.nextOpen)}</span><span>${esc(T.rankRule)}</span></div><div class="ait-card-grid">${rows.map(row => {
