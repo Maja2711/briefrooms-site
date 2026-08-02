@@ -15,6 +15,7 @@ on:
       - "scripts/patch_portfolio_10k_hourly_ui.py"
       - "scripts/portfolio-10k-public.js"
       - "scripts/portfolio-10k-dashboard-en.js"
+      - "scripts/portfolio-10k-analytics-enhanced.js"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-hourly-prices.yml"
@@ -54,9 +55,16 @@ jobs:
       - name: Patch English page for native USD source
         run: python scripts/patch_portfolio_10k_en_usd.py
 
-      - name: Apply one-time PL and EN hourly-price UI patch
+      - name: Apply PL and EN hourly-price UI patch
         if: ${{ hashFiles('scripts/patch_portfolio_10k_hourly_ui.py') != '' }}
         run: python scripts/patch_portfolio_10k_hourly_ui.py
+
+      - name: Validate launch labels
+        run: |
+          grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
+          grep -q 'Started: July 2026' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-analytics-enhanced.js?v=2' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-analytics-enhanced.js?v=2' en/investing/portfolio-10k.html
 
       - name: Validate accounting consistency
         run: python scripts/validate_portfolio_10k_state.py
@@ -66,6 +74,7 @@ jobs:
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-dashboard-en.js
           node --check scripts/portfolio-10k-usd-source.js
+          node --check scripts/portfolio-10k-analytics-enhanced.js
 
       - name: Commit hourly valuation and UI
         run: |
