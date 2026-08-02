@@ -67,7 +67,7 @@ def context(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
-def apply(position: Mapping[str, Any], ctx: Mapping[str, Any]) -> dict[str, Any]:
+def apply(position: Mapping[str, Any], ctx: Mapping[str, Any], minimum_position_weight: float = 0.05) -> dict[str, Any]:
     item = deepcopy(dict(position))
     original = float(item.get("final_score") or 0.0)
     thesis = float(item.get("thesis_score") or 50.0)
@@ -89,13 +89,28 @@ def apply(position: Mapping[str, Any], ctx: Mapping[str, Any]) -> dict[str, Any]
     if ctx.get("positive_count"): positives.add("confirmed_positive_material_report")
     conditions = list(item.get("conditions_for_change") or [])
     if "confirmed material report" not in conditions: conditions.append("confirmed material report")
+
+    final_score = min(cap, max(0.0, original - penalty + bonus))
+    current_weight = float(item.get("current_weight") or 0.0)
+    forced_exit = bool(
+        ctx.get("requires_thesis_review")
+        and current_weight > 0.0
+        and current_weight <= minimum_position_weight + 1e-9
+    )
+    if forced_exit:
+        final_score = min(final_score, 29.0)
+        negatives.add("below_minimum_viable_weight_for_reduction")
+        if "exit when a material thesis review affects a sub-minimum position" not in conditions:
+            conditions.append("exit when a material thesis review affects a sub-minimum position")
+
     item.update({
         "pre_material_overlay_final_score": round(original, 2),
-        "final_score": round(min(cap, max(0.0, original - penalty + bonus)), 2),
+        "final_score": round(final_score, 2),
         "thesis_score": round(max(10.0, thesis - penalty * 1.5 + bonus), 2),
         "risk_score": round(max(10.0, risk - min(12.0, penalty * 0.5)), 2),
         "material_event_context": dict(ctx), "negative_factors": sorted(negatives),
         "positive_factors": sorted(positives), "conditions_for_change": conditions,
+        "material_forced_exit": forced_exit,
     })
     return item
 
@@ -106,27 +121,37 @@ def add_rationale(pending: dict[str, Any], contexts: Mapping[str, Mapping[str, A
         ctx = contexts.get(instrument_id) or {}
         if not ctx.get("report_count"): continue
         row["material_event_context"] = dict(ctx)
+        if row.get("action") == "EXIT":
+            row["proposed_weight"] = 0.0
         row["rationale_pl"] = (f"{row.get('rationale_pl') or ''} BRACE uwzględnił {ctx['report_count']} zweryfikowanych raportów, w tym {ctx['negative_count']} negatywnych; bieżąca rekomendacja to {row.get('action')}.").strip()
         row["rationale_en"] = (f"{row.get('rationale_en') or ''} BRACE incorporated {ctx['report_count']} verified reports, including {ctx['negative_count']} negative; the current recommendation is {row.get('action')}.").strip()
+        if row.get("action") == "EXIT":
+            row["rationale_pl"] += " Pozycja jest już poniżej minimalnej wagi umożliwiającej sensowną redukcję, dlatego decyzja paper oznacza pełne wyjście."
+            row["rationale_en"] += " The position is already below the minimum weight for a meaningful reduction, so the paper decision is a full exit."
     for decision in pending.get("decisions") or []:
         source = recommendations.get(str(decision.get("instrument") or ""))
         if source:
             decision["material_event_context"] = deepcopy(source.get("material_event_context"))
             decision["rationale_pl"] = source.get("rationale_pl")
             decision["rationale_en"] = source.get("rationale_en")
+            if source.get("action") == "EXIT":
+                decision["action"] = "EXIT"
+                decision["proposed_weight"] = 0.0
 
 
 def run(now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
     analysis = read_json(ANALYSIS)
+    config, _ = load_config()
     reports = load_reports(); contexts: dict[str, dict[str, Any]] = {}; positions = []
     for position in analysis.get("positions") or []:
         instrument_id = str(position.get("instrument_id") or position.get("id") or "")
-        ctx = context(recent(reports, instrument_id, now)); contexts[instrument_id] = ctx; positions.append(apply(position, ctx))
+        ctx = context(recent(reports, instrument_id, now)); contexts[instrument_id] = ctx
+        positions.append(apply(position, ctx, config.minimum_position_weight))
     analysis["positions"] = positions
     analysis["material_reports_overlay"] = {"applied_at":now.isoformat(timespec="seconds"),"facts_not_inferred":True,"contexts":contexts}
     write_json_atomic(ANALYSIS, analysis)
-    config, _ = load_config(); shadow = read_json(SHADOW)
+    shadow = read_json(SHADOW)
     pending = build_pending_decisions(
         positions, analysis.get("candidates") or [], analysis.get("optimization") or {}, config, now,
         str(analysis.get("methodology_version") or "brace-portfolio-v3.1.0"), str(analysis.get("generated_at") or now.isoformat()),
