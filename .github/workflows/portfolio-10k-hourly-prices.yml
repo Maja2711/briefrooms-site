@@ -70,8 +70,8 @@ jobs:
           grep -q 'portfolio-10k-verified-material-loader.js?v=2' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-decision-overlay.css?v=1' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-decision-overlay.css?v=1' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-decision-overlay.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-decision-overlay.js?v=1' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-decision-overlay.js?v=2' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-decision-overlay.js?v=2' en/investing/portfolio-10k.html
       - name: Validate accounting and JavaScript
         run: |
           python scripts/validate_portfolio_10k_state.py
@@ -93,6 +93,7 @@ jobs:
           order = next((o for o in orders.get('orders', []) if o.get('sell_instrument') == 'novo'), None)
           assert decision and decision.get('action') == 'EXIT', 'Novo public decision must be EXIT'
           assert order and order.get('status') in {'WAITING_FOR_MARKET', 'PAPER_EXECUTED'}, 'Novo paper order must be visible'
+          assert '2 zweryfikowanych raport' in decision.get('rationale_pl', ''), 'Novo rationale must preserve verified-report basis'
           PY
       - name: Commit hourly valuation, UI and paper state
         run: |
