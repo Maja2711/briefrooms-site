@@ -1,8 +1,12 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = spec_from_file_location("overlay", ROOT / "scripts/brace_portfolio_material_overlay.py")
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+spec = spec_from_file_location("overlay", SCRIPTS / "brace_portfolio_material_overlay.py")
 module = module_from_spec(spec)
 assert spec and spec.loader
 spec.loader.exec_module(module)
