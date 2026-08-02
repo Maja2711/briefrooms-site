@@ -1,0 +1,164 @@
+name: BRACE-SPX Architecture 2S
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-architecture-v2s
+  cancel-in-progress: false
+
+jobs:
+  research-and-validate:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'BRACE-SPX Architecture 2S')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance pytest
+
+      - name: Compile and test long-short-flat protocol
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_architecture_v2.py \
+            scripts/brace_spx_architecture_v2s.py \
+            scripts/build_brace_spx_architecture_v2s_economics.py
+          python -m pytest -q \
+            tests/test_brace_spx_architecture_v2.py \
+            tests/test_brace_spx_architecture_v2s.py
+
+      - name: Download development data only
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_architecture_v2 as base
+          prices = base.download_prices(base.START_DATE, base.DEVELOPMENT_END_EXCLUSIVE)
+          prices.to_csv('/tmp/brace_spx_architecture_v2s_prices.csv', index_label='date')
+          assert prices.index.max().strftime('%Y-%m-%d') < base.SEALED_HOLDOUT_START
+          print(prices.index.min(), prices.index.max(), prices.shape)
+          PY
+
+      - name: Run Architecture 2S research
+        run: |
+          set -o pipefail
+          python scripts/brace_spx_architecture_v2s.py \
+            --prices-csv /tmp/brace_spx_architecture_v2s_prices.csv \
+            --trace-csv /tmp/brace_spx_architecture_v2s_trace.csv \
+            --output data/research/brace_spx_architecture_v2s_report.json \
+            2>&1 | tee data/research/brace_spx_architecture_v2s.log
+          python scripts/build_brace_spx_architecture_v2s_economics.py \
+            --report data/research/brace_spx_architecture_v2s_report.json \
+            --trace /tmp/brace_spx_architecture_v2s_trace.csv \
+            --output data/research/brace_spx_architecture_v2s_economics.json
+
+      - name: Validate mandate, costs and sealed holdout
+        run: |
+          python - <<'PY'
+          import json
+          import pandas as pd
+          from pathlib import Path
+          report = json.loads(Path('data/research/brace_spx_architecture_v2s_report.json').read_text())
+          economics = json.loads(Path('data/research/brace_spx_architecture_v2s_economics.json').read_text())
+          trace = pd.read_csv('/tmp/brace_spx_architecture_v2s_trace.csv')
+          assert report['architecture_id'] == 'spx-multisignal-regime-a2s'
+          assert report['candidate_space_size'] == 10
+          assert report['experiments_total'] == 10
+          assert report['holdout']['status'] == 'sealed_not_downloaded'
+          assert report['holdout']['accessed'] is False
+          assert report['holdout']['access_count'] == 0
+          assert report['mandate']['position_set'] == 'long_short_flat'
+          assert report['mandate']['short_allowed'] is True
+          assert report['mandate']['leverage_allowed'] is False
+          assert economics['mandate']['short_allowed'] is True
+          assert economics['mandate']['leverage_allowed'] is False
+          assert economics['mandate']['orders_allowed'] is False
+          assert economics['cost_model']['short_borrow_annual'] == 0.01
+          applied_columns = [name for name in trace.columns if name.endswith('_applied')]
+          assert applied_columns
+          applied = trace[applied_columns]
+          assert applied.min().min() >= -1.0 - 1e-12
+          assert applied.max().max() <= 1.0 + 1e-12
+          assert (applied < -1e-12).any().any(), 'Development trace never exercised short state'
+          assert report['candidate_signature'] != 'c5f4ff626f96d29274f0a695b821c7a5a49ef4c2230fa890710d8f5cede990d9'
+          print('Architecture 2S validated:', report['status'])
+          PY
+
+      - name: Write run status
+        if: always()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          report = {}
+          economics = {}
+          try: report = json.loads(Path('data/research/brace_spx_architecture_v2s_report.json').read_text())
+          except Exception: pass
+          try: economics = json.loads(Path('data/research/brace_spx_architecture_v2s_economics.json').read_text())
+          except Exception: pass
+          payload = {
+              'schema_version': '2.0.0',
+              'architecture_id': 'spx-multisignal-regime-a2s',
+              'run_id': os.environ.get('RUN_ID'),
+              'run_attempt': os.environ.get('RUN_ATTEMPT'),
+              'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'status': report.get('status', 'failed_before_report'),
+              'strict_gate_passed': report.get('strict_gate_passed'),
+              'single_champion_authorized': report.get('single_champion_authorized'),
+              'short_state_observed': ((economics.get('diagnostic_leader') or {}).get('time_short', 0) or 0) > 0,
+              'holdout_opened': False,
+              'orders_allowed': False,
+          }
+          Path('data/research/brace_spx_architecture_v2s_status.json').write_text(json.dumps(payload, indent=2) + '\n')
+          PY
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-architecture-v2s-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            data/research/brace_spx_architecture_v2s_report.json
+            data/research/brace_spx_architecture_v2s_economics.json
+            data/research/brace_spx_architecture_v2s_status.json
+            data/research/brace_spx_architecture_v2s.log
+            /tmp/brace_spx_architecture_v2s_trace.csv
+
+      - name: Persist verified research evidence
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f \
+            data/research/brace_spx_architecture_v2s_report.json \
+            data/research/brace_spx_architecture_v2s_economics.json \
+            data/research/brace_spx_architecture_v2s_status.json \
+            data/research/brace_spx_architecture_v2s.log
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Persist BRACE-SPX Architecture 2S evidence'
+          for attempt in 1 2 3; do
+            if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
