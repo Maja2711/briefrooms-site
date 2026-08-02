@@ -28,10 +28,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Assemble engine and install UI
+      - name: Install and validate AI Tournament UI
         run: |
           set -euo pipefail
-          python scripts/build_ai_tournament_engine.py --cleanup
           python scripts/install_ai_tournament_ui.py
           python -m unittest tests.test_ai_tournament -v
           python -m py_compile scripts/ai_tournament_engine.py scripts/install_ai_tournament_ui.py
@@ -40,20 +39,19 @@ jobs:
           grep -F '/scripts/ai-tournament-public.js?v=1' pl/inwestycje/portfel-10k.html
           grep -F '/scripts/ai-tournament-public.js?v=1' en/investing/portfolio-10k.html
 
-      - name: Publish completed bootstrap and remove one-shot files
+      - name: Publish UI and remove one-shot workflow
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/ai_tournament_engine.py pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
-          git add -A scripts/ai_tournament_parts
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
           git rm .github/workflows/ai-tournament-bootstrap.yml scripts/build_ai_tournament_engine.py
-          git commit -m 'Install complete AI Tournament engine and UI'
+          git commit -m 'Install AI Tournament leaderboard UI'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git rebase origin/main
             if git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 4))
           done
-          echo '::error::Could not publish AI Tournament bootstrap.'
+          echo '::error::Could not publish AI Tournament UI.'
           exit 1
