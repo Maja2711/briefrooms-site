@@ -1,0 +1,33 @@
+{
+  "schema_version": "ai-tournament-cash-rate-policy-v1",
+  "benchmark": "IORB",
+  "benchmark_name": "Federal Reserve Interest Rate on Reserve Balances",
+  "currency": "USD",
+  "day_count": "ACT/365",
+  "compounding": "daily",
+  "accrual_calendar": "calendar_days",
+  "accrual_period": {
+    "start_date": "2026-08-03",
+    "first_credit_date": "2026-08-04",
+    "end_date": "2026-11-03",
+    "from_date_inclusive": true,
+    "to_date_exclusive": true
+  },
+  "rate_schedule": [
+    {
+      "effective_date": "2026-06-18",
+      "annual_rate_pct": 3.65,
+      "source": "Federal Reserve implementation note dated 2026-06-17"
+    }
+  ],
+  "rate_update_policy": "Append every later IORB change using the official effective date; never rewrite historical entries.",
+  "account_treatment": {
+    "pl": "Cash remains model USD cash, earns IORB daily in USD, then is translated to PLN with the same daily USD/PLN rate used for the stock portfolio.",
+    "en": "Cash remains USD cash, earns IORB daily in USD and is reported in USD."
+  },
+  "formula": "cash_end = cash_start * product(1 + annual_rate_pct(day) / 100 / 365) for every calendar day in [from_date, to_date)",
+  "official_sources": [
+    "https://www.federalreserve.gov/monetarypolicy/reserve-balances.htm",
+    "https://fred.stlouisfed.org/series/IORB"
+  ]
+}
