@@ -9,7 +9,23 @@ const pct=(v,d=2)=>v===null||!Number.isFinite(v)?'—':`${v>0?'+':''}${(v*100).t
 const money=v=>v===null||!Number.isFinite(v)?'—':new Intl.NumberFormat(locale,{style:'currency',currency,maximumFractionDigits:2}).format(v);
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
 const stdev=a=>{if(a.length<2)return null;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function sourceUrl(){return '/data/investments/portfolio_10k.json?v='+Date.now()}
+function launchLabel(data){
+ const raw=data.launch_date||data.entry_date||'2026-07-01';
+ const value=/^\d{4}-\d{2}-\d{2}$/.test(String(raw))?`${raw}T12:00:00Z`:String(raw);
+ const date=new Date(value);
+ if(!Number.isFinite(date.getTime()))return lang==='pl'?'Start: lipiec 2026':'Started: July 2026';
+ const monthYear=new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-US',{month:'long',year:'numeric',timeZone:'UTC'}).format(date);
+ return lang==='pl'?`Start: ${monthYear}`:`Started: ${monthYear}`;
+}
+function renderLaunchCopy(data){
+ const text=launchLabel(data);
+ const overview=$('#portfolio-launch-label');
+ const portfolio=$('#portfolio-launch-note');
+ if(overview)overview.textContent=text;
+ if(portfolio)portfolio.textContent=text;
+}
 function computedPortfolioValue(data){
  const cash=n(lang==='en'&&data.base_currency==='USD'?(data.cash_usd??data.cash_pln):data.cash_pln)||0;
  const positions=(data.positions||[]).filter(p=>p.status==='active').reduce((sum,p)=>{
@@ -58,8 +74,11 @@ function renderMiniChart(data){
  const area=`${line} L${x(points.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
  const start=points[0].v,end=points.at(-1).v,up=end>=start;
  const stroke=up?'#15964d':'#d64d5f',gradientId=up?'miniPortfolioUp':'miniPortfolioDown';
- const label=lang==='pl'?`Rzeczywista ścieżka wartości portfela: ${money(start)} → ${money(end)}`:`Actual portfolio value path: ${money(start)} → ${money(end)}`;
- host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${stroke}" stop-opacity=".24"/><stop offset="1" stop-color="${stroke}" stop-opacity="0"/></linearGradient></defs><path fill="url(#${gradientId})" d="${area}"/><path fill="none" stroke="${stroke}" stroke-width="3" vector-effect="non-scaling-stroke" d="${line}"/></svg>`;
+ const started=launchLabel(data);
+ const valuePath=lang==='pl'?`Rzeczywista ścieżka wartości portfela: ${money(start)} → ${money(end)}`:`Actual portfolio value path: ${money(start)} → ${money(end)}`;
+ const label=`${started} · ${valuePath}`;
+ host.style.position='relative';
+ host.innerHTML=`<span class="mini-chart-launch" style="position:absolute;left:6px;top:2px;z-index:2;padding:3px 7px;border:1px solid rgba(18,32,57,.12);border-radius:999px;background:rgba(255,255,255,.9);color:#526079;font-size:9px;font-weight:800;line-height:1.2;pointer-events:none">${esc(started)}</span><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${stroke}" stop-opacity=".24"/><stop offset="1" stop-color="${stroke}" stop-opacity="0"/></linearGradient></defs><path fill="url(#${gradientId})" d="${area}"/><path fill="none" stroke="${stroke}" stroke-width="3" vector-effect="non-scaling-stroke" d="${line}"/></svg>`;
  host.title=label;
 }
 const labels=lang==='pl'?{
@@ -68,7 +87,7 @@ const labels=lang==='pl'?{
 function card(label,value,sub='',cls=''){return `<article class="kpi"><small>${label}</small><strong class="${cls}">${value}</strong><span>${sub}</span></article>`}
 async function enhance(){
  const host=$('#kpis');
- try{const r=await fetch(sourceUrl(),{cache:'no-store'});if(!r.ok)return;const data=await r.json();renderMiniChart(data);if(!host)return;const m=metrics(data);const tone=v=>v>0?'positive':v<0?'negative':'neutral';
+ try{const r=await fetch(sourceUrl(),{cache:'no-store'});if(!r.ok)return;const data=await r.json();renderLaunchCopy(data);renderMiniChart(data);if(!host)return;const m=metrics(data);const tone=v=>v>0?'positive':v<0?'negative':'neutral';
  host.innerHTML=[card(labels.profit,money(m.profit),labels.return,tone(m.profit)),card(labels.return,pct(m.ret),currency,tone(m.ret)),card(labels.annualized,pct(m.annualized),m.days?`${Math.round(m.days)} d`:'—',tone(m.annualized)),card(labels.drawdown,pct(m.maxDD),lang==='pl'?'od szczytu':'from peak',tone(m.maxDD)),card(labels.vol,pct(m.annVol),`${m.dailyCount} ${lang==='pl'?'zmian dziennych':'daily changes'}`),card(labels.sharpe,m.sharpe===null?'—':m.sharpe.toFixed(2),lang==='pl'?'stopa wolna od ryzyka = 0':'risk-free rate = 0',tone(m.sharpe)),card(labels.alpha,pct(m.alpha),lang==='pl'?'portfel − benchmark':'portfolio − benchmark',tone(m.alpha)),card(labels.profitable,pct(m.profitable,0),`${(data.positions||[]).filter(p=>p.status==='active').length} ${lang==='pl'?'pozycji':'positions'}`),card(labels.top3,pct(m.top3,0),lang==='pl'?'udział 3 największych':'share of 3 largest')].join('');
  if(!$('.analytics-explainer'))host.insertAdjacentHTML('afterend',`<div class="analytics-explainer"><b>${lang==='pl'?'Jak czytać wskaźniki':'How to read the metrics'}:</b> ${labels.note}</div>`);
  }catch(_){/* retain base analytics */}
