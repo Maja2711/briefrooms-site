@@ -1,0 +1,66 @@
+{
+  "schema_version": "ai-tournament-config-v1",
+  "tournament_id": "briefrooms-ai-tournament-2026-01",
+  "title_pl": "AI Tournament — Inwestycje 10K",
+  "title_en": "AI Tournament — 10K Investing",
+  "start_date": "2026-08-03",
+  "end_date": "2026-11-03",
+  "base_currency": "PLN",
+  "starting_capital_pln": 10000.0,
+  "benchmark_ticker": "SPY",
+  "fx_ticker": "USDPLN=X",
+  "universe_version": "us-liquid-30-v1",
+  "universe": [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "AVGO", "TSLA",
+    "JPM", "V", "MA", "XOM", "LLY", "UNH", "COST", "WMT", "HD", "PG",
+    "KO", "PEP", "NFLX", "AMD", "ORCL", "CRM", "QCOM", "SPY", "QQQ",
+    "IWM", "GLD", "TLT"
+  ],
+  "rules": {
+    "long_only": true,
+    "fractional_shares": true,
+    "max_positions": 6,
+    "max_position_weight": 0.30,
+    "min_cash_weight": 0.02,
+    "max_daily_turnover": 0.50,
+    "transaction_cost_pct": 0.001,
+    "slippage_pct": 0.0005,
+    "min_trade_pln": 50.0
+  },
+  "agents": [
+    {
+      "id": "BRACE",
+      "provider": "brace",
+      "default_model": "BRACE-v1"
+    },
+    {
+      "id": "OpenAI",
+      "provider": "openai",
+      "secret_env": "OPENAI_API_KEY",
+      "model_env": "OPENAI_TOURNAMENT_MODEL",
+      "default_model": "gpt-5-mini"
+    },
+    {
+      "id": "Claude",
+      "provider": "anthropic",
+      "secret_env": "ANTHROPIC_API_KEY",
+      "model_env": "ANTHROPIC_TOURNAMENT_MODEL",
+      "default_model": "claude-sonnet-4-20250514"
+    },
+    {
+      "id": "Gemini",
+      "provider": "gemini",
+      "secret_env": "GEMINI_API_KEY",
+      "model_env": "GEMINI_TOURNAMENT_MODEL",
+      "default_model": "gemini-3.5-flash"
+    },
+    {
+      "id": "DeepSeek",
+      "provider": "deepseek",
+      "secret_env": "DEEPSEEK_API_KEY",
+      "model_env": "DEEPSEEK_TOURNAMENT_MODEL",
+      "default_model": "deepseek-v4-flash"
+    }
+  ],
+  "data_dir": "data/ai_tournament"
+}
