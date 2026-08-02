@@ -12,8 +12,9 @@ TARGETS = (
 )
 GREEN_STYLE = (
     "display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;"
-    "border:1px solid #166534;border-radius:999px;background:#15803d;color:#fff;"
-    "font-weight:800;text-decoration:none;box-shadow:0 7px 18px rgba(21,128,61,.24)"
+    "border:1px solid #166534!important;border-radius:999px;"
+    "background:#15803d!important;color:#fff!important;font-weight:800;"
+    "text-decoration:none;box-shadow:0 7px 18px rgba(21,128,61,.24)!important"
 )
 PATTERN = re.compile(
     r'(<a\b[^>]*href="/(?:pl/inwestycje|en/investing)/brace-spx-lab\.html"[^>]*?)style="[^"]*"([^>]*>BRACE-SPX Lab</a>)',
@@ -34,8 +35,13 @@ def normalize(path: Path) -> bool:
 
 def validate(path: Path) -> None:
     source = path.read_text(encoding="utf-8")
-    if 'href="/' not in source or 'background:#15803d;color:#fff' not in source:
-        raise RuntimeError(f"Green BRACE-SPX Lab tab missing in {path}")
+    required = (
+        'background:#15803d!important',
+        'color:#fff!important',
+        'border:1px solid #166534!important',
+    )
+    if 'href="/' not in source or any(item not in source for item in required):
+        raise RuntimeError(f"Enforced green BRACE-SPX Lab tab missing in {path}")
 
 
 def main() -> None:
