@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Auditable daily AI portfolio tournament for BriefRooms.
+
+Core principles:
+- one frozen market snapshot for every agent,
+- target-weight decisions instead of arbitrary order lists,
+- decisions created after the close execute at the next session open,
+- long-only, fractional paper positions, no leverage,
+- hash-chained append-only ledgers,
+- public daily leaderboard ranked by cumulative return.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import re
+import statistics
+import tempfile
+import time
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+import requests
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CONFIG = ROOT / "data" / "ai_tournament" / "config.json"
+SCHEMA_VERSION = "ai-tournament-v1"
+ENGINE_VERSION = "ai-tournament-engine-v1"
+
+
+class TournamentError(RuntimeError):
+    pass
+
+
+class ValidationError(TournamentError):
+    pass
+
+
+@dataclass(frozen=True)
+class Paths:
+    root: Path
+
+    @property
+    def state(self) -> Path:
+        return self.root / "state"
+
+    @property
+    def ledger(self) -> Path:
+        return self.root / "ledger"
+
+    @property
+    def snapshots(self) -> Path:
+        return self.root / "snapshots"
+
+    @property
+    def decisions(self) -> Path:
+        return self.root / "decisions"
+
+    @property
+    def rounds(self) -> Path:
+        return self.root / "rounds"
+
+    @property
+    def public(self) -> Path:
+        return self.root / "public.json"
+
+    @property
+    def benchmark(self) -> Path:
+        return self.root / "benchmark.json"
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def load_json(path: Path, default: Any = None) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def atomic_write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+        handle.write(text)
+        tmp = Path(handle.name)
+    tmp.replace(path)
+
+
+def validate_config(config: dict[str, Any]) -> None:
+    required = {
+        "tournament_id", "start_date", "end_date", "base_currency",
+        "starting_capital_pln", "benchmark_ticker", "fx_ticker", "universe",
+        "rules", "agents",
+    }
+    missing = required - set(config)
+    if missing:
+        raise ValidationError(f"Missing config fields: {sorted(missing)}")
+    start = date.fromisoformat(str(config["start_date"]))
+    end = date.fromisoformat(str(config["end_date"]))
+    if end <= start:
+        raise ValidationError("end_date must be after start_date")
+    universe = config["universe"]
+    if not isinstance(universe, list) or not 10 <= len(universe) <= 100:
+        raise ValidationError("universe must contain 10-100 tickers")
+    if len(set(universe)) != len(universe):
+        raise ValidationError("universe contains duplicates")
+    rules = config["rules"]
+    for key in (
+        "max_positions", "max_position_weight", "min_cash_weight",
+        "max_daily_turnover", "transaction_cost_pct", "slippage_pct",
+        "min_trade_pln",
+    ):
+        if key not in rules:
+            raise ValidationError(f"Missing rule: {key}")
+    if not 1 <= int(rules["max_positions"]) <= 12:
+        raise ValidationError("max_positions outside range")
+    if not 0 < float(rules["max_position_weight"]) <= 0.5:
+        raise ValidationError("max_position_weight outside range")
+    if not 0 <= float(rules["min_cash_weight"]) < 0.5:
+        raise ValidationError("min_cash_weight outside range")
+    agent_ids = [str(item.get("id")) for item in config["agents"]]
+    if len(agent_ids) != len(set(agent_ids)) or "BRACE" not in agent_ids:
+        raise ValidationError("agents must be unique and include BRACE")
+
+
+def config_paths(config: dict[str, Any]) -> Paths:
+    raw = config.get("data_dir", "data/ai_tournament")
+    return Paths(ROOT / raw)
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+    return rows
+
+
+def verify_ledger(path: Path) -> None:
+    previous = "GENESIS"
+    for index, row in enumerate(read_jsonl(path), start=1):
+        expected = row.get("event_hash")
+        body = dict(row)
+        body.pop("event_hash", None)
+        if body.get("previous_hash") != previous:
+            raise ValidationError(f"Ledger chain broken at row {index}: previous hash")
+        actual = sha256_text(canonical_json(body))
+        if actual != expected:
