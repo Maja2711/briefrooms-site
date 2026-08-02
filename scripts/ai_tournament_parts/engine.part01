@@ -1,0 +1,170 @@
+            raise ValidationError(f"Ledger chain broken at row {index}: event hash")
+        previous = actual
+
+
+def append_ledger(path: Path, event: dict[str, Any]) -> dict[str, Any]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    verify_ledger(path)
+    rows = read_jsonl(path)
+    previous = rows[-1]["event_hash"] if rows else "GENESIS"
+    row = {
+        "schema_version": "ai-tournament-ledger-v1",
+        "recorded_at": utc_now(),
+        "previous_hash": previous,
+        **event,
+    }
+    row["event_hash"] = sha256_text(canonical_json(row))
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+    return row
+
+
+def initial_state(agent: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": "ai-tournament-state-v1",
+        "agent_id": agent["id"],
+        "provider": agent["provider"],
+        "model": resolve_model(agent),
+        "cash_pln": float(config["starting_capital_pln"]),
+        "positions": {},
+        "pending_target": None,
+        "nav_history": [],
+        "closed_trades": [],
+        "total_costs_pln": 0.0,
+        "last_session": None,
+        "latest_decision": None,
+        "status": "READY",
+        "created_at": utc_now(),
+        "updated_at": utc_now(),
+    }
+
+
+def state_path(paths: Paths, agent_id: str) -> Path:
+    return paths.state / f"{slug(agent_id)}.json"
+
+
+def ledger_path(paths: Paths, agent_id: str) -> Path:
+    return paths.ledger / f"{slug(agent_id)}.jsonl"
+
+
+def load_state(paths: Paths, agent: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    path = state_path(paths, agent["id"])
+    state = load_json(path)
+    if not isinstance(state, dict):
+        state = initial_state(agent, config)
+    return state
+
+
+def save_state(paths: Paths, state: dict[str, Any]) -> None:
+    state["updated_at"] = utc_now()
+    atomic_write_json(state_path(paths, state["agent_id"]), state)
+
+
+def position_value_pln(position: dict[str, Any], price_usd: float, fx: float) -> float:
+    return float(position.get("shares", 0.0)) * price_usd * fx
+
+
+def portfolio_value(state: dict[str, Any], prices: dict[str, float], fx: float) -> float:
+    value = float(state.get("cash_pln", 0.0))
+    for ticker, position in state.get("positions", {}).items():
+        price = prices.get(ticker, position.get("last_close_usd"))
+        if price is not None:
+            value += position_value_pln(position, float(price), fx)
+    return value
+
+
+def current_weights(state: dict[str, Any], prices: dict[str, float], fx: float) -> dict[str, float]:
+    equity = portfolio_value(state, prices, fx)
+    if equity <= 0:
+        return {}
+    return {
+        ticker: position_value_pln(position, float(prices.get(ticker, position.get("last_close_usd"))), fx) / equity
+        for ticker, position in state.get("positions", {}).items()
+        if prices.get(ticker, position.get("last_close_usd")) is not None and position.get("shares", 0) > 0
+    }
+
+
+def _finite(value: Any) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def normalize_target_weights(
+    raw: dict[str, Any],
+    universe: list[str],
+    rules: dict[str, Any],
+    existing_weights: dict[str, float] | None = None,
+) -> tuple[dict[str, float], list[str]]:
+    """Normalize an agent proposal without changing its ordering preference."""
+    adjustments: list[str] = []
+    universe_set = set(universe)
+    cleaned: dict[str, float] = {}
+    for ticker, value in (raw or {}).items():
+        ticker = str(ticker).upper().strip()
+        if ticker not in universe_set or not _finite(value):
+            adjustments.append(f"removed_invalid:{ticker}")
+            continue
+        weight = max(0.0, float(value))
+        if weight <= 0:
+            continue
+        cleaned[ticker] = weight
+
+    max_positions = int(rules["max_positions"])
+    if len(cleaned) > max_positions:
+        cleaned = dict(sorted(cleaned.items(), key=lambda pair: pair[1], reverse=True)[:max_positions])
+        adjustments.append("trimmed_to_max_positions")
+
+    cap = float(rules["max_position_weight"])
+    for ticker in list(cleaned):
+        if cleaned[ticker] > cap:
+            cleaned[ticker] = cap
+            adjustments.append(f"capped:{ticker}")
+
+    max_invested = 1.0 - float(rules["min_cash_weight"])
+    total = sum(cleaned.values())
+    if total > max_invested and total > 0:
+        factor = max_invested / total
+        cleaned = {ticker: weight * factor for ticker, weight in cleaned.items()}
+        adjustments.append("rescaled_for_cash_reserve")
+
+    existing = existing_weights or {}
+    turnover = 0.5 * sum(
+        abs(cleaned.get(ticker, 0.0) - existing.get(ticker, 0.0))
+        for ticker in set(cleaned) | set(existing)
+    )
+    max_turnover = float(rules["max_daily_turnover"])
+    if turnover > max_turnover and turnover > 0:
+        blend = max_turnover / turnover
+        merged = {
+            ticker: existing.get(ticker, 0.0) + blend * (cleaned.get(ticker, 0.0) - existing.get(ticker, 0.0))
+            for ticker in set(cleaned) | set(existing)
+        }
+        cleaned = {ticker: max(0.0, weight) for ticker, weight in merged.items() if weight > 1e-6}
+        adjustments.append("blended_for_turnover_cap")
+
+    cleaned = {ticker: round(weight, 8) for ticker, weight in sorted(cleaned.items())}
+    return cleaned, adjustments
+
+
+def execute_pending_target(
+    state: dict[str, Any],
+    open_prices: dict[str, float],
+    fx_open: float,
+    rules: dict[str, Any],
+    session_date: str,
+) -> dict[str, Any] | None:
+    pending = state.get("pending_target")
+    if not isinstance(pending, dict) or pending.get("created_session") >= session_date:
+        return None
+    targets = pending.get("target_weights") or {}
+    equity_open = portfolio_value(state, open_prices, fx_open)
+    if equity_open <= 0:
+        raise TournamentError("Portfolio equity is not positive")
+
+    current = current_weights(state, open_prices, fx_open)
+    deltas = {ticker: targets.get(ticker, 0.0) - current.get(ticker, 0.0) for ticker in set(targets) | set(current)}
+    tx_cost = float(rules["transaction_cost_pct"])
+    slippage = float(rules["slippage_pct"])
+    min_trade = float(rules["min_trade_pln"])
