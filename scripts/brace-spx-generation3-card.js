@@ -12,6 +12,11 @@
   function bar(root,ratio){Array.prototype.forEach.call(root.querySelectorAll('[data-v3-progress-bar],[data-v4-progress-bar],[data-v5-progress-bar]'),function(node){node.style.width=(ratio*100).toFixed(2)+'%';node.setAttribute('aria-valuenow',String(Math.round(ratio*100)));});}
   function diagnosticNode(root){var node=root.querySelector('[data-brace-diagnostics]');if(!node){node=document.createElement('p');node.setAttribute('data-brace-diagnostics','true');node.className='brace-note';root.appendChild(node);}return node;}
 
+  function isLongShort(report,architecture){
+    var mandate=report.mandate||{};
+    return mandate.short_allowed===true || mandate.position_set==='long_short_flat' || String(architecture.id||'').indexOf('a2s')!==-1;
+  }
+
   function renderArchitecture2(root,report){
     var architecture=report.architecture||{};
     var progress=report.progress||{};
@@ -25,27 +30,34 @@
     var remaining=Number(progress.experiments_remaining||Math.max(0,total-completed));
     var ratio=Math.max(0,Math.min(1,Number(progress.completion_ratio)||(total?completed/total:0)));
     var heading=root.querySelector('h2');
-    var note=root.querySelector('.brace-note')||root.querySelector('p');
-    if(heading) heading.textContent=language==='pl'?'BRACE-SPX LAB — Architecture 2':'BRACE-SPX LAB — Architecture 2';
+    var note=root.querySelector('.brace-note')||root.querySelector('.brace-overview-body p')||root.querySelector('p');
+    var longShort=isLongShort(report,architecture);
+    var architectureLabel=longShort?'Architecture 2S':'Architecture 2';
+    var mandateLabel=longShort?'Long / Short / Flat':'Long / Flat';
+    if(heading) heading.textContent='BRACE-SPX LAB — '+architectureLabel;
     if(note) note.textContent=language==='pl'
-      ?'Wieloźródłowe badanie long/flat z reżimami rynku. Architecture 2 pozostaje zamrożonym punktem odniesienia; holdout jest zapieczętowany, a pojedynczy champion nie został autoryzowany.'
-      :'Multi-source long/flat research with market regimes. Architecture 2 remains a frozen reference; the holdout is sealed and no single champion has been authorized.';
-    set(root,'generation',architecture.id||'spx-multisignal-regime-a2');
+      ?(longShort
+        ?'Wieloźródłowe badanie long/short/flat z reżimami rynku. To nowa, niezależnie walidowana rodzina kandydatów; stare wyniki Architecture 2 long/flat pozostają zamrożonym punktem odniesienia.'
+        :'Wieloźródłowe badanie long/flat z reżimami rynku. Architecture 2 pozostaje zamrożonym punktem odniesienia; holdout jest zapieczętowany, a pojedynczy champion nie został autoryzowany.')
+      :(longShort
+        ?'Multi-source long/short/flat research with market regimes. This is a newly validated candidate family; the old Architecture 2 long/flat evidence remains a frozen reference.'
+        :'Multi-source long/flat research with market regimes. Architecture 2 remains a frozen reference; the holdout is sealed and no single champion has been authorized.');
+    set(root,'generation',architecture.id||report.architecture_id||'spx-multisignal-regime-a2');
     set(root,'status',(report.status_labels||{})[language]||report.status||'—');
     set(root,'completed',completed.toLocaleString(locale));
     set(root,'total',total.toLocaleString(locale));
     set(root,'remaining',remaining.toLocaleString(locale));
     set(root,'progress',pct(ratio,1));
-    set(root,'signature',String(architecture.candidate_signature||'—').slice(0,16)+'…');
+    set(root,'signature',String(architecture.candidate_signature||report.candidate_signature||'—').slice(0,16)+'…');
     set(root,'holdout',holdout.accessed?(language==='pl'?'otwarty':'opened'):(language==='pl'?'zapieczętowany':'sealed'));
     set(root,'cagr',pct(metrics.cagr,1));
     set(root,'sharpe',number(metrics.sharpe_excess,2));
     set(root,'drawdown',pct(metrics.max_drawdown,1));
     set(root,'gate',gate.passed?(language==='pl'?'zaliczona':'passed'):(language==='pl'?'niezaliczona':'not passed'));
-    diagnosticNode(root).textContent=(language==='pl'?'PBO: ':'PBO: ')+pct(gate.pbo,1)
+    diagnosticNode(root).textContent='PBO: '+pct(gate.pbo,1)
       +(language==='pl'?' · globalny DSR: ':' · global DSR: ')+pct(gate.global_dsr,1)
       +(language==='pl'?' · zwycięzcy foldów: ':' · fold winners: ')+(gate.unique_fold_winners==null?'—':gate.unique_fold_winners)
-      +(language==='pl'?' · mandat: Long / Flat':' · mandate: Long / Flat');
+      +(language==='pl'?' · mandat: ':' · mandate: ')+mandateLabel;
     bar(root,ratio);
     root.classList.remove('is-loading');
   }
