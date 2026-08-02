@@ -1,0 +1,170 @@
+    trades: list[dict[str, Any]] = []
+
+    # Sells first so cash is available for buys.
+    for ticker, delta in sorted(deltas.items(), key=lambda pair: pair[1]):
+        if delta >= -1e-8 or ticker not in state["positions"] or ticker not in open_prices:
+            continue
+        desired_pln = abs(delta) * equity_open
+        if desired_pln < min_trade:
+            continue
+        pos = state["positions"][ticker]
+        shares = min(float(pos["shares"]), desired_pln / (open_prices[ticker] * fx_open))
+        execution_price = open_prices[ticker] * (1.0 - slippage)
+        gross_pln = shares * execution_price * fx_open
+        fee = gross_pln * tx_cost
+        state["cash_pln"] += gross_pln - fee
+        state["total_costs_pln"] += fee
+        entry_price = float(pos.get("average_cost_usd", execution_price))
+        avg_cost_pln = float(pos.get("average_cost_pln_per_share", entry_price * fx_open))
+        realized = gross_pln - fee - avg_cost_pln * shares
+        state["closed_trades"].append({
+            "ticker": ticker,
+            "shares": shares,
+            "entry_price_usd": entry_price,
+            "exit_price_usd": execution_price,
+            "exit_session": session_date,
+            "realized_pnl_pln": realized,
+            "reason": "TARGET_REBALANCE",
+        })
+        pos["shares"] = float(pos["shares"]) - shares
+        if pos["shares"] <= 1e-9:
+            del state["positions"][ticker]
+        trades.append({"side": "SELL", "ticker": ticker, "shares": shares, "price_usd": execution_price, "fee_pln": fee})
+
+    for ticker, delta in sorted(deltas.items(), key=lambda pair: pair[1], reverse=True):
+        if delta <= 1e-8 or ticker not in open_prices:
+            continue
+        desired_pln = delta * equity_open
+        if desired_pln < min_trade:
+            continue
+        execution_price = open_prices[ticker] * (1.0 + slippage)
+        all_in_per_share = execution_price * fx_open * (1.0 + tx_cost)
+        affordable_shares = max(0.0, float(state["cash_pln"]) / all_in_per_share)
+        desired_shares = desired_pln / (execution_price * fx_open)
+        shares = min(desired_shares, affordable_shares)
+        if shares * execution_price * fx_open < min_trade:
+            continue
+        gross_pln = shares * execution_price * fx_open
+        fee = gross_pln * tx_cost
+        state["cash_pln"] -= gross_pln + fee
+        state["total_costs_pln"] += fee
+        pos = state["positions"].get(ticker)
+        if pos:
+            old_shares = float(pos["shares"])
+            new_shares = old_shares + shares
+            pos["average_cost_usd"] = (
+                float(pos["average_cost_usd"]) * old_shares + execution_price * shares
+            ) / new_shares
+            old_cost_pln = float(pos.get("average_cost_pln_per_share", float(pos["average_cost_usd"]) * fx_open)) * old_shares
+            pos["average_cost_pln_per_share"] = (old_cost_pln + gross_pln + fee) / new_shares
+            pos["shares"] = new_shares
+        else:
+            state["positions"][ticker] = {
+                "ticker": ticker,
+                "shares": shares,
+                "average_cost_usd": execution_price,
+                "average_cost_pln_per_share": (gross_pln + fee) / shares,
+                "last_close_usd": open_prices[ticker],
+                "opened_session": session_date,
+            }
+        trades.append({"side": "BUY", "ticker": ticker, "shares": shares, "price_usd": execution_price, "fee_pln": fee})
+
+    state["pending_target"] = None
+    return {
+        "decision_id": pending.get("decision_id"),
+        "created_session": pending.get("created_session"),
+        "executed_session": session_date,
+        "equity_open_pln": equity_open,
+        "trades": trades,
+    }
+
+
+def daily_returns(nav_history: list[dict[str, Any]]) -> list[float]:
+    values = [float(row["nav_pln"]) for row in nav_history if _finite(row.get("nav_pln"))]
+    return [values[i] / values[i - 1] - 1.0 for i in range(1, len(values)) if values[i - 1] > 0]
+
+
+def compute_metrics(state: dict[str, Any], starting_capital: float, benchmark_return: float) -> dict[str, Any]:
+    history = state.get("nav_history", [])
+    nav = float(history[-1]["nav_pln"]) if history else starting_capital
+    ret = nav / starting_capital - 1.0
+    peak = -math.inf
+    max_dd = 0.0
+    for row in history:
+        value = float(row["nav_pln"])
+        peak = max(peak, value)
+        if peak > 0:
+            max_dd = min(max_dd, value / peak - 1.0)
+    rets = daily_returns(history)
+    sharpe = None
+    if len(rets) >= 5:
+        std = statistics.stdev(rets)
+        if std > 0:
+            sharpe = statistics.mean(rets) / std * math.sqrt(252)
+    trades = state.get("closed_trades", [])
+    win_rate = None
+    if trades:
+        win_rate = sum(1 for trade in trades if float(trade.get("realized_pnl_pln", 0)) > 0) / len(trades)
+    return {
+        "portfolio_value_pln": round(nav, 2),
+        "return_pct": round(ret, 8),
+        "alpha_pct": round(ret - benchmark_return, 8),
+        "max_drawdown_pct": round(max_dd, 8),
+        "sharpe": round(sharpe, 4) if sharpe is not None else None,
+        "win_rate": round(win_rate, 6) if win_rate is not None else None,
+        "closed_trades": len(trades),
+        "total_costs_pln": round(float(state.get("total_costs_pln", 0)), 2),
+        "positions_count": len(state.get("positions", {})),
+    }
+
+
+def rank_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ranked = sorted(
+        rows,
+        key=lambda row: (
+            float(row["metrics"]["return_pct"]),
+            float(row["metrics"]["max_drawdown_pct"]),
+            float(row["metrics"]["sharpe"] or -999),
+            row["agent_id"],
+        ),
+        reverse=True,
+    )
+    for index, row in enumerate(ranked, start=1):
+        row["rank"] = index
+    return ranked
+
+
+def parse_json_text(text: str) -> dict[str, Any]:
+    text = str(text or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.S)
+        if not match:
+            raise ValidationError("Model did not return JSON")
+        value = json.loads(match.group(0))
+    if not isinstance(value, dict):
+        raise ValidationError("Model output must be a JSON object")
+    return value
+
+
+def resolve_model(agent: dict[str, Any]) -> str:
+    env_name = agent.get("model_env")
+    return (os.getenv(str(env_name)) or str(agent.get("default_model") or "")) if env_name else str(agent.get("default_model") or "")
+
+
+def decision_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["target_weights", "rationale", "confidence"],
+        "properties": {
+            "target_weights": {
+                "type": "object",
+                "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "rationale": {"type": "string", "maxLength": 900},
+            "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
