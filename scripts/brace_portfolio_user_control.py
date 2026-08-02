@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Apply explicit site-owner authorization for BRACE paper control.
+
+This never connects to a broker. BRACE controls a separate paper portfolio,
+while the original portfolio remains the automatic fallback.
+"""
+from __future__ import annotations
+
+import argparse
+from copy import deepcopy
+from datetime import datetime, timezone
+from typing import Any, Mapping
+
+from brace_portfolio_config import load_config
+from brace_portfolio_data import BASELINE_PORTFOLIO_PATH, ENGINE_DATA_ROOT, read_json, write_json_atomic
+from brace_portfolio_execution import initialize_paper_portfolio
+from brace_portfolio_publish import build_public_snapshot, publish
+
+AUTH = ENGINE_DATA_ROOT / "control_authorization.json"
+REGISTRY = ENGINE_DATA_ROOT / "methodology_registry.json"
+PAPER = ENGINE_DATA_ROOT / "paper_portfolio.json"
+ANALYSIS = ENGINE_DATA_ROOT / "analysis.json"
+PENDING = ENGINE_DATA_ROOT / "pending_decisions.json"
+SHADOW = ENGINE_DATA_ROOT / "shadow_log.json"
+HISTORY = ENGINE_DATA_ROOT / "promotion_history.json"
+OPERATIONAL = ENGINE_DATA_ROOT / "operational_state.json"
+
+
+def methodology(registry: Mapping[str, Any], methodology_id: str) -> dict[str, Any]:
+    for item in registry.get("methodologies") or []:
+        if item.get("methodology_id") == methodology_id:
+            return item
+    raise ValueError(f"Missing methodology: {methodology_id}")
+
+
+def validate(auth: Mapping[str, Any]) -> None:
+    if auth.get("schema_version") != "brace-control-authorization-v1" or auth.get("enabled") is not True:
+        raise ValueError("BRACE paper-control authorization is missing or disabled")
+    if auth.get("paper_only") is not True or auth.get("real_broker_connected") is not False:
+        raise ValueError("Authorization must remain paper-only with no broker connection")
+    if auth.get("controller_status") != "PROBATIONARY_CONTROL":
+        raise ValueError("Only probationary paper control can be explicitly authorized")
+
+
+def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: datetime) -> dict[str, Any]:
+    config, _ = load_config()
+    pending = read_json(PENDING)
+    snapshot = build_public_snapshot(
+        registry, read_json(ANALYSIS), pending, read_json(SHADOW), read_json(HISTORY),
+        read_json(OPERATIONAL), config, now, PAPER.exists(),
+    )
+    snapshot["control_authorization"] = deepcopy(dict(auth))
+    snapshot["position_recommendations"] = deepcopy((pending.get("recommendations") or [])[:20])
+    snapshot["display_status"] = "BRACE_PROBATIONARY_PAPER_CONTROL"
+    snapshot["control_summary_pl"] = (
+        "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, "
+        "uwzględnia zweryfikowane raporty istotne, ocenia pozycje i może wykonywać wyłącznie transakcje paper. "
+        "Limity ryzyka oraz automatyczny powrót do baseline pozostają aktywne."
+    )
+    snapshot["control_summary_en"] = (
+        "BRACE controls a separate model portfolio in probationary mode. Each week it refreshes data, "
+        "incorporates verified material reports, assesses every position and may execute paper trades only. "
+        "Risk limits and automatic baseline fallback remain active."
+    )
+    return snapshot
+
+
+def activate(now: datetime | None = None) -> dict[str, Any]:
+    now = now or datetime.now(timezone.utc); auth = read_json(AUTH); validate(auth)
+    baseline = read_json(BASELINE_PORTFOLIO_PATH); registry = read_json(REGISTRY)
+    challenger_id = str(registry.get("challenger_methodology_id") or "brace-portfolio-engine")
+    baseline_id = str(registry.get("baseline_methodology_id") or "portfolio-10k-baseline")
+    challenger = methodology(registry, challenger_id); baseline_method = methodology(registry, baseline_id)
+    previous = str(registry.get("controller_state") or "ACTIVE_BASELINE")
+    registry["controller_state"] = "PROBATIONARY_CONTROL"; registry["champion_methodology_id"] = challenger_id
+    registry["generated_at"] = now.isoformat(timespec="seconds")
+    challenger["status"] = "PROBATIONARY_CONTROL"
+    challenger.setdefault("parameters", {})["autonomy_mode"] = "PAPER_EXECUTION"
+    challenger["parameters"]["real_broker_access"] = False
+    challenger.setdefault("validation_results", {})["user_authorized_paper_control"] = {
+        "authorized_at":auth.get("authorized_at") or now.isoformat(timespec="seconds"),
+        "authorized_by":auth.get("authorized_by"), "reason_pl":auth.get("reason_pl"), "reason_en":auth.get("reason_en"),
+        "remaining_automatic_promotion_gates_preserved":True, "paper_only":True,
+    }
+    challenger["validation_results"]["probation_started_at"] = challenger["validation_results"].get("probation_started_at") or auth.get("authorized_at") or now.isoformat(timespec="seconds")
+    baseline_method["status"] = "FALLBACK_BASELINE"; write_json_atomic(REGISTRY, registry)
+
+    paper = read_json(PAPER) or initialize_paper_portfolio(baseline, now)
+    paper.update({"status":"probationary_paper_control","controller":challenger_id,"controller_status":"PROBATIONARY_CONTROL","control_authorization":deepcopy(dict(auth)),"baseline_fallback_portfolio_id":baseline.get("portfolio_id"),"paper_only":True,"real_broker_connected":False})
+    write_json_atomic(PAPER, paper)
+
+    history = read_json(HISTORY) or {"schema_version":"1.0.0","records":[]}
+    record_id = f"user-paper-control-{str(auth.get('authorized_at') or now.isoformat())[:10]}"
+    if not any(row.get("promotion_id") == record_id for row in history.get("records") or []):
+        history.setdefault("records", []).append({"promotion_id":record_id,"previous_status":previous,"new_status":"PROBATIONARY_CONTROL","evaluated_at":now.isoformat(timespec="seconds"),"all_conditions_passed":False,"reason":"Explicit site-owner authorization for paper-only probationary control; automatic quality gates remain visible.","authorization":deepcopy(dict(auth))})
+    history["generated_at"] = now.isoformat(timespec="seconds"); write_json_atomic(HISTORY, history)
+    publish(public_snapshot(registry, auth, now))
+    return {"controller_status":"PROBATIONARY_CONTROL","previous_controller":previous}
+
+
+def republish(now: datetime | None = None) -> dict[str, Any]:
+    now = now or datetime.now(timezone.utc); auth = read_json(AUTH); validate(auth); registry = read_json(REGISTRY)
+    publish(public_snapshot(registry, auth, now)); return {"controller_status":registry.get("controller_state")}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(); parser.add_argument("--republish", action="store_true"); args = parser.parse_args()
+    result = republish() if args.republish else activate(); print(f"BRACE paper control: {result['controller_status']}"); return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
