@@ -15,4 +15,49 @@
 .i10k-panel[data-panel="analytics"] .chart-wrap{background:#f8fafc;border-color:#dce4ed}.i10k-panel[data-panel="analytics"] .legend{color:#5f7087}.i10k-panel[data-panel="analytics"] .legend b{color:#10213d}
 .i10k-panel[data-panel="analytics"] .alloc,.i10k-panel[data-panel="analytics"] .position,.i10k-panel[data-panel="history"] .review,.i10k-panel[data-panel="history"] .method-card{background:#fff;border-color:#d9e2ec;color:#10213d}.i10k-panel[data-panel="analytics"] .metric,.i10k-panel[data-panel="analytics"] .detail-box{background:#f7f9fc}.i10k-panel[data-panel="analytics"] .metric small,.i10k-panel[data-panel="analytics"] .type,.i10k-panel[data-panel="analytics"] .news-meta,.i10k-panel[data-panel="analytics"] .detail-box h4{color:#61738a}.i10k-panel[data-panel="analytics"] .thesis,.i10k-panel[data-panel="analytics"] .detail-box p,.i10k-panel[data-panel="analytics"] .detail-box li{color:#33465f}.i10k-panel[data-panel="analytics"] .signal{color:#465a72;background:#f3f6f9;border-color:#d8e1eb}.i10k-panel[data-panel="analytics"] .signal.risk{color:#a51f3d;background:#fff0f3;border-color:#f0aaba}
 .analytics-explainer{margin:0 0 16px;padding:13px 15px;border:1px solid #d9e2ec;border-radius:12px;background:#f7f9fc;color:#52657d;font-size:12px;line-height:1.55}.analytics-explainer b{color:#10213d}
-@media(max-width:1200px){.i10k-panel[data-panel="analytics"] .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.i10k-panel[data-panel="analytics"] .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.i10k-panel[data-panel="brace"] .brace-positions{grid-template-columns:1fr}}
+
+/* WCAG-oriented contrast fixes for the light analytics/history dashboard. */
+.i10k-panel[data-panel="analytics"] .symbol,
+.i10k-panel[data-panel="history"] .audit td b{color:#173f73!important;font-weight:900}
+.i10k-panel[data-panel="analytics"] .source-pill{color:#405a78!important;border-color:#cbd7e4!important;background:#f8fafc}
+.i10k-panel[data-panel="analytics"] .position summary,
+.i10k-panel[data-panel="analytics"] .material-reports__header h4{color:#174f86!important;font-weight:900}
+.i10k-panel[data-panel="analytics"] .material-reports__empty,
+.i10k-panel[data-panel="analytics"] .material-report__body p,
+.i10k-panel[data-panel="analytics"] .material-report__quote span,
+.i10k-panel[data-panel="analytics"] .material-report__position small,
+.i10k-panel[data-panel="analytics"] .material-report__sources,
+.i10k-panel[data-panel="analytics"] .material-report__sources li,
+.i10k-panel[data-panel="analytics"] .news-meta{color:#4d637d!important}
+.i10k-panel[data-panel="analytics"] .material-report__body b,
+.i10k-panel[data-panel="analytics"] .material-report__quote b,
+.i10k-panel[data-panel="analytics"] .material-report__position>b,
+.i10k-panel[data-panel="analytics"] .material-report__sources>b,
+.i10k-panel[data-panel="analytics"] .model-action small{color:#263f5d!important}
+.i10k-panel[data-panel="analytics"] .material-report__sources a,
+.i10k-panel[data-panel="analytics"] .news-list a{color:#175a9c!important;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.i10k-panel[data-panel="analytics"] .material-report__sources a:hover,
+.i10k-panel[data-panel="analytics"] .news-list a:hover{color:#0d3f74!important}
+.i10k-panel[data-panel="analytics"] .material-report__quote span{font-weight:650}
+.i10k-panel[data-panel="analytics"] .material-report__meta time{color:#3f5875!important;font-weight:800}
+.i10k-panel[data-panel="analytics"] .material-report__body h5,
+.i10k-panel[data-panel="analytics"] .material-report__position b,
+.i10k-panel[data-panel="analytics"] .model-action b{color:#10213d!important}
+
+/* Darker, unambiguous chart colors on the light background. */
+.i10k-panel[data-panel="analytics"] .chart-wrap svg line{stroke:#d2dce8!important}
+.i10k-panel[data-panel="analytics"] .chart-wrap svg text{fill:#526981!important;font-weight:700}
+.i10k-panel[data-panel="analytics"] .chart-wrap svg path:nth-of-type(1){stroke:#0f7a4a!important;stroke-width:4!important;stroke-dasharray:none!important}
+.i10k-panel[data-panel="analytics"] .chart-wrap svg path:nth-of-type(2){stroke:#1d4f91!important;stroke-width:3.5!important;stroke-dasharray:9 7!important}
+.i10k-panel[data-panel="analytics"] .legend{display:flex;gap:10px;margin-top:14px}
+.i10k-panel[data-panel="analytics"] .legend span{display:inline-flex;align-items:center;gap:9px;padding:7px 11px;border:1px solid #d6e0ea;border-radius:999px;background:#f8fafc;font-size:0;color:#243c58;font-weight:800}
+.i10k-panel[data-panel="analytics"] .legend span b{display:inline-block;width:34px;height:0;font-size:0;line-height:0}
+.i10k-panel[data-panel="analytics"] .legend span:first-child b{border-top:4px solid #0f7a4a}
+.i10k-panel[data-panel="analytics"] .legend span:nth-child(2) b{border-top:3px dashed #1d4f91}
+.i10k-panel[data-panel="analytics"] .legend span::after{font-size:12px;line-height:1.2;color:#243c58}
+html[lang="pl"] .i10k-panel[data-panel="analytics"] .legend span:first-child::after{content:"Portfel — zielona linia ciągła"}
+html[lang="pl"] .i10k-panel[data-panel="analytics"] .legend span:nth-child(2)::after{content:"Benchmark globalny — niebieska linia przerywana"}
+html[lang="en"] .i10k-panel[data-panel="analytics"] .legend span:first-child::after{content:"Portfolio — green solid line"}
+html[lang="en"] .i10k-panel[data-panel="analytics"] .legend span:nth-child(2)::after{content:"Global benchmark — blue dashed line"}
+
+@media(max-width:1200px){.i10k-panel[data-panel="analytics"] .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.i10k-panel[data-panel="analytics"] .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.i10k-panel[data-panel="brace"] .brace-positions{grid-template-columns:1fr}.i10k-panel[data-panel="analytics"] .legend{display:grid}.i10k-panel[data-panel="analytics"] .legend span{justify-content:flex-start}}
