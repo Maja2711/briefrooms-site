@@ -13,8 +13,6 @@ on:
     - cron: "45 21 * * 1-5"
     # Recovery audit 90 minutes later.
     - cron: "15 23 * * 1-5"
-  issues:
-    types: [opened]
   push:
     branches: [main]
     paths:
@@ -34,40 +32,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  install-ui:
-    if: github.event_name == 'issues' && github.event.issue.title == 'Install AI Tournament UI'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install and validate UI
-        run: |
-          python scripts/install_ai_tournament_ui.py
-          python -m unittest tests.test_ai_tournament -v
-          node --check scripts/ai-tournament-public.js
-          grep -F '/scripts/ai-tournament-public.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -F '/scripts/ai-tournament-public.js?v=1' en/investing/portfolio-10k.html
-      - name: Commit UI installation
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
-          if git diff --cached --quiet; then
-            echo "AI Tournament UI already installed."
-            exit 0
-          fi
-          git commit -m "Install AI Tournament leaderboard UI"
-          git pull --rebase origin main
-          git push
-
   validate:
-    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -80,10 +45,11 @@ jobs:
           python -m unittest tests.test_ai_tournament -v
           python -m py_compile scripts/ai_tournament_engine.py scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
+          node --check scripts/portfolio-10k-material-reports-public.js
           python scripts/ai_tournament_engine.py validate
 
   run-tournament:
-    if: github.event_name != 'issues'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 25
