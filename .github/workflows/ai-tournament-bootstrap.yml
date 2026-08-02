@@ -1,9 +1,9 @@
 name: Bootstrap AI Tournament
 
 on:
-  issues:
-    types: [opened]
   workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   bootstrap:
-    if: github.event_name == 'workflow_dispatch' || github.event.issue.title == 'Bootstrap AI Tournament'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -41,17 +40,14 @@ jobs:
           grep -F '/scripts/ai-tournament-public.js?v=1' pl/inwestycje/portfel-10k.html
           grep -F '/scripts/ai-tournament-public.js?v=1' en/investing/portfolio-10k.html
 
-      - name: Commit complete engine and pages
+      - name: Publish completed bootstrap and remove one-shot files
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add scripts/ai_tournament_engine.py pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
           git add -A scripts/ai_tournament_parts
-          if git diff --cached --quiet; then
-            echo 'AI Tournament is already bootstrapped.'
-            exit 0
-          fi
+          git rm .github/workflows/ai-tournament-bootstrap.yml scripts/build_ai_tournament_engine.py
           git commit -m 'Install complete AI Tournament engine and UI'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
