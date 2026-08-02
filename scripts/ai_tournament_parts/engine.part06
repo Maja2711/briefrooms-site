@@ -1,0 +1,132 @@
+        return public
+
+    atomic_write_json(paths.snapshots / f"{session_date}.json", snapshot)
+    benchmark, bench_ret = benchmark_return(paths, snapshot, float(config["starting_capital_pln"]))
+    old_ranks = previous_ranks(paths)
+    rows: list[dict[str, Any]] = []
+
+    for agent in config["agents"]:
+        state = load_state(paths, agent, config)
+        ledger = ledger_path(paths, agent["id"])
+        verify_ledger(ledger)
+        execution = execute_pending_target(
+            state, snapshot["open_prices"], snapshot["fx_open"], config["rules"], session_date
+        )
+        if execution:
+            append_ledger(ledger, {"event_type": "EXECUTION", **execution})
+
+        for ticker, position in state.get("positions", {}).items():
+            if ticker in snapshot["close_prices"]:
+                position["last_close_usd"] = snapshot["close_prices"][ticker]
+        nav = portfolio_value(state, snapshot["close_prices"], snapshot["fx_close"])
+        if not state["nav_history"] or state["nav_history"][-1].get("session_date") != session_date:
+            state["nav_history"].append({
+                "session_date": session_date,
+                "nav_pln": round(nav, 6),
+                "cash_pln": round(float(state["cash_pln"]), 6),
+            })
+        state["last_session"] = session_date
+        append_ledger(ledger, {
+            "event_type": "VALUATION",
+            "session_date": session_date,
+            "nav_pln": nav,
+            "snapshot_hash": snapshot["snapshot_hash"],
+        })
+
+        decision = None
+        error = None
+        if start <= current_date < end:
+            try:
+                decision = collect_decision(agent, snapshot, state, config)
+                state["pending_target"] = {
+                    "decision_id": decision["decision_id"],
+                    "created_session": session_date,
+                    "target_weights": decision["target_weights"],
+                }
+                state["latest_decision"] = decision
+                state["status"] = "ACTIVE"
+                decision_dir = paths.decisions / session_date
+                atomic_write_json(decision_dir / f"{slug(agent['id'])}.json", decision)
+                append_ledger(ledger, {"event_type": "DECISION", **decision})
+            except Exception as exc:  # noqa: BLE001
+                error = str(exc)[:500]
+                state["status"] = "AGENT_ERROR"
+                append_ledger(ledger, {
+                    "event_type": "AGENT_ERROR",
+                    "session_date": session_date,
+                    "provider": agent["provider"],
+                    "model": resolve_model(agent),
+                    "error": error,
+                })
+        elif current_date < start:
+            state["status"] = "SCHEDULED"
+        else:
+            state["status"] = "FINISHED"
+
+        save_state(paths, state)
+        metrics = compute_metrics(state, float(config["starting_capital_pln"]), bench_ret)
+        close_weights = current_weights(state, snapshot["close_prices"], snapshot["fx_close"])
+        rows.append({
+            "agent_id": agent["id"],
+            "provider": agent["provider"],
+            "model": resolve_model(agent),
+            "status": state["status"],
+            "error": error,
+            "metrics": metrics,
+            "cash_pln": round(float(state["cash_pln"]), 2),
+            "cash_weight": round(float(state["cash_pln"]) / max(metrics["portfolio_value_pln"], 1), 8),
+            "positions": [
+                {"ticker": ticker, "weight": round(weight, 8)}
+                for ticker, weight in sorted(close_weights.items(), key=lambda pair: pair[1], reverse=True)
+            ],
+            "latest_decision": state.get("latest_decision"),
+        })
+
+    leaderboard = rank_rows(rows)
+    for row in leaderboard:
+        previous = old_ranks.get(row["agent_id"])
+        row["rank_change"] = None if previous is None else previous - row["rank"]
+
+    round_data = {
+        "schema_version": "ai-tournament-round-v1",
+        "session_date": session_date,
+        "snapshot_hash": snapshot["snapshot_hash"],
+        "benchmark_return_pct": bench_ret,
+        "leaderboard": leaderboard,
+        "created_at": utc_now(),
+    }
+    atomic_write_json(round_path, round_data)
+    public = build_public(config, snapshot, benchmark, leaderboard, paths)
+    print(f"Published AI Tournament session {session_date}")
+    return public
+
+
+def validate_repository(config_path: Path = DEFAULT_CONFIG) -> None:
+    config = load_json(config_path)
+    if not isinstance(config, dict):
+        raise ValidationError("config missing")
+    validate_config(config)
+    paths = config_paths(config)
+    if paths.public.exists():
+        validate_public(load_json(paths.public, {}))
+    if paths.ledger.exists():
+        for path in paths.ledger.glob("*.jsonl"):
+            verify_ledger(path)
+    print("AI Tournament repository data valid")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=("run", "validate"))
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--force", action="store_true")
+    args = parser.parse_args()
+    if args.command == "run":
+        run(args.config, force=args.force)
+    else:
+        validate_repository(args.config)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
