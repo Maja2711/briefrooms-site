@@ -7,16 +7,30 @@
   "rebalancing_allowed": false,
   "valuation_frequency": "daily_after_us_market_close",
   "end_date": "2026-11-03",
+  "cash_interest": {
+    "enabled": true,
+    "benchmark": "IORB",
+    "policy_file": "data/ai_tournament/cash_rate_policy.json",
+    "day_count": "ACT/365",
+    "compounding": "daily",
+    "accrual_calendar": "calendar_days",
+    "rate_changes_apply_from_official_effective_date": true
+  },
   "accounts": {
     "pl": {
       "starting_capital": 10000,
       "currency": "PLN",
-      "include_usd_pln_effect": true
+      "include_usd_pln_effect": true,
+      "cash_currency": "USD",
+      "cash_earns_iorb": true,
+      "cash_value_translated_to_pln_daily": true
     },
     "en": {
       "starting_capital": 10000,
       "currency": "USD",
-      "include_usd_pln_effect": false
+      "include_usd_pln_effect": false,
+      "cash_currency": "USD",
+      "cash_earns_iorb": true
     }
   }
 }
