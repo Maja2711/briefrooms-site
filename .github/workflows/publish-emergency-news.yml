@@ -9,9 +9,11 @@ on:
       - "scripts/ai-outlook-governance-guard.js"
       - "scripts/install_ai_tournament_ui.py"
       - "scripts/ai-tournament-public.js"
+      - "scripts/generate_brace_manual_submission.py"
       - "tests/test_publish_emergency_news.py"
       - "tests/test_homepage_photo_only.py"
       - "tests/test_ai_tournament.py"
+      - "tests/test_generate_brace_manual_submission.py"
       - ".github/workflows/publish-emergency-news.yml"
   push:
     branches: [main]
@@ -22,9 +24,11 @@ on:
       - "scripts/ai-outlook-governance-guard.js"
       - "scripts/install_ai_tournament_ui.py"
       - "scripts/ai-tournament-public.js"
+      - "scripts/generate_brace_manual_submission.py"
       - "tests/test_publish_emergency_news.py"
       - "tests/test_homepage_photo_only.py"
       - "tests/test_ai_tournament.py"
+      - "tests/test_generate_brace_manual_submission.py"
       - ".github/workflows/publish-emergency-news.yml"
       - "pl/aktualnosci.html"
       - "en/news.html"
@@ -105,6 +109,64 @@ jobs:
           echo "::error::Could not push governed public pages after 5 attempts."
           exit 1
 
+  generate-brace:
+    if: github.event_name == 'issues' && github.event.issue.title == 'Generate BRACE portfolio via canonical publisher'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install BRACE market dependencies
+        run: python -m pip install --upgrade yfinance pandas
+
+      - name: Test, generate and validate BRACE
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_generate_brace_manual_submission -v
+          python -m py_compile scripts/generate_brace_manual_submission.py
+          if [[ -f data/ai_tournament/submissions/brace.json ]]; then
+            python scripts/generate_brace_manual_submission.py validate
+          else
+            python scripts/generate_brace_manual_submission.py generate
+            python scripts/generate_brace_manual_submission.py validate
+          fi
+
+      - name: Commit immutable BRACE portfolio
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/ai_tournament/submissions/brace.json \
+            data/ai_tournament/commitments/brace.json \
+            data/ai_tournament/brace_selection_audit.json
+          if git diff --cached --quiet; then
+            echo "BRACE portfolio already exists and passed validation."
+            exit 0
+          fi
+          git commit -m "Lock BRACE AI Tournament portfolio"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              git rebase origin/main
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Could not push locked BRACE portfolio."
+          exit 1
+
   validate:
     if: github.event_name != 'issues'
     runs-on: ubuntu-latest
@@ -122,8 +184,12 @@ jobs:
             scripts/publish_emergency_news.py \
             scripts/enforce_homepage_photo_only.py \
             scripts/install_ai_tournament_ui.py \
-            scripts/ai_tournament_engine.py
-          python -m unittest tests.test_publish_emergency_news tests.test_ai_tournament -v
+            scripts/ai_tournament_engine.py \
+            scripts/generate_brace_manual_submission.py
+          python -m unittest \
+            tests.test_publish_emergency_news \
+            tests.test_ai_tournament \
+            tests.test_generate_brace_manual_submission -v
           node --check scripts/homepage-photo-only.js
           node --check scripts/ai-outlook-governance-guard.js
           node --check scripts/ai-tournament-public.js
