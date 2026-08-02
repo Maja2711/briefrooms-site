@@ -21,7 +21,9 @@ on:
       - "scripts/brace_portfolio_*.py"
       - "scripts/portfolio-10k-control-public.js"
       - "tests/test_brace_portfolio_engine.py"
+      - "tests/test_brace_portfolio_self_learning.py"
       - "data/portfolio10k/config.json"
+      - "data/portfolio10k/adaptive_policy.json"
       - "data/portfolio10k/universe.json"
       - "assets/portfolio-10k.css"
       - "pl/inwestycje/portfel-10k.html"
@@ -33,7 +35,9 @@ on:
       - "scripts/brace_portfolio_*.py"
       - "scripts/portfolio-10k-control-public.js"
       - "tests/test_brace_portfolio_engine.py"
+      - "tests/test_brace_portfolio_self_learning.py"
       - "data/portfolio10k/config.json"
+      - "data/portfolio10k/adaptive_policy.json"
       - "data/portfolio10k/universe.json"
       - "assets/portfolio-10k.css"
       - "pl/inwestycje/portfel-10k.html"
@@ -68,8 +72,11 @@ jobs:
       - name: Compile deterministic engine
         run: python -m compileall -q scripts
 
-      - name: Validate engine, promotion and public controls
-        run: python -m pytest -q tests/test_brace_portfolio_engine.py
+      - name: Validate engine, learning, promotion and public controls
+        run: |
+          python -m pytest -q \
+            tests/test_brace_portfolio_engine.py \
+            tests/test_brace_portfolio_self_learning.py
 
       - name: Validate public JavaScript
         run: node --check scripts/portfolio-10k-public.js && node --check scripts/portfolio-10k-control-public.js
@@ -86,6 +93,27 @@ jobs:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode research
 
+      - name: Run governed weekly self-learning
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: |
+          python scripts/brace_portfolio_self_learning.py \
+            --market-cache .cache/brace_portfolio_market.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path('data/portfolio10k/adaptive_policy.json').read_text(encoding='utf-8'))
+          assert policy['schema_version'] == 'brace-adaptive-policy-v1'
+          assert policy['never_apply_to_real_broker'] is True
+          assert set(policy.get('active_overrides', {})) <= {
+              'minimum_confidence',
+              'minimum_score_improvement',
+              'minimum_expected_alpha',
+          }
+          print('BRACE self-learning state:', policy['status'])
+          PY
+
       - name: Re-evaluate deterministic promotion gates
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'promotion-only'
         env:
@@ -99,10 +127,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/portfolio10k
           if git diff --cached --quiet; then
-            echo "No BRACE research changes to commit."
+            echo "No BRACE research or learning changes to commit."
             exit 0
           fi
-          git commit -m "Update BRACE governed research"
+          git commit -m "Update BRACE governed research and learning"
           for attempt in 1 2 3; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
