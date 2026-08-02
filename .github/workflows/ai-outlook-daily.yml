@@ -19,8 +19,10 @@ on:
       - "data/ai_outlook.json"
       - ".github/workflows/ai-outlook-daily.yml"
   schedule:
-    # 05:35 UTC publishes in the Warsaw morning (07:35 CEST / 06:35 CET).
+    # Primary publication: 07:35 CEST / 06:35 CET in Warsaw.
     - cron: "35 5 * * *"
+    # Recovery audit 2.5 hours later. If today's edition is missing, retry generation.
+    - cron: "5 8 * * *"
 
 permissions:
   contents: write
@@ -60,7 +62,32 @@ jobs:
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
 
-      - name: Generate today's AI Outlook
+      - name: Audit today's AI Outlook
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          path = Path("data/ai_outlook.json")
+          today = datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat()
+          try:
+              published = json.loads(path.read_text(encoding="utf-8")).get("date")
+          except Exception:
+              published = None
+
+          if published == today:
+              print(f"Audit passed: AI Outlook is already published for {today}.")
+          else:
+              print(
+                  f"Audit recovery required: expected {today}, found {published!r}. "
+                  "The generator will now retry."
+              )
+          PY
+
+      - name: Generate today's AI Outlook or recover a missing edition
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
