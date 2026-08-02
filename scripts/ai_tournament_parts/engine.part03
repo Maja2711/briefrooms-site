@@ -71,7 +71,14 @@ def call_openai(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]
                 "store": False,
                 "instructions": system,
                 "input": user,
-                "text": {"format": {"type": "json_object"}},
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "ai_tournament_decision",
+                        "schema": decision_schema(),
+                        "strict": True,
+                    }
+                },
             },
             timeout=90,
         )
