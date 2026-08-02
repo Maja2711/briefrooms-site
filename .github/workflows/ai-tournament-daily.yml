@@ -12,11 +12,14 @@ on:
     paths:
       - "scripts/ai_tournament_engine.py"
       - "scripts/ai_tournament_parts/**"
+      - "scripts/ai_tournament_cash_interest.py"
       - "scripts/ai-tournament-public.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
+      - "tests/test_ai_tournament_cash_interest.py"
       - "data/ai_tournament/config.json"
       - "data/ai_tournament/manual_mode.json"
+      - "data/ai_tournament/cash_rate_policy.json"
       - "data/ai_tournament/commitments/**"
       - "data/ai_tournament/submissions/**"
       - ".github/workflows/ai-tournament-daily.yml"
@@ -40,16 +43,23 @@ jobs:
       - name: Validate repository contract
         run: |
           python -m unittest tests.test_ai_tournament -v
-          python -m py_compile scripts/ai_tournament_engine.py scripts/install_ai_tournament_ui.py
+          python -m unittest tests.test_ai_tournament_cash_interest -v
+          python -m py_compile scripts/ai_tournament_engine.py scripts/ai_tournament_cash_interest.py scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
           node --check scripts/portfolio-10k-material-reports-public.js
           python - <<'PY'
           import json
           from pathlib import Path
           mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
+          policy = json.loads(Path('data/ai_tournament/cash_rate_policy.json').read_text(encoding='utf-8'))
           assert mode['mode'] == 'manual_locked_buy_and_hold'
           assert mode['api_calls_enabled'] is False
-          print('AI Tournament manual buy-and-hold mode validated; API calls are disabled.')
+          assert mode['cash_interest']['enabled'] is True
+          assert mode['cash_interest']['benchmark'] == 'IORB'
+          assert policy['day_count'] == 'ACT/365'
+          assert policy['compounding'] == 'daily'
+          assert policy['accrual_calendar'] == 'calendar_days'
+          print('Manual buy-and-hold mode and daily Fed IORB cash accrual validated.')
           PY
 
   hold-until-manual-portfolios-are-locked:
