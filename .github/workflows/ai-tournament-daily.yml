@@ -2,6 +2,8 @@ name: AI Tournament Daily
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   schedule:
     # Reserved for daily valuation after the US close.
     - cron: "45 21 * * 1-5"
@@ -13,15 +15,18 @@ on:
       - "scripts/ai_tournament_engine.py"
       - "scripts/ai_tournament_parts/**"
       - "scripts/ai_tournament_cash_interest.py"
+      - "scripts/generate_brace_manual_submission.py"
       - "scripts/ai-tournament-public.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
       - "tests/test_ai_tournament_cash_interest.py"
+      - "tests/test_generate_brace_manual_submission.py"
       - "data/ai_tournament/config.json"
       - "data/ai_tournament/manual_mode.json"
       - "data/ai_tournament/cash_rate_policy.json"
       - "data/ai_tournament/commitments/**"
       - "data/ai_tournament/submissions/**"
+      - "data/ai_tournament/brace_selection_audit.json"
       - ".github/workflows/ai-tournament-daily.yml"
 
 permissions:
@@ -44,7 +49,12 @@ jobs:
         run: |
           python -m unittest tests.test_ai_tournament -v
           python -m unittest tests.test_ai_tournament_cash_interest -v
-          python -m py_compile scripts/ai_tournament_engine.py scripts/ai_tournament_cash_interest.py scripts/install_ai_tournament_ui.py
+          python -m unittest tests.test_generate_brace_manual_submission -v
+          python -m py_compile \
+            scripts/ai_tournament_engine.py \
+            scripts/ai_tournament_cash_interest.py \
+            scripts/generate_brace_manual_submission.py \
+            scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
           node --check scripts/portfolio-10k-material-reports-public.js
           python - <<'PY'
@@ -52,6 +62,7 @@ jobs:
           from pathlib import Path
           mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
           policy = json.loads(Path('data/ai_tournament/cash_rate_policy.json').read_text(encoding='utf-8'))
+          config = json.loads(Path('data/ai_tournament/config.json').read_text(encoding='utf-8'))
           assert mode['mode'] == 'manual_locked_buy_and_hold'
           assert mode['api_calls_enabled'] is False
           assert mode['cash_interest']['enabled'] is True
@@ -59,8 +70,58 @@ jobs:
           assert policy['day_count'] == 'ACT/365'
           assert policy['compounding'] == 'daily'
           assert policy['accrual_calendar'] == 'calendar_days'
-          print('Manual buy-and-hold mode and daily Fed IORB cash accrual validated.')
+          assert config['universe_version'] == 'briefrooms-ai-55-v1'
+          assert len(config['universe']) == 55
+          assert not {'SPY','QQQ','IWM','GLD','TLT'}.intersection(config['universe'])
+          print('Manual buy-and-hold mode, 55-stock universe and daily Fed IORB cash accrual validated.')
           PY
+
+  generate-brace:
+    if: github.event_name == 'issues' && github.event.issue.title == 'Generate BRACE tournament portfolio'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install frozen-market dependencies
+        run: python -m pip install --upgrade yfinance pandas
+      - name: Generate and lock BRACE decision
+        run: |
+          set -euo pipefail
+          if [[ -f data/ai_tournament/submissions/brace.json ]]; then
+            python scripts/generate_brace_manual_submission.py validate
+          else
+            python scripts/generate_brace_manual_submission.py generate
+            python scripts/generate_brace_manual_submission.py validate
+          fi
+      - name: Commit immutable BRACE submission
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/ai_tournament/submissions/brace.json \
+            data/ai_tournament/commitments/brace.json \
+            data/ai_tournament/brace_selection_audit.json
+          if git diff --cached --quiet; then
+            echo "BRACE portfolio was already locked and validated."
+            exit 0
+          fi
+          git commit -m "Lock BRACE AI Tournament portfolio"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Could not publish the locked BRACE portfolio."
+          exit 1
 
   hold-until-manual-portfolios-are-locked:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -79,5 +140,5 @@ jobs:
           mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
           if mode.get('api_calls_enabled'):
               raise SystemExit('API calls must remain disabled for the manual tournament.')
-          print('Manual submissions are being collected. No model API call and no portfolio trade is executed by this workflow yet.')
+          print('No model API call is permitted. BRACE is generated only by the deterministic frozen-data selector.')
           PY
