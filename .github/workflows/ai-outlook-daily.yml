@@ -12,9 +12,12 @@ on:
     branches: [main]
     paths:
       - "scripts/update_ai_outlook.py"
+      - "scripts/update_ai_outlook_v2.py"
+      - "scripts/ai_outlook_engine.py"
       - "scripts/homepage-photo-only.js"
       - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_ai_outlook.py"
+      - "tests/test_ai_outlook_engine.py"
       - "tests/test_homepage_photo_only.py"
       - "data/ai_outlook.json"
       - ".github/workflows/ai-outlook-daily.yml"
@@ -34,7 +37,7 @@ concurrency:
 jobs:
   publish-ai-outlook:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
 
     steps:
       - name: Check out repository
@@ -53,12 +56,16 @@ jobs:
       - name: Publish compact homepage asset URL
         run: python scripts/enforce_homepage_photo_only.py
 
-      - name: Validate AI Outlook contract
+      - name: Validate AI Outlook Engine v1
         run: |
-          python -m unittest tests.test_ai_outlook tests.test_homepage_photo_only -v
-          python -m py_compile scripts/update_ai_outlook.py scripts/enforce_homepage_photo_only.py
+          python -m unittest tests.test_ai_outlook tests.test_ai_outlook_engine tests.test_homepage_photo_only -v
+          python -m py_compile \
+            scripts/update_ai_outlook.py \
+            scripts/update_ai_outlook_v2.py \
+            scripts/ai_outlook_engine.py \
+            scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
-          python scripts/update_ai_outlook.py --validate-only
+          python scripts/update_ai_outlook_v2.py --validate-only
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
 
@@ -83,11 +90,11 @@ jobs:
           else:
               print(
                   f"Audit recovery required: expected {today}, found {published!r}. "
-                  "The generator will now retry."
+                  "AI Outlook Engine v1 will now retry."
               )
           PY
 
-      - name: Generate today's AI Outlook or recover a missing edition
+      - name: Generate today's ranked AI Outlook or recover a missing edition
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
@@ -98,8 +105,8 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
             ARGS="--force"
           fi
-          python scripts/update_ai_outlook.py $ARGS
-          python scripts/update_ai_outlook.py --validate-only
+          python scripts/update_ai_outlook_v2.py $ARGS
+          python scripts/update_ai_outlook_v2.py --validate-only
 
       - name: Commit forecast and homepage asset version
         shell: bash
@@ -111,7 +118,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No AI Outlook changes to commit."
           else
-            git commit -m "Publish compact AI Outlook"
+            git commit -m "Publish ranked AI Outlook"
             git pull --rebase origin main
             git push
           fi
