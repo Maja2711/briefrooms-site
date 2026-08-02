@@ -2,14 +2,8 @@ name: AI Tournament Daily
 
 on:
   workflow_dispatch:
-    inputs:
-      force:
-        description: "Rebuild output; closed sessions remain append-only"
-        required: false
-        default: false
-        type: boolean
   schedule:
-    # Always after the regular US close. 21:45 UTC = 23:45 CEST / 22:45 CET.
+    # Reserved for daily valuation after the US close.
     - cron: "45 21 * * 1-5"
     # Recovery audit 90 minutes later.
     - cron: "15 23 * * 1-5"
@@ -22,6 +16,9 @@ on:
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
       - "data/ai_tournament/config.json"
+      - "data/ai_tournament/manual_mode.json"
+      - "data/ai_tournament/commitments/**"
+      - "data/ai_tournament/submissions/**"
       - ".github/workflows/ai-tournament-daily.yml"
 
 permissions:
@@ -40,61 +37,37 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate tournament engine
+      - name: Validate repository contract
         run: |
           python -m unittest tests.test_ai_tournament -v
           python -m py_compile scripts/ai_tournament_engine.py scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
           node --check scripts/portfolio-10k-material-reports-public.js
-          python scripts/ai_tournament_engine.py validate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
+          assert mode['mode'] == 'manual_locked_buy_and_hold'
+          assert mode['api_calls_enabled'] is False
+          print('AI Tournament manual buy-and-hold mode validated; API calls are disabled.')
+          PY
 
-  run-tournament:
+  hold-until-manual-portfolios-are-locked:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: python -m pip install --upgrade requests yfinance pandas
-      - name: Run latest closed market session
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          OPENAI_TOURNAMENT_MODEL: ${{ vars.OPENAI_TOURNAMENT_MODEL }}
-          ANTHROPIC_TOURNAMENT_MODEL: ${{ vars.ANTHROPIC_TOURNAMENT_MODEL }}
-          GEMINI_TOURNAMENT_MODEL: ${{ vars.GEMINI_TOURNAMENT_MODEL }}
-          DEEPSEEK_TOURNAMENT_MODEL: ${{ vars.DEEPSEEK_TOURNAMENT_MODEL }}
-        shell: bash
+      - name: Confirm no model API is called
         run: |
-          ARGS=""
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
-            ARGS="--force"
-          fi
-          python scripts/ai_tournament_engine.py run $ARGS
-          python scripts/ai_tournament_engine.py validate
-      - name: Commit daily standings
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/ai_tournament
-          if git diff --cached --quiet; then
-            echo "No new closed market session or no tournament changes."
-            exit 0
-          fi
-          git commit -m "Update AI Tournament daily standings"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then exit 0; fi
-            sleep $((attempt * 4))
-          done
-          exit 1
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
+          if mode.get('api_calls_enabled'):
+              raise SystemExit('API calls must remain disabled for the manual tournament.')
+          print('Manual submissions are being collected. No model API call and no portfolio trade is executed by this workflow yet.')
+          PY
