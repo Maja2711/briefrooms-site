@@ -3,27 +3,25 @@ name: Refresh Portfolio 10K Hourly Prices
 on:
   workflow_dispatch:
   schedule:
-    # Covers European and US cash sessions throughout DST changes.
     - cron: "11 6-21 * * 1-5"
   push:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
       - "scripts/build_portfolio_10k_usd.py"
+      - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/patch_portfolio_10k_en_usd.py"
-      - "scripts/portfolio-10k-usd-source.js"
       - "scripts/patch_portfolio_10k_hourly_ui.py"
-      - "scripts/portfolio-10k-public.js"
-      - "scripts/portfolio-10k-dashboard-en.js"
-      - "scripts/portfolio-10k-analytics-enhanced.js"
-      - "scripts/portfolio-10k-capital-summary.js"
+      - "scripts/portfolio-10k-*.js"
+      - "scripts/brace_portfolio_execution.py"
+      - "scripts/brace_portfolio_user_control.py"
+      - "assets/portfolio-10k-accessibility.css"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-hourly-prices.yml"
 
 permissions:
   contents: write
-
 concurrency:
   group: portfolio-market-data
   cancel-in-progress: false
@@ -31,63 +29,60 @@ concurrency:
 jobs:
   refresh-hourly-prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install quote dependencies
-        run: python -m pip install --upgrade pip yfinance pandas
-
+        run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Refresh current prices and portfolio valuation
         run: python scripts/portfolio_10k_hourly_prices.py
-
-      - name: Build independent USD 10K portfolio
-        run: python scripts/build_portfolio_10k_usd.py
-
-      - name: Patch English page for native USD source
-        run: python scripts/patch_portfolio_10k_en_usd.py
-
-      - name: Apply PL and EN hourly-price UI patch
-        if: ${{ hashFiles('scripts/patch_portfolio_10k_hourly_ui.py') != '' }}
-        run: python scripts/patch_portfolio_10k_hourly_ui.py
-
-      - name: Validate launch and capital labels
+      - name: Build independent USD portfolio and journal
+        run: |
+          python scripts/build_portfolio_10k_usd.py
+          python scripts/fix_portfolio_10k_usd_reviews.py
+      - name: Patch public PL and EN pages
+        run: |
+          python scripts/patch_portfolio_10k_en_usd.py
+          python scripts/patch_portfolio_10k_hourly_ui.py
+      - name: Retry authorised BRACE paper orders
+        run: |
+          python scripts/brace_portfolio_execution.py --network || echo "::warning::BRACE paper execution deferred; valuation publication continues."
+          python scripts/brace_portfolio_user_control.py --republish || echo "::warning::BRACE public snapshot republish deferred."
+      - name: Validate public labels and assets
         run: |
           grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
           grep -q 'Started: July 2026' en/investing/portfolio-10k.html
           grep -q 'Kapitał startowy' pl/inwestycje/portfel-10k.html
           grep -q 'Starting capital' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-analytics-enhanced.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-analytics-enhanced.js?v=2' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-capital-summary.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-capital-summary.js?v=1' en/investing/portfolio-10k.html
-
-      - name: Validate accounting consistency
-        run: python scripts/validate_portfolio_10k_state.py
-
-      - name: Validate public JavaScript
+          grep -q 'portfolio-10k-accessibility.css?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-accessibility.css?v=1' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-explainers.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-explainers.js?v=1' en/investing/portfolio-10k.html
+      - name: Validate accounting and JavaScript
         run: |
+          python scripts/validate_portfolio_10k_state.py
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-dashboard-en.js
           node --check scripts/portfolio-10k-usd-source.js
           node --check scripts/portfolio-10k-analytics-enhanced.js
           node --check scripts/portfolio-10k-capital-summary.js
-
-      - name: Commit hourly valuation and UI
+          node --check scripts/portfolio-10k-explainers.js
+          node --check scripts/portfolio-10k-control-public.js
+      - name: Commit hourly valuation, UI and paper state
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
           git add data/investments/portfolio_10k.json \
                   data/investments/portfolio_10k_usd.json \
+                  data/portfolio10k/paper_portfolio.json \
+                  data/portfolio10k/paper_orders.json \
+                  data/portfolio10k/public/brace_engine_public.json \
                   pl/inwestycje/portfel-10k.html \
                   en/investing/portfolio-10k.html
           if git diff --cached --quiet; then
@@ -95,7 +90,7 @@ jobs:
           else
             git commit -m "Refresh Portfolio 10K current prices"
             if ! git diff --quiet; then
-              echo "::error::Price updater left unstaged files; refusing a partial publication."
+              echo "::error::Updater left unstaged files; refusing a partial publication."
               git status --short
               exit 1
             fi
