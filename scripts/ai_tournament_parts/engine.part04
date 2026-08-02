@@ -1,0 +1,170 @@
+                "max_tokens": 1200,
+            },
+            timeout=90,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        return parse_json_text(payload["choices"][0]["message"]["content"])
+
+    return _request_with_retry(invoke)
+
+
+PROVIDER_CALLS: dict[str, Callable[[dict[str, Any], str, str], dict[str, Any]]] = {
+    "openai": call_openai,
+    "anthropic": call_anthropic,
+    "gemini": call_gemini,
+    "deepseek": call_deepseek,
+}
+
+
+def brace_decision(snapshot: dict[str, Any], state: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    instruments = []
+    for item in snapshot["instruments"]:
+        score = (
+            1.6 * float(item.get("return_20d", 0))
+            + 1.0 * float(item.get("return_60d", 0))
+            + 0.8 * float(item.get("sma20_gap", 0))
+            + 0.5 * float(item.get("sma60_gap", 0))
+            - 0.35 * float(item.get("volatility_20d", 0))
+            + 0.45 * float(item.get("drawdown_60d", 0))
+        )
+        instruments.append((item["ticker"], score))
+    instruments.sort(key=lambda pair: pair[1], reverse=True)
+    positive = [pair for pair in instruments if pair[1] > 0][: int(config["rules"]["max_positions"])]
+    benchmark = snapshot["benchmark"]
+    risk_on = float(benchmark.get("sma60_gap", 0)) >= 0
+    invested = 0.94 if risk_on else 0.68
+    if not positive:
+        targets: dict[str, float] = {}
+    else:
+        raw_scores = [max(score, 0.01) for _, score in positive]
+        total = sum(raw_scores)
+        targets = {ticker: invested * score / total for (ticker, _), score in zip(positive, raw_scores)}
+    return {
+        "target_weights": targets,
+        "rationale": (
+            "BRACE ranks the frozen universe by medium-term momentum, trend, volatility and drawdown; "
+            + ("the benchmark regime is risk-on." if risk_on else "the benchmark regime is defensive, so cash is higher.")
+        ),
+        "confidence": 72 if risk_on else 60,
+    }
+
+
+def collect_decision(
+    agent: dict[str, Any], snapshot: dict[str, Any], state: dict[str, Any], config: dict[str, Any]
+) -> dict[str, Any]:
+    existing = current_weights(state, snapshot["close_prices"], snapshot["fx_close"])
+    if agent["provider"] == "brace":
+        raw = brace_decision(snapshot, state, config)
+    else:
+        system, user = build_agent_prompt(snapshot, state, config)
+        call = PROVIDER_CALLS.get(agent["provider"])
+        if call is None:
+            raise TournamentError(f"unsupported provider: {agent['provider']}")
+        raw = call(agent, system, user)
+    targets, adjustments = normalize_target_weights(
+        raw.get("target_weights") or {}, config["universe"], config["rules"], existing
+    )
+    confidence = int(max(0, min(100, int(raw.get("confidence", 0)))))
+    rationale = re.sub(r"\s+", " ", str(raw.get("rationale") or "")).strip()[:900]
+    if not rationale:
+        raise ValidationError("empty decision rationale")
+    decision_id = sha256_text(
+        canonical_json({"agent": agent["id"], "session": snapshot["session_date"], "targets": targets})
+    )[:20]
+    return {
+        "schema_version": "ai-tournament-decision-v1",
+        "decision_id": decision_id,
+        "agent_id": agent["id"],
+        "provider": agent["provider"],
+        "model": resolve_model(agent),
+        "created_at": utc_now(),
+        "session_date": snapshot["session_date"],
+        "snapshot_hash": snapshot["snapshot_hash"],
+        "target_weights": targets,
+        "cash_weight": round(1.0 - sum(targets.values()), 8),
+        "rationale": rationale,
+        "confidence": confidence,
+        "normalization_adjustments": adjustments,
+        "execution_policy": "next_available_us_session_open",
+    }
+
+
+def _series_metrics(frame: Any, session: Any) -> dict[str, Any] | None:
+    try:
+        subset = frame.loc[:session].dropna(subset=["Open", "Close"])
+    except Exception:
+        return None
+    if subset.empty:
+        return None
+    row = subset.iloc[-1]
+    closes = [float(v) for v in subset["Close"].dropna().tolist()]
+    if len(closes) < 5:
+        return None
+    returns = [closes[i] / closes[i - 1] - 1 for i in range(1, len(closes)) if closes[i - 1] > 0]
+    ret = lambda n: closes[-1] / closes[-min(len(closes), n + 1)] - 1 if len(closes) >= 2 else 0.0
+    recent = closes[-60:]
+    peak = max(recent) if recent else closes[-1]
+    vol20 = statistics.stdev(returns[-20:]) * math.sqrt(252) if len(returns[-20:]) >= 2 else 0.0
+    sma20 = statistics.mean(closes[-20:])
+    sma60 = statistics.mean(closes[-60:])
+    volume = None
+    if "Volume" in subset.columns:
+        vals = [float(v) for v in subset["Volume"].dropna().tail(20).tolist()]
+        volume = statistics.mean(vals) if vals else None
+    return {
+        "open": float(row["Open"]),
+        "close": float(row["Close"]),
+        "return_1d": returns[-1] if returns else 0.0,
+        "return_5d": ret(5),
+        "return_20d": ret(20),
+        "return_60d": ret(60),
+        "volatility_20d": vol20,
+        "drawdown_60d": closes[-1] / peak - 1 if peak > 0 else 0.0,
+        "sma20_gap": closes[-1] / sma20 - 1 if sma20 > 0 else 0.0,
+        "sma60_gap": closes[-1] / sma60 - 1 if sma60 > 0 else 0.0,
+        "average_volume_20d": volume,
+    }
+
+
+def fetch_market_snapshot(config: dict[str, Any]) -> dict[str, Any]:
+    try:
+        import yfinance as yf
+    except ImportError as exc:
+        raise TournamentError("yfinance is required") from exc
+
+    tickers = list(dict.fromkeys(config["universe"] + [config["benchmark_ticker"], config["fx_ticker"]]))
+    raw = yf.download(
+        tickers=tickers,
+        period="8mo",
+        interval="1d",
+        auto_adjust=True,
+        progress=False,
+        group_by="ticker",
+        threads=True,
+    )
+    if raw is None or raw.empty:
+        raise TournamentError("market download returned no data")
+
+    def frame_for(ticker: str):
+        if getattr(raw.columns, "nlevels", 1) > 1:
+            level0 = list(raw.columns.get_level_values(0).unique())
+            level1 = list(raw.columns.get_level_values(1).unique())
+            if ticker in level0:
+                return raw[ticker].copy()
+            if ticker in level1:
+                return raw.xs(ticker, level=1, axis=1).copy()
+        return raw.copy()
+
+    benchmark_frame = frame_for(config["benchmark_ticker"]).dropna(subset=["Open", "Close"])
+    if benchmark_frame.empty:
+        raise TournamentError("benchmark has no session data")
+    session = benchmark_frame.index[-1]
+    session_date = str(getattr(session, "date", lambda: session)())
+
+    fx_frame = frame_for(config["fx_ticker"]).loc[:session].dropna(subset=["Open", "Close"])
+    if fx_frame.empty:
+        raise TournamentError("FX series has no data")
+    fx_row = fx_frame.iloc[-1]
+    fx_open = float(fx_row["Open"])
+    fx_close = float(fx_row["Close"])
