@@ -8,7 +8,7 @@ from pathlib import Path
 _PARTS_DIR = Path(__file__).with_name("ai_tournament_parts")
 _PARTS = sorted(_PARTS_DIR.glob("engine.part*"))
 _EXPECTED_COUNT = 7
-_EXPECTED_SHA256 = "87485c5666286f0cc559aa39131e5869ebc6b76e65764ca41f5e358f09815310"
+_EXPECTED_SHA256 = "ebdd695a11f8a4752d31fe6202c54d30970d76b0fa8543913035941526d27dcc"
 
 if len(_PARTS) != _EXPECTED_COUNT:
     raise RuntimeError(f"AI Tournament engine requires {_EXPECTED_COUNT} verified parts; found {len(_PARTS)}")
