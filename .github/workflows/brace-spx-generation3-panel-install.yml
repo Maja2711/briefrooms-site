@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
   issues:
     types: [opened]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/install_brace_spx_public_panel.py"
+      - "scripts/normalize_brace_spx_scenario_tabs.py"
+      - "data/public/brace_spx_pl_green_fix_request.json"
+      - ".github/workflows/brace-spx-generation3-panel-install.yml"
 
 permissions:
   contents: write
@@ -25,6 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Persist start marker
+        if: github.event_name != 'push'
         run: |
           mkdir -p data/public
           printf '{\n  "status": "started",\n  "run_id": "%s",\n  "started_at": "%s"\n}\n' \
@@ -54,10 +62,12 @@ jobs:
           python scripts/normalize_brace_spx_scenario_tabs.py
           grep -q 'data-brace-spx-generation3' pl/inwestycje/spx-scenariusze-2026.html
           grep -q 'data-brace-spx-generation3' en/investing/spx-scenarios-2026.html
-          grep -q 'brace-spx-generation3-card.js' pl/inwestycje/spx-scenariusze-2026.html
-          grep -q 'brace-spx-generation3-card.js' en/investing/spx-scenarios-2026.html
-          grep -q 'background:#15803d;color:#fff' pl/inwestycje/spx-scenariusze-2026.html
-          grep -q 'background:#15803d;color:#fff' en/investing/spx-scenarios-2026.html
+          grep -q 'brace-spx-generation3-card.js?v=20260802-2' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'brace-spx-generation3-card.js?v=20260802-2' en/investing/spx-scenarios-2026.html
+          grep -q 'background:#15803d!important' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'color:#fff!important' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'border:1px solid #166534!important' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'background:#15803d!important' en/investing/spx-scenarios-2026.html
           grep -q '2026-08-02' pl/inwestycje/spx-scenariusze-2026.html
           grep -q '2026-08-02' en/investing/spx-scenarios-2026.html
 
@@ -75,9 +85,12 @@ jobs:
               'pl_installed': True,
               'en_installed': True,
               'green_lab_tabs': True,
+              'green_style_important': True,
               'house_view_date': '2026-08-02'
           }, indent=2) + '\n', encoding='utf-8')
           PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             pl/inwestycje/spx-scenariusze-2026.html \
             en/investing/spx-scenarios-2026.html \
@@ -87,7 +100,7 @@ jobs:
             echo "No scenario page changes to commit."
             exit 0
           fi
-          git commit -m "Update bilingual BRACE-SPX scenario panels"
+          git commit -m "Enforce green BRACE-SPX scenario tabs"
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 15))
