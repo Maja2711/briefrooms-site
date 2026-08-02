@@ -95,6 +95,10 @@ def build_public(
             "execution_time": "next_us_session_open",
         },
         "latest_session": snapshot["session_date"] if snapshot else None,
+        "participants": [
+            {"agent_id": agent["id"], "provider": agent["provider"], "model": resolve_model(agent)}
+            for agent in config["agents"]
+        ],
         "benchmark": benchmark,
         "rules": config["rules"],
         "leaderboard": leaderboard,
