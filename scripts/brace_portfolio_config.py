@@ -2,13 +2,16 @@
 """Configuration and immutable policy for BRACE Portfolio Engine."""
 from __future__ import annotations
 
+import hashlib
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = ROOT / "data" / "portfolio10k" / "config.json"
+DEFAULT_ADAPTIVE_POLICY_PATH = ROOT / "data" / "portfolio10k" / "adaptive_policy.json"
 
 AUTONOMY_MODES = {
     "MONITOR_ONLY",
@@ -32,6 +35,58 @@ METHODOLOGY_STATUSES = {
     "RETIRED",
     "RETIRED_BASELINE",
 }
+
+ADAPTIVE_FIELDS = {
+    "minimum_confidence": (0.60, 0.75),
+    "minimum_score_improvement": (6.5, 10.5),
+    "minimum_expected_alpha": (0.0175, 0.0400),
+}
+
+
+def _canonical_sha256(payload: Any) -> str:
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _load_adaptive_overrides(
+    adaptive_path: Path,
+    base_raw: Mapping[str, Any],
+) -> tuple[Dict[str, float], Dict[str, Any]]:
+    if not adaptive_path.exists():
+        return {}, {"status": "NOT_CONFIGURED", "applied": False}
+    adaptive = json.loads(adaptive_path.read_text(encoding="utf-8"))
+    if adaptive.get("schema_version") != "brace-adaptive-policy-v1":
+        raise ValueError("Unsupported BRACE adaptive policy schema")
+    if adaptive.get("never_apply_to_real_broker") is not True:
+        raise ValueError("Adaptive policy must explicitly prohibit real-broker use")
+    if adaptive.get("apply_to_shadow_decisions") is not True:
+        return {}, {
+            "status": str(adaptive.get("status") or "INACTIVE"),
+            "applied": False,
+            "content_sha256": adaptive.get("content_sha256"),
+        }
+    expected_base_hash = str(adaptive.get("base_config_sha256") or "")
+    actual_base_hash = _canonical_sha256(base_raw)
+    if expected_base_hash != actual_base_hash:
+        raise ValueError("Adaptive policy was trained against a different base configuration")
+    overrides = adaptive.get("active_overrides") or {}
+    unknown = set(overrides) - set(ADAPTIVE_FIELDS)
+    if unknown:
+        raise ValueError(f"Adaptive policy contains non-whitelisted fields: {sorted(unknown)}")
+    clean: Dict[str, float] = {}
+    for name, value in overrides.items():
+        number = float(value)
+        low, high = ADAPTIVE_FIELDS[name]
+        if not low <= number <= high:
+            raise ValueError(f"Adaptive value for {name} is outside governed bounds")
+        clean[name] = number
+    return clean, {
+        "status": str(adaptive.get("status") or "ACTIVE_SHADOW_PARAMETERS"),
+        "applied": bool(clean),
+        "content_sha256": adaptive.get("content_sha256"),
+        "generated_at": adaptive.get("generated_at"),
+        "scope": "BRACE challenger shadow decisions only",
+    }
 
 
 @dataclass(frozen=True)
@@ -115,9 +170,20 @@ class EngineConfig:
             raise ValueError("max_positions is too small")
 
 
-def load_config(path: Path = DEFAULT_CONFIG_PATH) -> tuple[EngineConfig, Dict[str, Any]]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    return EngineConfig.from_mapping(raw), raw
+def load_config(
+    path: Path = DEFAULT_CONFIG_PATH,
+    adaptive_path: Path | None = None,
+) -> tuple[EngineConfig, Dict[str, Any]]:
+    base_raw = json.loads(path.read_text(encoding="utf-8"))
+    merged = deepcopy(base_raw)
+    use_adaptive = adaptive_path is not None or path.resolve() == DEFAULT_CONFIG_PATH.resolve()
+    metadata: Dict[str, Any] = {"status": "DISABLED_FOR_NONDEFAULT_CONFIG", "applied": False}
+    if use_adaptive:
+        selected_path = adaptive_path or DEFAULT_ADAPTIVE_POLICY_PATH
+        overrides, metadata = _load_adaptive_overrides(selected_path, base_raw)
+        merged.setdefault("policy", {}).update(overrides)
+    merged["adaptive_policy_runtime"] = metadata
+    return EngineConfig.from_mapping(merged), merged
 
 
 def public_policy(config: EngineConfig) -> Dict[str, Any]:
