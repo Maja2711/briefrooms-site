@@ -6,7 +6,7 @@ PAGES = [
     ROOT / "pl/inwestycje/portfel-10k.html",
     ROOT / "en/investing/portfolio-10k.html",
 ]
-CSS = '<link rel="stylesheet" href="/assets/portfolio-10k-clarity.css?v=1">'
+CSS = '<link rel="stylesheet" href="/assets/portfolio-10k-clarity.css?v=2">'
 ANALYTICS_JS = '<script src="/scripts/portfolio-10k-analytics-enhanced.js?v=2" defer></script>'
 CAPITAL_JS = '<script src="/scripts/portfolio-10k-capital-summary.js?v=1" defer></script>'
 
@@ -16,6 +16,12 @@ for path in PAGES:
     text = path.read_text(encoding="utf-8")
     if "/assets/portfolio-10k-clarity.css" not in text:
         text = text.replace("</head>", CSS + "</head>")
+    else:
+        text = re.sub(
+            r'/assets/portfolio-10k-clarity\.css\?v=\d+',
+            '/assets/portfolio-10k-clarity.css?v=2',
+            text,
+        )
     if "/scripts/portfolio-10k-analytics-enhanced.js" not in text:
         text = text.replace("</body>", ANALYTICS_JS + "</body>")
     else:
