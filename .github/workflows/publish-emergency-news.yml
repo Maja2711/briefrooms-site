@@ -6,6 +6,7 @@ on:
       - "scripts/publish_emergency_news.py"
       - "scripts/enforce_homepage_photo_only.py"
       - "scripts/homepage-photo-only.js"
+      - "scripts/ai-outlook-governance-guard.js"
       - "tests/test_publish_emergency_news.py"
       - "tests/test_homepage_photo_only.py"
       - ".github/workflows/publish-emergency-news.yml"
@@ -15,6 +16,7 @@ on:
       - "scripts/publish_emergency_news.py"
       - "scripts/enforce_homepage_photo_only.py"
       - "scripts/homepage-photo-only.js"
+      - "scripts/ai-outlook-governance-guard.js"
       - "tests/test_publish_emergency_news.py"
       - "tests/test_homepage_photo_only.py"
       - ".github/workflows/publish-emergency-news.yml"
@@ -52,16 +54,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Patch compact AI Outlook asset URL
+      - name: Patch governed AI Outlook asset URLs
         run: |
           set -euo pipefail
           python scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
+          node --check scripts/ai-outlook-governance-guard.js
           python -m unittest tests.test_homepage_photo_only -v
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
 
-      - name: Commit compact AI Outlook homepages
+      - name: Commit governed AI Outlook homepages
         shell: bash
         run: |
           set -euo pipefail
@@ -69,10 +74,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
           if git diff --cached --quiet; then
-            echo "Homepage asset URL is already current."
+            echo "Homepage asset URLs are already current."
             exit 0
           fi
-          git commit -m "Publish compact AI Outlook homepages"
+          git commit -m "Publish governed AI Outlook homepages"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
@@ -83,7 +88,7 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          echo "::error::Could not push compact homepages after 5 attempts."
+          echo "::error::Could not push governed homepages after 5 attempts."
           exit 1
 
   validate:
@@ -102,6 +107,7 @@ jobs:
           python -m py_compile scripts/publish_emergency_news.py scripts/enforce_homepage_photo_only.py
           python -m unittest tests.test_publish_emergency_news -v
           node --check scripts/homepage-photo-only.js
+          node --check scripts/ai-outlook-governance-guard.js
 
   publish:
     if: github.event_name != 'pull_request' && github.event_name != 'issues'
@@ -134,8 +140,11 @@ jobs:
           python scripts/publish_emergency_news.py --marker "${marker}"
           python scripts/enforce_homepage_photo_only.py
           python -m unittest tests.test_homepage_photo_only -v
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
+          node --check scripts/ai-outlook-governance-guard.js
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
           if grep -F '/scripts/homepage-photo-only.js?v=1' pl/index.html en/index.html; then
             echo "::error::Old AI Outlook asset version remains in homepage HTML."
             exit 1
