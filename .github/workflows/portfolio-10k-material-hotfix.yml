@@ -10,6 +10,7 @@ on:
       - "scripts/brace_portfolio_material_overlay.py"
       - "scripts/brace_portfolio_user_control.py"
       - "scripts/brace_portfolio_decision.py"
+      - "scripts/brace_portfolio_execution.py"
       - "tests/test_brace_portfolio_material_overlay.py"
       - ".github/workflows/portfolio-10k-material-hotfix.yml"
 
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   apply-material-events:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,32 +35,41 @@ jobs:
       - name: Compile and test material-event logic
         run: |
           python -m compileall -q scripts
-          python -m pip install --upgrade pip pytest numpy pandas
+          python -m pip install --upgrade pip pytest numpy pandas yfinance
           python -m pytest -q tests/test_brace_portfolio_material_overlay.py
-      - name: Apply verified events to BRACE decisions
+      - name: Apply verified events and queue paper decision
         run: |
           python scripts/brace_portfolio_material_overlay.py
           python scripts/brace_portfolio_user_control.py --republish
-      - name: Verify Novo review and paper-control boundary
+          python scripts/brace_portfolio_execution.py --network || echo "::warning::Paper execution waits for an open market and a post-signal candle."
+          python scripts/brace_portfolio_user_control.py --republish
+      - name: Verify Novo exit and paper-control boundary
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           pending=json.loads(Path('data/portfolio10k/pending_decisions.json').read_text())
           public=json.loads(Path('data/portfolio10k/public/brace_engine_public.json').read_text())
+          orders=json.loads(Path('data/portfolio10k/paper_orders.json').read_text())
           novo=next(row for row in pending.get('recommendations',[]) if row.get('instrument')=='novo')
-          assert novo['action'] in {'REDUCE','EXIT'}
+          assert novo['action']=='EXIT'
+          assert float(novo.get('proposed_weight') or 0.0)==0.0
           assert (novo.get('material_event_context') or {}).get('report_count',0) >= 1
+          order=next(row for row in orders.get('orders',[]) if row.get('sell_instrument')=='novo')
+          assert order['action']=='EXIT'
+          assert order['paper_only'] is True and order.get('real_order_id') is None
           assert public['controller_status']=='PROBATIONARY_CONTROL'
           assert public['source_metadata']['real_broker_connected'] is False
-          print('Novo BRACE action:', novo['action'], novo['final_score'])
+          print('Novo BRACE action:', novo['action'], novo['final_score'], 'order:', order['status'])
           PY
-      - name: Commit material-aware decisions
+      - name: Commit material-aware decisions and paper queue
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/portfolio10k/analysis.json \
                   data/portfolio10k/pending_decisions.json \
+                  data/portfolio10k/paper_orders.json \
+                  data/portfolio10k/paper_portfolio.json \
                   data/portfolio10k/public/brace_engine_public.json
           if git diff --cached --quiet; then
             echo "No material-decision change to commit."
