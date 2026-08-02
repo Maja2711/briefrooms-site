@@ -4,7 +4,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = [ROOT / "pl/inwestycje/portfel-10k.html", ROOT / "en/investing/portfolio-10k.html"]
 CLARITY = '<link rel="stylesheet" href="/assets/portfolio-10k-clarity.css?v=2">'
-ACCESSIBILITY = '<link rel="stylesheet" href="/assets/portfolio-10k-accessibility.css?v=1">'
+ACCESSIBILITY = '<link rel="stylesheet" href="/assets/portfolio-10k-accessibility.css?v=2">'
 ANALYTICS_JS = '<script src="/scripts/portfolio-10k-analytics-enhanced.js?v=2" defer></script>'
 CAPITAL_JS = '<script src="/scripts/portfolio-10k-capital-summary.js?v=1" defer></script>'
 EXPLAINERS_JS = '<script src="/scripts/portfolio-10k-explainers.js?v=1" defer></script>'
@@ -22,6 +22,7 @@ for path in PAGES:
     text = ensure_asset(text, "/assets/portfolio-10k-clarity.css", CLARITY, "</head>")
     text = re.sub(r'/assets/portfolio-10k-clarity\.css\?v=\d+', '/assets/portfolio-10k-clarity.css?v=2', text)
     text = ensure_asset(text, "/assets/portfolio-10k-accessibility.css", ACCESSIBILITY, "</head>")
+    text = re.sub(r'/assets/portfolio-10k-accessibility\.css\?v=\d+', '/assets/portfolio-10k-accessibility.css?v=2', text)
     text = ensure_asset(text, "/scripts/portfolio-10k-analytics-enhanced.js", ANALYTICS_JS, "</body>")
     text = ensure_asset(text, "/scripts/portfolio-10k-capital-summary.js", CAPITAL_JS, "</body>")
     text = ensure_asset(text, "/scripts/portfolio-10k-explainers.js", EXPLAINERS_JS, "</body>")
