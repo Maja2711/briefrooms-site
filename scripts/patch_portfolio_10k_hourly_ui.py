@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = [
@@ -6,7 +7,7 @@ PAGES = [
     ROOT / "en/investing/portfolio-10k.html",
 ]
 CSS = '<link rel="stylesheet" href="/assets/portfolio-10k-clarity.css?v=1">'
-JS = '<script src="/scripts/portfolio-10k-analytics-enhanced.js?v=1" defer></script>'
+JS = '<script src="/scripts/portfolio-10k-analytics-enhanced.js?v=2" defer></script>'
 
 for path in PAGES:
     if not path.exists():
@@ -16,6 +17,12 @@ for path in PAGES:
         text = text.replace("</head>", CSS + "</head>")
     if "/scripts/portfolio-10k-analytics-enhanced.js" not in text:
         text = text.replace("</body>", JS + "</body>")
+    else:
+        text = re.sub(
+            r'/scripts/portfolio-10k-analytics-enhanced\.js\?v=\d+',
+            '/scripts/portfolio-10k-analytics-enhanced.js?v=2',
+            text,
+        )
     text = text.replace(
         '/scripts/portfolio-10k-dashboard.js?v=4',
         '/scripts/portfolio-10k-dashboard.js?v=5',
@@ -29,9 +36,29 @@ for path in PAGES:
             '<span class="live-badge"><i></i> LIVE</span>',
             '<span class="live-badge" aria-live="polite"><i></i> SPRAWDZANIE</span>',
         )
+        if 'id="portfolio-launch-label"' not in text:
+            text = text.replace(
+                '<small>Od początku</small><div id="mini-chart" class="mini-chart"></div>',
+                '<small>Od początku · <span id="portfolio-launch-label">Start: lipiec 2026</span></small><div id="mini-chart" class="mini-chart"></div>',
+            )
+        if 'id="portfolio-launch-note"' not in text:
+            text = text.replace(
+                '<p>Bieżące pozycje, wagi, wyniki, tezy i sygnały przeglądu.</p></div></div>',
+                '<p>Bieżące pozycje, wagi, wyniki, tezy i sygnały przeglądu.</p><p id="portfolio-launch-note">Start: lipiec 2026</p></div></div>',
+            )
     else:
         text = text.replace(
             '<span class="live-badge"><i></i> LIVE</span>',
             '<span class="live-badge" aria-live="polite"><i></i> CHECKING</span>',
         )
+        if 'id="portfolio-launch-label"' not in text:
+            text = text.replace(
+                '<small>Since launch</small><div id="mini-chart" class="mini-chart"></div>',
+                '<small>Since launch · <span id="portfolio-launch-label">Started: July 2026</span></small><div id="mini-chart" class="mini-chart"></div>',
+            )
+        if 'id="portfolio-launch-note"' not in text:
+            text = text.replace(
+                '<p>Current positions, weights, results, theses and review signals.</p></div></div>',
+                '<p>Current positions, weights, results, theses and review signals.</p><p id="portfolio-launch-note">Started: July 2026</p></div></div>',
+            )
     path.write_text(text, encoding="utf-8")
