@@ -20,6 +20,14 @@
     return [...byId.values()].sort((a,b) => String(b.published_at || b.event_date || '').localeCompare(String(a.published_at || a.event_date || '')));
   }
 
+  function signature(positionId) {
+    return state.reports
+      .filter(report => report?.position_id === positionId)
+      .map(report => String(report.id))
+      .sort()
+      .join('|');
+  }
+
   function render() {
     if (!state || !window.BRMaterialReports) return;
     document.querySelectorAll('#positions .position').forEach(card => {
@@ -27,6 +35,8 @@
       const position = state.positions.find(item => item.broker_symbol === symbol);
       const current = card.querySelector('.material-reports');
       if (!position || !current) return;
+      const expectedSignature = signature(position.id);
+      if (current.dataset.verifiedReportSignature === expectedSignature) return;
       const wrapper = document.createElement('div');
       wrapper.innerHTML = window.BRMaterialReports.renderForPosition({
         reports: state.reports,
@@ -34,7 +44,10 @@
         lang,
       });
       const replacement = wrapper.firstElementChild;
-      if (replacement) current.replaceWith(replacement);
+      if (replacement) {
+        replacement.dataset.verifiedReportSignature = expectedSignature;
+        current.replaceWith(replacement);
+      }
     });
   }
 
@@ -49,7 +62,12 @@
       render();
       const root = document.getElementById('positions');
       if (root && typeof MutationObserver !== 'undefined') {
-        new MutationObserver(render).observe(root, {childList:true, subtree:true});
+        let scheduled = false;
+        new MutationObserver(() => {
+          if (scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(() => { scheduled = false; render(); });
+        }).observe(root, {childList:true, subtree:true});
       }
     } catch (_) {
       // The original public renderer remains available when enrichment cannot load.
