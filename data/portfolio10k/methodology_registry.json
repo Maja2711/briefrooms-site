@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-02T20:00:14+00:00",
+  "generated_at": "2026-08-02T20:59:11+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -8,15 +8,15 @@
     "legacy_brace": "data/investments/portfolio_10k_brace.json",
     "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
   },
-  "controller_state": "ACTIVE_BASELINE",
-  "champion_methodology_id": "portfolio-10k-baseline",
+  "controller_state": "PROBATIONARY_CONTROL",
+  "champion_methodology_id": "brace-portfolio-engine",
   "challenger_methodology_id": "brace-portfolio-engine",
   "baseline_methodology_id": "portfolio-10k-baseline",
   "methodologies": [
     {
       "methodology_id": "portfolio-10k-baseline",
       "version": "1.0.0",
-      "status": "ACTIVE_BASELINE",
+      "status": "FALLBACK_BASELINE",
       "activated_at": "2026-07-20T12:10:00+00:00",
       "retired_at": null,
       "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
@@ -38,14 +38,14 @@
     {
       "methodology_id": "brace-portfolio-engine",
       "version": "3.0.0",
-      "status": "SHADOW",
+      "status": "PROBATIONARY_CONTROL",
       "activated_at": "2026-07-29T00:00:00+00:00",
       "retired_at": null,
       "description": "Modular BRACE challenger with candidate ranking, constrained optimization, governed promotion and paper-only execution.",
       "parameters": {
         "manifest": "data/portfolio10k/config.json",
         "immutable_parameter_manifest": true,
-        "autonomy_mode": "RECOMMEND_ONLY",
+        "autonomy_mode": "PAPER_EXECUTION",
         "paper_execution_only_after_promotion": true,
         "real_broker_access": false
       },
@@ -103,7 +103,16 @@
             }
           },
           "reason": "No status change; promotion gates remain incomplete."
-        }
+        },
+        "user_authorized_paper_control": {
+          "authorized_at": "2026-08-02T22:37:00+02:00",
+          "authorized_by": "site_owner",
+          "reason_pl": "Właściciel projektu autoryzuje BRACE do sterowania oddzielnym portfelem modelowym w trybie próbnym, z limitami ryzyka i automatycznym fallbackiem do baseline.",
+          "reason_en": "The project owner authorises BRACE to control a separate model portfolio in probationary mode, with risk limits and automatic baseline fallback.",
+          "remaining_automatic_promotion_gates_preserved": true,
+          "paper_only": true
+        },
+        "probation_started_at": "2026-08-02T22:37:00+02:00"
       }
     }
   ]

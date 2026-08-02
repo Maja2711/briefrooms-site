@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-02T20:00:14+00:00",
+  "generated_at": "2026-08-02T20:59:11+00:00",
   "methodology_version": "3.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -8,23 +8,23 @@
     "paper_only": true,
     "real_broker_connected": false
   },
-  "controller_status": "ACTIVE_BASELINE",
-  "display_status": "ACTIVE_BASELINE + BRACE_SHADOW",
-  "portfolio_data_path": "/data/investments/portfolio_10k.json",
+  "controller_status": "PROBATIONARY_CONTROL",
+  "display_status": "BRACE_PROBATIONARY_PAPER_CONTROL",
+  "portfolio_data_path": "/data/portfolio10k/paper_portfolio.json",
   "champion": {
-    "methodology_id": "portfolio-10k-baseline",
-    "version": "1.0.0",
-    "status": "ACTIVE_BASELINE"
+    "methodology_id": "brace-portfolio-engine",
+    "version": "3.0.0",
+    "status": "PROBATIONARY_CONTROL"
   },
   "baseline": {
     "methodology_id": "portfolio-10k-baseline",
     "version": "1.0.0",
-    "status": "ACTIVE_BASELINE"
+    "status": "FALLBACK_BASELINE"
   },
   "challenger": {
     "methodology_id": "brace-portfolio-engine",
     "version": "3.0.0",
-    "status": "SHADOW"
+    "status": "PROBATIONARY_CONTROL"
   },
   "promotion_progress": {
     "passed": 26,
@@ -245,7 +245,16 @@
   "last_research_run": "2026-08-02T20:00:14+00:00",
   "next_scheduled_analysis": "2026-08-09T20:00:14+00:00",
   "fallback_reason": null,
-  "promotion_history": [],
+  "promotion_history": [
+    {
+      "promotion_id": "user-paper-control-2026-08-02",
+      "previous_status": "ACTIVE_BASELINE",
+      "new_status": "PROBATIONARY_CONTROL",
+      "evaluated_at": "2026-08-02T20:59:11+00:00",
+      "all_conditions_passed": false,
+      "reason": "Explicit site-owner authorization for paper-only probationary control; automatic quality gates remain visible."
+    }
+  ],
   "candidates": [
     {
       "instrument_id": "jpm",
@@ -373,7 +382,7 @@
   ],
   "policy": {
     "target_annual_return": 0.1,
-    "autonomy_mode": "RECOMMEND_ONLY",
+    "autonomy_mode": "PAPER_EXECUTION",
     "max_single_stock_weight": 0.18,
     "max_broad_etf_weight": 0.3,
     "max_sector_weight": 0.35,
@@ -393,5 +402,214 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "5e2a497f24bd18c0c8cf678edaab7c7e0ecfc140c1ff5113b5a8350ba247837e"
+  "content_sha256": "fbace37466715b8a8dd34e062fa3fe4db3f27a77d2ec5ac8de755d5f908bf037",
+  "control_authorization": {
+    "schema_version": "brace-control-authorization-v1",
+    "enabled": true,
+    "controller_status": "PROBATIONARY_CONTROL",
+    "authorized_at": "2026-08-02T22:37:00+02:00",
+    "authorized_by": "site_owner",
+    "paper_only": true,
+    "real_broker_connected": false,
+    "baseline_fallback_required": true,
+    "reason_pl": "Właściciel projektu autoryzuje BRACE do sterowania oddzielnym portfelem modelowym w trybie próbnym, z limitami ryzyka i automatycznym fallbackiem do baseline.",
+    "reason_en": "The project owner authorises BRACE to control a separate model portfolio in probationary mode, with risk limits and automatic baseline fallback."
+  },
+  "position_recommendations": [
+    {
+      "instrument": "amzn",
+      "broker_symbol": "AMZN.US",
+      "action": "WATCH",
+      "final_score": 55.64,
+      "confidence": 1.0,
+      "current_weight": 0.162146,
+      "proposed_weight": 0.162146,
+      "positive_factors": [
+        "quality_score",
+        "momentum_score"
+      ],
+      "negative_factors": [
+        "diversification_score"
+      ],
+      "rationale_pl": "Rekomendacja WATCH wynika z wieloczynnikowej oceny AMZN.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The WATCH recommendation follows from the multi-factor assessment of AMZN.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "fwia",
+      "broker_symbol": "FWIA.DE",
+      "action": "HOLD",
+      "final_score": 59.31,
+      "confidence": 1.0,
+      "current_weight": 0.247485,
+      "proposed_weight": 0.06218108,
+      "positive_factors": [
+        "risk_score"
+      ],
+      "negative_factors": [],
+      "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny FWIA.DE, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of FWIA.DE, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "googl",
+      "broker_symbol": "GOOGL.US",
+      "action": "HOLD",
+      "final_score": 58.3,
+      "confidence": 1.0,
+      "current_weight": 0.152657,
+      "proposed_weight": 0.07097421,
+      "positive_factors": [
+        "quality_score",
+        "risk_score"
+      ],
+      "negative_factors": [
+        "diversification_score",
+        "valuation_score"
+      ],
+      "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny GOOGL.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of GOOGL.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "novo",
+      "broker_symbol": "NOVOB.DK",
+      "action": "WATCH",
+      "final_score": 49.94,
+      "confidence": 1.0,
+      "current_weight": 0.046182,
+      "proposed_weight": 0.046182,
+      "positive_factors": [
+        "quality_score",
+        "valuation_score",
+        "diversification_score"
+      ],
+      "negative_factors": [
+        "momentum_score",
+        "risk_score"
+      ],
+      "rationale_pl": "Rekomendacja WATCH wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The WATCH recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "spgi",
+      "broker_symbol": "SPGI.US",
+      "action": "WATCH",
+      "final_score": 49.81,
+      "confidence": 1.0,
+      "current_weight": 0.07218,
+      "proposed_weight": 0.07218,
+      "positive_factors": [
+        "quality_score",
+        "risk_score"
+      ],
+      "negative_factors": [
+        "diversification_score",
+        "momentum_score",
+        "thesis_score"
+      ],
+      "rationale_pl": "Rekomendacja WATCH wynika z wieloczynnikowej oceny SPGI.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The WATCH recommendation follows from the multi-factor assessment of SPGI.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "tsm",
+      "broker_symbol": "TSM.US",
+      "action": "HOLD",
+      "final_score": 60.45,
+      "confidence": 1.0,
+      "current_weight": 0.119077,
+      "proposed_weight": 0.09095184,
+      "positive_factors": [
+        "quality_score",
+        "valuation_score"
+      ],
+      "negative_factors": [],
+      "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny TSM.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of TSM.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "visa",
+      "broker_symbol": "V.US",
+      "action": "HOLD",
+      "final_score": 60.43,
+      "confidence": 1.0,
+      "current_weight": 0.101317,
+      "proposed_weight": 0.05504313,
+      "positive_factors": [
+        "quality_score",
+        "risk_score"
+      ],
+      "negative_factors": [
+        "diversification_score",
+        "valuation_score"
+      ],
+      "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny V.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of V.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    },
+    {
+      "instrument": "zprv",
+      "broker_symbol": "ZPRV.DE",
+      "action": "HOLD",
+      "final_score": 57.21,
+      "confidence": 1.0,
+      "current_weight": 0.098955,
+      "proposed_weight": 0.08266051,
+      "positive_factors": [
+        "momentum_score",
+        "risk_score"
+      ],
+      "negative_factors": [
+        "diversification_score"
+      ],
+      "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny ZPRV.DE, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of ZPRV.DE, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs"
+      ]
+    }
+  ],
+  "control_summary_pl": "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, uwzględnia zweryfikowane raporty istotne, ocenia pozycje i może wykonywać wyłącznie transakcje paper. Limity ryzyka oraz automatyczny powrót do baseline pozostają aktywne.",
+  "control_summary_en": "BRACE controls a separate model portfolio in probationary mode. Each week it refreshes data, incorporates verified material reports, assesses every position and may execute paper trades only. Risk limits and automatic baseline fallback remain active."
 }
