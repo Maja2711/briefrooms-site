@@ -177,7 +177,7 @@ def call_gemini(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             headers={"x-goog-api-key": key, "Content-Type": "application/json"},
             json={
-                "system_instruction": {"parts": [{"text": system}]},
+                "systemInstruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": user}]}],
                 "generationConfig": {
                     "temperature": 0.2,
