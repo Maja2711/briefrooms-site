@@ -7,28 +7,26 @@
     cardExit: 'SELL / WYJŚCIE',
     title: 'Aktualna decyzja BRACE',
     status: 'Status wykonania',
-    rationale: 'Uzasadnienie decyzji',
-    reportAction: 'Akcja po raporcie',
-    reportReview: 'PILNY PRZEGLĄD TEZY',
+    event: 'Zdarzenie',
+    thesis: 'Wpływ na tezę',
+    rationale: 'Dlaczego BRACE wybrał SELL / EXIT',
+    reportAction: 'Akcja po tym raporcie',
     waiting: 'Planowana sprzedaż całej pozycji na najbliższej dostępnej sesji',
     execution: 'Realizacja paper po pierwszym kompletnym 5-minutowym notowaniu po otwarciu rynku.',
     paper: 'Wyłącznie portfel modelowy — brak zlecenia u brokera.',
-    mondayPrefix: 'poniedziałek',
-    latest: 'Ostatnia decyzja BRACE',
     modelAction: 'SELL / EXIT',
   } : {
     tableExit: 'SELL PLANNED',
     cardExit: 'SELL / EXIT',
     title: 'Current BRACE decision',
     status: 'Execution status',
-    rationale: 'Decision rationale',
-    reportAction: 'Action after report',
-    reportReview: 'URGENT THESIS REVIEW',
+    event: 'Event',
+    thesis: 'Thesis effect',
+    rationale: 'Why BRACE selected SELL / EXIT',
+    reportAction: 'Action after this report',
     waiting: 'Full-position sale planned for the next available market session',
     execution: 'Paper execution after the first completed five-minute quote following market open.',
     paper: 'Model portfolio only — no brokerage order.',
-    mondayPrefix: 'Monday',
-    latest: 'Latest BRACE decision',
     modelAction: 'SELL / EXIT',
   };
 
@@ -57,13 +55,29 @@
     }).format(date);
   }
 
-  function decisionMap(publicState, orders) {
+  function reportMap(materialEvents) {
+    const map = new Map();
+    for (const report of materialEvents?.reports || []) {
+      if (!report?.position_id) continue;
+      const list = map.get(String(report.position_id)) || [];
+      list.push(report);
+      map.set(String(report.position_id), list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => String(b.published_at || b.event_date || '').localeCompare(String(a.published_at || a.event_date || '')));
+    }
+    return map;
+  }
+
+  function decisionMap(publicState, orders, materialEvents) {
     const orderByDecision = new Map((orders?.orders || []).map(order => [String(order.decision_id), order]));
+    const reportsByPosition = reportMap(materialEvents);
     const map = new Map();
     for (const decision of publicState?.pending_decisions || []) {
       if (!['EXIT', 'REDUCE', 'REPLACE', 'ADD'].includes(String(decision.action || ''))) continue;
       const order = orderByDecision.get(String(decision.decision_id)) || null;
-      const item = {...decision, order};
+      const reports = reportsByPosition.get(String(decision.instrument)) || [];
+      const item = {...decision, order, reports};
       if (decision.instrument) map.set(String(decision.instrument), item);
     }
     return map;
@@ -82,6 +96,16 @@
       ? `${COPY.waiting}${session ? ` — ${dateText(session)}` : ''}. ${COPY.execution}`
       : String(order?.status || decision?.status || 'PROPOSED');
     return {status, session};
+  }
+
+  function latestMaterialReport(decision) {
+    return (decision?.reports || []).find(report => report.impact === 'NEGATIVE' && ['HIGH', 'CRITICAL'].includes(String(report.severity || '')))
+      || decision?.reports?.[0]
+      || null;
+  }
+
+  function localField(object, base) {
+    return object?.[`${base}_${lang}`] || '';
   }
 
   function applyPortfolioTable(decisions) {
@@ -114,11 +138,16 @@
 
   function decisionBlock(decision) {
     const plan = currentPlan(decision);
+    const report = latestMaterialReport(decision);
+    const event = localField(report, 'summary');
+    const thesis = localField(report, 'thesis_effect');
     const rationale = lang === 'pl' ? decision.rationale_pl : decision.rationale_en;
     return `<section class="brace-current-decision exit-pending" data-brace-decision-id="${esc(decision.decision_id)}">
       <div class="brace-current-decision__head"><span>${esc(COPY.title)}</span><strong>${esc(COPY.modelAction)}</strong></div>
       <dl>
         <div><dt>${esc(COPY.status)}</dt><dd>${esc(plan.status)}</dd></div>
+        ${event ? `<div><dt>${esc(COPY.event)}</dt><dd>${esc(event)}</dd></div>` : ''}
+        ${thesis ? `<div><dt>${esc(COPY.thesis)}</dt><dd>${esc(thesis)}</dd></div>` : ''}
         <div><dt>${esc(COPY.rationale)}</dt><dd>${esc(rationale || '')}</dd></div>
       </dl>
       <p>${esc(COPY.paper)}</p>
@@ -165,9 +194,7 @@
           const action = report.querySelector('.model-action');
           if (!action || action.dataset.followUpLabelled === 'true') continue;
           const small = action.querySelector('small');
-          const strong = action.querySelector('b');
           if (small) small.textContent = COPY.reportAction;
-          if (strong && /THESIS|TEZ|TRZYMAJ|HOLD/i.test(strong.textContent)) strong.textContent = COPY.reportReview;
           action.dataset.followUpLabelled = 'true';
           changed = true;
         }
@@ -183,7 +210,7 @@
     if (!exit) return false;
     const symbol = symbolFor(exit.instrument);
     const id = `pending-${exit.decision_id}`;
-    let row = root.querySelector(`[data-current-decision="${CSS.escape(id)}"]`);
+    let row = root.querySelector(`[data-current-decision="${id}"]`);
     if (row) return false;
     row = document.createElement('div');
     row.className = 'decision-row current-exit-decision';
@@ -202,11 +229,12 @@
 
   async function start() {
     try {
-      const [publicState, orders] = await Promise.all([
+      const [publicState, orders, materialEvents] = await Promise.all([
         json('/data/portfolio10k/public/brace_engine_public.json'),
         json('/data/portfolio10k/paper_orders.json'),
+        json('/data/investments/portfolio_10k_verified_material_events.json').catch(() => ({reports: []})),
       ]);
-      const decisions = decisionMap(publicState, orders);
+      const decisions = decisionMap(publicState, orders, materialEvents);
       if (!decisions.size) return;
       let attempts = 0;
       const render = () => {
