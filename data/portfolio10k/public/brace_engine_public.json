@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-02T21:15:30+00:00",
+  "generated_at": "2026-08-02T21:18:28+00:00",
   "methodology_version": "3.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -367,16 +367,16 @@
   ],
   "pending_decisions": [
     {
-      "decision_id": "allocation-3ef19715486b63ae",
-      "generated_at": "2026-08-02T21:11:02+00:00",
-      "action": "REDUCE",
+      "decision_id": "allocation-d3770919fb8b18cf",
+      "generated_at": "2026-08-02T21:18:28+00:00",
+      "action": "EXIT",
       "instrument": "novo",
       "replacement_instrument": null,
       "expected_benefit": 0.0,
       "expected_risk": null,
       "confidence": 1.0,
-      "rationale_pl": "Rekomendacja REDUCE wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka. BRACE uwzględnił 2 zweryfikowanych raportów, w tym 2 negatywnych; bieżąca rekomendacja to REDUCE.",
-      "rationale_en": "The REDUCE recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits. BRACE incorporated 2 verified reports, including 2 negative; the current recommendation is REDUCE.",
+      "rationale_pl": "Rekomendacja EXIT wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka. BRACE uwzględnił 2 zweryfikowanych raportów, w tym 2 negatywnych; bieżąca rekomendacja to EXIT. Pozycja jest już poniżej minimalnej wagi umożliwiającej sensowną redukcję, dlatego decyzja paper oznacza pełne wyjście.",
+      "rationale_en": "The EXIT recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits. BRACE incorporated 2 verified reports, including 2 negative; the current recommendation is EXIT. The position is already below the minimum weight for a meaningful reduction, so the paper decision is a full exit.",
       "status": "PROPOSED"
     }
   ],
@@ -402,7 +402,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "1824e4005d4070ba6320cbbbc9bc798283c60fa3d0b86f21f6b8364cb8a5b75a",
+  "content_sha256": "91a0ea6b433a044d7b603e36485b9fbae461ffceb2365646d916163e953b6393",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,
@@ -420,7 +420,7 @@
       "instrument": "amzn",
       "broker_symbol": "AMZN.US",
       "action": "HOLD",
-      "final_score": 56.64,
+      "final_score": 57.64,
       "confidence": 1.0,
       "current_weight": 0.162146,
       "proposed_weight": 0.162146,
@@ -505,30 +505,32 @@
     {
       "instrument": "novo",
       "broker_symbol": "NOVOB.DK",
-      "action": "REDUCE",
-      "final_score": 35.94,
+      "action": "EXIT",
+      "final_score": 21.94,
       "confidence": 1.0,
       "current_weight": 0.046182,
-      "proposed_weight": 0.046182,
+      "proposed_weight": 0.0,
       "positive_factors": [
         "diversification_score",
         "quality_score",
         "valuation_score"
       ],
       "negative_factors": [
+        "below_minimum_viable_weight_for_reduction",
         "confirmed_material_report",
         "material_thesis_review",
         "momentum_score",
         "risk_score"
       ],
-      "rationale_pl": "Rekomendacja REDUCE wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka. BRACE uwzględnił 2 zweryfikowanych raportów, w tym 2 negatywnych; bieżąca rekomendacja to REDUCE.",
-      "rationale_en": "The REDUCE recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits. BRACE incorporated 2 verified reports, including 2 negative; the current recommendation is REDUCE.",
+      "rationale_pl": "Rekomendacja EXIT wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka. BRACE uwzględnił 2 zweryfikowanych raportów, w tym 2 negatywnych; bieżąca rekomendacja to EXIT. Pozycja jest już poniżej minimalnej wagi umożliwiającej sensowną redukcję, dlatego decyzja paper oznacza pełne wyjście.",
+      "rationale_en": "The EXIT recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits. BRACE incorporated 2 verified reports, including 2 negative; the current recommendation is EXIT. The position is already below the minimum weight for a meaningful reduction, so the paper decision is a full exit.",
       "conditions_for_change": [
         "material thesis change",
         "risk-limit breach",
         "persistent score change",
         "new candidate advantage after costs",
-        "confirmed material report"
+        "confirmed material report",
+        "exit when a material thesis review affects a sub-minimum position"
       ],
       "material_event_context": {
         "report_count": 2,
