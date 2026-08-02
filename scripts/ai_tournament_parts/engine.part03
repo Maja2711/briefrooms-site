@@ -1,0 +1,170 @@
+        },
+    }
+
+
+def build_agent_prompt(
+    snapshot: dict[str, Any], state: dict[str, Any], config: dict[str, Any]
+) -> tuple[str, str]:
+    rules = config["rules"]
+    current = current_weights(state, snapshot["close_prices"], snapshot["fx_close"])
+    system = (
+        "You are one participant in a public, auditable paper-portfolio tournament. "
+        "Use only the supplied frozen market snapshot. Do not use outside knowledge, current news, "
+        "or other agents' results. Return strict JSON only. Your output is a target allocation, not personal advice."
+    )
+    user = {
+        "session_date": snapshot["session_date"],
+        "base_currency": "PLN",
+        "portfolio": {
+            "cash_pln": round(float(state["cash_pln"]), 2),
+            "positions": current,
+        },
+        "rules": {
+            "long_only": True,
+            "fractional_shares": True,
+            "max_positions": rules["max_positions"],
+            "max_position_weight": rules["max_position_weight"],
+            "minimum_cash_weight": rules["min_cash_weight"],
+            "maximum_daily_turnover": rules["max_daily_turnover"],
+            "orders_execute": "next US session open",
+        },
+        "benchmark": snapshot["benchmark"],
+        "universe": snapshot["instruments"],
+        "task": (
+            "Choose target portfolio weights for the next session. HOLD is represented by returning weights close "
+            "to the current portfolio. Prefer 2-6 liquid positions and keep explicit cash. Explain the causal market "
+            "logic briefly. Do not provide chain-of-thought; provide only a concise rationale."
+        ),
+        "required_json": {
+            "target_weights": {"MSFT": 0.25, "SPY": 0.25},
+            "rationale": "Concise evidence-based reason.",
+            "confidence": 65,
+        },
+    }
+    return system, json.dumps(user, ensure_ascii=False, separators=(",", ":"))
+
+
+def _request_with_retry(fn: Callable[[], dict[str, Any]], attempts: int = 2) -> dict[str, Any]:
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if attempt + 1 < attempts:
+                time.sleep(2 ** attempt)
+    raise TournamentError(str(last) if last else "provider request failed")
+
+
+def call_openai(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]:
+    key = os.getenv(str(agent.get("secret_env", "OPENAI_API_KEY")))
+    if not key:
+        raise TournamentError("missing OPENAI_API_KEY")
+    model = resolve_model(agent)
+
+    def invoke() -> dict[str, Any]:
+        response = requests.post(
+            "https://api.openai.com/v1/responses",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "store": False,
+                "instructions": system,
+                "input": user,
+                "text": {"format": {"type": "json_object"}},
+            },
+            timeout=90,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        text = payload.get("output_text")
+        if not text:
+            chunks = []
+            for item in payload.get("output", []):
+                for content in item.get("content", []):
+                    if content.get("type") in {"output_text", "text"}:
+                        chunks.append(content.get("text", ""))
+            text = "".join(chunks)
+        return parse_json_text(text)
+
+    return _request_with_retry(invoke)
+
+
+def call_anthropic(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]:
+    key = os.getenv(str(agent.get("secret_env", "ANTHROPIC_API_KEY")))
+    if not key:
+        raise TournamentError("missing ANTHROPIC_API_KEY")
+    model = resolve_model(agent)
+
+    def invoke() -> dict[str, Any]:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": model,
+                "max_tokens": 1200,
+                "temperature": 0.2,
+                "system": system + " The response must be one JSON object matching the required shape.",
+                "messages": [{"role": "user", "content": user}],
+            },
+            timeout=90,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        text = "".join(part.get("text", "") for part in payload.get("content", []) if part.get("type") == "text")
+        return parse_json_text(text)
+
+    return _request_with_retry(invoke)
+
+
+def call_gemini(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]:
+    key = os.getenv(str(agent.get("secret_env", "GEMINI_API_KEY")))
+    if not key:
+        raise TournamentError("missing GEMINI_API_KEY")
+    model = resolve_model(agent)
+
+    def invoke() -> dict[str, Any]:
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+            json={
+                "system_instruction": {"parts": [{"text": system}]},
+                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "responseMimeType": "application/json"
+                },
+            },
+            timeout=90,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        parts = payload.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        return parse_json_text("".join(part.get("text", "") for part in parts))
+
+    return _request_with_retry(invoke)
+
+
+def call_deepseek(agent: dict[str, Any], system: str, user: str) -> dict[str, Any]:
+    key = os.getenv(str(agent.get("secret_env", "DEEPSEEK_API_KEY")))
+    if not key:
+        raise TournamentError("missing DEEPSEEK_API_KEY")
+    model = resolve_model(agent)
+
+    def invoke() -> dict[str, Any]:
+        response = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system + " Return JSON."},
+                    {"role": "user", "content": user},
+                ],
+                "response_format": {"type": "json_object"},
+                "thinking": {"type": "disabled"},
+                "temperature": 0.2,
