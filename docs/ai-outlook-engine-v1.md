@@ -38,6 +38,8 @@ Od wyniku odejmowane są kary za wysokie ryzyko spekulacji i podobieństwo do os
 
 Zdrowie i nauka wymagają dodatkowo źródła autorytatywnego albo co najmniej dwóch niezależnych źródeł. Każdy kandydat musi zawierać obserwowalne kryterium rozstrzygnięcia w określonym czasie.
 
+Jeśli żaden obszar nie przejdzie swojego standardowego progu, wersja v1 dopuszcza globalny tryb awaryjny wyłącznie dla kandydata z wynikiem co najmniej 64/100 i zaliczoną bramką bezpieczeństwa. Ten mechanizm będzie oceniany po zgromadzeniu pierwszych danych produkcyjnych.
+
 ## Prawdopodobieństwo
 
 Wersja v1 wylicza konserwatywną ocenę prawdopodobieństwa z wyniku jakości. Nie jest to jeszcze prawdopodobieństwo skalibrowane historycznie. Plik publikacji oznacza metodę jako `heuristic_v1_not_historically_calibrated`.
@@ -46,4 +48,4 @@ Kalibracja historyczna i Brier Score wymagają zgromadzenia odpowiednio dużego 
 
 ## Bezpieczne zachowanie
 
-Jeśli generacja się nie powiedzie albo nie powstanie kandydat spełniający wymagania, strona zachowuje ostatnią poprawną prognozę. Drugi audyt dzienny ponawia próbę 2,5 godziny po podstawowym przebiegu.
+Jeśli generacja się nie powiedzie albo żaden kandydat nie przejdzie nawet trybu awaryjnego, strona zachowuje ostatnią poprawną prognozę. Drugi audyt dzienny ponawia próbę 2,5 godziny po podstawowym przebiegu.
