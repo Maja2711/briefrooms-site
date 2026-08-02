@@ -65,6 +65,8 @@ jobs:
           grep -q 'portfolio-10k-accessibility.css?v=1' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-explainers.js?v=1' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-explainers.js?v=1' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-verified-material-loader.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-verified-material-loader.js?v=1' en/investing/portfolio-10k.html
       - name: Validate accounting and JavaScript
         run: |
           python scripts/validate_portfolio_10k_state.py
@@ -75,6 +77,7 @@ jobs:
           node --check scripts/portfolio-10k-capital-summary.js
           node --check scripts/portfolio-10k-explainers.js
           node --check scripts/portfolio-10k-control-public.js
+          node --check scripts/portfolio-10k-verified-material-loader.js
       - name: Commit hourly valuation, UI and paper state
         run: |
           git config user.name "github-actions[bot]"
