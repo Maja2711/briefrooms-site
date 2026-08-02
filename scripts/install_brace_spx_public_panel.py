@@ -8,17 +8,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TAB_MARKER = 'data-brace-spx-tabs="true"'
 GEN3_MARKER = 'data-brace-spx-generation3'
-GEN3_SCRIPT = '<script src="/scripts/brace-spx-generation3-card.js?v=20260802-1" defer></script>'
+GEN3_SCRIPT = '<script src="/scripts/brace-spx-generation3-card.js?v=20260802-2" defer></script>'
 OLD_SCRIPT_PREFIX = '<script src="/scripts/brace-spx-generation3-card.js?v='
+GREEN_TAB_STYLE = (
+    "display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;"
+    "border:1px solid #166534!important;border-radius:999px;"
+    "background:#15803d!important;color:#fff!important;font-weight:800;"
+    "text-decoration:none;box-shadow:0 7px 18px rgba(21,128,61,.24)!important"
+)
 
-PL_TAB = '''  <nav data-brace-spx-tabs="true" role="tablist" aria-label="Zakładki Scenariuszy S&P 500" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 18px">
+PL_TAB = f'''  <nav data-brace-spx-tabs="true" role="tablist" aria-label="Zakładki Scenariuszy S&P 500" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 18px">
     <a role="tab" aria-selected="true" aria-current="page" href="/pl/inwestycje/spx-scenariusze-2026.html" style="display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;border-radius:999px;background:#111827;color:#fff;font-weight:800;text-decoration:none">Scenariusze S&amp;P</a>
-    <a role="tab" aria-selected="false" href="/pl/inwestycje/brace-spx-lab.html" style="display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;border:1px solid rgba(15,23,42,.12);border-radius:999px;background:#fff;color:#1e3a8a;font-weight:800;text-decoration:none;box-shadow:0 7px 18px rgba(15,23,42,.06)">BRACE-SPX Lab</a>
+    <a role="tab" aria-selected="false" class="brace-spx-lab-tab" href="/pl/inwestycje/brace-spx-lab.html" style="{GREEN_TAB_STYLE}">BRACE-SPX Lab</a>
   </nav>'''
 
-EN_TAB = '''  <nav data-brace-spx-tabs="true" role="tablist" aria-label="S&P 500 Scenario tabs" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 18px">
+EN_TAB = f'''  <nav data-brace-spx-tabs="true" role="tablist" aria-label="S&P 500 Scenario tabs" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 18px">
     <a role="tab" aria-selected="true" aria-current="page" href="/en/investing/spx-scenarios-2026.html" style="display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;border-radius:999px;background:#111827;color:#fff;font-weight:800;text-decoration:none">S&amp;P Scenarios</a>
-    <a role="tab" aria-selected="false" href="/en/investing/brace-spx-lab.html" style="display:inline-flex;align-items:center;min-height:42px;padding:9px 15px;border:1px solid rgba(15,23,42,.12);border-radius:999px;background:#fff;color:#1e3a8a;font-weight:800;text-decoration:none;box-shadow:0 7px 18px rgba(15,23,42,.06)">BRACE-SPX Lab</a>
+    <a role="tab" aria-selected="false" class="brace-spx-lab-tab" href="/en/investing/brace-spx-lab.html" style="{GREEN_TAB_STYLE}">BRACE-SPX Lab</a>
   </nav>'''
 
 PL_GEN3 = '''  <details class="card brace-overview" data-brace-spx-generation3 aria-labelledby="brace-spx-gen3-heading">
@@ -81,15 +87,24 @@ def _replace_script(source: str) -> tuple[str, bool]:
     return (source, False) if current == GEN3_SCRIPT else (source[:start] + GEN3_SCRIPT + source[end:], True)
 
 
-def install_page(path: Path, tab: str, generation_block: str) -> bool:
-    source = path.read_text(encoding="utf-8")
-    changed = False
+def _normalize_tab(source: str, tab: str) -> tuple[str, bool]:
     if TAB_MARKER not in source:
         anchor = "<main>\n"
         if anchor not in source:
-            raise RuntimeError(f"Cannot find <main> insertion point in {path}")
-        source = source.replace(anchor, anchor + tab + "\n", 1)
-        changed = True
+            raise RuntimeError("Cannot find <main> insertion point")
+        return source.replace(anchor, anchor + tab + "\n", 1), True
+    marker_index = source.index(TAB_MARKER)
+    nav_start = source.rfind("<nav", 0, marker_index)
+    nav_end = source.index("</nav>", marker_index) + len("</nav>")
+    current = source[nav_start:nav_end]
+    if current == tab:
+        return source, False
+    return source[:nav_start] + tab + source[nav_end:], True
+
+
+def install_page(path: Path, tab: str, generation_block: str) -> bool:
+    source = path.read_text(encoding="utf-8")
+    source, changed = _normalize_tab(source, tab)
     if GEN3_MARKER not in source:
         marker_index = source.index(TAB_MARKER)
         nav_end = source.index("</nav>", marker_index) + len("</nav>")
@@ -120,12 +135,14 @@ def install_sitemap() -> bool:
 
 
 def validate() -> None:
-    for path, _tab, _block, href in TARGETS:
+    for path, tab, _block, href in TARGETS:
         source = path.read_text(encoding="utf-8")
         if source.count(TAB_MARKER) != 1 or source.count(GEN3_MARKER) != 1:
             raise RuntimeError(f"Incomplete BRACE-SPX integration in {path}")
-        if href not in source or GEN3_SCRIPT not in source:
+        if href not in source or GEN3_SCRIPT not in source or tab not in source:
             raise RuntimeError(f"Incomplete BRACE-SPX integration in {path}")
+        if "background:#15803d!important" not in source or "color:#fff!important" not in source:
+            raise RuntimeError(f"Green BRACE-SPX tab is not enforced in {path}")
 
 
 def main() -> None:
