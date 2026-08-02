@@ -5,61 +5,59 @@
   "title_en": "AI Tournament — 10K Investing",
   "start_date": "2026-08-03",
   "end_date": "2026-11-03",
-  "base_currency": "PLN",
+  "base_currency": "MULTI",
   "starting_capital_pln": 10000.0,
+  "starting_capital_usd": 10000.0,
   "benchmark_ticker": "SPY",
   "fx_ticker": "USDPLN=X",
-  "universe_version": "us-liquid-30-v1",
+  "universe_version": "briefrooms-ai-55-v1",
   "universe": [
     "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "AVGO", "TSLA",
     "JPM", "V", "MA", "XOM", "LLY", "UNH", "COST", "WMT", "HD", "PG",
-    "KO", "PEP", "NFLX", "AMD", "ORCL", "CRM", "QCOM", "SPY", "QQQ",
-    "IWM", "GLD", "TLT"
+    "KO", "PEP", "NFLX", "AMD", "ORCL", "CRM", "QCOM", "TSM", "ASML",
+    "ARM", "INTC", "MU", "AMAT", "LRCX", "KLAC", "MRVL", "ANET", "DELL",
+    "SMCI", "IBM", "ADBE", "NOW", "PLTR", "SNOW", "PANW", "CRWD", "DDOG",
+    "NET", "MDB", "SHOP", "UBER", "INTU", "PATH", "AI", "SOUN", "SAP", "APP"
   ],
   "rules": {
     "long_only": true,
+    "buy_and_hold": true,
     "fractional_shares": true,
     "max_positions": 6,
+    "min_position_weight": 0.05,
     "max_position_weight": 0.30,
-    "min_cash_weight": 0.02,
-    "max_daily_turnover": 0.50,
+    "min_cash_weight": 0.0,
+    "max_cash_weight": 0.20,
+    "max_daily_turnover": 1.0,
     "transaction_cost_pct": 0.001,
     "slippage_pct": 0.0005,
-    "min_trade_pln": 50.0
+    "min_trade_pln": 0.0
   },
   "agents": [
     {
       "id": "BRACE",
       "provider": "brace",
-      "default_model": "BRACE-v1"
+      "default_model": "BRACE Buy-and-Hold v1"
     },
     {
-      "id": "OpenAI",
-      "provider": "openai",
-      "secret_env": "OPENAI_API_KEY",
-      "model_env": "OPENAI_TOURNAMENT_MODEL",
-      "default_model": "gpt-5-mini"
+      "id": "GPT-5.6 Thinking",
+      "provider": "manual_chat",
+      "default_model": "GPT-5.6 Thinking"
     },
     {
       "id": "Claude",
-      "provider": "anthropic",
-      "secret_env": "ANTHROPIC_API_KEY",
-      "model_env": "ANTHROPIC_TOURNAMENT_MODEL",
-      "default_model": "claude-sonnet-4-20250514"
+      "provider": "manual_chat",
+      "default_model": "Claude"
     },
     {
       "id": "Gemini",
-      "provider": "gemini",
-      "secret_env": "GEMINI_API_KEY",
-      "model_env": "GEMINI_TOURNAMENT_MODEL",
-      "default_model": "gemini-3.5-flash"
+      "provider": "manual_chat",
+      "default_model": "Gemini"
     },
     {
       "id": "DeepSeek",
-      "provider": "deepseek",
-      "secret_env": "DEEPSEEK_API_KEY",
-      "model_env": "DEEPSEEK_TOURNAMENT_MODEL",
-      "default_model": "deepseek-v4-flash"
+      "provider": "manual_chat",
+      "default_model": "DeepSeek"
     }
   ],
   "data_dir": "data/ai_tournament"
