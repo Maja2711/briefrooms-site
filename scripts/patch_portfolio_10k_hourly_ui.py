@@ -7,8 +7,8 @@ CLARITY = '<link rel="stylesheet" href="/assets/portfolio-10k-clarity.css?v=2">'
 ACCESSIBILITY = '<link rel="stylesheet" href="/assets/portfolio-10k-accessibility.css?v=2">'
 ANALYTICS_JS = '<script src="/scripts/portfolio-10k-analytics-enhanced.js?v=2" defer></script>'
 CAPITAL_JS = '<script src="/scripts/portfolio-10k-capital-summary.js?v=1" defer></script>'
-EXPLAINERS_JS = '<script src="/scripts/portfolio-10k-explainers.js?v=1" defer></script>'
-VERIFIED_REPORTS_JS = '<script src="/scripts/portfolio-10k-verified-material-loader.js?v=1" defer></script>'
+EXPLAINERS_JS = '<script src="/scripts/portfolio-10k-explainers.js?v=2" defer></script>'
+VERIFIED_REPORTS_JS = '<script src="/scripts/portfolio-10k-verified-material-loader.js?v=2" defer></script>'
 
 
 def ensure_asset(text: str, marker: str, html: str, where: str) -> str:
@@ -26,7 +26,9 @@ for path in PAGES:
     text = ensure_asset(text, "/scripts/portfolio-10k-analytics-enhanced.js", ANALYTICS_JS, "</body>")
     text = ensure_asset(text, "/scripts/portfolio-10k-capital-summary.js", CAPITAL_JS, "</body>")
     text = ensure_asset(text, "/scripts/portfolio-10k-explainers.js", EXPLAINERS_JS, "</body>")
+    text = re.sub(r'/scripts/portfolio-10k-explainers\.js\?v=\d+', '/scripts/portfolio-10k-explainers.js?v=2', text)
     text = ensure_asset(text, "/scripts/portfolio-10k-verified-material-loader.js", VERIFIED_REPORTS_JS, "</body>")
+    text = re.sub(r'/scripts/portfolio-10k-verified-material-loader\.js\?v=\d+', '/scripts/portfolio-10k-verified-material-loader.js?v=2', text)
     text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=3', text)
     text = text.replace('/scripts/portfolio-10k-dashboard.js?v=4', '/scripts/portfolio-10k-dashboard.js?v=5')
     text = text.replace('/scripts/portfolio-10k-dashboard-en.js?v=4', '/scripts/portfolio-10k-dashboard-en.js?v=5')
