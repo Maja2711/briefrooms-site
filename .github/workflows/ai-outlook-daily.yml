@@ -14,12 +14,16 @@ on:
       - "scripts/update_ai_outlook.py"
       - "scripts/update_ai_outlook_v2.py"
       - "scripts/ai_outlook_engine.py"
+      - "scripts/ai_outlook_metrics.py"
+      - "scripts/ai-outlook-governance-guard.js"
       - "scripts/homepage-photo-only.js"
       - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_ai_outlook.py"
       - "tests/test_ai_outlook_engine.py"
+      - "tests/test_ai_outlook_metrics.py"
       - "tests/test_homepage_photo_only.py"
       - "data/ai_outlook.json"
+      - "data/ai_outlook_metrics.json"
       - ".github/workflows/ai-outlook-daily.yml"
   schedule:
     # Primary publication: 07:35 CEST / 06:35 CET in Warsaw.
@@ -37,7 +41,7 @@ concurrency:
 jobs:
   publish-ai-outlook:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -53,21 +57,29 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Publish compact homepage asset URL
+      - name: Publish governed homepage assets
         run: python scripts/enforce_homepage_photo_only.py
 
-      - name: Validate AI Outlook Engine v1
+      - name: Validate AI Outlook Engine v1.1
         run: |
-          python -m unittest tests.test_ai_outlook tests.test_ai_outlook_engine tests.test_homepage_photo_only -v
+          python -m unittest \
+            tests.test_ai_outlook \
+            tests.test_ai_outlook_engine \
+            tests.test_ai_outlook_metrics \
+            tests.test_homepage_photo_only -v
           python -m py_compile \
             scripts/update_ai_outlook.py \
             scripts/update_ai_outlook_v2.py \
             scripts/ai_outlook_engine.py \
+            scripts/ai_outlook_metrics.py \
             scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
+          node --check scripts/ai-outlook-governance-guard.js
           python scripts/update_ai_outlook_v2.py --validate-only
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-2' en/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
 
       - name: Audit today's AI Outlook
         shell: bash
@@ -90,11 +102,11 @@ jobs:
           else:
               print(
                   f"Audit recovery required: expected {today}, found {published!r}. "
-                  "AI Outlook Engine v1 will now retry."
+                  "AI Outlook Engine v1.1 will now retry."
               )
           PY
 
-      - name: Generate today's ranked AI Outlook or recover a missing edition
+      - name: Generate today's governed AI Outlook or recover a missing edition
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEWS_AI_MODEL: gpt-4o-mini
@@ -108,17 +120,23 @@ jobs:
           python scripts/update_ai_outlook_v2.py $ARGS
           python scripts/update_ai_outlook_v2.py --validate-only
 
-      - name: Commit forecast and homepage asset version
+      - name: Refresh public calibration counters
+        run: |
+          python scripts/ai_outlook_metrics.py
+          python scripts/ai_outlook_metrics.py --validate-only
+
+      - name: Commit forecast, audit and homepage assets
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
-          git add data/ai_outlook.json data/ai_outlook_history 2>/dev/null || true
+          git add data/ai_outlook.json data/ai_outlook_history data/ai_outlook_metrics.json 2>/dev/null || true
+          git add data/internal/ai_outlook_audit 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No AI Outlook changes to commit."
           else
-            git commit -m "Publish ranked AI Outlook"
+            git commit -m "Publish governed AI Outlook"
             git pull --rebase origin main
             git push
           fi
