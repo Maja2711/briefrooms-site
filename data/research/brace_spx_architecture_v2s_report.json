@@ -1,0 +1,1312 @@
+{
+  "schema_version": "2.0.0",
+  "architecture_id": "spx-multisignal-regime-a2s",
+  "generated_at": "2026-08-02T20:22:45+00:00",
+  "status": "development_gate_not_passed_holdout_still_sealed",
+  "research_only": true,
+  "live_activation": false,
+  "candidate_signature": "2c30a862e161b6c609b6a0c2c1aff12943d1920b25fe4c455b2ddb488d4e4c71",
+  "candidate_space_size": 10,
+  "experiments_total": 10,
+  "development": {
+    "start": "2007-04-04",
+    "end": "2022-07-29",
+    "days": 3858,
+    "folds": 6,
+    "frequency": "daily signals; weekly scheduled rebalance; daily shock gate"
+  },
+  "holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "status": "sealed_not_downloaded",
+    "accessed": false,
+    "access_count": 0
+  },
+  "architecture_decisions": {
+    "g5_v2_is_terminal_reference": true,
+    "single_champion_prohibited_when_rank_unstable": true,
+    "single_signal_long_flat_architecture_closed": true,
+    "hmm_core": false,
+    "hmm_reason": "Complexity and state-label instability are not justified before deterministic regimes pass the strict gate.",
+    "revised_macro_core": false,
+    "macro_reason": "Revised macro series are excluded; only point-in-time market-implied rates/liquidity inputs are active.",
+    "options_source": "VIX spot versus VIX3M term structure with fail-closed data-quality gate",
+    "architecture_2_long_flat_preserved_as_frozen_reference": true,
+    "architecture_2s_is_new_candidate_family": true,
+    "position_set": "long_short_flat",
+    "single_asset_gross_exposure_cap": 1.0,
+    "short_borrow_cost_included": true
+  },
+  "prior_trial_count": 634,
+  "global_trial_count": 644,
+  "global_sharpe_cross_section_observations": 644,
+  "global_sharpe_cross_section_std": 0.654549,
+  "global_multiple_testing": {
+    "probability": 0.0,
+    "expected_max_sharpe": 2.184946,
+    "z_score": -86.736432,
+    "global_trials": 644
+  },
+  "raw_best_diagnostic_only": {
+    "candidate_id": "ed83130e938b5117",
+    "candidate": {
+      "name": "rates-macro-market-lsf",
+      "signal_sources": [
+        "rates"
+      ],
+      "allocation": "graded",
+      "regime_policy": "rates",
+      "weekly_rebalance": true,
+      "daily_shock_gate": true,
+      "max_exposure": 1.0,
+      "mandate": "long_short_flat"
+    },
+    "metrics": {
+      "total_return": 0.883469,
+      "cagr": 0.042221,
+      "annualized_volatility": 0.105707,
+      "sharpe_excess": 0.377187,
+      "max_drawdown": -0.247741,
+      "calmar": 0.170426,
+      "annualized_turnover": 10.222395,
+      "average_exposure": 0.09098,
+      "days": 3858
+    },
+    "fold_metrics": [
+      {
+        "total_return": -0.034904,
+        "cagr": -0.034904,
+        "annualized_volatility": 0.056147,
+        "sharpe_excess": -0.674946,
+        "max_drawdown": -0.083495,
+        "calmar": -0.418039,
+        "annualized_turnover": 10.25,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 1
+      },
+      {
+        "total_return": 0.042199,
+        "cagr": 0.042199,
+        "annualized_volatility": 0.041272,
+        "sharpe_excess": 0.735468,
+        "max_drawdown": -0.026683,
+        "calmar": 1.581468,
+        "annualized_turnover": 8.0,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 2
+      },
+      {
+        "total_return": 0.123353,
+        "cagr": 0.123353,
+        "annualized_volatility": 0.059612,
+        "sharpe_excess": 1.624869,
+        "max_drawdown": -0.034049,
+        "calmar": 3.622793,
+        "annualized_turnover": 8.5,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 3
+      },
+      {
+        "total_return": 0.046215,
+        "cagr": 0.046215,
+        "annualized_volatility": 0.14921,
+        "sharpe_excess": 0.268802,
+        "max_drawdown": -0.118437,
+        "calmar": 0.390206,
+        "annualized_turnover": 10.25,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 4
+      },
+      {
+        "total_return": 0.044015,
+        "cagr": 0.044015,
+        "annualized_volatility": 0.088964,
+        "sharpe_excess": 0.519304,
+        "max_drawdown": -0.092784,
+        "calmar": 0.474375,
+        "annualized_turnover": 10.25,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 5
+      },
+      {
+        "total_return": 0.025663,
+        "cagr": 0.025663,
+        "annualized_volatility": 0.066852,
+        "sharpe_excess": 0.394632,
+        "max_drawdown": -0.061339,
+        "calmar": 0.418383,
+        "annualized_turnover": 8.0,
+        "average_exposure": 0.0,
+        "days": 252,
+        "fold_number": 6
+      }
+    ],
+    "positive_folds": 5,
+    "fold_sharpe_std": 0.743411
+  },
+  "selected_candidate_id": null,
+  "single_champion_authorized": false,
+  "selection_policy": {
+    "no_champion_if_rank_near_random": true,
+    "shadow_all_candidates_in_parallel": true,
+    "human_approval_required_before_any_holdout_or_live_use": true
+  },
+  "baselines": {
+    "buy_and_hold": {
+      "total_return": 2.865358,
+      "cagr": 0.092332,
+      "annualized_volatility": 0.204816,
+      "sharpe_excess": 0.499228,
+      "max_drawdown": -0.551894,
+      "calmar": 0.1673,
+      "annualized_turnover": 0.065319,
+      "average_exposure": 0.0,
+      "days": 3858
+    },
+    "trend_200d_weekly": {
+      "total_return": 1.938526,
+      "cagr": 0.072946,
+      "annualized_volatility": 0.117258,
+      "sharpe_excess": 0.598943,
+      "max_drawdown": -0.206286,
+      "calmar": 0.353613,
+      "annualized_turnover": 3.265941,
+      "average_exposure": 0.0,
+      "days": 3858
+    }
+  },
+  "pbo": {
+    "available": true,
+    "probability": 0.2,
+    "splits": 35,
+    "median_logit": 2.302585,
+    "interpretation": "lower_is_better"
+  },
+  "signal_diversity": {
+    "available": true,
+    "mean_absolute_pairwise_correlation": 0.659936,
+    "median_absolute_pairwise_correlation": 0.79433,
+    "maximum_absolute_pairwise_correlation": 0.948791,
+    "effective_independent_series": 2.475349,
+    "cluster_threshold": 0.7,
+    "cluster_count": 2,
+    "largest_cluster_size": 9,
+    "largest_cluster_share": 0.9
+  },
+  "return_diversity": {
+    "available": true,
+    "mean_absolute_pairwise_correlation": 0.813197,
+    "median_absolute_pairwise_correlation": 0.878044,
+    "maximum_absolute_pairwise_correlation": 0.955203,
+    "effective_independent_series": 2.004663,
+    "cluster_threshold": 0.8,
+    "cluster_count": 2,
+    "largest_cluster_size": 9,
+    "largest_cluster_share": 0.9
+  },
+  "exposure_diversity": {
+    "available": true,
+    "mean_absolute_pairwise_correlation": 0.638899,
+    "median_absolute_pairwise_correlation": 0.769731,
+    "maximum_absolute_pairwise_correlation": 0.905003,
+    "effective_independent_series": 2.854626,
+    "cluster_threshold": 0.8,
+    "cluster_count": 3,
+    "largest_cluster_size": 8,
+    "largest_cluster_share": 0.8
+  },
+  "rank_stability": {
+    "median_pairwise_fold_rank_correlation": 0.369697,
+    "mean_pairwise_fold_rank_correlation": 0.271919,
+    "unique_fold_winners": 4,
+    "fold_winner_ids": [
+      "cf5f788a8a3d0ef9",
+      "54e7cde781e9c77b",
+      "ed83130e938b5117",
+      "140b34ecbffb8394",
+      "cf5f788a8a3d0ef9",
+      "ed83130e938b5117"
+    ]
+  },
+  "bootstrap_raw_best_vs_buy_hold": {
+    "available": true,
+    "draws": 1000,
+    "block_days": 20,
+    "probability_cagr_advantage_positive": 0.195,
+    "probability_sharpe_advantage_positive": 0.39,
+    "cagr_advantage_p05": -0.14477,
+    "cagr_advantage_median": -0.049395,
+    "cagr_advantage_p95": 0.046996,
+    "sharpe_advantage_p05": -0.633119,
+    "sharpe_advantage_median": -0.086019,
+    "sharpe_advantage_p95": 0.450525
+  },
+  "drawdown_improvement_vs_buy_hold": 0.551108,
+  "checks": {
+    "candidate_space_complete": true,
+    "sealed_holdout_not_downloaded": true,
+    "signal_median_correlation_at_most_0_70": false,
+    "signal_effective_rank_at_least_3": false,
+    "pbo_at_most_0_20": true,
+    "global_dsr_at_least_0_95": false,
+    "five_of_six_positive_folds": true,
+    "median_fold_rank_correlation_at_least_0_30": true,
+    "unique_fold_winners_at_most_3": false,
+    "bootstrap_cagr_advantage_probability_at_least_0_95": false,
+    "bootstrap_sharpe_advantage_probability_at_least_0.95": false,
+    "drawdown_improvement_at_least_20pct": true
+  },
+  "strict_gate_passed": false,
+  "experiments": [
+    {
+      "candidate_id": "cf5f788a8a3d0ef9",
+      "candidate": {
+        "name": "trend-weekly-lsf",
+        "signal_sources": [
+          "trend"
+        ],
+        "allocation": "graded",
+        "regime_policy": "trend",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.141371,
+        "cagr": 0.008675,
+        "annualized_volatility": 0.151948,
+        "sharpe_excess": 0.086863,
+        "max_drawdown": -0.328632,
+        "calmar": 0.026396,
+        "annualized_turnover": 9.177294,
+        "average_exposure": 0.427035,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.047385,
+          "cagr": 0.047385,
+          "annualized_volatility": 0.055197,
+          "sharpe_excess": 0.794805,
+          "max_drawdown": -0.031147,
+          "calmar": 1.521314,
+          "annualized_turnover": 7.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.05498,
+          "cagr": 0.05498,
+          "annualized_volatility": 0.077854,
+          "sharpe_excess": 0.574482,
+          "max_drawdown": -0.110811,
+          "calmar": 0.496161,
+          "annualized_turnover": 6.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.004694,
+          "cagr": 0.004694,
+          "annualized_volatility": 0.092963,
+          "sharpe_excess": -0.131678,
+          "max_drawdown": -0.094242,
+          "calmar": 0.049807,
+          "annualized_turnover": 9.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": -0.004432,
+          "cagr": -0.004432,
+          "annualized_volatility": 0.239339,
+          "sharpe_excess": 0.033184,
+          "max_drawdown": -0.233209,
+          "calmar": -0.019006,
+          "annualized_turnover": 8.75,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.154329,
+          "cagr": 0.154329,
+          "annualized_volatility": 0.141206,
+          "sharpe_excess": 1.081942,
+          "max_drawdown": -0.081527,
+          "calmar": 1.892984,
+          "annualized_turnover": 11.0,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.02233,
+          "cagr": -0.02233,
+          "annualized_volatility": 0.09722,
+          "sharpe_excess": -0.1959,
+          "max_drawdown": -0.121021,
+          "calmar": -0.184514,
+          "annualized_turnover": 10.0,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 4,
+      "fold_sharpe_std": 0.531759
+    },
+    {
+      "candidate_id": "005f805618737634",
+      "candidate": {
+        "name": "breadth-weekly-lsf",
+        "signal_sources": [
+          "breadth"
+        ],
+        "allocation": "graded",
+        "regime_policy": "breadth",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": -0.021485,
+        "cagr": -0.001418,
+        "annualized_volatility": 0.137827,
+        "sharpe_excess": 0.007825,
+        "max_drawdown": -0.319326,
+        "calmar": -0.004439,
+        "annualized_turnover": 8.573095,
+        "average_exposure": 0.15092,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.008991,
+          "cagr": 0.008991,
+          "annualized_volatility": 0.042417,
+          "sharpe_excess": 0.139035,
+          "max_drawdown": -0.031166,
+          "calmar": 0.2885,
+          "annualized_turnover": 7.5,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.052026,
+          "cagr": 0.052026,
+          "annualized_volatility": 0.046941,
+          "sharpe_excess": 0.851888,
+          "max_drawdown": -0.038542,
+          "calmar": 1.349869,
+          "annualized_turnover": 7.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.032876,
+          "cagr": 0.032876,
+          "annualized_volatility": 0.086813,
+          "sharpe_excess": 0.171282,
+          "max_drawdown": -0.100896,
+          "calmar": 0.325844,
+          "annualized_turnover": 8.5,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": -0.003873,
+          "cagr": -0.003873,
+          "annualized_volatility": 0.244651,
+          "sharpe_excess": 0.040004,
+          "max_drawdown": -0.233209,
+          "calmar": -0.016608,
+          "annualized_turnover": 12.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.013773,
+          "cagr": 0.013773,
+          "annualized_volatility": 0.102196,
+          "sharpe_excess": 0.176931,
+          "max_drawdown": -0.102546,
+          "calmar": 0.134316,
+          "annualized_turnover": 10.75,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.043579,
+          "cagr": -0.043579,
+          "annualized_volatility": 0.064582,
+          "sharpe_excess": -0.675889,
+          "max_drawdown": -0.097639,
+          "calmar": -0.446326,
+          "annualized_turnover": 9.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 5,
+      "fold_sharpe_std": 0.486145
+    },
+    {
+      "candidate_id": "c3fa921964827144",
+      "candidate": {
+        "name": "liquidity-shock-lsf",
+        "signal_sources": [
+          "liquidity"
+        ],
+        "allocation": "defensive",
+        "regime_policy": "liquidity",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.093461,
+        "cagr": 0.005853,
+        "annualized_volatility": 0.070806,
+        "sharpe_excess": 0.017991,
+        "max_drawdown": -0.159818,
+        "calmar": 0.036624,
+        "annualized_turnover": 4.310408,
+        "average_exposure": 0.048049,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.002883,
+          "cagr": 0.002883,
+          "annualized_volatility": 0.013723,
+          "sharpe_excess": -0.071401,
+          "max_drawdown": -0.006678,
+          "calmar": 0.43171,
+          "annualized_turnover": 3.357625,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.005932,
+          "cagr": 0.005932,
+          "annualized_volatility": 0.027251,
+          "sharpe_excess": -0.203323,
+          "max_drawdown": -0.022643,
+          "calmar": 0.261966,
+          "annualized_turnover": 3.723284,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": -0.002322,
+          "cagr": -0.002322,
+          "annualized_volatility": 0.029515,
+          "sharpe_excess": -0.784697,
+          "max_drawdown": -0.03123,
+          "calmar": -0.074355,
+          "annualized_turnover": 3.149077,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.012145,
+          "cagr": 0.012145,
+          "annualized_volatility": 0.131643,
+          "sharpe_excess": 0.034378,
+          "max_drawdown": -0.118437,
+          "calmar": 0.102547,
+          "annualized_turnover": 3.022101,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.006527,
+          "cagr": 0.006527,
+          "annualized_volatility": 0.036517,
+          "sharpe_excess": 0.174129,
+          "max_drawdown": -0.038477,
+          "calmar": 0.169641,
+          "annualized_turnover": 5.840034,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.029612,
+          "cagr": -0.029612,
+          "annualized_volatility": 0.010719,
+          "sharpe_excess": -2.909354,
+          "max_drawdown": -0.031293,
+          "calmar": -0.946276,
+          "annualized_turnover": 2.459999,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 2,
+      "fold_sharpe_std": 1.166313
+    },
+    {
+      "candidate_id": "140b34ecbffb8394",
+      "candidate": {
+        "name": "options-term-lsf",
+        "signal_sources": [
+          "options"
+        ],
+        "allocation": "graded",
+        "regime_policy": "options",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.115737,
+        "cagr": 0.007179,
+        "annualized_volatility": 0.119916,
+        "sharpe_excess": 0.060909,
+        "max_drawdown": -0.202573,
+        "calmar": 0.035439,
+        "annualized_turnover": 13.893844,
+        "average_exposure": 0.219999,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.001799,
+          "cagr": 0.001799,
+          "annualized_volatility": 0.050181,
+          "sharpe_excess": -0.017914,
+          "max_drawdown": -0.054348,
+          "calmar": 0.033096,
+          "annualized_turnover": 12.835272,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": -0.003974,
+          "cagr": -0.003974,
+          "annualized_volatility": 0.067298,
+          "sharpe_excess": -0.20126,
+          "max_drawdown": -0.120221,
+          "calmar": -0.033053,
+          "annualized_turnover": 16.065823,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": -0.006193,
+          "cagr": -0.006193,
+          "annualized_volatility": 0.078262,
+          "sharpe_excess": -0.311878,
+          "max_drawdown": -0.094329,
+          "calmar": -0.065656,
+          "annualized_turnover": 17.668032,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.18737,
+          "cagr": 0.18737,
+          "annualized_volatility": 0.233785,
+          "sharpe_excess": 0.780192,
+          "max_drawdown": -0.104096,
+          "calmar": 1.799981,
+          "annualized_turnover": 12.870802,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": -0.038965,
+          "cagr": -0.038965,
+          "annualized_volatility": 0.058888,
+          "sharpe_excess": -0.659192,
+          "max_drawdown": -0.084125,
+          "calmar": -0.463185,
+          "annualized_turnover": 14.236071,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.037656,
+          "cagr": -0.037656,
+          "annualized_volatility": 0.054617,
+          "sharpe_excess": -0.697091,
+          "max_drawdown": -0.071194,
+          "calmar": -0.528926,
+          "annualized_turnover": 14.889027,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 1,
+      "fold_sharpe_std": 0.54092
+    },
+    {
+      "candidate_id": "ed83130e938b5117",
+      "candidate": {
+        "name": "rates-macro-market-lsf",
+        "signal_sources": [
+          "rates"
+        ],
+        "allocation": "graded",
+        "regime_policy": "rates",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.883469,
+        "cagr": 0.042221,
+        "annualized_volatility": 0.105707,
+        "sharpe_excess": 0.377187,
+        "max_drawdown": -0.247741,
+        "calmar": 0.170426,
+        "annualized_turnover": 10.222395,
+        "average_exposure": 0.09098,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": -0.034904,
+          "cagr": -0.034904,
+          "annualized_volatility": 0.056147,
+          "sharpe_excess": -0.674946,
+          "max_drawdown": -0.083495,
+          "calmar": -0.418039,
+          "annualized_turnover": 10.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.042199,
+          "cagr": 0.042199,
+          "annualized_volatility": 0.041272,
+          "sharpe_excess": 0.735468,
+          "max_drawdown": -0.026683,
+          "calmar": 1.581468,
+          "annualized_turnover": 8.0,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.123353,
+          "cagr": 0.123353,
+          "annualized_volatility": 0.059612,
+          "sharpe_excess": 1.624869,
+          "max_drawdown": -0.034049,
+          "calmar": 3.622793,
+          "annualized_turnover": 8.5,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.046215,
+          "cagr": 0.046215,
+          "annualized_volatility": 0.14921,
+          "sharpe_excess": 0.268802,
+          "max_drawdown": -0.118437,
+          "calmar": 0.390206,
+          "annualized_turnover": 10.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.044015,
+          "cagr": 0.044015,
+          "annualized_volatility": 0.088964,
+          "sharpe_excess": 0.519304,
+          "max_drawdown": -0.092784,
+          "calmar": 0.474375,
+          "annualized_turnover": 10.25,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": 0.025663,
+          "cagr": 0.025663,
+          "annualized_volatility": 0.066852,
+          "sharpe_excess": 0.394632,
+          "max_drawdown": -0.061339,
+          "calmar": 0.418383,
+          "annualized_turnover": 8.0,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 5,
+      "fold_sharpe_std": 0.743411
+    },
+    {
+      "candidate_id": "0eb760ffc64e011d",
+      "candidate": {
+        "name": "regime-trend-liquidity-lsf",
+        "signal_sources": [
+          "trend",
+          "liquidity"
+        ],
+        "allocation": "graded",
+        "regime_policy": "deterministic_regime",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.139601,
+        "cagr": 0.008572,
+        "annualized_volatility": 0.118031,
+        "sharpe_excess": 0.072086,
+        "max_drawdown": -0.229205,
+        "calmar": 0.0374,
+        "annualized_turnover": 7.72395,
+        "average_exposure": 0.28321,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.032012,
+          "cagr": 0.032012,
+          "annualized_volatility": 0.040326,
+          "sharpe_excess": 0.703564,
+          "max_drawdown": -0.026284,
+          "calmar": 1.217946,
+          "annualized_turnover": 6.0,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.056304,
+          "cagr": 0.056304,
+          "annualized_volatility": 0.051642,
+          "sharpe_excess": 0.857233,
+          "max_drawdown": -0.068107,
+          "calmar": 0.826693,
+          "annualized_turnover": 4.775,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.007416,
+          "cagr": 0.007416,
+          "annualized_volatility": 0.052751,
+          "sharpe_excess": -0.236929,
+          "max_drawdown": -0.060267,
+          "calmar": 0.123051,
+          "annualized_turnover": 7.325,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.022354,
+          "cagr": 0.022354,
+          "annualized_volatility": 0.142941,
+          "sharpe_excess": 0.112688,
+          "max_drawdown": -0.121577,
+          "calmar": 0.183867,
+          "annualized_turnover": 6.4,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.067831,
+          "cagr": 0.067831,
+          "annualized_volatility": 0.089785,
+          "sharpe_excess": 0.766893,
+          "max_drawdown": -0.062069,
+          "calmar": 1.092836,
+          "annualized_turnover": 9.05,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.001991,
+          "cagr": -0.001991,
+          "annualized_volatility": 0.055518,
+          "sharpe_excess": -0.029512,
+          "max_drawdown": -0.053739,
+          "calmar": -0.037048,
+          "annualized_turnover": 5.775,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 4,
+      "fold_sharpe_std": 0.469044
+    },
+    {
+      "candidate_id": "54e7cde781e9c77b",
+      "candidate": {
+        "name": "regime-breadth-options-lsf",
+        "signal_sources": [
+          "breadth",
+          "options"
+        ],
+        "allocation": "graded",
+        "regime_policy": "deterministic_regime",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.171044,
+        "cagr": 0.010367,
+        "annualized_volatility": 0.128757,
+        "sharpe_excess": 0.090009,
+        "max_drawdown": -0.22959,
+        "calmar": 0.045154,
+        "annualized_turnover": 11.765552,
+        "average_exposure": 0.252385,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.012181,
+          "cagr": 0.012181,
+          "annualized_volatility": 0.052023,
+          "sharpe_excess": 0.182732,
+          "max_drawdown": -0.046639,
+          "calmar": 0.261177,
+          "annualized_turnover": 10.7,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.061589,
+          "cagr": 0.061589,
+          "annualized_volatility": 0.055395,
+          "sharpe_excess": 0.892792,
+          "max_drawdown": -0.072686,
+          "calmar": 0.847326,
+          "annualized_turnover": 10.05,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.038493,
+          "cagr": 0.038493,
+          "annualized_volatility": 0.077818,
+          "sharpe_excess": 0.251204,
+          "max_drawdown": -0.07495,
+          "calmar": 0.513582,
+          "annualized_turnover": 11.3,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.090113,
+          "cagr": 0.090113,
+          "annualized_volatility": 0.232456,
+          "sharpe_excess": 0.417094,
+          "max_drawdown": -0.176605,
+          "calmar": 0.510249,
+          "annualized_turnover": 10.675,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": -0.011485,
+          "cagr": -0.011485,
+          "annualized_volatility": 0.066985,
+          "sharpe_excess": -0.151111,
+          "max_drawdown": -0.061572,
+          "calmar": -0.186536,
+          "annualized_turnover": 13.3,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.015306,
+          "cagr": -0.015306,
+          "annualized_volatility": 0.064383,
+          "sharpe_excess": -0.225824,
+          "max_drawdown": -0.07028,
+          "calmar": -0.217779,
+          "annualized_turnover": 12.6,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 4,
+      "fold_sharpe_std": 0.407425
+    },
+    {
+      "candidate_id": "2ab2fb697727f949",
+      "candidate": {
+        "name": "cross-signal-median-lsf",
+        "signal_sources": [
+          "trend",
+          "breadth",
+          "liquidity",
+          "options",
+          "rates"
+        ],
+        "allocation": "median",
+        "regime_policy": "deterministic_regime",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.416476,
+        "cagr": 0.023003,
+        "annualized_volatility": 0.115958,
+        "sharpe_excess": 0.193459,
+        "max_drawdown": -0.177559,
+        "calmar": 0.12955,
+        "annualized_turnover": 9.20832,
+        "average_exposure": 0.227414,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.007327,
+          "cagr": 0.007327,
+          "annualized_volatility": 0.041904,
+          "sharpe_excess": 0.100823,
+          "max_drawdown": -0.033097,
+          "calmar": 0.221378,
+          "annualized_turnover": 7.9,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.031618,
+          "cagr": 0.031618,
+          "annualized_volatility": 0.046658,
+          "sharpe_excess": 0.436728,
+          "max_drawdown": -0.071828,
+          "calmar": 0.440192,
+          "annualized_turnover": 6.925,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.060565,
+          "cagr": 0.060565,
+          "annualized_volatility": 0.074529,
+          "sharpe_excess": 0.5412,
+          "max_drawdown": -0.07495,
+          "calmar": 0.808071,
+          "annualized_turnover": 9.825,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.097588,
+          "cagr": 0.097588,
+          "annualized_volatility": 0.195132,
+          "sharpe_excess": 0.489624,
+          "max_drawdown": -0.115156,
+          "calmar": 0.847444,
+          "annualized_turnover": 12.95,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.048277,
+          "cagr": 0.048277,
+          "annualized_volatility": 0.068694,
+          "sharpe_excess": 0.708845,
+          "max_drawdown": -0.056549,
+          "calmar": 0.853716,
+          "annualized_turnover": 10.725,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.033544,
+          "cagr": -0.033544,
+          "annualized_volatility": 0.055139,
+          "sharpe_excess": -0.612593,
+          "max_drawdown": -0.079508,
+          "calmar": -0.421893,
+          "annualized_turnover": 10.85,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 5,
+      "fold_sharpe_std": 0.479464
+    },
+    {
+      "candidate_id": "65761806a328936a",
+      "candidate": {
+        "name": "defensive-veto-lsf",
+        "signal_sources": [
+          "trend",
+          "breadth",
+          "liquidity",
+          "options"
+        ],
+        "allocation": "veto",
+        "regime_policy": "deterministic_regime",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": -0.123671,
+        "cagr": -0.008586,
+        "annualized_volatility": 0.130832,
+        "sharpe_excess": -0.054031,
+        "max_drawdown": -0.340543,
+        "calmar": -0.025212,
+        "annualized_turnover": 9.352022,
+        "average_exposure": 0.160686,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": -0.029328,
+          "cagr": -0.029328,
+          "annualized_volatility": 0.039925,
+          "sharpe_excess": -0.824697,
+          "max_drawdown": -0.056111,
+          "calmar": -0.522689,
+          "annualized_turnover": 8.3,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.050584,
+          "cagr": 0.050584,
+          "annualized_volatility": 0.049838,
+          "sharpe_excess": 0.777444,
+          "max_drawdown": -0.065731,
+          "calmar": 0.769566,
+          "annualized_turnover": 6.075,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": -0.036858,
+          "cagr": -0.036858,
+          "annualized_volatility": 0.070729,
+          "sharpe_excess": -0.795959,
+          "max_drawdown": -0.087816,
+          "calmar": -0.41972,
+          "annualized_turnover": 11.875,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": -0.001672,
+          "cagr": -0.001672,
+          "annualized_volatility": 0.241725,
+          "sharpe_excess": 0.046674,
+          "max_drawdown": -0.233209,
+          "calmar": -0.00717,
+          "annualized_turnover": 8.925,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": -0.046809,
+          "cagr": -0.046809,
+          "annualized_volatility": 0.075707,
+          "sharpe_excess": -0.606016,
+          "max_drawdown": -0.081842,
+          "calmar": -0.571942,
+          "annualized_turnover": 13.425,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.03397,
+          "cagr": -0.03397,
+          "annualized_volatility": 0.046358,
+          "sharpe_excess": -0.747758,
+          "max_drawdown": -0.058315,
+          "calmar": -0.582514,
+          "annualized_turnover": 9.15,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 2,
+      "fold_sharpe_std": 0.644365
+    },
+    {
+      "candidate_id": "01bb910a7f5c84f1",
+      "candidate": {
+        "name": "diverse-equal-lsf",
+        "signal_sources": [
+          "trend",
+          "breadth",
+          "liquidity",
+          "options",
+          "rates"
+        ],
+        "allocation": "equal",
+        "regime_policy": "deterministic_regime",
+        "weekly_rebalance": true,
+        "daily_shock_gate": true,
+        "max_exposure": 1.0,
+        "mandate": "long_short_flat"
+      },
+      "metrics": {
+        "total_return": 0.248315,
+        "cagr": 0.014593,
+        "annualized_volatility": 0.098371,
+        "sharpe_excess": 0.125085,
+        "max_drawdown": -0.236148,
+        "calmar": 0.061795,
+        "annualized_turnover": 7.72395,
+        "average_exposure": 0.237581,
+        "days": 3858
+      },
+      "fold_metrics": [
+        {
+          "total_return": 0.009146,
+          "cagr": 0.009146,
+          "annualized_volatility": 0.040573,
+          "sharpe_excess": 0.147255,
+          "max_drawdown": -0.026492,
+          "calmar": 0.345239,
+          "annualized_turnover": 6.7,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 1
+        },
+        {
+          "total_return": 0.047514,
+          "cagr": 0.047514,
+          "annualized_volatility": 0.046583,
+          "sharpe_excess": 0.765548,
+          "max_drawdown": -0.060169,
+          "calmar": 0.789678,
+          "annualized_turnover": 4.425,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 2
+        },
+        {
+          "total_return": 0.062114,
+          "cagr": 0.062114,
+          "annualized_volatility": 0.055564,
+          "sharpe_excess": 0.729478,
+          "max_drawdown": -0.046847,
+          "calmar": 1.325888,
+          "annualized_turnover": 7.775,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 3
+        },
+        {
+          "total_return": 0.041205,
+          "cagr": 0.041205,
+          "annualized_volatility": 0.143151,
+          "sharpe_excess": 0.240396,
+          "max_drawdown": -0.121577,
+          "calmar": 0.338921,
+          "annualized_turnover": 5.3,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 4
+        },
+        {
+          "total_return": 0.073421,
+          "cagr": 0.073421,
+          "annualized_volatility": 0.067957,
+          "sharpe_excess": 1.064664,
+          "max_drawdown": -0.056593,
+          "calmar": 1.297354,
+          "annualized_turnover": 9.8,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 5
+        },
+        {
+          "total_return": -0.015044,
+          "cagr": -0.015044,
+          "annualized_volatility": 0.050295,
+          "sharpe_excess": -0.299797,
+          "max_drawdown": -0.061927,
+          "calmar": -0.242932,
+          "annualized_turnover": 6.075,
+          "average_exposure": 0.0,
+          "days": 252,
+          "fold_number": 6
+        }
+      ],
+      "positive_folds": 5,
+      "fold_sharpe_std": 0.500563
+    }
+  ],
+  "mandate": {
+    "position_set": "long_short_flat",
+    "minimum_exposure": -1.0,
+    "maximum_exposure": 1.0,
+    "long_allowed": true,
+    "short_allowed": true,
+    "flat_allowed": true,
+    "leverage_allowed": false,
+    "orders_allowed": false,
+    "short_borrow_annual": 0.01
+  },
+  "research_protocol_note": "Architecture 2S is independently revalidated. No metric from the frozen long/flat Architecture 2 is relabelled as long/short."
+}
