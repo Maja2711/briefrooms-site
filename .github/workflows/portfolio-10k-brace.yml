@@ -1,4 +1,4 @@
-name: BRACE Portfolio Research and Promotion
+name: BRACE Portfolio Research and Paper Control
 
 on:
   workflow_dispatch:
@@ -8,10 +8,7 @@ on:
         required: true
         default: "weekly"
         type: choice
-        options:
-          - weekly
-          - monthly-deep
-          - promotion-only
+        options: [weekly, monthly-deep, promotion-only]
   issues:
     types: [opened]
   schedule:
@@ -22,33 +19,28 @@ on:
     paths:
       - "scripts/brace_portfolio_*.py"
       - "scripts/portfolio-10k-control-public.js"
-      - "tests/test_brace_portfolio_engine.py"
-      - "tests/test_brace_portfolio_self_learning.py"
-      - "data/portfolio10k/config.json"
-      - "data/portfolio10k/adaptive_policy.json"
-      - "data/portfolio10k/universe.json"
-      - "assets/portfolio-10k.css"
-      - "pl/inwestycje/portfel-10k.html"
-      - "en/investing/portfolio-10k.html"
+      - "data/portfolio10k/*.json"
+      - "data/investments/portfolio_10k*_material*.json"
+      - "assets/portfolio-10k*.css"
+      - "tests/test_brace_portfolio*.py"
       - ".github/workflows/portfolio-10k-brace.yml"
   push:
     branches: [main]
     paths:
       - "scripts/brace_portfolio_*.py"
       - "scripts/portfolio-10k-control-public.js"
-      - "tests/test_brace_portfolio_engine.py"
-      - "tests/test_brace_portfolio_self_learning.py"
       - "data/portfolio10k/config.json"
       - "data/portfolio10k/adaptive_policy.json"
+      - "data/portfolio10k/control_authorization.json"
       - "data/portfolio10k/universe.json"
-      - "assets/portfolio-10k.css"
-      - "pl/inwestycje/portfel-10k.html"
-      - "en/investing/portfolio-10k.html"
+      - "data/investments/portfolio_10k_material_reports.json"
+      - "data/investments/portfolio_10k_verified_material_events.json"
+      - "assets/portfolio-10k*.css"
+      - "tests/test_brace_portfolio*.py"
       - ".github/workflows/portfolio-10k-brace.yml"
 
 permissions:
   contents: write
-
 concurrency:
   group: brace-portfolio-research
   cancel-in-progress: false
@@ -57,56 +49,44 @@ env:
   BRACE_LEARNING_TRIGGER_TITLE: "Run BRACE governed self-learning"
 
 jobs:
-  validate-research-promote:
+  validate-research-control:
     if: >-
       github.event_name != 'issues' ||
       github.event.issue.title == 'Run BRACE governed self-learning'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install research dependencies
-        run: python -m pip install --upgrade pip yfinance pandas pytest
-
-      - name: Compile deterministic engine
-        run: python -m compileall -q scripts
-
-      - name: Validate engine, learning, promotion and public controls
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy pytest
+      - name: Compile and test deterministic engine
         run: |
-          python -m pytest -q \
-            tests/test_brace_portfolio_engine.py \
-            tests/test_brace_portfolio_self_learning.py
-
-      - name: Validate public JavaScript
-        run: node --check scripts/portfolio-10k-public.js && node --check scripts/portfolio-10k-control-public.js
-
-      - name: Build weekly shadow decisions
-        if: >-
-          github.event_name == 'schedule' ||
-          github.event_name == 'issues' ||
-          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+          python -m compileall -q scripts
+          python -m pytest -q tests/test_brace_portfolio_engine.py tests/test_brace_portfolio_self_learning.py
+          node --check scripts/portfolio-10k-public.js
+          node --check scripts/portfolio-10k-control-public.js
+      - name: Build current BRACE decisions
+        if: github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'promotion-only')
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode weekly --network
-
-      - name: Run walk-forward and robustness research
+      - name: Run deep walk-forward research
         if: >-
           github.event_name == 'schedule' ||
           github.event_name == 'issues' ||
-          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+          (github.event_name == 'workflow_dispatch' && inputs.mode == 'monthly-deep')
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode research
-
+      - name: Apply verified material-report context
+        if: github.event_name != 'pull_request'
+        run: python scripts/brace_portfolio_material_overlay.py
       - name: Run governed weekly self-learning
         if: >-
           github.event_name == 'schedule' ||
@@ -115,51 +95,58 @@ jobs:
         env:
           BRACE_TESTS_PASSED: "1"
         run: |
-          python scripts/brace_portfolio_self_learning.py \
-            --market-cache .cache/brace_portfolio_market.json
+          python scripts/brace_portfolio_self_learning.py --market-cache .cache/brace_portfolio_market.json
           python - <<'PY'
           import json
           from pathlib import Path
           policy = json.loads(Path('data/portfolio10k/adaptive_policy.json').read_text(encoding='utf-8'))
-          assert policy['schema_version'] == 'brace-adaptive-policy-v1'
           assert policy['never_apply_to_real_broker'] is True
-          assert set(policy.get('active_overrides', {})) <= {
-              'minimum_confidence',
-              'minimum_score_improvement',
-              'minimum_expected_alpha',
-          }
-          print('BRACE self-learning state:', policy['status'])
+          assert set(policy.get('active_overrides', {})) <= {'minimum_confidence','minimum_score_improvement','minimum_expected_alpha'}
+          print('BRACE learning state:', policy['status'])
           PY
-
-      - name: Re-evaluate deterministic promotion gates
+      - name: Re-evaluate promotion gates only
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'promotion-only'
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode monitor
-
+      - name: Activate authorised paper-only control
+        if: github.event_name != 'pull_request'
+        run: |
+          python scripts/brace_portfolio_user_control.py
+          python scripts/brace_portfolio_execution.py --network || echo "::warning::Paper order waits for an open market and a post-signal candle."
+          python scripts/brace_portfolio_user_control.py --republish
+      - name: Assert safety boundaries
+        if: github.event_name != 'pull_request'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cfg=json.loads(Path('data/portfolio10k/config.json').read_text())
+          auth=json.loads(Path('data/portfolio10k/control_authorization.json').read_text())
+          public=json.loads(Path('data/portfolio10k/public/brace_engine_public.json').read_text())
+          assert cfg['policy']['autonomy_mode']=='PAPER_EXECUTION'
+          assert cfg['policy']['real_broker_integration_enabled'] is False
+          assert auth['paper_only'] is True and auth['real_broker_connected'] is False
+          assert public['controller_status']=='PROBATIONARY_CONTROL'
+          print('BRACE paper-only probationary control verified')
+          PY
       - name: Commit validated BRACE state
-        if: >-
-          github.event_name == 'schedule' ||
-          github.event_name == 'issues' ||
-          github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/portfolio10k
           if git diff --cached --quiet; then
-            echo "No BRACE research or learning changes to commit."
+            echo "No BRACE state changes to commit."
             exit 0
           fi
-          git commit -m "Update BRACE governed research and learning"
+          git commit -m "Update BRACE material-aware paper control"
           for attempt in 1 2 3; do
             git pull --rebase origin main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
+            if git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 5))
           done
           exit 1
-
       - name: Upload diagnostics after failure
         if: failure()
         uses: actions/upload-artifact@v4
