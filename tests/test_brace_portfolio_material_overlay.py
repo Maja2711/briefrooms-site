@@ -12,16 +12,31 @@ assert spec and spec.loader
 spec.loader.exec_module(module)
 
 
+def thesis_review_context():
+    return {
+        "report_count": 1, "negative_count": 1, "positive_count": 0,
+        "requires_thesis_review": True, "critical_count": 0, "high_negative_count": 1,
+    }
+
+
 def test_thesis_review_caps_score_in_reduce_range():
     result = module.apply({
         "final_score": 61.0, "thesis_score": 60.0, "risk_score": 55.0,
         "positive_factors": [], "negative_factors": [], "conditions_for_change": [],
-    }, {
-        "report_count": 1, "negative_count": 1, "positive_count": 0,
-        "requires_thesis_review": True, "critical_count": 0, "high_negative_count": 1,
-    })
+    }, thesis_review_context())
     assert result["final_score"] == 42.0
     assert "material_thesis_review" in result["negative_factors"]
+
+
+def test_sub_minimum_position_is_forced_into_exit_range():
+    result = module.apply({
+        "final_score": 61.0, "thesis_score": 60.0, "risk_score": 55.0,
+        "current_weight": 0.046, "positive_factors": [], "negative_factors": [],
+        "conditions_for_change": [],
+    }, thesis_review_context(), minimum_position_weight=0.05)
+    assert result["final_score"] < 30.0
+    assert result["material_forced_exit"] is True
+    assert "below_minimum_viable_weight_for_reduction" in result["negative_factors"]
 
 
 def test_critical_report_reaches_exit_range():
