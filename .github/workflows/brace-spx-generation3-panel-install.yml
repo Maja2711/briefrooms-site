@@ -45,13 +45,21 @@ jobs:
       - name: Install Generation 3 blocks
         run: python scripts/install_brace_spx_public_panel.py
 
+      - name: Normalize BRACE-SPX Lab tabs
+        run: python scripts/normalize_brace_spx_scenario_tabs.py
+
       - name: Validate installed pages
         run: |
           python scripts/install_brace_spx_public_panel.py --check
+          python scripts/normalize_brace_spx_scenario_tabs.py
           grep -q 'data-brace-spx-generation3' pl/inwestycje/spx-scenariusze-2026.html
           grep -q 'data-brace-spx-generation3' en/investing/spx-scenarios-2026.html
           grep -q 'brace-spx-generation3-card.js' pl/inwestycje/spx-scenariusze-2026.html
           grep -q 'brace-spx-generation3-card.js' en/investing/spx-scenarios-2026.html
+          grep -q 'background:#15803d;color:#fff' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q 'background:#15803d;color:#fff' en/investing/spx-scenarios-2026.html
+          grep -q '2026-08-02' pl/inwestycje/spx-scenariusze-2026.html
+          grep -q '2026-08-02' en/investing/spx-scenarios-2026.html
 
       - name: Persist installed pages and final marker
         run: |
@@ -65,7 +73,9 @@ jobs:
               'run_id': '${{ github.run_id }}',
               'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
               'pl_installed': True,
-              'en_installed': True
+              'en_installed': True,
+              'green_lab_tabs': True,
+              'house_view_date': '2026-08-02'
           }, indent=2) + '\n', encoding='utf-8')
           PY
           git add \
@@ -73,7 +83,11 @@ jobs:
             en/investing/spx-scenarios-2026.html \
             sitemap.xml \
             data/public/brace_spx_generation3_panel_install.json
-          git commit -m "Show BRACE-SPX Generation 3 on S&P scenario pages"
+          if git diff --cached --quiet; then
+            echo "No scenario page changes to commit."
+            exit 0
+          fi
+          git commit -m "Update bilingual BRACE-SPX scenario panels"
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 15))
