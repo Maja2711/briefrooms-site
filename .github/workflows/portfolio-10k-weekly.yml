@@ -19,6 +19,7 @@ on:
       - "scripts/portfolio_10k_news_quality.py"
       - "scripts/portfolio_10k_material_reports.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
+      - "scripts/normalize_portfolio_10k_material_reports.py"
       - "scripts/validate_portfolio_10k*.py"
       - "scripts/portfolio-10k-public.js"
       - "scripts/portfolio-10k-material-reports-public.js"
@@ -62,6 +63,7 @@ jobs:
         run: |
           python scripts/portfolio_10k_material_reports.py
           python scripts/portfolio_10k_material_reports_enrichment.py
+          python scripts/normalize_portfolio_10k_material_reports.py
       - name: Validate material reports
         run: python scripts/validate_portfolio_10k_material_reports.py
       - name: Run Portfolio 10K tests
