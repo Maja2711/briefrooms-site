@@ -1,27 +1,32 @@
 {
-  "contract_version": "2.0.0",
+  "contract_version": "3.0.0",
   "news_publication": {
-    "workflow": ".github/workflows/publish-news.yml",
-    "required_cron": "15 */4 * * *",
-    "interval_hours": 4,
+    "workflow": ".github/workflows/publish-emergency-news.yml",
+    "workflow_name": "Publish PL and EN News",
+    "required_cron": "17 * * * *",
+    "interval_hours": 1,
     "languages": [
       "pl",
       "en"
     ],
-    "manifest": "data/news_publication_status.json",
-    "source_report": "data/news_source_report.json",
+    "manifest": "data/news/status.json",
+    "language_feeds": {
+      "pl": "data/news/pl.json",
+      "en": "data/news/en.json"
+    },
     "atomic_languages_required": true,
+    "live_runtime": "scripts/news-live.js",
+    "browser_refresh_minutes": 15,
     "last_good_fallback_required": true,
-    "empty_update_may_refresh_content_timestamps": false
+    "maximum_carried_story_age_days": 14,
+    "empty_update_may_refresh_content_timestamps": false,
+    "production_marker_required": true
   },
   "watchdog": {
-    "workflow": ".github/workflows/content-update-watchdog.yml",
+    "workflow": ".github/workflows/automation-health-audit.yml",
     "check_interval_hours": 1,
-    "successful_fetch_stale_after_hours": 8,
-    "successful_publication_stale_after_hours": 8,
-    "new_publication_stale_after_hours": 24,
+    "successful_publication_stale_after_hours": 2,
     "production_main_parity_required": true,
-    "automatic_recovery_after_hours": 8,
     "single_open_alarm_issue": true
   },
   "hot_x": {
