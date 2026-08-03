@@ -122,7 +122,9 @@
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      if (!data || data.schema_version !== 'news-live-v1' || data.language !== lang) throw new Error('invalid news feed');
+      if (!data || !/^news-live-v[12]$/.test(String(data.schema_version || '')) || data.language !== lang) {
+        throw new Error('invalid news feed');
+      }
       const rendered = renderNewsPage(data) || renderHomepage(data);
       if (!rendered) return false;
       updateTimestamp(data);
