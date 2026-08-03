@@ -15,6 +15,27 @@ if len(_PARTS) != _EXPECTED_COUNT:
 _SOURCE = "".join(path.read_text(encoding="utf-8") for path in _PARTS)
 ENGINE_SOURCE_SHA256 = hashlib.sha256(_SOURCE.encode("utf-8")).hexdigest()
 
+# Production is an immutable buy-and-hold tournament. Once a locked decision
+# exists, daily rounds may value it but must never create a new target or
+# rebalance the portfolio.
+_DECISION_IF = "        if start <= current_date < end:\n"
+_DECISION_ELIF = "        elif current_date < start:\n"
+if _SOURCE.count(_DECISION_IF) != 1 or _SOURCE.count(_DECISION_ELIF) != 1:
+    raise RuntimeError("AI Tournament decision block markers are missing or ambiguous")
+_SOURCE = _SOURCE.replace(
+    _DECISION_IF,
+    "        locked_buy_and_hold = bool(config.get('rules', {}).get('buy_and_hold')) and bool(state.get('latest_decision'))\n"
+    "        if start <= current_date < end and not locked_buy_and_hold:\n",
+    1,
+)
+_SOURCE = _SOURCE.replace(
+    _DECISION_ELIF,
+    "        elif start <= current_date < end and locked_buy_and_hold:\n"
+    "            state['status'] = 'ACTIVE'\n"
+    "        elif current_date < start:\n",
+    1,
+)
+
 # The assembled legacy source ends with its own __main__ call. Install the
 # locked manual-submission adapter before that call so both imports and direct
 # CLI execution use the production manual tournament contract.
