@@ -6,9 +6,10 @@ on:
       mode:
         description: "Run mode"
         required: true
-        default: auto
+        default: catchup
         type: choice
         options:
+          - catchup
           - auto
           - open
           - preclose
@@ -29,14 +30,9 @@ on:
       - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
-    # Two governed editions per NYSE session. Candidate UTC times cover EDT and EST.
-    # Non-matching DST candidates exit without publishing.
-    - cron: "0 14 * * 1-5"
-    - cron: "0 15 * * 1-5"
-    - cron: "30 16 * * 1-5"
-    - cron: "30 17 * * 1-5"
-    - cron: "30 19 * * 1-5"
-    - cron: "30 20 * * 1-5"
+    # Catch-up runs throughout the NYSE session. The Python gate skips duplicates
+    # and switches to the pre-close edition when that window is reached.
+    - cron: "*/30 14-20 * * 1-5"
 
 permissions:
   contents: write
@@ -48,12 +44,13 @@ concurrency:
 jobs:
   build-daily-market-alert:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -88,23 +85,20 @@ jobs:
         id: mode
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            MODE="catchup"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             MODE="${{ inputs.mode }}"
           else
-            MODE="auto"
+            MODE="catchup"
           fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "Resolved mode: $MODE"
 
-      - name: Generate or check Daily Market Alert
+      - name: Generate Daily Market Alert
         if: steps.mode.outputs.mode != 'ui-only'
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
-          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
-          BR_ALERT_SCHEDULE: ${{ github.event.schedule }}
+          # Reliability first: the deterministic bilingual path uses only
+          # validated market data and is independent of an AI provider.
+          OPENAI_API_KEY: ""
         shell: bash
         run: python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"
 
@@ -113,23 +107,35 @@ jobs:
         run: |
           test -f data/investments/daily_market_alert.json
           python scripts/run_daily_market_alert_resilient.py --validate-only
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('data/investments/daily_market_alert.json').read_text())
+          assert payload.get('materiality_contract', {}).get('version') == '1.0.0'
+          assert payload.get('editorial_quality', {}).get('passed') is True
+          assert {item.get('id') for item in payload.get('instruments', [])} == {'sp500', 'brent', 'us10y'}
+          PY
 
       - name: Commit interface or alert updates
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scripts/site-header.js pl/inwestycje.html en/investing.html
           git add data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No Daily Market Alert changes to commit."
-          else
-            git commit -m "Update Daily Market Alert"
-            if ! git diff --quiet; then
-              echo "::error::Alert generator left unstaged files; refusing a partial publication."
-              git status --short
-              exit 1
-            fi
-            git pull --rebase origin main
-            git push
+            exit 0
           fi
+          git commit -m "Update Daily Market Alert"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Could not publish Daily Market Alert after 5 attempts."
+          exit 1
