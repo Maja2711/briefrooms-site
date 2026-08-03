@@ -1,6 +1,6 @@
 {
-  "method_version": "2.1.0-continuous-exposure",
-  "configuration_updated_at": "2026-07-27T12:15:00+02:00",
+  "method_version": "2.2.0-weekly-macro-context",
+  "configuration_updated_at": "2026-08-03T10:58:00+02:00",
   "name": "BriefRooms Weekly Market Direction Model",
   "model_status": "paper_trading_only_continuous_exposure",
   "language_note": "Every enabled instrument must hold a LONG or SHORT paper position. Neutral signals are resolved by the strategy tournament and instrument default tie direction. No real broker orders are sent.",
@@ -25,9 +25,17 @@
     "momentum_components":{"five_day_return_normalized_by_realized_volatility":15,"twenty_day_return_normalized_by_realized_volatility":20},
     "breakout_component":{"position_in_prior_55_day_range":15},
     "volatility_regime":{"input":"annualized 20-day volatility divided by annualized 60-day volatility","rule":"high volatility scales down the directional score instead of adding directional points"},
+    "weekly_candle_model":{"inputs":"Friday-labelled weekly OHLC bars","components":"10/30-week EMA trend, 4/13-week momentum, 26-week range position, latest candle body and 13/52-week volatility regime","role":"structural weekly direction and regime"},
+    "eurusd_macro_context":{"oil":"WTI CL=F one-week and four-week changes","us10y":"Yahoo ^TNX one-week and four-week yield changes in basis points","interpretation":"falling oil and falling US10Y support EUR/USD; rising values support the dollar","controls":"normalized, score-capped, requires both sources and cannot trigger a trade by itself"},
     "agreement_rule":"Strategy tournament selects a directional candidate even when the base signal is neutral.",
     "manual_override_rule":"manual macro overrides are ignored unless timestamped before forecast creation and explicitly marked valid for the forecast week",
     "confidence_definition":"heuristic signal strength only; never a probability of success"
+  },
+  "decision_process": {
+    "new_eurusd_positions":"Daily technical signal, weekly candle regime and bounded oil/US10Y context are combined before candidate selection.",
+    "open_position_review":"An existing position is never rewritten after the fact. The oil/US10Y context enters the governed 23:00 Europe/Warsaw review together with daily and weekly scores.",
+    "standalone_macro_trade_forbidden":true,
+    "history_rewrite_forbidden":true
   },
   "manual_overrides":{"eurusd":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null},"sp500_futures":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null},"btcusd":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null}},
   "decision_rules":{"neutral_label":"direction_resolved_by_tournament_or_default_tie_direction","continuous_position_required":true,"entry_thresholds":{"eurusd":{"long":35,"short":-35},"sp500_futures":{"long":35,"short":-42},"btcusd":{"long":45,"short":-45}}},
