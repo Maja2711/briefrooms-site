@@ -1,5 +1,4 @@
 name: Update Hot X Topics
-# Immediate refresh requested 2026-08-03T21:19:00+02:00.
 
 on:
   workflow_dispatch:
@@ -11,6 +10,7 @@ on:
       - "scripts/update_hot_x_2x_daily.py"
       - "scripts/update_hot_x_topics.py"
       - "scripts/build_hot_x_en.py"
+      - "scripts/hot_x_public_rss_fallback.py"
       - "scripts/hot_x_items.py"
       - "scripts/hot-x-render.js"
       - "scripts/patch_hot_x_loader.py"
@@ -30,7 +30,7 @@ concurrency:
 jobs:
   update-hot-x:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -44,52 +44,102 @@ jobs:
 
       - name: Validate Hot X implementation
         run: |
-          python -m py_compile scripts/hot_x_items.py scripts/update_hot_x_2x_daily.py scripts/patch_hot_x_loader.py
+          python -m py_compile \
+            scripts/hot_x_items.py \
+            scripts/update_hot_x_2x_daily.py \
+            scripts/hot_x_public_rss_fallback.py \
+            scripts/patch_hot_x_loader.py
           python -m unittest tests/test_hot_x_items.py
           node --check scripts/hot-x-render.js
           node tests/test_hot_x_render.js
 
-      - name: Refresh verified direct posts and preserve editorial topics
+      - name: Refresh direct posts with API or public RSS fallback
         id: refresh
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
         shell: bash
         run: |
+          set -uo pipefail
+          before_updated="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8')).get('updated_at', ''))
+          except Exception:
+              print('')
+          PY
+          )"
+
           set +e
           python scripts/update_hot_x_2x_daily.py > /tmp/hot_x_refresh.log 2>&1
-          rc=$?
+          api_rc=$?
           set -e
           cat /tmp/hot_x_refresh.log
-          python - "$rc" <<'PY'
+
+          after_api_updated="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8')).get('updated_at', ''))
+          except Exception:
+              print('')
+          PY
+          )"
+
+          fallback_needed=0
+          if [[ "$api_rc" != "0" ]] || grep -q "HTTP Error 402" /tmp/hot_x_refresh.log || [[ "$after_api_updated" == "$before_updated" ]]; then
+            fallback_needed=1
+          fi
+
+          fallback_rc=0
+          if [[ "$fallback_needed" == "1" ]]; then
+            echo "X API did not produce a fresh feed; using public RSS fallback." | tee -a /tmp/hot_x_refresh.log
+            set +e
+            python scripts/hot_x_public_rss_fallback.py >> /tmp/hot_x_refresh.log 2>&1
+            fallback_rc=$?
+            set -e
+            tail -n 200 /tmp/hot_x_refresh.log
+          fi
+
+          effective_rc="$api_rc"
+          mode="x-api"
+          if [[ "$fallback_needed" == "1" ]]; then
+            effective_rc="$fallback_rc"
+            mode="public-rss-fallback"
+          fi
+
+          python - "$effective_rc" "$mode" <<'PY'
           import json
           import sys
           from datetime import datetime, timezone
           from pathlib import Path
 
           exit_code = int(sys.argv[1])
-          feed_path = Path('data/hot_tweets.json')
+          mode = sys.argv[2]
           feed = {}
-          if feed_path.exists():
-              try:
-                  feed = json.loads(feed_path.read_text(encoding='utf-8'))
-              except Exception:
-                  feed = {}
+          try:
+              feed = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))
+          except Exception:
+              pass
           log = Path('/tmp/hot_x_refresh.log').read_text(encoding='utf-8', errors='replace')
           status = {
               'checked_at': datetime.now(timezone.utc).isoformat(),
               'exit_code': exit_code,
               'result': 'success' if exit_code == 0 else 'failed',
+              'refresh_mode': mode,
               'feed_updated_at': feed.get('updated_at'),
               'feed_mode': feed.get('mode'),
               'item_count': len(feed.get('items') or []),
-              'log': log[-8000:],
+              'log': log[-12000:],
           }
           Path('data/hot_x_refresh_status.json').write_text(
               json.dumps(status, ensure_ascii=False, indent=2) + '\n',
               encoding='utf-8',
           )
           PY
-          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+
+          echo "exit_code=${effective_rc}" >> "$GITHUB_OUTPUT"
+          echo "refresh_mode=${mode}" >> "$GITHUB_OUTPUT"
 
       - name: Verify the final published Hot X feed
         if: steps.refresh.outputs.exit_code == '0'
@@ -99,7 +149,8 @@ jobs:
           from pathlib import Path
           from scripts.hot_x_items import comment_text, duplicate_free, is_direct_post, valid_item
 
-          feed = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))['items']
+          payload = json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))
+          feed = payload['items']
           assert 4 <= len(feed) <= 10
           assert duplicate_free(feed)
           assert all(valid_item(item) for item in feed)
@@ -108,27 +159,38 @@ jobs:
               for item in feed
           )
           assert sum(is_direct_post(item.get('tweet_url')) for item in feed) >= 4
+          assert payload.get('updated_at')
           PY
 
       - name: Commit Hot X feed and diagnostics
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_tweets.json data/hot_x_refresh_status.json
+          git add \
+            data/hot_tweets.json \
+            data/hot_x_refresh_status.json \
+            data/hot_x_public_fallback_status.json
           if git diff --cached --quiet; then
-            echo "No Hot X changes to commit."
-          else
-            git commit -m "Update Hot X topics"
+            echo "::error::Hot X refresh produced no feed or diagnostic changes."
+            exit 1
+          fi
+          git commit -m "Update Hot X topics"
+          for attempt in 1 2 3; do
             git fetch origin main
             if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              echo "::error::main changed while Hot X data was prepared; rerun from current main."
-              exit 1
+              git rebase origin/main
             fi
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push refreshed Hot X feed."
+          exit 1
 
-      - name: Fail when Hot X refresh failed
+      - name: Fail when no fresh Hot X feed was produced
         if: steps.refresh.outputs.exit_code != '0'
         run: |
-          echo "::error::Hot X refresh failed; see data/hot_x_refresh_status.json"
+          echo "::error::Both X API and public RSS fallback failed; see data/hot_x_refresh_status.json"
           exit 1
