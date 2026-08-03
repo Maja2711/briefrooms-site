@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: "Regenerate today's forecast"
+        description: "Regenerate today's PL and EN forecasts"
         required: false
         default: false
         type: boolean
@@ -13,23 +13,23 @@ on:
     paths:
       - "scripts/update_ai_outlook.py"
       - "scripts/update_ai_outlook_v2.py"
+      - "scripts/update_ai_outlook_v3.py"
       - "scripts/ai_outlook_engine.py"
       - "scripts/ai_outlook_metrics.py"
       - "scripts/ai-outlook-governance-guard.js"
       - "scripts/homepage-photo-only.js"
       - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_ai_outlook.py"
+      - "tests/test_ai_outlook_v3.py"
       - "tests/test_ai_outlook_engine.py"
       - "tests/test_ai_outlook_metrics.py"
       - "tests/test_homepage_photo_only.py"
-      - "data/ai_outlook.json"
-      - "data/ai_outlook_metrics.json"
       - ".github/workflows/ai-outlook-daily.yml"
   schedule:
-    # Primary publication: 07:35 CEST / 06:35 CET in Warsaw.
-    - cron: "35 5 * * *"
-    # Recovery audit 2.5 hours later. If today's edition is missing, retry generation.
-    - cron: "5 8 * * *"
+    # Main morning edition: 07:15 CEST / 06:15 CET in Warsaw.
+    - cron: "15 5 * * *"
+    # Morning recovery: 10:15 CEST / 09:15 CET. It only generates when today's edition is missing.
+    - cron: "15 8 * * *"
 
 permissions:
   contents: write
@@ -41,12 +41,13 @@ concurrency:
 jobs:
   publish-ai-outlook:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Check out repository
+      - name: Check out latest main
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -57,32 +58,51 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Publish governed homepage assets
-        run: python scripts/enforce_homepage_photo_only.py
-
-      - name: Validate AI Outlook Engine v1.1
+      - name: Validate independent-edition pipeline
         run: |
+          set -euo pipefail
           python -m unittest \
             tests.test_ai_outlook \
+            tests.test_ai_outlook_v3 \
             tests.test_ai_outlook_engine \
             tests.test_ai_outlook_metrics \
             tests.test_homepage_photo_only -v
           python -m py_compile \
             scripts/update_ai_outlook.py \
             scripts/update_ai_outlook_v2.py \
+            scripts/update_ai_outlook_v3.py \
             scripts/ai_outlook_engine.py \
             scripts/ai_outlook_metrics.py \
             scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
           node --check scripts/ai-outlook-governance-guard.js
-          python scripts/update_ai_outlook_v2.py --validate-only
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
+          python scripts/update_ai_outlook_v3.py --validate-only
 
-      - name: Audit today's AI Outlook
+      - name: Publish governed homepage assets
+        run: |
+          set -euo pipefail
+          python scripts/enforce_homepage_photo_only.py
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' en/index.html
+
+      - name: Generate independent morning PL and EN editions
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEWS_AI_MODEL: gpt-4o-mini
+          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
         shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=""
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            ARGS="--force"
+          fi
+          python scripts/update_ai_outlook_v3.py $ARGS
+          python scripts/update_ai_outlook_v3.py --validate-only --require-v2
+
+      - name: Verify date and language isolation
         run: |
           python - <<'PY'
           import json
@@ -90,53 +110,55 @@ jobs:
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
-          path = Path("data/ai_outlook.json")
-          today = datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat()
-          try:
-              published = json.loads(path.read_text(encoding="utf-8")).get("date")
-          except Exception:
-              published = None
-
-          if published == today:
-              print(f"Audit passed: AI Outlook is already published for {today}.")
-          else:
-              print(
-                  f"Audit recovery required: expected {today}, found {published!r}. "
-                  "AI Outlook Engine v1.1 will now retry."
-              )
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          if payload.get('date') != today:
+              raise SystemExit(f"AI Outlook is stale: expected {today}, got {payload.get('date')!r}")
+          if payload.get('schema_version') != 2:
+              raise SystemExit('AI Outlook schema v2 is required')
+          if payload.get('edition_policy') != 'independent-per-language':
+              raise SystemExit('PL and EN editions are not independent')
+          for language in ('pl', 'en'):
+              edition = payload.get(language) or {}
+              if edition.get('source_language') != language:
+                  raise SystemExit(f'{language} edition source language mismatch')
+              sources = edition.get('sources') or []
+              if not sources or any(source.get('source_language') != language for source in sources):
+                  raise SystemExit(f'{language} edition contains a cross-language source')
+          print(
+              'AI Outlook language isolation verified: '
+              f"PL={payload['pl']['forecast_id']} EN={payload['en']['forecast_id']}"
+          )
           PY
-
-      - name: Generate today's governed AI Outlook or recover a missing edition
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
-          NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
-        shell: bash
-        run: |
-          ARGS=""
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
-            ARGS="--force"
-          fi
-          python scripts/update_ai_outlook_v2.py $ARGS
-          python scripts/update_ai_outlook_v2.py --validate-only
 
       - name: Refresh public calibration counters
         run: |
           python scripts/ai_outlook_metrics.py
           python scripts/ai_outlook_metrics.py --validate-only
 
-      - name: Commit forecast, audit and homepage assets
+      - name: Commit forecast, audit and homepage assets atomically
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
-          git add data/ai_outlook.json data/ai_outlook_history data/ai_outlook_metrics.json 2>/dev/null || true
+          git add data/ai_outlook.json data/ai_outlook_history data/ai_outlook_metrics.json
           git add data/internal/ai_outlook_audit 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No AI Outlook changes to commit."
-          else
-            git commit -m "Publish governed AI Outlook"
-            git pull --rebase origin main
-            git push
+            exit 0
           fi
+          git commit -m "Publish independent PL and EN AI Outlook"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              git rebase origin/main
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Could not publish AI Outlook after 5 attempts."
+          exit 1
