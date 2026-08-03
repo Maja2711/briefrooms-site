@@ -19,10 +19,12 @@ on:
       - "scripts/update_daily_market_alert.py"
       - "scripts/run_daily_market_alert_resilient.py"
       - "scripts/daily_market_alert_editorial_v2.py"
+      - "scripts/daily_market_alert_materiality.py"
       - "scripts/patch_daily_alert_ui.py"
       - "data/investments/daily_market_alert_editorial_spec.json"
       - "tests/test_daily_market_alert.py"
       - "tests/test_daily_market_alert_quality.py"
+      - "tests/test_daily_market_alert_materiality.py"
       - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
@@ -63,10 +65,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests feedparser pandas_market_calendars
 
-      - name: Test daily alert contract
+      - name: Test daily alert, editorial and materiality contracts
         run: |
-          python -m unittest tests.test_daily_market_alert tests.test_daily_market_alert_quality tests.test_daily_market_alert_watchdog -v
-          python -m py_compile scripts/run_daily_market_alert_resilient.py scripts/daily_market_alert_editorial_v2.py scripts/patch_daily_alert_ui.py
+          python -m unittest \
+            tests.test_daily_market_alert \
+            tests.test_daily_market_alert_quality \
+            tests.test_daily_market_alert_materiality \
+            tests.test_daily_market_alert_watchdog -v
+          python -m py_compile \
+            scripts/run_daily_market_alert_resilient.py \
+            scripts/daily_market_alert_editorial_v2.py \
+            scripts/daily_market_alert_materiality.py \
+            scripts/patch_daily_alert_ui.py
           python -m json.tool data/investments/daily_market_alert_editorial_spec.json >/dev/null
 
       - name: Patch Daily Market Alert interface
