@@ -2,12 +2,21 @@ name: AI Tournament Daily
 
 on:
   workflow_dispatch:
-  issues:
-    types: [opened]
+    inputs:
+      command:
+        description: "Tournament action"
+        required: true
+        default: run
+        type: choice
+        options:
+          - preflight
+          - run
   schedule:
+    # Pre-open readiness audit: 09:00 New York / 15:00 Warsaw during EDT.
+    - cron: "0 13 * * 1-5"
     # Primary valuation after the regular US session is fully closed.
     - cron: "45 21 * * 1-5"
-    # Recovery audit 90 minutes later; idempotent when the round already exists.
+    # Recovery audit 90 minutes later; append-only and idempotent.
     - cron: "15 23 * * 1-5"
   push:
     branches: [main]
@@ -15,22 +24,24 @@ on:
       - "scripts/ai_tournament_engine.py"
       - "scripts/ai_tournament_manual_mode.py"
       - "scripts/ai_tournament_manual_bootstrap.py"
+      - "scripts/ai_tournament_buy_hold_round.py"
+      - "scripts/ai_tournament_submission_intake.py"
       - "scripts/ai_tournament_parts/**"
       - "scripts/ai_tournament_cash_interest.py"
-      - "scripts/generate_brace_manual_submission.py"
       - "scripts/ai-tournament-public.js"
       - "scripts/ai-tournament-readiness.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
       - "tests/test_ai_tournament_cash_interest.py"
-      - "tests/test_generate_brace_manual_submission.py"
+      - "tests/test_ai_tournament_submission_intake.py"
+      - "tests/test_ai_tournament_buy_hold_round.py"
       - "data/ai_tournament/config.json"
       - "data/ai_tournament/manual_mode.json"
       - "data/ai_tournament/cash_rate_policy.json"
       - "data/ai_tournament/commitments/**"
       - "data/ai_tournament/submissions/**"
-      - "data/ai_tournament/brace_selection_audit.json"
-      - "data/ai_tournament/.brace-generation-trigger"
+      - "data/ai_tournament/intake/**"
+      - "data/ai_tournament/intake_campaign.json"
       - ".github/workflows/ai-tournament-daily.yml"
 
 permissions:
@@ -40,48 +51,61 @@ concurrency:
   group: ai-tournament-daily
   cancel-in-progress: false
 
+env:
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate repository contract
+      - name: Install tournament dependencies
         run: |
-          python -m unittest tests.test_ai_tournament -v
-          python -m unittest tests.test_ai_tournament_cash_interest -v
-          python -m unittest tests.test_generate_brace_manual_submission -v
+          python -m pip install --upgrade pip
+          python -m pip install requests yfinance pandas pandas_market_calendars
+      - name: Test repository and locked campaign
+        run: |
+          python -m unittest \
+            tests.test_ai_tournament \
+            tests.test_ai_tournament_cash_interest \
+            tests.test_ai_tournament_submission_intake \
+            tests.test_ai_tournament_buy_hold_round -v
           python -m py_compile \
             scripts/ai_tournament_engine.py \
             scripts/ai_tournament_manual_mode.py \
             scripts/ai_tournament_manual_bootstrap.py \
+            scripts/ai_tournament_buy_hold_round.py \
+            scripts/ai_tournament_submission_intake.py \
             scripts/ai_tournament_cash_interest.py \
-            scripts/generate_brace_manual_submission.py \
             scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
           node --check scripts/ai-tournament-readiness.js
-          node --check scripts/portfolio-10k-material-reports-public.js
+      - name: Strict preflight
+        run: python scripts/ai_tournament_buy_hold_round.py preflight
+      - name: Validate immutable operating contract
+        run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
-          policy = json.loads(Path('data/ai_tournament/cash_rate_policy.json').read_text(encoding='utf-8'))
           config = json.loads(Path('data/ai_tournament/config.json').read_text(encoding='utf-8'))
+          mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
+          assert config['tournament_id'] == 'briefrooms-ai-tournament-2026-02'
+          assert config['start_date'] == '2026-08-04'
+          assert config['end_date'] == '2026-11-04'
+          assert config['starting_capital_pln'] == 10000.0
+          assert config['starting_capital_usd'] == 10000.0
+          assert config['rules']['buy_and_hold'] is True
           assert mode['mode'] == 'manual_locked_buy_and_hold'
           assert mode['api_calls_enabled'] is False
-          assert mode['cash_interest']['enabled'] is True
+          assert mode['rebalancing_allowed'] is False
+          assert mode['execution_policy'] == 'single_purchase_at_2026-08-04_us_regular_session_open'
           assert mode['cash_interest']['benchmark'] == 'IORB'
-          assert policy['day_count'] == 'ACT/365'
-          assert policy['compounding'] == 'daily'
-          assert policy['accrual_calendar'] == 'calendar_days'
-          assert config['rules']['buy_and_hold'] is True
-          assert config['universe_version'] == 'briefrooms-ai-55-v1'
           assert len(config['universe']) == 55
-          assert not {'SPY','QQQ','IWM','GLD','TLT'}.intersection(config['universe'])
-          print('Manual locked buy-and-hold contract validated.')
+          print('Immutable dual-account campaign contract validated.')
           PY
 
   deploy-ui:
@@ -101,10 +125,10 @@ jobs:
         run: python scripts/install_ai_tournament_ui.py
       - name: Validate installed renderers
         run: |
-          grep -q 'ai-tournament-public.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'ai-tournament-public.js?v=2' en/investing/portfolio-10k.html
-          grep -q 'ai-tournament-readiness.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'ai-tournament-readiness.js?v=2' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-public.js?v=3' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-public.js?v=3' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-readiness.js?v=3' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-readiness.js?v=3' en/investing/portfolio-10k.html
       - name: Commit UI deployment
         run: |
           set -euo pipefail
@@ -114,20 +138,18 @@ jobs:
           if git diff --cached --quiet; then
             echo "AI Tournament UI already current."
           else
-            git commit -m "Deploy AI Tournament readiness UI"
+            git commit -m "Deploy AI Tournament dual-account UI"
             git pull --rebase origin main
             git push
           fi
 
-  generate-brace:
+  preopen-readiness:
     if: >-
-      (github.event_name == 'issues' &&
-       github.event.issue.title == 'Generate BRACE tournament portfolio') ||
-      (github.event_name == 'push' &&
-       contains(github.event.head_commit.message, '[generate-brace]'))
+      (github.event_name == 'schedule' && github.event.schedule == '0 13 * * 1-5') ||
+      (github.event_name == 'workflow_dispatch' && inputs.command == 'preflight')
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -136,45 +158,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install frozen-market dependencies
-        run: python -m pip install --upgrade yfinance pandas
-      - name: Generate and lock BRACE decision
-        run: |
-          set -euo pipefail
-          if [[ -f data/ai_tournament/submissions/brace.json ]]; then
-            python scripts/generate_brace_manual_submission.py validate
-          else
-            python scripts/generate_brace_manual_submission.py generate
-            python scripts/generate_brace_manual_submission.py validate
-          fi
-      - name: Commit immutable BRACE submission
+      - name: Install tournament dependencies
+        run: python -m pip install requests yfinance pandas pandas_market_calendars
+      - name: Run fail-closed pre-open audit
+        run: python scripts/ai_tournament_buy_hold_round.py preflight > data/ai_tournament/preflight.json
+      - name: Commit pre-open audit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            data/ai_tournament/submissions/brace.json \
-            data/ai_tournament/commitments/brace.json \
-            data/ai_tournament/brace_selection_audit.json
+          git add data/ai_tournament/preflight.json
           if git diff --cached --quiet; then
-            echo "BRACE portfolio was already locked and validated."
-            exit 0
+            echo "Pre-open audit unchanged."
+          else
+            git commit -m "Record AI Tournament pre-open audit"
+            git pull --rebase origin main
+            git push
           fi
-          git commit -m "Lock BRACE AI Tournament portfolio"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then exit 0; fi
-            sleep $((attempt * 4))
-          done
-          echo "::error::Could not publish the locked BRACE portfolio."
-          exit 1
 
   run-tournament:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule != '0 13 * * 1-5') ||
+      (github.event_name == 'workflow_dispatch' && inputs.command == 'run')
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,67 +191,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install frozen-market dependencies
-        run: python -m pip install --upgrade yfinance pandas
+      - name: Install tournament dependencies
+        run: python -m pip install requests yfinance pandas pandas_market_calendars
       - name: Install current tournament renderers
         run: python scripts/install_ai_tournament_ui.py
-
-      - name: Verify reveals and prepare immutable first-open targets
-        id: bootstrap
-        continue-on-error: true
-        run: python scripts/ai_tournament_manual_bootstrap.py
-
-      - name: Run completed market round
-        if: steps.bootstrap.outcome == 'success'
-        run: python scripts/ai_tournament_engine.py run
-
-      - name: Validate completed tournament state
-        if: steps.bootstrap.outcome == 'success'
-        run: python scripts/ai_tournament_engine.py validate
-
-      - name: Validate blocked public status
-        if: steps.bootstrap.outcome != 'success'
-        run: |
-          python -m json.tool data/ai_tournament/public.json >/dev/null
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          public = json.loads(Path('data/ai_tournament/public.json').read_text(encoding='utf-8'))
-          assert public['tournament']['status'] == 'BLOCKED_MISSING_REVEALED_SUBMISSIONS'
-          assert public['readiness']['ready'] is False
-          print('Tournament is truthfully blocked because full reveals are missing.')
-          PY
-
-      - name: Commit tournament state or truthful blocked status
-        if: steps.bootstrap.outcome != 'success' || success()
+      - name: Verify all immutable submissions
+        run: python scripts/ai_tournament_buy_hold_round.py preflight
+      - name: Run canonical paper-trading round
+        run: python scripts/ai_tournament_buy_hold_round.py run
+      - name: Validate append-only tournament state
+        run: python scripts/ai_tournament_buy_hold_round.py validate
+      - name: Commit tournament state
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/ai_tournament
           git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
-          if [[ "${{ steps.bootstrap.outcome }}" == "success" ]]; then
-            git add -A data/ai_tournament
-          else
-            git add data/ai_tournament/public.json
-          fi
           if git diff --cached --quiet; then
             echo "No AI Tournament state change to commit."
           else
-            git commit -m "Update AI Tournament state"
+            git commit -m "Update locked AI Tournament state"
             for attempt in 1 2 3 4 5; do
               git fetch origin main
               git rebase origin/main
-              if git push origin HEAD:main; then break; fi
-              if [[ "$attempt" == "5" ]]; then
-                echo "::error::Could not publish AI Tournament state."
-                exit 1
-              fi
+              if git push origin HEAD:main; then exit 0; fi
               sleep $((attempt * 4))
             done
+            echo "::error::Could not publish AI Tournament state."
+            exit 1
           fi
-
-      - name: Fail visibly when locked reveals are incomplete
-        if: steps.bootstrap.outcome != 'success'
-        run: |
-          echo "::error::AI Tournament cannot start because one or more full locked submissions are absent or fail their commitment hash."
-          exit 1
