@@ -26,13 +26,37 @@ PINS = ROOT / "data" / "hot_x_editorial_pins.json"
 LAST_GOOD = ROOT / ".cache" / "hot_tweets_comments_last_good.json"
 EMERGENCY = ROOT / "data" / "hot_x_emergency.json"
 INTERVAL_HOURS = 12
+MAX_POST_AGE_HOURS = 7 * 24
 MIN_VISIBLE_ITEMS = INITIAL_VISIBLE_ITEMS
 TARGET_ITEMS = TOTAL_ITEMS
+TRUSTED_ACCOUNTS = (
+    "Reuters",
+    "ReutersBiz",
+    "business",
+    "FT",
+    "BBCWorld",
+    "BBCBreaking",
+    "OpenAI",
+    "OpenAIDevs",
+    "CoinDesk",
+)
 
 
 def rotation_slot() -> int:
     block = int(source.now_dt().timestamp() // (INTERVAL_HOURS * 3600))
     return block % len(source.TOPIC_SLOTS)
+
+
+def trusted_x_recent_query(topic: dict[str, str]) -> str:
+    """Search recent posts only from established editorial or primary accounts."""
+    terms: list[str] = []
+    for word in re.findall(r"[A-Za-z0-9+#.-]+", topic.get("query") or ""):
+        if word.casefold() in source.SOURCE_WORDS or len(word) < 3:
+            continue
+        terms.append(word)
+    alternatives = " OR ".join(dict.fromkeys(terms[:6])) or "news"
+    accounts = " OR ".join(f"from:{account}" for account in TRUSTED_ACCOUNTS)
+    return f"({alternatives}) ({accounts}) lang:en -is:retweet -is:reply"
 
 
 def load_items(path: Path) -> list[dict]:
@@ -72,6 +96,8 @@ def normalize_metadata() -> None:
         target=TARGET_ITEMS,
     )
     data["refresh_interval_hours"] = INTERVAL_HOURS
+    data["max_post_age_hours"] = MAX_POST_AGE_HOURS
+    data["trusted_accounts"] = list(TRUSTED_ACCOUNTS)
     data["update_frequency"] = "2_times_daily"
     data["rotation_slot"] = rotation_slot()
     data["rotation_slots_total"] = len(source.TOPIC_SLOTS)
@@ -80,11 +106,11 @@ def normalize_metadata() -> None:
     data["editorial_pins_count"] = len(pins)
     data["method_pl"] = (
         "Cztery tematy redakcyjne pozostają przypięte na początku sekcji. Automatyczne odświeżenie dwa razy "
-        "dziennie uzupełnia je zweryfikowanymi, bezpośrednimi postami z X i nie może zastąpić przypiętych linków."
+        "dziennie uzupełnia je bezpośrednimi postami z ostatnich siedmiu dni wyłącznie z zatwierdzonych kont X."
     )
     data["method_en"] = (
-        "Four editorial topics remain pinned at the top. Twice-daily automation supplements them with verified "
-        "direct X posts and cannot replace the pinned links."
+        "Four editorial topics remain pinned at the top. Twice-daily automation supplements them with direct "
+        "posts from the last seven days, restricted to approved X accounts."
     )
     for item in data.get("items", []):
         selected = str(item.get("selected_by") or "")
@@ -97,10 +123,16 @@ def normalize_metadata() -> None:
 def main() -> None:
     if not os.environ.get("X_BEARER_TOKEN"):
         raise RuntimeError("X_BEARER_TOKEN is missing; refusing to replace the verified Hot X feed")
+
     source.SLOT_HOURS = INTERVAL_HOURS
+    source.MAX_X_POST_AGE_HOURS = MAX_POST_AGE_HOURS
     source.current_slot_index = rotation_slot
+    source.x_recent_query = trusted_x_recent_query
     builder.hot.SLOT_HOURS = INTERVAL_HOURS
+    builder.hot.MAX_X_POST_AGE_HOURS = MAX_POST_AGE_HOURS
     builder.hot.current_slot_index = rotation_slot
+    builder.hot.x_recent_query = trusted_x_recent_query
+
     previous_bytes = OUT.read_bytes() if OUT.exists() else b""
     previous_direct_urls = {
         item.get("tweet_url")
@@ -119,11 +151,9 @@ def main() -> None:
             OUT.write_bytes(previous_bytes)
         elif OUT.exists():
             OUT.unlink()
-        print(
-            "No new verified direct X posts; preserved the previous feed and timestamp."
-        )
+        print("No new verified direct X posts; preserved the previous feed and timestamp.")
         return
-    print("Hot X updated automatically with four preserved editorial pins")
+    print("Hot X updated automatically with recent posts from trusted accounts")
 
 
 if __name__ == "__main__":
