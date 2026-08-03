@@ -20,13 +20,51 @@
       .toLowerCase().indexOf('en') === 0 ? 'en' : 'pl';
   }
 
+  function governedEngine(engine) {
+    return Boolean(
+      engine &&
+      String(engine.version || '').indexOf('ai-outlook-engine-v1.1') === 0
+    );
+  }
+
+  function validateEdition(payload, lang, strictLanguageSources) {
+    var item = payload[lang];
+    if (!item || typeof item !== 'object') return false;
+    var engine = item.engine || payload.engine;
+    var governance = item.governance || payload.governance;
+    if (!governedEngine(engine)) return true;
+    if (!governance || typeof governance !== 'object') return false;
+    if (engine.edition_language && String(engine.edition_language) !== lang) return false;
+
+    if (strictLanguageSources) {
+      if (String(item.source_language || '') !== lang) return false;
+      var sources = item.sources;
+      if (!Array.isArray(sources) || !sources.length) return false;
+      for (var index = 0; index < sources.length; index += 1) {
+        if (!sources[index] || String(sources[index].source_language || '') !== lang) return false;
+      }
+    }
+
+    if (governance.disclaimer_required === true) {
+      var disclaimers = governance.disclaimers;
+      if (!disclaimers || !String(disclaimers[lang] || '').trim()) return false;
+      item.disclaimer = String(disclaimers[lang]);
+    }
+    return true;
+  }
+
   function validate(payload) {
     if (!payload || typeof payload !== 'object') return null;
-    var governance = payload.governance;
-    var engine = payload.engine;
-    var isGoverned = engine && String(engine.version || '').indexOf('ai-outlook-engine-v1.1') === 0;
+    var independent = Number(payload.schema_version) === 2 || payload.edition_policy === 'independent-per-language';
+    if (independent) {
+      if (!payload.source_policy || typeof payload.source_policy !== 'object') return null;
+      if (!validateEdition(payload, 'pl', true) || !validateEdition(payload, 'en', true)) return null;
+      return payload;
+    }
 
-    if (!isGoverned) return payload;
+    var engine = payload.engine;
+    var governance = payload.governance;
+    if (!governedEngine(engine)) return payload;
     if (!governance || typeof governance !== 'object') return null;
     if (governance.disclaimer_required === true) {
       var disclaimers = governance.disclaimers;
@@ -49,8 +87,8 @@
     if (!payload || !card) return;
 
     var lang = language();
-    var governance = payload.governance || {};
     var item = payload[lang] || {};
+    var governance = item.governance || payload.governance || {};
     var disclaimer = String(item.disclaimer || (governance.disclaimers || {})[lang] || '').trim();
 
     if (governance.disclaimer_required === true && !disclaimer) {
@@ -61,6 +99,7 @@
     if (node && disclaimer) node.textContent = disclaimer;
     card.dataset.governanceValidated = 'true';
     card.dataset.riskClass = String(governance.risk_class || 'legacy');
+    card.dataset.editionLanguage = lang;
   }
 
   function installFetchGuard() {
