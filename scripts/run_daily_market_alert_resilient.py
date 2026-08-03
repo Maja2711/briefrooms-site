@@ -15,6 +15,7 @@ from typing import Any
 
 import daily_market_alert_editorial_v2 as editorial_v2
 import daily_market_alert_materiality as materiality
+import daily_market_alert_materiality_upgrade as materiality_upgrade
 import update_daily_market_alert as alert
 
 _ORIGINAL_BUILD_ALERT = alert.build_alert
@@ -81,6 +82,27 @@ def install_governed_editorial_contract() -> None:
     alert.generate_editorial = governed_generate_editorial
     alert.build_alert = governed_build_alert
     alert.validate_payload = governed_validate_payload
+
+
+def upgrade_existing_alert_if_needed(payload: dict[str, Any]) -> dict[str, Any]:
+    contract = payload.get("materiality_contract") or {}
+    if contract.get("version") == materiality.VERSION:
+        return payload
+    upgraded, snapshots = materiality_upgrade.upgrade_payload(payload)
+    editorial = materiality_upgrade.editorial_from_payload(upgraded)
+    quality = editorial_v2.report(
+        editorial, snapshots, [], editorial_v2.load_spec()
+    )
+    if not quality["passed"]:
+        raise editorial_v2.EditorialQualityError(
+            "Existing alert materiality migration blocked: " + ", ".join(quality["issues"])
+        )
+    upgraded["editorial_quality"] = quality
+    governed_validate_payload(upgraded)
+    alert.write_json(alert.OUT, upgraded)
+    alert.archive(upgraded, "materiality-correction")
+    print("Migrated the last published alert to the current materiality contract")
+    return upgraded
 
 
 def publish_fallback(mode_requested: str) -> int:
@@ -153,8 +175,6 @@ def publish_fallback(mode_requested: str) -> int:
             "editorial_mode", "language_separated_ai"
         )
         output.pop("_editorial_preclose_note", None)
-        # A previous same-session alert must already have passed the current
-        # materiality contract; otherwise publish the newly built candidate.
         try:
             governed_validate_payload(output)
         except Exception:
@@ -189,7 +209,8 @@ def main() -> int:
     args = parser.parse_args()
     install_governed_editorial_contract()
     if args.validate_only:
-        governed_validate_payload(alert.load_json(alert.OUT, {}))
+        payload = upgrade_existing_alert_if_needed(alert.load_json(alert.OUT, {}))
+        governed_validate_payload(payload)
         print("Daily market alert JSON, editorial and materiality contracts are valid")
         return 0
     try:
