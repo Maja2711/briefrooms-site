@@ -1,7 +1,7 @@
 {
   "schema_version": "ai-tournament-v1",
   "engine_version": "ai-tournament-engine-v1",
-  "generated_at": "2026-08-02T18:00:00+00:00",
+  "generated_at": "2026-08-03T17:33:07+00:00",
   "tournament": {
     "id": "briefrooms-ai-tournament-2026-01",
     "title_pl": "AI Tournament — Inwestycje 10K",
@@ -9,30 +9,45 @@
     "start_date": "2026-08-03",
     "end_date": "2026-11-03",
     "starting_capital_pln": 10000.0,
-    "status": "SCHEDULED",
+    "starting_capital_usd": 10000.0,
+    "status": "BLOCKED_MISSING_REVEALED_SUBMISSIONS",
     "ranking_rule": "cumulative_return_desc_then_drawdown_then_sharpe",
-    "decision_time": "after_us_market_close",
-    "execution_time": "next_us_session_open"
+    "decision_time": "locked_before_first_open",
+    "execution_time": "first_eligible_us_session_open"
   },
   "latest_session": null,
   "participants": [
-    {"agent_id": "BRACE", "provider": "brace", "model": "BRACE-v1"},
-    {"agent_id": "OpenAI", "provider": "openai", "model": "gpt-5-mini"},
-    {"agent_id": "Claude", "provider": "anthropic", "model": "claude-sonnet-4-20250514"},
-    {"agent_id": "Gemini", "provider": "gemini", "model": "gemini-3.5-flash"},
-    {"agent_id": "DeepSeek", "provider": "deepseek", "model": "deepseek-v4-flash"}
+    {"agent_id": "BRACE", "provider": "brace", "model": "BRACE Buy-and-Hold v1"},
+    {"agent_id": "GPT-5.6 Thinking", "provider": "manual_chat", "model": "GPT-5.6 Thinking"},
+    {"agent_id": "Claude", "provider": "manual_chat", "model": "Claude"},
+    {"agent_id": "Gemini", "provider": "manual_chat", "model": "Gemini"},
+    {"agent_id": "DeepSeek", "provider": "manual_chat", "model": "DeepSeek"}
   ],
+  "readiness": {
+    "ready": false,
+    "reason": "Full revealed submissions are required and must match the pre-market commitment hashes. A hash cannot be reversed into a portfolio.",
+    "participants": [
+      {"agent_id": "BRACE", "ready": true, "submission_hash": "03af8a99531360f5bbd98e3116cef069e750840d46768d8c7a3f15e0a93476f7", "positions_count": 6, "cash_weight": 0.05},
+      {"agent_id": "GPT-5.6 Thinking", "ready": false, "error": "missing data/ai_tournament/submissions/gpt-5-6-thinking.json"},
+      {"agent_id": "Claude", "ready": false, "error": "missing data/ai_tournament/submissions/claude.json"},
+      {"agent_id": "Gemini", "ready": false, "error": "missing data/ai_tournament/submissions/gemini.json"},
+      {"agent_id": "DeepSeek", "ready": false, "error": "missing data/ai_tournament/submissions/deepseek.json"}
+    ]
+  },
   "benchmark": null,
   "rules": {
     "long_only": true,
+    "buy_and_hold": true,
     "fractional_shares": true,
     "max_positions": 6,
+    "min_position_weight": 0.05,
     "max_position_weight": 0.3,
-    "min_cash_weight": 0.02,
-    "max_daily_turnover": 0.5,
+    "min_cash_weight": 0.0,
+    "max_cash_weight": 0.2,
+    "max_daily_turnover": 1.0,
     "transaction_cost_pct": 0.001,
     "slippage_pct": 0.0005,
-    "min_trade_pln": 50.0
+    "min_trade_pln": 0.0
   },
   "leaderboard": [],
   "history": [],
