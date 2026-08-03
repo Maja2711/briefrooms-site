@@ -32,6 +32,16 @@ def _outcome(record: dict[str, Any]) -> float | None:
     return 1.0 if status == "resolved_true" else 0.0
 
 
+def _forecast_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    if payload.get("schema_version") == 2 and payload.get("edition_policy") == "independent-per-language":
+        return [
+            section
+            for language in ("pl", "en")
+            if isinstance((section := payload.get(language)), dict)
+        ]
+    return [payload] if payload else []
+
+
 def public_calibration_summary(records: list[dict[str, Any]], min_n: int = PUBLIC_BRIER_MIN_N) -> dict[str, Any]:
     published = len(records)
     resolved_rows: list[tuple[float, float]] = []
@@ -53,13 +63,14 @@ def public_calibration_summary(records: list[dict[str, Any]], min_n: int = PUBLI
     if available:
         brier = round(sum((probability - outcome) ** 2 for probability, outcome in resolved_rows) / resolved, 6)
     return {
-        "schema_version": "ai-outlook-metrics-v1",
+        "schema_version": "ai-outlook-metrics-v2",
         "published": published,
         "in_progress": in_progress,
         "resolved": resolved,
         "public_brier_available": available,
         "public_brier_min_resolved": min_n,
         "brier_score": brier,
+        "counting_policy": "one forecast per language edition",
         "message_pl": (
             f"Brier Score zostanie opublikowany po {min_n} rozstrzygniętych prognozach."
             if not available else "Brier Score oparty na wymaganej minimalnej próbie."
@@ -72,8 +83,9 @@ def public_calibration_summary(records: list[dict[str, Any]], min_n: int = PUBLI
 
 
 def build() -> dict[str, Any]:
-    records = [_load(path) for path in sorted(HISTORY_DIR.glob("*.json"))] if HISTORY_DIR.exists() else []
-    summary = public_calibration_summary([row for row in records if row])
+    payloads = [_load(path) for path in sorted(HISTORY_DIR.glob("*.json"))] if HISTORY_DIR.exists() else []
+    records = [record for payload in payloads if payload for record in _forecast_records(payload)]
+    summary = public_calibration_summary(records)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return summary
