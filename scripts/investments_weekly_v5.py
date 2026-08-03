@@ -11,13 +11,14 @@ import investments_weekly as legacy
 import investments_weekly_v2 as v2
 import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
+import investments_weekly_macro as macro
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.0.0-experimental"
+VERSION = "5.2.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -123,6 +124,7 @@ def freeze_decision(item: Dict[str, Any], decision: Dict[str, Any], fresh: Dict[
     pending = {
         "decided_at": frozen["decided_at"], "entry_not_before": frozen["decided_at"],
         "decision": frozen, "fresh_signal": fresh, "weekly_signal": weekly,
+        "macro_context": frozen.get("macro_context"),
         "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp",
     }
     item.update(pending_entry_decision=pending, trade_status="planned",
@@ -137,6 +139,18 @@ def entry_point(symbol: str, pending: Dict[str, Any]) -> Optional[Dict[str, Any]
     point = v2.first_bar_at_or_after(symbol, decided, tolerance=timedelta(hours=3))
     captured = parse_dt((point or {}).get("timestamp"))
     return point if point and captured and captured >= decided else None
+
+
+def _store_macro_review(item: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    if context.get("data_quality") not in {"passed", "failed"}:
+        return False
+    review = macro.position_review(item, context)
+    previous = item.get("latest_macro_context") if isinstance(item.get("latest_macro_context"), dict) else {}
+    comparable_previous = {key: previous.get(key) for key in review}
+    if comparable_previous == review:
+        return False
+    item["latest_macro_context"] = review
+    return True
 
 
 def ensure_all() -> Dict[str, Any]:
@@ -167,13 +181,23 @@ def ensure_all() -> Dict[str, Any]:
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason": "gate_or_reentry_lock"}); continue
         fresh = v2.model_signal(cfg, method, str(week.get("week_id") or ""), now)
         weekly = v3.weekly_candle_signal(cfg, policy); regime = str(weekly.get("regime") or "unknown")
+        macro_context = macro.context(iid, now, policy)
         learning = v4.learning_stats(iid, regime, policy)
-        candidates = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
+        base_candidates = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
+        candidates = macro.apply_to_candidates(iid, base_candidates, fresh, weekly, macro_context, policy)
         decision = no_trade(v4.choose(candidates, learning, policy), fresh, weekly, policy)
+        decision["macro_context"] = macro_context
         state["instruments"][iid] = {"regime": regime, "learning": learning, "decision": decision,
+                                     "macro_context": macro_context,
                                      "validation_gate": item.get("validation_gate"), "reentry_lock": item.get("reentry_lock")}
+        if _store_macro_review(item, macro_context):
+            changed = True
         if open_position(item):
-            item.update(continuous_exposure_active=True, continuous_exposure_status="open"); continue
+            item.update(continuous_exposure_active=True, continuous_exposure_status="open")
+            report["actions"].append({"instrument_id": iid, "action": "keep_open", "direction": item.get("direction"),
+                                      "macro_score": macro_context.get("score"),
+                                      "next_governed_review": "daily_review_23_00_europe_warsaw"})
+            continue
         if decision.get("direction") not in {"long", "short"}:
             abstain(item, decision); changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": decision.get("reason_codes")}); continue
@@ -185,13 +209,16 @@ def ensure_all() -> Dict[str, Any]:
             report["actions"].append({"instrument_id": iid, "action": "defer_entry", "entry_not_before": pending.get("entry_not_before")}); continue
         frozen = pending["decision"]; v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
         item.update(entry_decision_at=pending["decided_at"], entry_execution_rule="first_completed_5m_bar_on_or_after_frozen_decision",
-                    pending_entry_decision=None, next_entry_status="open")
+                    entry_macro_context=pending.get("macro_context"), pending_entry_decision=None, next_entry_status="open")
         report["actions"].append({"instrument_id": iid, "action": "open", "direction": frozen.get("direction"),
-                                  "decision_at": item["entry_decision_at"], "entry_at": item.get("entry_captured_at")})
+                                  "decision_at": item["entry_decision_at"], "entry_at": item.get("entry_captured_at"),
+                                  "macro_score": (pending.get("macro_context") or {}).get("score")})
     week["multi_instrument_exposure_layer"] = {
         "enabled": True, "version": VERSION, "common_validation_gate": True,
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
-        "no_trade_first_class": True, "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
+        "no_trade_first_class": True, "weekly_candles_used": True,
+        "eurusd_oil_us10y_context_used": True,
+        "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
         "last_checked_at": now.isoformat(timespec="seconds"),
     }
     if changed: write(path, week)
