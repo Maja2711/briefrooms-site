@@ -32,7 +32,9 @@ class DailyMarketAlertQualityTests(unittest.TestCase):
         spec = quality.load_spec()
         pl = quality.prompt("pl", spec)
         en = quality.prompt("en", spec)
-        self.assertIn("wyłącznie POLSKIEJ", pl)
+        self.assertIn("Nie twórz angielskiego tekstu", pl)
+        self.assertIn("Do not create Polish copy", en)
+        self.assertIn("POLSKIEJ wersji alertu", pl)
         self.assertIn("ENGLISH alert only", en)
         self.assertNotEqual(pl, en)
 
