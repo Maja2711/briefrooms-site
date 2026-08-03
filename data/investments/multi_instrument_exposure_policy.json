@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.1.0",
+  "policy_version": "5.2.0",
   "name": "BriefRooms continuous multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -17,14 +17,14 @@
   ],
   "strategy_tournament": {
     "enabled": true,
-    "candidate_methods": ["base_v2", "inverse_v2", "weekly_trend", "daily_weekly_blend", "ema_mean_reversion"],
+    "candidate_methods": ["base_v2", "inverse_v2", "weekly_trend", "daily_weekly_blend", "ema_mean_reversion", "macro_weekly_blend"],
     "rolling_closed_legs": 120,
     "minimum_observations_before_performance_weight": 6,
     "prior_observations": 5,
     "performance_weight": 18.0,
     "exploration_bonus": 2.5,
     "maximum_learning_adjustment": 18.0,
-    "rule": "Select the highest-utility directional candidate for every enabled instrument using only earlier closed paper legs."
+    "rule": "Select the highest-utility directional candidate for every enabled instrument using only earlier closed paper legs. EUR/USD candidates also receive a bounded oil and US10Y alignment adjustment."
   },
   "weekly_candle_model": {
     "enabled": true,
@@ -35,6 +35,23 @@
     "momentum_slow_weeks": 13,
     "breakout_lookback_weeks": 26,
     "weights": {"trend": 35, "momentum_fast": 25, "momentum_slow": 20, "breakout": 15, "last_candle": 5}
+  },
+  "macro_context": {
+    "enabled": true,
+    "applies_to": ["eurusd"],
+    "oil_symbol": "CL=F",
+    "us10y_symbol": "^TNX",
+    "require_both_sources": true,
+    "score_cap": 30.0,
+    "candidate_alignment_bonus_max": 6.0,
+    "weights": {"oil_1w": 10.0, "oil_4w": 5.0, "us10y_1w": 10.0, "us10y_4w": 5.0},
+    "normalization": {"oil_1w_percent": 8.0, "oil_4w_percent": 20.0, "us10y_1w_bps": 20.0, "us10y_4w_bps": 50.0},
+    "blend_weights": {"daily": 0.35, "weekly": 0.40, "macro": 0.25},
+    "daily_review_weights": {"daily": 0.50, "weekly": 0.35, "macro": 0.15},
+    "daily_exit_combined_threshold": 22.0,
+    "macro_confirmation_threshold": 18.0,
+    "interpretation": "Falling oil and falling US10Y support EUR/USD; rising oil and rising US10Y support the dollar. Inputs are normalized, capped and never used as standalone trade triggers.",
+    "rule": "The open position is not rewritten retroactively. Macro context enters new decisions and the governed 23:00 daily review."
   },
   "no_trade": {
     "enabled": false,
