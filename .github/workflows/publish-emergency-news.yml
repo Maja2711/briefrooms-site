@@ -1,202 +1,27 @@
-name: Publish Source-Only News
+name: Publish Live PL and EN News
 
 on:
-  pull_request:
-    paths:
-      - "scripts/publish_emergency_news.py"
-      - "scripts/enforce_homepage_photo_only.py"
-      - "scripts/homepage-photo-only.js"
-      - "scripts/ai-outlook-governance-guard.js"
-      - "scripts/install_ai_tournament_ui.py"
-      - "scripts/ai-tournament-public.js"
-      - "scripts/generate_brace_manual_submission.py"
-      - "tests/test_publish_emergency_news.py"
-      - "tests/test_homepage_photo_only.py"
-      - "tests/test_ai_tournament.py"
-      - "tests/test_generate_brace_manual_submission.py"
-      - ".github/workflows/publish-emergency-news.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
   push:
     branches: [main]
     paths:
-      - "scripts/publish_emergency_news.py"
-      - "scripts/enforce_homepage_photo_only.py"
-      - "scripts/homepage-photo-only.js"
-      - "scripts/ai-outlook-governance-guard.js"
-      - "scripts/install_ai_tournament_ui.py"
-      - "scripts/ai-tournament-public.js"
-      - "scripts/generate_brace_manual_submission.py"
-      - "tests/test_publish_emergency_news.py"
-      - "tests/test_homepage_photo_only.py"
-      - "tests/test_ai_tournament.py"
-      - "tests/test_generate_brace_manual_submission.py"
+      - "scripts/publish_live_news.py"
+      - "scripts/news-live.js"
+      - "scripts/install_news_live_runtime.py"
+      - "tests/test_publish_live_news.py"
       - ".github/workflows/publish-emergency-news.yml"
-      - "pl/aktualnosci.html"
-      - "en/news.html"
-  issues:
-    types: [opened]
-  workflow_dispatch:
-  schedule:
-    - cron: "5 */2 * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: emergency-news-publication
-  cancel-in-progress: true
+  group: live-news-publication
+  cancel-in-progress: false
 
 jobs:
-  patch-homepages:
-    if: >-
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'issues' ||
-      github.event.issue.title == 'Patch AI Outlook compact asset' ||
-      github.event.issue.title == 'Install AI Tournament UI')
-    runs-on: ubuntu-latest
-    timeout-minutes: 7
-    steps:
-      - name: Check out current main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Patch governed homepage and tournament asset URLs
-        run: |
-          set -euo pipefail
-          python scripts/enforce_homepage_photo_only.py
-          python scripts/install_ai_tournament_ui.py
-          node --check scripts/homepage-photo-only.js
-          node --check scripts/ai-outlook-governance-guard.js
-          node --check scripts/ai-tournament-public.js
-          python -m unittest tests.test_homepage_photo_only tests.test_ai_tournament -v
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
-          grep -F '/scripts/ai-tournament-public.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -F '/scripts/ai-tournament-public.js?v=1' en/investing/portfolio-10k.html
-
-      - name: Commit governed public pages
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            pl/index.html en/index.html \
-            pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
-          if git diff --cached --quiet; then
-            echo "Public asset URLs are already current."
-            exit 0
-          fi
-          git commit -m "Publish governed homepage and AI Tournament assets"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 3))
-          done
-          echo "::error::Could not push governed public pages after 5 attempts."
-          exit 1
-
-  generate-brace:
-    if: github.event_name == 'issues' && github.event.issue.title == 'Generate BRACE portfolio via canonical publisher'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out current main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install BRACE market dependencies
-        run: python -m pip install --upgrade yfinance pandas
-
-      - name: Test, generate and validate BRACE
-        run: |
-          set -euo pipefail
-          python -m unittest tests.test_generate_brace_manual_submission -v
-          python -m py_compile scripts/generate_brace_manual_submission.py
-          if [[ -f data/ai_tournament/submissions/brace.json ]]; then
-            python scripts/generate_brace_manual_submission.py validate
-          else
-            python scripts/generate_brace_manual_submission.py generate
-            python scripts/generate_brace_manual_submission.py validate
-          fi
-
-      - name: Commit immutable BRACE portfolio
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            data/ai_tournament/submissions/brace.json \
-            data/ai_tournament/commitments/brace.json \
-            data/ai_tournament/brace_selection_audit.json
-          if git diff --cached --quiet; then
-            echo "BRACE portfolio already exists and passed validation."
-            exit 0
-          fi
-          git commit -m "Lock BRACE AI Tournament portfolio"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 4))
-          done
-          echo "::error::Could not push locked BRACE portfolio."
-          exit 1
-
-  validate:
-    if: github.event_name != 'issues'
-    runs-on: ubuntu-latest
-    timeout-minutes: 7
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install validation dependencies
-        run: python -m pip install feedparser requests
-      - name: Validate layout-preserving publisher
-        run: |
-          python -m py_compile \
-            scripts/publish_emergency_news.py \
-            scripts/enforce_homepage_photo_only.py \
-            scripts/install_ai_tournament_ui.py \
-            scripts/ai_tournament_engine.py \
-            scripts/generate_brace_manual_submission.py
-          python -m unittest \
-            tests.test_publish_emergency_news \
-            tests.test_ai_tournament \
-            tests.test_generate_brace_manual_submission -v
-          node --check scripts/homepage-photo-only.js
-          node --check scripts/ai-outlook-governance-guard.js
-          node --check scripts/ai-tournament-public.js
-
   publish:
-    if: github.event_name != 'pull_request' && github.event_name != 'issues'
-    needs: [patch-homepages, validate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -216,45 +41,42 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install feedparser requests
 
-      - name: Refresh news content in preserved PL and EN layouts
+      - name: Validate canonical news pipeline
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/publish_live_news.py scripts/install_news_live_runtime.py
+          python -m unittest tests.test_publish_live_news -v
+          node --check scripts/news-live.js
+
+      - name: Build fresh PL and EN news data
         id: build
         run: |
           set -euo pipefail
-          marker="source-only-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
-          python scripts/publish_emergency_news.py --marker "${marker}"
-          python scripts/enforce_homepage_photo_only.py
-          python scripts/install_ai_tournament_ui.py
-          python -m unittest tests.test_homepage_photo_only tests.test_ai_tournament -v
-          node --check scripts/ai-outlook-governance-guard.js
-          node --check scripts/ai-tournament-public.js
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' pl/index.html
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v1' en/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-compact-3' en/index.html
-          grep -F '/scripts/ai-tournament-public.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -F '/scripts/ai-tournament-public.js?v=1' en/investing/portfolio-10k.html
-          if grep -F '/scripts/homepage-photo-only.js?v=1' pl/index.html en/index.html; then
-            echo "::error::Old AI Outlook asset version remains in homepage HTML."
-            exit 1
-          fi
+          python scripts/publish_live_news.py --marker "${marker}"
+          python scripts/install_news_live_runtime.py
+          python scripts/publish_live_news.py --validate --max-age-minutes 10
+          grep -F '/scripts/news-live.js?v=1' pl/aktualnosci.html
+          grep -F '/scripts/news-live.js?v=1' en/news.html
+          grep -F '/scripts/news-live.js?v=1' pl/index.html
+          grep -F '/scripts/news-live.js?v=1' en/index.html
 
-      - name: Commit and push content-only refresh
+      - name: Commit one atomic news publication
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            pl/aktualnosci.html en/news.html \
-            pl/index.html en/index.html \
-            pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html \
+            data/news/pl.json data/news/en.json data/news/status.json \
             pl/home_brief.json en/home_brief.json \
-            data/emergency_news_status.json
+            pl/aktualnosci.html en/news.html \
+            pl/index.html en/index.html
           if git diff --cached --quiet; then
-            echo "::error::Source-only publisher produced no content changes."
+            echo "::error::Canonical publisher produced no tracked output."
             exit 1
           fi
-          git commit -m "chore(news): refresh PL and EN content without layout changes"
+          git commit -m "chore(news): publish live PL and EN feed"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
@@ -263,14 +85,50 @@ jobs:
             if git push origin HEAD:main; then
               exit 0
             fi
-            sleep $((attempt * 5))
+            sleep $((attempt * 4))
           done
-          echo "::error::Could not push refreshed news after 5 attempts."
+          echo "::error::Could not push live news after 5 attempts."
           exit 1
 
-      - name: Verify news and homepage markers on production
+      - name: Verify production data and runtime
+        env:
+          MARKER: ${{ steps.build.outputs.marker }}
         run: |
-          python scripts/publish_emergency_news.py \
-            --verify \
-            --marker "${{ steps.build.outputs.marker }}" \
-            --base-url https://briefrooms.com
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          marker = os.environ['MARKER']
+          base = 'https://briefrooms.com'
+          json_paths = ('/data/news/pl.json', '/data/news/en.json')
+          html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
+          headers = {'User-Agent': 'BriefRooms production verifier/1.0', 'Cache-Control': 'no-cache'}
+          last = []
+          for attempt in range(36):
+              last = []
+              for path in json_paths:
+                  try:
+                      req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          payload = json.loads(response.read().decode('utf-8'))
+                      if payload.get('marker') != marker:
+                          last.append(f'{path}: marker mismatch')
+                  except Exception as exc:
+                      last.append(f'{path}: {exc}')
+              for path in html_paths:
+                  try:
+                      req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          body = response.read().decode('utf-8', 'replace')
+                      if '/scripts/news-live.js?v=1' not in body:
+                          last.append(f'{path}: runtime missing')
+                  except Exception as exc:
+                      last.append(f'{path}: {exc}')
+              if not last:
+                  print('Production PL and EN news are current.')
+                  raise SystemExit(0)
+              time.sleep(10)
+          raise SystemExit('Production verification failed: ' + '; '.join(last))
+          PY
