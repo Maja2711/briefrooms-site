@@ -62,8 +62,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/enforce_homepage_photo_only.py
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' pl/index.html
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' en/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v3' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v3' en/index.html
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' pl/index.html
           grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' en/index.html
 
@@ -85,6 +85,8 @@ jobs:
             scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
           node --check scripts/ai-outlook-governance-guard.js
+          grep -F "if (node.textContent === text) return false" scripts/ai-outlook-governance-guard.js
+          grep -F "observer.disconnect()" scripts/ai-outlook-governance-guard.js
           python scripts/update_ai_outlook_v3.py --validate-only
 
       - name: Generate independent morning PL and EN editions
