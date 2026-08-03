@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+from datetime import datetime, timedelta
 from typing import Any
 
 import daily_market_alert_editorial_v2 as editorial_v2
@@ -23,7 +24,7 @@ _ORIGINAL_VALIDATE_PAYLOAD = alert.validate_payload
 
 
 def prepare_snapshots(snapshots: list[alert.MarketSnapshot]) -> list[alert.MarketSnapshot]:
-    """Promote raw nearby levels to non-trivial decision levels exactly once."""
+    """Promote raw nearby levels to non-trivial decision levels."""
     return materiality.apply_materiality_levels(snapshots)
 
 
@@ -85,23 +86,41 @@ def install_governed_editorial_contract() -> None:
 
 
 def upgrade_existing_alert_if_needed(payload: dict[str, Any]) -> dict[str, Any]:
+    """Migrate an older public alert without reusing obsolete narrative rules."""
     contract = payload.get("materiality_contract") or {}
-    if contract.get("version") == materiality.VERSION:
+    editorial_contract = payload.get("editorial_contract") or {}
+    quality = payload.get("editorial_quality") or {}
+    if (
+        contract.get("version") == materiality.VERSION
+        and editorial_contract.get("pl_generated_independently")
+        and editorial_contract.get("en_generated_independently")
+        and quality.get("passed")
+    ):
         return payload
+
     upgraded, snapshots = materiality_upgrade.upgrade_payload(payload)
-    editorial = materiality_upgrade.editorial_from_payload(upgraded)
-    quality = editorial_v2.report(
-        editorial, snapshots, [], editorial_v2.load_spec()
-    )
-    if not quality["passed"]:
-        raise editorial_v2.EditorialQualityError(
-            "Existing alert materiality migration blocked: " + ", ".join(quality["issues"])
-        )
-    upgraded["editorial_quality"] = quality
+    mode = str(upgraded.get("edition") or "open")
+    if mode not in {"open", "preclose"}:
+        mode = "open"
+    editorial = editorial_v2.deterministic_editorial(alert, snapshots, mode)
+    editorial = finalize_editorial(editorial, snapshots, [])
+
+    by_id = {row["id"]: row for row in editorial.get("instruments", [])}
+    for item in upgraded.get("instruments", []):
+        row = by_id.get(item.get("id"), {})
+        item["narrative"] = row.get("narrative", {})
+        item["reason"] = row.get("reason", {})
+        item["stance"] = row.get("stance")
+        item["driver_keys"] = row.get("driver_keys", [])
+        item["source_indexes"] = []
+
+    upgraded = editorial_v2.enrich_payload(upgraded, editorial)
+    upgraded = materiality.enrich_payload(upgraded, snapshots)
+    upgraded["editorial_mode"] = "deterministic_materiality_migration"
     governed_validate_payload(upgraded)
     alert.write_json(alert.OUT, upgraded)
     alert.archive(upgraded, "materiality-correction")
-    print("Migrated the last published alert to the current materiality contract")
+    print("Migrated the last published alert to the current editorial and materiality contracts")
     return upgraded
 
 
@@ -109,7 +128,10 @@ def publish_fallback(mode_requested: str) -> int:
     moment = alert.now_utc()
     mode = alert.resolve_mode(mode_requested, moment)
     if mode == "skip":
-        print("Outside the governed NYSE alert window or the market is closed; no update.")
+        existing = alert.load_json(alert.OUT, {})
+        if existing:
+            upgrade_existing_alert_if_needed(existing)
+        print("Outside the governed NYSE alert window or the market is closed; no market update.")
         return 0
 
     previous = alert.load_json(alert.OUT, {})
@@ -200,6 +222,25 @@ def publish_fallback(mode_requested: str) -> int:
     return 0
 
 
+def _parse_time(value: Any) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=alert.UTC)
+
+
+def _fresh_same_session_open(previous: dict[str, Any], moment: datetime) -> bool:
+    if previous.get("session_date") != moment.astimezone(alert.NY).date().isoformat():
+        return False
+    if previous.get("edition") != "open":
+        return False
+    updated = _parse_time(previous.get("updated_at"))
+    if updated is None:
+        return False
+    return moment - updated.astimezone(alert.UTC) < timedelta(minutes=45)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -208,17 +249,38 @@ def main() -> int:
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     install_governed_editorial_contract()
+
     if args.validate_only:
         payload = upgrade_existing_alert_if_needed(alert.load_json(alert.OUT, {}))
         governed_validate_payload(payload)
         print("Daily market alert JSON, editorial and materiality contracts are valid")
         return 0
+
+    moment = alert.now_utc()
+    resolved = alert.resolve_mode(args.mode, moment)
+    previous = alert.load_json(alert.OUT, {})
+    if resolved == "skip":
+        if previous:
+            upgrade_existing_alert_if_needed(previous)
+        print("Outside the governed NYSE alert window or the market is closed; no market update.")
+        return 0
+    if args.mode == "catchup" and resolved == "open" and _fresh_same_session_open(previous, moment):
+        governed_validate_payload(previous)
+        print("A current same-session opening alert already exists; duplicate catch-up skipped.")
+        return 0
+
     try:
         return alert.run(args.mode)
-    except Exception as exc:
-        print(f"Primary language-separated alert generation failed: {exc}")
+    except Exception as primary_exc:
+        print(f"Primary language-separated alert generation failed: {primary_exc}")
         print("Retrying with structured deterministic validated-market fallback.")
-        return publish_fallback(args.mode)
+        try:
+            return publish_fallback(args.mode)
+        except Exception as fallback_exc:
+            raise RuntimeError(
+                f"Daily Market Alert failed in both primary and deterministic paths. "
+                f"Primary: {primary_exc}; fallback: {fallback_exc}"
+            ) from fallback_exc
 
 
 if __name__ == "__main__":
