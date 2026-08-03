@@ -1,0 +1,72 @@
+BRIEFROOMS AI TOURNAMENT — BLIND LOCKED SUBMISSION
+
+You are participating as: {{PARTICIPANT_DISPLAY_NAME}}
+Required participant_id: {{PARTICIPANT_ID}}
+Campaign: briefrooms-ai-tournament-2026-02
+Decision date: 2026-08-03
+
+This is an independent blind portfolio tournament. Do not ask for, infer, or use any other participant's portfolio. Do not mention that you need more data. Make one final decision now.
+
+Objective
+- Build one long-only stock portfolio for a three-month buy-and-hold experiment.
+- The portfolio will be bought at the first eligible US regular-session open after every submission has been validated and locked.
+- No rebalancing or substitutions will be allowed after execution.
+- The same allocation weights will be used for a 10,000 PLN account and a separate 10,000 USD account.
+- Ranking is by percentage return. The PLN account includes USD/PLN effects; the USD account does not.
+- Fractional shares are allowed.
+- Cash may be 0% to 20% and earns the tournament cash benchmark.
+- Trading costs and slippage are applied by the engine; do not adjust your weights for them.
+
+Portfolio rules
+- Select exactly 4, 5, or 6 stocks.
+- Each stock weight must be at least 5% and at most 30%.
+- Cash must be between 0% and 20%.
+- Stock weights plus cash must equal exactly 100%.
+- Long only. No shorting, leverage, options, ETFs, bonds, crypto, commodities, or tickers outside the list below.
+- Use one ticker only once.
+- Treat this as your final locked answer.
+
+Allowed universe
+AAPL, MSFT, NVDA, AMZN, GOOGL, META, AVGO, TSLA,
+JPM, V, MA, XOM, LLY, UNH, COST, WMT, HD, PG,
+KO, PEP, NFLX, AMD, ORCL, CRM, QCOM, TSM, ASML,
+ARM, INTC, MU, AMAT, LRCX, KLAC, MRVL, ANET, DELL,
+SMCI, IBM, ADBE, NOW, PLTR, SNOW, PANW, CRWD, DDOG,
+NET, MDB, SHOP, UBER, INTU, PATH, AI, SOUN, SAP, APP
+
+Return ONLY one valid JSON object. Do not use markdown fences. Do not add text before or after JSON. Use this exact structure:
+
+{
+  "schema_version": "ai-tournament-submission-v2",
+  "campaign_id": "briefrooms-ai-tournament-2026-02",
+  "participant_id": "{{PARTICIPANT_ID}}",
+  "participant_display_name": "{{PARTICIPANT_DISPLAY_NAME}}",
+  "decision_date": "2026-08-03",
+  "strategy": "three_month_buy_and_hold",
+  "execution_policy": "first_eligible_us_regular_session_open_after_all_submissions_are_validated_and_locked",
+  "same_allocations_for_pln_and_usd": true,
+  "allocations": [
+    {
+      "ticker": "TICKER",
+      "company": "Company name",
+      "weight_pct": 20,
+      "selection_reason": "One concise, specific reason for selecting this stock for the next three months."
+    }
+  ],
+  "cash_weight_pct": 10,
+  "portfolio_thesis": "A concise explanation of how the holdings work together and why this portfolio may outperform over three months.",
+  "expected_three_month_driver": "The main catalyst or market mechanism expected to drive performance.",
+  "biggest_portfolio_risk": "The most important portfolio-level risk.",
+  "expected_best_performer": "TICKER",
+  "expected_highest_risk_position": "TICKER",
+  "confidence_pct": 70,
+  "final_decision_locked": true
+}
+
+Before responding, silently verify:
+1. allocations contain 4–6 unique allowed tickers;
+2. every weight is 5–30;
+3. cash is 0–20;
+4. weights plus cash equal exactly 100;
+5. expected_best_performer and expected_highest_risk_position are selected tickers;
+6. the response is valid JSON and contains nothing outside the JSON object.
