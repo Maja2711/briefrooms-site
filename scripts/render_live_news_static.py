@@ -7,9 +7,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 META_NAME = "briefrooms-live-news-marker"
+WARSAW = ZoneInfo("Europe/Warsaw")
 
 
 def esc(value: Any, *, quote: bool = True) -> str:
@@ -31,10 +33,10 @@ def card(story: dict[str, Any], lang: str) -> str:
 
 
 def format_label(value: str, lang: str) -> str:
-    date = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    date = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(WARSAW)
     if lang == "pl":
-        return date.astimezone().strftime("Ostatnia aktualizacja: %d.%m.%Y, %H:%M")
-    return date.astimezone().strftime("Last updated: %d/%m/%Y, %H:%M")
+        return date.strftime("Ostatnia aktualizacja: %d.%m.%Y, %H:%M")
+    return date.strftime("Last updated: %d/%m/%Y, %H:%M")
 
 
 def upsert_meta(source: str, name: str, content: str) -> str:
@@ -56,8 +58,8 @@ def render_news_page(lang: str, payload: dict[str, Any]) -> None:
             rf'(<section\s+class=["\']card["\']\s+id=["\']{re.escape(section_id)}["\'][^>]*>.*?<ul\s+class=["\']news["\']>).*?(</ul>)',
             re.I | re.S,
         )
-        replacement = rf'\1{"".join(card(item, lang) for item in stories)}\2'
-        source, count = pattern.subn(replacement, source, count=1)
+        cards = "".join(card(item, lang) for item in stories)
+        source, count = pattern.subn(lambda match: match.group(1) + cards + match.group(2), source, count=1)
         if count != 1:
             raise RuntimeError(f"section {lang}/{section_id} not found in {path}")
 
