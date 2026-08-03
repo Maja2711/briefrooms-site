@@ -1,134 +1,14 @@
-name: Publish PL and EN News
+name: Legacy Emergency News Publisher (retired)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 * * * *"
-  push:
-    branches: [main]
-    paths:
-      - "scripts/publish_live_news.py"
-      - "scripts/news-live.js"
-      - "scripts/install_news_live_runtime.py"
-      - "tests/test_publish_live_news.py"
-      - ".github/workflows/publish-emergency-news.yml"
 
 permissions:
-  contents: write
-
-concurrency:
-  group: live-news-publication
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  publish:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Check out current main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install feedparser requests
-
-      - name: Validate canonical news pipeline
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/publish_live_news.py scripts/install_news_live_runtime.py
-          python -m unittest tests.test_publish_live_news -v
-          node --check scripts/news-live.js
-
-      - name: Build fresh PL and EN news data
-        id: build
-        run: |
-          set -euo pipefail
-          marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "marker=${marker}" >> "$GITHUB_OUTPUT"
-          python scripts/publish_live_news.py --marker "${marker}"
-          python scripts/install_news_live_runtime.py
-          python scripts/publish_live_news.py --validate --max-age-minutes 10
-          grep -F '/scripts/news-live.js?v=1' pl/aktualnosci.html
-          grep -F '/scripts/news-live.js?v=1' en/news.html
-          grep -F '/scripts/news-live.js?v=1' pl/index.html
-          grep -F '/scripts/news-live.js?v=1' en/index.html
-
-      - name: Commit one atomic news publication
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            data/news/pl.json data/news/en.json data/news/status.json \
-            pl/home_brief.json en/home_brief.json \
-            pl/aktualnosci.html en/news.html \
-            pl/index.html en/index.html
-          if git diff --cached --quiet; then
-            echo "::error::Canonical publisher produced no tracked output."
-            exit 1
-          fi
-          git commit -m "chore(news): publish live PL and EN feed"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 4))
-          done
-          echo "::error::Could not push live news after 5 attempts."
-          exit 1
-
-      - name: Verify production data and runtime
-        env:
-          MARKER: ${{ steps.build.outputs.marker }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.request
-
-          marker = os.environ['MARKER']
-          base = 'https://briefrooms.com'
-          json_paths = ('/data/news/pl.json', '/data/news/en.json')
-          html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/1.0', 'Cache-Control': 'no-cache'}
-          last = []
-          for attempt in range(36):
-              last = []
-              for path in json_paths:
-                  try:
-                      req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
-                      with urllib.request.urlopen(req, timeout=15) as response:
-                          payload = json.loads(response.read().decode('utf-8'))
-                      if payload.get('marker') != marker:
-                          last.append(f'{path}: marker mismatch')
-                  except Exception as exc:
-                      last.append(f'{path}: {exc}')
-              for path in html_paths:
-                  try:
-                      req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
-                      with urllib.request.urlopen(req, timeout=15) as response:
-                          body = response.read().decode('utf-8', 'replace')
-                      if '/scripts/news-live.js?v=1' not in body:
-                          last.append(f'{path}: runtime missing')
-                  except Exception as exc:
-                      last.append(f'{path}: {exc}')
-              if not last:
-                  print('Production PL and EN news are current.')
-                  raise SystemExit(0)
-              time.sleep(10)
-          raise SystemExit('Production verification failed: ' + '; '.join(last))
-          PY
+      - name: Canonical owner notice
+        run: echo "PL and EN news are owned exclusively by .github/workflows/publish-news.yml."
