@@ -58,6 +58,15 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Publish governed homepage assets
+        run: |
+          set -euo pipefail
+          python scripts/enforce_homepage_photo_only.py
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' pl/index.html
+          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' en/index.html
+
       - name: Validate independent-edition pipeline
         run: |
           set -euo pipefail
@@ -77,15 +86,6 @@ jobs:
           node --check scripts/homepage-photo-only.js
           node --check scripts/ai-outlook-governance-guard.js
           python scripts/update_ai_outlook_v3.py --validate-only
-
-      - name: Publish governed homepage assets
-        run: |
-          set -euo pipefail
-          python scripts/enforce_homepage_photo_only.py
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' pl/index.html
-          grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v2' en/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' en/index.html
 
       - name: Generate independent morning PL and EN editions
         env:
