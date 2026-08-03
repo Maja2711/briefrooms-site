@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Resilient Daily Market Alert publisher with language-separated editorial QA.
+"""Resilient Daily Market Alert publisher with editorial and materiality QA.
 
 The validated market-data layer remains authoritative. Polish and English copy
 are generated and reviewed independently, merged into one payload, and blocked
-unless the deterministic quality gate passes. AI/provider failure falls back to
-structured deterministic copy built only from validated quotes and levels.
+unless both the editorial and instrument-specific materiality gates pass.
+AI/provider failure falls back to structured deterministic copy built only from
+validated quotes and promoted 1-3 session decision levels.
 """
 from __future__ import annotations
 
@@ -13,10 +14,33 @@ import copy
 from typing import Any
 
 import daily_market_alert_editorial_v2 as editorial_v2
+import daily_market_alert_materiality as materiality
 import update_daily_market_alert as alert
 
 _ORIGINAL_BUILD_ALERT = alert.build_alert
 _ORIGINAL_VALIDATE_PAYLOAD = alert.validate_payload
+
+
+def prepare_snapshots(snapshots: list[alert.MarketSnapshot]) -> list[alert.MarketSnapshot]:
+    """Promote raw nearby levels to non-trivial decision levels exactly once."""
+    return materiality.apply_materiality_levels(snapshots)
+
+
+def finalize_editorial(
+    editorial: dict[str, Any],
+    snapshots: list[alert.MarketSnapshot],
+    candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    materiality.rewrite_editorial(editorial, snapshots)
+    quality = editorial_v2.report(
+        editorial, snapshots, candidates, editorial_v2.load_spec()
+    )
+    if not quality["passed"]:
+        raise editorial_v2.EditorialQualityError(
+            "Materiality-aware editorial blocked: " + ", ".join(quality["issues"])
+        )
+    editorial["quality_report"] = quality
+    return editorial
 
 
 def governed_generate_editorial(
@@ -25,9 +49,11 @@ def governed_generate_editorial(
     mode: str,
     previous: dict[str, Any],
 ) -> dict[str, Any]:
-    return editorial_v2.generate_editorial(
+    prepare_snapshots(snapshots)
+    generated = editorial_v2.generate_editorial(
         alert, snapshots, candidates, mode, previous
     )
+    return finalize_editorial(generated, snapshots, candidates)
 
 
 def governed_build_alert(
@@ -37,15 +63,18 @@ def governed_build_alert(
     mode: str,
     moment: Any,
 ) -> dict[str, Any]:
+    prepare_snapshots(snapshots)
     payload = _ORIGINAL_BUILD_ALERT(
         snapshots, candidates, editorial, mode, moment
     )
-    return editorial_v2.enrich_payload(payload, editorial)
+    payload = editorial_v2.enrich_payload(payload, editorial)
+    return materiality.enrich_payload(payload, snapshots)
 
 
 def governed_validate_payload(payload: dict[str, Any]) -> None:
     _ORIGINAL_VALIDATE_PAYLOAD(payload)
     editorial_v2.validate_published_payload(payload)
+    materiality.validate_payload(payload)
 
 
 def install_governed_editorial_contract() -> None:
@@ -63,9 +92,11 @@ def publish_fallback(mode_requested: str) -> int:
 
     previous = alert.load_json(alert.OUT, {})
     snapshots = [alert.fetch_snapshot(instrument_id) for instrument_id in alert.INSTRUMENTS]
+    prepare_snapshots(snapshots)
     editorial = editorial_v2.deterministic_editorial(alert, snapshots, mode)
+    editorial = finalize_editorial(editorial, snapshots, [])
     candidate = governed_build_alert(snapshots, [], editorial, mode, moment)
-    candidate["editorial_mode"] = "structured_deterministic_fallback"
+    candidate["editorial_mode"] = "structured_deterministic_materiality_fallback"
 
     if mode == "open":
         candidate["opening_snapshot"] = alert.snapshot_from_alert(candidate)
@@ -122,7 +153,27 @@ def publish_fallback(mode_requested: str) -> int:
             "editorial_mode", "language_separated_ai"
         )
         output.pop("_editorial_preclose_note", None)
-        governed_validate_payload(output)
+        # A previous same-session alert must already have passed the current
+        # materiality contract; otherwise publish the newly built candidate.
+        try:
+            governed_validate_payload(output)
+        except Exception:
+            candidate["opening_snapshot"] = opening
+            candidate["preclose_check"] = {
+                "checked_at": checked_at,
+                "material_change": True,
+                "reasons": ["materiality-contract-upgrade"],
+                "note": {
+                    "pl": "Alert odświeżono, ponieważ poprzednia wersja nie spełniała aktualnego filtra istotności poziomów.",
+                    "en": "The alert was refreshed because the previous edition did not meet the current level-materiality filter.",
+                },
+            }
+            candidate.pop("_editorial_preclose_note", None)
+            governed_validate_payload(candidate)
+            alert.write_json(alert.OUT, candidate)
+            alert.archive(candidate, "preclose")
+            print("Published materiality-contract upgrade")
+            return 0
         alert.write_json(alert.OUT, output)
         alert.archive(output, "preclose-check")
         print("Recorded governed deterministic pre-close check with no material change")
@@ -139,7 +190,7 @@ def main() -> int:
     install_governed_editorial_contract()
     if args.validate_only:
         governed_validate_payload(alert.load_json(alert.OUT, {}))
-        print("Daily market alert JSON and editorial quality contract are valid")
+        print("Daily market alert JSON, editorial and materiality contracts are valid")
         return 0
     try:
         return alert.run(args.mode)
