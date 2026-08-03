@@ -50,11 +50,49 @@ jobs:
           node tests/test_hot_x_render.js
 
       - name: Refresh verified direct posts and preserve editorial topics
+        id: refresh
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-        run: python scripts/update_hot_x_2x_daily.py
+        shell: bash
+        run: |
+          set +e
+          python scripts/update_hot_x_2x_daily.py > /tmp/hot_x_refresh.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/hot_x_refresh.log
+          python - "$rc" <<'PY'
+          import json
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          exit_code = int(sys.argv[1])
+          feed_path = Path('data/hot_tweets.json')
+          feed = {}
+          if feed_path.exists():
+              try:
+                  feed = json.loads(feed_path.read_text(encoding='utf-8'))
+              except Exception:
+                  feed = {}
+          log = Path('/tmp/hot_x_refresh.log').read_text(encoding='utf-8', errors='replace')
+          status = {
+              'checked_at': datetime.now(timezone.utc).isoformat(),
+              'exit_code': exit_code,
+              'result': 'success' if exit_code == 0 else 'failed',
+              'feed_updated_at': feed.get('updated_at'),
+              'feed_mode': feed.get('mode'),
+              'item_count': len(feed.get('items') or []),
+              'log': log[-8000:],
+          }
+          Path('data/hot_x_refresh_status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
 
       - name: Verify the final published Hot X feed
+        if: steps.refresh.outputs.exit_code == '0'
         run: |
           python - <<'PY'
           import json
@@ -72,11 +110,11 @@ jobs:
           assert sum(is_direct_post(item.get('tweet_url')) for item in feed) >= 4
           PY
 
-      - name: Commit updated Hot X feed
+      - name: Commit Hot X feed and diagnostics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_tweets.json
+          git add data/hot_tweets.json data/hot_x_refresh_status.json
           if git diff --cached --quiet; then
             echo "No Hot X changes to commit."
           else
@@ -88,3 +126,9 @@ jobs:
             fi
             git push origin HEAD:main
           fi
+
+      - name: Fail when Hot X refresh failed
+        if: steps.refresh.outputs.exit_code != '0'
+        run: |
+          echo "::error::Hot X refresh failed; see data/hot_x_refresh_status.json"
+          exit 1
