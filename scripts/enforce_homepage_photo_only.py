@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
 SCRIPT_VERSION = "ai-outlook-independent-4"
-GUARD_VERSION = "governance-v2"
+GUARD_VERSION = "governance-v3"
 SCRIPT = f'<script src="/scripts/homepage-photo-only.js?v={SCRIPT_VERSION}" defer></script>'
 GUARD_SCRIPT = f'<script src="/scripts/ai-outlook-governance-guard.js?v={GUARD_VERSION}" defer></script>'
 SCRIPT_RE = re.compile(
