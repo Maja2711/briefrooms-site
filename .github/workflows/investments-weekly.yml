@@ -66,6 +66,7 @@ jobs:
             scripts/investments_weekly_v3.py \
             scripts/investments_weekly_v4.py \
             scripts/investments_weekly_v5.py \
+            scripts/investments_weekly_macro.py \
             scripts/ensure_current_week_forecast.py \
             scripts/daily_position_review.py \
             scripts/apply_instrument_validation_gate.py \
@@ -73,7 +74,10 @@ jobs:
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
-          python -m unittest tests/test_investments_weekly_v4.py tests/test_investments_weekly_v5.py
+          python -m unittest \
+            tests/test_investments_weekly_v4.py \
+            tests/test_investments_weekly_v5.py \
+            tests/test_investments_weekly_macro.py
 
       - name: Replace current-week placeholder with frozen model output
         run: python scripts/ensure_current_week_forecast.py
@@ -81,18 +85,14 @@ jobs:
       - name: Apply paper-trading gate
         run: python scripts/apply_instrument_validation_gate.py
 
-      - name: Open every missing weekly paper position
-        run: python scripts/investments_weekly_v4.py --mode ensure-exposure
-
-      - name: Run governed exposure model
+      - name: Run canonical governed exposure model
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'ensure-exposure' }}
         run: python scripts/investments_weekly_v5.py --mode "$MODE"
 
-      - name: Review positions and restore continuous exposure
+      - name: Review positions and restore governed exposure
         run: |
           python scripts/daily_position_review.py
-          python scripts/investments_weekly_v4.py --mode ensure-exposure
           python scripts/investments_weekly_v5.py --mode ensure-exposure
           python scripts/apply_instrument_validation_gate.py
 
@@ -122,6 +122,21 @@ jobs:
           if errors:
               raise SystemExit('\n'.join(errors))
           print('Every enabled instrument is open or has a valid directional entry pending.')
+          PY
+
+      - name: Verify EURUSD macro governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
+          macro = policy.get('macro_context') or {}
+          candidates = (policy.get('strategy_tournament') or {}).get('candidate_methods') or []
+          assert macro.get('enabled') is True
+          assert macro.get('oil_symbol') == 'CL=F'
+          assert macro.get('us10y_symbol') == '^TNX'
+          assert macro.get('require_both_sources') is True
+          assert 'macro_weekly_blend' in candidates
           PY
 
       - name: Finalize, audit and render PL and EN
