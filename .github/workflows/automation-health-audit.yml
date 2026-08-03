@@ -6,8 +6,10 @@ on:
     branches: [main]
     paths:
       - "scripts/automation_health_audit.py"
+      - "scripts/validate_live_news_health.py"
       - "tests/test_automation_health_audit.py"
       - "tests/test_automation_workflow_ownership.py"
+      - "tests/test_validate_live_news_health.py"
       - ".github/workflows/automation-health-audit.yml"
   schedule:
     - cron: "42 * * * *"
@@ -24,7 +26,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Check out latest main
         uses: actions/checkout@v4
@@ -36,6 +38,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Test strict news freshness watchdog
+        run: |
+          python -m py_compile scripts/validate_live_news_health.py
+          python -m unittest tests.test_validate_live_news_health -v
+
+      - name: Verify live PL and EN news locally and in production
+        run: >-
+          python scripts/validate_live_news_health.py
+          --base-url https://briefrooms.com
+          --max-age-minutes 120
+          --attempts 3
+          --interval 5
+          --timeout 15
 
       - name: Read Actions and published-data health
         env:
@@ -51,16 +67,30 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/system/automation_status.json data/system/automation_incidents.json
+          git add \
+            data/system/automation_status.json \
+            data/system/automation_incidents.json \
+            data/system/news_live_health.json
           if git diff --cached --quiet; then
             echo "No automation health change to publish."
-            exit 0
+          else
+            git commit -m "Update automation health registry"
+            if ! git diff --quiet; then
+              echo "::error::Health audit left unstaged files; refusing a partial publication."
+              git status --short
+              exit 1
+            fi
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
-          git commit -m "Update automation health registry"
-          if ! git diff --quiet; then
-            echo "::error::Health audit left unstaged files; refusing a partial publication."
-            git status --short
-            exit 1
-          fi
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+      - name: Fail visibly when PL or EN news are stale
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/system/news_live_health.json').read_text(encoding='utf-8'))
+          if report.get('status') == 'failed':
+              raise SystemExit('Live PL/EN news health failed: ' + '; '.join(report.get('reasons') or []))
+          print('Live PL/EN news health:', report.get('status'), 'age:', report.get('age_minutes'), 'minutes')
+          PY
