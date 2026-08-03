@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/publish_live_news.py"
+      - "scripts/render_live_news_static.py"
       - "scripts/news-live.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
@@ -44,23 +45,27 @@ jobs:
       - name: Validate canonical news pipeline
         run: |
           set -euo pipefail
-          python -m py_compile scripts/publish_live_news.py scripts/install_news_live_runtime.py
+          python -m py_compile \
+            scripts/publish_live_news.py \
+            scripts/render_live_news_static.py \
+            scripts/install_news_live_runtime.py
           python -m unittest tests.test_publish_live_news -v
           node --check scripts/news-live.js
 
-      - name: Build fresh PL and EN news data
+      - name: Build fresh PL and EN news data and pages
         id: build
         run: |
           set -euo pipefail
           marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
           python scripts/publish_live_news.py --marker "${marker}"
+          python scripts/render_live_news_static.py
           python scripts/install_news_live_runtime.py
           python scripts/publish_live_news.py --validate --max-age-minutes 10
-          grep -F '/scripts/news-live.js?v=2' pl/aktualnosci.html
-          grep -F '/scripts/news-live.js?v=2' en/news.html
-          grep -F '/scripts/news-live.js?v=2' pl/index.html
-          grep -F '/scripts/news-live.js?v=2' en/index.html
+          for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
+            grep -F '/scripts/news-live.js?v=2' "$path"
+            grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
+          done
 
       - name: Commit one atomic news publication
         run: |
@@ -91,7 +96,7 @@ jobs:
           echo "::error::Could not push live news after 5 attempts."
           exit 1
 
-      - name: Verify production data, freshness and runtime
+      - name: Verify production data, static pages and runtime
         env:
           MARKER: ${{ steps.build.outputs.marker }}
         run: |
@@ -106,7 +111,7 @@ jobs:
           base = 'https://briefrooms.com'
           json_paths = ('/data/news/pl.json', '/data/news/en.json')
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/2.0', 'Cache-Control': 'no-cache'}
+          headers = {'User-Agent': 'BriefRooms production verifier/2.1', 'Cache-Control': 'no-cache'}
           last = []
           for attempt in range(48):
               last = []
@@ -134,10 +139,12 @@ jobs:
                           body = response.read().decode('utf-8', 'replace')
                       if '/scripts/news-live.js?v=2' not in body:
                           last.append(f'{path}: runtime missing')
+                      if f'name="briefrooms-live-news-marker" content="{marker}"' not in body:
+                          last.append(f'{path}: static marker mismatch')
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news are current and complete.')
+                  print('Production PL and EN news are current in JSON, static HTML and browser runtime.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))
