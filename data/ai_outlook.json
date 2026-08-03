@@ -1,41 +1,190 @@
 {
-  "schema_version": 1,
-  "date": "2026-08-02",
-  "generated_at": "2026-08-02T00:08:00+02:00",
-  "probability": 68,
-  "source_policy": "local-source-grounded",
+  "schema_version": 2,
+  "date": "2026-08-03",
+  "generated_at": "2026-08-03T09:55:00+02:00",
+  "edition_policy": "independent-per-language",
+  "source_policy": {
+    "pl": "polish-language-canonical-news-only",
+    "en": "english-language-canonical-news-only"
+  },
   "pl": {
-    "category": "Nieruchomości / Demografia",
-    "title": "Dziedziczone mieszkania osłabią przewagę cenową deweloperów",
-    "thesis": "W perspektywie 5–10 lat rosnąca liczba mieszkań odziedziczonych po seniorach zwiększy podaż na rynku wtórnym. Najmocniej odczują to deweloperzy w miastach o słabszej demografii, gdzie różnica cenowa między nowym lokalem a mieszkaniem z wielkiej płyty stanie się trudniejsza do obrony.",
-    "horizon": "3–10 lat",
-    "rationale": "Starzenie się społeczeństwa nie zmieni rynku jednorazowo, lecz poprzez narastającą falę spadków. Duża część spadkobierców będzie wolała sprzedać lokal niż go utrzymywać, co zwiększy konkurencję o kupującego i ograniczy przestrzeń do dalszego podnoszenia cen nowych mieszkań.",
-    "confirmation": "Rosnąca liczba ofert mieszkań po spadkach, dłuższy czas sprzedaży nowych lokali i większe rabaty deweloperów poza najsilniejszymi aglomeracjami.",
-    "invalidation": "Silny napływ ludności do miast, wyraźny spadek liczby budowanych mieszkań albo masowe zatrzymywanie odziedziczonych lokali pod wynajem.",
-    "date_label": "2 sierpnia 2026",
-    "probability": 68,
+    "category": "Ekonomia",
+    "title": "Ceny owoców pozostaną wyraźnym źródłem inflacji jesienią",
+    "thesis": "Do końca jesieni 2026 wzrost cen owoców w Polsce będzie wyraźnie szybszy niż inflacja ogółem. Słabsze zbiory ograniczą podaż, więc nawet przy stabilizacji innych kategorii żywności owoce pozostaną widocznym, sezonowym źródłem presji cenowej.",
+    "horizon": "3–6 miesięcy",
+    "rationale": "GUS prognozuje niemal 20-proc. spadek zbiorów owoców z drzew. Taki szok podażowy zwykle przechodzi do cen detalicznych z opóźnieniem, a jego wpływ może być szczególnie widoczny we wrześniu–listopadzie, gdy rynek dyskontuje krajową podaż i koszty importu.",
+    "confirmation": "Dane GUS pokażą, że roczna dynamika cen owoców przewyższa inflację CPI co najmniej o 5 pkt proc. w jednym z miesięcy wrzesień–listopad 2026.",
+    "invalidation": "Prognozę obali brak takiej różnicy do listopada 2026 albo szybkie uzupełnienie podaży importem, które ograniczy wzrost cen owoców.",
+    "resolution_summary": "Prognoza zostanie uznana za trafną, jeżeli w co najmniej jednym miesiącu od września do listopada 2026 roczna dynamika cen owoców w danych GUS będzie wyższa od inflacji CPI o minimum 5 pkt proc.",
+    "forecast_id": "2026-08-03-pl-cand_01",
+    "date_label": "3 sierpnia 2026",
+    "probability": 74,
+    "source_language": "pl",
+    "source_policy": "polish-language-canonical-news-only",
     "sources": [
       {
-        "name": "Bankier.pl",
-        "url": "https://www.bankier.pl/wiadomosc/Wielka-plyta-zagrozi-deweloperom-Tysiace-odziedziczonych-mieszkan-trafia-na-sprzedaz-9176697.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci"
+        "name": "RMF24",
+        "url": "https://www.rmf24.pl/fakty/ekonomia/news-ceny-owocow-na-targowiskach-oszaleja-gus-opublikowal-fatalne,nIdn,1012280",
+        "provenance_id": "prov_494a3a6266d0596e3816",
+        "source_language": "pl"
       }
-    ]
+    ],
+    "selection_reason": "Aktualny sygnał podażowy oparty na prognozie GUS można rozstrzygnąć na podstawie oficjalnych miesięcznych danych o cenach.",
+    "resolution_criteria": "Prognoza zostanie uznana za trafną, jeżeli w co najmniej jednym miesiącu od września do listopada 2026 roczna dynamika cen owoców w danych GUS będzie wyższa od inflacji CPI o minimum 5 pkt proc.",
+    "resolution": {
+      "schema_version": "resolution-v1",
+      "metric": "Różnica między roczną dynamiką cen owoców a roczną inflacją CPI w Polsce",
+      "comparison_operator": ">=",
+      "threshold": 5.0,
+      "unit": "percentage_points",
+      "baseline_date": "2026-08-03",
+      "baseline_value": null,
+      "data_source_for_verification": "GUS — miesięczne wskaźniki cen towarów i usług konsumpcyjnych",
+      "verification_url": "https://stat.gov.pl/obszary-tematyczne/ceny-handel/wskazniki-cen/",
+      "resolution_date": "2026-12-15",
+      "geography": "Polska",
+      "status": "open"
+    },
+    "governance": {
+      "schema_version": "governance-v1",
+      "content_category": "macro",
+      "risk_class": "general_forecast",
+      "disclaimer_required": true,
+      "disclaimer_id": "general_forecast_v1",
+      "disclaimers": {
+        "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+        "en": "An AI forecast based on the listed sources. It is not an established fact."
+      }
+    },
+    "engine": {
+      "version": "ai-outlook-engine-v1.1",
+      "edition_language": "pl",
+      "weights_version": "weights-2026-08-v1",
+      "weights_snapshot": {
+        "evidence_quality": 0.22,
+        "measurability": 0.2,
+        "causal_strength": 0.18,
+        "verifiability": 0.15,
+        "novelty": 0.1,
+        "source_quality": 0.15
+      },
+      "scoring_policy_version": "scoring-policy-v1.1",
+      "provenance_schema_version": "provenance-v1",
+      "resolution_schema_version": "resolution-v1",
+      "governance_schema_version": "governance-v1",
+      "selected_area": "economy",
+      "selection_mode": "priority_area_threshold",
+      "engine_score": 82.14,
+      "probability_method": "heuristic_v1_not_historically_calibrated",
+      "statistical_layer_enabled": false,
+      "model_layers": [
+        "deterministic_rules",
+        "ai_assessment"
+      ],
+      "candidate_count": 1,
+      "top_candidates": [
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "title": "Ceny owoców pozostaną wyraźnym źródłem inflacji jesienią",
+          "engine_score": 82.14,
+          "passed_safety_gate": true
+        }
+      ]
+    },
+    "disclaimer": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem."
   },
   "en": {
-    "category": "Housing / Demographics",
-    "title": "Inherited homes will weaken developers’ pricing advantage",
-    "thesis": "Over the next 5–10 years, a rising number of homes inherited from older owners will expand supply on Poland’s secondary market. Developers in cities with weaker demographics will feel the greatest pressure as the price gap between new builds and older flats becomes harder to defend.",
-    "horizon": "3–10 years",
-    "rationale": "Population ageing will reshape housing gradually through a growing wave of inheritances. Many heirs are likely to sell rather than maintain an additional property, increasing competition for buyers and limiting developers’ ability to keep raising new-home prices.",
-    "confirmation": "More inherited flats listed for sale, longer sales times for new homes and larger developer discounts outside the strongest metropolitan areas.",
-    "invalidation": "Strong urban population inflows, a sharp fall in new construction or widespread retention of inherited homes as rental properties.",
-    "date_label": "August 2, 2026",
-    "probability": 68,
+    "category": "Economy",
+    "title": "US–Japan yen support will become a repeatable policy tool",
+    "thesis": "Before early February 2027, Washington and Tokyo are likely to conduct or formally confirm at least one additional coordinated foreign-exchange intervention if yen weakness resumes. The first joint move in decades lowers the political barrier to acting again and turns coordination into a credible part of the policy toolkit.",
+    "horizon": "3–6 months",
+    "rationale": "Both governments have said they are prepared to intervene again. Once operational coordination, messaging and legal authority have been tested, a renewed one-way decline in the yen can trigger a faster and more credible response than in previous episodes.",
+    "confirmation": "US and Japanese authorities publicly confirm at least one additional joint market intervention after August 3, 2026 and by February 3, 2027.",
+    "invalidation": "No further joint intervention is confirmed by February 3, 2027, even if the yen again approaches multi-decade lows.",
+    "resolution_summary": "The forecast resolves true if US and Japanese authorities confirm at least one additional coordinated foreign-exchange market intervention between August 4, 2026 and February 3, 2027.",
+    "forecast_id": "2026-08-03-en-cand_01",
+    "date_label": "August 3, 2026",
+    "probability": 72,
+    "source_language": "en",
+    "source_policy": "english-language-canonical-news-only",
     "sources": [
       {
-        "name": "Bankier.pl",
-        "url": "https://www.bankier.pl/wiadomosc/Wielka-plyta-zagrozi-deweloperom-Tysiace-odziedziczonych-mieszkan-trafia-na-sprzedaz-9176697.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci"
+        "name": "The Guardian",
+        "url": "https://www.theguardian.com/world/2026/aug/03/trump-japan-currency-yen-explainer",
+        "provenance_id": "prov_de085df4a39698e4a2f4",
+        "source_language": "en"
+      },
+      {
+        "name": "BBC News",
+        "url": "https://www.bbc.co.uk/news/articles/cglj1pr0wjwo?at_medium=RSS&at_campaign=rss",
+        "provenance_id": "prov_da27eeac48b93cd0752c",
+        "source_language": "en"
       }
-    ]
+    ],
+    "selection_reason": "Two independent English-language reports describe an operationally rare joint intervention and explicit readiness to repeat it, creating a measurable policy forecast.",
+    "resolution_criteria": "The forecast resolves true if US and Japanese authorities confirm at least one additional coordinated foreign-exchange market intervention between August 4, 2026 and February 3, 2027.",
+    "resolution": {
+      "schema_version": "resolution-v1",
+      "metric": "Number of additional publicly confirmed coordinated US–Japan foreign-exchange interventions",
+      "comparison_operator": ">=",
+      "threshold": 1.0,
+      "unit": "interventions",
+      "baseline_date": "2026-08-03",
+      "baseline_value": 0.0,
+      "data_source_for_verification": "Japan Ministry of Finance and US Treasury official intervention disclosures",
+      "verification_url": "https://www.mof.go.jp/english/policy/international_policy/reference/feio/index.htm",
+      "resolution_date": "2027-02-03",
+      "geography": "United States and Japan",
+      "status": "open"
+    },
+    "governance": {
+      "schema_version": "governance-v1",
+      "content_category": "macro",
+      "risk_class": "general_forecast",
+      "disclaimer_required": true,
+      "disclaimer_id": "general_forecast_v1",
+      "disclaimers": {
+        "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+        "en": "An AI forecast based on the listed sources. It is not an established fact."
+      }
+    },
+    "engine": {
+      "version": "ai-outlook-engine-v1.1",
+      "edition_language": "en",
+      "weights_version": "weights-2026-08-v1",
+      "weights_snapshot": {
+        "evidence_quality": 0.22,
+        "measurability": 0.2,
+        "causal_strength": 0.18,
+        "verifiability": 0.15,
+        "novelty": 0.1,
+        "source_quality": 0.15
+      },
+      "scoring_policy_version": "scoring-policy-v1.1",
+      "provenance_schema_version": "provenance-v1",
+      "resolution_schema_version": "resolution-v1",
+      "governance_schema_version": "governance-v1",
+      "selected_area": "economy",
+      "selection_mode": "priority_area_threshold",
+      "engine_score": 78.4,
+      "probability_method": "heuristic_v1_not_historically_calibrated",
+      "statistical_layer_enabled": false,
+      "model_layers": [
+        "deterministic_rules",
+        "ai_assessment"
+      ],
+      "candidate_count": 1,
+      "top_candidates": [
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "title": "US–Japan yen support will become a repeatable policy tool",
+          "engine_score": 78.4,
+          "passed_safety_gate": true
+        }
+      ]
+    },
+    "disclaimer": "An AI forecast based on the listed sources. It is not an established fact."
   }
 }
