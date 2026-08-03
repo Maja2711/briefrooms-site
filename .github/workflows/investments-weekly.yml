@@ -6,7 +6,7 @@ on:
       mode:
         description: "Run mode"
         required: true
-        default: "auto"
+        default: "ensure-exposure"
         type: choice
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
@@ -37,7 +37,7 @@ permissions:
 
 concurrency:
   group: investment-weekly-positions
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-investments-weekly:
@@ -47,6 +47,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -69,7 +70,7 @@ jobs:
           python -m unittest tests/test_investments_weekly_v5.py
           python -m unittest tests/test_audit_weekly_integrity.py
 
-      - name: Recover missing current-week forecast
+      - name: Replace a current-week placeholder with frozen model output
         run: python scripts/ensure_current_week_forecast.py
 
       - name: Apply shared paper-trading gate
@@ -80,7 +81,7 @@ jobs:
 
       - name: Run governed weekly model v5
         env:
-          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'ensure-exposure' }}
         run: python scripts/investments_weekly_v5.py --mode "$MODE"
 
       - name: Once-daily thesis review and conditional close
