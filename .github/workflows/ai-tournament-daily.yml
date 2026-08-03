@@ -19,6 +19,7 @@ on:
       - "scripts/ai_tournament_cash_interest.py"
       - "scripts/generate_brace_manual_submission.py"
       - "scripts/ai-tournament-public.js"
+      - "scripts/ai-tournament-readiness.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
       - "tests/test_ai_tournament_cash_interest.py"
@@ -61,6 +62,7 @@ jobs:
             scripts/generate_brace_manual_submission.py \
             scripts/install_ai_tournament_ui.py
           node --check scripts/ai-tournament-public.js
+          node --check scripts/ai-tournament-readiness.js
           node --check scripts/portfolio-10k-material-reports-public.js
           python - <<'PY'
           import json
@@ -81,6 +83,41 @@ jobs:
           assert not {'SPY','QQQ','IWM','GLD','TLT'}.intersection(config['universe'])
           print('Manual locked buy-and-hold contract validated.')
           PY
+
+  deploy-ui:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install current tournament renderers
+        run: python scripts/install_ai_tournament_ui.py
+      - name: Validate installed renderers
+        run: |
+          grep -q 'ai-tournament-public.js?v=2' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-public.js?v=2' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-readiness.js?v=2' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-readiness.js?v=2' en/investing/portfolio-10k.html
+      - name: Commit UI deployment
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "AI Tournament UI already current."
+          else
+            git commit -m "Deploy AI Tournament readiness UI"
+            git pull --rebase origin main
+            git push
+          fi
 
   generate-brace:
     if: >-
@@ -148,6 +185,8 @@ jobs:
           python-version: "3.11"
       - name: Install frozen-market dependencies
         run: python -m pip install --upgrade yfinance pandas
+      - name: Install current tournament renderers
+        run: python scripts/install_ai_tournament_ui.py
 
       - name: Verify reveals and prepare immutable first-open targets
         id: bootstrap
@@ -181,6 +220,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
           if [[ "${{ steps.bootstrap.outcome }}" == "success" ]]; then
             git add -A data/ai_tournament
           else
