@@ -1,0 +1,54 @@
+{
+  "schema_version": "ai-tournament-intake-campaign-v1",
+  "campaign_id": "briefrooms-ai-tournament-2026-02",
+  "status": "COLLECTING_BLIND_SUBMISSIONS",
+  "decision_date": "2026-08-03",
+  "execution_policy": "first_eligible_us_regular_session_open_after_all_submissions_are_validated_and_locked",
+  "end_policy": "three_calendar_months_after_execution_at_us_regular_session_close",
+  "starting_capital": {
+    "pl": {"amount": 10000, "currency": "PLN", "include_usd_pln_effect": true},
+    "en": {"amount": 10000, "currency": "USD", "include_usd_pln_effect": false}
+  },
+  "portfolio_policy": {
+    "strategy": "three_month_buy_and_hold",
+    "long_only": true,
+    "rebalancing_allowed": false,
+    "fractional_shares": true,
+    "minimum_positions": 4,
+    "maximum_positions": 6,
+    "minimum_position_weight_pct": 5,
+    "maximum_position_weight_pct": 30,
+    "minimum_cash_weight_pct": 0,
+    "maximum_cash_weight_pct": 20,
+    "weights_must_total_pct": 100,
+    "same_allocations_for_pln_and_usd": true,
+    "cash_benchmark": "IORB",
+    "ranking_metric": "percentage_return"
+  },
+  "manual_participants": [
+    {"participant_id": "gpt-5-6-thinking", "display_name": "GPT-5.6 Thinking"},
+    {"participant_id": "claude", "display_name": "Claude"},
+    {"participant_id": "gemini", "display_name": "Gemini"},
+    {"participant_id": "deepseek", "display_name": "DeepSeek"}
+  ],
+  "algorithmic_participant": {
+    "participant_id": "brace",
+    "display_name": "BRACE",
+    "generation_policy": "deterministic_from_frozen_market_data_without_access_to_manual_submissions"
+  },
+  "universe_version": "briefrooms-ai-55-v1",
+  "universe": [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "AVGO", "TSLA",
+    "JPM", "V", "MA", "XOM", "LLY", "UNH", "COST", "WMT", "HD", "PG",
+    "KO", "PEP", "NFLX", "AMD", "ORCL", "CRM", "QCOM", "TSM", "ASML",
+    "ARM", "INTC", "MU", "AMAT", "LRCX", "KLAC", "MRVL", "ANET", "DELL",
+    "SMCI", "IBM", "ADBE", "NOW", "PLTR", "SNOW", "PANW", "CRWD", "DDOG",
+    "NET", "MDB", "SHOP", "UBER", "INTU", "PATH", "AI", "SOUN", "SAP", "APP"
+  ],
+  "submission_storage": {
+    "pending_submissions_dir": "data/ai_tournament/intake/submissions",
+    "pending_commitments_dir": "data/ai_tournament/intake/commitments",
+    "canonicalization": "json_sort_keys_utf8_compact_v1",
+    "hash": "sha256"
+  }
+}
