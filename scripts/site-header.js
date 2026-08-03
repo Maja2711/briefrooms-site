@@ -388,7 +388,9 @@
       collapse: 'Zwiń',
       openingEdition: 'Alert po otwarciu',
       precloseEdition: 'Aktualizacja przed zamknięciem',
-      reason: 'Co nowego i dlaczego rynek reaguje',
+      whatChanged: 'Co się zmieniło',
+      whyMatters: 'Dlaczego to ma znaczenie',
+      baseCase: 'Scenariusz bazowy: 1–3 sesje',
       support: 'Wsparcie',
       resistance: 'Opór',
       trigger: 'Co zmieni obraz',
@@ -405,7 +407,9 @@
       collapse: 'Collapse',
       openingEdition: 'Post-open alert',
       precloseEdition: 'Pre-close update',
-      reason: 'What is new and why the market is reacting',
+      whatChanged: 'What changed',
+      whyMatters: 'Why it matters',
+      baseCase: 'Base case: next 1–3 sessions',
       support: 'Support',
       resistance: 'Resistance',
       trigger: 'What changes the picture',
@@ -445,19 +449,24 @@
 
   function instrumentMarkup(instrument, language, labels) {
     var directionClass = instrument.direction === 'up' ? ' is-up' : instrument.direction === 'down' ? ' is-down' : '';
+    var narrative = instrument.narrative && instrument.narrative[language] ? instrument.narrative[language] : null;
+    var whatChanged = narrative && narrative.what_changed ? narrative.what_changed : localized(instrument.reason, language);
+    var whyMatters = narrative && narrative.why_it_matters ? narrative.why_it_matters : '';
+    var baseCase = narrative && narrative.base_case ? narrative.base_case : localized(instrument.trigger, language);
     return '<article class="br-daily-alert__card">' +
       '<div class="br-daily-alert__instrument-head">' +
         '<div class="br-daily-alert__instrument"><h3>' + escapeHtml(instrument.name) + '</h3><span class="br-daily-alert__class">' + escapeHtml(localized(instrument.asset_class, language)) + '</span></div>' +
         '<div class="br-daily-alert__market"><span class="br-daily-alert__price">' + escapeHtml(instrument.price) + '</span><span class="br-daily-alert__change' + directionClass + '">' + escapeHtml(instrument.change) + '</span></div>' +
       '</div>' +
-      '<span class="br-daily-alert__label">' + labels.reason + '</span>' +
-      '<p class="br-daily-alert__reason">' + escapeHtml(localized(instrument.reason, language)) + '</p>' +
+      '<span class="br-daily-alert__label">' + labels.whatChanged + '</span>' +
+      '<p class="br-daily-alert__reason">' + escapeHtml(whatChanged) + '</p>' +
+      (whyMatters ? '<span class="br-daily-alert__label">' + labels.whyMatters + '</span><p class="br-daily-alert__reason">' + escapeHtml(whyMatters) + '</p>' : '') +
       '<div class="br-daily-alert__levels">' +
         '<div class="br-daily-alert__level"><small>' + labels.support + '</small><b>' + escapeHtml(instrument.support) + '</b></div>' +
         '<div class="br-daily-alert__level"><small>' + labels.resistance + '</small><b>' + escapeHtml(instrument.resistance) + '</b></div>' +
       '</div>' +
-      '<span class="br-daily-alert__label">' + labels.trigger + '</span>' +
-      '<p class="br-daily-alert__trigger">' + escapeHtml(localized(instrument.trigger, language)) + '</p>' +
+      '<span class="br-daily-alert__label">' + labels.baseCase + '</span>' +
+      '<p class="br-daily-alert__trigger">' + escapeHtml(baseCase) + '</p>' +
       '<span class="br-daily-alert__label">' + labels.horizon + '</span>' +
       '<div class="br-daily-alert__scenarios">' + scenarioMarkup(instrument.scenarios, language) + '</div>' +
     '</article>';
