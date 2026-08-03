@@ -7,12 +7,10 @@
     source: 'Źródło',
     read: 'Czytaj źródło →',
     updated: 'Ostatnia aktualizacja',
-    degraded: 'Część źródeł jest chwilowo niedostępna. Pokazujemy najnowsze potwierdzone materiały.',
   } : {
     source: 'Source',
     read: 'Read source →',
     updated: 'Last updated',
-    degraded: 'Some sources are temporarily unavailable. The latest confirmed items remain visible.',
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -95,23 +93,8 @@
     return true;
   }
 
-  function renderHealth(data) {
-    const status = data?.health?.status;
-    const id = 'news-live-health';
-    let node = document.getElementById(id);
-    if (status !== 'degraded') {
-      if (node) node.remove();
-      return;
-    }
-    if (!node) {
-      node = document.createElement('p');
-      node.id = id;
-      node.setAttribute('role', 'status');
-      node.style.cssText = 'max-width:1180px;margin:10px auto;padding:10px 14px;border:1px solid rgba(255,191,63,.35);border-radius:12px;background:rgba(255,191,63,.09);color:inherit;font-size:13px;';
-      const main = document.querySelector('main');
-      if (main) main.prepend(node);
-    }
-    node.textContent = text.degraded;
+  function removeLegacyHealthBanner() {
+    document.getElementById('news-live-health')?.remove();
   }
 
   async function refresh() {
@@ -128,16 +111,18 @@
       const rendered = renderNewsPage(data) || renderHomepage(data);
       if (!rendered) return false;
       updateTimestamp(data);
-      renderHealth(data);
+      removeLegacyHealthBanner();
       document.documentElement.dataset.newsLiveMarker = String(data.marker || '');
       return true;
     } catch (error) {
+      removeLegacyHealthBanner();
       console.warn('BriefRooms live news refresh failed; static content remains visible.', error);
       return false;
     }
   }
 
   function start() {
+    removeLegacyHealthBanner();
     refresh();
     setInterval(refresh, 15 * 60 * 1000);
     document.addEventListener('visibilitychange', () => {
