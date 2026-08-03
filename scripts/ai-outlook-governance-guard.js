@@ -3,6 +3,8 @@
 
   var OUTLOOK_RE = /\/data\/ai_outlook\.json(?:\?|$)/i;
   var STATE_KEY = '__BR_AI_OUTLOOK_GOVERNANCE__';
+  var observer = null;
+  var applyScheduled = false;
 
   function requestUrl(input) {
     try {
@@ -80,11 +82,28 @@
     return payload;
   }
 
+  function setTextIfChanged(node, value) {
+    if (!node) return false;
+    var text = String(value || '');
+    if (node.textContent === text) return false;
+    node.textContent = text;
+    return true;
+  }
+
+  function setDatasetIfChanged(node, key, value) {
+    if (!node || !node.dataset) return false;
+    var text = String(value || '');
+    if (node.dataset[key] === text) return false;
+    node.dataset[key] = text;
+    return true;
+  }
+
   function applyDisclaimer() {
-    if (!root.document) return;
+    applyScheduled = false;
+    if (!root.document) return false;
     var payload = root[STATE_KEY];
     var card = root.document.getElementById('ai-outlook');
-    if (!payload || !card) return;
+    if (!payload || !card) return false;
 
     var lang = language();
     var item = payload[lang] || {};
@@ -93,13 +112,46 @@
 
     if (governance.disclaimer_required === true && !disclaimer) {
       card.remove();
-      return;
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      return true;
     }
+
     var node = card.querySelector('.ai-outlook__disclaimer');
-    if (node && disclaimer) node.textContent = disclaimer;
-    card.dataset.governanceValidated = 'true';
-    card.dataset.riskClass = String(governance.risk_class || 'legacy');
-    card.dataset.editionLanguage = lang;
+    setTextIfChanged(node, disclaimer);
+    setDatasetIfChanged(card, 'governanceValidated', 'true');
+    setDatasetIfChanged(card, 'riskClass', governance.risk_class || 'legacy');
+    setDatasetIfChanged(card, 'editionLanguage', lang);
+
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    return true;
+  }
+
+  function scheduleApply() {
+    if (applyScheduled) return;
+    applyScheduled = true;
+    var schedule = typeof root.requestAnimationFrame === 'function'
+      ? root.requestAnimationFrame.bind(root)
+      : function (callback) { return root.setTimeout(callback, 0); };
+    schedule(applyDisclaimer);
+  }
+
+  function addedAiOutlook(records) {
+    for (var recordIndex = 0; recordIndex < records.length; recordIndex += 1) {
+      var nodes = records[recordIndex].addedNodes || [];
+      for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+        var node = nodes[nodeIndex];
+        if (!node || node.nodeType !== 1) continue;
+        if (node.id === 'ai-outlook') return true;
+        if (node.querySelector && node.querySelector('#ai-outlook')) return true;
+      }
+    }
+    return false;
   }
 
   function installFetchGuard() {
@@ -120,7 +172,7 @@
             });
           }
           root[STATE_KEY] = checked;
-          setTimeout(applyDisclaimer, 0);
+          scheduleApply();
           return new Response(JSON.stringify(checked), {
             status: response.status,
             statusText: response.statusText,
@@ -136,11 +188,27 @@
     root.fetch = guardedFetch;
   }
 
-  installFetchGuard();
-  if (root.document && typeof MutationObserver === 'function') {
-    new MutationObserver(applyDisclaimer).observe(root.document.documentElement, {
+  function installCardObserver() {
+    if (!root.document || typeof MutationObserver !== 'function') return;
+    if (root.document.getElementById('ai-outlook')) {
+      scheduleApply();
+      return;
+    }
+    observer = new MutationObserver(function (records) {
+      if (addedAiOutlook(records)) scheduleApply();
+    });
+    observer.observe(root.document.documentElement, {
       childList: true,
       subtree: true
     });
   }
+
+  installFetchGuard();
+  installCardObserver();
+
+  root.BriefRoomsAiOutlookGovernance = {
+    validate: validate,
+    applyDisclaimer: applyDisclaimer,
+    scheduleApply: scheduleApply
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
