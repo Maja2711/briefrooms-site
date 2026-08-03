@@ -16,9 +16,12 @@ from typing import Any, Dict, Optional, Tuple
 
 import investments_weekly as legacy
 import investments_weekly_v2 as model
+import investments_weekly_v3 as weekly_model
+import investments_weekly_macro as macro
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD_PATH = ROOT / "data" / "investments" / "methodology.json"
+POLICY_PATH = ROOT / "data" / "investments" / "multi_instrument_exposure_policy.json"
 REPORT_PATH = ROOT / "data" / "investments" / "daily_review_report.json"
 EVENT_REQUESTS_PATH = ROOT / "data" / "investments" / "event_exit_requests.json"
 REVIEW_HOUR_LOCAL = 23
@@ -40,6 +43,10 @@ def write(path: Path, data: Any) -> None:
 
 def sf(value: Any) -> Optional[float]:
     return model.sf(value)
+
+
+def clip(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
 
 
 def last_completed_5m_bar(symbol: str, now: datetime) -> Optional[Dict[str, Any]]:
@@ -75,24 +82,61 @@ def agreement(fresh: Dict[str, Any]) -> Tuple[int, int]:
     return int(row.get("positive_groups") or 0), int(row.get("negative_groups") or 0)
 
 
-def exit_decision(side: str, fresh: Dict[str, Any]) -> Tuple[bool, str]:
+def review_score(fresh: Dict[str, Any], weekly: Dict[str, Any], macro_context: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, float]:
+    cfg = policy.get("macro_context") if isinstance(policy.get("macro_context"), dict) else {}
+    weights = cfg.get("daily_review_weights") if isinstance(cfg.get("daily_review_weights"), dict) else {}
+    daily_weight = float(weights.get("daily") or 0.50)
+    weekly_weight = float(weights.get("weekly") or 0.35)
+    macro_weight = float(weights.get("macro") or 0.15)
+    daily_score = float(fresh.get("score") or 0.0)
+    weekly_score = float(weekly.get("score") or 0.0) if weekly.get("data_quality") == "passed" else 0.0
+    macro_score = macro.normalized_score(macro_context)
+    combined = clip(daily_weight * daily_score + weekly_weight * weekly_score + macro_weight * macro_score, -100.0, 100.0)
+    return {
+        "daily": round(daily_score, 4),
+        "weekly": round(weekly_score, 4),
+        "macro_normalized": round(macro_score, 4),
+        "combined": round(combined, 4),
+    }
+
+
+def exit_decision(
+    side: str,
+    fresh: Dict[str, Any],
+    weekly: Optional[Dict[str, Any]] = None,
+    macro_context: Optional[Dict[str, Any]] = None,
+    policy: Optional[Dict[str, Any]] = None,
+) -> Tuple[bool, str, Dict[str, float]]:
+    weekly = weekly or {}
+    macro_context = macro_context or {}
+    policy = policy or {}
+    scores = review_score(fresh, weekly, macro_context, policy)
     if fresh.get("data_quality") != "passed":
-        return False, "keep_data_quality_failed"
+        return False, "keep_data_quality_failed", scores
+
     score = int(fresh.get("score") or 0)
     direction = str(fresh.get("direction") or "neutral")
     positive, negative = agreement(fresh)
+    cfg = policy.get("macro_context") if isinstance(policy.get("macro_context"), dict) else {}
+    combined_threshold = abs(float(cfg.get("daily_exit_combined_threshold") or 22.0))
+    macro_confirmation = abs(float(cfg.get("macro_confirmation_threshold") or 18.0))
+    raw_macro = float(macro_context.get("score") or 0.0) if macro_context.get("data_quality") == "passed" else 0.0
 
     if side == "long":
         if direction == "short":
-            return True, "confirmed_opposite_signal"
+            return True, "confirmed_opposite_signal", scores
         if score <= -INVALIDATION_SCORE and negative >= OPPOSING_GROUPS_REQUIRED:
-            return True, "directional_invalidation"
+            return True, "directional_invalidation", scores
+        if scores["combined"] <= -combined_threshold and (negative >= OPPOSING_GROUPS_REQUIRED or raw_macro <= -macro_confirmation):
+            return True, "weekly_macro_confirmed_invalidation", scores
     elif side == "short":
         if direction == "long":
-            return True, "confirmed_opposite_signal"
+            return True, "confirmed_opposite_signal", scores
         if score >= INVALIDATION_SCORE and positive >= OPPOSING_GROUPS_REQUIRED:
-            return True, "directional_invalidation"
-    return False, "keep_original_thesis_not_invalidated"
+            return True, "directional_invalidation", scores
+        if scores["combined"] >= combined_threshold and (positive >= OPPOSING_GROUPS_REQUIRED or raw_macro >= macro_confirmation):
+            return True, "weekly_macro_confirmed_invalidation", scores
+    return False, "keep_original_thesis_not_invalidated", scores
 
 
 def pending_event_request(data: Dict[str, Any], week_id: str, instrument_id: str) -> Optional[Dict[str, Any]]:
@@ -165,6 +209,7 @@ def review() -> Dict[str, Any]:
         return report
 
     method = read(METHOD_PATH, {})
+    policy = read(POLICY_PATH, {})
     cfg_by_id = {str(x.get("id")): x for x in method.get("instruments", [])}
     week_id = str(week.get("week_id") or "")
     changed = False
@@ -191,12 +236,15 @@ def review() -> Dict[str, Any]:
             continue
 
         fresh = safe_fresh_signal(cfg, method, week_id, now)
+        weekly = weekly_model.weekly_candle_signal(cfg, policy)
+        macro_context = macro.context(inst_id, now, policy)
         if request:
             should_close = True
             reason = str(request.get("reason") or "material_event_exit_request")
             trigger = "material_event_request"
+            scores = review_score(fresh, weekly, macro_context, policy)
         else:
-            should_close, reason = exit_decision(side, fresh)
+            should_close, reason, scores = exit_decision(side, fresh, weekly, macro_context, policy)
             trigger = "scheduled_daily_model_review"
 
         positive, negative = agreement(fresh)
@@ -208,6 +256,10 @@ def review() -> Dict[str, Any]:
             "fresh_direction": fresh.get("direction"),
             "fresh_score": fresh.get("score"),
             "fresh_signal_strength": fresh.get("signal_strength"),
+            "weekly_score": weekly.get("score"),
+            "weekly_regime": weekly.get("regime"),
+            "macro_context": macro_context,
+            "combined_review_score": scores.get("combined"),
             "positive_groups": positive,
             "negative_groups": negative,
             "data_quality": fresh.get("data_quality"),
@@ -255,6 +307,7 @@ def review() -> Dict[str, Any]:
         item["last_daily_review_at"] = now.isoformat(timespec="seconds")
         item["last_daily_review_decision"] = review_row["decision"]
         item["last_daily_review_reason"] = review_row["reason"]
+        item["latest_macro_context"] = macro.position_review(item, macro_context)
         changed = True
 
     if now.hour >= REVIEW_HOUR_LOCAL:
@@ -267,6 +320,8 @@ def review() -> Dict[str, Any]:
                 "confirmed_opposite_signal": True,
                 "directional_invalidation_score": INVALIDATION_SCORE,
                 "opposing_groups_required": OPPOSING_GROUPS_REQUIRED,
+                "weekly_candles_included": True,
+                "eurusd_oil_us10y_context_included": True,
                 "material_event_close_only": True,
                 "data_quality_failure_action": "keep_position_unless_material_event_request",
                 "execution": "last_completed_5m_bar",
