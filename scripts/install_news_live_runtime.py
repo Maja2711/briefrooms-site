@@ -11,7 +11,7 @@ PAGES = [
     ROOT / "pl" / "index.html",
     ROOT / "en" / "index.html",
 ]
-VERSION = "2"
+VERSION = "3"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 
