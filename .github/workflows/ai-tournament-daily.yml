@@ -5,14 +5,16 @@ on:
   issues:
     types: [opened]
   schedule:
-    # Reserved for daily valuation after the US close.
+    # Primary valuation after the regular US session is fully closed.
     - cron: "45 21 * * 1-5"
-    # Recovery audit 90 minutes later.
+    # Recovery audit 90 minutes later; idempotent when the round already exists.
     - cron: "15 23 * * 1-5"
   push:
     branches: [main]
     paths:
       - "scripts/ai_tournament_engine.py"
+      - "scripts/ai_tournament_manual_mode.py"
+      - "scripts/ai_tournament_manual_bootstrap.py"
       - "scripts/ai_tournament_parts/**"
       - "scripts/ai_tournament_cash_interest.py"
       - "scripts/generate_brace_manual_submission.py"
@@ -40,7 +42,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,6 +55,8 @@ jobs:
           python -m unittest tests.test_generate_brace_manual_submission -v
           python -m py_compile \
             scripts/ai_tournament_engine.py \
+            scripts/ai_tournament_manual_mode.py \
+            scripts/ai_tournament_manual_bootstrap.py \
             scripts/ai_tournament_cash_interest.py \
             scripts/generate_brace_manual_submission.py \
             scripts/install_ai_tournament_ui.py
@@ -71,10 +75,11 @@ jobs:
           assert policy['day_count'] == 'ACT/365'
           assert policy['compounding'] == 'daily'
           assert policy['accrual_calendar'] == 'calendar_days'
+          assert config['rules']['buy_and_hold'] is True
           assert config['universe_version'] == 'briefrooms-ai-55-v1'
           assert len(config['universe']) == 55
           assert not {'SPY','QQQ','IWM','GLD','TLT'}.intersection(config['universe'])
-          print('Manual buy-and-hold mode, 55-stock universe and daily Fed IORB cash accrual validated.')
+          print('Manual locked buy-and-hold contract validated.')
           PY
 
   generate-brace:
@@ -128,22 +133,77 @@ jobs:
           echo "::error::Could not publish the locked BRACE portfolio."
           exit 1
 
-  hold-until-manual-portfolios-are-locked:
+  run-tournament:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Confirm no model API is called
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install frozen-market dependencies
+        run: python -m pip install --upgrade yfinance pandas
+
+      - name: Verify reveals and prepare immutable first-open targets
+        id: bootstrap
+        continue-on-error: true
+        run: python scripts/ai_tournament_manual_bootstrap.py
+
+      - name: Run completed market round
+        if: steps.bootstrap.outcome == 'success'
+        run: python scripts/ai_tournament_engine.py run
+
+      - name: Validate completed tournament state
+        if: steps.bootstrap.outcome == 'success'
+        run: python scripts/ai_tournament_engine.py validate
+
+      - name: Validate blocked public status
+        if: steps.bootstrap.outcome != 'success'
         run: |
+          python -m json.tool data/ai_tournament/public.json >/dev/null
           python - <<'PY'
           import json
           from pathlib import Path
-          mode = json.loads(Path('data/ai_tournament/manual_mode.json').read_text(encoding='utf-8'))
-          if mode.get('api_calls_enabled'):
-              raise SystemExit('API calls must remain disabled for the manual tournament.')
-          print('No model API call is permitted. BRACE is generated only by the deterministic frozen-data selector.')
+          public = json.loads(Path('data/ai_tournament/public.json').read_text(encoding='utf-8'))
+          assert public['tournament']['status'] == 'BLOCKED_MISSING_REVEALED_SUBMISSIONS'
+          assert public['readiness']['ready'] is False
+          print('Tournament is truthfully blocked because full reveals are missing.')
           PY
+
+      - name: Commit tournament state or truthful blocked status
+        if: steps.bootstrap.outcome != 'success' || success()
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ "${{ steps.bootstrap.outcome }}" == "success" ]]; then
+            git add -A data/ai_tournament
+          else
+            git add data/ai_tournament/public.json
+          fi
+          if git diff --cached --quiet; then
+            echo "No AI Tournament state change to commit."
+          else
+            git commit -m "Update AI Tournament state"
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then break; fi
+              if [[ "$attempt" == "5" ]]; then
+                echo "::error::Could not publish AI Tournament state."
+                exit 1
+              fi
+              sleep $((attempt * 4))
+            done
+          fi
+
+      - name: Fail visibly when locked reveals are incomplete
+        if: steps.bootstrap.outcome != 'success'
+        run: |
+          echo "::error::AI Tournament cannot start because one or more full locked submissions are absent or fail their commitment hash."
+          exit 1
