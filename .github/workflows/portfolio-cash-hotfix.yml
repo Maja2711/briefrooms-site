@@ -18,7 +18,7 @@ concurrency:
 jobs:
   publish-cash:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +71,82 @@ jobs:
             echo "Cash state already published."
           else
             git commit -m "fix(portfolio): publish 455.25 PLN cash after NOVO-B exit"
+            git pull --rebase origin main
+            git push
+          fi
+      - name: Verify production page and data
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          page_base = 'https://briefrooms.com/pl/inwestycje/portfel-10k.html'
+          data_base = 'https://briefrooms.com/data/investments/portfolio_10k.json'
+          last_error = None
+          passed = False
+          observed = {}
+
+          for attempt in range(1, 25):
+              cache_bust = f'{int(time.time())}-{attempt}'
+              try:
+                  headers = {'User-Agent': 'BriefRooms-production-verifier/1.0', 'Cache-Control': 'no-cache'}
+                  page_req = urllib.request.Request(f'{page_base}?cashfix={cache_bust}', headers=headers)
+                  data_req = urllib.request.Request(f'{data_base}?cashfix={cache_bust}', headers=headers)
+                  with urllib.request.urlopen(page_req, timeout=20) as response:
+                      page = response.read().decode('utf-8', errors='replace')
+                  with urllib.request.urlopen(data_req, timeout=20) as response:
+                      portfolio = json.loads(response.read().decode('utf-8'))
+
+                  cash = round(float(portfolio.get('cash_pln') or 0), 2)
+                  active_novo = any(
+                      p.get('id') == 'novo' and p.get('status') == 'active'
+                      for p in portfolio.get('positions', [])
+                  )
+                  finalizer_v2 = 'portfolio-10k-execution-finalizer.js?v=2' in page
+                  observed = {
+                      'attempt': attempt,
+                      'cash_pln': cash,
+                      'active_novo': active_novo,
+                      'finalizer_v2': finalizer_v2,
+                      'portfolio_last_updated_at': portfolio.get('last_updated_at'),
+                  }
+                  if cash == 455.25 and not active_novo and finalizer_v2:
+                      passed = True
+                      break
+                  last_error = f'not propagated yet: {observed}'
+              except Exception as exc:
+                  last_error = repr(exc)
+              time.sleep(10)
+
+          status = {
+              'checked_at': datetime.now(timezone.utc).isoformat(),
+              'status': 'passed' if passed else 'failed',
+              'expected_cash_pln': 455.25,
+              'observed': observed,
+              'last_error': last_error,
+              'page': page_base,
+              'data': data_base,
+          }
+          Path('data/portfolio10k/cash_hotfix_production_status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(status, ensure_ascii=False))
+          if not passed:
+              raise SystemExit('Production cash verification failed')
+          PY
+      - name: Commit production verification
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/portfolio10k/cash_hotfix_production_status.json
+          if git diff --cached --quiet; then
+            echo "No verification status change."
+          else
+            git commit -m "chore(portfolio): verify 455.25 PLN cash on production"
             git pull --rebase origin main
             git push
           fi
