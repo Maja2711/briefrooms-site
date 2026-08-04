@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Reconcile completed BRACE paper exits into the public Portfolio 10K state."""
 from __future__ import annotations
 
 import json
