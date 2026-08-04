@@ -32,6 +32,14 @@ class NewsQualityTests(unittest.TestCase):
         decision = evaluate_story("Wipler dziś gościem programu. Oglądaj o 19:30")
         self.assertFalse(decision.accepted)
 
+    def test_rejects_exact_wipler_guest_listing_from_feed(self) -> None:
+        decision = evaluate_story(
+            'Przemysław Wipler w "Gościu Wydarzeń" [OGLĄDAJ]',
+            "Poseł będzie gościem programu. Transmisja od godz. 19:15.",
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "interview_promo_without_substance")
+
     def test_rejects_english_interview_promotion(self) -> None:
         decision = evaluate_story("Watch our interview with the finance minister")
         self.assertFalse(decision.accepted)
