@@ -79,8 +79,8 @@ jobs:
           grep -q 'portfolio-10k-decision-overlay.css?v=1' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-decision-overlay.js?v=2' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-decision-overlay.js?v=2' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-execution-finalizer.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-execution-finalizer.js?v=1' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-execution-finalizer.js?v=2' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-execution-finalizer.js?v=2' en/investing/portfolio-10k.html
       - name: Validate accounting and JavaScript
         run: |
           python -m py_compile scripts/reconcile_portfolio_10k_executions.py
@@ -109,6 +109,7 @@ jobs:
           if order.get('status') == 'PAPER_EXECUTED':
               assert not any(p.get('id') == 'novo' and p.get('status') == 'active' for p in portfolio.get('positions', [])), 'Executed Novo exit cannot remain active'
               assert any(p.get('id') == 'novo' for p in portfolio.get('closed_positions', [])), 'Executed Novo exit must be in closed history'
+              assert round(float(portfolio.get('cash_pln') or 0), 2) == 455.25, 'Executed Novo exit cash must be 455.25 PLN'
           PY
       - name: Commit hourly valuation, UI and paper state
         run: |
@@ -117,7 +118,7 @@ jobs:
           git add data/investments/portfolio_10k.json \
                   data/investments/portfolio_10k_usd.json \
                   pl/inwestycje/portfel-10k.html \
-                  en/investing/portfolio-10k.html
+                  en/investing/portfel-10k.html
           git add -A data/portfolio10k
           if git diff --cached --quiet; then
             echo "No hourly valuation change to commit."
