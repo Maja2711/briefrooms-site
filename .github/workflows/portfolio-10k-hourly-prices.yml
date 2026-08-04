@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
+      - "scripts/reconcile_portfolio_10k_executions.py"
       - "scripts/build_portfolio_10k_usd.py"
       - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/patch_portfolio_10k_en_usd.py"
@@ -15,6 +16,8 @@ on:
       - "scripts/portfolio-10k-*.js"
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
+      - "data/portfolio10k/paper_orders.json"
+      - "data/portfolio10k/paper_portfolio.json"
       - "assets/portfolio-10k-accessibility.css"
       - "assets/portfolio-10k-decision-overlay.css"
       - "pl/inwestycje/portfel-10k.html"
@@ -41,6 +44,8 @@ jobs:
           python-version: "3.11"
       - name: Install quote dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
+      - name: Reconcile already executed paper trades
+        run: python scripts/reconcile_portfolio_10k_executions.py
       - name: Refresh current prices and portfolio valuation
         run: python scripts/portfolio_10k_hourly_prices.py
       - name: Build independent USD portfolio and journal
@@ -56,6 +61,8 @@ jobs:
           python scripts/brace_portfolio_user_control.py || echo "::warning::BRACE activation deferred."
           python scripts/brace_portfolio_execution.py --network || echo "::warning::BRACE paper execution deferred; valuation publication continues."
           python scripts/brace_portfolio_user_control.py --republish || echo "::warning::BRACE public snapshot republish deferred."
+      - name: Reconcile trades executed during this run
+        run: python scripts/reconcile_portfolio_10k_executions.py
       - name: Validate public labels and assets
         run: |
           grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
@@ -72,8 +79,11 @@ jobs:
           grep -q 'portfolio-10k-decision-overlay.css?v=1' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-decision-overlay.js?v=2' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-decision-overlay.js?v=2' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-execution-finalizer.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-execution-finalizer.js?v=1' en/investing/portfolio-10k.html
       - name: Validate accounting and JavaScript
         run: |
+          python -m py_compile scripts/reconcile_portfolio_10k_executions.py
           python scripts/validate_portfolio_10k_state.py
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-dashboard-en.js
@@ -84,16 +94,21 @@ jobs:
           node --check scripts/portfolio-10k-control-public.js
           node --check scripts/portfolio-10k-verified-material-loader.js
           node --check scripts/portfolio-10k-decision-overlay.js
+          node --check scripts/portfolio-10k-execution-finalizer.js
           python - <<'PY'
           import json
           from pathlib import Path
           public = json.loads(Path('data/portfolio10k/public/brace_engine_public.json').read_text())
           orders = json.loads(Path('data/portfolio10k/paper_orders.json').read_text())
+          portfolio = json.loads(Path('data/investments/portfolio_10k.json').read_text())
           decision = next((d for d in public.get('pending_decisions', []) if d.get('instrument') == 'novo'), None)
           order = next((o for o in orders.get('orders', []) if o.get('sell_instrument') == 'novo'), None)
           assert decision and decision.get('action') == 'EXIT', 'Novo public decision must be EXIT'
           assert order and order.get('status') in {'WAITING_FOR_MARKET', 'PAPER_EXECUTED'}, 'Novo paper order must be visible'
           assert '2 zweryfikowanych raport' in decision.get('rationale_pl', ''), 'Novo rationale must preserve verified-report basis'
+          if order.get('status') == 'PAPER_EXECUTED':
+              assert not any(p.get('id') == 'novo' and p.get('status') == 'active' for p in portfolio.get('positions', [])), 'Executed Novo exit cannot remain active'
+              assert any(p.get('id') == 'novo' for p in portfolio.get('closed_positions', [])), 'Executed Novo exit must be in closed history'
           PY
       - name: Commit hourly valuation, UI and paper state
         run: |
