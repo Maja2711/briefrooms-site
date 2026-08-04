@@ -20,17 +20,19 @@ _INTERVIEW_META = re.compile(
     r"(?:"
     r"\bwywiad\s+z\b|"
     r"\brozmow(?:a|ę|y)\s+z\b|"
+    r"\b(?:będzie|bedzie)\s+gościem\b|"
     r"\bgościem\s+(?:programu|poranka|radia|telewizji|tv|wydarzeń)\b|"
     r"\bgość\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
+    r"\bgościu\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
     r"\b(?:dziś|dzisiaj|jutro|wkrótce)\b.{0,60}\b(?:na\s+antenie|w\s+tv|w\s+programie)\b|"
-    r"\b(?:zobacz|obejrzyj|posłuchaj)\b.{0,45}\b(?:wywiad|rozmow\w*|program|podcast)\b|"
+    r"\b(?:zobacz|obejrzyj|posłuchaj|oglądaj)\b.{0,45}\b(?:wywiad|rozmow\w*|program|podcast)\b|"
     r"\b(?:w|na)\s+(?:tvn24|polsat\s+news|tvp\s+info|radio\s+zet|rmf\s+fm|antenie|programie)\b|"
     r"\binterview\s+with\b|"
     r"\bin\s+conversation\s+with\b|"
     r"\bq\s*&\s*a\s+with\b|"
     r"\b(?:watch|listen\s+to)\b.{0,40}\b(?:interview|conversation|podcast)\b|"
     r"\b(?:joins\s+us|guest\s+on|will\s+appear\s+on)\b|"
-    r"\[(?:wywiad|interview|podcast)\]"
+    r"\[(?:wywiad|interview|podcast|oglądaj|zobacz|watch)\]"
     r")",
     re.IGNORECASE,
 )
@@ -62,7 +64,7 @@ _MEANINGFUL_NUMBER = re.compile(
 _QUOTED_CONTENT = re.compile(r"[\"“”„«]([^\"“”„»«]{18,})[\"“”»]", re.IGNORECASE)
 _PROMO_TAIL = re.compile(
     r"^(?:cał(?:y|a)\s+)?(?:wywiad|rozmowa|materiał|program|podcast)|"
-    r"^(?:zobacz|obejrzyj|posłuchaj)|"
+    r"^(?:zobacz|obejrzyj|posłuchaj|oglądaj)|"
     r"^(?:o|na\s+temat|about)\s+",
     re.IGNORECASE,
 )
