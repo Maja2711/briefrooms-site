@@ -26,6 +26,7 @@ class AiTournamentUiTests(unittest.TestCase):
 
     def test_locked_thesis_is_collapsed_with_native_details(self) -> None:
         self.assertIn('<details class="aitx-thesis">', self.script)
+        self.assertNotIn('<details class="aitx-thesis" open', self.script)
         self.assertIn('<summary><span>${esc(T.thesis)}</span>', self.script)
         self.assertIn("expand: 'Rozwiń'", self.script)
         self.assertIn("collapse: 'Zwiń'", self.script)
