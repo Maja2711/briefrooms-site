@@ -10,6 +10,8 @@ if str(SCRIPTS) not in sys.path:
 
 import brace_historical_seed_calibration as calibration
 
+# This existing PR-observed file intentionally triggers the investment-room audit workflow.
+
 
 def reconstructed_multiplier(success: float, failure: float) -> float:
     mean = (calibration.PRIOR_ALPHA + success) / (
