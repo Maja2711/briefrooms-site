@@ -1,83 +1,103 @@
 name: Investment Room Full Audit
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/**"
+      - ".github/workflows/investment-room-full-audit.yml"
+      - "data/investments/investment_room_audit_trigger.txt"
   push:
     branches:
       - fix/investment-room-full-audit-20260805
     paths:
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
-      - "scripts/*.js"
-      - "scripts/audit_investment_rooms.mjs"
+      - "scripts/**"
       - ".github/workflows/investment-room-full-audit.yml"
       - "data/investments/investment_room_audit_trigger.txt"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: investment-room-full-audit
+  group: investment-room-full-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out audited branch
+        uses: actions/checkout@v4
         with:
           ref: fix/investment-room-full-audit-20260805
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Chromium audit runtime
+      - name: Locate browser
         run: |
-          npm install --no-save playwright@1.54.2
-          npx playwright install --with-deps chromium
+          set -euo pipefail
+          command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
-      - name: Start local site
+      - name: Start local BriefRooms site
         run: |
+          set -euo pipefail
           python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
           echo $! > /tmp/briefrooms-http.pid
           for attempt in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null; then exit 0; fi
+            if curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null; then
+              exit 0
+            fi
             sleep 1
           done
           cat /tmp/briefrooms-http.log
           exit 1
 
-      - name: Audit every PL and EN tab
-        id: browser_audit
+      - name: Audit every PL and EN tab in Chrome
+        id: full_audit
         continue-on-error: true
-        run: node scripts/audit_investment_rooms.mjs
+        run: python3 scripts/audit_investment_rooms_fast.py
 
-      - name: Commit audit report and screenshots manifest
+      - name: Upload complete audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-full-audit-report
+          path: data/investments/investment_room_full_audit.json
+          if-no-files-found: error
+
+      - name: Commit report on branch
+        if: github.event_name == 'push'
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/investment_room_full_audit.json
-          git commit -m "chore(investing): record full PL and EN audit" || exit 0
-          git pull --rebase origin fix/investment-room-full-audit-20260805
-          git push origin HEAD:fix/investment-room-full-audit-20260805
+          if git diff --cached --quiet; then
+            echo "Audit report unchanged."
+          else
+            git commit -m "chore(investing): record full PL and EN audit"
+            git pull --rebase origin fix/investment-room-full-audit-20260805
+            git push origin HEAD:fix/investment-room-full-audit-20260805
+          fi
 
-      - name: Upload screenshots
-        uses: actions/upload-artifact@v4
-        with:
-          name: investment-room-full-audit-screenshots
-          path: artifacts/*.png
-          if-no-files-found: error
-
-      - name: Fail when audit failed
+      - name: Fail when any room or tab is broken
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
           report = json.loads(Path('data/investments/investment_room_full_audit.json').read_text(encoding='utf-8'))
           if not report.get('passed'):
+              for language, result in report.get('results', {}).items():
+                  print(language, 'passed=', result.get('passed'))
+                  print('navigation=', result.get('navigation_order'))
+                  for tab in result.get('tabs', []):
+                      if not tab.get('passed'):
+                          print('FAILED TAB:', language, tab)
               raise SystemExit('Investment room full audit failed')
-          print('Investment room full audit passed')
+          print('All 18 PL/EN investment views passed.')
           PY
