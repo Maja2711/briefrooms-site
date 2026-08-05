@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# This file is part of the watched Gemini workflow contract. A change here
+# intentionally triggers one end-to-end provider and production verification.
+
 import sys
 import unittest
 from pathlib import Path
