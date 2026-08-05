@@ -15,6 +15,7 @@ on:
       - "scripts/update_ai_outlook_v2.py"
       - "scripts/update_ai_outlook_v3.py"
       - "scripts/publish_ai_outlook_daily.py"
+      - "scripts/refine_ai_outlook_fallback.py"
       - "scripts/ai_outlook_engine.py"
       - "scripts/ai_outlook_metrics.py"
       - "scripts/ai-outlook-governance-guard.js"
@@ -24,6 +25,7 @@ on:
       - "tests/test_ai_outlook.py"
       - "tests/test_ai_outlook_v3.py"
       - "tests/test_ai_outlook_daily.py"
+      - "tests/test_ai_outlook_fallback_refiner.py"
       - "tests/test_ai_outlook_engine.py"
       - "tests/test_ai_outlook_metrics.py"
       - "tests/test_homepage_photo_only.py"
@@ -81,6 +83,7 @@ jobs:
             tests.test_ai_outlook \
             tests.test_ai_outlook_v3 \
             tests.test_ai_outlook_daily \
+            tests.test_ai_outlook_fallback_refiner \
             tests.test_ai_outlook_engine \
             tests.test_ai_outlook_metrics \
             tests.test_homepage_photo_only -v
@@ -89,6 +92,7 @@ jobs:
             scripts/update_ai_outlook_v2.py \
             scripts/update_ai_outlook_v3.py \
             scripts/publish_ai_outlook_daily.py \
+            scripts/refine_ai_outlook_fallback.py \
             scripts/ai_outlook_engine.py \
             scripts/ai_outlook_metrics.py \
             scripts/enforce_homepage_photo_only.py
@@ -114,6 +118,8 @@ jobs:
             ARGS="--force"
           fi
           python scripts/publish_ai_outlook_daily.py $ARGS
+          python scripts/refine_ai_outlook_fallback.py
+          python scripts/refine_ai_outlook_fallback.py --validate-only
           python scripts/publish_ai_outlook_daily.py --validate-only --require-today
 
       - name: Verify date and language isolation
@@ -133,6 +139,9 @@ jobs:
               raise SystemExit('AI Outlook schema v2 is required')
           if payload.get('edition_policy') != 'independent-per-language':
               raise SystemExit('PL and EN editions are not independent')
+          if payload.get('generation_mode') == 'deterministic_daily_fallback':
+              if payload.get('fallback_copy_version') != 'fallback-copy-v1':
+                  raise SystemExit('Fallback copy was not refined')
           for language in ('pl', 'en'):
               edition = payload.get(language) or {}
               if edition.get('source_language') != language:
@@ -217,6 +226,7 @@ jobs:
                       'date': payload.get('date'),
                       'generated_at': payload.get('generated_at'),
                       'generation_mode': payload.get('generation_mode', 'ai_primary'),
+                      'fallback_copy_version': payload.get('fallback_copy_version'),
                       'pl_forecast_id': (payload.get('pl') or {}).get('forecast_id'),
                       'en_forecast_id': (payload.get('en') or {}).get('forecast_id'),
                   }
@@ -224,6 +234,8 @@ jobs:
                       errors.append(f"data date={payload.get('date')!r}")
                   if payload.get('schema_version') != 2:
                       errors.append('schema is not v2')
+                  if payload.get('generation_mode') == 'deterministic_daily_fallback' and payload.get('fallback_copy_version') != 'fallback-copy-v1':
+                      errors.append('fallback copy is not refined')
                   for language in ('pl', 'en'):
                       edition = payload.get(language) or {}
                       if edition.get('source_language') != language:
