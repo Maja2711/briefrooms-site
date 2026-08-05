@@ -17,7 +17,8 @@ class AiTournamentUiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.script = (ROOT / "scripts" / "ai-tournament-public.js").read_text(encoding="utf-8")
         self.profile_script = (ROOT / "scripts" / "ai-tournament-company-profiles.js").read_text(encoding="utf-8")
-        self.runtime_script = (ROOT / "scripts" / "portfolio-10k-execution-finalizer.js").read_text(encoding="utf-8")
+        self.summary_script = (ROOT / "scripts" / "ai-tournament-summary.js").read_text(encoding="utf-8")
+        self.finalizer_script = (ROOT / "scripts" / "portfolio-10k-execution-finalizer.js").read_text(encoding="utf-8")
         self.config = json.loads((ROOT / "data" / "ai_tournament" / "config.json").read_text(encoding="utf-8"))
         self.profiles = json.loads((ROOT / "data" / "ai_tournament" / "company_profiles.json").read_text(encoding="utf-8"))
 
@@ -45,6 +46,18 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertNotIn("T.drawdown", self.script)
         self.assertNotIn("T.positions", self.script)
 
+    def test_summary_replaces_duplicate_ranking_with_four_distinct_statistics(self) -> None:
+        self.assertIn("Najważniejsze liczby bez powtarzania rankingu", self.summary_script)
+        self.assertIn("Lead over second", self.summary_script)
+        self.assertIn("Average return", self.summary_script)
+        self.assertIn("Best-to-worst spread", self.summary_script)
+        self.assertIn("function summary(rows)", self.summary_script)
+        self.assertIn("lead: second ? returnValue(leader) - returnValue(second) : 0", self.summary_script)
+        self.assertIn("average = values.reduce", self.summary_script)
+        self.assertIn("spread: best - worst", self.summary_script)
+        self.assertEqual(self.summary_script.count('class="ait-summary-stat"'), 4)
+        self.assertIn("MutationObserver", self.summary_script)
+
     def test_company_profiles_cover_the_full_locked_universe(self) -> None:
         self.assertEqual(self.profiles["schema_version"], "ai-tournament-company-profiles-v1")
         universe = set(self.config["universe"])
@@ -69,29 +82,32 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("description_pl", self.profile_script)
         self.assertIn("description_en", self.profile_script)
 
-    def test_existing_portfolio_runtime_bootstraps_profiles_without_html_dependency(self) -> None:
-        self.assertIn("function loadTournamentCompanyProfiles()", self.runtime_script)
-        self.assertIn("/scripts/ai-tournament-company-profiles.js?v=1", self.runtime_script)
-        self.assertIn("loadTournamentCompanyProfiles();", self.runtime_script)
-        self.assertIn("script[src*=\"/scripts/ai-tournament-company-profiles.js\"]", self.runtime_script)
+    def test_existing_runtime_bootstraps_company_profiles(self) -> None:
+        self.assertIn("function loadTournamentCompanyProfiles()", self.finalizer_script)
+        self.assertIn("/scripts/ai-tournament-company-profiles.js?v=1", self.finalizer_script)
+        self.assertIn("loadTournamentCompanyProfiles();", self.finalizer_script)
 
-    def test_installer_deploys_v5_and_company_profiles_once(self) -> None:
+    def test_installer_deploys_v5_profiles_and_summary_once(self) -> None:
         self.assertEqual(installer.SCRIPT_VERSION, "5")
         self.assertEqual(installer.PROFILE_VERSION, "1")
+        self.assertEqual(installer.SUMMARY_VERSION, "1")
         source = (
             '<html><body>'
             '<script src="/scripts/ai-tournament-public.js?v=4" defer></script>'
             '<script src="/scripts/ai-tournament-readiness.js?v=4" defer></script>'
             '<script src="/scripts/ai-tournament-company-profiles.js?v=old" defer></script>'
+            '<script src="/scripts/ai-tournament-summary.js?v=old" defer></script>'
             '</body></html>'
         )
         patched = installer.patch_text(source)
         self.assertEqual(patched.count('ai-tournament-public.js?v=5'), 1)
         self.assertEqual(patched.count('ai-tournament-readiness.js?v=5'), 1)
         self.assertEqual(patched.count('ai-tournament-company-profiles.js?v=1'), 1)
+        self.assertEqual(patched.count('ai-tournament-summary.js?v=1'), 1)
         self.assertNotIn('ai-tournament-public.js?v=4', patched)
         self.assertNotIn('ai-tournament-readiness.js?v=4', patched)
         self.assertNotIn('ai-tournament-company-profiles.js?v=old', patched)
+        self.assertNotIn('ai-tournament-summary.js?v=old', patched)
 
 
 if __name__ == "__main__":
