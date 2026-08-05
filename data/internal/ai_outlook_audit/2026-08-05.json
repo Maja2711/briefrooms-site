@@ -1,7 +1,7 @@
 {
   "schema_version": "ai-outlook-audit-v2",
   "date": "2026-08-05",
-  "generated_at": "2026-08-05T10:04:18+02:00",
+  "generated_at": "2026-08-05T10:06:12+02:00",
   "edition_policy": "independent-per-language",
   "source_policy": {
     "pl": "polish-language-canonical-news-only",
@@ -11,7 +11,7 @@
     "pl": {
       "schema_version": "ai-outlook-audit-v1",
       "date": "2026-08-05",
-      "generated_at": "2026-08-05T10:04:18+02:00",
+      "generated_at": "2026-08-05T10:06:12+02:00",
       "engine": {
         "version": "ai-outlook-engine-v1.1",
         "weights_version": "weights-2026-08-v1",
@@ -49,7 +49,7 @@
           "verifiability": 95.0,
           "novelty": 75.0,
           "source_quality": 78.0,
-          "speculation_risk": 25.0,
+          "speculation_risk": 20.0,
           "speculation_penalty": 0.0,
           "novelty_penalty": 0.0,
           "threshold": 68.0,
@@ -72,19 +72,26 @@
           "ai_assessment"
         ],
         "public_brier_min_resolved": 30,
-        "candidate_count": 2,
+        "candidate_count": 3,
         "top_candidates": [
           {
             "candidate_id": "cand_01",
             "area": "economy",
-            "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
+            "title": "Wzrost obciążeń finansowych sektora publicznego w Polsce",
             "engine_score": 83.53,
             "passed_safety_gate": true
           },
           {
             "candidate_id": "cand_03",
             "area": "health",
-            "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkol",
+            "title": "Rozwój badań nad substancjami łagodzącymi skutki diety bogatej w sól",
+            "engine_score": 71.9,
+            "passed_safety_gate": false
+          },
+          {
+            "candidate_id": "cand_04",
+            "area": "science",
+            "title": "Wprowadzenie nowych metod diagnostycznych w chorobach odkleszczowych w Polsce",
             "engine_score": 71.9,
             "passed_safety_gate": false
           }
@@ -93,13 +100,13 @@
       "selected_candidate_id": "cand_01",
       "selected_resolution": {
         "schema_version": "resolution-v1",
-        "metric": "Liczba projektów ustaw rządowych dotyczących reformy systemów emerytalnych lub finansów publicznych skierowanych do pierwszego czytania w Sejmie RP",
+        "metric": "Liczba oficjalnych rządowych projektów ustaw dotyczących reformy emerytalnej lub finansów publicznych wniesionych do Sejmu",
         "comparison_operator": ">=",
         "threshold": 1.0,
-        "unit": "projekty ustaw",
+        "unit": "projektów",
         "baseline_date": "2026-08-05",
         "baseline_value": 0.0,
-        "data_source_for_verification": "Strona internetowa Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
+        "data_source_for_verification": "Oficjalny portal Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
         "verification_url": "https://www.sejm.gov.pl",
         "resolution_date": "2027-08-05",
         "geography": "Polska",
@@ -138,20 +145,7 @@
         {
           "candidate_id": "cand_02",
           "area": "geopolitics",
-          "title": "Utrzymanie napięć dyplomatycznych na linii Waszyngton–Brasilia",
-          "decision": "rejected",
-          "engine_score": null,
-          "rejection_reasons": [
-            {
-              "code": "INVALID_CANDIDATE",
-              "detail": "candidate sources conflict with area"
-            }
-          ]
-        },
-        {
-          "candidate_id": "cand_04",
-          "area": "science",
-          "title": "Intensyfikacja badań nad sejsmiczną aktywnością Księżyca a poszukiwania zasobów lodowych",
+          "title": "Napięcia dyplomatyczne na linii Waszyngton-Brasilia",
           "decision": "rejected",
           "engine_score": null,
           "rejection_reasons": [
@@ -164,7 +158,7 @@
         {
           "candidate_id": "cand_01",
           "area": "economy",
-          "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
+          "title": "Wzrost obciążeń finansowych sektora publicznego w Polsce",
           "decision": "selected",
           "engine_score": 83.53,
           "threshold": 68.0,
@@ -176,7 +170,7 @@
             "verifiability": 95.0,
             "novelty": 75.0,
             "source_quality": 78.0,
-            "speculation_risk": 25.0,
+            "speculation_risk": 20.0,
             "speculation_penalty": 0.0,
             "novelty_penalty": 0.0,
             "threshold": 68.0,
@@ -196,7 +190,7 @@
         {
           "candidate_id": "cand_03",
           "area": "health",
-          "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkol",
+          "title": "Rozwój badań nad substancjami łagodzącymi skutki diety bogatej w sól",
           "decision": "rejected",
           "engine_score": 71.9,
           "threshold": 72.0,
@@ -218,10 +212,10 @@
           ],
           "score_breakdown": {
             "evidence_quality": 78.0,
-            "measurability": 85.0,
-            "causal_strength": 75.0,
+            "measurability": 88.0,
+            "causal_strength": 70.0,
             "verifiability": 92.0,
-            "novelty": 68.0,
+            "novelty": 72.0,
             "source_quality": 62.0,
             "speculation_risk": 22.0,
             "speculation_penalty": 0.0,
@@ -235,7 +229,60 @@
                 "actual": 1
               }
             ],
-            "source_count": 2,
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 62.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_04",
+          "area": "science",
+          "title": "Wprowadzenie nowych metod diagnostycznych w chorobach odkleszczowych w Polsce",
+          "decision": "rejected",
+          "engine_score": 71.9,
+          "threshold": 72.0,
+          "rejection_reasons": [
+            {
+              "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+              "required": 2,
+              "actual": 1
+            },
+            {
+              "code": "BELOW_AREA_THRESHOLD",
+              "actual": 71.9,
+              "required": 72.0
+            },
+            {
+              "code": "LOWER_PRIORITY_AREA",
+              "selected_area": "economy"
+            }
+          ],
+          "score_breakdown": {
+            "evidence_quality": 75.0,
+            "measurability": 82.0,
+            "causal_strength": 68.0,
+            "verifiability": 85.0,
+            "novelty": 70.0,
+            "source_quality": 62.0,
+            "speculation_risk": 28.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 1,
             "distinct_hosts": 1,
             "independent_provenance_count": 1,
             "provenance_ids": [
@@ -255,20 +302,20 @@
           "source_ids": [
             1
           ],
-          "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
-          "thesis": "Wysokie koszty obsługi długu publicznego oraz rekordowe wydatki na mieszkańca wykażą tendencję do dalszego wzrostu, co wymusi oficjalną debatę parlamentarną nad nowymi ustawami reformującymi system emerytalny i finanse samorządów.",
+          "title": "Wzrost obciążeń finansowych sektora publicznego w Polsce",
+          "thesis": "W obliczu rosnących kosztów długu publicznego oraz wydatków na mieszkańca przekraczających 53 tys. zł, konieczność wdrożenia reform strukturalnych, w tym emerytalnych, stanie się kluczowym tematem oficjalnych debat rządowych w ciągu najbliższego roku.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Raport Forum Obywatelskiego Rozwoju wskazuje na strukturalne obciążenie finansów publicznych w Polsce, co tworzy mierzalną przestrzeń do prognozowania zmian legislacyjnych.",
+          "selection_reason": "Wysokiej jakości dowody z raportu Forum Obywatelskiego Rozwoju wskazują na rosnącą presję na finanse publiczne i potrzebę reform.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Liczba projektów ustaw rządowych dotyczących reformy systemów emerytalnych lub finansów publicznych skierowanych do pierwszego czytania w Sejmie RP",
+            "metric": "Liczba oficjalnych rządowych projektów ustaw dotyczących reformy emerytalnej lub finansów publicznych wniesionych do Sejmu",
             "comparison_operator": ">=",
             "threshold": 1.0,
-            "unit": "projekty ustaw",
+            "unit": "projektów",
             "baseline_date": "2026-08-05",
             "baseline_value": 0.0,
-            "data_source_for_verification": "Strona internetowa Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
+            "data_source_for_verification": "Oficjalny portal Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
             "verification_url": "https://www.sejm.gov.pl",
             "resolution_date": "2027-08-05",
             "geography": "Polska",
@@ -279,7 +326,7 @@
           "causal_strength": 78,
           "verifiability": 95,
           "novelty": 75,
-          "speculation_risk": 25,
+          "speculation_risk": 20,
           "governance": {
             "schema_version": "governance-v1",
             "content_category": "macro",
@@ -299,7 +346,7 @@
             "verifiability": 95.0,
             "novelty": 75.0,
             "source_quality": 78.0,
-            "speculation_risk": 25.0,
+            "speculation_risk": 20.0,
             "speculation_penalty": 0.0,
             "novelty_penalty": 0.0,
             "threshold": 68.0,
@@ -322,33 +369,32 @@
           "area": "health",
           "content_category": "clinical_health",
           "source_ids": [
-            16,
-            17
+            16
           ],
-          "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkologiczne",
-          "thesis": "Zainteresowanie badaczy mechanizmami łączącymi fruktozę oraz substancje takie jak lizolecytyna z soi z procesami chorobowymi i dietetycznymi zaowocuje wzrostem liczby recenzowanych publikacji indeksowanych w bazach akademickich.",
+          "title": "Rozwój badań nad substancjami łagodzącymi skutki diety bogatej w sól",
+          "thesis": "Odkrycia dotyczące lizolecytyny z soi stymulują dalsze badania kliniczne nad jej zastosowaniem w profilaktyce nadciśnienia tętniczego i chorób układu krążenia wywołanych nadmiarem sodu w diecie.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Doniesienia naukowe dotyczące metabolizmu i ochrony zdrowia przed skutkami diety stanowią stabilną podstawę dla prognozowania aktywności badawczej w dziedzinie health.",
+          "selection_reason": "Konserwatywne ujęcie doniesień naukowych publikowanych przez ośrodki akademickie w Polsce.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Liczba nowych artykułów naukowych w bazie PubMed dotyczących skojarzonego wpływu lizolecytyny lub fruktozy na metabolizm komórkowy",
+            "metric": "Liczba nowych publikacji naukowych indeksowanych w bazie PubMed powiązanych z lizolecytyną z soi i wpływem na sól",
             "comparison_operator": ">=",
-            "threshold": 10.0,
-            "unit": "publikacje",
+            "threshold": 2.0,
+            "unit": "publikacji",
             "baseline_date": "2026-08-05",
             "baseline_value": 0.0,
-            "data_source_for_verification": "Baza danych PubMed Narodowego Centrum Informacji Biotechnologicznej (NCBI)",
+            "data_source_for_verification": "PubMed Central",
             "verification_url": "https://pubmed.ncbi.nlm.nih.gov",
             "resolution_date": "2027-08-05",
             "geography": "Global",
             "status": "open"
           },
           "evidence_quality": 78,
-          "measurability": 85,
-          "causal_strength": 75,
+          "measurability": 88,
+          "causal_strength": 70,
           "verifiability": 92,
-          "novelty": 68,
+          "novelty": 72,
           "speculation_risk": 22,
           "governance": {
             "schema_version": "governance-v1",
@@ -364,10 +410,10 @@
           "engine_score": 71.9,
           "score_breakdown": {
             "evidence_quality": 78.0,
-            "measurability": 85.0,
-            "causal_strength": 75.0,
+            "measurability": 88.0,
+            "causal_strength": 70.0,
             "verifiability": 92.0,
-            "novelty": 68.0,
+            "novelty": 72.0,
             "source_quality": 62.0,
             "speculation_risk": 22.0,
             "speculation_penalty": 0.0,
@@ -381,7 +427,81 @@
                 "actual": 1
               }
             ],
-            "source_count": 2,
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 62.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_04",
+          "area": "science",
+          "content_category": "science_research",
+          "source_ids": [
+            20
+          ],
+          "title": "Wprowadzenie nowych metod diagnostycznych w chorobach odkleszczowych w Polsce",
+          "thesis": "Prowadzone w Białymstoku badania nad wczesną diagnostyką chorób odkleszczowych przyczynią się do wdrożenia ulepszonych protokołów wykrywania patogenów w krajowych laboratoriach medycznych.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Oparte na doniesieniach 'Nauka w Polsce' badania regionalne z potencjałem krajowego wdrożenia.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Liczba certyfikowanych ośrodków badawczo-diagnostycznych wdrażających nową metodę wykrywania chorób odkleszczowych w Polsce",
+            "comparison_operator": ">=",
+            "threshold": 1.0,
+            "unit": "ośrodków",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 0.0,
+            "data_source_for_verification": "Serwis Nauka w Polsce",
+            "verification_url": "https://naukawpolsce.pl",
+            "resolution_date": "2027-08-05",
+            "geography": "Polska",
+            "status": "open"
+          },
+          "evidence_quality": 75,
+          "measurability": 82,
+          "causal_strength": 68,
+          "verifiability": 85,
+          "novelty": 70,
+          "speculation_risk": 28,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "science_research",
+            "risk_class": "general_forecast",
+            "disclaimer_required": true,
+            "disclaimer_id": "general_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+              "en": "An AI forecast based on the listed sources. It is not an established fact."
+            }
+          },
+          "engine_score": 71.9,
+          "score_breakdown": {
+            "evidence_quality": 75.0,
+            "measurability": 82.0,
+            "causal_strength": 68.0,
+            "verifiability": 85.0,
+            "novelty": 70.0,
+            "source_quality": 62.0,
+            "speculation_risk": 28.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 1,
             "distinct_hosts": 1,
             "independent_provenance_count": 1,
             "provenance_ids": [
@@ -399,7 +519,7 @@
     "en": {
       "schema_version": "ai-outlook-audit-v1",
       "date": "2026-08-05",
-      "generated_at": "2026-08-05T10:04:18+02:00",
+      "generated_at": "2026-08-05T10:06:12+02:00",
       "engine": {
         "version": "ai-outlook-engine-v1.1",
         "weights_version": "weights-2026-08-v1",
@@ -429,17 +549,17 @@
         },
         "selected_area": "economy",
         "selection_mode": "priority_area_threshold",
-        "engine_score": 81.78,
+        "engine_score": 75.55,
         "score_breakdown": {
-          "evidence_quality": 82.0,
-          "measurability": 85.0,
-          "causal_strength": 78.0,
-          "verifiability": 90.0,
+          "evidence_quality": 85.0,
+          "measurability": 90.0,
+          "causal_strength": 80.0,
+          "verifiability": 95.0,
           "novelty": 75.0,
           "source_quality": 78.0,
           "speculation_risk": 25.0,
           "speculation_penalty": 0.0,
-          "novelty_penalty": 0.0,
+          "novelty_penalty": 9.0,
           "threshold": 68.0,
           "safety_gate": true,
           "safety_reasons": [],
@@ -465,28 +585,28 @@
           {
             "candidate_id": "cand_02",
             "area": "geopolitics",
-            "title": "European border flashpoints will spur tighter emergency security deployments",
-            "engine_score": 83.4,
+            "title": "European migration policy tightening following border flashpoints",
+            "engine_score": 81.48,
             "passed_safety_gate": true
           },
           {
             "candidate_id": "cand_01",
             "area": "economy",
-            "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
-            "engine_score": 81.78,
+            "title": "UK banking sector profit scrutiny to prompt fiscal policy adjustments",
+            "engine_score": 75.55,
             "passed_safety_gate": true
           },
           {
             "candidate_id": "cand_03",
             "area": "health",
-            "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
+            "title": "US public health authorities expand multi-state outbreak monitoring infrastructure",
             "engine_score": 71.9,
             "passed_safety_gate": false
           },
           {
             "candidate_id": "cand_04",
             "area": "science",
-            "title": "Space debris impact tracking and lunar surface data publications will increase",
+            "title": "Academic evaluation of AI-generated content quality to expand into institutional frameworks",
             "engine_score": 71.9,
             "passed_safety_gate": false
           }
@@ -495,14 +615,14 @@
       "selected_candidate_id": "cand_01",
       "selected_resolution": {
         "schema_version": "resolution-v1",
-        "metric": "Number of official government or parliamentary inquiries and proposed statutory levies targeting major UK lender profits",
+        "metric": "Number of official government consultations or legislative proposals regarding bank windfall taxes",
         "comparison_operator": ">=",
-        "threshold": 2.0,
-        "unit": "inquiries",
+        "threshold": 1.0,
+        "unit": "count",
         "baseline_date": "2026-08-05",
         "baseline_value": 0.0,
-        "data_source_for_verification": "UK Parliament official website publications",
-        "verification_url": "https://parliament.uk",
+        "data_source_for_verification": "UK Parliament official publications and HM Treasury announcements",
+        "verification_url": "https://www.gov.uk/government/organisations/hm-treasury",
         "resolution_date": "2027-08-05",
         "geography": "United Kingdom",
         "status": "open"
@@ -556,9 +676,9 @@
         {
           "candidate_id": "cand_02",
           "area": "geopolitics",
-          "title": "European border flashpoints will spur tighter emergency security deployments",
+          "title": "European migration policy tightening following border flashpoints",
           "decision": "rejected",
-          "engine_score": 83.4,
+          "engine_score": 81.48,
           "threshold": 68.0,
           "rejection_reasons": [
             {
@@ -567,13 +687,13 @@
             }
           ],
           "score_breakdown": {
-            "evidence_quality": 85.0,
-            "measurability": 88.0,
-            "causal_strength": 80.0,
-            "verifiability": 92.0,
+            "evidence_quality": 82.0,
+            "measurability": 85.0,
+            "causal_strength": 78.0,
+            "verifiability": 90.0,
             "novelty": 72.0,
             "source_quality": 78.0,
-            "speculation_risk": 20.0,
+            "speculation_risk": 28.0,
             "speculation_penalty": 0.0,
             "novelty_penalty": 0.0,
             "threshold": 68.0,
@@ -593,21 +713,21 @@
         {
           "candidate_id": "cand_01",
           "area": "economy",
-          "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
+          "title": "UK banking sector profit scrutiny to prompt fiscal policy adjustments",
           "decision": "selected",
-          "engine_score": 81.78,
+          "engine_score": 75.55,
           "threshold": 68.0,
           "rejection_reasons": [],
           "score_breakdown": {
-            "evidence_quality": 82.0,
-            "measurability": 85.0,
-            "causal_strength": 78.0,
-            "verifiability": 90.0,
+            "evidence_quality": 85.0,
+            "measurability": 90.0,
+            "causal_strength": 80.0,
+            "verifiability": 95.0,
             "novelty": 75.0,
             "source_quality": 78.0,
             "speculation_risk": 25.0,
             "speculation_penalty": 0.0,
-            "novelty_penalty": 0.0,
+            "novelty_penalty": 9.0,
             "threshold": 68.0,
             "safety_gate": true,
             "safety_reasons": [],
@@ -625,7 +745,7 @@
         {
           "candidate_id": "cand_03",
           "area": "health",
-          "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
+          "title": "US public health authorities expand multi-state outbreak monitoring infrastructure",
           "decision": "rejected",
           "engine_score": 71.9,
           "threshold": 72.0,
@@ -647,9 +767,9 @@
           ],
           "score_breakdown": {
             "evidence_quality": 88.0,
-            "measurability": 90.0,
+            "measurability": 95.0,
             "causal_strength": 82.0,
-            "verifiability": 95.0,
+            "verifiability": 98.0,
             "novelty": 70.0,
             "source_quality": 78.0,
             "speculation_risk": 15.0,
@@ -664,7 +784,7 @@
                 "actual": 1
               }
             ],
-            "source_count": 1,
+            "source_count": 2,
             "distinct_hosts": 1,
             "independent_provenance_count": 1,
             "provenance_ids": [
@@ -678,7 +798,7 @@
         {
           "candidate_id": "cand_04",
           "area": "science",
-          "title": "Space debris impact tracking and lunar surface data publications will increase",
+          "title": "Academic evaluation of AI-generated content quality to expand into institutional frameworks",
           "decision": "rejected",
           "engine_score": 71.9,
           "threshold": 72.0,
@@ -703,7 +823,7 @@
             "measurability": 85.0,
             "causal_strength": 75.0,
             "verifiability": 90.0,
-            "novelty": 82.0,
+            "novelty": 80.0,
             "source_quality": 78.0,
             "speculation_risk": 22.0,
             "speculation_penalty": 0.0,
@@ -738,31 +858,31 @@
             9,
             11
           ],
-          "title": "European border flashpoints will spur tighter emergency security deployments",
-          "thesis": "Recent high-profile migration surges in Spanish enclaves and ongoing regional conflicts in Eastern Europe will lead to increased cross-border emergency funding and reinforced deployments by EU member states.",
+          "title": "European migration policy tightening following border flashpoints",
+          "thesis": "Recent high-volume crossings and security incidents in European enclaves will drive a sustained hardening of regional immigration and border enforcement policies across member states.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Synthesizes multiple geopolitical flashpoints reported across European border zones.",
+          "selection_reason": "Directly linked to reporting on border pressures in Ceuta and wider European migration flashpoints.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Total authorized EU emergency border management budget allocations for frontline states",
+            "metric": "Number of new bilateral or EU-level border security reinforcement agreements implemented",
             "comparison_operator": ">=",
-            "threshold": 500.0,
-            "unit": "million EUR",
+            "threshold": 2.0,
+            "unit": "count",
             "baseline_date": "2026-08-05",
-            "baseline_value": 300.0,
+            "baseline_value": 0.0,
             "data_source_for_verification": "European Commission official press releases",
-            "verification_url": "https://ec.europa.eu",
+            "verification_url": "https://ec.europa.eu/commission/presscorner/home/en",
             "resolution_date": "2027-08-05",
             "geography": "European Union",
             "status": "open"
           },
-          "evidence_quality": 85,
-          "measurability": 88,
-          "causal_strength": 80,
-          "verifiability": 92,
+          "evidence_quality": 82,
+          "measurability": 85,
+          "causal_strength": 78,
+          "verifiability": 90,
           "novelty": 72,
-          "speculation_risk": 20,
+          "speculation_risk": 28,
           "governance": {
             "schema_version": "governance-v1",
             "content_category": "geopolitics",
@@ -774,15 +894,15 @@
               "en": "An AI forecast based on the listed sources. It is not an established fact."
             }
           },
-          "engine_score": 83.4,
+          "engine_score": 81.48,
           "score_breakdown": {
-            "evidence_quality": 85.0,
-            "measurability": 88.0,
-            "causal_strength": 80.0,
-            "verifiability": 92.0,
+            "evidence_quality": 82.0,
+            "measurability": 85.0,
+            "causal_strength": 78.0,
+            "verifiability": 90.0,
             "novelty": 72.0,
             "source_quality": 78.0,
-            "speculation_risk": 20.0,
+            "speculation_risk": 28.0,
             "speculation_penalty": 0.0,
             "novelty_penalty": 0.0,
             "threshold": 68.0,
@@ -807,29 +927,29 @@
             1,
             5
           ],
-          "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
-          "thesis": "Following record half-year profits among UK major lenders fueled by high interest rates, political pressure for windfall taxes or levies will increase legislative scrutiny on bank earnings over the next year.",
+          "title": "UK banking sector profit scrutiny to prompt fiscal policy adjustments",
+          "thesis": "High interest rates and market turbulence boosting major UK bank profits will likely result in increased political pressure and potential fiscal policy adjustments such as windfall levies.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Directly builds upon reported bank profit surges and subsequent political debate surrounding windfall taxes.",
+          "selection_reason": "Derived directly from reporting on UK banking record profits and rising calls for windfall taxes.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Number of official government or parliamentary inquiries and proposed statutory levies targeting major UK lender profits",
+            "metric": "Number of official government consultations or legislative proposals regarding bank windfall taxes",
             "comparison_operator": ">=",
-            "threshold": 2.0,
-            "unit": "inquiries",
+            "threshold": 1.0,
+            "unit": "count",
             "baseline_date": "2026-08-05",
             "baseline_value": 0.0,
-            "data_source_for_verification": "UK Parliament official website publications",
-            "verification_url": "https://parliament.uk",
+            "data_source_for_verification": "UK Parliament official publications and HM Treasury announcements",
+            "verification_url": "https://www.gov.uk/government/organisations/hm-treasury",
             "resolution_date": "2027-08-05",
             "geography": "United Kingdom",
             "status": "open"
           },
-          "evidence_quality": 82,
-          "measurability": 85,
-          "causal_strength": 78,
-          "verifiability": 90,
+          "evidence_quality": 85,
+          "measurability": 90,
+          "causal_strength": 80,
+          "verifiability": 95,
           "novelty": 75,
           "speculation_risk": 25,
           "governance": {
@@ -843,17 +963,17 @@
               "en": "An AI forecast based on the listed sources. It is not an established fact."
             }
           },
-          "engine_score": 81.78,
+          "engine_score": 75.55,
           "score_breakdown": {
-            "evidence_quality": 82.0,
-            "measurability": 85.0,
-            "causal_strength": 78.0,
-            "verifiability": 90.0,
+            "evidence_quality": 85.0,
+            "measurability": 90.0,
+            "causal_strength": 80.0,
+            "verifiability": 95.0,
             "novelty": 75.0,
             "source_quality": 78.0,
             "speculation_risk": 25.0,
             "speculation_penalty": 0.0,
-            "novelty_penalty": 0.0,
+            "novelty_penalty": 9.0,
             "threshold": 68.0,
             "safety_gate": true,
             "safety_reasons": [],
@@ -874,31 +994,32 @@
           "area": "health",
           "content_category": "public_health",
           "source_ids": [
+            17,
             19
           ],
-          "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
-          "thesis": "The expanding multi-state footprint of the cyclosporiasis outbreak will drive public health agencies to widen mandatory monitoring and surveillance protocols across additional states.",
+          "title": "US public health authorities expand multi-state outbreak monitoring infrastructure",
+          "thesis": "Expanding multi-state disease outbreaks and systemic healthcare review demands will lead to heightened tracking thresholds and expanded public health surveillance protocols.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Rooted directly in CDC and state health department tracking updates regarding foodborne illness outbreaks.",
+          "selection_reason": "Synthesizes reporting on US state-level cyclosporiasis outbreak expansion and public health reform priorities.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Number of US states officially incorporating expanded multi-state pathogen tracking protocols into routine health reporting",
+            "metric": "Number of states officially included in the CDC coordinated multi-state outbreak reporting portal",
             "comparison_operator": ">=",
-            "threshold": 20.0,
+            "threshold": 15.0,
             "unit": "states",
             "baseline_date": "2026-08-05",
             "baseline_value": 15.0,
-            "data_source_for_verification": "Centers for Disease Control and Prevention reports",
+            "data_source_for_verification": "Centers for Disease Control and Prevention (CDC) outbreak reports",
             "verification_url": "https://www.cdc.gov",
             "resolution_date": "2027-08-05",
             "geography": "United States",
             "status": "open"
           },
           "evidence_quality": 88,
-          "measurability": 90,
+          "measurability": 95,
           "causal_strength": 82,
-          "verifiability": 95,
+          "verifiability": 98,
           "novelty": 70,
           "speculation_risk": 15,
           "governance": {
@@ -915,9 +1036,9 @@
           "engine_score": 71.9,
           "score_breakdown": {
             "evidence_quality": 88.0,
-            "measurability": 90.0,
+            "measurability": 95.0,
             "causal_strength": 82.0,
-            "verifiability": 95.0,
+            "verifiability": 98.0,
             "novelty": 70.0,
             "source_quality": 78.0,
             "speculation_risk": 15.0,
@@ -932,7 +1053,7 @@
                 "actual": 1
               }
             ],
-            "source_count": 1,
+            "source_count": 2,
             "distinct_hosts": 1,
             "independent_provenance_count": 1,
             "provenance_ids": [
@@ -951,21 +1072,21 @@
             21,
             23
           ],
-          "title": "Space debris impact tracking and lunar surface data publications will increase",
-          "thesis": "The unintentional lunar collision of a rocket component will generate heightened academic interest and published studies regarding orbital debris monitoring and lunar surface impact geology.",
+          "title": "Academic evaluation of AI-generated content quality to expand into institutional frameworks",
+          "thesis": "Recent empirical studies showing high public ratings for AI-generated text will prompt further formal academic evaluations and potential institutional adoption metrics.",
           "horizon_pl": "6–12 miesięcy",
           "horizon_en": "6–12 months",
-          "selection_reason": "Connects documented space exploration milestones with anticipated scientific literature growth.",
+          "selection_reason": "Built on research findings regarding AI-generated narrative quality published in academic journals.",
           "resolution": {
             "schema_version": "resolution-v1",
-            "metric": "Number of peer-reviewed research papers published addressing lunar impact craters formed by artificial space debris",
+            "metric": "Number of peer-reviewed follow-up studies citing the baseline AI narrative quality research index",
             "comparison_operator": ">=",
             "threshold": 5.0,
-            "unit": "papers",
+            "unit": "studies",
             "baseline_date": "2026-08-05",
             "baseline_value": 0.0,
-            "data_source_for_verification": "NASA Technical Reports Server or Google Scholar index",
-            "verification_url": "https://ntrs.nasa.gov",
+            "data_source_for_verification": "Google Scholar academic database",
+            "verification_url": "https://scholar.google.com",
             "resolution_date": "2027-08-05",
             "geography": "Global",
             "status": "open"
@@ -974,7 +1095,7 @@
           "measurability": 85,
           "causal_strength": 75,
           "verifiability": 90,
-          "novelty": 82,
+          "novelty": 80,
           "speculation_risk": 22,
           "governance": {
             "schema_version": "governance-v1",
@@ -993,7 +1114,7 @@
             "measurability": 85.0,
             "causal_strength": 75.0,
             "verifiability": 90.0,
-            "novelty": 82.0,
+            "novelty": 80.0,
             "source_quality": 78.0,
             "speculation_risk": 22.0,
             "speculation_penalty": 0.0,
