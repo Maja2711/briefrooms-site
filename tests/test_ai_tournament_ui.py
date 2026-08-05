@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,9 @@ import install_ai_tournament_ui as installer
 class AiTournamentUiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.script = (ROOT / "scripts" / "ai-tournament-public.js").read_text(encoding="utf-8")
+        self.profile_script = (ROOT / "scripts" / "ai-tournament-company-profiles.js").read_text(encoding="utf-8")
+        self.config = json.loads((ROOT / "data" / "ai_tournament" / "config.json").read_text(encoding="utf-8"))
+        self.profiles = json.loads((ROOT / "data" / "ai_tournament" / "company_profiles.json").read_text(encoding="utf-8"))
 
     def test_redesign_removes_placeholder_layout_and_uses_real_content_modules(self) -> None:
         self.assertIn("#agents-preview,#agent-cards,#agent-log{display:block!important", self.script)
@@ -40,19 +44,47 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertNotIn("T.drawdown", self.script)
         self.assertNotIn("T.positions", self.script)
 
-    def test_installer_deploys_v4_once_for_both_languages(self) -> None:
-        self.assertEqual(installer.SCRIPT_VERSION, "4")
+    def test_company_profiles_cover_the_full_locked_universe(self) -> None:
+        self.assertEqual(self.profiles["schema_version"], "ai-tournament-company-profiles-v1")
+        universe = set(self.config["universe"])
+        profile_tickers = set(self.profiles["profiles"])
+        self.assertEqual(profile_tickers, universe)
+        self.assertEqual(len(profile_tickers), 55)
+        for ticker, profile in self.profiles["profiles"].items():
+            self.assertTrue(profile["name"], ticker)
+            self.assertTrue(profile["sector_pl"], ticker)
+            self.assertTrue(profile["sector_en"], ticker)
+            self.assertTrue(profile["description_pl"], ticker)
+            self.assertTrue(profile["description_en"], ticker)
+
+    def test_company_profile_layer_is_accessible_and_optional(self) -> None:
+        self.assertIn("role=\"dialog\"", self.profile_script)
+        self.assertIn("aria-modal=\"true\"", self.profile_script)
+        self.assertIn("aria-haspopup", self.profile_script)
+        self.assertIn("event.key === 'Escape'", self.profile_script)
+        self.assertIn("MutationObserver", self.profile_script)
+        self.assertIn(".aitx-holdings span:not([data-company-profile-ready])", self.profile_script)
+        self.assertIn("T.open", self.profile_script)
+        self.assertIn("description_pl", self.profile_script)
+        self.assertIn("description_en", self.profile_script)
+
+    def test_installer_deploys_v5_and_company_profiles_once(self) -> None:
+        self.assertEqual(installer.SCRIPT_VERSION, "5")
+        self.assertEqual(installer.PROFILE_VERSION, "1")
         source = (
             '<html><body>'
-            '<script src="/scripts/ai-tournament-public.js?v=3" defer></script>'
-            '<script src="/scripts/ai-tournament-readiness.js?v=3" defer></script>'
+            '<script src="/scripts/ai-tournament-public.js?v=4" defer></script>'
+            '<script src="/scripts/ai-tournament-readiness.js?v=4" defer></script>'
+            '<script src="/scripts/ai-tournament-company-profiles.js?v=old" defer></script>'
             '</body></html>'
         )
         patched = installer.patch_text(source)
-        self.assertEqual(patched.count('ai-tournament-public.js?v=4'), 1)
-        self.assertEqual(patched.count('ai-tournament-readiness.js?v=4'), 1)
-        self.assertNotIn('ai-tournament-public.js?v=3', patched)
-        self.assertNotIn('ai-tournament-readiness.js?v=3', patched)
+        self.assertEqual(patched.count('ai-tournament-public.js?v=5'), 1)
+        self.assertEqual(patched.count('ai-tournament-readiness.js?v=5'), 1)
+        self.assertEqual(patched.count('ai-tournament-company-profiles.js?v=1'), 1)
+        self.assertNotIn('ai-tournament-public.js?v=4', patched)
+        self.assertNotIn('ai-tournament-readiness.js?v=4', patched)
+        self.assertNotIn('ai-tournament-company-profiles.js?v=old', patched)
 
 
 if __name__ == "__main__":
