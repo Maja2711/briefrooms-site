@@ -135,8 +135,8 @@ jobs:
                           last.append(f'{path}: generated data is stale')
                       if payload.get('schema_version') != 'news-live-v2':
                           last.append(f'{path}: schema mismatch')
-                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v1':
-                          last.append(f'{path}: editorial policy missing')
+                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v2':
+                          last.append(f'{path}: editorial policy v2 missing')
                       if any(len(items) < 4 for items in payload.get('sections', {}).values()):
                           last.append(f'{path}: incomplete section')
                   except Exception as exc:
@@ -153,7 +153,7 @@ jobs:
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news are current and use the editorial value filter.')
+                  print('Production PL and EN news are current and use editorial value filter v2.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))
