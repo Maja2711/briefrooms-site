@@ -1,0 +1,118 @@
+name: Publish Homepage Navigation Order
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/reorder_homepage_navigation.py"
+      - ".github/workflows/homepage-navigation-order.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: homepage-navigation-order
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate navigation utility
+        run: python -m py_compile scripts/reorder_homepage_navigation.py
+
+      - name: Publish navigation order with retry
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            python scripts/reorder_homepage_navigation.py
+            python scripts/reorder_homepage_navigation.py --check
+            git add pl/index.html en/index.html
+
+            if git diff --cached --quiet; then
+              echo "Homepage navigation order is already current."
+              exit 0
+            fi
+
+            git commit -m "feat(home): place Investing next to News"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+
+          echo "::error::Could not publish homepage navigation order."
+          exit 1
+
+      - name: Verify production navigation order
+        run: |
+          python - <<'PY'
+          import re
+          import time
+          import urllib.request
+
+          expected = {
+              'https://briefrooms.com/pl/': [
+                  '/pl/aktualnosci.html',
+                  '/pl/inwestycje.html',
+                  '/pl/zdrowie.html',
+                  '/pl/nauka.html',
+                  '/pl/geopolityka.html',
+                  '/pl/o-projekcie.html',
+              ],
+              'https://briefrooms.com/en/': [
+                  '/en/news.html',
+                  '/en/investing.html',
+                  '/en/health.html',
+                  '/en/science.html',
+                  '/en/geopolitics.html',
+                  '/en/about.html',
+              ],
+          }
+          nav_pattern = re.compile(r'<nav\s+class="nav"\b[^>]*>(.*?)</nav>', re.I | re.S)
+          href_pattern = re.compile(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>', re.I)
+          headers = {
+              'User-Agent': 'BriefRooms homepage navigation verifier/1.0',
+              'Cache-Control': 'no-cache',
+          }
+          last = []
+          for attempt in range(1, 31):
+              last = []
+              for url, order in expected.items():
+                  try:
+                      request = urllib.request.Request(f'{url}?navorder={int(time.time())}-{attempt}', headers=headers)
+                      with urllib.request.urlopen(request, timeout=15) as response:
+                          body = response.read().decode('utf-8', 'replace')
+                      match = nav_pattern.search(body)
+                      if not match:
+                          last.append(f'{url}: navigation missing')
+                          continue
+                      actual = href_pattern.findall(match.group(1))
+                      if actual != order:
+                          last.append(f'{url}: {actual}')
+                  except Exception as exc:
+                      last.append(f'{url}: {exc}')
+              if not last:
+                  print('Production homepage navigation is correct in PL and EN.')
+                  raise SystemExit(0)
+              time.sleep(10)
+          raise SystemExit('Production navigation verification failed: ' + '; '.join(last))
+          PY
