@@ -82,10 +82,11 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("description_pl", self.profile_script)
         self.assertIn("description_en", self.profile_script)
 
-    def test_existing_runtime_bootstraps_company_profiles(self) -> None:
-        self.assertIn("function loadTournamentCompanyProfiles()", self.finalizer_script)
+    def test_existing_runtime_bootstraps_profiles_and_summary(self) -> None:
+        self.assertIn("function loadTournamentEnhancements()", self.finalizer_script)
         self.assertIn("/scripts/ai-tournament-company-profiles.js?v=1", self.finalizer_script)
-        self.assertIn("loadTournamentCompanyProfiles();", self.finalizer_script)
+        self.assertIn("/scripts/ai-tournament-summary.js?v=1", self.finalizer_script)
+        self.assertIn("loadTournamentEnhancements();", self.finalizer_script)
 
     def test_installer_deploys_v5_profiles_and_summary_once(self) -> None:
         self.assertEqual(installer.SCRIPT_VERSION, "5")
