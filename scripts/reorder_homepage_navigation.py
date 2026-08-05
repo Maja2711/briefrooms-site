@@ -5,6 +5,7 @@ import argparse
 import re
 from pathlib import Path
 
+# Homepage-only order: News first, Investing second, without changing styles.
 ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED_ORDERS = {
