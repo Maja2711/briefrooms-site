@@ -1,0 +1,66 @@
+name: Isolate EN Investment Interaction Blocker
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/investments/en_interactive_isolation_trigger.txt"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/probe_en_investment_variant.py"
+      - "scripts/isolate_en_investment_interactive.py"
+      - ".github/workflows/investment-room-en-interactive-isolation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: investment-room-en-interactive-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  isolate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated browser
+        run: |
+          python -m pip install --upgrade pip playwright==1.54.0
+          python -m playwright install --with-deps chromium
+      - name: Start local site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/en/investing/portfolio-10k.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/briefrooms-http.log
+          exit 1
+      - name: Run each suspected stack in a separate browser process
+        id: isolate
+        continue-on-error: true
+        run: timeout 330s python -u scripts/isolate_en_investment_interactive.py
+      - name: Print interactive isolation report
+        if: always()
+        run: cat data/portfolio10k/investment_room_en_interactive_isolation.json
+      - name: Upload interactive isolation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-en-interactive-isolation
+          path: data/portfolio10k/investment_room_en_interactive_isolation.json
+          if-no-files-found: error
+      - name: Require a responsive baseline or recovery variant
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/portfolio10k/investment_room_en_interactive_isolation.json').read_text(encoding='utf-8'))
+          if not report.get('baseline_passed') and not report.get('recoveries'):
+              raise SystemExit('No responsive EN interaction variant found')
+          for item in report.get('recoveries', []):
+              print(item.get('name'), item.get('blocked'))
+          PY
