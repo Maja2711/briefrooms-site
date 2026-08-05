@@ -24,6 +24,10 @@
     document.head.appendChild(script);
   }
 
+  function loadCriticalRoomController() {
+    loadScriptOnce('/scripts/portfolio-10k-room-stable.js?v=1', '/scripts/portfolio-10k-room-stable.js');
+  }
+
   function loadTournamentEnhancements() {
     loadScriptOnce('/scripts/ai-tournament-company-profiles.js?v=1', '/scripts/ai-tournament-company-profiles.js');
     loadScriptOnce('/scripts/ai-tournament-summary.js?v=1', '/scripts/ai-tournament-summary.js');
@@ -150,6 +154,7 @@
   }
 
   async function start() {
+    loadCriticalRoomController();
     loadTournamentEnhancements();
     try {
       const state = await loadState();
