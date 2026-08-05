@@ -1,0 +1,65 @@
+name: Isolate EN Investment Runtime Blocker
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "data/investments/en_isolation_trigger.txt"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/isolate_en_investment_blocker.py"
+      - ".github/workflows/investment-room-en-isolation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: investment-room-en-isolation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  isolate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated Chromium
+        run: |
+          python -m pip install --upgrade pip playwright==1.54.0
+          python -m playwright install --with-deps chromium
+      - name: Start local site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/en/investing/portfolio-10k.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/briefrooms-http.log
+          exit 1
+      - name: Run each EN script in a separate browser process
+        id: isolate
+        continue-on-error: true
+        run: timeout 420s python -u scripts/isolate_en_investment_blocker.py
+      - name: Print isolation report
+        if: always()
+        run: cat data/portfolio10k/investment_room_en_isolation.json
+      - name: Upload isolation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-en-isolation
+          path: data/portfolio10k/investment_room_en_isolation.json
+          if-no-files-found: error
+      - name: Require at least one recovery variant
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/portfolio10k/investment_room_en_isolation.json').read_text(encoding='utf-8'))
+          if not report.get('recoveries'):
+              raise SystemExit('No isolated recovery variant found')
+          for item in report['recoveries']:
+              print(item['name'], item['blocked'], item['status'], item['portfolio_value'])
+          PY
