@@ -1,0 +1,274 @@
+name: AI Outlook Gemini Daily
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Regenerate today's Gemini PL and EN editions"
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-outlook-gemini.yml"
+      - "scripts/publish_ai_outlook_gemini.py"
+      - "scripts/update_ai_outlook.py"
+      - "scripts/update_ai_outlook_v2.py"
+      - "scripts/update_ai_outlook_v3.py"
+      - "scripts/ai_outlook_engine.py"
+      - "scripts/ai_outlook_metrics.py"
+      - "scripts/check_ai_provider.py"
+      - "scripts/comment_quality.py"
+      - "scripts/sitecustomize.py"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "tests/test_publish_ai_outlook_gemini.py"
+      - "tests/test_ai_provider_preflight.py"
+  schedule:
+    - cron: "35 5 * * *"
+    - cron: "35 7 * * *"
+    - cron: "35 9 * * *"
+    - cron: "35 11 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-outlook-gemini-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Test Gemini publication contract
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_publish_ai_outlook_gemini \
+            tests.test_ai_provider_preflight -v
+          python -m py_compile \
+            scripts/publish_ai_outlook_gemini.py \
+            scripts/update_ai_outlook_v3.py \
+            scripts/check_ai_provider.py \
+            scripts/comment_quality.py \
+            scripts/sitecustomize.py
+
+      - name: Verify Gemini secret and live endpoint
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from comment_quality import get_ai_runtime
+          from publish_ai_outlook_gemini import require_gemini
+
+          runtime = get_ai_runtime()
+          require_gemini(runtime)
+          print(
+              f"provider={runtime.provider} generation={runtime.generation_model} "
+              f"review={runtime.review_model}"
+          )
+          PY
+          python scripts/check_ai_provider.py
+          sleep 8
+
+      - name: Generate verified Gemini editions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=""
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            ARGS="--force"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            ARGS="--force"
+          fi
+          python scripts/publish_ai_outlook_gemini.py $ARGS
+          python scripts/publish_ai_outlook_gemini.py --validate-only --require-today
+
+      - name: Refresh homepage runtime and metrics
+        run: |
+          set -euo pipefail
+          python scripts/enforce_homepage_photo_only.py
+          python scripts/ai_outlook_metrics.py
+          python scripts/ai_outlook_metrics.py --validate-only
+
+      - name: Verify local publication state
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          status = json.loads(Path('data/ai_outlook_status.json').read_text(encoding='utf-8'))
+          provider = json.loads(Path('data/ai_outlook_provider_status.json').read_text(encoding='utf-8'))
+
+          assert payload['date'] == today
+          assert payload['generation_mode'] == 'ai_primary'
+          assert payload['ai_provider'] == 'gemini'
+          assert payload['ai_model'] == 'gemini-3.5-flash-lite'
+          assert status['mode'] == 'ai_primary'
+          assert status['provider'] == 'gemini'
+          assert provider['status'] == 'healthy'
+          assert provider['provider'] == 'gemini'
+          assert provider['date'] == today
+          for language in ('pl', 'en'):
+              edition = payload[language]
+              assert edition['source_language'] == language
+              assert edition['forecast_id'].startswith(f'{today}-{language}-')
+          print('Local Gemini AI Outlook validation passed.')
+          PY
+
+      - name: Commit Gemini publication
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            pl/index.html \
+            en/index.html \
+            data/ai_outlook.json \
+            data/ai_outlook_status.json \
+            data/ai_outlook_provider_status.json \
+            data/ai_outlook_history \
+            data/ai_outlook_metrics.json
+          git add data/internal/ai_outlook_audit 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Verified Gemini edition already published."
+          else
+            git commit -m "Publish verified daily Gemini AI Outlook"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [[ "$attempt" == "5" ]]; then
+                exit 1
+              fi
+              sleep $((attempt * 4))
+            done
+          fi
+
+      - name: Verify Gemini publication on briefrooms.com
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          headers = {
+              'User-Agent': 'BriefRooms-Gemini-verifier/1.0',
+              'Cache-Control': 'no-cache',
+          }
+          errors = []
+          observed = {}
+          passed = False
+
+          for attempt in range(1, 37):
+              token = f'{int(time.time())}-{attempt}'
+              current_errors = []
+              try:
+                  urls = {
+                      'payload': f'https://briefrooms.com/data/ai_outlook.json?v={token}',
+                      'provider': f'https://briefrooms.com/data/ai_outlook_provider_status.json?v={token}',
+                  }
+                  values = {}
+                  for name, url in urls.items():
+                      request = urllib.request.Request(url, headers=headers)
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          values[name] = json.loads(response.read().decode('utf-8'))
+                  payload = values['payload']
+                  provider = values['provider']
+                  observed = {
+                      'date': payload.get('date'),
+                      'generation_mode': payload.get('generation_mode'),
+                      'ai_provider': payload.get('ai_provider'),
+                      'ai_model': payload.get('ai_model'),
+                      'provider_status': provider.get('status'),
+                      'provider_date': provider.get('date'),
+                  }
+                  if payload.get('date') != today:
+                      current_errors.append('stale payload date')
+                  if payload.get('generation_mode') != 'ai_primary':
+                      current_errors.append('payload is not ai_primary')
+                  if payload.get('ai_provider') != 'gemini':
+                      current_errors.append('payload is not Gemini')
+                  if provider.get('status') != 'healthy':
+                      current_errors.append('provider is not healthy')
+                  if provider.get('provider') != 'gemini':
+                      current_errors.append('provider status is not Gemini')
+                  if provider.get('date') != today:
+                      current_errors.append('provider status is stale')
+              except Exception as exc:
+                  current_errors.append(str(exc))
+
+              if not current_errors:
+                  passed = True
+                  errors = []
+                  break
+              errors = current_errors
+              time.sleep(10)
+
+          status = {
+              'schema_version': 'ai-outlook-production-status-v2',
+              'status': 'passed' if passed else 'failed',
+              'date': today,
+              'required_provider': 'gemini',
+              'required_mode': 'ai_primary',
+              'observed': observed,
+              'errors': errors,
+          }
+          Path('data/ai_outlook_production_status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(status, ensure_ascii=False))
+          if not passed:
+              raise SystemExit('Production Gemini verification failed')
+          PY
+
+      - name: Commit production verification
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_outlook_production_status.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Verify Gemini AI Outlook on production"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
