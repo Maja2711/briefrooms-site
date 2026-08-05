@@ -17,6 +17,7 @@ class AiTournamentUiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.script = (ROOT / "scripts" / "ai-tournament-public.js").read_text(encoding="utf-8")
         self.profile_script = (ROOT / "scripts" / "ai-tournament-company-profiles.js").read_text(encoding="utf-8")
+        self.runtime_script = (ROOT / "scripts" / "portfolio-10k-execution-finalizer.js").read_text(encoding="utf-8")
         self.config = json.loads((ROOT / "data" / "ai_tournament" / "config.json").read_text(encoding="utf-8"))
         self.profiles = json.loads((ROOT / "data" / "ai_tournament" / "company_profiles.json").read_text(encoding="utf-8"))
 
@@ -67,6 +68,12 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("T.open", self.profile_script)
         self.assertIn("description_pl", self.profile_script)
         self.assertIn("description_en", self.profile_script)
+
+    def test_existing_portfolio_runtime_bootstraps_profiles_without_html_dependency(self) -> None:
+        self.assertIn("function loadTournamentCompanyProfiles()", self.runtime_script)
+        self.assertIn("/scripts/ai-tournament-company-profiles.js?v=1", self.runtime_script)
+        self.assertIn("loadTournamentCompanyProfiles();", self.runtime_script)
+        self.assertIn("script[src*=\"/scripts/ai-tournament-company-profiles.js\"]", self.runtime_script)
 
     def test_installer_deploys_v5_and_company_profiles_once(self) -> None:
         self.assertEqual(installer.SCRIPT_VERSION, "5")
