@@ -32,10 +32,13 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
             cards = marker_cards(source)
             self.assertGreaterEqual(len(cards), 1, lang)
             self.assertIn('data-home-photo-only="true"', source, lang)
+            self.assertIn(photo_only.FRESHNESS_SCRIPT, source, lang)
             self.assertIn(photo_only.GUARD_SCRIPT, source, lang)
             self.assertIn(photo_only.SCRIPT, source, lang)
+            self.assertEqual(len(photo_only.FRESHNESS_RE.findall(source)), 1, lang)
             self.assertEqual(len(photo_only.GUARD_RE.findall(source)), 1, lang)
             self.assertEqual(len(photo_only.SCRIPT_RE.findall(source)), 1, lang)
+            self.assertLess(source.index(photo_only.FRESHNESS_SCRIPT), source.index(photo_only.GUARD_SCRIPT), lang)
             self.assertLess(source.index(photo_only.GUARD_SCRIPT), source.index(photo_only.SCRIPT), lang)
             for card in cards:
                 self.assertTrue(photo_only.photo_card(card), f"{lang}: {card[:120]}")
@@ -54,21 +57,26 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
         self.assertEqual(photo_only.CARD_RE.findall(card), [card])
         self.assertTrue(photo_only.photo_card(card))
 
-    def test_runtime_replaces_older_asset_versions_and_orders_guard_first(self) -> None:
+    def test_runtime_replaces_older_asset_versions_and_orders_freshness_first(self) -> None:
         source = (
             '<!doctype html><html><body>'
             '<div id="latest-briefs" class="brief-grid"></div>'
+            '<script src="/scripts/ai-outlook-freshness-guard.js?v=old" defer></script>'
             '<script src="/scripts/ai-outlook-governance-guard.js?v=old" defer></script>'
             '<script src="/scripts/homepage-photo-only.js?v=1" defer></script>'
             '</body></html>'
         )
         updated = photo_only.ensure_runtime(source)
+        self.assertIn(photo_only.FRESHNESS_SCRIPT, updated)
         self.assertIn(photo_only.GUARD_SCRIPT, updated)
         self.assertIn(photo_only.SCRIPT, updated)
         self.assertNotIn('homepage-photo-only.js?v=1', updated)
         self.assertNotIn('ai-outlook-governance-guard.js?v=old', updated)
+        self.assertNotIn('ai-outlook-freshness-guard.js?v=old', updated)
+        self.assertEqual(len(photo_only.FRESHNESS_RE.findall(updated)), 1)
         self.assertEqual(len(photo_only.GUARD_RE.findall(updated)), 1)
         self.assertEqual(len(photo_only.SCRIPT_RE.findall(updated)), 1)
+        self.assertLess(updated.index(photo_only.FRESHNESS_SCRIPT), updated.index(photo_only.GUARD_SCRIPT))
         self.assertLess(updated.index(photo_only.GUARD_SCRIPT), updated.index(photo_only.SCRIPT))
 
     def test_filter_fails_closed_instead_of_reducing_the_card_count(self) -> None:
