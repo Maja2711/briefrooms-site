@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-POLICY_VERSION = "news-value-filter-v1"
+POLICY_VERSION = "news-value-filter-v2"
 
 _DEATH_NOTICE = re.compile(
     r"\b(?:"
@@ -34,6 +34,36 @@ _INTERVIEW_META = re.compile(
     r"\b(?:joins\s+us|guest\s+on|will\s+appear\s+on)\b|"
     r"\[(?:wywiad|interview|podcast|oglądaj|zobacz|watch)\]"
     r")",
+    re.IGNORECASE,
+)
+
+_LOTTERY_TOPIC = re.compile(
+    r"\b(?:"
+    r"lotto|mini\s+lotto|lotto\s+plus|eurojackpot|eurojackpot|multi\s+multi|keno|"
+    r"gry?\s+losow(?:e|ych)|loteri(?:a|i|ę)|"
+    r"lottery|powerball|mega\s+millions|euromillions|lotto\s+6/49"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_LOTTERY_RESULT_PROMO = re.compile(
+    r"\b(?:"
+    r"wynik(?:i|ów)?(?:\s+losowania)?|losowani(?:e|a)|wylosowan(?:o|e)|"
+    r"szczęśliwe\s+liczby|zwycięskie\s+liczby|numery\s+(?:losowania|wygrywające)|"
+    r"kumulacj(?:a|i|ę)|do\s+wygrania|główna\s+wygrana|padła\s+wygrana|"
+    r"rekordowa\s+wygrana|jackpot|rollover|winning\s+numbers|lottery\s+results?|"
+    r"draw\s+results?|numbers\s+drawn|prize\s+(?:rises|grows)|no\s+jackpot\s+winner"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_GAMBLING_PUBLIC_INTEREST = re.compile(
+    r"\b(?:"
+    r"ustaw\w*|regulacj\w*|zakaz\w*|podatek|podatk\w*|licencj\w*|monopol\w*|"
+    r"kontrol\w*|śledztw\w*|oszustw\w*|pranie\s+pieniędzy|uzależn\w*|reklam\w*|"
+    r"law|regulat\w*|ban\w*|tax\w*|licen[cs]\w*|monopol\w*|investigat\w*|"
+    r"fraud\w*|money\s+laundering|addiction|advertis\w*"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -119,6 +149,13 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
     if _INTERVIEW_META.search(headline) and not has_substantive_headline(headline):
         return NewsQualityDecision(False, "interview_promo_without_substance")
 
+    if _LOTTERY_TOPIC.search(combined):
+        headline_is_result = bool(_LOTTERY_RESULT_PROMO.search(headline))
+        combined_is_result = bool(_LOTTERY_RESULT_PROMO.search(combined))
+        headline_has_public_interest = bool(_GAMBLING_PUBLIC_INTEREST.search(headline))
+        if headline_is_result or (combined_is_result and not headline_has_public_interest):
+            return NewsQualityDecision(False, "lottery_result_or_jackpot_promo")
+
     return NewsQualityDecision(True, "publishable")
 
 
@@ -129,8 +166,8 @@ def is_publishable_story(title: Any, summary: Any = "") -> bool:
 def public_policy() -> dict[str, Any]:
     return {
         "version": POLICY_VERSION,
-        "purpose_pl": "Wybór wiadomości zawierających konkretną informację, a nie jedynie zapowiedź materiału lub komunikat personalny.",
-        "purpose_en": "Select stories that contain concrete information rather than merely promoting content or announcing a personal death.",
+        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym, a nie zapowiedź materiału, komunikat personalny ani wynik gry losowej.",
+        "purpose_en": "Select stories containing concrete public-interest information rather than content promotion, personal death notices or lottery results.",
         "excluded": [
             {
                 "id": "death_notice",
@@ -142,7 +179,14 @@ def public_policy() -> dict[str, Any]:
                 "description_pl": "Zapowiedzi wywiadów, gości telewizyjnych i rozmów bez konkretnej tezy w widocznym nagłówku.",
                 "description_en": "Interview, TV guest and podcast promotion without a concrete claim in the visible headline.",
             },
+            {
+                "id": "lottery_result_or_jackpot_promo",
+                "description_pl": "Wyniki losowań, zwycięskie numery, kumulacje, jackpoty i promowanie kwot do wygrania.",
+                "description_en": "Lottery draw results, winning numbers, rollovers, jackpots and prize-pool promotion.",
+            },
         ],
         "interview_exception_pl": "Materiał z wywiadu może zostać opublikowany, gdy nagłówek podaje konkretną wypowiedź, decyzję, prognozę, liczbę lub skutek.",
         "interview_exception_en": "Interview content may be published when the headline states a concrete claim, decision, forecast, number or consequence.",
+        "lottery_exception_pl": "Dopuszczalne są wiadomości o regulacjach, podatkach, oszustwach i innych skutkach publicznych rynku gier losowych, o ile nagłówek nie jest wynikiem losowania ani promocją wygranej.",
+        "lottery_exception_en": "Public-interest reporting on regulation, taxation, fraud and other societal effects of gambling may be published when the headline is not a draw result or prize promotion.",
     }
