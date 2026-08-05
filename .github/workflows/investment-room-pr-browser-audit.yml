@@ -10,16 +10,20 @@ on:
       - "scripts/portfolio-10k-*.js"
       - "scripts/ai-tournament-*.js"
       - "scripts/site-header.js"
-      - "scripts/audit_investment_rooms_fast.py"
+      - "scripts/audit_investment_rooms_quick.py"
       - ".github/workflows/investment-room-pr-browser-audit.yml"
 
 permissions:
   contents: read
 
+concurrency:
+  group: investment-room-controlled-audit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   browser-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,7 +45,7 @@ jobs:
       - name: Click every PL and EN investment option
         id: audit
         continue-on-error: true
-        run: python scripts/audit_investment_rooms_fast.py
+        run: python scripts/audit_investment_rooms_quick.py
       - name: Print complete report
         if: always()
         run: cat data/portfolio10k/investment_room_full_audit.json
