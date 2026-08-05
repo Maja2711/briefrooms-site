@@ -87,8 +87,8 @@ jobs:
                   '/en/about.html',
               ],
           }
-          nav_pattern = re.compile(r'<nav\s+class="nav"\b[^>]*>(.*?)</nav>', re.I | re.S)
-          href_pattern = re.compile(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>', re.I)
+          nav_pattern = re.compile(r'<nav\s+class=["\']nav["\'][^>]*>(.*?)</nav>', re.I | re.S)
+          href_pattern = re.compile(r'<a\b[^>]*\bhref=["\']([^"\']+)["\'][^>]*>', re.I)
           headers = {
               'User-Agent': 'BriefRooms homepage navigation verifier/1.0',
               'Cache-Control': 'no-cache',
