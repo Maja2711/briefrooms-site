@@ -5,6 +5,9 @@
   const lang = cfg.lang === 'en' ? 'en' : 'pl';
   const endpoint = '/data/ai_tournament/public.json';
   const state = { data: null, observer: null };
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
 
   const T = lang === 'en' ? {
     title: 'CURRENT SUMMARY',
@@ -14,6 +17,7 @@
     average: 'Average return',
     spread: 'Best-to-worst spread',
     over: 'over',
+    agents: 'agents',
     pp: 'pp',
     noData: 'The tournament is waiting for its first completed market round.'
   } : {
@@ -24,6 +28,7 @@
     average: 'Średni wynik',
     spread: 'Rozpiętość wyników',
     over: 'nad',
+    agents: 'agentów',
     pp: 'p.p.',
     noData: 'Turniej czeka na pierwszą zakończoną rundę rynkową.'
   };
@@ -35,6 +40,8 @@
   const pp = value => Number.isFinite(Number(value))
     ? `${Number(value) >= 0 ? '+' : ''}${(Number(value) * 100).toFixed(2)} ${T.pp}`
     : '—';
+
+  const tone = value => Number(value) >= 0 ? 'positive' : 'negative';
 
   function selectedMetrics(row) {
     return lang === 'en' ? (row.metrics_usd || row.metrics || {}) : (row.metrics_pln || row.metrics || {});
@@ -55,17 +62,19 @@
     const values = ranked.map(returnValue);
     const leader = ranked[0];
     const second = ranked[1] || null;
+    const worst = ranked.reduce((current, row) => returnValue(row) < returnValue(current) ? row : current, ranked[0]);
     const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const best = Math.max(...values);
-    const worst = Math.min(...values);
+    const bestReturn = Math.max(...values);
+    const worstReturn = Math.min(...values);
 
     return {
       leader,
       leaderReturn: returnValue(leader),
       second,
+      worst,
       lead: second ? returnValue(leader) - returnValue(second) : 0,
       average,
-      spread: best - worst
+      spread: bestReturn - worstReturn
     };
   }
 
@@ -78,7 +87,7 @@
       .ait-summary-stat{min-width:0;padding:12px;border:1px solid #e2e9f1;border-radius:12px;background:linear-gradient(145deg,#fbfdff,#f5f8fb)}
       .ait-summary-stat small{display:block;color:#7f8da0;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.045em}
       .ait-summary-stat strong{display:block;margin-top:6px;color:#172b45;font-size:15px;line-height:1.2;overflow-wrap:anywhere}
-      .ait-summary-stat strong.positive{color:#12935a}
+      .ait-summary-stat strong.positive{color:#12935a}.ait-summary-stat strong.negative{color:#cf4747}
       .ait-summary-stat span{display:block;margin-top:4px;color:#62738a;font-size:10px;line-height:1.35}
       @media(max-width:680px){.ait-summary-grid{grid-template-columns:1fr 1fr}.ait-summary-stat{padding:10px}.ait-summary-stat strong{font-size:14px}}
       @media(max-width:430px){.ait-summary-grid{grid-template-columns:1fr}}
@@ -107,18 +116,18 @@
 
     card.dataset.summarySignature = signature;
     if (!stats) {
-      card.innerHTML = `<div class="aitx-card-head"><div><h3>${T.title}</h3><p>${T.subtitle}</p></div></div><div class="aitx-empty">${T.noData}</div>`;
+      card.innerHTML = `<div class="aitx-card-head"><div><h3>${esc(T.title)}</h3><p>${esc(T.subtitle)}</p></div></div><div class="aitx-empty">${esc(T.noData)}</div>`;
       return;
     }
 
     const secondNote = stats.second ? `${T.over} ${stats.second.agent_id}` : '—';
     card.innerHTML = `
-      <div class="aitx-card-head"><div><h3>${T.title}</h3><p>${T.subtitle}</p></div></div>
+      <div class="aitx-card-head"><div><h3>${esc(T.title)}</h3><p>${esc(T.subtitle)}</p></div></div>
       <div class="ait-summary-grid">
-        <div class="ait-summary-stat"><small>${T.leader}</small><strong>${stats.leader.agent_id}</strong><span>${pct(stats.leaderReturn)}</span></div>
-        <div class="ait-summary-stat"><small>${T.lead}</small><strong class="positive">${pp(stats.lead)}</strong><span>${secondNote}</span></div>
-        <div class="ait-summary-stat"><small>${T.average}</small><strong class="positive">${pct(stats.average)}</strong><span>${rows.length} ${lang === 'en' ? 'agents' : 'agentów'}</span></div>
-        <div class="ait-summary-stat"><small>${T.spread}</small><strong>${pp(stats.spread)}</strong><span>${stats.leader.agent_id} ↔ ${rows[rows.length - 1]?.agent_id || '—'}</span></div>
+        <div class="ait-summary-stat"><small>${esc(T.leader)}</small><strong>${esc(stats.leader.agent_id)}</strong><span>${pct(stats.leaderReturn)}</span></div>
+        <div class="ait-summary-stat"><small>${esc(T.lead)}</small><strong class="positive">${pp(stats.lead)}</strong><span>${esc(secondNote)}</span></div>
+        <div class="ait-summary-stat"><small>${esc(T.average)}</small><strong class="${tone(stats.average)}">${pct(stats.average)}</strong><span>${rows.length} ${esc(T.agents)}</span></div>
+        <div class="ait-summary-stat"><small>${esc(T.spread)}</small><strong>${pp(stats.spread)}</strong><span>${esc(stats.leader.agent_id)} ↔ ${esc(stats.worst.agent_id)}</span></div>
       </div>`;
   }
 
