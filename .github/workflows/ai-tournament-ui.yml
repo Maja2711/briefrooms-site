@@ -9,6 +9,7 @@ on:
       - "scripts/ai-tournament-public.js"
       - "scripts/ai-tournament-readiness.js"
       - "scripts/ai-tournament-company-profiles.js"
+      - "scripts/ai-tournament-summary.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament_ui.py"
       - "data/ai_tournament/company_profiles.json"
@@ -37,37 +38,58 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate tournament UI and company profiles
+      - name: Validate tournament UI
         run: |
           set -euo pipefail
           node --check scripts/ai-tournament-public.js
           node --check scripts/ai-tournament-readiness.js
           node --check scripts/ai-tournament-company-profiles.js
+          node --check scripts/ai-tournament-summary.js
           python -m unittest tests.test_ai_tournament_ui -v
           python -m py_compile scripts/install_ai_tournament_ui.py
-          grep -F '<details class="aitx-thesis">' scripts/ai-tournament-public.js
-          grep -F 'role="dialog" aria-modal="true"' scripts/ai-tournament-company-profiles.js
-          grep -F 'MutationObserver' scripts/ai-tournament-company-profiles.js
           python - <<'PY'
           import json
           from pathlib import Path
+
+          renderer = Path('scripts/ai-tournament-public.js').read_text(encoding='utf-8')
+          profiles_script = Path('scripts/ai-tournament-company-profiles.js').read_text(encoding='utf-8')
+          summary_script = Path('scripts/ai-tournament-summary.js').read_text(encoding='utf-8')
           config = json.loads(Path('data/ai_tournament/config.json').read_text(encoding='utf-8'))
           profiles = json.loads(Path('data/ai_tournament/company_profiles.json').read_text(encoding='utf-8'))
+
+          assert '<details class="aitx-thesis">' in renderer
+          assert 'role="dialog" aria-modal="true"' in profiles_script
+          assert 'MutationObserver' in profiles_script
+          assert 'Najważniejsze liczby bez powtarzania rankingu' in summary_script
+          assert summary_script.count('class="ait-summary-stat"') == 4
           assert profiles['schema_version'] == 'ai-tournament-company-profiles-v1'
           assert set(profiles['profiles']) == set(config['universe'])
           assert len(profiles['profiles']) == 55
-          print('All 55 tournament tickers have bilingual company profiles.')
+          print('Tournament redesign, company profiles and distinct summary statistics are valid.')
           PY
 
-      - name: Install v5 and company profiles on PL and EN pages
+      - name: Install UI assets on PL and EN pages
         run: |
           set -euo pipefail
           python scripts/install_ai_tournament_ui.py
-          for page in pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html; do
-            grep -q 'ai-tournament-public.js?v=5' "$page"
-            grep -q 'ai-tournament-readiness.js?v=5' "$page"
-            grep -q 'ai-tournament-company-profiles.js?v=1' "$page"
-          done
+          python - <<'PY'
+          from pathlib import Path
+
+          required = (
+              'ai-tournament-public.js?v=5',
+              'ai-tournament-readiness.js?v=5',
+              'ai-tournament-company-profiles.js?v=1',
+              'ai-tournament-summary.js?v=1',
+          )
+          for path in (
+              Path('pl/inwestycje/portfel-10k.html'),
+              Path('en/investing/portfolio-10k.html'),
+          ):
+              body = path.read_text(encoding='utf-8')
+              for asset in required:
+                  assert asset in body, f'{asset} missing in {path}'
+          print('PL and EN pages load all tournament UI assets.')
+          PY
 
       - name: Commit installed pages
         run: |
@@ -76,9 +98,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
           if git diff --cached --quiet; then
-            echo "AI Tournament UI v5 already installed."
+            echo "AI Tournament UI assets already installed."
           else
-            git commit -m "Deploy AI Tournament company profile popups"
+            git commit -m "Deploy distinct AI Tournament summary statistics"
             for attempt in 1 2 3 4 5; do
               git pull --rebase origin main
               if git push origin HEAD:main; then
@@ -91,7 +113,7 @@ jobs:
             done
           fi
 
-      - name: Verify public PL and EN pages and profile data
+      - name: Verify production
         run: |
           python - <<'PY'
           import json
@@ -106,11 +128,12 @@ jobs:
           }
           assets = {
               'renderer': 'https://briefrooms.com/scripts/ai-tournament-public.js',
-              'profiles_script': 'https://briefrooms.com/scripts/ai-tournament-company-profiles.js',
-              'profiles_data': 'https://briefrooms.com/data/ai_tournament/company_profiles.json',
+              'profiles': 'https://briefrooms.com/scripts/ai-tournament-company-profiles.js',
+              'summary': 'https://briefrooms.com/scripts/ai-tournament-summary.js',
+              'profile_data': 'https://briefrooms.com/data/ai_tournament/company_profiles.json',
           }
           headers = {
-              'User-Agent': 'BriefRooms AI Tournament UI verifier/2.0',
+              'User-Agent': 'BriefRooms AI Tournament UI verifier/3.0',
               'Cache-Control': 'no-cache',
           }
           passed = False
@@ -124,13 +147,14 @@ jobs:
 
               for language, url in pages.items():
                   try:
-                      request = urllib.request.Request(f'{url}?aitprofiles={token}', headers=headers)
+                      request = urllib.request.Request(f'{url}?aitsummary={token}', headers=headers)
                       with urllib.request.urlopen(request, timeout=20) as response:
                           body = response.read().decode('utf-8', errors='replace')
                       required = (
                           'ai-tournament-public.js?v=5',
                           'ai-tournament-readiness.js?v=5',
                           'ai-tournament-company-profiles.js?v=1',
+                          'ai-tournament-summary.js?v=1',
                       )
                       found = all(item in body for item in required)
                       observed[f'{language}_assets'] = found
@@ -139,34 +163,25 @@ jobs:
                   except Exception as exc:
                       errors.append(f'{language}: {exc}')
 
-              try:
-                  request = urllib.request.Request(f"{assets['renderer']}?v=5&verify={token}", headers=headers)
-                  with urllib.request.urlopen(request, timeout=20) as response:
-                      script = response.read().decode('utf-8', errors='replace')
-                  markers = '<details class="aitx-thesis">' in script and 'class="aitx-overview"' in script
-                  observed['redesign_markers'] = markers
-                  if not markers:
-                      errors.append('public renderer does not contain redesign markers')
-              except Exception as exc:
-                  errors.append(f'renderer: {exc}')
+              checks = {
+                  'renderer': ('<details class="aitx-thesis">', 'class="aitx-overview"'),
+                  'profiles': ('ait-company-modal', 'MutationObserver', "event.key === 'Escape'"),
+                  'summary': ('ait-summary-grid', 'Lead over second', 'Average return', 'Best-to-worst spread'),
+              }
+              for key, markers in checks.items():
+                  try:
+                      request = urllib.request.Request(f"{assets[key]}?verify={token}", headers=headers)
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          script = response.read().decode('utf-8', errors='replace')
+                      ok = all(marker in script for marker in markers)
+                      observed[f'{key}_markers'] = ok
+                      if not ok:
+                          errors.append(f'{key} script is incomplete')
+                  except Exception as exc:
+                      errors.append(f'{key}: {exc}')
 
               try:
-                  request = urllib.request.Request(f"{assets['profiles_script']}?v=1&verify={token}", headers=headers)
-                  with urllib.request.urlopen(request, timeout=20) as response:
-                      profile_script = response.read().decode('utf-8', errors='replace')
-                  markers = (
-                      'ait-company-modal' in profile_script and
-                      'MutationObserver' in profile_script and
-                      "event.key === 'Escape'" in profile_script
-                  )
-                  observed['profile_script_markers'] = markers
-                  if not markers:
-                      errors.append('public company profile script is incomplete')
-              except Exception as exc:
-                  errors.append(f'profiles script: {exc}')
-
-              try:
-                  request = urllib.request.Request(f"{assets['profiles_data']}?verify={token}", headers=headers)
+                  request = urllib.request.Request(f"{assets['profile_data']}?verify={token}", headers=headers)
                   with urllib.request.urlopen(request, timeout=20) as response:
                       profile_data = json.loads(response.read().decode('utf-8'))
                   count = len(profile_data.get('profiles') or {})
@@ -174,9 +189,9 @@ jobs:
                   observed['profile_count'] = count
                   observed['profile_schema'] = schema_ok
                   if count != 55 or not schema_ok:
-                      errors.append(f'public profile data invalid: count={count}, schema={schema_ok}')
+                      errors.append(f'profile data invalid: count={count}, schema={schema_ok}')
               except Exception as exc:
-                  errors.append(f'profiles data: {exc}')
+                  errors.append(f'profile data: {exc}')
 
               if not errors:
                   passed = True
@@ -186,11 +201,12 @@ jobs:
               time.sleep(10)
 
           status = {
-              'schema_version': 'ai-tournament-ui-status-v2',
+              'schema_version': 'ai-tournament-ui-status-v3',
               'status': 'passed' if passed else 'failed',
               'checked_at': datetime.now(timezone.utc).isoformat(),
               'renderer_version': '5',
               'company_profiles_version': '1',
+              'summary_version': '1',
               'observed': observed,
               'errors': last_errors,
           }
@@ -199,7 +215,7 @@ jobs:
           path.write_text(json.dumps(status, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           print(json.dumps(status, ensure_ascii=False))
           if not passed:
-              raise SystemExit('AI Tournament company profile verification failed')
+              raise SystemExit('AI Tournament UI production verification failed')
           PY
 
       - name: Commit production verification
@@ -211,7 +227,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Production verification unchanged."
           else
-            git commit -m "Verify AI Tournament company profiles on production"
+            git commit -m "Verify distinct AI Tournament summary on production"
             for attempt in 1 2 3 4 5; do
               git pull --rebase origin main
               if git push origin HEAD:main; then
