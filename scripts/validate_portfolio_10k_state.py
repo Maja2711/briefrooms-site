@@ -16,24 +16,48 @@ def close(left: Any, right: Any, tolerance: float = 0.03) -> bool:
     return a is not None and b is not None and abs(a - b) <= tolerance
 
 
+def allocation_weight(position: Dict[str, Any]) -> float | None:
+    weight = base.finite(position.get("target_weight"))
+    return weight if weight is not None and weight > 0 else None
+
+
 def validate_state(data: Dict[str, Any]) -> List[str]:
     errors: List[str] = []
     positions = data.get("positions")
     if not isinstance(positions, list) or not positions:
         return ["portfolio.positions: expected a non-empty list"]
+
+    closed_positions = data.get("closed_positions") or []
+    if not isinstance(closed_positions, list):
+        errors.append("portfolio.closed_positions: expected a list")
+        closed_positions = []
+
     ids = [str(position.get("id") or "") for position in positions]
     symbols = [str(position.get("broker_symbol") or "") for position in positions]
     if len(set(ids)) != len(ids) or "" in ids:
         errors.append("portfolio.positions.id: values must be non-empty and unique")
     if len(set(symbols)) != len(symbols) or "" in symbols:
         errors.append("portfolio.positions.broker_symbol: values must be non-empty and unique")
-    weights = [base.finite(position.get("target_weight")) for position in positions]
-    if any(weight is None or weight <= 0 for weight in weights):
-        errors.append("portfolio.positions.target_weight: all weights must be finite and positive")
-    elif not math.isclose(sum(weights), 1.0, abs_tol=1e-8):
-        errors.append("portfolio.positions.target_weight: weights must sum to 1")
 
-    active = []
+    active_weights = [allocation_weight(position) for position in positions]
+    if any(weight is None for weight in active_weights):
+        errors.append("portfolio.positions.target_weight: all weights must be finite and positive")
+    else:
+        active_weight_sum = sum(weight for weight in active_weights if weight is not None)
+        if active_weight_sum > 1.0 + 1e-8:
+            errors.append("portfolio.positions.target_weight: active weights cannot exceed 1")
+
+        # After an executed exit, the active list legitimately sums to less than 1.
+        # The original allocation remains auditable across active and closed positions.
+        closed_weights = [allocation_weight(position) for position in closed_positions]
+        if closed_positions and all(weight is not None for weight in closed_weights):
+            combined = active_weight_sum + sum(weight for weight in closed_weights if weight is not None)
+            if not math.isclose(combined, 1.0, abs_tol=1e-8):
+                errors.append("portfolio active and closed target weights must sum to 1")
+        elif not closed_positions and not math.isclose(active_weight_sum, 1.0, abs_tol=1e-8):
+            errors.append("portfolio.positions.target_weight: weights must sum to 1")
+
+    active: List[Dict[str, Any]] = []
     for position in positions:
         label = f"position[{position.get('id')}]"
         status = position.get("status")
@@ -64,6 +88,13 @@ def validate_state(data: Dict[str, Any]) -> List[str]:
         if notional is not None and entry_value is not None and not close(notional + fee, entry_value):
             errors.append(f"{label}.entry_value_pln: must equal entry_notional_pln plus entry_fee_pln")
 
+    for position in closed_positions:
+        label = f"closed_position[{position.get('id')}]"
+        if position.get("status") != "closed":
+            errors.append(f"{label}.status: expected closed")
+        if not position.get("broker_symbol"):
+            errors.append(f"{label}.broker_symbol: required")
+
     active_count = len(active)
     expected_status = "active" if active_count == len(positions) else "partially_active" if active_count else "pending_open"
     if data.get("status") != expected_status:
@@ -78,14 +109,19 @@ def validate_state(data: Dict[str, Any]) -> List[str]:
                 errors.append(f"{label}.symbol: duplicate staged execution for {symbol}")
                 continue
             executions[symbol] = execution
+
     by_symbol = {position.get("broker_symbol"): position for position in positions}
+    closed_by_symbol = {position.get("broker_symbol"): position for position in closed_positions}
     for symbol, execution in executions.items():
-        position = by_symbol.get(symbol)
+        position = by_symbol.get(symbol) or closed_by_symbol.get(symbol)
         if not position:
-            errors.append(f"staged execution {symbol}: symbol is not in portfolio")
+            errors.append(f"staged execution {symbol}: symbol is not in active or closed portfolio history")
             continue
-        if position.get("status") != "active":
-            errors.append(f"position[{position.get('id')}].status: audited staged execution must be active")
+        expected_position_status = "active" if symbol in by_symbol else "closed"
+        if position.get("status") != expected_position_status:
+            errors.append(
+                f"position[{position.get('id')}].status: audited staged execution must be {expected_position_status}"
+            )
         for source_key, position_key in (
             ("price", "entry_price"), ("fx_to_pln", "entry_fx_to_pln"),
             ("entry_value_pln", "entry_value_pln"),
@@ -97,16 +133,37 @@ def validate_state(data: Dict[str, Any]) -> List[str]:
     if start is None or start <= 0:
         errors.append("portfolio.starting_capital_pln: expected a finite positive number")
         return errors
-    spent = sum(base.finite(position.get("entry_value_pln")) or 0.0 for position in active)
-    expected_base_cash = round(start - spent, 2)
-    if not close(data.get("base_cash_pln"), expected_base_cash):
-        errors.append(f"portfolio.base_cash_pln: expected {expected_base_cash:.2f}")
-    dividends = sum(base.finite(position.get("dividends_pln")) or 0.0 for position in active)
-    expected_cash = round(expected_base_cash + dividends, 2)
-    if not close(data.get("cash_pln"), expected_cash):
-        errors.append(f"portfolio.cash_pln: expected {expected_cash:.2f}")
+
+    reconciliation = data.get("execution_reconciliation") or {}
+    reconciled_exits = reconciliation.get("executed_exit_instruments") or []
+    reconciled = bool(reconciled_exits)
+
+    if reconciled:
+        # Once an exit is executed, cash from the paper ledger is authoritative.
+        expected_cash = base.finite(data.get("cash_pln"))
+        if expected_cash is None or expected_cash < 0:
+            errors.append("portfolio.cash_pln: expected a finite non-negative number")
+            expected_cash = 0.0
+        if not close(data.get("base_cash_pln"), expected_cash):
+            errors.append(f"portfolio.base_cash_pln: expected reconciled cash {expected_cash:.2f}")
+        if data.get("cash_balance_pln") is not None and not close(data.get("cash_balance_pln"), expected_cash):
+            errors.append(f"portfolio.cash_balance_pln: expected reconciled cash {expected_cash:.2f}")
+        closed_ids = {str(position.get("id") or "").lower() for position in closed_positions}
+        missing_closed = sorted(str(value).lower() for value in reconciled_exits if str(value).lower() not in closed_ids)
+        if missing_closed:
+            errors.append(f"portfolio.closed_positions: missing reconciled exits {', '.join(missing_closed)}")
+    else:
+        spent = sum(base.finite(position.get("entry_value_pln")) or 0.0 for position in active)
+        expected_base_cash = round(start - spent, 2)
+        if not close(data.get("base_cash_pln"), expected_base_cash):
+            errors.append(f"portfolio.base_cash_pln: expected {expected_base_cash:.2f}")
+        dividends = sum(base.finite(position.get("dividends_pln")) or 0.0 for position in active)
+        expected_cash = round(expected_base_cash + dividends, 2)
+        if not close(data.get("cash_pln"), expected_cash):
+            errors.append(f"portfolio.cash_pln: expected {expected_cash:.2f}")
+
     current_value = sum(base.finite(position.get("current_value_pln")) or 0.0 for position in active)
-    expected_total = round(expected_cash + current_value, 2)
+    expected_total = round((expected_cash or 0.0) + current_value, 2)
     if not close(data.get("total_value_pln"), expected_total):
         errors.append(f"portfolio.total_value_pln: expected {expected_total:.2f}")
     if not close(data.get("total_return_pln"), expected_total - start):
