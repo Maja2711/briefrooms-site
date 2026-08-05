@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -55,7 +56,7 @@ class GeminiAiOutlookPublisherTests(unittest.TestCase):
 
     def test_rejects_fallback_or_non_gemini_payload(self) -> None:
         payload = self.payload()
-        with unittest.mock.patch.object(publisher.v3, "validate_payload", return_value=None):
+        with mock.patch.object(publisher.v3, "validate_payload", return_value=None):
             publisher.validate_payload(payload, today="2026-08-05")
             fallback = dict(payload, generation_mode="deterministic_daily_fallback")
             with self.assertRaisesRegex(RuntimeError, "ai_primary"):
