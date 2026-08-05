@@ -59,12 +59,38 @@ class NewsQualityTests(unittest.TestCase):
     def test_topic_list_is_not_a_substantive_headline(self) -> None:
         self.assertFalse(has_substantive_headline("Rozmowa z prezesem: o podatkach, rządzie i wyborach"))
 
+    def test_rejects_exact_eurojackpot_promo_from_feed(self) -> None:
+        decision = evaluate_story(
+            "Kumulacja rośnie. Do wygrania 140 milionów złotych",
+            "Losowanie Eurojackpot nie przyniosło głównej wygranej. Oto wyniki z 4 sierpnia.",
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "lottery_result_or_jackpot_promo")
+
+    def test_rejects_lotto_draw_results(self) -> None:
+        decision = evaluate_story("Wyniki Lotto. Wylosowano te numery")
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "lottery_result_or_jackpot_promo")
+
+    def test_rejects_english_lottery_numbers(self) -> None:
+        decision = evaluate_story("Powerball winning numbers and jackpot results")
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "lottery_result_or_jackpot_promo")
+
+    def test_allows_public_interest_lottery_regulation(self) -> None:
+        decision = evaluate_story(
+            "Rząd podnosi podatek od gier losowych",
+            "Nowa ustawa obejmie Lotto i inne loterie państwowe.",
+        )
+        self.assertTrue(decision.accepted)
+
     def test_policy_is_versioned_and_public(self) -> None:
         policy = public_policy()
         self.assertEqual(policy["version"], POLICY_VERSION)
         self.assertEqual({item["id"] for item in policy["excluded"]}, {
             "death_notice",
             "interview_promo_without_substance",
+            "lottery_result_or_jackpot_promo",
         })
 
 
