@@ -1,8 +1,8 @@
 {
   "schema_version": "news-live-v2",
   "language": "en",
-  "marker": "live-news-30982208931-1",
-  "generated_at": "2026-08-05T06:41:35+00:00",
+  "marker": "live-news-30982484798-1",
+  "generated_at": "2026-08-05T06:46:16+00:00",
   "content_hash": "826d1e82cf38b49dfa7f35f444352359d5b26a97b6b7a7f4216a3d8445d56b5e",
   "labels": {
     "world-news": "World News",
@@ -622,13 +622,13 @@
     "freshest_source_at": "2026-08-05T06:35:48+00:00",
     "editorial_filter": {
       "status": "active",
-      "version": "news-value-filter-v1"
+      "version": "news-value-filter-v2"
     }
   },
   "editorial_policy": {
-    "version": "news-value-filter-v1",
-    "purpose_pl": "Wybór wiadomości zawierających konkretną informację, a nie jedynie zapowiedź materiału lub komunikat personalny.",
-    "purpose_en": "Select stories that contain concrete information rather than merely promoting content or announcing a personal death.",
+    "version": "news-value-filter-v2",
+    "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym, a nie zapowiedź materiału, komunikat personalny ani wynik gry losowej.",
+    "purpose_en": "Select stories containing concrete public-interest information rather than content promotion, personal death notices or lottery results.",
     "excluded": [
       {
         "id": "death_notice",
@@ -639,9 +639,16 @@
         "id": "interview_promo_without_substance",
         "description_pl": "Zapowiedzi wywiadów, gości telewizyjnych i rozmów bez konkretnej tezy w widocznym nagłówku.",
         "description_en": "Interview, TV guest and podcast promotion without a concrete claim in the visible headline."
+      },
+      {
+        "id": "lottery_result_or_jackpot_promo",
+        "description_pl": "Wyniki losowań, zwycięskie numery, kumulacje, jackpoty i promowanie kwot do wygrania.",
+        "description_en": "Lottery draw results, winning numbers, rollovers, jackpots and prize-pool promotion."
       }
     ],
     "interview_exception_pl": "Materiał z wywiadu może zostać opublikowany, gdy nagłówek podaje konkretną wypowiedź, decyzję, prognozę, liczbę lub skutek.",
-    "interview_exception_en": "Interview content may be published when the headline states a concrete claim, decision, forecast, number or consequence."
+    "interview_exception_en": "Interview content may be published when the headline states a concrete claim, decision, forecast, number or consequence.",
+    "lottery_exception_pl": "Dopuszczalne są wiadomości o regulacjach, podatkach, oszustwach i innych skutkach publicznych rynku gier losowych, o ile nagłówek nie jest wynikiem losowania ani promocją wygranej.",
+    "lottery_exception_en": "Public-interest reporting on regulation, taxation, fraud and other societal effects of gambling may be published when the headline is not a draw result or prize promotion."
   }
 }
