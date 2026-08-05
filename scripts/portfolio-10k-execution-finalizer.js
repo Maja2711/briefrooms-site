@@ -15,13 +15,18 @@
 
   const pct = value => `${Number(value || 0) >= 0 ? '+' : ''}${(Number(value || 0) * 100).toFixed(2)}%`;
 
-  function loadTournamentCompanyProfiles() {
-    if (document.querySelector('script[src*="/scripts/ai-tournament-company-profiles.js"]')) return;
+  function loadScriptOnce(src, marker) {
+    if (document.querySelector(`script[src*="${marker}"]`)) return;
     const script = document.createElement('script');
-    script.src = '/scripts/ai-tournament-company-profiles.js?v=1';
+    script.src = src;
     script.async = true;
-    script.dataset.aiTournamentCompanyProfiles = 'true';
+    script.dataset.portfolioEnhancement = marker;
     document.head.appendChild(script);
+  }
+
+  function loadTournamentEnhancements() {
+    loadScriptOnce('/scripts/ai-tournament-company-profiles.js?v=1', '/scripts/ai-tournament-company-profiles.js');
+    loadScriptOnce('/scripts/ai-tournament-summary.js?v=1', '/scripts/ai-tournament-summary.js');
   }
 
   async function json(path) {
@@ -145,7 +150,7 @@
   }
 
   async function start() {
-    loadTournamentCompanyProfiles();
+    loadTournamentEnhancements();
     try {
       const state = await loadState();
       if (!state.executed.length) return;
