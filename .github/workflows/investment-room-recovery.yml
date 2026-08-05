@@ -1,0 +1,195 @@
+name: Investment Room Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/investment-room-recovery.yml"
+      - "scripts/portfolio-10k-en-recovery.js"
+      - "scripts/investment-room-nav-order.js"
+      - "scripts/install_investment_room_recovery.py"
+      - "tests/test_investment_room_recovery.py"
+      - "data/investments/investment_room_recovery_trigger.txt"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-room-recovery
+  cancel-in-progress: true
+
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate recovery runtime and installer
+        run: |
+          set -euo pipefail
+          node --check scripts/portfolio-10k-en-recovery.js
+          node --check scripts/investment-room-nav-order.js
+          python -m py_compile scripts/install_investment_room_recovery.py
+          python -m unittest tests.test_investment_room_recovery -v
+          grep -F "Promise.allSettled" scripts/portfolio-10k-en-recovery.js
+          grep -F "['news', 'investing', 'health', 'science', 'geopolitics', 'about']" scripts/investment-room-nav-order.js
+
+      - name: Install recovery on PL and EN investment rooms
+        run: |
+          set -euo pipefail
+          python scripts/install_investment_room_recovery.py
+          grep -F 'investment-room-nav-order.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -F 'investment-room-nav-order.js?v=1' en/investing/portfolio-10k.html
+          grep -F 'portfolio-10k-en-recovery.js?v=1' en/investing/portfolio-10k.html
+          grep -F 'portfolio-10k-dashboard-en.js?v=6' en/investing/portfolio-10k.html
+          grep -F 'ai-tournament-public.js?v=5' en/investing/portfolio-10k.html
+          grep -F 'ai-tournament-summary.js?v=1' en/investing/portfolio-10k.html
+
+      - name: Commit installed pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "Investment recovery already installed."
+          else
+            git commit -m "fix(investing): restore EN room and align PL/EN navigation"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [[ "$attempt" == "5" ]]; then exit 1; fi
+              sleep $((attempt * 3))
+            done
+          fi
+
+      - name: Install Chromium smoke-test runtime
+        run: |
+          npm install --no-save playwright@1.54.2
+          npx playwright install --with-deps chromium
+
+      - name: Browser-test production EN room and PL/EN navigation
+        run: |
+          node <<'JS'
+          const fs = require('fs');
+          const { chromium } = require('playwright');
+
+          const expected = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            let result = null;
+            let lastError = null;
+
+            for (let attempt = 1; attempt <= 24; attempt += 1) {
+              const context = await browser.newContext();
+              const page = await context.newPage();
+              try {
+                const token = `${Date.now()}-${attempt}`;
+                await page.goto(`https://briefrooms.com/en/investing/portfolio-10k.html?recovery=${token}`, {
+                  waitUntil: 'domcontentloaded',
+                  timeout: 30000
+                });
+                await page.waitForFunction(() => document.body.dataset.enInvestmentTabs === 'ready', null, { timeout: 12000 });
+                await page.waitForFunction(() => document.body.dataset.enInvestmentData === 'ready', null, { timeout: 18000 });
+
+                const status = (await page.locator('#data-status').textContent() || '').trim();
+                if (/loading/i.test(status) || !/active/i.test(status)) {
+                  throw new Error(`unexpected EN status: ${status}`);
+                }
+
+                await page.locator('.i10k-tabs [data-tab="portfolio"]').click();
+                const portfolioActive = await page.locator('.i10k-panel[data-panel="portfolio"]').evaluate(node => node.classList.contains('active'));
+                if (!portfolioActive) throw new Error('Portfolio tab did not become active');
+
+                const enOrder = await page.locator('#site-header .br-site-header__nav > a[data-section]').evaluateAll(nodes => nodes.map(node => node.dataset.section));
+                if (JSON.stringify(enOrder) !== JSON.stringify(expected)) {
+                  throw new Error(`EN room order mismatch: ${JSON.stringify(enOrder)}`);
+                }
+
+                const value = (await page.locator('#portfolio-value').textContent() || '').trim();
+                const positions = (await page.locator('#positions-count').textContent() || '').trim();
+                if (!value.includes('$') || !/^\d+$/.test(positions)) {
+                  throw new Error(`EN portfolio did not render: value=${value}, positions=${positions}`);
+                }
+
+                const pl = await context.newPage();
+                await pl.goto(`https://briefrooms.com/pl/inwestycje/portfel-10k.html?navorder=${token}`, {
+                  waitUntil: 'domcontentloaded',
+                  timeout: 30000
+                });
+                await pl.waitForFunction(() => document.querySelector('#site-header .br-site-header__nav')?.dataset.investmentOrder, null, { timeout: 12000 });
+                const plOrder = await pl.locator('#site-header .br-site-header__nav > a[data-section]').evaluateAll(nodes => nodes.map(node => node.dataset.section));
+                if (JSON.stringify(plOrder) !== JSON.stringify(expected)) {
+                  throw new Error(`PL room order mismatch: ${JSON.stringify(plOrder)}`);
+                }
+
+                result = {
+                  schema_version: 'investment-room-recovery-status-v1',
+                  status: 'passed',
+                  checked_at: new Date().toISOString(),
+                  attempt,
+                  en: { data_status: status, portfolio_value: value, positions, tabs_working: portfolioActive, nav_order: enOrder },
+                  pl: { nav_order: plOrder },
+                  errors: []
+                };
+                await context.close();
+                break;
+              } catch (error) {
+                lastError = String(error && error.message || error);
+                await context.close();
+                await sleep(10000);
+              }
+            }
+
+            await browser.close();
+            if (!result) {
+              result = {
+                schema_version: 'investment-room-recovery-status-v1',
+                status: 'failed',
+                checked_at: new Date().toISOString(),
+                errors: [lastError || 'unknown production browser failure']
+              };
+            }
+            fs.writeFileSync(
+              'data/investments/investment_room_recovery_status.json',
+              JSON.stringify(result, null, 2) + '\n'
+            );
+            console.log(JSON.stringify(result));
+            if (result.status !== 'passed') process.exit(1);
+          })();
+          JS
+
+      - name: Commit production browser verification
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/investment_room_recovery_status.json
+          git commit -m "chore(investing): verify EN room recovery on production" || exit 0
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1
