@@ -32,6 +32,7 @@ on:
       - "scripts/ai-tournament-readiness.js"
       - "scripts/install_ai_tournament_ui.py"
       - "tests/test_ai_tournament.py"
+      - "tests/test_ai_tournament_ui.py"
       - "tests/test_ai_tournament_cash_interest.py"
       - "tests/test_ai_tournament_submission_intake.py"
       - "tests/test_ai_tournament_buy_hold_round.py"
@@ -71,6 +72,7 @@ jobs:
         run: |
           python -m unittest \
             tests.test_ai_tournament \
+            tests.test_ai_tournament_ui \
             tests.test_ai_tournament_cash_interest \
             tests.test_ai_tournament_submission_intake \
             tests.test_ai_tournament_buy_hold_round -v
@@ -125,10 +127,10 @@ jobs:
         run: python scripts/install_ai_tournament_ui.py
       - name: Validate installed renderers
         run: |
-          grep -q 'ai-tournament-public.js?v=3' pl/inwestycje/portfel-10k.html
-          grep -q 'ai-tournament-public.js?v=3' en/investing/portfolio-10k.html
-          grep -q 'ai-tournament-readiness.js?v=3' pl/inwestycje/portfel-10k.html
-          grep -q 'ai-tournament-readiness.js?v=3' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-public.js?v=4' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-public.js?v=4' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-readiness.js?v=4' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-readiness.js?v=4' en/investing/portfolio-10k.html
       - name: Commit UI deployment
         run: |
           set -euo pipefail
@@ -138,7 +140,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "AI Tournament UI already current."
           else
-            git commit -m "Deploy AI Tournament dual-account UI"
+            git commit -m "Deploy redesigned AI Tournament UI v4"
             git pull --rebase origin main
             git push
           fi
