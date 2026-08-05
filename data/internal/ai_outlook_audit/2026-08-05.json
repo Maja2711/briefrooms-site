@@ -1,41 +1,1037 @@
 {
   "schema_version": "ai-outlook-audit-v2",
   "date": "2026-08-05",
-  "generated_at": "2026-08-05T09:23:18+02:00",
+  "generated_at": "2026-08-05T10:04:18+02:00",
   "edition_policy": "independent-per-language",
   "source_policy": {
     "pl": "polish-language-canonical-news-only",
     "en": "english-language-canonical-news-only"
   },
-  "generation_mode": "deterministic_daily_fallback",
-  "fallback_version": "ai-outlook-daily-fallback-v1",
-  "primary_error": "RuntimeError: AI provider is unavailable",
   "editions": {
     "pl": {
-      "mode": "deterministic_daily_fallback",
-      "selected_area": "economy",
-      "selected_sources": [
+      "schema_version": "ai-outlook-audit-v1",
+      "date": "2026-08-05",
+      "generated_at": "2026-08-05T10:04:18+02:00",
+      "engine": {
+        "version": "ai-outlook-engine-v1.1",
+        "weights_version": "weights-2026-08-v1",
+        "weights_snapshot": {
+          "evidence_quality": 0.22,
+          "measurability": 0.2,
+          "causal_strength": 0.18,
+          "verifiability": 0.15,
+          "novelty": 0.1,
+          "source_quality": 0.15
+        },
+        "scoring_policy_version": "scoring-policy-v1.1",
+        "provenance_schema_version": "provenance-v1",
+        "resolution_schema_version": "resolution-v1",
+        "governance_schema_version": "governance-v1",
+        "area_priority": [
+          "economy",
+          "geopolitics",
+          "health",
+          "science"
+        ],
+        "area_thresholds": {
+          "economy": 68.0,
+          "geopolitics": 68.0,
+          "health": 72.0,
+          "science": 72.0
+        },
+        "selected_area": "economy",
+        "selection_mode": "priority_area_threshold",
+        "engine_score": 83.53,
+        "score_breakdown": {
+          "evidence_quality": 82.0,
+          "measurability": 90.0,
+          "causal_strength": 78.0,
+          "verifiability": 95.0,
+          "novelty": 75.0,
+          "source_quality": 78.0,
+          "speculation_risk": 25.0,
+          "speculation_penalty": 0.0,
+          "novelty_penalty": 0.0,
+          "threshold": 68.0,
+          "safety_gate": true,
+          "safety_reasons": [],
+          "source_count": 1,
+          "distinct_hosts": 1,
+          "independent_provenance_count": 1,
+          "provenance_ids": [
+            "prov_8a5edab282632443219e"
+          ],
+          "authoritative": false,
+          "average_source_quality": 78.0,
+          "independent_source_bonus": 0.0
+        },
+        "probability_method": "heuristic_v1_not_historically_calibrated",
+        "statistical_layer_enabled": false,
+        "model_layers": [
+          "deterministic_rules",
+          "ai_assessment"
+        ],
+        "public_brier_min_resolved": 30,
+        "candidate_count": 2,
+        "top_candidates": [
+          {
+            "candidate_id": "cand_01",
+            "area": "economy",
+            "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
+            "engine_score": 83.53,
+            "passed_safety_gate": true
+          },
+          {
+            "candidate_id": "cand_03",
+            "area": "health",
+            "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkol",
+            "engine_score": 71.9,
+            "passed_safety_gate": false
+          }
+        ]
+      },
+      "selected_candidate_id": "cand_01",
+      "selected_resolution": {
+        "schema_version": "resolution-v1",
+        "metric": "Liczba projektów ustaw rządowych dotyczących reformy systemów emerytalnych lub finansów publicznych skierowanych do pierwszego czytania w Sejmie RP",
+        "comparison_operator": ">=",
+        "threshold": 1.0,
+        "unit": "projekty ustaw",
+        "baseline_date": "2026-08-05",
+        "baseline_value": 0.0,
+        "data_source_for_verification": "Strona internetowa Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
+        "verification_url": "https://www.sejm.gov.pl",
+        "resolution_date": "2027-08-05",
+        "geography": "Polska",
+        "status": "open"
+      },
+      "selected_governance": {
+        "schema_version": "governance-v1",
+        "content_category": "macro",
+        "risk_class": "general_forecast",
+        "disclaimer_required": true,
+        "disclaimer_id": "general_forecast_v1",
+        "disclaimers": {
+          "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+          "en": "An AI forecast based on the listed sources. It is not an established fact."
+        }
+      },
+      "evidence": [
         {
-          "name": "Bankier.pl",
-          "url": "https://www.bankier.pl/wiadomosc/Rosyjski-gigant-wstrzymuje-rejsy-przez-Morze-Czarne-Powodem-ataki-dronow-9177954.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci",
+          "source_id": 1,
+          "name": "TVN24",
+          "url": "https://tvn24.pl/biznes/z-kraju/raport-for-wydatki-publiczne-przekroczyly-53-tys-zl-na-mieszkanca-potrzebne-reformy-emerytalne-st9174103?source=rss",
           "provenance_id": "prov_8a5edab282632443219e",
-          "source_language": "pl"
+          "provenance": {
+            "schema_version": "provenance-v1",
+            "provenance_id": "prov_8a5edab282632443219e",
+            "origin_organization": "tvn24.pl",
+            "origin_document_url": "/",
+            "origin_published_at": "2026-08-05",
+            "source_url": "https://tvn24.pl/biznes/z-kraju/raport-for-wydatki-publiczne-przekroczyly-53-tys-zl-na-mieszkanca-potrzebne-reformy-emerytalne-st9174103?source=rss",
+            "basis": "origin_document_url",
+            "confidence": "high"
+          }
         }
       ],
-      "candidate_count": 24
+      "decision_log": [
+        {
+          "candidate_id": "cand_02",
+          "area": "geopolitics",
+          "title": "Utrzymanie napięć dyplomatycznych na linii Waszyngton–Brasilia",
+          "decision": "rejected",
+          "engine_score": null,
+          "rejection_reasons": [
+            {
+              "code": "INVALID_CANDIDATE",
+              "detail": "candidate sources conflict with area"
+            }
+          ]
+        },
+        {
+          "candidate_id": "cand_04",
+          "area": "science",
+          "title": "Intensyfikacja badań nad sejsmiczną aktywnością Księżyca a poszukiwania zasobów lodowych",
+          "decision": "rejected",
+          "engine_score": null,
+          "rejection_reasons": [
+            {
+              "code": "INVALID_CANDIDATE",
+              "detail": "candidate sources conflict with area"
+            }
+          ]
+        },
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
+          "decision": "selected",
+          "engine_score": 83.53,
+          "threshold": 68.0,
+          "rejection_reasons": [],
+          "score_breakdown": {
+            "evidence_quality": 82.0,
+            "measurability": 90.0,
+            "causal_strength": 78.0,
+            "verifiability": 95.0,
+            "novelty": 75.0,
+            "source_quality": 78.0,
+            "speculation_risk": 25.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_03",
+          "area": "health",
+          "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkol",
+          "decision": "rejected",
+          "engine_score": 71.9,
+          "threshold": 72.0,
+          "rejection_reasons": [
+            {
+              "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+              "required": 2,
+              "actual": 1
+            },
+            {
+              "code": "BELOW_AREA_THRESHOLD",
+              "actual": 71.9,
+              "required": 72.0
+            },
+            {
+              "code": "LOWER_PRIORITY_AREA",
+              "selected_area": "economy"
+            }
+          ],
+          "score_breakdown": {
+            "evidence_quality": 78.0,
+            "measurability": 85.0,
+            "causal_strength": 75.0,
+            "verifiability": 92.0,
+            "novelty": 68.0,
+            "source_quality": 62.0,
+            "speculation_risk": 22.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 62.0,
+            "independent_source_bonus": 0.0
+          }
+        }
+      ],
+      "candidates": [
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "content_category": "macro",
+          "source_ids": [
+            1
+          ],
+          "title": "Wzrost presji na reformy publiczne w Polsce w obliczu rosnących wydatków strukturalnych",
+          "thesis": "Wysokie koszty obsługi długu publicznego oraz rekordowe wydatki na mieszkańca wykażą tendencję do dalszego wzrostu, co wymusi oficjalną debatę parlamentarną nad nowymi ustawami reformującymi system emerytalny i finanse samorządów.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Raport Forum Obywatelskiego Rozwoju wskazuje na strukturalne obciążenie finansów publicznych w Polsce, co tworzy mierzalną przestrzeń do prognozowania zmian legislacyjnych.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Liczba projektów ustaw rządowych dotyczących reformy systemów emerytalnych lub finansów publicznych skierowanych do pierwszego czytania w Sejmie RP",
+            "comparison_operator": ">=",
+            "threshold": 1.0,
+            "unit": "projekty ustaw",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 0.0,
+            "data_source_for_verification": "Strona internetowa Sejmu Rzeczypospolitej Polskiej (sejm.gov.pl)",
+            "verification_url": "https://www.sejm.gov.pl",
+            "resolution_date": "2027-08-05",
+            "geography": "Polska",
+            "status": "open"
+          },
+          "evidence_quality": 82,
+          "measurability": 90,
+          "causal_strength": 78,
+          "verifiability": 95,
+          "novelty": 75,
+          "speculation_risk": 25,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "macro",
+            "risk_class": "general_forecast",
+            "disclaimer_required": true,
+            "disclaimer_id": "general_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+              "en": "An AI forecast based on the listed sources. It is not an established fact."
+            }
+          },
+          "engine_score": 83.53,
+          "score_breakdown": {
+            "evidence_quality": 82.0,
+            "measurability": 90.0,
+            "causal_strength": 78.0,
+            "verifiability": 95.0,
+            "novelty": 75.0,
+            "source_quality": 78.0,
+            "speculation_risk": 25.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          },
+          "selection_mode": "priority_area_threshold"
+        },
+        {
+          "candidate_id": "cand_03",
+          "area": "health",
+          "content_category": "clinical_health",
+          "source_ids": [
+            16,
+            17
+          ],
+          "title": "Wzrost liczby publikacji naukowych nad wpływem składników odżywczych na procesy metaboliczne i onkologiczne",
+          "thesis": "Zainteresowanie badaczy mechanizmami łączącymi fruktozę oraz substancje takie jak lizolecytyna z soi z procesami chorobowymi i dietetycznymi zaowocuje wzrostem liczby recenzowanych publikacji indeksowanych w bazach akademickich.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Doniesienia naukowe dotyczące metabolizmu i ochrony zdrowia przed skutkami diety stanowią stabilną podstawę dla prognozowania aktywności badawczej w dziedzinie health.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Liczba nowych artykułów naukowych w bazie PubMed dotyczących skojarzonego wpływu lizolecytyny lub fruktozy na metabolizm komórkowy",
+            "comparison_operator": ">=",
+            "threshold": 10.0,
+            "unit": "publikacje",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 0.0,
+            "data_source_for_verification": "Baza danych PubMed Narodowego Centrum Informacji Biotechnologicznej (NCBI)",
+            "verification_url": "https://pubmed.ncbi.nlm.nih.gov",
+            "resolution_date": "2027-08-05",
+            "geography": "Global",
+            "status": "open"
+          },
+          "evidence_quality": 78,
+          "measurability": 85,
+          "causal_strength": 75,
+          "verifiability": 92,
+          "novelty": 68,
+          "speculation_risk": 22,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "clinical_health",
+            "risk_class": "medical_information",
+            "disclaimer_required": true,
+            "disclaimer_id": "medical_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI ma charakter informacyjny i nie zastępuje porady, diagnozy ani leczenia medycznego.",
+              "en": "This AI forecast is informational and does not replace medical advice, diagnosis or treatment."
+            }
+          },
+          "engine_score": 71.9,
+          "score_breakdown": {
+            "evidence_quality": 78.0,
+            "measurability": 85.0,
+            "causal_strength": 75.0,
+            "verifiability": 92.0,
+            "novelty": 68.0,
+            "source_quality": 62.0,
+            "speculation_risk": 22.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 62.0,
+            "independent_source_bonus": 0.0
+          }
+        }
+      ],
+      "edition_language": "pl",
+      "source_policy": "polish-language-canonical-news-only"
     },
     "en": {
-      "mode": "deterministic_daily_fallback",
-      "selected_area": "economy",
-      "selected_sources": [
+      "schema_version": "ai-outlook-audit-v1",
+      "date": "2026-08-05",
+      "generated_at": "2026-08-05T10:04:18+02:00",
+      "engine": {
+        "version": "ai-outlook-engine-v1.1",
+        "weights_version": "weights-2026-08-v1",
+        "weights_snapshot": {
+          "evidence_quality": 0.22,
+          "measurability": 0.2,
+          "causal_strength": 0.18,
+          "verifiability": 0.15,
+          "novelty": 0.1,
+          "source_quality": 0.15
+        },
+        "scoring_policy_version": "scoring-policy-v1.1",
+        "provenance_schema_version": "provenance-v1",
+        "resolution_schema_version": "resolution-v1",
+        "governance_schema_version": "governance-v1",
+        "area_priority": [
+          "economy",
+          "geopolitics",
+          "health",
+          "science"
+        ],
+        "area_thresholds": {
+          "economy": 68.0,
+          "geopolitics": 68.0,
+          "health": 72.0,
+          "science": 72.0
+        },
+        "selected_area": "economy",
+        "selection_mode": "priority_area_threshold",
+        "engine_score": 81.78,
+        "score_breakdown": {
+          "evidence_quality": 82.0,
+          "measurability": 85.0,
+          "causal_strength": 78.0,
+          "verifiability": 90.0,
+          "novelty": 75.0,
+          "source_quality": 78.0,
+          "speculation_risk": 25.0,
+          "speculation_penalty": 0.0,
+          "novelty_penalty": 0.0,
+          "threshold": 68.0,
+          "safety_gate": true,
+          "safety_reasons": [],
+          "source_count": 2,
+          "distinct_hosts": 1,
+          "independent_provenance_count": 1,
+          "provenance_ids": [
+            "prov_8a5edab282632443219e"
+          ],
+          "authoritative": false,
+          "average_source_quality": 78.0,
+          "independent_source_bonus": 0.0
+        },
+        "probability_method": "heuristic_v1_not_historically_calibrated",
+        "statistical_layer_enabled": false,
+        "model_layers": [
+          "deterministic_rules",
+          "ai_assessment"
+        ],
+        "public_brier_min_resolved": 30,
+        "candidate_count": 4,
+        "top_candidates": [
+          {
+            "candidate_id": "cand_02",
+            "area": "geopolitics",
+            "title": "European border flashpoints will spur tighter emergency security deployments",
+            "engine_score": 83.4,
+            "passed_safety_gate": true
+          },
+          {
+            "candidate_id": "cand_01",
+            "area": "economy",
+            "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
+            "engine_score": 81.78,
+            "passed_safety_gate": true
+          },
+          {
+            "candidate_id": "cand_03",
+            "area": "health",
+            "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
+            "engine_score": 71.9,
+            "passed_safety_gate": false
+          },
+          {
+            "candidate_id": "cand_04",
+            "area": "science",
+            "title": "Space debris impact tracking and lunar surface data publications will increase",
+            "engine_score": 71.9,
+            "passed_safety_gate": false
+          }
+        ]
+      },
+      "selected_candidate_id": "cand_01",
+      "selected_resolution": {
+        "schema_version": "resolution-v1",
+        "metric": "Number of official government or parliamentary inquiries and proposed statutory levies targeting major UK lender profits",
+        "comparison_operator": ">=",
+        "threshold": 2.0,
+        "unit": "inquiries",
+        "baseline_date": "2026-08-05",
+        "baseline_value": 0.0,
+        "data_source_for_verification": "UK Parliament official website publications",
+        "verification_url": "https://parliament.uk",
+        "resolution_date": "2027-08-05",
+        "geography": "United Kingdom",
+        "status": "open"
+      },
+      "selected_governance": {
+        "schema_version": "governance-v1",
+        "content_category": "macro",
+        "risk_class": "general_forecast",
+        "disclaimer_required": true,
+        "disclaimer_id": "general_forecast_v1",
+        "disclaimers": {
+          "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+          "en": "An AI forecast based on the listed sources. It is not an established fact."
+        }
+      },
+      "evidence": [
         {
+          "source_id": 1,
           "name": "The Guardian",
-          "url": "https://www.theguardian.com/technology/2026/aug/05/palantir-corporation-tax-uk-2024-accounting-practices",
+          "url": "https://www.theguardian.com/games/2026/aug/05/video-game-maker-ea-bought-by-saudi-led-group",
           "provenance_id": "prov_8a5edab282632443219e",
-          "source_language": "en"
+          "provenance": {
+            "schema_version": "provenance-v1",
+            "provenance_id": "prov_8a5edab282632443219e",
+            "origin_organization": "theguardian.com",
+            "origin_document_url": "/",
+            "origin_published_at": "2026-08-05",
+            "source_url": "https://www.theguardian.com/games/2026/aug/05/video-game-maker-ea-bought-by-saudi-led-group",
+            "basis": "origin_document_url",
+            "confidence": "high"
+          }
+        },
+        {
+          "source_id": 5,
+          "name": "The Guardian",
+          "url": "https://www.theguardian.com/business/2026/aug/05/bank-windfall-tax-history-andy-burnham-cost-of-living",
+          "provenance_id": "prov_8a5edab282632443219e",
+          "provenance": {
+            "schema_version": "provenance-v1",
+            "provenance_id": "prov_8a5edab282632443219e",
+            "origin_organization": "theguardian.com",
+            "origin_document_url": "/",
+            "origin_published_at": "2026-08-05",
+            "source_url": "https://www.theguardian.com/business/2026/aug/05/bank-windfall-tax-history-andy-burnham-cost-of-living",
+            "basis": "origin_document_url",
+            "confidence": "high"
+          }
         }
       ],
-      "candidate_count": 24
+      "decision_log": [
+        {
+          "candidate_id": "cand_02",
+          "area": "geopolitics",
+          "title": "European border flashpoints will spur tighter emergency security deployments",
+          "decision": "rejected",
+          "engine_score": 83.4,
+          "threshold": 68.0,
+          "rejection_reasons": [
+            {
+              "code": "LOWER_PRIORITY_AREA",
+              "selected_area": "economy"
+            }
+          ],
+          "score_breakdown": {
+            "evidence_quality": 85.0,
+            "measurability": 88.0,
+            "causal_strength": 80.0,
+            "verifiability": 92.0,
+            "novelty": 72.0,
+            "source_quality": 78.0,
+            "speculation_risk": 20.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
+          "decision": "selected",
+          "engine_score": 81.78,
+          "threshold": 68.0,
+          "rejection_reasons": [],
+          "score_breakdown": {
+            "evidence_quality": 82.0,
+            "measurability": 85.0,
+            "causal_strength": 78.0,
+            "verifiability": 90.0,
+            "novelty": 75.0,
+            "source_quality": 78.0,
+            "speculation_risk": 25.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_03",
+          "area": "health",
+          "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
+          "decision": "rejected",
+          "engine_score": 71.9,
+          "threshold": 72.0,
+          "rejection_reasons": [
+            {
+              "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+              "required": 2,
+              "actual": 1
+            },
+            {
+              "code": "BELOW_AREA_THRESHOLD",
+              "actual": 71.9,
+              "required": 72.0
+            },
+            {
+              "code": "LOWER_PRIORITY_AREA",
+              "selected_area": "economy"
+            }
+          ],
+          "score_breakdown": {
+            "evidence_quality": 88.0,
+            "measurability": 90.0,
+            "causal_strength": 82.0,
+            "verifiability": 95.0,
+            "novelty": 70.0,
+            "source_quality": 78.0,
+            "speculation_risk": 15.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_04",
+          "area": "science",
+          "title": "Space debris impact tracking and lunar surface data publications will increase",
+          "decision": "rejected",
+          "engine_score": 71.9,
+          "threshold": 72.0,
+          "rejection_reasons": [
+            {
+              "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+              "required": 2,
+              "actual": 1
+            },
+            {
+              "code": "BELOW_AREA_THRESHOLD",
+              "actual": 71.9,
+              "required": 72.0
+            },
+            {
+              "code": "LOWER_PRIORITY_AREA",
+              "selected_area": "economy"
+            }
+          ],
+          "score_breakdown": {
+            "evidence_quality": 80.0,
+            "measurability": 85.0,
+            "causal_strength": 75.0,
+            "verifiability": 90.0,
+            "novelty": 82.0,
+            "source_quality": 78.0,
+            "speculation_risk": 22.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        }
+      ],
+      "candidates": [
+        {
+          "candidate_id": "cand_02",
+          "area": "geopolitics",
+          "content_category": "geopolitics",
+          "source_ids": [
+            9,
+            11
+          ],
+          "title": "European border flashpoints will spur tighter emergency security deployments",
+          "thesis": "Recent high-profile migration surges in Spanish enclaves and ongoing regional conflicts in Eastern Europe will lead to increased cross-border emergency funding and reinforced deployments by EU member states.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Synthesizes multiple geopolitical flashpoints reported across European border zones.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Total authorized EU emergency border management budget allocations for frontline states",
+            "comparison_operator": ">=",
+            "threshold": 500.0,
+            "unit": "million EUR",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 300.0,
+            "data_source_for_verification": "European Commission official press releases",
+            "verification_url": "https://ec.europa.eu",
+            "resolution_date": "2027-08-05",
+            "geography": "European Union",
+            "status": "open"
+          },
+          "evidence_quality": 85,
+          "measurability": 88,
+          "causal_strength": 80,
+          "verifiability": 92,
+          "novelty": 72,
+          "speculation_risk": 20,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "geopolitics",
+            "risk_class": "general_forecast",
+            "disclaimer_required": true,
+            "disclaimer_id": "general_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+              "en": "An AI forecast based on the listed sources. It is not an established fact."
+            }
+          },
+          "engine_score": 83.4,
+          "score_breakdown": {
+            "evidence_quality": 85.0,
+            "measurability": 88.0,
+            "causal_strength": 80.0,
+            "verifiability": 92.0,
+            "novelty": 72.0,
+            "source_quality": 78.0,
+            "speculation_risk": 20.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_01",
+          "area": "economy",
+          "content_category": "macro",
+          "source_ids": [
+            1,
+            5
+          ],
+          "title": "UK banking profit scrutiny will drive potential policy intervention metrics higher",
+          "thesis": "Following record half-year profits among UK major lenders fueled by high interest rates, political pressure for windfall taxes or levies will increase legislative scrutiny on bank earnings over the next year.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Directly builds upon reported bank profit surges and subsequent political debate surrounding windfall taxes.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Number of official government or parliamentary inquiries and proposed statutory levies targeting major UK lender profits",
+            "comparison_operator": ">=",
+            "threshold": 2.0,
+            "unit": "inquiries",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 0.0,
+            "data_source_for_verification": "UK Parliament official website publications",
+            "verification_url": "https://parliament.uk",
+            "resolution_date": "2027-08-05",
+            "geography": "United Kingdom",
+            "status": "open"
+          },
+          "evidence_quality": 82,
+          "measurability": 85,
+          "causal_strength": 78,
+          "verifiability": 90,
+          "novelty": 75,
+          "speculation_risk": 25,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "macro",
+            "risk_class": "general_forecast",
+            "disclaimer_required": true,
+            "disclaimer_id": "general_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+              "en": "An AI forecast based on the listed sources. It is not an established fact."
+            }
+          },
+          "engine_score": 81.78,
+          "score_breakdown": {
+            "evidence_quality": 82.0,
+            "measurability": 85.0,
+            "causal_strength": 78.0,
+            "verifiability": 90.0,
+            "novelty": 75.0,
+            "source_quality": 78.0,
+            "speculation_risk": 25.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 68.0,
+            "safety_gate": true,
+            "safety_reasons": [],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          },
+          "selection_mode": "priority_area_threshold"
+        },
+        {
+          "candidate_id": "cand_03",
+          "area": "health",
+          "content_category": "public_health",
+          "source_ids": [
+            19
+          ],
+          "title": "US cyclosporiasis outbreak tracking will prompt expanded state-level reporting mandates",
+          "thesis": "The expanding multi-state footprint of the cyclosporiasis outbreak will drive public health agencies to widen mandatory monitoring and surveillance protocols across additional states.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Rooted directly in CDC and state health department tracking updates regarding foodborne illness outbreaks.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Number of US states officially incorporating expanded multi-state pathogen tracking protocols into routine health reporting",
+            "comparison_operator": ">=",
+            "threshold": 20.0,
+            "unit": "states",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 15.0,
+            "data_source_for_verification": "Centers for Disease Control and Prevention reports",
+            "verification_url": "https://www.cdc.gov",
+            "resolution_date": "2027-08-05",
+            "geography": "United States",
+            "status": "open"
+          },
+          "evidence_quality": 88,
+          "measurability": 90,
+          "causal_strength": 82,
+          "verifiability": 95,
+          "novelty": 70,
+          "speculation_risk": 15,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "public_health",
+            "risk_class": "medical_information",
+            "disclaimer_required": true,
+            "disclaimer_id": "medical_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI ma charakter informacyjny i nie zastępuje porady, diagnozy ani leczenia medycznego.",
+              "en": "This AI forecast is informational and does not replace medical advice, diagnosis or treatment."
+            }
+          },
+          "engine_score": 71.9,
+          "score_breakdown": {
+            "evidence_quality": 88.0,
+            "measurability": 90.0,
+            "causal_strength": 82.0,
+            "verifiability": 95.0,
+            "novelty": 70.0,
+            "source_quality": 78.0,
+            "speculation_risk": 15.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 1,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        },
+        {
+          "candidate_id": "cand_04",
+          "area": "science",
+          "content_category": "science_research",
+          "source_ids": [
+            21,
+            23
+          ],
+          "title": "Space debris impact tracking and lunar surface data publications will increase",
+          "thesis": "The unintentional lunar collision of a rocket component will generate heightened academic interest and published studies regarding orbital debris monitoring and lunar surface impact geology.",
+          "horizon_pl": "6–12 miesięcy",
+          "horizon_en": "6–12 months",
+          "selection_reason": "Connects documented space exploration milestones with anticipated scientific literature growth.",
+          "resolution": {
+            "schema_version": "resolution-v1",
+            "metric": "Number of peer-reviewed research papers published addressing lunar impact craters formed by artificial space debris",
+            "comparison_operator": ">=",
+            "threshold": 5.0,
+            "unit": "papers",
+            "baseline_date": "2026-08-05",
+            "baseline_value": 0.0,
+            "data_source_for_verification": "NASA Technical Reports Server or Google Scholar index",
+            "verification_url": "https://ntrs.nasa.gov",
+            "resolution_date": "2027-08-05",
+            "geography": "Global",
+            "status": "open"
+          },
+          "evidence_quality": 80,
+          "measurability": 85,
+          "causal_strength": 75,
+          "verifiability": 90,
+          "novelty": 82,
+          "speculation_risk": 22,
+          "governance": {
+            "schema_version": "governance-v1",
+            "content_category": "science_research",
+            "risk_class": "general_forecast",
+            "disclaimer_required": true,
+            "disclaimer_id": "general_forecast_v1",
+            "disclaimers": {
+              "pl": "Prognoza AI oparta na wskazanych źródłach. Nie jest ustalonym faktem.",
+              "en": "An AI forecast based on the listed sources. It is not an established fact."
+            }
+          },
+          "engine_score": 71.9,
+          "score_breakdown": {
+            "evidence_quality": 80.0,
+            "measurability": 85.0,
+            "causal_strength": 75.0,
+            "verifiability": 90.0,
+            "novelty": 82.0,
+            "source_quality": 78.0,
+            "speculation_risk": 22.0,
+            "speculation_penalty": 0.0,
+            "novelty_penalty": 0.0,
+            "threshold": 72.0,
+            "safety_gate": false,
+            "safety_reasons": [
+              {
+                "code": "INSUFFICIENT_INDEPENDENT_PROVENANCE",
+                "required": 2,
+                "actual": 1
+              }
+            ],
+            "source_count": 2,
+            "distinct_hosts": 1,
+            "independent_provenance_count": 1,
+            "provenance_ids": [
+              "prov_8a5edab282632443219e"
+            ],
+            "authoritative": false,
+            "average_source_quality": 78.0,
+            "independent_source_bonus": 0.0
+          }
+        }
+      ],
+      "edition_language": "en",
+      "source_policy": "english-language-canonical-news-only"
     }
+  },
+  "generation_mode": "ai_primary",
+  "ai_provider": "gemini",
+  "generation_model": "gemini-3.5-flash-lite",
+  "review_model": "gemini-3.5-flash-lite",
+  "provider_preflight": {
+    "provider": "gemini",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+    "model": "gemini-3.5-flash-lite",
+    "status": "healthy",
+    "status_code": 200
   }
 }
