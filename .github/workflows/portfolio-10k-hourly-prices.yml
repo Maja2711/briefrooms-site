@@ -13,9 +13,12 @@ on:
       - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/patch_portfolio_10k_en_usd.py"
       - "scripts/patch_portfolio_10k_hourly_ui.py"
+      - "scripts/validate_portfolio_10k_state.py"
+      - "scripts/audit_investment_rooms_fast.py"
       - "scripts/portfolio-10k-*.js"
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
+      - "tests/test_validate_portfolio_10k_state.py"
       - "data/portfolio10k/paper_orders.json"
       - "data/portfolio10k/paper_portfolio.json"
       - "assets/portfolio-10k-accessibility.css"
@@ -26,6 +29,7 @@ on:
 
 permissions:
   contents: write
+
 concurrency:
   group: portfolio-market-data
   cancel-in-progress: false
@@ -33,36 +37,49 @@ concurrency:
 jobs:
   refresh-hourly-prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
+
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install quote dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
+
       - name: Reconcile already executed paper trades
         run: python scripts/reconcile_portfolio_10k_executions.py
+
       - name: Refresh current prices and portfolio valuation
         run: python scripts/portfolio_10k_hourly_prices.py
+
       - name: Build independent USD portfolio and journal
         run: |
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
+
       - name: Patch public PL and EN pages
         run: |
           python scripts/patch_portfolio_10k_en_usd.py
           python scripts/patch_portfolio_10k_hourly_ui.py
+
       - name: Activate and retry authorised BRACE paper orders
         run: |
           python scripts/brace_portfolio_user_control.py || echo "::warning::BRACE activation deferred."
           python scripts/brace_portfolio_execution.py --network || echo "::warning::BRACE paper execution deferred; valuation publication continues."
           python scripts/brace_portfolio_user_control.py --republish || echo "::warning::BRACE public snapshot republish deferred."
+
       - name: Reconcile trades executed during this run
-        run: python scripts/reconcile_portfolio_10k_executions.py
+        run: |
+          python scripts/reconcile_portfolio_10k_executions.py
+          python scripts/build_portfolio_10k_usd.py
+          python scripts/fix_portfolio_10k_usd_reviews.py
+
       - name: Validate public labels and assets
         run: |
           grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
@@ -81,11 +98,17 @@ jobs:
           grep -q 'portfolio-10k-decision-overlay.js?v=2' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-execution-finalizer.js?v=2' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-execution-finalizer.js?v=2' en/investing/portfolio-10k.html
-      - name: Validate accounting and JavaScript
+
+      - name: Validate accounting, tests and JavaScript
         run: |
-          python -m py_compile scripts/reconcile_portfolio_10k_executions.py
+          python -m py_compile \
+            scripts/reconcile_portfolio_10k_executions.py \
+            scripts/validate_portfolio_10k_state.py \
+            scripts/audit_investment_rooms_fast.py
+          python -m unittest tests.test_validate_portfolio_10k_state -v
           python scripts/validate_portfolio_10k_state.py
           node --check scripts/portfolio-10k-public.js
+          node --check scripts/portfolio-10k-dashboard.js
           node --check scripts/portfolio-10k-dashboard-en.js
           node --check scripts/portfolio-10k-usd-source.js
           node --check scripts/portfolio-10k-analytics-enhanced.js
@@ -111,7 +134,19 @@ jobs:
               assert any(p.get('id') == 'novo' for p in portfolio.get('closed_positions', [])), 'Executed Novo exit must be in closed history'
               assert round(float(portfolio.get('cash_pln') or 0), 2) == 455.25, 'Executed Novo exit cash must be 455.25 PLN'
           PY
-      - name: Commit hourly valuation, UI and paper state
+
+      - name: Audit every PL and EN option locally in Chrome
+        continue-on-error: true
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          SERVER_PID=$!
+          sleep 2
+          python scripts/audit_investment_rooms_fast.py
+          AUDIT_EXIT=$?
+          kill "$SERVER_PID" || true
+          exit "$AUDIT_EXIT"
+
+      - name: Commit hourly valuation, UI, audit and paper state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -121,9 +156,9 @@ jobs:
                   en/investing/portfolio-10k.html
           git add -A data/portfolio10k
           if git diff --cached --quiet; then
-            echo "No hourly valuation change to commit."
+            echo "No hourly valuation or audit change to commit."
           else
-            git commit -m "Refresh Portfolio 10K current prices"
+            git commit -m "Refresh Portfolio 10K and audit PL EN rooms"
             if ! git diff --quiet; then
               echo "::error::Updater left unstaged files; refusing a partial publication."
               git status --short
@@ -132,3 +167,63 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+
+      - name: Audit all 18 views on public production
+        continue-on-error: true
+        run: |
+          PASSED=0
+          for attempt in 1 2 3; do
+            echo "Production audit attempt $attempt"
+            if AUDIT_BASE_URL=https://briefrooms.com \
+               AUDIT_OUTPUT_PATH=data/portfolio10k/investment_room_production_audit.json \
+               python scripts/audit_investment_rooms_fast.py; then
+              PASSED=1
+              break
+            fi
+            sleep 15
+          done
+          exit $((1 - PASSED))
+
+      - name: Commit production audit report
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ ! -f data/portfolio10k/investment_room_production_audit.json ]; then
+            echo '{"schema_version":"investment-room-full-audit-v3","passed":false,"fatal_error":"production report missing"}' > data/portfolio10k/investment_room_production_audit.json
+          fi
+          git add data/portfolio10k/investment_room_production_audit.json
+          if git diff --cached --quiet; then
+            echo "Production audit report unchanged."
+          else
+            git commit -m "Audit all PL and EN investment views on production"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Require passing local and production audits
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          paths = [
+              Path('data/portfolio10k/investment_room_full_audit.json'),
+              Path('data/portfolio10k/investment_room_production_audit.json'),
+          ]
+          failed = []
+          for path in paths:
+              if not path.exists():
+                  failed.append(f'{path}: missing')
+                  continue
+              report = json.loads(path.read_text(encoding='utf-8'))
+              if not report.get('passed'):
+                  failed.append(f'{path}: failed')
+                  for language, result in report.get('results', {}).items():
+                      for tab in result.get('tabs', []):
+                          if not tab.get('passed'):
+                              failed.append(f"{language}/{tab.get('tab')}: status={tab.get('status')!r}, value={tab.get('portfolio_value')!r}, active={tab.get('active')}")
+          if failed:
+              raise SystemExit('\n'.join(failed))
+          print('All 18 PL/EN views passed locally and on production.')
+          PY
