@@ -15,6 +15,15 @@
 
   const pct = value => `${Number(value || 0) >= 0 ? '+' : ''}${(Number(value || 0) * 100).toFixed(2)}%`;
 
+  function loadTournamentCompanyProfiles() {
+    if (document.querySelector('script[src*="/scripts/ai-tournament-company-profiles.js"]')) return;
+    const script = document.createElement('script');
+    script.src = '/scripts/ai-tournament-company-profiles.js?v=1';
+    script.async = true;
+    script.dataset.aiTournamentCompanyProfiles = 'true';
+    document.head.appendChild(script);
+  }
+
   async function json(path) {
     const response = await fetch(`${path}?v=${Date.now()}`, {cache: 'no-store'});
     if (!response.ok) throw new Error(`${path}:${response.status}`);
@@ -136,6 +145,7 @@
   }
 
   async function start() {
+    loadTournamentCompanyProfiles();
     try {
       const state = await loadState();
       if (!state.executed.length) return;
