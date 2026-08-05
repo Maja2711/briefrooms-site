@@ -1,0 +1,74 @@
+name: Investment Room Emergency Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/audit_investment_rooms.mjs"
+      - ".github/workflows/investment-room-emergency-audit.yml"
+      - "data/investments/investment_room_emergency_audit_trigger.txt"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-room-emergency-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.54.2
+          npx playwright install --with-deps chromium
+      - name: Start local site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/briefrooms-http.log
+          exit 1
+      - name: Audit all tabs in PL and EN
+        id: audit
+        continue-on-error: true
+        run: node scripts/audit_investment_rooms.mjs
+      - name: Commit diagnostic report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/investment_room_full_audit.json
+          git commit -m "chore(investing): record emergency PL and EN audit" || exit 0
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-emergency-audit
+          path: artifacts/*.png
+          if-no-files-found: error
+      - name: Mark failed audit
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/investments/investment_room_full_audit.json').read_text(encoding='utf-8'))
+          if not report.get('passed'):
+              raise SystemExit('Emergency audit detected failures')
+          PY
