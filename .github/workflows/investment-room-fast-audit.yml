@@ -1,0 +1,153 @@
+name: Investment Room Fast Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/investment-room-fast-audit.yml"
+      - "data/investments/investment_room_fast_audit_trigger.txt"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-room-fast-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Locate Chrome
+        run: |
+          set -euo pipefail
+          command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
+
+      - name: Start local site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/briefrooms-http.log
+          exit 1
+
+      - name: Open every tab in headless Chrome and write report
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          chrome = next((shutil.which(name) for name in ('google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser') if shutil.which(name)), None)
+          if not chrome:
+              raise SystemExit('Chrome not found')
+
+          tabs = ('overview', 'portfolio', 'benchmark', 'agents', 'projections', 'rules', 'brace', 'analytics', 'history')
+          pages = {
+              'pl': 'http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html',
+              'en': 'http://127.0.0.1:8000/en/investing/portfolio-10k.html',
+          }
+          expected_nav = ('news', 'investing', 'health', 'science', 'geopolitics', 'about')
+          report = {
+              'schema_version': 'investment-room-fast-audit-v1',
+              'generated_at': datetime.now(timezone.utc).isoformat(),
+              'passed': True,
+              'results': {},
+          }
+
+          def dump(url):
+              proc = subprocess.run([
+                  chrome,
+                  '--headless=new',
+                  '--no-sandbox',
+                  '--disable-gpu',
+                  '--disable-dev-shm-usage',
+                  '--run-all-compositor-stages-before-draw',
+                  '--virtual-time-budget=12000',
+                  '--dump-dom',
+                  url,
+              ], text=True, capture_output=True, timeout=35)
+              return proc.returncode, proc.stdout, proc.stderr[-5000:]
+
+          for lang, base in pages.items():
+              lang_result = {'passed': True, 'tabs': [], 'errors': []}
+              first_dom = ''
+              for tab in tabs:
+                  code, dom, stderr = dump(f'{base}?audit={datetime.now().timestamp()}#{tab}')
+                  if not first_dom:
+                      first_dom = dom
+                  active = bool(re.search(rf'<section[^>]+class="[^"]*i10k-panel[^"]*active[^"]*"[^>]+data-panel="{tab}"', dom))
+                  has_panel = f'data-panel="{tab}"' in dom
+                  loading = bool(re.search(r'(Ładowanie danych|Loading data|SPRAWDZANIE|CHECKING)', dom, re.I))
+                  value_match = re.search(r'id="portfolio-value"[^>]*>(.*?)</', dom, re.S)
+                  value = re.sub('<[^>]+>', '', value_match.group(1)).strip() if value_match else ''
+                  positions_match = re.search(r'id="positions-count"[^>]*>(.*?)</', dom, re.S)
+                  positions = re.sub('<[^>]+>', '', positions_match.group(1)).strip() if positions_match else ''
+                  item = {
+                      'tab': tab,
+                      'chrome_exit': code,
+                      'panel_exists': has_panel,
+                      'active': active,
+                      'loading': loading,
+                      'portfolio_value': value,
+                      'positions': positions,
+                      'stderr_tail': stderr,
+                  }
+                  item['passed'] = code == 0 and has_panel and active and not loading and value not in ('', '—', '-') and positions.isdigit()
+                  if not item['passed']:
+                      lang_result['passed'] = False
+                      report['passed'] = False
+                  lang_result['tabs'].append(item)
+
+              order = re.findall(r'<a[^>]+data-section="([^"]+)"[^>]*class="[^"]*br-site-header__link', first_dom)
+              if not order:
+                  order = re.findall(r'<a[^>]+class="[^"]*br-site-header__link[^"]*"[^>]+data-section="([^"]+)"', first_dom)
+              lang_result['navigation_order'] = order
+              lang_result['navigation_expected'] = list(expected_nav)
+              lang_result['navigation_passed'] = tuple(order) == expected_nav
+              if not lang_result['navigation_passed']:
+                  lang_result['passed'] = False
+                  report['passed'] = False
+              report['results'][lang] = lang_result
+
+          path = Path('data/investments/investment_room_fast_audit.json')
+          path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Commit audit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/investment_room_fast_audit.json
+          git commit -m "chore(investing): record fast PL and EN audit" || exit 0
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          exit 1
+
+      - name: Fail on detected room errors
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/investments/investment_room_fast_audit.json').read_text(encoding='utf-8'))
+          if not report.get('passed'):
+              raise SystemExit('PL/EN investment room audit failed')
+          PY
