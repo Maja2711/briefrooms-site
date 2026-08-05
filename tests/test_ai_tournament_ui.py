@@ -54,7 +54,8 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("function summary(rows)", self.summary_script)
         self.assertIn("lead: second ? returnValue(leader) - returnValue(second) : 0", self.summary_script)
         self.assertIn("average = values.reduce", self.summary_script)
-        self.assertIn("spread: best - worst", self.summary_script)
+        self.assertIn("spread: bestReturn - worstReturn", self.summary_script)
+        self.assertIn("worst = ranked.reduce", self.summary_script)
         self.assertEqual(self.summary_script.count('class="ait-summary-stat"'), 4)
         self.assertIn("MutationObserver", self.summary_script)
 
