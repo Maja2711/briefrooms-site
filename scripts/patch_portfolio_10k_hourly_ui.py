@@ -1,5 +1,9 @@
 from pathlib import Path
+import json
 import re
+import subprocess
+import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = [ROOT / "pl/inwestycje/portfel-10k.html", ROOT / "en/investing/portfolio-10k.html"]
@@ -12,6 +16,7 @@ EXPLAINERS_JS = '<script src="/scripts/portfolio-10k-explainers.js?v=4" defer></
 VERIFIED_REPORTS_JS = '<script src="/scripts/portfolio-10k-verified-material-loader.js?v=2" defer></script>'
 DECISION_JS = '<script src="/scripts/portfolio-10k-decision-overlay.js?v=2" defer></script>'
 EXECUTION_FINALIZER_JS = '<script src="/scripts/portfolio-10k-execution-finalizer.js?v=2" defer></script>'
+AUDIT_PATH = ROOT / "data/portfolio10k/investment_room_full_audit.json"
 
 
 def ensure_asset(text: str, marker: str, html: str, where: str) -> str:
@@ -61,3 +66,51 @@ for path in PAGES:
         text = text.replace('<h2 id="brace-control-title">Who controls the 10K Portfolio</h2>', '<h2 id="brace-control-title">BRACE controls the 10K Portfolio</h2>')
         text = text.replace('A transparent view of the baseline, challenger, promotion gates and automatic model-portfolio safeguards.', 'BRACE runs a separate model portfolio in probationary mode. It refreshes data, material reports and position assessments weekly; it executes paper trades only, with risk limits and baseline fallback kept active.')
     path.write_text(text, encoding="utf-8")
+
+
+def run_room_audit() -> None:
+    """Run the real-browser audit after the final page patch without blocking publication."""
+    server = subprocess.Popen(
+        [sys.executable, "-m", "http.server", "8000", "--bind", "127.0.0.1"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        time.sleep(1.5)
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/audit_investment_rooms_fast.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=360,
+        )
+        print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
+        print(f"Investment room audit exit code: {result.returncode}")
+    except Exception as exc:
+        AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        AUDIT_PATH.write_text(
+            json.dumps(
+                {
+                    "schema_version": "investment-room-full-audit-v2",
+                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "passed": False,
+                    "fatal_error": f"{type(exc).__name__}: {exc}",
+                },
+                ensure_ascii=False,
+                indent=2,
+            ) + "\n",
+            encoding="utf-8",
+        )
+        print(f"Investment room audit failed to execute: {exc}")
+    finally:
+        server.terminate()
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server.kill()
+
+
+run_room_audit()
