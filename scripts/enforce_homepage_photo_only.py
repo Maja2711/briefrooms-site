@@ -9,16 +9,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
-SCRIPT_VERSION = "ai-outlook-independent-4"
+SCRIPT_VERSION = "ai-outlook-daily-5"
 GUARD_VERSION = "governance-v3"
+FRESHNESS_VERSION = "daily-v1"
 SCRIPT = f'<script src="/scripts/homepage-photo-only.js?v={SCRIPT_VERSION}" defer></script>'
 GUARD_SCRIPT = f'<script src="/scripts/ai-outlook-governance-guard.js?v={GUARD_VERSION}" defer></script>'
+FRESHNESS_SCRIPT = f'<script src="/scripts/ai-outlook-freshness-guard.js?v={FRESHNESS_VERSION}" defer></script>'
 SCRIPT_RE = re.compile(
     r'<script\s+src=["\']/scripts/homepage-photo-only\.js(?:\?[^"\']*)?["\']\s+defer></script>',
     re.I,
 )
 GUARD_RE = re.compile(
     r'<script\s+src=["\']/scripts/ai-outlook-governance-guard\.js(?:\?[^"\']*)?["\']\s+defer></script>',
+    re.I,
+)
+FRESHNESS_RE = re.compile(
+    r'<script\s+src=["\']/scripts/ai-outlook-freshness-guard\.js(?:\?[^"\']*)?["\']\s+defer></script>',
     re.I,
 )
 CARD_RE = re.compile(
@@ -67,7 +73,8 @@ def ensure_runtime(source: str) -> str:
         raise RuntimeError("Homepage closing body tag missing")
     source = SCRIPT_RE.sub("", source)
     source = GUARD_RE.sub("", source)
-    runtime = GUARD_SCRIPT + "\n" + SCRIPT
+    source = FRESHNESS_RE.sub("", source)
+    runtime = FRESHNESS_SCRIPT + "\n" + GUARD_SCRIPT + "\n" + SCRIPT
     source = source.replace("</body>", runtime + "\n</body>", 1)
     return source
 
