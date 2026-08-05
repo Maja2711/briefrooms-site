@@ -37,7 +37,7 @@ concurrency:
 jobs:
   refresh-hourly-prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +49,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install quote dependencies
-        run: python -m pip install --upgrade pip yfinance pandas numpy
+      - name: Install quote and browser dependencies
+        run: |
+          python -m pip install --upgrade pip yfinance pandas numpy playwright==1.54.0
+          python -m playwright install --with-deps chromium
 
       - name: Reconcile already executed paper trades
         run: python scripts/reconcile_portfolio_10k_executions.py
@@ -135,16 +137,25 @@ jobs:
               assert round(float(portfolio.get('cash_pln') or 0), 2) == 455.25, 'Executed Novo exit cash must be 455.25 PLN'
           PY
 
-      - name: Audit every PL and EN option locally in Chrome
+      - name: Audit every PL and EN option locally in Chromium
         continue-on-error: true
         run: |
           python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
           SERVER_PID=$!
           sleep 2
+          set +e
           python scripts/audit_investment_rooms_fast.py
           AUDIT_EXIT=$?
           kill "$SERVER_PID" || true
           exit "$AUDIT_EXIT"
+
+      - name: Upload local audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-local-audit
+          path: artifacts/investment-room-audit/*.png
+          if-no-files-found: warn
 
       - name: Commit hourly valuation, UI, audit and paper state
         run: |
@@ -176,6 +187,7 @@ jobs:
             echo "Production audit attempt $attempt"
             if AUDIT_BASE_URL=https://briefrooms.com \
                AUDIT_OUTPUT_PATH=data/portfolio10k/investment_room_production_audit.json \
+               AUDIT_SCREENSHOT_DIR=artifacts/investment-room-production-audit \
                python scripts/audit_investment_rooms_fast.py; then
               PASSED=1
               break
@@ -184,13 +196,21 @@ jobs:
           done
           exit $((1 - PASSED))
 
+      - name: Upload production audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-production-audit
+          path: artifacts/investment-room-production-audit/*.png
+          if-no-files-found: warn
+
       - name: Commit production audit report
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ ! -f data/portfolio10k/investment_room_production_audit.json ]; then
-            echo '{"schema_version":"investment-room-full-audit-v3","passed":false,"fatal_error":"production report missing"}' > data/portfolio10k/investment_room_production_audit.json
+            echo '{"schema_version":"investment-room-full-audit-v4","passed":false,"fatal_error":"production report missing"}' > data/portfolio10k/investment_room_production_audit.json
           fi
           git add data/portfolio10k/investment_room_production_audit.json
           if git diff --cached --quiet; then
@@ -219,10 +239,12 @@ jobs:
               report = json.loads(path.read_text(encoding='utf-8'))
               if not report.get('passed'):
                   failed.append(f'{path}: failed')
+                  if report.get('fatal_error'):
+                      failed.append(str(report['fatal_error']))
                   for language, result in report.get('results', {}).items():
                       for tab in result.get('tabs', []):
                           if not tab.get('passed'):
-                              failed.append(f"{language}/{tab.get('tab')}: status={tab.get('status')!r}, value={tab.get('portfolio_value')!r}, active={tab.get('active')}")
+                              failed.append(f"{language}/{tab.get('tab')}: status={result.get('data', {}).get('status')!r}, value={result.get('data', {}).get('portfolio_value')!r}, active={tab.get('active')}, visible={tab.get('visible')}")
           if failed:
               raise SystemExit('\n'.join(failed))
           print('All 18 PL/EN views passed locally and on production.')
