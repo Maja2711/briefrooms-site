@@ -10,7 +10,7 @@ on:
       - "scripts/portfolio-10k-*.js"
       - "scripts/ai-tournament-*.js"
       - "scripts/site-header.js"
-      - "scripts/audit_investment_rooms_probe.py"
+      - "scripts/audit_investment_rooms_probe2.py"
       - ".github/workflows/investment-room-pr-browser-audit.yml"
 
 permissions:
@@ -42,10 +42,10 @@ jobs:
           done
           cat /tmp/briefrooms-http.log
           exit 1
-      - name: Probe every PL and EN investment option
+      - name: Diagnose and click every PL and EN option
         id: audit
         continue-on-error: true
-        run: timeout 90s python -u scripts/audit_investment_rooms_probe.py
+        run: timeout 90s python -u scripts/audit_investment_rooms_probe2.py
       - name: Print complete report
         if: always()
         run: cat data/portfolio10k/investment_room_full_audit.json
