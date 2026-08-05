@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -10,9 +11,11 @@ from pathlib import Path
 
 CHROME_NAMES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 TABS = ("overview", "portfolio", "benchmark", "agents", "projections", "rules", "brace", "analytics", "history")
+BASE_URL = os.environ.get("AUDIT_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+OUTPUT_PATH = Path(os.environ.get("AUDIT_OUTPUT_PATH", "data/portfolio10k/investment_room_full_audit.json"))
 PAGES = {
-    "pl": "http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html",
-    "en": "http://127.0.0.1:8000/en/investing/portfolio-10k.html",
+    "pl": f"{BASE_URL}/pl/inwestycje/portfel-10k.html",
+    "en": f"{BASE_URL}/en/investing/portfolio-10k.html",
 }
 EXPECTED_NAV = ("news", "investing", "health", "science", "geopolitics", "about")
 
@@ -75,8 +78,9 @@ def navigation_order(dom: str) -> list[str]:
 def main() -> int:
     chrome = chrome_path()
     report: dict = {
-        "schema_version": "investment-room-full-audit-v2",
+        "schema_version": "investment-room-full-audit-v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "base_url": BASE_URL,
         "passed": True,
         "results": {},
     }
@@ -121,9 +125,8 @@ def main() -> int:
             report["passed"] = False
         report["results"][language] = language_result
 
-    output = Path("data/portfolio10k/investment_room_full_audit.json")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["passed"] else 1
 
