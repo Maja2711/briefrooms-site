@@ -6,7 +6,7 @@ on:
       force:
         description: "Regenerate today's PL and EN forecasts"
         required: false
-        default: false
+        default: true
         type: boolean
   push:
     branches: [main]
@@ -14,34 +14,39 @@ on:
       - "scripts/update_ai_outlook.py"
       - "scripts/update_ai_outlook_v2.py"
       - "scripts/update_ai_outlook_v3.py"
+      - "scripts/publish_ai_outlook_daily.py"
       - "scripts/ai_outlook_engine.py"
       - "scripts/ai_outlook_metrics.py"
       - "scripts/ai-outlook-governance-guard.js"
+      - "scripts/ai-outlook-freshness-guard.js"
       - "scripts/homepage-photo-only.js"
       - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_ai_outlook.py"
       - "tests/test_ai_outlook_v3.py"
+      - "tests/test_ai_outlook_daily.py"
       - "tests/test_ai_outlook_engine.py"
       - "tests/test_ai_outlook_metrics.py"
       - "tests/test_homepage_photo_only.py"
       - ".github/workflows/ai-outlook-daily.yml"
   schedule:
-    # Main morning edition: 07:35 CEST / 06:35 CET in Warsaw, after the hourly news refresh.
+    # Main morning edition: 07:35 CEST / 06:35 CET in Warsaw.
     - cron: "35 5 * * *"
-    # Morning recovery: 10:35 CEST / 09:35 CET. It only generates when today's edition is missing.
-    - cron: "35 8 * * *"
+    # Three independent recovery passes. They no-op when today's edition is already fresh.
+    - cron: "35 7 * * *"
+    - cron: "35 9 * * *"
+    - cron: "35 11 * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: ai-outlook-daily
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish-ai-outlook:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Check out latest main
@@ -58,21 +63,24 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Publish governed homepage assets
+      - name: Publish governed and freshness-checked homepage assets
         run: |
           set -euo pipefail
           python scripts/enforce_homepage_photo_only.py
+          grep -F '/scripts/ai-outlook-freshness-guard.js?v=daily-v1' pl/index.html
+          grep -F '/scripts/ai-outlook-freshness-guard.js?v=daily-v1' en/index.html
           grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v3' pl/index.html
           grep -F '/scripts/ai-outlook-governance-guard.js?v=governance-v3' en/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' pl/index.html
-          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-independent-4' en/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-daily-5' pl/index.html
+          grep -F '/scripts/homepage-photo-only.js?v=ai-outlook-daily-5' en/index.html
 
-      - name: Validate independent-edition pipeline
+      - name: Validate resilient daily pipeline
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_ai_outlook \
             tests.test_ai_outlook_v3 \
+            tests.test_ai_outlook_daily \
             tests.test_ai_outlook_engine \
             tests.test_ai_outlook_metrics \
             tests.test_homepage_photo_only -v
@@ -80,29 +88,33 @@ jobs:
             scripts/update_ai_outlook.py \
             scripts/update_ai_outlook_v2.py \
             scripts/update_ai_outlook_v3.py \
+            scripts/publish_ai_outlook_daily.py \
             scripts/ai_outlook_engine.py \
             scripts/ai_outlook_metrics.py \
             scripts/enforce_homepage_photo_only.py
           node --check scripts/homepage-photo-only.js
           node --check scripts/ai-outlook-governance-guard.js
-          grep -F "if (node.textContent === text) return false" scripts/ai-outlook-governance-guard.js
-          grep -F "observer.disconnect()" scripts/ai-outlook-governance-guard.js
+          node --check scripts/ai-outlook-freshness-guard.js
+          grep -F "payload date must equal the current Europe/Warsaw calendar date" scripts/publish_ai_outlook_daily.py
+          grep -F "String(payload.date || '') === warsawDateKey" scripts/ai-outlook-freshness-guard.js
           python scripts/update_ai_outlook_v3.py --validate-only
 
-      - name: Generate independent morning PL and EN editions
+      - name: Generate today's independent PL and EN editions
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NEWS_AI_MODEL: gpt-4o-mini
+          NEWS_AI_MODEL: gpt-4.1-mini
           NEWS_AI_REVIEW_MODEL: gpt-4.1-mini
         shell: bash
         run: |
           set -euo pipefail
           ARGS=""
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            ARGS="--force"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
             ARGS="--force"
           fi
-          python scripts/update_ai_outlook_v3.py $ARGS
-          python scripts/update_ai_outlook_v3.py --validate-only --require-v2
+          python scripts/publish_ai_outlook_daily.py $ARGS
+          python scripts/publish_ai_outlook_daily.py --validate-only --require-today
 
       - name: Verify date and language isolation
         run: |
@@ -113,9 +125,10 @@ jobs:
           from zoneinfo import ZoneInfo
 
           payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          status = json.loads(Path('data/ai_outlook_status.json').read_text(encoding='utf-8'))
           today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
-          if payload.get('date') != today:
-              raise SystemExit(f"AI Outlook is stale: expected {today}, got {payload.get('date')!r}")
+          if payload.get('date') != today or status.get('date') != today:
+              raise SystemExit(f"AI Outlook is stale: expected {today}, payload={payload.get('date')!r}, status={status.get('date')!r}")
           if payload.get('schema_version') != 2:
               raise SystemExit('AI Outlook schema v2 is required')
           if payload.get('edition_policy') != 'independent-per-language':
@@ -124,12 +137,14 @@ jobs:
               edition = payload.get(language) or {}
               if edition.get('source_language') != language:
                   raise SystemExit(f'{language} edition source language mismatch')
+              if not str(edition.get('forecast_id') or '').startswith(today + '-' + language + '-'):
+                  raise SystemExit(f'{language} forecast ID is stale')
               sources = edition.get('sources') or []
               if not sources or any(source.get('source_language') != language for source in sources):
                   raise SystemExit(f'{language} edition contains a cross-language source')
           print(
-              'AI Outlook language isolation verified: '
-              f"PL={payload['pl']['forecast_id']} EN={payload['en']['forecast_id']}"
+              'AI Outlook freshness and language isolation verified: '
+              f"mode={status.get('mode')} PL={payload['pl']['forecast_id']} EN={payload['en']['forecast_id']}"
           )
           PY
 
@@ -138,29 +153,146 @@ jobs:
           python scripts/ai_outlook_metrics.py
           python scripts/ai_outlook_metrics.py --validate-only
 
-      - name: Commit forecast, audit and homepage assets atomically
+      - name: Commit forecast, audit, status and homepage assets atomically
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
-          git add data/ai_outlook.json data/ai_outlook_history data/ai_outlook_metrics.json
+          git add data/ai_outlook.json data/ai_outlook_status.json data/ai_outlook_history data/ai_outlook_metrics.json
           git add data/internal/ai_outlook_audit 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "No AI Outlook changes to commit."
+            echo "Today's AI Outlook and homepage assets are already current."
+          else
+            git commit -m "Publish fresh daily PL and EN AI Outlook"
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+                git rebase origin/main
+              fi
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [[ "$attempt" == "5" ]]; then
+                echo "::error::Could not publish AI Outlook after 5 attempts."
+                exit 1
+              fi
+              sleep $((attempt * 4))
+            done
+          fi
+
+      - name: Verify today's edition on production
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          data_url = 'https://briefrooms.com/data/ai_outlook.json'
+          pages = {
+              'pl': 'https://briefrooms.com/pl/',
+              'en': 'https://briefrooms.com/en/',
+          }
+          headers = {
+              'User-Agent': 'BriefRooms AI Outlook production verifier/1.0',
+              'Cache-Control': 'no-cache',
+          }
+          last_errors = []
+          observed = {}
+          passed = False
+
+          for attempt in range(1, 37):
+              token = f'{int(time.time())}-{attempt}'
+              errors = []
+              try:
+                  request = urllib.request.Request(f'{data_url}?verify={token}', headers=headers)
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      payload = json.loads(response.read().decode('utf-8'))
+                  observed = {
+                      'date': payload.get('date'),
+                      'generated_at': payload.get('generated_at'),
+                      'generation_mode': payload.get('generation_mode', 'ai_primary'),
+                      'pl_forecast_id': (payload.get('pl') or {}).get('forecast_id'),
+                      'en_forecast_id': (payload.get('en') or {}).get('forecast_id'),
+                  }
+                  if payload.get('date') != today:
+                      errors.append(f"data date={payload.get('date')!r}")
+                  if payload.get('schema_version') != 2:
+                      errors.append('schema is not v2')
+                  for language in ('pl', 'en'):
+                      edition = payload.get(language) or {}
+                      if edition.get('source_language') != language:
+                          errors.append(f'{language} source language mismatch')
+                      if not str(edition.get('forecast_id') or '').startswith(today + '-' + language + '-'):
+                          errors.append(f'{language} forecast ID mismatch')
+              except Exception as exc:
+                  errors.append(f'data: {exc}')
+
+              for language, url in pages.items():
+                  try:
+                      request = urllib.request.Request(f'{url}?aioutlook={token}', headers=headers)
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          body = response.read().decode('utf-8', 'replace')
+                      required = (
+                          '/scripts/ai-outlook-freshness-guard.js?v=daily-v1',
+                          '/scripts/ai-outlook-governance-guard.js?v=governance-v3',
+                          '/scripts/homepage-photo-only.js?v=ai-outlook-daily-5',
+                      )
+                      for asset in required:
+                          if asset not in body:
+                              errors.append(f'{language}: missing {asset}')
+                  except Exception as exc:
+                      errors.append(f'{language} page: {exc}')
+
+              if not errors:
+                  passed = True
+                  break
+              last_errors = errors
+              time.sleep(10)
+
+          status = {
+              'schema_version': 'ai-outlook-production-status-v1',
+              'status': 'passed' if passed else 'failed',
+              'date': today,
+              'observed': observed,
+              'homepage_assets': {
+                  'freshness_guard': 'daily-v1',
+                  'governance_guard': 'governance-v3',
+                  'renderer': 'ai-outlook-daily-5',
+              },
+              'errors': [] if passed else last_errors,
+          }
+          Path('data/ai_outlook_production_status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(status, ensure_ascii=False))
+          if not passed:
+              raise SystemExit('Production AI Outlook verification failed: ' + '; '.join(last_errors))
+          PY
+
+      - name: Commit production verification
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_outlook_production_status.json
+          if git diff --cached --quiet; then
+            echo "Production verification status is already current."
             exit 0
           fi
-          git commit -m "Publish independent PL and EN AI Outlook"
+          git commit -m "Verify fresh daily AI Outlook on production"
           for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
+            git pull --rebase origin main
             if git push origin HEAD:main; then
               exit 0
             fi
             sleep $((attempt * 4))
           done
-          echo "::error::Could not publish AI Outlook after 5 attempts."
+          echo "::error::Could not publish AI Outlook production verification."
           exit 1
