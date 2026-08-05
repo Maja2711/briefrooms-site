@@ -28,11 +28,11 @@ EXPECTED_ORDERS = {
 }
 
 NAV_PATTERN = re.compile(
-    r'(<nav\s+class="nav"\b[^>]*>)([\s\S]*?)(</nav>)',
+    r'(<nav\s+class=["\']nav["\'][^>]*>)([\s\S]*?)(</nav>)',
     re.IGNORECASE,
 )
 ANCHOR_PATTERN = re.compile(r'<a\b[\s\S]*?</a>', re.IGNORECASE)
-HREF_PATTERN = re.compile(r'\bhref="([^"]+)"', re.IGNORECASE)
+HREF_PATTERN = re.compile(r'\bhref=["\']([^"\']+)["\']', re.IGNORECASE)
 
 
 def nav_order(source: str) -> list[str]:
