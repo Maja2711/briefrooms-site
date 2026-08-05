@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -54,10 +53,14 @@ def topic_from_edition(edition: dict[str, Any]) -> str:
         raw = str(candidates[0].get("title") or "")
     if not raw:
         raw = str(edition.get("title") or "")
+
+    # Headlines often use a short second sentence as a cause or teaser. The
+    # first complete clause normally carries the actual event and must not be
+    # replaced by fragments such as "Powodem ataki dronów".
     clauses = [part.strip() for part in re.split(r"(?<=[.!?])\s+|:\s+", raw) if part.strip()]
     useful = [part for part in clauses if len(part) >= 18]
-    chosen = useful[-1] if useful else (clauses[0] if clauses else raw)
-    return compact_words(chosen, 52)
+    chosen = useful[0] if useful else (clauses[0] if clauses else raw)
+    return compact_words(chosen, 58)
 
 
 def refine_edition(language: str, edition: dict[str, Any]) -> None:
