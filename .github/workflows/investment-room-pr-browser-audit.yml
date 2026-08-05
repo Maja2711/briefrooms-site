@@ -10,7 +10,7 @@ on:
       - "scripts/portfolio-10k-*.js"
       - "scripts/ai-tournament-*.js"
       - "scripts/site-header.js"
-      - "scripts/audit_investment_rooms_quick.py"
+      - "scripts/audit_investment_rooms_probe.py"
       - ".github/workflows/investment-room-pr-browser-audit.yml"
 
 permissions:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   browser-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,21 +42,19 @@ jobs:
           done
           cat /tmp/briefrooms-http.log
           exit 1
-      - name: Click every PL and EN investment option
+      - name: Probe every PL and EN investment option
         id: audit
         continue-on-error: true
-        run: python scripts/audit_investment_rooms_quick.py
+        run: timeout 90s python -u scripts/audit_investment_rooms_probe.py
       - name: Print complete report
         if: always()
         run: cat data/portfolio10k/investment_room_full_audit.json
-      - name: Upload report and screenshots
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: investment-room-controlled-browser-audit
-          path: |
-            data/portfolio10k/investment_room_full_audit.json
-            artifacts/investment-room-audit/*.png
+          path: data/portfolio10k/investment_room_full_audit.json
           if-no-files-found: error
       - name: Require every option to pass
         run: |
