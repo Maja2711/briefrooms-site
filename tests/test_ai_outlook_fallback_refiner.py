@@ -64,6 +64,20 @@ class AiOutlookFallbackRefinerTests(unittest.TestCase):
             refiner.REFINER_VERSION,
         )
 
+    def test_first_informative_clause_wins_over_short_causal_teaser(self) -> None:
+        edition = {
+            "title": "old",
+            "engine": {
+                "selected_area": "economy",
+                "top_candidates": [{
+                    "title": "Rosyjski gigant wstrzymuje rejsy przez Morze Czarne. Powodem ataki dronów"
+                }],
+            },
+        }
+        topic = refiner.topic_from_edition(edition)
+        self.assertEqual(topic, "Rosyjski gigant wstrzymuje rejsy przez Morze Czarne")
+        self.assertNotIn("Powodem ataki dronów", topic)
+
     def test_primary_mode_is_not_rewritten(self) -> None:
         payload = {"generation_mode": "ai_primary"}
         self.assertFalse(refiner.refine(payload))
