@@ -121,7 +121,7 @@ def main() -> int:
             report["passed"] = False
         report["results"][language] = language_result
 
-    output = Path("data/investments/investment_room_full_audit.json")
+    output = Path("data/portfolio10k/investment_room_full_audit.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
