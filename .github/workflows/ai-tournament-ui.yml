@@ -1,0 +1,167 @@
+name: AI Tournament UI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-tournament-ui.yml"
+      - "scripts/ai-tournament-public.js"
+      - "scripts/ai-tournament-readiness.js"
+      - "scripts/install_ai_tournament_ui.py"
+      - "tests/test_ai_tournament_ui.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-tournament-ui
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate redesigned renderer
+        run: |
+          set -euo pipefail
+          node --check scripts/ai-tournament-public.js
+          node --check scripts/ai-tournament-readiness.js
+          python -m unittest tests.test_ai_tournament_ui -v
+          python -m py_compile scripts/install_ai_tournament_ui.py
+          grep -F '<details class="aitx-thesis">' scripts/ai-tournament-public.js
+          grep -F '#agents-preview,#agent-cards,#agent-log{display:block!important' scripts/ai-tournament-public.js
+
+      - name: Install v4 on PL and EN pages
+        run: |
+          set -euo pipefail
+          python scripts/install_ai_tournament_ui.py
+          grep -q 'ai-tournament-public.js?v=4' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-public.js?v=4' en/investing/portfolio-10k.html
+          grep -q 'ai-tournament-readiness.js?v=4' pl/inwestycje/portfel-10k.html
+          grep -q 'ai-tournament-readiness.js?v=4' en/investing/portfolio-10k.html
+
+      - name: Commit installed pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "AI Tournament UI v4 already installed."
+          else
+            git commit -m "Deploy redesigned AI Tournament UI v4"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [[ "$attempt" == "5" ]]; then
+                exit 1
+              fi
+              sleep $((attempt * 3))
+            done
+          fi
+
+      - name: Verify public PL and EN pages
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          pages = {
+              'pl': 'https://briefrooms.com/pl/inwestycje/portfel-10k.html',
+              'en': 'https://briefrooms.com/en/investing/portfolio-10k.html',
+          }
+          script_url = 'https://briefrooms.com/scripts/ai-tournament-public.js'
+          headers = {
+              'User-Agent': 'BriefRooms AI Tournament UI verifier/1.0',
+              'Cache-Control': 'no-cache',
+          }
+          passed = False
+          observed = {}
+          last_errors = []
+
+          for attempt in range(1, 31):
+              token = f'{int(time.time())}-{attempt}'
+              errors = []
+              observed = {'attempt': attempt}
+              for language, url in pages.items():
+                  try:
+                      request = urllib.request.Request(f'{url}?aitui={token}', headers=headers)
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          body = response.read().decode('utf-8', errors='replace')
+                      found = 'ai-tournament-public.js?v=4' in body and 'ai-tournament-readiness.js?v=4' in body
+                      observed[f'{language}_v4'] = found
+                      if not found:
+                          errors.append(f'{language} page still uses an older renderer')
+                  except Exception as exc:
+                      errors.append(f'{language}: {exc}')
+              try:
+                  request = urllib.request.Request(f'{script_url}?v=4&verify={token}', headers=headers)
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      script = response.read().decode('utf-8', errors='replace')
+                  markers = '<details class="aitx-thesis">' in script and 'class="aitx-overview"' in script
+                  observed['redesign_markers'] = markers
+                  if not markers:
+                      errors.append('public renderer does not contain redesign markers')
+              except Exception as exc:
+                  errors.append(f'script: {exc}')
+
+              if not errors:
+                  passed = True
+                  last_errors = []
+                  break
+              last_errors = errors
+              time.sleep(10)
+
+          status = {
+              'schema_version': 'ai-tournament-ui-status-v1',
+              'status': 'passed' if passed else 'failed',
+              'checked_at': datetime.now(timezone.utc).isoformat(),
+              'renderer_version': '4',
+              'observed': observed,
+              'errors': last_errors,
+          }
+          path = Path('data/ai_tournament/ui_production_status.json')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(status, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(status, ensure_ascii=False))
+          if not passed:
+              raise SystemExit('AI Tournament UI production verification failed')
+          PY
+
+      - name: Commit production verification
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_tournament/ui_production_status.json
+          if git diff --cached --quiet; then
+            echo "Production verification unchanged."
+          else
+            git commit -m "Verify redesigned AI Tournament UI on production"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              sleep $((attempt * 3))
+            done
+            exit 1
+          fi
