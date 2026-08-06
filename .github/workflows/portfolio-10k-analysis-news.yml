@@ -16,6 +16,17 @@ on:
       - "tests/test_portfolio_10k_news_quality.py"
       - "tests/test_portfolio_10k_material_reports_enrichment.py"
       - ".github/workflows/portfolio-10k-analysis-news.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_material_reports.py"
+      - "scripts/portfolio_10k_material_reports_enrichment.py"
+      - "scripts/normalize_portfolio_10k_material_reports.py"
+      - "scripts/validate_portfolio_10k_material_reports.py"
+      - "tests/test_portfolio_10k_news_quality.py"
+      - "tests/test_portfolio_10k_material_reports_enrichment.py"
+      - ".github/workflows/portfolio-10k-analysis-news.yml"
 
 permissions:
   contents: write
@@ -32,7 +43,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -70,6 +80,7 @@ jobs:
           python scripts/validate_portfolio_10k_state.py
 
       - name: Commit PL and EN analytics data
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
