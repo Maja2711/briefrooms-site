@@ -50,7 +50,7 @@ def _stems(value: Any) -> set[str]:
     for token in _WORD.findall(_plain(value)):
         if token in _STOPWORDS or len(token) < 4 or token.isdigit():
             continue
-        words.append(token[:7])
+        words.append(token[:6])
     return set(words)
 
 
