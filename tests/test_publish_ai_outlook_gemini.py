@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-# This file is part of the watched Gemini workflow contract. A change here
-# intentionally triggers one end-to-end provider and production verification.
-
 import sys
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -59,7 +58,10 @@ class GeminiAiOutlookPublisherTests(unittest.TestCase):
 
     def test_rejects_fallback_or_non_gemini_payload(self) -> None:
         payload = self.payload()
-        with mock.patch.object(publisher.v3, "validate_payload", return_value=None):
+        with (
+            mock.patch.object(publisher.v3, "validate_payload", return_value=None),
+            mock.patch.object(publisher, "validate_pl_edition", return_value=None),
+        ):
             publisher.validate_payload(payload, today="2026-08-05")
             fallback = dict(payload, generation_mode="deterministic_daily_fallback")
             with self.assertRaisesRegex(RuntimeError, "ai_primary"):
@@ -84,6 +86,31 @@ class GeminiAiOutlookPublisherTests(unittest.TestCase):
         publisher.validate_status(daily, provider, today="2026-08-05")
         self.assertEqual(daily["provider"], "gemini")
         self.assertEqual(provider["publication_mode"], "ai_primary")
+
+    def test_generation_uses_pl_methodology_and_unchanged_en_path(self) -> None:
+        moment = datetime(2026, 8, 5, 9, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
+        pl = {"source_language": "pl", "forecast_id": "2026-08-05-pl-real"}
+        en = {"source_language": "en", "forecast_id": "2026-08-05-en-existing"}
+        runtime = self.runtime()
+        with (
+            mock.patch.object(
+                publisher, "generate_pl_edition", return_value=(pl, {"pl": "audit"})
+            ) as pl_generate,
+            mock.patch.object(
+                publisher.v3,
+                "generate_language",
+                return_value=(en, {"en": "audit"}),
+            ) as en_generate,
+            mock.patch.object(publisher.v3, "validate_payload", return_value=None),
+            mock.patch.object(publisher, "validate_pl_edition", return_value=None),
+        ):
+            payload, audit = publisher.generate_verified_payload(moment, runtime)
+        pl_generate.assert_called_once_with(moment, runtime)
+        en_generate.assert_called_once_with("en", moment, runtime)
+        self.assertIs(payload["pl"], pl)
+        self.assertIs(payload["en"], en)
+        self.assertEqual(audit["editions"]["pl"], {"pl": "audit"})
+        self.assertEqual(audit["editions"]["en"], {"en": "audit"})
 
 
 if __name__ == "__main__":
