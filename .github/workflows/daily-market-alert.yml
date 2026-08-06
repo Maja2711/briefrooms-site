@@ -30,21 +30,21 @@ on:
       - "scripts/check_daily_market_alert.py"
       - ".github/workflows/daily-market-alert.yml"
   schedule:
-    # Catch-up runs throughout the NYSE session. The Python gate skips duplicates
-    # and switches to the pre-close edition when that window is reached.
-    - cron: "*/30 14-20 * * 1-5"
+    # Run away from the busiest :00/:30 boundaries. Delayed scheduled jobs are
+    # allowed to finish instead of being cancelled by the next catch-up run.
+    - cron: "7,37 14-20 * * 1-5"
 
 permissions:
   contents: write
 
 concurrency:
-  group: investment-alert
-  cancel-in-progress: true
+  group: investment-alert-v2
+  cancel-in-progress: false
 
 jobs:
   build-daily-market-alert:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -64,6 +64,7 @@ jobs:
           pip install requests feedparser pandas_market_calendars
 
       - name: Test daily alert, editorial and materiality contracts
+        if: github.event_name != 'schedule'
         run: |
           python -m unittest \
             tests.test_daily_market_alert \
@@ -79,6 +80,7 @@ jobs:
           python -m json.tool data/investments/daily_market_alert_editorial_spec.json >/dev/null
 
       - name: Patch Daily Market Alert interface
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'ui-only'
         run: python scripts/patch_daily_alert_ui.py
 
       - name: Resolve run mode
@@ -93,16 +95,16 @@ jobs:
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "Resolved mode: $MODE"
 
-      - name: Generate Daily Market Alert
+      - name: Generate bilingual Daily Market Alert
         if: steps.mode.outputs.mode != 'ui-only'
         env:
-          # Reliability first: the deterministic bilingual path uses only
-          # validated market data and is independent of an AI provider.
+          # Reliability first: deterministic PL and EN copy is built from the
+          # same validated market snapshot when an AI provider is unavailable.
           OPENAI_API_KEY: ""
         shell: bash
         run: python scripts/run_daily_market_alert_resilient.py --mode "${{ steps.mode.outputs.mode }}"
 
-      - name: Validate generated alert
+      - name: Validate generated PL and EN alert
         if: steps.mode.outputs.mode != 'ui-only'
         run: |
           test -f data/investments/daily_market_alert.json
@@ -110,20 +112,36 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          payload = json.loads(Path('data/investments/daily_market_alert.json').read_text())
+
+          payload = json.loads(
+              Path('data/investments/daily_market_alert.json').read_text(encoding='utf-8')
+          )
           assert payload.get('materiality_contract', {}).get('version') == '1.0.0'
           assert payload.get('editorial_quality', {}).get('passed') is True
-          assert {item.get('id') for item in payload.get('instruments', [])} == {'sp500', 'brent', 'us10y'}
+          assert payload.get('market_regime', {}).get('pl')
+          assert payload.get('market_regime', {}).get('en')
+          assert payload.get('summary', {}).get('pl')
+          assert payload.get('summary', {}).get('en')
+          assert {item.get('id') for item in payload.get('instruments', [])} == {
+              'sp500', 'brent', 'us10y'
+          }
+          for item in payload['instruments']:
+              assert item.get('reason', {}).get('pl')
+              assert item.get('reason', {}).get('en')
           PY
 
-      - name: Commit interface or alert updates
+      - name: Commit only Daily Market Alert data
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/site-header.js pl/inwestycje.html en/investing.html
-          git add data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
+          if [[ "${{ steps.mode.outputs.mode }}" == "ui-only" ]]; then
+            git add scripts/site-header.js pl/inwestycje.html en/investing.html
+          else
+            git add data/investments/daily_market_alert.json
+            git add data/investments/daily_alert_history 2>/dev/null || true
+          fi
           if git diff --cached --quiet; then
             echo "No Daily Market Alert changes to commit."
             exit 0
