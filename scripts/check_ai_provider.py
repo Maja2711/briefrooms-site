@@ -233,3 +233,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# Manual recovery trigger for the 2026-08-06 AI Outlook edition.
