@@ -1,0 +1,93 @@
+name: Apply Closed Transactions History
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-closed-transactions-history.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-closed-transactions-history
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Add closed-history module only to PL and EN portfolio rooms
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+          script_tag = '<script src="/scripts/portfolio-10k-closed-history.js?v=1" defer></script>'
+
+          patcher = root / 'scripts/patch_portfolio_10k_hourly_ui.py'
+          text = patcher.read_text(encoding='utf-8')
+          constant = "CLOSED_HISTORY_JS = '<script src=\"/scripts/portfolio-10k-closed-history.js?v=1\" defer></script>'\n"
+          if 'CLOSED_HISTORY_JS =' not in text:
+              marker = "EXECUTION_FINALIZER_JS = '<script src=\"/scripts/portfolio-10k-execution-finalizer.js?v=3\" defer></script>'\n"
+              assert marker in text
+              text = text.replace(marker, marker + constant, 1)
+          ensure_line = '    text = ensure_asset(text, "/scripts/portfolio-10k-closed-history.js", CLOSED_HISTORY_JS, "</body>")\n'
+          if ensure_line not in text:
+              marker = '    text = re.sub(r\'/scripts/portfolio-10k-execution-finalizer\\.js\\?v=\\d+\', \'/scripts/portfolio-10k-execution-finalizer.js?v=3\', text)\n'
+              assert marker in text
+              text = text.replace(marker, marker + ensure_line, 1)
+          patcher.write_text(text, encoding='utf-8')
+
+          for page in [
+              root / 'pl/inwestycje/portfel-10k.html',
+              root / 'en/investing/portfolio-10k.html',
+          ]:
+              html = page.read_text(encoding='utf-8')
+              if '/scripts/portfolio-10k-closed-history.js' not in html:
+                  assert '</body>' in html
+                  html = html.replace('</body>', script_tag + '</body>', 1)
+              page.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Validate targeted history change
+        run: |
+          node --check scripts/portfolio-10k-closed-history.js
+          python -m py_compile scripts/patch_portfolio_10k_hourly_ui.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paper = json.loads(Path('data/portfolio10k/paper_portfolio.json').read_text(encoding='utf-8'))
+          novo = next(position for position in paper.get('closed_positions', []) if position.get('broker_symbol') == 'NOVOB.DK')
+          assert novo['entry_date'] == '2026-07-20'
+          assert novo['exit_timestamp_utc'].startswith('2026-08-03')
+          assert round(novo['exit_value_pln'] - novo['entry_value_pln'], 2) == -44.75
+          assert 'closed-transactions-history' in Path('scripts/portfolio-10k-closed-history.js').read_text(encoding='utf-8')
+          for page in [Path('pl/inwestycje/portfel-10k.html'), Path('en/investing/portfolio-10k.html')]:
+              html = page.read_text(encoding='utf-8')
+              assert html.count('/scripts/portfolio-10k-closed-history.js?v=1') == 1
+          print('Closed transaction history is installed in PL and EN only.')
+          PY
+
+      - name: Commit targeted page wiring and remove one-time workflow
+        run: |
+          rm .github/workflows/apply-closed-transactions-history.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/patch_portfolio_10k_hourly_ui.py \
+                  pl/inwestycje/portfel-10k.html \
+                  en/investing/portfolio-10k.html \
+                  .github/workflows/apply-closed-transactions-history.yml
+          git commit -m "Show closed trades in portfolio history"
+          git pull --rebase origin main
+          git push origin main
