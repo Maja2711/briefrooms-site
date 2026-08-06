@@ -1,32 +1,319 @@
-(()=>{
-'use strict';
-const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-const money=n=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN',maximumFractionDigits:2}).format(Number(n||0));
-const pct=n=>`${Number(n||0)>=0?'+':''}${(Number(n||0)*100).toFixed(2)}%`;
-const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
-const colors=['#15964d','#2768c7','#7050c8','#d99a25','#22a2a8','#d35d76','#8291a8','#bcc4ce'];
-const contestants=[
-{name:'BRACE',status:'aktywny uczestnik',signal:'decyzje z istniejącego BRACE Engine'},
-{name:'OpenAI',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
-{name:'Claude',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
-{name:'Gemini',status:'oczekuje na start',signal:'datowana decyzja portfelowa + uzasadnienie'},
-{name:'DeepSeek',status:'oczekuje na start',signal:'chiński model · datowana decyzja portfelowa + uzasadnienie'}
-];
-function openTab(name,scroll=true){$$('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.i10k-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));history.replaceState(null,'',`#${name}`);if(scroll)scrollTo({top:0,behavior:'smooth'})}
-function bindTabs(){$$('[data-tab]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();openTab(el.dataset.tab)}));const hash=location.hash.slice(1);if(hash&&$(`[data-panel="${hash}"]`))openTab(hash,false)}
-function renameTournament(){$$('[data-tab="agents"]').forEach(el=>{const span=el.querySelector('span');if(span)span.textContent='AI Tournament';else el.textContent='AI Tournament'});$$('.i10k-projects a[href="#agents"]').forEach(a=>a.textContent='AI Tournament');$$('[data-panel="agents"] h2,.agents-wide h2').forEach(h=>h.textContent='AI TOURNAMENT');const preview=$('.agents-wide .card-head p');if(preview)preview.textContent='Turniej modeli na identycznym kapitale, danych, kosztach i limitach ryzyka. Bez poprawiania decyzji po fakcie.';const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, DeepSeek, BRACE i portfel człowieka rywalizują według wspólnych, audytowalnych zasad.';const full=$('.agents-wide button[data-tab="agents"]');if(full)full.textContent='Otwórz pełny AI Tournament →';const rules=$('[data-panel="agents"] h3');if(rules)rules.textContent='Reguły turnieju'}
-function chart(){const e=$('#mini-chart');if(e)e.innerHTML='<svg viewBox="0 0 600 120" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15964d" stop-opacity=".25"/><stop offset="1" stop-color="#15964d" stop-opacity="0"/></linearGradient></defs><path fill="url(#g)" d="M0 92L55 84L110 87L165 70L220 79L275 62L330 67L385 48L440 51L495 35L550 40L600 22L600 120L0 120Z"/><path fill="none" stroke="#15964d" stroke-width="3" d="M0 92L55 84L110 87L165 70L220 79L275 62L330 67L385 48L440 51L495 35L550 40L600 22"/></svg>'}
-function renderTournament(){const rows=contestants.map((a,i)=>`<div class="agent-rank"><b>${i+1}</b><span><strong>${a.name}</strong><small>${a.status}</small></span><b>—</b><span>${a.signal}</span></div>`).join('');$('#agents-preview').innerHTML=`<div class="agent-ranking">${rows}</div><div class="consensus-box"><small>Turniej rozpocznie się po zebraniu decyzji</small><strong>0</strong><span>zamkniętych rund</span></div>`;$('#agent-cards').innerHTML=contestants.map(a=>`<article class="agent-card"><small>${a.status}</small><h3>${a.name}</h3><strong>—</strong><p>${a.signal}</p></article>`).join('');$('#agent-log').innerHTML='<div class="method-note">AI Tournament nie publikuje fikcyjnych wyników. Tabela ruszy po utworzeniu osobnych portfeli append-only, wspólnego harmonogramu i pierwszej zamkniętej rundy.</div>'}
-function translate(s){const t={'No leverage and no CFDs':'Bez dźwigni i bez CFD','Weekly review of price trend, drawdown, volatility, earnings calendar and material news':'Cotygodniowy przegląd trendu, drawdownu, zmienności, wyników i istotnych informacji','Target weights are guides, not automatic trading instructions':'Wagi docelowe są wskazówką, a nie automatycznym zleceniem','A single stock should normally remain below 18% of portfolio value':'Pojedyncza spółka powinna zwykle pozostać poniżej 18% portfela','A broad ETF may remain up to 30% of portfolio value':'Szeroki ETF może stanowić do 30% portfela','Rebalancing threshold: more than 5 percentage points away from target or more than 1.5 times target weight':'Rebalancing po odchyleniu ponad 5 pp. lub przekroczeniu 1,5× wagi docelowej','Closed history and weekly snapshots are append-only':'Historia zamknięta i tygodniowe snapshoty są tylko dopisywane'};return t[s]||s}
-function portfolioValue(p){return (p.positions||[]).filter(x=>x.status==='active').reduce((s,x)=>s+Number(x.current_value_pln||0),0)+Number(p.cash_pln||0)}
-function renderPortfolio(p){const pos=(p.positions||[]).filter(x=>x.status==='active'),value=portfolioValue(p),start=Number(p.starting_capital_pln||1),ret=value/start-1,bret=Number(p.benchmark?.return_percent||0);$('#portfolio-value').textContent=money(value);$('#portfolio-return').textContent=pct(ret);$('#portfolio-return').className=ret>=0?'positive':'negative';$('#cash-value').textContent=money(p.cash_pln);$('#invested-value').textContent=money(value-p.cash_pln);$('#positions-count').textContent=pos.length;$('#updated-at').textContent=p.last_updated_at?new Date(p.last_updated_at).toLocaleString('pl-PL'):'—';$('#data-status').textContent=(p.status||'model').toUpperCase();$('#data-freshness').textContent=`Dane: ${p.last_market_session||'—'}`;$('#benchmark-return').textContent=pct(bret);let at=0;const stops=pos.map((x,i)=>{const w=Math.max(0,Number(x.current_weight||x.target_weight||0)),s=at*100;at+=w;return`${colors[i%colors.length]} ${s}% ${Math.min(at*100,100)}%`});if(at<1)stops.push(`#edf1f6 ${at*100}% 100%`);$('#allocation-donut').style.background=`conic-gradient(${stops.join(',')})`;$('#allocation-list').innerHTML=pos.slice(0,7).map((x,i)=>`<div class="allocation-row"><i style="background:${colors[i%colors.length]}"></i><span>${x.label}</span><b>${((x.current_weight||x.target_weight||0)*100).toFixed(1)}%</b></div>`).join('');const bars=[['Portfel 10K',ret],[p.benchmark?.label||'Benchmark',bret]],html=bars.map(([n,v])=>`<div class="bar-row"><span>${n}</span><div class="bar-track"><i style="width:${Math.min(100,Math.max(4,(v+.12)/.32*100))}%"></i></div><b class="${v>=0?'positive':'negative'}">${pct(v)}</b></div>`).join('');$('#benchmark-bars').innerHTML=html;$('#benchmark-full').innerHTML=html;$('#portfolio-table').innerHTML=pos.map(x=>`<tr><td><strong>${x.label}</strong><br><small>${x.broker_symbol}</small></td><td>${((x.current_weight||0)*100).toFixed(1)}%</td><td>${money(x.current_value_pln)}</td><td class="${Number(x.pnl_percent)>=0?'positive':'negative'}">${pct(x.pnl_percent)}</td><td><span class="signal ${x.review_flag||'HOLD'}">${x.review_flag||'HOLD'}</span></td><td>${x.thesis_pl||'—'}</td></tr>`).join('');$('#broker-note').textContent=p.broker_note_pl||'';const rules=p.methodology?.rules||[];$('#rules-grid').innerHTML=rules.map((x,i)=>`<div><dt>Zasada ${i+1}</dt><dd>${translate(x)}</dd></div>`).join('');$('#objective').textContent=p.methodology?.objective_pl||'—'}
-function riskFor(x){const t=String(x.asset_type||'').toLowerCase(),n=String(x.label||'').toLowerCase();if(n.includes('bitcoin')||n.includes('crypto'))return .34;if(n.includes('gold')||n.includes('złot'))return .13;if(t.includes('etf'))return .11;if(t.includes('bond'))return .07;if(t.includes('stock'))return .19;return .15}
-function projectionModel(p,b){const pos=(p.positions||[]).filter(x=>x.status==='active'),bm=new Map((b.positions||[]).map(x=>[x.id,x]));let sw=0,score=0,conf=0,risk=0;const rows=pos.map(x=>{const w=Number(x.current_weight||x.target_weight||0),m=bm.get(x.id)||{},s=Number(m.score||b.portfolio?.score||50),c=Number(m.confidence||b.portfolio?.confidence||50),r=riskFor(x),er=clamp(.035+(s-50)*.0032,-.08,.22);sw+=w;score+=w*s;conf+=w*c;risk+=w*r;return{...x,w,score:s,confidence:c,risk:r,expected:er,contribution:w*er,decision:m.decision?.code||x.review_flag||'HOLD',catalyst:m.next_catalyst_pl||'Kolejny przegląd tygodniowy',largestRisk:m.largest_risk||(x.risks_pl||[])[0]||'Ryzyko rynkowe'}});if(sw>0){score/=sw;conf/=sw;risk/=sw}const base=clamp(.035+(score-50)*.0032,-.03,.16),bear=clamp(base-risk*.82,-.35,.08),bull=clamp(base+risk*.72,.06,.35),target=.10,prob=clamp(1/(1+Math.exp((target-base)/Math.max(.025,risk*.38))),.08,.92),value=portfolioValue(p);return{rows:rows.sort((a,z)=>z.contribution-a.contribution),score,conf,risk,base,bear,bull,target,prob,value}}
-function fanSvg(m){const W=760,H=250,pad=34,months=[0,1,3,6,12],ys=[];for(const r of [m.bear,m.base,m.bull,m.target])for(const mo of months)ys.push(m.value*Math.pow(1+r,mo/12));const lo=Math.min(...ys)*.985,hi=Math.max(...ys)*1.015,x=mo=>pad+(W-pad*2)*mo/12,y=v=>H-pad-(H-pad*2)*(v-lo)/(hi-lo||1),path=r=>months.map((mo,i)=>`${i?'L':'M'}${x(mo).toFixed(1)},${y(m.value*Math.pow(1+r,mo/12)).toFixed(1)}`).join(' '),bullPts=months.map(mo=>`${x(mo)},${y(m.value*Math.pow(1+m.bull,mo/12))}`).join(' '),bearPts=[...months].reverse().map(mo=>`${x(mo)},${y(m.value*Math.pow(1+m.bear,mo/12))}`).join(' ');return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wachlarz projekcji wartości portfela"><defs><linearGradient id="fan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15964d" stop-opacity=".20"/><stop offset="1" stop-color="#db3c3c" stop-opacity=".08"/></linearGradient></defs><polygon points="${bullPts} ${bearPts}" fill="url(#fan)"/><path d="${path(m.bear)}" class="proj-bear"/><path d="${path(m.base)}" class="proj-base"/><path d="${path(m.bull)}" class="proj-bull"/><path d="${path(m.target)}" class="proj-target"/>${months.map(mo=>`<text x="${x(mo)}" y="${H-8}" text-anchor="middle">${mo}M</text>`).join('')}</svg>`}
-function renderProjections(p,b){const m=projectionModel(p,b),h=[1,3,6,12],scenario=(name,r,tone)=>`<article class="scenario-card ${tone}"><small>${name}</small><strong>${money(m.value*(1+r))}</strong><span>${pct(r)} po 12M</span><p>${name==='Bazowy'?'Ocena BRACE i aktualne wagi, bez wymuszania celu.':name==='Bull'?'Lepsza realizacja katalizatorów i korzystny reżim rynku.':'Materializacja ryzyk oraz słabszy reżim rynkowy.'}</p></article>`;const horizonRows=h.map(month=>`<tr><td>${month} mies.</td><td>${money(m.value*Math.pow(1+m.bear,month/12))}</td><td>${money(m.value*Math.pow(1+m.base,month/12))}</td><td>${money(m.value*Math.pow(1+m.bull,month/12))}</td></tr>`).join('');const positionRows=m.rows.map(x=>`<tr><td><strong>${x.label}</strong><small>${x.broker_symbol}</small></td><td>${(x.w*100).toFixed(1)}%</td><td>${x.score.toFixed(0)}/100</td><td>${pct(x.expected)}</td><td class="${x.contribution>=0?'positive':'negative'}">${(x.contribution*100).toFixed(2)} pp</td><td>${x.decision}</td></tr>`).join('');const top=m.rows.slice(0,3),risks=[...m.rows].sort((a,z)=>z.w*z.risk-a.w*a.risk).slice(0,3);const verdict=m.base>=.10?'TARGET_CURRENTLY_PLAUSIBLE':m.base>=.07?'TARGET_WITHIN_RANGE_NOT_BASE_CASE':'TARGET_NOT_CURRENTLY_JUSTIFIED';const panel=$('[data-panel="projections"] .page-card');if(panel)panel.innerHTML=`<div class="projection-head"><div><small>BRACE SCENARIO ENGINE · v0.1</small><h2>PROJEKCJE PORTFELA 10K</h2><p>Scenariusze są liczone z aktualnych wag, ocen BRACE, confidence i klas ryzyka. To przedziały badawcze, nie obietnica wyniku.</p></div><span class="projection-stamp">Dane: ${p.last_market_session||'—'}</span></div><section class="projection-kpis"><div><small>Wartość dziś</small><strong>${money(m.value)}</strong></div><div><small>Bazowy 12M</small><strong>${money(m.value*(1+m.base))}</strong><span>${pct(m.base)}</span></div><div><small>Szansa na +10%</small><strong>${(m.prob*100).toFixed(0)}%</strong><span>estymata niekalibrowana</span></div><div><small>Ocena celu</small><strong class="projection-verdict">${verdict}</strong></div></section><section class="projection-chart-card"><div class="projection-section-title"><div><h3>Wachlarz wartości portfela</h3><p>Bear / Bazowy / Bull oraz linia celu 11 000 PLN.</p></div><div class="projection-legend"><span class="bear">Bear</span><span class="base">Bazowy</span><span class="bull">Bull</span><span class="target">Cel +10%</span></div></div><div class="projection-chart">${fanSvg(m)}</div></section><section class="scenario-grid">${scenario('Bear',m.bear,'bear')}${scenario('Bazowy',m.base,'base')}${scenario('Bull',m.bull,'bull')}</section><section class="projection-two"><article><h3>Wartość według horyzontu</h3><div class="table-wrap"><table class="clean-table"><thead><tr><th>Horyzont</th><th>Bear</th><th>Bazowy</th><th>Bull</th></tr></thead><tbody>${horizonRows}</tbody></table></div></article><article><h3>Cel +10% rocznie</h3><div class="target-meter"><i style="width:${(m.prob*100).toFixed(0)}%"></i></div><strong>${(m.prob*100).toFixed(0)}% szacowanej szansy</strong><p>Model nie zwiększa ryzyka tylko po to, aby wymusić cel. Prawdopodobieństwo zostanie oznaczone jako kalibrowane dopiero po zebraniu wystarczającej liczby zamkniętych projekcji.</p></article></section><section><div class="projection-section-title"><div><h3>Wkład pozycji do scenariusza bazowego</h3><p>Oczekiwany wpływ na cały portfel, a nie tylko prognoza instrumentu.</p></div></div><div class="table-wrap"><table class="clean-table projection-table"><thead><tr><th>Pozycja</th><th>Waga</th><th>BRACE</th><th>Scenariusz 12M</th><th>Wkład</th><th>Decyzja</th></tr></thead><tbody>${positionRows}</tbody></table></div></section><section class="projection-two drivers"><article><h3>Największe potencjalne źródła wyniku</h3>${top.map((x,i)=>`<div class="driver-row"><b>${i+1}</b><span><strong>${x.label}</strong><small>${x.catalyst}</small></span><em>${(x.contribution*100).toFixed(2)} pp</em></div>`).join('')}</article><article><h3>Największe źródła ryzyka</h3>${risks.map((x,i)=>`<div class="driver-row"><b>${i+1}</b><span><strong>${x.label}</strong><small>${x.largestRisk}</small></span><em>${(x.w*x.risk*100).toFixed(2)} pp</em></div>`).join('')}</article></section><section class="projection-two"><article><h3>Obecny portfel vs wariant BRACE</h3><div class="comparison-row"><span>Obecny portfel</span><b>${pct(m.base)}</b><small>ryzyko scenariuszowe ${(m.risk*100).toFixed(1)}%</small></div><div class="comparison-row candidate"><span>BRACE risk-balanced</span><b>${pct(clamp(m.base-.004,-1,1))}</b><small>szacowane ryzyko ${(m.risk*.88*100).toFixed(1)}% · kandydat badawczy, bez automatycznej rotacji</small></div></article><article><h3>Kalibracja i skuteczność</h3><div class="calibration-empty"><strong>Brak wystarczającej historii</strong><p>Brier score, trafność kierunku i pokrycie przedziałów pojawią się po zamknięciu pierwszych projekcji. System nie publikuje fikcyjnej skuteczności.</p></div></article></section><div class="projection-method"><b>Metodologia v0.1</b><span>Base return = funkcja ważonego BRACE score; szerokość przedziału = ważona klasa ryzyka; wartości 1/3/6/12M są geometryczną ścieżką scenariusza. Model nie używa danych z przyszłości i nie przedstawia celu 10% jako gwarancji.</span></div>`;const overview=$('#projection-overview');if(overview)overview.innerHTML=`<div class="projection-mini"><div><small>Bazowy 12M</small><strong>${pct(m.base)}</strong></div><div><small>Szansa na +10%</small><strong>${(m.prob*100).toFixed(0)}%</strong></div><div><small>Bear / Bull</small><strong>${pct(m.bear)} / ${pct(m.bull)}</strong></div><span>${verdict}</span></div>`}
-function renderBrace(b){const score=Number(b.portfolio?.score||0),conf=Number(b.portfolio?.confidence||0),counts=b.portfolio?.decision_counts||{},ps=b.positions||[];$('#brace-score').textContent=score.toFixed(1);$('#side-brace-score').textContent=score.toFixed(0);$('#brace-confidence').textContent=`${conf.toFixed(1)}%`;$('#brace-track').style.width=`${Math.min(score,100)}%`;$('#brace-counts').innerHTML=Object.entries(counts).slice(0,4).map(([k,v])=>`<span>${k}: <b>${v}</b></span>`).join('');$('#brace-impact').textContent=`BRACE przeanalizował ${b.portfolio?.positions_reviewed||0} pozycji. Reżim rynku: ${b.market_context?.regime||'—'}, kontekst ${Number(b.market_context?.score||0).toFixed(1)}/100. Human approval pozostaje wymagany.`;$('#brace-decisions').innerHTML=ps.slice(0,3).map(x=>`<div class="decision-row"><span class="signal ${x.decision?.code}">${x.decision?.code||'—'}</span><span><strong>${x.broker_symbol}</strong><br><small>${x.strongest_argument||'—'}</small></span><b>${Number(x.confidence||0).toFixed(0)}%</b></div>`).join('')}
-function renderAutomationHealth(registry){const badge=$('.live-badge'),state=registry?.workflows?.portfolio_prices?.status||'degraded',labels={healthy:'LIVE',running:'AKTUALIZACJA',stale:'NIEAKTUALNE',failed:'AWARIA',degraded:'STATUS NIEPEWNY'},colors={healthy:'#15964d',running:'#2768c7',stale:'#c77700',failed:'#db3c3c',degraded:'#6d7a90'};if(!badge)return;badge.innerHTML=`<i></i> ${labels[state]||labels.degraded}`;badge.dataset.automationStatus=state;badge.style.color=colors[state]||colors.degraded;const dot=badge.querySelector('i');if(dot)dot.style.background='currentColor';const item=registry?.workflows?.portfolio_prices;if(item)badge.title=`Dane: ${item.data_updated_at||'brak'} · ostatni sukces: ${item.last_success_at||'brak'}`}
-async function loadAutomationHealth(){renderAutomationHealth(null);try{const response=await fetch(`/data/system/automation_status.json?v=${Date.now()}`,{cache:'no-store'});if(!response.ok)throw Error('automation-status');renderAutomationHealth(await response.json())}catch(e){renderAutomationHealth(null)}}
-async function init(){renameTournament();bindTabs();chart();renderTournament();loadAutomationHealth();try{const[p,b]=await Promise.all([fetch('/data/investments/portfolio_10k.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('portfolio');return r.json()}),fetch('/data/investments/portfolio_10k_brace.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('brace');return r.json()})]);renderPortfolio(p);renderBrace(b);renderProjections(p,b)}catch(e){$('#data-status').textContent='Błąd źródła danych';const a=$('.i10k-panel.active');if(a)a.insertAdjacentHTML('afterbegin','<div class="error-box">Nie udało się pobrać danych portfela lub BRACE. Odśwież stronę za chwilę.</div>')}}
-document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
+(() => {
+  'use strict';
+
+  if (window.__BR_PORTFOLIO_ROOM_STABLE__) return;
+  window.__BR_PORTFOLIO_ROOM_STABLE__ = true;
+
+  const config = window.BR_PORTFOLIO_10K || {};
+  const lang = config.lang === 'en' || document.documentElement.lang.toLowerCase().startsWith('en') ? 'en' : 'pl';
+  const isEn = lang === 'en';
+  const locale = isEn ? 'en-US' : 'pl-PL';
+  const currency = isEn ? 'USD' : 'PLN';
+  const portfolioUrl = isEn
+    ? '/data/investments/portfolio_10k_usd.json'
+    : '/data/investments/portfolio_10k.json';
+  const braceUrl = '/data/investments/portfolio_10k_brace.json';
+  const COLORS = ['#15964d', '#2768c7', '#7050c8', '#d99a25', '#22a2a8', '#d35d76', '#8291a8', '#bcc4ce'];
+  const NAV_ORDER = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
+
+  const T = isEn ? {
+    active: 'ACTIVE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
+    portfolio: '10K Portfolio', benchmark: 'Benchmark', rule: 'Rule',
+    fallback: 'This section is available. Its detailed data is temporarily being refreshed.',
+    braceUnavailable: 'BRACE data is temporarily unavailable. Portfolio data remains active.',
+    market: 'Market data', values: 'values in USD', position: 'Position',
+    error: 'The investment room recovered its navigation, but current portfolio data could not be loaded.'
+  } : {
+    active: 'AKTYWNY', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
+    portfolio: 'Portfel 10K', benchmark: 'Benchmark', rule: 'Zasada',
+    fallback: 'Ta sekcja jest dostępna. Jej szczegółowe dane są chwilowo odświeżane.',
+    braceUnavailable: 'Dane BRACE są chwilowo niedostępne. Dane portfela pozostają aktywne.',
+    market: 'Dane rynkowe', values: 'wartości w PLN', position: 'Pozycja',
+    error: 'Pokój Inwestycje odzyskał nawigację, ale bieżących danych portfela nie udało się załadować.'
+  };
+
+  const state = { portfolio: null, brace: null, bound: false, loaded: false };
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+
+  function valueOf(object, usdKey, plnKey) {
+    if (isEn && Number.isFinite(Number(object?.[usdKey]))) return Number(object[usdKey]);
+    return num(object?.[plnKey]);
+  }
+
+  function money(value) {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2
+    }).format(num(value));
+  }
+
+  function pct(value) {
+    const number = num(value);
+    return `${number >= 0 ? '+' : ''}${(number * 100).toFixed(2)}%`;
+  }
+
+  function setText(selector, value) {
+    const element = $(selector);
+    if (element) element.textContent = String(value ?? '—');
+  }
+
+  function reorderHeader() {
+    const nav = $('#site-header .br-site-header__nav');
+    if (!nav) return false;
+    const links = new Map($$(':scope > a[data-section]', nav).map(link => [link.dataset.section, link]));
+    NAV_ORDER.forEach(section => {
+      const link = links.get(section);
+      if (link) nav.appendChild(link);
+    });
+    nav.dataset.investmentOrder = NAV_ORDER.join('-');
+    return true;
+  }
+
+  function activateTab(name, scroll = false) {
+    const panel = $(`.i10k-panel[data-panel="${name}"]`);
+    if (!panel) return false;
+    $$('[data-tab]').forEach(trigger => trigger.classList.toggle('active', trigger.dataset.tab === name));
+    $$('.i10k-panel').forEach(item => item.classList.toggle('active', item.dataset.panel === name));
+    try { history.replaceState(null, '', `#${name}`); } catch (_) {}
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.dataset.investmentActiveTab = name;
+    return true;
+  }
+
+  function bindTabs() {
+    if (state.bound) return;
+    state.bound = true;
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('.i10k-app [data-tab]');
+      if (!trigger?.dataset.tab) return;
+      if (activateTab(trigger.dataset.tab, true)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    window.addEventListener('hashchange', () => {
+      const name = location.hash.slice(1);
+      if (name) activateTab(name, false);
+    });
+    const initial = location.hash.slice(1) || 'overview';
+    activateTab(initial, false);
+    document.body.dataset.investmentTabs = 'ready';
+  }
+
+  async function fetchJson(url, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const separator = url.includes('?') ? '&' : '?';
+      const response = await window.fetch(`${url}${separator}stable=${Date.now()}`, {
+        cache: 'no-store', signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+      return await response.json();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  function activePositions(portfolio) {
+    return (portfolio?.positions || []).filter(position => position.status === 'active');
+  }
+
+  function totalValue(portfolio) {
+    return activePositions(portfolio).reduce(
+      (sum, position) => sum + valueOf(position, 'current_value_usd', 'current_value_pln'), 0
+    ) + valueOf(portfolio, 'cash_usd', 'cash_pln');
+  }
+
+  function renderAllocation(positions) {
+    const donut = $('#allocation-donut');
+    const list = $('#allocation-list');
+    if (!donut || !list) return;
+    let cursor = 0;
+    const stops = positions.map((position, index) => {
+      const weight = Math.max(0, num(position.current_weight ?? position.target_weight));
+      const start = cursor * 100;
+      cursor += weight;
+      return `${COLORS[index % COLORS.length]} ${start}% ${Math.min(cursor * 100, 100)}%`;
+    });
+    if (cursor < 1) stops.push(`#edf1f6 ${cursor * 100}% 100%`);
+    donut.style.background = `conic-gradient(${stops.join(',')})`;
+    list.innerHTML = positions.slice(0, 8).map((position, index) => `
+      <div class="allocation-row">
+        <i style="background:${COLORS[index % COLORS.length]}"></i>
+        <span>${escapeHtml(position.label || position.broker_symbol || T.position)}</span>
+        <b>${(num(position.current_weight ?? position.target_weight) * 100).toFixed(1)}%</b>
+      </div>`).join('');
+  }
+
+  function renderBenchmark(portfolio, result) {
+    const benchmarkReturn = num(portfolio?.benchmark?.return_percent);
+    const rows = [
+      [T.portfolio, result],
+      [portfolio?.benchmark?.label || T.benchmark, benchmarkReturn]
+    ];
+    const html = rows.map(([label, value]) => `
+      <div class="bar-row">
+        <span>${escapeHtml(label)}</span>
+        <div class="bar-track"><i style="width:${Math.min(100, Math.max(4, (num(value) + 0.12) / 0.32 * 100))}%"></i></div>
+        <b class="${num(value) >= 0 ? 'positive' : 'negative'}">${pct(value)}</b>
+      </div>`).join('');
+    const compact = $('#benchmark-bars');
+    const full = $('#benchmark-full');
+    if (compact) compact.innerHTML = html;
+    if (full) full.innerHTML = html;
+    setText('#benchmark-return', pct(benchmarkReturn));
+  }
+
+  function renderPortfolioTable(positions) {
+    const table = $('#portfolio-table');
+    if (!table) return;
+    table.innerHTML = positions.map(position => {
+      const pnl = num(position.pnl_percent);
+      const thesis = isEn ? (position.thesis_en || position.thesis_pl) : (position.thesis_pl || position.thesis_en);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(position.label || position.broker_symbol || T.position)}</strong><br><small>${escapeHtml(position.broker_symbol || '')}</small></td>
+          <td>${(num(position.current_weight ?? position.target_weight) * 100).toFixed(1)}%</td>
+          <td>${money(valueOf(position, 'current_value_usd', 'current_value_pln'))}</td>
+          <td class="${pnl >= 0 ? 'positive' : 'negative'}">${pct(pnl)}</td>
+          <td><span class="signal ${escapeHtml(position.review_flag || 'HOLD')}">${escapeHtml(position.review_flag || 'HOLD')}</span></td>
+          <td>${escapeHtml(thesis || '—')}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderRules(portfolio) {
+    const grid = $('#rules-grid');
+    if (grid) {
+      grid.innerHTML = (portfolio?.methodology?.rules || []).map((rule, index) =>
+        `<div><dt>${T.rule} ${index + 1}</dt><dd>${escapeHtml(rule)}</dd></div>`
+      ).join('');
+    }
+    setText('#objective', isEn
+      ? (portfolio?.methodology?.objective_en || portfolio?.methodology?.objective_pl || '—')
+      : (portfolio?.methodology?.objective_pl || portfolio?.methodology?.objective_en || '—'));
+  }
+
+  function renderPortfolio(portfolio) {
+    state.portfolio = portfolio;
+    const positions = activePositions(portfolio);
+    const cash = valueOf(portfolio, 'cash_usd', 'cash_pln');
+    const total = totalValue(portfolio);
+    const start = valueOf(portfolio, 'starting_capital_usd', 'starting_capital_pln') || 10000;
+    const result = total / start - 1;
+
+    setText('#portfolio-value', money(total));
+    setText('#portfolio-return', pct(result));
+    setText('#cash-value', money(cash));
+    setText('#invested-value', money(total - cash));
+    setText('#positions-count', positions.length);
+    setText('#updated-at', portfolio.last_updated_at
+      ? new Date(portfolio.last_updated_at).toLocaleString(locale)
+      : '—');
+    setText('#data-status', `${T.active} · ${currency}`);
+    setText('#data-freshness', `${T.market}: ${portfolio.last_market_session || '—'} · ${T.values}`);
+    setText('#broker-note', isEn
+      ? (portfolio.broker_note_en || portfolio.broker_note_pl || '')
+      : (portfolio.broker_note_pl || portfolio.broker_note_en || ''));
+
+    const returnElement = $('#portfolio-return');
+    if (returnElement) returnElement.className = result >= 0 ? 'positive' : 'negative';
+    const badge = $('.live-badge');
+    if (badge) {
+      badge.innerHTML = `<i></i> ${T.active}`;
+      badge.dataset.automationStatus = 'healthy';
+    }
+
+    renderAllocation(positions);
+    renderBenchmark(portfolio, result);
+    renderPortfolioTable(positions);
+    renderRules(portfolio);
+    document.body.dataset.investmentData = 'ready';
+    document.body.dataset.investmentCurrency = currency;
+    state.loaded = true;
+  }
+
+  function renderBrace(brace) {
+    state.brace = brace;
+    const score = num(brace?.portfolio?.score);
+    const confidence = num(brace?.portfolio?.confidence);
+    setText('#brace-score', score.toFixed(1));
+    setText('#side-brace-score', score.toFixed(0));
+    setText('#brace-confidence', `${confidence.toFixed(1)}%`);
+    const track = $('#brace-track');
+    if (track) track.style.width = `${Math.min(score, 100)}%`;
+    const counts = $('#brace-counts');
+    if (counts) counts.innerHTML = Object.entries(brace?.portfolio?.decision_counts || {})
+      .slice(0, 4).map(([key, value]) => `<span>${escapeHtml(key)}: <b>${escapeHtml(value)}</b></span>`).join('');
+    const impact = isEn
+      ? `BRACE analysed ${brace?.portfolio?.positions_reviewed || 0} positions. Market regime: ${brace?.market_context?.regime || '—'}.`
+      : `BRACE przeanalizował ${brace?.portfolio?.positions_reviewed || 0} pozycji. Reżim rynku: ${brace?.market_context?.regime || '—'}.`;
+    setText('#brace-impact', impact);
+  }
+
+  function ensurePanelsAreUsable() {
+    $$('.i10k-panel').forEach(panel => {
+      if (!panel.dataset.panel) return;
+      if (!panel.textContent.trim()) panel.innerHTML = `<div class="method-note">${T.fallback}</div>`;
+    });
+    document.body.dataset.investmentPanels = 'ready';
+  }
+
+  function showError(error) {
+    setText('#data-status', T.unavailable);
+    const panel = $('.i10k-panel.active') || $('.i10k-panel[data-panel="overview"]');
+    if (panel && !panel.querySelector('.stable-room-error')) {
+      panel.insertAdjacentHTML('afterbegin', `<div class="error-box stable-room-error">${escapeHtml(T.error)}<br><small>${escapeHtml(error?.message || error || '')}</small></div>`);
+    }
+    document.body.dataset.investmentData = 'error';
+  }
+
+  async function load() {
+    const [portfolioResult, braceResult] = await Promise.allSettled([
+      fetchJson(portfolioUrl), fetchJson(braceUrl)
+    ]);
+    if (portfolioResult.status === 'fulfilled') renderPortfolio(portfolioResult.value);
+    else showError(portfolioResult.reason);
+    if (braceResult.status === 'fulfilled') renderBrace(braceResult.value);
+    else setText('#brace-impact', T.braceUnavailable);
+    ensurePanelsAreUsable();
+    return portfolioResult.status === 'fulfilled';
+  }
+
+  function start() {
+    bindTabs();
+    reorderHeader();
+    const observer = new MutationObserver(() => {
+      if (reorderHeader()) observer.disconnect();
+    });
+    if (!reorderHeader()) observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 8000);
+    load().catch(showError);
+    window.setTimeout(() => {
+      if (!state.loaded) load().catch(showError);
+    }, 5000);
+  }
+
+  window.BriefRoomsInvestmentRoom = {
+    activateTab,
+    reload: load,
+    state,
+    audit() {
+      return {
+        tabsReady: document.body.dataset.investmentTabs === 'ready',
+        dataReady: document.body.dataset.investmentData === 'ready',
+        panelsReady: document.body.dataset.investmentPanels === 'ready',
+        activeTab: document.body.dataset.investmentActiveTab || '',
+        currency: document.body.dataset.investmentCurrency || ''
+      };
+    }
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
