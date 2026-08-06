@@ -12,6 +12,7 @@ on:
     paths:
       - "scripts/portfolio_10k_news_quality.py"
       - "scripts/portfolio_10k_analysis_news_guard.py"
+      - "scripts/portfolio_10k_analysis_news_strict.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
       - "scripts/normalize_portfolio_10k_material_reports.py"
       - "scripts/validate_portfolio_10k_analysis_news.py"
@@ -23,6 +24,7 @@ on:
     paths:
       - "scripts/portfolio_10k_news_quality.py"
       - "scripts/portfolio_10k_analysis_news_guard.py"
+      - "scripts/portfolio_10k_analysis_news_strict.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
       - "scripts/normalize_portfolio_10k_material_reports.py"
       - "scripts/validate_portfolio_10k_analysis_news.py"
@@ -63,6 +65,7 @@ jobs:
         run: |
           python scripts/portfolio_10k_material_reports_enrichment.py
           python scripts/portfolio_10k_analysis_news_guard.py
+          python scripts/portfolio_10k_analysis_news_strict.py
           python scripts/normalize_portfolio_10k_material_reports.py
 
       - name: Apply the same feed to the independent EN portfolio
@@ -75,6 +78,7 @@ jobs:
           python -m py_compile \
             scripts/portfolio_10k_news_quality.py \
             scripts/portfolio_10k_analysis_news_guard.py \
+            scripts/portfolio_10k_analysis_news_strict.py \
             scripts/portfolio_10k_material_reports_enrichment.py \
             scripts/validate_portfolio_10k_analysis_news.py
           python -m pytest -q \
