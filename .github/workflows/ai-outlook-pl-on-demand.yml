@@ -1,0 +1,120 @@
+name: Regenerate Polish AI Outlook
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: polish-ai-outlook-methodology
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    if: github.event.issue.title == 'Regenerate Polish AI Outlook'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Record English edition
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          encoded = json.dumps(payload['en'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          Path('/tmp/en.sha').write_text(hashlib.sha256(encoded).hexdigest())
+          Path('/tmp/en.id').write_text(payload['en']['forecast_id'])
+          PY
+
+      - name: Test methodology
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_ai_outlook_pl_methodology \
+            tests.test_ai_outlook_pl_quality \
+            tests.test_publish_ai_outlook_gemini -v
+          python scripts/check_ai_provider.py
+          sleep 8
+
+      - name: Regenerate PL when required
+        run: |
+          set -euo pipefail
+          python scripts/publish_ai_outlook_pl.py
+          python scripts/publish_ai_outlook_pl.py --validate-only --require-today
+
+      - name: Verify real outcome and unchanged EN
+        run: |
+          python - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          pl = payload['pl']
+          encoded = json.dumps(payload['en'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          assert hashlib.sha256(encoded).hexdigest() == Path('/tmp/en.sha').read_text()
+          assert payload['en']['forecast_id'] == Path('/tmp/en.id').read_text()
+          assert pl['engine']['methodology_version'] == 'pl-outcome-forecast-v2'
+          assert pl['quality_gate']['version'] == 'pl-semantic-quality-v2'
+          text = ' '.join(str(pl.get(k, '')) for k in ('title','thesis','rationale','confirmation','invalidation','resolution_summary')).lower()
+          assert not re.search(r'komunikat|aktualizacj|artykuł|publikacj|wzmiank|centrum uwagi', text)
+          Path('/tmp/result.json').write_text(json.dumps({
+              'forecast_id': pl['forecast_id'],
+              'title': pl['title'],
+              'forecast_type': pl['forecast_type'],
+              'metric': pl['resolution']['metric'],
+              'resolution_date': pl['resolution']['resolution_date'],
+              'probability': pl['probability'],
+              'en_preserved': payload['en']['forecast_id'],
+          }, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(Path('/tmp/result.json').read_text())
+          PY
+
+      - name: Commit PL-only result
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_outlook.json data/ai_outlook_status.json data/ai_outlook_provider_status.json data/ai_outlook_history data/internal/ai_outlook_audit
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish Polish AI Outlook with outcome methodology"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then break; fi
+              if [[ "$attempt" == "5" ]]; then exit 1; fi
+              sleep $((attempt * 4))
+            done
+          fi
+
+      - name: Report result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Polish AI Outlook methodology: PASS'
+            echo
+            echo '```json'
+            cat /tmp/result.json
+            echo '```'
+          } > /tmp/comment.md
+          gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/comment.md
+          gh issue close "${{ github.event.issue.number }}" --reason completed
