@@ -18,11 +18,13 @@ on:
       - "scripts/update_ai_outlook_v3.py"
       - "scripts/ai_outlook_engine.py"
       - "scripts/ai_outlook_metrics.py"
+      - "scripts/ai_outlook_pl_quality.py"
       - "scripts/check_ai_provider.py"
       - "scripts/comment_quality.py"
       - "scripts/sitecustomize.py"
       - "scripts/enforce_homepage_photo_only.py"
       - "tests/test_publish_ai_outlook_gemini.py"
+      - "tests/test_ai_outlook_pl_quality.py"
       - "tests/test_ai_provider_preflight.py"
   schedule:
     - cron: "35 5 * * *"
@@ -68,15 +70,18 @@ jobs:
           set -euo pipefail
           python -m unittest \
             tests.test_publish_ai_outlook_gemini \
+            tests.test_ai_outlook_pl_quality \
             tests.test_ai_provider_preflight -v
           python -m py_compile \
             scripts/publish_ai_outlook_gemini.py \
             scripts/update_ai_outlook_v3.py \
+            scripts/ai_outlook_pl_quality.py \
             scripts/check_ai_provider.py \
             scripts/comment_quality.py \
             scripts/sitecustomize.py
 
       - name: Verify Gemini secret and live endpoint
+        if: github.event_name != 'push'
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -94,19 +99,19 @@ jobs:
           sleep 8
 
       - name: Generate verified Gemini editions
+        if: github.event_name != 'push'
         shell: bash
         run: |
           set -euo pipefail
           ARGS=""
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            ARGS="--force"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
             ARGS="--force"
           fi
           python scripts/publish_ai_outlook_gemini.py $ARGS
           python scripts/publish_ai_outlook_gemini.py --validate-only --require-today
 
       - name: Refresh homepage runtime and metrics
+        if: github.event_name != 'push'
         run: |
           set -euo pipefail
           python scripts/enforce_homepage_photo_only.py
@@ -114,6 +119,7 @@ jobs:
           python scripts/ai_outlook_metrics.py --validate-only
 
       - name: Verify local publication state
+        if: github.event_name != 'push'
         run: |
           python - <<'PY'
           import json
@@ -143,6 +149,7 @@ jobs:
           PY
 
       - name: Commit Gemini publication
+        if: github.event_name != 'push'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -173,6 +180,7 @@ jobs:
           fi
 
       - name: Verify Gemini publication on briefrooms.com
+        if: github.event_name != 'push'
         run: |
           python - <<'PY'
           import json
@@ -255,6 +263,7 @@ jobs:
           PY
 
       - name: Commit production verification
+        if: github.event_name != 'push'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"

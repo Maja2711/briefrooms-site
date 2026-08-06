@@ -27,6 +27,7 @@ if str(SCRIPTS) not in sys.path:
 import sitecustomize  # noqa: F401,E402
 import update_ai_outlook as legacy  # noqa: E402
 import update_ai_outlook_v3 as v3  # noqa: E402
+from ai_outlook_pl_quality import validate_pl_edition  # noqa: E402
 from check_ai_provider import check_provider  # noqa: E402
 from comment_quality import AiRuntime, get_ai_runtime  # noqa: E402
 
@@ -59,6 +60,10 @@ def require_gemini(runtime: AiRuntime) -> None:
 
 def validate_payload(payload: dict[str, Any], *, today: str) -> None:
     v3.validate_payload(payload)
+    # The Polish edition has an additional fail-closed semantic gate. It rejects
+    # mixed metrics, missing baselines, vague predictions and unrelated evidence
+    # before v3.publish can touch any public file. The EN edition is unchanged.
+    validate_pl_edition(payload.get("pl") or {})
     if payload.get("date") != today:
         raise RuntimeError(
             f"Gemini AI Outlook date mismatch: expected {today}, got {payload.get('date')!r}"
