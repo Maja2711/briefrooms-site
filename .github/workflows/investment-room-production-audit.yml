@@ -1,0 +1,108 @@
+name: Audit Investment Room Production
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: investment-room-production-audit
+  cancel-in-progress: false
+
+jobs:
+  production-audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.issue.title == 'Audit Investment Room production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Playwright and Chromium
+        run: |
+          python -m pip install --upgrade pip playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Audit all 9 PL and 9 EN production views
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          AUDIT_BASE_URL=https://briefrooms.com \
+          AUDIT_OUTPUT_PATH=artifacts/investment-room-production/report.json \
+          AUDIT_SCREENSHOT_DIR=artifacts/investment-room-production/screenshots \
+          python scripts/audit_investment_rooms_fast.py
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Build audit summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path('artifacts/investment-room-production/report.json')
+          if not report_path.exists():
+              Path('/tmp/investment-room-audit.md').write_text(
+                  '## Production Investment Room audit: FAIL\n\nThe audit did not produce a report.',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          report = json.loads(report_path.read_text(encoding='utf-8'))
+          passed = bool(report.get('passed'))
+          lines = [
+              f"## Production Investment Room audit: {'PASS' if passed else 'FAIL'}",
+              '',
+              f"Public target: `{report.get('base_url', 'https://briefrooms.com')}`",
+              '',
+          ]
+          for language in ('pl', 'en'):
+              result = report.get('results', {}).get(language, {})
+              tabs = result.get('tabs', [])
+              tabs_passed = sum(1 for item in tabs if item.get('passed'))
+              data = result.get('data', {})
+              lines.extend([
+                  f"- **{language.upper()}**: {'PASS' if result.get('passed') else 'FAIL'}; tabs {tabs_passed}/9; status `{data.get('status', '')}`; value `{data.get('portfolio_value', '')}`; positions `{data.get('positions', '')}`",
+                  f"  - JavaScript errors: {len(result.get('page_errors', [])) + len(result.get('console_errors', []))}",
+                  f"  - critical request/HTTP errors: {len(result.get('critical_request_failures', [])) + len(result.get('critical_http_errors', []))}",
+              ])
+              if result.get('fatal_error'):
+                  lines.append(f"  - fatal error: `{result['fatal_error']}`")
+          lines.extend(['', f"Generated at: `{report.get('generated_at', '')}`"])
+          Path('/tmp/investment-room-audit.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+
+      - name: Comment result on trigger issue
+        if: always() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --body-file /tmp/investment-room-audit.md
+
+      - name: Upload production report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-production-audit
+          path: artifacts/investment-room-production
+          if-no-files-found: error
+
+      - name: Require production audit to pass
+        if: always()
+        shell: bash
+        run: exit "${{ steps.audit.outputs.exit_code || '1' }}"
