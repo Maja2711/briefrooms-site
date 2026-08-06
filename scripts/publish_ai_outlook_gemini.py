@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Publish the daily PL and EN AI Outlook only after verified Gemini inference.
+"""Publish daily PL and EN AI Outlook editions after verified Gemini inference.
 
-This is the production entry point for AI Outlook. It is deliberately
-fail-closed: missing credentials, an unhealthy Gemini endpoint, invalid model
-output or a non-Gemini runtime stops the workflow before any public file is
-changed. Deterministic continuity content is not published under the AI Outlook
-label.
+The English edition keeps the existing generation path. The Polish edition uses
+an independent real-outcome methodology that rejects meta-forecasts about media
+attention, articles, communications or future updates.
 """
 
 from __future__ import annotations
@@ -27,6 +25,7 @@ if str(SCRIPTS) not in sys.path:
 import sitecustomize  # noqa: F401,E402
 import update_ai_outlook as legacy  # noqa: E402
 import update_ai_outlook_v3 as v3  # noqa: E402
+from ai_outlook_pl_methodology import generate_pl_edition  # noqa: E402
 from ai_outlook_pl_quality import validate_pl_edition  # noqa: E402
 from check_ai_provider import check_provider  # noqa: E402
 from comment_quality import AiRuntime, get_ai_runtime  # noqa: E402
@@ -60,9 +59,6 @@ def require_gemini(runtime: AiRuntime) -> None:
 
 def validate_payload(payload: dict[str, Any], *, today: str) -> None:
     v3.validate_payload(payload)
-    # The Polish edition has an additional fail-closed semantic gate. It rejects
-    # mixed metrics, missing baselines, vague predictions and unrelated evidence
-    # before v3.publish can touch any public file. The EN edition is unchanged.
     validate_pl_edition(payload.get("pl") or {})
     if payload.get("date") != today:
         raise RuntimeError(
@@ -151,6 +147,39 @@ def current_is_valid(today: str) -> bool:
     return True
 
 
+def generate_verified_payload(
+    moment: datetime,
+    runtime: AiRuntime,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Generate PL with the new methodology and EN with its unchanged path."""
+    pl_edition, pl_audit = generate_pl_edition(moment, runtime)
+    en_edition, en_audit = v3.generate_language("en", moment, runtime)
+    local = moment.astimezone(legacy.WARSAW)
+    payload = {
+        "schema_version": v3.SCHEMA_VERSION,
+        "date": local.date().isoformat(),
+        "generated_at": local.isoformat(timespec="seconds"),
+        "edition_policy": "independent-per-language",
+        "source_policy": dict(v3.SOURCE_POLICY),
+        "pl": pl_edition,
+        "en": en_edition,
+    }
+    audit = {
+        "schema_version": "ai-outlook-audit-v3",
+        "date": payload["date"],
+        "generated_at": payload["generated_at"],
+        "edition_policy": payload["edition_policy"],
+        "source_policy": payload["source_policy"],
+        "editions": {
+            "pl": pl_audit,
+            "en": en_audit,
+        },
+    }
+    v3.validate_payload(payload)
+    validate_pl_edition(pl_edition)
+    return payload, audit
+
+
 def publish(*, force: bool) -> dict[str, Any]:
     moment = datetime.now(legacy.WARSAW)
     today = moment.date().isoformat()
@@ -165,7 +194,7 @@ def publish(*, force: bool) -> dict[str, Any]:
     if health.get("status") != "healthy":
         raise RuntimeError(f"Gemini preflight did not pass: {health}")
 
-    payload, audit = v3.generate(moment)
+    payload, audit = generate_verified_payload(moment, runtime)
     payload.update(
         {
             "generation_mode": "ai_primary",
@@ -188,7 +217,7 @@ def publish(*, force: bool) -> dict[str, Any]:
     provider_status = build_provider_status(payload, runtime, health)
     validate_status(daily_status, provider_status, today=today)
 
-    # Publish only after all provider, payload and status validations pass.
+    # Publish only after provider, structural and Polish semantic validations pass.
     v3.publish(payload, audit)
     write_json(STATUS_PATH, daily_status)
     write_json(PROVIDER_STATUS_PATH, provider_status)
