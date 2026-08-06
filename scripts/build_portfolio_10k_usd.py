@@ -52,6 +52,20 @@ def local_to_usd(local_to_pln: float, usd_to_pln: float) -> float:
     return local_to_pln / usd_to_pln
 
 
+def rebased_cash_usd(source: dict) -> float:
+    """Scale source cash to the independent USD portfolio's starting capital.
+
+    The USD portfolio is a separate 10,000 USD model using the source portfolio's
+    weights and returns. Cash therefore has to be rebased by its share of source
+    starting capital. Dividing PLN cash by the current USD/PLN rate would mix two
+    different notionals and materially understate cash after a closed position.
+    """
+    source_start = number(source.get("starting_capital_pln"))
+    if source_start <= 0:
+        return 0.0
+    return number(source.get("cash_pln")) / source_start * STARTING_CAPITAL_USD
+
+
 def convert_position(position: dict, source: dict, usd_pln_now: float) -> dict:
     item = copy.deepcopy(position)
     target_weight = number(item.get("target_weight"))
@@ -122,7 +136,9 @@ def build() -> dict:
     source = json.loads(SOURCE.read_text(encoding="utf-8"))
     usd_pln_now = current_usd_pln(source)
     positions = [convert_position(p, source, usd_pln_now) for p in source.get("positions") or []]
-    total_value_usd = sum(number(p.get("current_value_usd")) for p in positions) + number(source.get("cash_pln")) / usd_pln_now
+    cash_usd = rebased_cash_usd(source)
+    total_value_usd = sum(number(p.get("current_value_usd")) for p in positions) + cash_usd
+    total_return_usd = total_value_usd - STARTING_CAPITAL_USD
     for position in positions:
         position["current_weight"] = round(number(position.get("current_value_usd")) / total_value_usd, 8) if total_value_usd else 0.0
 
@@ -130,22 +146,26 @@ def build() -> dict:
     now = datetime.now(timezone.utc).isoformat()
     payload = copy.deepcopy(source)
     payload.update({
-        "schema_version": "1.1.0-usd",
+        "schema_version": "1.1.1-usd",
         "portfolio_id": "briefrooms-xtb-10k-usd",
         "name_en": "10K Investing — USD model portfolio",
         "base_currency": "USD",
         "reporting_currency": "USD",
         "starting_capital_usd": STARTING_CAPITAL_USD,
-        "cash_usd": round(number(source.get("cash_pln")) / usd_pln_now, 2),
+        "cash_usd": round(cash_usd, 2),
         "total_value_usd": round(total_value_usd, 2),
+        "total_return_usd": round(total_return_usd, 2),
         "total_return_percent": round(total_value_usd / STARTING_CAPITAL_USD - 1, 8),
         "benchmark_return_percent": benchmark.get("return_percent"),
         "generated_from": "portfolio_10k.json instruments, prices and target weights; independently rebased to USD 10,000",
         "generated_at": now,
         "source_portfolio_id": source.get("portfolio_id"),
         "starting_capital_pln": STARTING_CAPITAL_USD,
-        "cash_pln": round(number(source.get("cash_pln")) / usd_pln_now, 2),
+        "cash_pln": round(cash_usd, 2),
+        "base_cash_pln": round(cash_usd, 2),
+        "cash_balance_pln": round(cash_usd, 2),
         "total_value_pln": round(total_value_usd, 2),
+        "total_return_pln": round(total_return_usd, 2),
         "positions": positions,
         "benchmark": benchmark,
         "snapshots": [
@@ -167,7 +187,7 @@ def build() -> dict:
                 "benchmark_value_usd": benchmark.get("current_value_usd"),
                 "total_value_pln": round(total_value_usd, 2),
                 "benchmark_value_pln": benchmark.get("current_value_usd"),
-                "cash_pln": round(number(source.get("cash_pln")) / usd_pln_now, 2),
+                "cash_pln": round(cash_usd, 2),
             },
         ],
     })
