@@ -6,9 +6,7 @@ on:
     paths:
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
-      - "scripts/portfolio-10k-dashboard.js"
-      - "scripts/portfolio-10k-dashboard-en.js"
-      - "scripts/portfolio-10k-execution-finalizer.js"
+      - "scripts/portfolio-10k-room.js"
       - "scripts/audit_investment_rooms_fast.py"
       - ".github/workflows/investment-room-root-cause-audit.yml"
   workflow_dispatch:
@@ -38,6 +36,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install playwright
           python -m playwright install --with-deps chromium
+
+      - name: Validate controller syntax and single-controller HTML
+        run: |
+          node --check scripts/portfolio-10k-room.js
+          test "$(grep -o 'portfolio-10k-room.js' pl/inwestycje/portfel-10k.html | wc -l)" -eq 1
+          test "$(grep -o 'portfolio-10k-room.js' en/investing/portfolio-10k.html | wc -l)" -eq 1
+          ! grep -Eq 'portfolio-10k-(public|control-public|brace-public|dashboard|analytics-enhanced|capital-summary|explainers|verified-material-loader|decision-overlay|execution-finalizer)|ai-tournament-(public|readiness)' pl/inwestycje/portfel-10k.html
+          ! grep -Eq 'portfolio-10k-(public|control-public|brace-public|dashboard|analytics-enhanced|capital-summary|explainers|verified-material-loader|decision-overlay|execution-finalizer)|ai-tournament-(public|readiness)|portfolio-10k-usd-source' en/investing/portfolio-10k.html
 
       - name: Start local site
         run: |
