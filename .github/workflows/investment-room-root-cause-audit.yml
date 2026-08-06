@@ -1,0 +1,63 @@
+name: Investment Room Root Cause Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/portfolio-10k-dashboard-en.js"
+      - "scripts/audit_investment_rooms_fast.py"
+      - ".github/workflows/investment-room-root-cause-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: investment-room-root-cause-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-18-views:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright and Chromium
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Start local site
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
+          echo $! > /tmp/briefrooms-http.pid
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/briefrooms-http.log
+          exit 1
+
+      - name: Test all 9 PL and 9 EN views
+        run: |
+          AUDIT_OUTPUT_PATH=artifacts/investment-room-audit/report.json \
+          AUDIT_SCREENSHOT_DIR=artifacts/investment-room-audit/screenshots \
+          python scripts/audit_investment_rooms_fast.py
+
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-room-root-cause-audit
+          path: artifacts/investment-room-audit
+          if-no-files-found: error
