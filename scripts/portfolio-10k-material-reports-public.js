@@ -28,7 +28,7 @@
       instrument: 'Wpływ instrumentu', fx: 'Wpływ FX', indicative: 'cena orientacyjna',
       actions: {HOLD:'Trzymaj',ADD_SMALL:'Rozważ małą transzę',TRIM:'Przegląd ograniczenia',WAIT:'Poczekaj',THESIS_REVIEW:'Pilny przegląd tezy'},
       severity: {LOW:'NISKA',MEDIUM:'ŚREDNIA',HIGH:'WYSOKA',CRITICAL:'KRYTYCZNA'},
-      types: {EARNINGS:'WYNIKI',GUIDANCE:'PROGNOZA',PRICE_ALERT:'ALERT CENOWY',ANALYST_CHANGE:'ANALITYCY',REGULATORY:'REGULACJE',POLITICAL:'POLITYKA',FX:'WALUTA',OPERATIONS:'OPERACJE',DIVIDEND:'DYWIDENDA',BUYBACK:'SKUP AKCJI',MATERIAL_NEWS:'ISTOTNA INFORMACJA'}
+      types: {EARNINGS:'WYNIKI',GUIDANCE:'PROGNOZA',PRICE_ALERT:'ALERT CENOWY',ANALYST_CHANGE:'ANALITYCY',REGULATORY:'REGULACJE',POLITICAL:'POLITYKA',FX:'WALUTA',OPERATIONS:'OPERACJE',PRODUCT:'PRODUKT',DIVIDEND:'DYWIDENDA',BUYBACK:'SKUP AKCJI',MATERIAL_NEWS:'ISTOTNA INFORMACJA'}
     },
     en: {
       heading: 'Material reports', empty: 'No new material events.', history: 'Older reports',
@@ -37,9 +37,13 @@
       instrument: 'Instrument effect', fx: 'FX effect', indicative: 'indicative price',
       actions: {HOLD:'Hold',ADD_SMALL:'Consider a small tranche',TRIM:'Review trimming',WAIT:'Wait',THESIS_REVIEW:'Urgent thesis review'},
       severity: {LOW:'LOW',MEDIUM:'MEDIUM',HIGH:'HIGH',CRITICAL:'CRITICAL'},
-      types: {EARNINGS:'EARNINGS',GUIDANCE:'GUIDANCE',PRICE_ALERT:'PRICE ALERT',ANALYST_CHANGE:'ANALYST CHANGE',REGULATORY:'REGULATORY',POLITICAL:'POLITICAL',FX:'FX',OPERATIONS:'OPERATIONS',DIVIDEND:'DIVIDEND',BUYBACK:'BUYBACK',MATERIAL_NEWS:'MATERIAL NEWS'}
+      types: {EARNINGS:'EARNINGS',GUIDANCE:'GUIDANCE',PRICE_ALERT:'PRICE ALERT',ANALYST_CHANGE:'ANALYST CHANGE',REGULATORY:'REGULATORY',POLITICAL:'POLITICAL',FX:'FX',OPERATIONS:'OPERATIONS',PRODUCT:'PRODUCT',DIVIDEND:'DIVIDEND',BUYBACK:'BUYBACK',MATERIAL_NEWS:'MATERIAL NEWS'}
     }
   };
+
+  const DECISION_ACTIONS = new Set(['HOLD', 'ADD_SMALL', 'TRIM', 'WAIT', 'THESIS_REVIEW']);
+  const EXCLUDED_PUBLIC_TYPES = new Set(['PRICE_ALERT']);
+  const EXCLUDED_PUBLIC_CATEGORIES = new Set(['DAILY_MOVE', 'COMPOSITE_RISK_REVIEW']);
 
   const localeFor = lang => lang === 'en' ? 'en-US' : 'pl-PL';
   const dateText = (value, lang, withTime = false) => {
@@ -67,10 +71,34 @@
   };
   const field = (report, name, lang) => report?.[`${name}_${lang}`] || '';
 
+  function isPublicMaterialReport(report) {
+    if (!report || typeof report !== 'object') return false;
+    if (EXCLUDED_PUBLIC_TYPES.has(String(report.type || ''))) return false;
+    if (EXCLUDED_PUBLIC_CATEGORIES.has(String(report.category || ''))) return false;
+    return true;
+  }
+
   function reportsForPosition(reports, positionId) {
     return (Array.isArray(reports) ? reports : [])
-      .filter(report => report && report.position_id === positionId)
+      .filter(report => report && report.position_id === positionId && isPublicMaterialReport(report))
       .sort((left, right) => String(right.published_at || right.event_date || '').localeCompare(String(left.published_at || left.event_date || '')));
+  }
+
+  function reportForCurrentDecision(report, position) {
+    if (!report || report.methodology_version !== 'analysis-news-v2') return report;
+    const currentFlag = String(position?.review_flag || 'HOLD');
+    const modelAction = DECISION_ACTIONS.has(currentFlag) ? currentFlag : 'HOLD';
+    return {
+      ...report,
+      model_action: modelAction,
+      decision_inputs: {
+        ...(report.decision_inputs || {}),
+        review_flag: modelAction,
+        model_score: position?.model_score,
+        positive_signals: Array.isArray(position?.positive_signals) ? [...position.positive_signals] : [],
+        risk_signals: Array.isArray(position?.risk_signals) ? [...position.risk_signals] : []
+      }
+    };
   }
 
   function renderSources(sources, copy) {
@@ -140,7 +168,8 @@
   function renderForPosition({reports, position, lang = 'pl'} = {}) {
     lang = lang === 'en' ? 'en' : 'pl';
     const copy = COPY[lang];
-    const selected = reportsForPosition(reports, position?.id);
+    const selected = reportsForPosition(reports, position?.id)
+      .map(report => reportForCurrentDecision(report, position));
     const visible = selected.slice(0, 3);
     const history = selected.slice(3);
     const body = visible.length ? visible.map(report => renderReport(report, lang)).join('') : `<p class="material-reports__empty">${esc(copy.empty)}</p>`;
@@ -148,7 +177,7 @@
     return `<section class="material-reports"><div class="material-reports__header"><h4>${esc(copy.heading)}</h4></div>${body}${older}</section>`;
   }
 
-  return {esc, safeHttpsUrl, reportsForPosition, renderReport, renderForPosition};
+  return {esc, safeHttpsUrl, isPublicMaterialReport, reportsForPosition, reportForCurrentDecision, renderReport, renderForPosition};
 });
 
 (function (root) {

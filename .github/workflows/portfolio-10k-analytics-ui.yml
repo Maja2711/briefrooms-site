@@ -1,0 +1,80 @@
+name: Portfolio 10K Analytics UI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/portfolio-10k-material-reports-public.js"
+      - "tests/test_portfolio_10k_material_reports_public.js"
+      - ".github/workflows/portfolio-10k-analytics-ui.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/portfolio-10k-material-reports-public.js"
+      - "tests/test_portfolio_10k_material_reports_public.js"
+      - ".github/workflows/portfolio-10k-analytics-ui.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio-10k-analytics-ui
+  cancel-in-progress: false
+
+jobs:
+  test-and-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Test material-report presentation
+        run: |
+          node --check scripts/portfolio-10k-material-reports-public.js
+          node tests/test_portfolio_10k_material_reports_public.js
+
+      - name: Install cache-busted script in PL and EN
+        if: github.event_name == 'push'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          paths = [
+              Path('pl/inwestycje/portfel-10k.html'),
+              Path('en/investing/portfolio-10k.html'),
+          ]
+          pattern = re.compile(r'/scripts/portfolio-10k-material-reports-public\.js\?v=\d+')
+          replacement = '/scripts/portfolio-10k-material-reports-public.js?v=2'
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              updated, count = pattern.subn(replacement, text)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one material-report script, found {count}')
+              path.write_text(updated, encoding='utf-8', newline='\n')
+              print(f'Installed {replacement} in {path}')
+          PY
+
+      - name: Commit cache-bust
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "Material-report UI is already installed."
+            exit 0
+          fi
+          git commit -m "Install Analytics material-report filter"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+          exit 1
