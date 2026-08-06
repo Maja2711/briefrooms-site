@@ -1,0 +1,135 @@
+name: Repair Polish AI Outlook Quality
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-ai-outlook-pl-quality.yml"
+      - "scripts/repair_ai_outlook_pl_20260806.py"
+      - "scripts/ai_outlook_pl_quality.py"
+      - "tests/test_ai_outlook_pl_quality.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-polish-ai-outlook-quality
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Test Polish quality gate
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_ai_outlook_pl_quality -v
+          python -m py_compile \
+            scripts/ai_outlook_pl_quality.py \
+            scripts/repair_ai_outlook_pl_20260806.py \
+            scripts/publish_ai_outlook_gemini.py
+
+      - name: Repair only the Polish edition
+        run: |
+          set -euo pipefail
+          python scripts/repair_ai_outlook_pl_20260806.py
+          python scripts/publish_ai_outlook_gemini.py --validate-only --require-today
+
+      - name: Verify English edition was not changed
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          current = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          before = json.loads(subprocess.check_output(
+              ['git', 'show', 'HEAD:data/ai_outlook.json'], text=True
+          ))
+          assert current['en'] == before['en'], 'English AI Outlook changed'
+          assert current['pl']['forecast_id'] == '2026-08-06-pl-cash-access-quality-v1'
+          print('English edition unchanged; corrected Polish forecast installed.')
+          PY
+
+      - name: Commit Polish-only repair
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/ai_outlook.json \
+            data/ai_outlook_status.json \
+            data/ai_outlook_history/2026-08-06.json
+          git add data/internal/ai_outlook_audit/2026-08-06.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Polish AI Outlook repair already committed."
+            exit 0
+          fi
+          git commit -m "Repair incoherent Polish AI Outlook"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            if [[ "$attempt" == "5" ]]; then
+              exit 1
+            fi
+            sleep $((attempt * 4))
+          done
+
+      - name: Verify corrected Polish Outlook on production
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from ai_outlook_pl_quality import validate_pl_edition
+
+          expected = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          expected_en = expected['en']
+          expected_id = expected['pl']['forecast_id']
+          headers = {
+              'User-Agent': 'BriefRooms-PL-Outlook-quality-verifier/1.0',
+              'Cache-Control': 'no-cache',
+          }
+
+          last_error = ''
+          for attempt in range(1, 37):
+              try:
+                  url = f'https://briefrooms.com/data/ai_outlook.json?v={int(time.time())}-{attempt}'
+                  request = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      payload = json.loads(response.read().decode('utf-8'))
+                  validate_pl_edition(payload['pl'])
+                  assert payload['pl']['forecast_id'] == expected_id
+                  assert payload['en'] == expected_en
+                  print('Production Polish AI Outlook quality verification passed.')
+                  raise SystemExit(0)
+              except Exception as exc:
+                  last_error = str(exc)
+                  time.sleep(10)
+          raise SystemExit(f'Production verification failed: {last_error}')
+          PY
