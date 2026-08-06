@@ -9,9 +9,10 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_analysis_news_guard.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
       - "scripts/normalize_portfolio_10k_material_reports.py"
-      - "scripts/validate_portfolio_10k_material_reports.py"
+      - "scripts/validate_portfolio_10k_analysis_news.py"
       - "tests/test_portfolio_10k_news_quality.py"
       - "tests/test_portfolio_10k_material_reports_enrichment.py"
       - ".github/workflows/portfolio-10k-analysis-news.yml"
@@ -19,9 +20,10 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_analysis_news_guard.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
       - "scripts/normalize_portfolio_10k_material_reports.py"
-      - "scripts/validate_portfolio_10k_material_reports.py"
+      - "scripts/validate_portfolio_10k_analysis_news.py"
       - "tests/test_portfolio_10k_news_quality.py"
       - "tests/test_portfolio_10k_material_reports_enrichment.py"
       - ".github/workflows/portfolio-10k-analysis-news.yml"
@@ -56,26 +58,29 @@ jobs:
       - name: Rebuild evidence-gated material reports
         run: |
           python scripts/portfolio_10k_material_reports_enrichment.py
+          python scripts/portfolio_10k_analysis_news_guard.py
           python scripts/normalize_portfolio_10k_material_reports.py
-          python scripts/validate_portfolio_10k_material_reports.py
 
       - name: Apply the same feed to the independent EN portfolio
         run: |
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
 
-      - name: Test analytics methodology
+      - name: Test Analytics methodology in PL and EN
         run: |
           python -m py_compile \
             scripts/portfolio_10k_news_quality.py \
-            scripts/portfolio_10k_material_reports_enrichment.py
+            scripts/portfolio_10k_analysis_news_guard.py \
+            scripts/portfolio_10k_material_reports_enrichment.py \
+            scripts/validate_portfolio_10k_analysis_news.py
           python -m pytest -q \
             tests/test_portfolio_10k_news_quality.py \
             tests/test_portfolio_10k_material_reports.py \
             tests/test_portfolio_10k_material_reports_enrichment.py
+          python scripts/validate_portfolio_10k_analysis_news.py
           python scripts/validate_portfolio_10k_state.py
 
-      - name: Commit PL and EN analytics data
+      - name: Commit PL and EN Analytics data
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
@@ -89,7 +94,7 @@ jobs:
             echo "Analytics news is already current."
             exit 0
           fi
-          git commit -m "Refresh Portfolio 10K analytics news"
+          git commit -m "Refresh Portfolio 10K Analytics news"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
