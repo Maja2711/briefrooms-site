@@ -16,87 +16,100 @@ from ai_outlook_pl_quality import PolishOutlookQualityError, validate_pl_edition
 class PolishAiOutlookQualityTests(unittest.TestCase):
     def valid_edition(self) -> dict:
         return {
-            "title": "Dostęp do gotówki: kolejne oficjalne wyjaśnienia",
+            "title": "Prezydent podpisze ustawę o Osobistym Koncie Inwestycyjnym",
             "thesis": (
-                "Do 6 lutego 2027 r. co najmniej dwa polskie banki lub instytucje "
-                "publiczne opublikują konkretne komunikaty o dostępności wypłat gotówki."
+                "Do 30 września 2026 r. Prezydent RP podpisze ustawę wprowadzającą "
+                "Osobiste Konto Inwestycyjne."
             ),
             "rationale": (
-                "Punktem wyjścia jest opisana przez źródło trudność z uzyskaniem większej "
-                "kwoty gotówki bez wcześniejszego zgłoszenia."
+                "Ustawa została uchwalona i oczekuje na decyzję prezydenta. "
+                "Prognoza dotyczy wyłącznie jej podpisania."
             ),
             "confirmation": (
-                "Do 2027-02-06 zostaną opublikowane co najmniej 2 oficjalne komunikaty "
-                "dotyczące dostępności wypłat gotówki."
+                "Do 2026-09-30 ustawa o Osobistym Koncie Inwestycyjnym zostanie podpisana "
+                "przez Prezydenta RP."
             ),
             "invalidation": (
-                "Do 2027-02-06 nie zostaną opublikowane co najmniej 2 takie komunikaty."
+                "Do 2026-09-30 ustawa o Osobistym Koncie Inwestycyjnym nie zostanie podpisana "
+                "przez Prezydenta RP."
             ),
             "resolution_summary": (
-                "Prognoza jest trafna, jeżeli do 2027-02-06 liczba oficjalnych komunikatów "
-                "o dostępności wypłat gotówki wyniesie co najmniej 2."
+                "Rozstrzygnięcie 2026-09-30: podpisanie ustawy o Osobistym Koncie "
+                "Inwestycyjnym przez Prezydenta RP."
             ),
+            "probability": 66,
+            "forecast_type": "official_decision",
             "sources": [
                 {
-                    "name": "Bankier.pl",
+                    "name": "TVN24",
                     "url": (
-                        "https://www.bankier.pl/wiadomosc/Rzad-radzi-trzymac-gotowke-na-"
-                        "czarna-godzine-Banki-robia-wszystko-zeby-bylo-o-nia-trudniej-9178676.html"
+                        "https://tvn24.pl/biznes/z-kraju/osobiste-konto-inwestycyjne-"
+                        "ustawa-czeka-na-podpis-prezydenta-st9176647"
                     ),
-                    "provenance_id": "prov_cash_access",
+                    "provenance_id": "prov_oki",
                     "source_language": "pl",
                 }
             ],
             "resolution": {
-                "metric": "Liczba oficjalnych komunikatów dotyczących dostępności wypłat gotówki w Polsce",
+                "metric": "Podpisanie ustawy o Osobistym Koncie Inwestycyjnym przez Prezydenta RP",
                 "comparison_operator": ">=",
-                "threshold": 2.0,
-                "unit": "komunikaty",
+                "threshold": 1.0,
+                "unit": "zdarzenie binarne",
                 "baseline_date": "2026-08-06",
                 "baseline_value": 0.0,
-                "data_source_for_verification": "Publiczne komunikaty NBP, ZBP, UOKiK i banków",
-                "verification_url": "https://www.nbp.pl",
-                "resolution_date": "2027-02-06",
+                "data_source_for_verification": "Oficjalne komunikaty Prezydenta RP",
+                "verification_url": "https://www.prezydent.pl",
+                "resolution_date": "2026-09-30",
                 "status": "open",
+            },
+            "engine": {
+                "methodology_version": "pl-outcome-forecast-v2",
             },
         }
 
-    def test_accepts_one_coherent_measurable_forecast(self) -> None:
+    def test_accepts_real_official_decision(self) -> None:
         validate_pl_edition(self.valid_edition())
 
-    def test_rejects_the_published_mixed_metric(self) -> None:
+    def test_rejects_communication_count_meta_forecast(self) -> None:
         edition = self.valid_edition()
-        edition["resolution"]["metric"] = (
-            "Wskaźnik obrotu gotówkowego lub liczba skarg na ograniczenia wypłat"
-        )
-        edition["resolution"]["baseline_value"] = None
-        with self.assertRaises(PolishOutlookQualityError):
+        edition["title"] = "Pojawią się kolejne oficjalne komunikaty"
+        edition["thesis"] = "Do 2026-09-30 pojawią się co najmniej dwa komunikaty."
+        edition["confirmation"] = "Do 2026-09-30 pojawią się dwa komunikaty o ustawie."
+        edition["invalidation"] = "Do 2026-09-30 nie pojawią się dwa komunikaty o ustawie."
+        edition["resolution_summary"] = "Do 2026-09-30 liczba komunikatów wyniesie dwa."
+        edition["resolution"]["metric"] = "Liczba oficjalnych komunikatów o ustawie"
+        edition["resolution"]["unit"] = "komunikaty"
+        edition["forecast_type"] = "official_indicator"
+        with self.assertRaisesRegex(PolishOutlookQualityError, "media|publication"):
             validate_pl_edition(edition)
 
-    def test_rejects_vague_attention_language(self) -> None:
+    def test_rejects_unofficial_verification_target(self) -> None:
         edition = self.valid_edition()
-        edition["thesis"] = "Dynamika regulacyjna utrzyma się w centrum uwagi rynków."
-        with self.assertRaisesRegex(PolishOutlookQualityError, "non-testable phrase"):
+        edition["resolution"]["verification_url"] = "https://www.bankier.pl"
+        with self.assertRaisesRegex(PolishOutlookQualityError, "official"):
             validate_pl_edition(edition)
 
-    def test_rejects_unrelated_or_duplicated_sources(self) -> None:
+    def test_rejects_wrong_methodology_version(self) -> None:
         edition = self.valid_edition()
-        unrelated = copy.deepcopy(edition["sources"][0])
-        unrelated["url"] = (
-            "https://www.bankier.pl/wiadomosc/Domanski-jesli-ceny-paliw-beda-spadac-"
-            "to-nie-bedziemy-podejmowac-decyzji-o-ich-obnizce-9178682.html"
+        edition["engine"]["methodology_version"] = "pl-semantic-quality-v1"
+        with self.assertRaisesRegex(PolishOutlookQualityError, "current outcome methodology"):
+            validate_pl_edition(edition)
+
+    def test_rejects_unrelated_source(self) -> None:
+        edition = self.valid_edition()
+        edition["sources"][0]["url"] = (
+            "https://www.bankier.pl/wiadomosc/ceny-paliw-spadek-decyzja-rzadu.html"
         )
-        unrelated["provenance_id"] = "prov_fuel"
-        edition["sources"].append(unrelated)
         with self.assertRaisesRegex(PolishOutlookQualityError, "unrelated"):
             validate_pl_edition(edition)
 
-        duplicated = self.valid_edition()
-        second = copy.deepcopy(duplicated["sources"][0])
+    def test_rejects_duplicated_provenance(self) -> None:
+        edition = self.valid_edition()
+        second = copy.deepcopy(edition["sources"][0])
         second["url"] += "?copy=1"
-        duplicated["sources"].append(second)
+        edition["sources"].append(second)
         with self.assertRaisesRegex(PolishOutlookQualityError, "duplicated provenance"):
-            validate_pl_edition(duplicated)
+            validate_pl_edition(edition)
 
 
 if __name__ == "__main__":
