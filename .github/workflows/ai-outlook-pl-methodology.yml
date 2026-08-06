@@ -1,0 +1,200 @@
+name: Polish AI Outlook Methodology
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ai-outlook-pl-methodology.yml"
+      - "scripts/ai_outlook_pl_methodology.py"
+      - "scripts/ai_outlook_pl_quality.py"
+      - "scripts/publish_ai_outlook_pl.py"
+      - "scripts/publish_ai_outlook_gemini.py"
+      - "tests/test_ai_outlook_pl_methodology.py"
+      - "tests/test_ai_outlook_pl_quality.py"
+      - "tests/test_publish_ai_outlook_gemini.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-outlook-pl-methodology.yml"
+      - "scripts/ai_outlook_pl_methodology.py"
+      - "scripts/ai_outlook_pl_quality.py"
+      - "scripts/publish_ai_outlook_pl.py"
+      - "scripts/publish_ai_outlook_gemini.py"
+      - "tests/test_ai_outlook_pl_methodology.py"
+      - "tests/test_ai_outlook_pl_quality.py"
+      - "tests/test_publish_ai_outlook_gemini.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: polish-ai-outlook-methodology
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Test Polish outcome methodology
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_ai_outlook_pl_methodology \
+            tests.test_ai_outlook_pl_quality \
+            tests.test_publish_ai_outlook_gemini -v
+          python -m py_compile \
+            scripts/ai_outlook_pl_methodology.py \
+            scripts/ai_outlook_pl_quality.py \
+            scripts/publish_ai_outlook_pl.py \
+            scripts/publish_ai_outlook_gemini.py
+
+  publish-pl:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Record English edition before PL generation
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          encoded = json.dumps(payload['en'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          Path('/tmp/en_before.sha').write_text(hashlib.sha256(encoded).hexdigest())
+          Path('/tmp/en_before.id').write_text(payload['en']['forecast_id'])
+          PY
+
+      - name: Verify Gemini and regenerate PL only
+        run: |
+          set -euo pipefail
+          python scripts/check_ai_provider.py
+          sleep 8
+          python scripts/publish_ai_outlook_pl.py --force
+          python scripts/publish_ai_outlook_pl.py --validate-only --require-today
+
+      - name: Verify methodology and unchanged EN
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          from pathlib import Path
+
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          pl = payload['pl']
+          encoded = json.dumps(payload['en'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          assert hashlib.sha256(encoded).hexdigest() == Path('/tmp/en_before.sha').read_text()
+          assert payload['en']['forecast_id'] == Path('/tmp/en_before.id').read_text()
+          assert pl['engine']['methodology_version'] == 'pl-outcome-forecast-v2'
+          assert pl['quality_gate']['version'] == 'pl-semantic-quality-v2'
+          assert pl['forecast_type'] in {
+              'official_decision', 'official_indicator', 'policy_implementation',
+              'regulatory_milestone', 'market_indicator', 'clinical_endpoint',
+              'scientific_result'
+          }
+          public = ' '.join(str(pl.get(key, '')) for key in (
+              'title', 'thesis', 'rationale', 'confirmation', 'invalidation',
+              'resolution_summary'
+          )).lower()
+          banned = re.compile(r'komunikat|aktualizacj|artykuł|publikacj|wzmiank|centrum uwagi')
+          assert not banned.search(public)
+          print(json.dumps({
+              'forecast_id': pl['forecast_id'],
+              'title': pl['title'],
+              'forecast_type': pl['forecast_type'],
+              'metric': pl['resolution']['metric'],
+              'en_preserved': payload['en']['forecast_id'],
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Commit PL AI Outlook publication
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/ai_outlook.json \
+            data/ai_outlook_status.json \
+            data/ai_outlook_provider_status.json \
+            data/ai_outlook_history \
+            data/internal/ai_outlook_audit
+          if git diff --cached --quiet; then
+            echo "Polish AI Outlook is already current."
+          else
+            git commit -m "Publish Polish AI Outlook with outcome methodology"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              if [[ "$attempt" == "5" ]]; then
+                exit 1
+              fi
+              sleep $((attempt * 4))
+            done
+          fi
+
+      - name: Verify production PL Outlook
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          expected_en = Path('/tmp/en_before.id').read_text()
+          headers = {'User-Agent': 'BriefRooms-PL-Outlook-verifier/2.0', 'Cache-Control': 'no-cache'}
+          last = None
+          for attempt in range(1, 37):
+              url = f'https://briefrooms.com/data/ai_outlook.json?v={int(time.time())}-{attempt}'
+              try:
+                  request = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      payload = json.loads(response.read().decode('utf-8'))
+                  pl = payload['pl']
+                  last = {
+                      'forecast_id': pl.get('forecast_id'),
+                      'title': pl.get('title'),
+                      'methodology': (pl.get('engine') or {}).get('methodology_version'),
+                      'en': (payload.get('en') or {}).get('forecast_id'),
+                  }
+                  if (
+                      last['methodology'] == 'pl-outcome-forecast-v2'
+                      and last['en'] == expected_en
+                  ):
+                      print(json.dumps(last, ensure_ascii=False))
+                      break
+              except Exception as exc:
+                  last = {'error': str(exc)}
+              time.sleep(10)
+          else:
+              raise SystemExit(f'Production PL Outlook verification failed: {last}')
+          PY
