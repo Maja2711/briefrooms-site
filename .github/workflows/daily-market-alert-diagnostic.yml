@@ -1,6 +1,11 @@
 name: Diagnose Daily Market Alert
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/daily-market-alert-diagnostic.yml"
+  workflow_dispatch:
   issues:
     types: [opened]
 
@@ -14,7 +19,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: github.event.issue.title == 'Diagnose Daily Market Alert'
+    if: github.event_name != 'issues' || github.event.issue.title == 'Diagnose Daily Market Alert'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -62,14 +67,16 @@ jobs:
           tail -n 160 /tmp/generate.log
           exit 0
 
-      - name: Validate and publish only alert data
-        id: publish
+      - name: Validate generated PL and EN alert
+        id: validate
         if: steps.tests.outputs.status == '0' && steps.generate.outputs.status == '0'
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
           python scripts/run_daily_market_alert_resilient.py --validate-only > /tmp/validate.log 2>&1
-          python - <<'PY'
+          status=$?
+          if [[ "$status" == "0" ]]; then
+            python - <<'PY' >> /tmp/validate.log 2>&1
           import json
           from pathlib import Path
           p = json.loads(Path('data/investments/daily_market_alert.json').read_text(encoding='utf-8'))
@@ -87,47 +94,74 @@ jobs:
               'en': p['market_regime']['en'],
           }, ensure_ascii=False, indent=2))
           PY
+            status=$?
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat /tmp/validate.log
+          exit 0
+
+      - name: Write focused diagnostic result
+        if: always()
+        env:
+          TEST_STATUS: ${{ steps.tests.outputs.status }}
+          GENERATE_STATUS: ${{ steps.generate.outputs.status }}
+          VALIDATE_STATUS: ${{ steps.validate.outputs.status }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def tail(path, limit=14000):
+              try:
+                  return Path(path).read_text(encoding='utf-8', errors='replace')[-limit:]
+              except Exception:
+                  return ''
+
+          payload = {
+              'schema_version': 'daily-market-alert-diagnostic-v1',
+              'generated_at': datetime.now(timezone.utc).isoformat(),
+              'tests_status': os.getenv('TEST_STATUS') or 'not-run',
+              'generator_status': os.getenv('GENERATE_STATUS') or 'not-run',
+              'validation_status': os.getenv('VALIDATE_STATUS') or 'not-run',
+              'tests_log': tail('/tmp/tests.log'),
+              'generator_log': tail('/tmp/generate.log'),
+              'validation_log': tail('/tmp/validate.log'),
+          }
+          path = Path('data/investments/daily_market_alert_diagnostic.json')
+          path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Publish only Daily Market Alert files and diagnostic
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/daily_market_alert.json data/investments/daily_alert_history
-          if ! git diff --cached --quiet; then
-            git commit -m "Repair Daily Market Alert PL and EN publication"
-            for attempt in 1 2 3 4 5; do
-              git pull --rebase origin main
-              if git push origin HEAD:main; then
-                echo "published=true" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
-              sleep $((attempt * 4))
-            done
-            exit 1
+          git add data/investments/daily_market_alert_diagnostic.json
+          git add data/investments/daily_market_alert.json data/investments/daily_alert_history 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No Daily Market Alert files changed."
+            exit 0
           fi
-          echo "published=false" >> "$GITHUB_OUTPUT"
+          git commit -m "Diagnose and repair Daily Market Alert PL and EN"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
 
-      - name: Report diagnostic
-        if: always()
+      - name: Comment on diagnostic issue
+        if: always() && github.event_name == 'issues'
         env:
           GH_TOKEN: ${{ github.token }}
           TEST_STATUS: ${{ steps.tests.outputs.status }}
           GENERATE_STATUS: ${{ steps.generate.outputs.status }}
-          PUBLISH_STATUS: ${{ steps.publish.outcome }}
-        shell: bash
+          VALIDATE_STATUS: ${{ steps.validate.outputs.status }}
         run: |
-          {
-            echo '## Daily Market Alert diagnostic'
-            echo
-            echo "- focused tests: ${TEST_STATUS:-not-run}"
-            echo "- generator: ${GENERATE_STATUS:-not-run}"
-            echo "- publish step: ${PUBLISH_STATUS:-not-run}"
-            echo
-            echo '### Generator log'
-            echo '```text'
-            tail -n 160 /tmp/generate.log 2>/dev/null || true
-            echo '```'
-            echo
-            echo '### Test log'
-            echo '```text'
-            tail -n 80 /tmp/tests.log 2>/dev/null || true
-            echo '```'
-          } > /tmp/comment.md
-          gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/comment.md
+          gh issue comment "${{ github.event.issue.number }}" --body "Daily Market Alert diagnostic finished. tests=${TEST_STATUS:-not-run}, generator=${GENERATE_STATUS:-not-run}, validation=${VALIDATE_STATUS:-not-run}."
