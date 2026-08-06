@@ -15,7 +15,7 @@ CAPITAL_JS = '<script src="/scripts/portfolio-10k-capital-summary.js?v=1" defer>
 EXPLAINERS_JS = '<script src="/scripts/portfolio-10k-explainers.js?v=4" defer></script>'
 VERIFIED_REPORTS_JS = '<script src="/scripts/portfolio-10k-verified-material-loader.js?v=2" defer></script>'
 DECISION_JS = '<script src="/scripts/portfolio-10k-decision-overlay.js?v=2" defer></script>'
-EXECUTION_FINALIZER_JS = '<script src="/scripts/portfolio-10k-execution-finalizer.js?v=2" defer></script>'
+EXECUTION_FINALIZER_JS = '<script src="/scripts/portfolio-10k-execution-finalizer.js?v=3" defer></script>'
 AUDIT_PATH = ROOT / "data/portfolio10k/investment_room_full_audit.json"
 
 
@@ -42,7 +42,7 @@ for path in PAGES:
     text = ensure_asset(text, "/scripts/portfolio-10k-decision-overlay.js", DECISION_JS, "</body>")
     text = re.sub(r'/scripts/portfolio-10k-decision-overlay\.js\?v=\d+', '/scripts/portfolio-10k-decision-overlay.js?v=2', text)
     text = ensure_asset(text, "/scripts/portfolio-10k-execution-finalizer.js", EXECUTION_FINALIZER_JS, "</body>")
-    text = re.sub(r'/scripts/portfolio-10k-execution-finalizer\.js\?v=\d+', '/scripts/portfolio-10k-execution-finalizer.js?v=2', text)
+    text = re.sub(r'/scripts/portfolio-10k-execution-finalizer\.js\?v=\d+', '/scripts/portfolio-10k-execution-finalizer.js?v=3', text)
     text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=3', text)
     text = text.replace('/scripts/portfolio-10k-dashboard.js?v=4', '/scripts/portfolio-10k-dashboard.js?v=5')
     text = text.replace('/scripts/portfolio-10k-dashboard-en.js?v=4', '/scripts/portfolio-10k-dashboard-en.js?v=5')
