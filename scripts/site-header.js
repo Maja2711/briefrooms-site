@@ -187,7 +187,12 @@
     var nav = createElement(doc, 'nav', 'br-site-header__nav');
     nav.id = 'br-site-navigation';
     nav.setAttribute('aria-label', labels.navigation);
-    NAVIGATION[language].forEach(function (item) {
+    var navigationItems = NAVIGATION[language].slice();
+    if (activeSection === 'investing') {
+      var investingIndex = navigationItems.findIndex(function (item) { return item.section === 'investing'; });
+      if (investingIndex > 1) navigationItems.splice(1, 0, navigationItems.splice(investingIndex, 1)[0]);
+    }
+    navigationItems.forEach(function (item) {
       var link = createElement(doc, 'a', 'br-site-header__link');
       link.href = item.href;
       link.setAttribute('data-section', item.section);
