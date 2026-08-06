@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: polish-ai-outlook-methodology
+  group: polish-ai-outlook-on-demand
   cancel-in-progress: false
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
           Path('/tmp/en.id').write_text(payload['en']['forecast_id'])
           PY
 
-      - name: Test methodology
+      - name: Test methodology and Gemini
         run: |
           set -euo pipefail
           python -m unittest \
@@ -105,7 +105,8 @@ jobs:
             done
           fi
 
-      - name: Report result
+      - name: Report success
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -118,3 +119,12 @@ jobs:
           } > /tmp/comment.md
           gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/comment.md
           gh issue close "${{ github.event.issue.number }}" --reason completed
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" --body '## Polish AI Outlook methodology: FAILED
+
+The PL-only regeneration stopped before publication. No English Outlook change was committed. Inspect the failed workflow run before retrying.'
