@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_analysis_state_guard.py"
       - "scripts/portfolio_10k_analysis_news_guard.py"
       - "scripts/portfolio_10k_analysis_news_strict.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
@@ -23,6 +24,7 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_news_quality.py"
+      - "scripts/portfolio_10k_analysis_state_guard.py"
       - "scripts/portfolio_10k_analysis_news_guard.py"
       - "scripts/portfolio_10k_analysis_news_strict.py"
       - "scripts/portfolio_10k_material_reports_enrichment.py"
@@ -58,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
+      - name: Preserve decision state
+        run: python scripts/portfolio_10k_analysis_state_guard.py --save /tmp/portfolio-analysis-decision-state.json
+
       - name: Refresh and rank source headlines
         run: python scripts/portfolio_10k_news_quality.py --refresh --force-refresh --limit 5
 
@@ -68,6 +73,11 @@ jobs:
           python scripts/portfolio_10k_analysis_news_strict.py
           python scripts/normalize_portfolio_10k_material_reports.py
 
+      - name: Restore scores decisions and review history
+        run: |
+          python scripts/portfolio_10k_analysis_state_guard.py --restore /tmp/portfolio-analysis-decision-state.json
+          python scripts/portfolio_10k_analysis_state_guard.py --repair-initial-side-effect
+
       - name: Apply the same feed to the independent EN portfolio
         run: |
           python scripts/build_portfolio_10k_usd.py
@@ -77,6 +87,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/portfolio_10k_news_quality.py \
+            scripts/portfolio_10k_analysis_state_guard.py \
             scripts/portfolio_10k_analysis_news_guard.py \
             scripts/portfolio_10k_analysis_news_strict.py \
             scripts/portfolio_10k_material_reports_enrichment.py \
