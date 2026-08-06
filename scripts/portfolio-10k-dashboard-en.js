@@ -1,27 +1,319 @@
-(()=>{
-'use strict';
-const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-const pct=n=>`${Number(n||0)>=0?'+':''}${(Number(n||0)*100).toFixed(2)}%`,clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
-const colors=['#15964d','#2768c7','#7050c8','#d99a25','#22a2a8','#d35d76','#8291a8','#bcc4ce'];
-let USDPLN=null;
-const usdRate=p=>{const direct=Number(p?.reporting_fx?.usd_pln);if(direct>0)return direct;for(const x of p?.positions||[]){if(x.currency==='USD'){const r=Number(x.current_fx_to_pln||x.entry_fx_to_pln);if(r>0)return r}}return null};
-const usd=pln=>USDPLN&&Number.isFinite(Number(pln))?Number(pln)/USDPLN:null;
-const money=pln=>{const v=usd(pln);return v===null?'— USD':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2}).format(v)};
-const contestants=[{name:'BRACE',status:'active contestant',signal:'decisions from the existing BRACE Engine'},{name:'OpenAI',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},{name:'Claude',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},{name:'Gemini',status:'awaiting launch',signal:'timestamped portfolio decision + rationale'},{name:'DeepSeek',status:'awaiting launch',signal:'Chinese model · timestamped portfolio decision + rationale'}];
-function openTab(name,scroll=true){$$('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.i10k-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));history.replaceState(null,'',`#${name}`);if(scroll)scrollTo({top:0,behavior:'smooth'})}
-function bindTabs(){$$('[data-tab]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();openTab(el.dataset.tab)}));const hash=location.hash.slice(1);if(hash&&$(`[data-panel="${hash}"]`))openTab(hash,false)}
-function renameTournament(){$$('[data-tab="agents"]').forEach(el=>{const span=el.querySelector('span');if(span)span.textContent='AI Tournament';else el.textContent='AI Tournament'});$$('.i10k-projects a[href="#agents"]').forEach(a=>a.textContent='AI Tournament');$$('[data-panel="agents"] h2,.agents-wide h2').forEach(h=>h.textContent='AI TOURNAMENT');const preview=$('.agents-wide .card-head p');if(preview)preview.textContent='A tournament of models using the same capital, data, costs and risk limits. No rewriting decisions after the fact.';const panel=$('[data-panel="agents"] .card-head p');if(panel)panel.textContent='OpenAI, Claude, Gemini, DeepSeek, BRACE and the human portfolio compete under one auditable rulebook.';const full=$('.agents-wide button[data-tab="agents"]');if(full)full.textContent='Open full AI Tournament →';const rules=$('[data-panel="agents"] h3');if(rules)rules.textContent='Tournament rules'}
-function chart(){const e=$('#mini-chart');if(e)e.innerHTML='<svg viewBox="0 0 600 120" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15964d" stop-opacity=".25"/><stop offset="1" stop-color="#15964d" stop-opacity="0"/></linearGradient></defs><path fill="url(#g)" d="M0 92L55 84L110 87L165 70L220 79L275 62L330 67L385 48L440 51L495 35L550 40L600 22L600 120L0 120Z"/><path fill="none" stroke="#15964d" stroke-width="3" d="M0 92L55 84L110 87L165 70L220 79L275 62L330 67L385 48L440 51L495 35L550 40L600 22"/></svg>'}
-function renderTournament(){const rows=contestants.map((a,i)=>`<div class="agent-rank"><b>${i+1}</b><span><strong>${a.name}</strong><small>${a.status}</small></span><b>—</b><span>${a.signal}</span></div>`).join('');$('#agents-preview').innerHTML=`<div class="agent-ranking">${rows}</div><div class="consensus-box"><small>The tournament begins after decisions are collected</small><strong>0</strong><span>completed rounds</span></div>`;$('#agent-cards').innerHTML=contestants.map(a=>`<article class="agent-card"><small>${a.status}</small><h3>${a.name}</h3><strong>—</strong><p>${a.signal}</p></article>`).join('');$('#agent-log').innerHTML='<div class="method-note">AI Tournament does not publish fictional returns. The table begins after separate append-only portfolios, a common schedule and the first completed round are in place.</div>'}
-function portfolioValue(p){return(p.positions||[]).filter(x=>x.status==='active').reduce((s,x)=>s+Number(x.current_value_pln||0),0)+Number(p.cash_pln||0)}
-function renderPortfolio(p){USDPLN=usdRate(p);const pos=(p.positions||[]).filter(x=>x.status==='active'),value=portfolioValue(p),start=Number(p.starting_capital_pln||1),ret=value/start-1,bret=Number(p.benchmark?.return_percent||0);$('#portfolio-value').textContent=money(value);$('#portfolio-return').textContent=pct(ret);$('#portfolio-return').className=ret>=0?'positive':'negative';$('#cash-value').textContent=money(p.cash_pln);$('#invested-value').textContent=money(value-p.cash_pln);$('#positions-count').textContent=pos.length;$('#updated-at').textContent=p.last_updated_at?new Date(p.last_updated_at).toLocaleString('en-GB'):'—';$('#data-status').textContent=(p.status||'model').toUpperCase()+(USDPLN?` · USD/PLN ${USDPLN.toFixed(4)}`:' · FX unavailable');$('#data-freshness').textContent=`Market data: ${p.last_market_session||'—'} · all portfolio values in USD`;$('#benchmark-return').textContent=pct(bret);let at=0;const stops=pos.map((x,i)=>{const w=Math.max(0,Number(x.current_weight||x.target_weight||0)),s=at*100;at+=w;return`${colors[i%colors.length]} ${s}% ${Math.min(at*100,100)}%`});if(at<1)stops.push(`#edf1f6 ${at*100}% 100%`);$('#allocation-donut').style.background=`conic-gradient(${stops.join(',')})`;$('#allocation-list').innerHTML=pos.slice(0,7).map((x,i)=>`<div class="allocation-row"><i style="background:${colors[i%colors.length]}"></i><span>${x.label}</span><b>${((x.current_weight||x.target_weight||0)*100).toFixed(1)}%</b></div>`).join('');const bars=[['10K Portfolio',ret],[p.benchmark?.label||'Benchmark',bret]],html=bars.map(([n,v])=>`<div class="bar-row"><span>${n}</span><div class="bar-track"><i style="width:${Math.min(100,Math.max(4,(v+.12)/.32*100))}%"></i></div><b class="${v>=0?'positive':'negative'}">${pct(v)}</b></div>`).join('');$('#benchmark-bars').innerHTML=html;$('#benchmark-full').innerHTML=html;$('#portfolio-table').innerHTML=pos.map(x=>`<tr><td><strong>${x.label}</strong><br><small>${x.broker_symbol}</small></td><td>${((x.current_weight||0)*100).toFixed(1)}%</td><td>${money(x.current_value_pln)}</td><td class="${Number(x.pnl_percent)>=0?'positive':'negative'}">${pct(x.pnl_percent)}</td><td><span class="signal ${x.review_flag||'HOLD'}">${x.review_flag||'HOLD'}</span></td><td>${x.thesis_en||x.thesis_pl||'—'}</td></tr>`).join('');$('#broker-note').textContent=`${p.broker_note_en||''} English reporting converts all portfolio-level PLN values to USD using the latest stored USD/PLN rate.`;const rules=p.methodology?.rules||[];$('#rules-grid').innerHTML=rules.map((x,i)=>`<div><dt>Rule ${i+1}</dt><dd>${x}</dd></div>`).join('');$('#objective').textContent=p.methodology?.objective_en||'—'}
-function renderBrace(b){const score=Number(b.portfolio?.score||0),conf=Number(b.portfolio?.confidence||0),counts=b.portfolio?.decision_counts||{},ps=b.positions||[];$('#brace-score').textContent=score.toFixed(1);$('#side-brace-score').textContent=score.toFixed(0);$('#brace-confidence').textContent=`${conf.toFixed(1)}%`;$('#brace-track').style.width=`${Math.min(score,100)}%`;$('#brace-counts').innerHTML=Object.entries(counts).slice(0,4).map(([k,v])=>`<span>${k}: <b>${v}</b></span>`).join('');$('#brace-impact').textContent=`BRACE analysed ${b.portfolio?.positions_reviewed||0} positions. Market regime: ${b.market_context?.regime||'—'}, context score ${Number(b.market_context?.score||0).toFixed(1)}/100.`;$('#brace-decisions').innerHTML=ps.slice(0,3).map(x=>`<div class="decision-row"><span class="signal ${x.decision?.code}">${x.decision?.code||'—'}</span><span><strong>${x.broker_symbol}</strong><br><small>${x.strongest_argument||'—'}</small></span><b>${Number(x.confidence||0).toFixed(0)}%</b></div>`).join('')}
-function riskFor(x){const t=String(x.asset_type||'').toLowerCase(),n=String(x.label||'').toLowerCase();if(n.includes('bitcoin')||n.includes('crypto'))return.34;if(n.includes('gold'))return.13;if(t.includes('etf'))return.11;if(t.includes('bond'))return.07;if(t.includes('stock'))return.19;return.15}
-function projectionModel(p,b){const pos=(p.positions||[]).filter(x=>x.status==='active'),bm=new Map((b.positions||[]).map(x=>[x.id,x]));let sw=0,score=0,conf=0,risk=0;const rows=pos.map(x=>{const w=Number(x.current_weight||x.target_weight||0),m=bm.get(x.id)||{},s=Number(m.score||b.portfolio?.score||50),c=Number(m.confidence||b.portfolio?.confidence||50),r=riskFor(x),er=clamp(.035+(s-50)*.0032,-.08,.22);sw+=w;score+=w*s;conf+=w*c;risk+=w*r;return{...x,w,score:s,confidence:c,risk:r,expected:er,contribution:w*er,decision:m.decision?.code||x.review_flag||'HOLD',catalyst:m.next_catalyst_en||'Next weekly review',largestRisk:m.largest_risk||(x.risks_en||[])[0]||'Market risk'}});if(sw>0){score/=sw;conf/=sw;risk/=sw}const base=clamp(.035+(score-50)*.0032,-.03,.16),bear=clamp(base-risk*.82,-.35,.08),bull=clamp(base+risk*.72,.06,.35),target=.10,prob=clamp(1/(1+Math.exp((target-base)/Math.max(.025,risk*.38))),.08,.92),value=portfolioValue(p);return{rows:rows.sort((a,z)=>z.contribution-a.contribution),score,conf,risk,base,bear,bull,target,prob,value}}
-function fanSvg(m){const W=760,H=250,pad=34,months=[0,1,3,6,12],ys=[];for(const r of[m.bear,m.base,m.bull,m.target])for(const mo of months)ys.push(usd(m.value*Math.pow(1+r,mo/12)));const lo=Math.min(...ys)*.985,hi=Math.max(...ys)*1.015,x=mo=>pad+(W-pad*2)*mo/12,y=v=>H-pad-(H-pad*2)*(v-lo)/(hi-lo||1),path=r=>months.map((mo,i)=>`${i?'L':'M'}${x(mo).toFixed(1)},${y(usd(m.value*Math.pow(1+r,mo/12))).toFixed(1)}`).join(' '),bullPts=months.map(mo=>`${x(mo)},${y(usd(m.value*Math.pow(1+m.bull,mo/12)))}`).join(' '),bearPts=[...months].reverse().map(mo=>`${x(mo)},${y(usd(m.value*Math.pow(1+m.bear,mo/12)))}`).join(' ');return`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Portfolio value projection fan chart"><defs><linearGradient id="fan-en" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15964d" stop-opacity=".20"/><stop offset="1" stop-color="#db3c3c" stop-opacity=".08"/></linearGradient></defs><polygon points="${bullPts} ${bearPts}" fill="url(#fan-en)"/><path d="${path(m.bear)}" class="proj-bear"/><path d="${path(m.base)}" class="proj-base"/><path d="${path(m.bull)}" class="proj-bull"/><path d="${path(m.target)}" class="proj-target"/>${months.map(mo=>`<text x="${x(mo)}" y="${H-8}" text-anchor="middle">${mo}M</text>`).join('')}</svg>`}
-function renderProjections(p,b){const m=projectionModel(p,b),h=[1,3,6,12],scenario=(name,r,tone,copy)=>`<article class="scenario-card ${tone}"><small>${name}</small><strong>${money(m.value*(1+r))}</strong><span>${pct(r)} after 12M</span><p>${copy}</p></article>`;const horizonRows=h.map(month=>`<tr><td>${month} months</td><td>${money(m.value*Math.pow(1+m.bear,month/12))}</td><td>${money(m.value*Math.pow(1+m.base,month/12))}</td><td>${money(m.value*Math.pow(1+m.bull,month/12))}</td></tr>`).join('');const positionRows=m.rows.map(x=>`<tr><td><strong>${x.label}</strong><small>${x.broker_symbol}</small></td><td>${(x.w*100).toFixed(1)}%</td><td>${x.score.toFixed(0)}/100</td><td>${pct(x.expected)}</td><td class="${x.contribution>=0?'positive':'negative'}">${(x.contribution*100).toFixed(2)} pp</td><td>${x.decision}</td></tr>`).join('');const top=m.rows.slice(0,3),risks=[...m.rows].sort((a,z)=>z.w*z.risk-a.w*a.risk).slice(0,3),verdict=m.base>=.10?'TARGET_CURRENTLY_PLAUSIBLE':m.base>=.07?'TARGET_WITHIN_RANGE_NOT_BASE_CASE':'TARGET_NOT_CURRENTLY_JUSTIFIED';const panel=$('[data-panel="projections"] .page-card');if(panel)panel.innerHTML=`<div class="projection-head"><div><small>BRACE SCENARIO ENGINE · v0.1 · USD REPORTING</small><h2>10K PORTFOLIO PROJECTIONS</h2><p>Scenarios use current weights, BRACE scores, confidence and risk classes. They are research ranges, not promised returns.</p></div><span class="projection-stamp">Data: ${p.last_market_session||'—'} · USD/PLN ${USDPLN?USDPLN.toFixed(4):'—'}</span></div><section class="projection-kpis"><div><small>Value today</small><strong>${money(m.value)}</strong></div><div><small>Base case 12M</small><strong>${money(m.value*(1+m.base))}</strong><span>${pct(m.base)}</span></div><div><small>Chance of +10%</small><strong>${(m.prob*100).toFixed(0)}%</strong><span>uncalibrated estimate</span></div><div><small>Target assessment</small><strong class="projection-verdict">${verdict}</strong></div></section><section class="projection-chart-card"><div class="projection-section-title"><div><h3>Portfolio value fan chart</h3><p>Bear, base and bull paths; dashed line marks the +10% annual target.</p></div></div><div class="projection-fan">${fanSvg(m)}</div><div class="projection-legend"><span class="bear">Bear</span><span class="base">Base</span><span class="bull">Bull</span><span class="target">+10% target</span></div></section><section class="scenario-grid">${scenario('Bear',m.bear,'bear','Materialisation of risks and a weaker market regime.')}${scenario('Base',m.base,'base','Current BRACE assessment and weights, without forcing the target.')}${scenario('Bull',m.bull,'bull','Better catalyst execution and a supportive market regime.')}</section><section class="projection-two-col"><article><div class="projection-section-title"><h3>Projection by horizon</h3></div><div class="table-wrap"><table class="clean-table projection-table"><thead><tr><th>Horizon</th><th>Bear</th><th>Base</th><th>Bull</th></tr></thead><tbody>${horizonRows}</tbody></table></div></article><article><div class="projection-section-title"><h3>Target +10%</h3></div><div class="target-card"><div class="target-ring"><strong>${(m.prob*100).toFixed(0)}%</strong><small>model estimate</small></div><dl><div><dt>Expected return</dt><dd>${pct(m.base)}</dd></div><div><dt>Target shortfall</dt><dd>${pct(Math.max(0,m.target-m.base))}</dd></div><div><dt>Risk estimate</dt><dd>${pct(m.risk)}</dd></div><div><dt>Confidence</dt><dd>${m.conf.toFixed(0)}%</dd></div></dl></div></article></section><section><div class="projection-section-title"><div><h3>Position contribution</h3><p>Expected return is a transparent BRACE-score scenario mapping, not an analyst price target.</p></div></div><div class="table-wrap"><table class="clean-table projection-table"><thead><tr><th>Position</th><th>Weight</th><th>BRACE</th><th>Expected 12M</th><th>Portfolio impact</th><th>Decision</th></tr></thead><tbody>${positionRows}</tbody></table></div></section><section class="projection-two-col drivers"><article><h3>Largest expected contributors</h3>${top.map((x,i)=>`<div class="driver-row"><b>${i+1}</b><span><strong>${x.label}</strong><small>${x.catalyst}</small></span><em>${(x.contribution*100).toFixed(2)} pp</em></div>`).join('')}</article><article><h3>Largest risk concentrations</h3>${risks.map((x,i)=>`<div class="driver-row risk"><b>${i+1}</b><span><strong>${x.label}</strong><small>${x.largestRisk}</small></span><em>${(x.w*x.risk*100).toFixed(2)} pp</em></div>`).join('')}</article></section><section class="calibration-card"><div><small>FORECAST CALIBRATION</small><h3>Not enough closed forecast history</h3><p>Brier score, directional accuracy and interval coverage will appear only after auditable forecast windows have closed. No fictional accuracy is published.</p></div><div><b>0</b><span>closed projection periods</span></div></section>`;const mini=$('#projection-overview');if(mini)mini.innerHTML=`<div class="projection-mini"><div><small>Base case 12M</small><strong>${pct(m.base)}</strong></div><div><small>Chance of +10%</small><strong>${(m.prob*100).toFixed(0)}%</strong></div><span>Bear ${pct(m.bear)} · Bull ${pct(m.bull)}</span><b>${verdict}</b></div>`}
-function renderAutomationHealth(registry){const badge=$('.live-badge'),state=registry?.workflows?.portfolio_prices?.status||'degraded',labels={healthy:'LIVE',running:'UPDATING',stale:'STALE',failed:'FAILED',degraded:'STATUS UNKNOWN'},colors={healthy:'#15964d',running:'#2768c7',stale:'#c77700',failed:'#db3c3c',degraded:'#6d7a90'};if(!badge)return;badge.innerHTML=`<i></i> ${labels[state]||labels.degraded}`;badge.dataset.automationStatus=state;badge.style.color=colors[state]||colors.degraded;const dot=badge.querySelector('i');if(dot)dot.style.background='currentColor';const item=registry?.workflows?.portfolio_prices;if(item)badge.title=`Data: ${item.data_updated_at||'unknown'} · last success: ${item.last_success_at||'unknown'}`}
-async function loadAutomationHealth(){renderAutomationHealth(null);try{const response=await fetch(`/data/system/automation_status.json?v=${Date.now()}`,{cache:'no-store'});if(!response.ok)throw Error('automation-status');renderAutomationHealth(await response.json())}catch(e){renderAutomationHealth(null)}}
-async function init(){renameTournament();bindTabs();chart();renderTournament();loadAutomationHealth();try{const[p,b]=await Promise.all([fetch('/data/investments/portfolio_10k.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('portfolio');return r.json()}),fetch('/data/investments/portfolio_10k_brace.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('brace');return r.json()})]);renderPortfolio(p);renderBrace(b);renderProjections(p,b)}catch(e){$('#data-status').textContent='Data source error';const a=$('.i10k-panel.active');if(a)a.insertAdjacentHTML('afterbegin','<div class="error-box">Portfolio, FX or BRACE data could not be loaded. Please refresh in a moment.</div>')}}
-document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
+(() => {
+  'use strict';
+
+  if (window.__BR_PORTFOLIO_ROOM_STABLE__) return;
+  window.__BR_PORTFOLIO_ROOM_STABLE__ = true;
+
+  const config = window.BR_PORTFOLIO_10K || {};
+  const lang = config.lang === 'en' || document.documentElement.lang.toLowerCase().startsWith('en') ? 'en' : 'pl';
+  const isEn = lang === 'en';
+  const locale = isEn ? 'en-US' : 'pl-PL';
+  const currency = isEn ? 'USD' : 'PLN';
+  const portfolioUrl = isEn
+    ? '/data/investments/portfolio_10k_usd.json'
+    : '/data/investments/portfolio_10k.json';
+  const braceUrl = '/data/investments/portfolio_10k_brace.json';
+  const COLORS = ['#15964d', '#2768c7', '#7050c8', '#d99a25', '#22a2a8', '#d35d76', '#8291a8', '#bcc4ce'];
+  const NAV_ORDER = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
+
+  const T = isEn ? {
+    active: 'ACTIVE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
+    portfolio: '10K Portfolio', benchmark: 'Benchmark', rule: 'Rule',
+    fallback: 'This section is available. Its detailed data is temporarily being refreshed.',
+    braceUnavailable: 'BRACE data is temporarily unavailable. Portfolio data remains active.',
+    market: 'Market data', values: 'values in USD', position: 'Position',
+    error: 'The investment room recovered its navigation, but current portfolio data could not be loaded.'
+  } : {
+    active: 'AKTYWNY', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
+    portfolio: 'Portfel 10K', benchmark: 'Benchmark', rule: 'Zasada',
+    fallback: 'Ta sekcja jest dostępna. Jej szczegółowe dane są chwilowo odświeżane.',
+    braceUnavailable: 'Dane BRACE są chwilowo niedostępne. Dane portfela pozostają aktywne.',
+    market: 'Dane rynkowe', values: 'wartości w PLN', position: 'Pozycja',
+    error: 'Pokój Inwestycje odzyskał nawigację, ale bieżących danych portfela nie udało się załadować.'
+  };
+
+  const state = { portfolio: null, brace: null, bound: false, loaded: false };
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+
+  function valueOf(object, usdKey, plnKey) {
+    if (isEn && Number.isFinite(Number(object?.[usdKey]))) return Number(object[usdKey]);
+    return num(object?.[plnKey]);
+  }
+
+  function money(value) {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2
+    }).format(num(value));
+  }
+
+  function pct(value) {
+    const number = num(value);
+    return `${number >= 0 ? '+' : ''}${(number * 100).toFixed(2)}%`;
+  }
+
+  function setText(selector, value) {
+    const element = $(selector);
+    if (element) element.textContent = String(value ?? '—');
+  }
+
+  function reorderHeader() {
+    const nav = $('#site-header .br-site-header__nav');
+    if (!nav) return false;
+    const links = new Map($$(':scope > a[data-section]', nav).map(link => [link.dataset.section, link]));
+    NAV_ORDER.forEach(section => {
+      const link = links.get(section);
+      if (link) nav.appendChild(link);
+    });
+    nav.dataset.investmentOrder = NAV_ORDER.join('-');
+    return true;
+  }
+
+  function activateTab(name, scroll = false) {
+    const panel = $(`.i10k-panel[data-panel="${name}"]`);
+    if (!panel) return false;
+    $$('[data-tab]').forEach(trigger => trigger.classList.toggle('active', trigger.dataset.tab === name));
+    $$('.i10k-panel').forEach(item => item.classList.toggle('active', item.dataset.panel === name));
+    try { history.replaceState(null, '', `#${name}`); } catch (_) {}
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.dataset.investmentActiveTab = name;
+    return true;
+  }
+
+  function bindTabs() {
+    if (state.bound) return;
+    state.bound = true;
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('.i10k-app [data-tab]');
+      if (!trigger?.dataset.tab) return;
+      if (activateTab(trigger.dataset.tab, true)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    window.addEventListener('hashchange', () => {
+      const name = location.hash.slice(1);
+      if (name) activateTab(name, false);
+    });
+    const initial = location.hash.slice(1) || 'overview';
+    activateTab(initial, false);
+    document.body.dataset.investmentTabs = 'ready';
+  }
+
+  async function fetchJson(url, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const separator = url.includes('?') ? '&' : '?';
+      const response = await window.fetch(`${url}${separator}stable=${Date.now()}`, {
+        cache: 'no-store', signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+      return await response.json();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  function activePositions(portfolio) {
+    return (portfolio?.positions || []).filter(position => position.status === 'active');
+  }
+
+  function totalValue(portfolio) {
+    return activePositions(portfolio).reduce(
+      (sum, position) => sum + valueOf(position, 'current_value_usd', 'current_value_pln'), 0
+    ) + valueOf(portfolio, 'cash_usd', 'cash_pln');
+  }
+
+  function renderAllocation(positions) {
+    const donut = $('#allocation-donut');
+    const list = $('#allocation-list');
+    if (!donut || !list) return;
+    let cursor = 0;
+    const stops = positions.map((position, index) => {
+      const weight = Math.max(0, num(position.current_weight ?? position.target_weight));
+      const start = cursor * 100;
+      cursor += weight;
+      return `${COLORS[index % COLORS.length]} ${start}% ${Math.min(cursor * 100, 100)}%`;
+    });
+    if (cursor < 1) stops.push(`#edf1f6 ${cursor * 100}% 100%`);
+    donut.style.background = `conic-gradient(${stops.join(',')})`;
+    list.innerHTML = positions.slice(0, 8).map((position, index) => `
+      <div class="allocation-row">
+        <i style="background:${COLORS[index % COLORS.length]}"></i>
+        <span>${escapeHtml(position.label || position.broker_symbol || T.position)}</span>
+        <b>${(num(position.current_weight ?? position.target_weight) * 100).toFixed(1)}%</b>
+      </div>`).join('');
+  }
+
+  function renderBenchmark(portfolio, result) {
+    const benchmarkReturn = num(portfolio?.benchmark?.return_percent);
+    const rows = [
+      [T.portfolio, result],
+      [portfolio?.benchmark?.label || T.benchmark, benchmarkReturn]
+    ];
+    const html = rows.map(([label, value]) => `
+      <div class="bar-row">
+        <span>${escapeHtml(label)}</span>
+        <div class="bar-track"><i style="width:${Math.min(100, Math.max(4, (num(value) + 0.12) / 0.32 * 100))}%"></i></div>
+        <b class="${num(value) >= 0 ? 'positive' : 'negative'}">${pct(value)}</b>
+      </div>`).join('');
+    const compact = $('#benchmark-bars');
+    const full = $('#benchmark-full');
+    if (compact) compact.innerHTML = html;
+    if (full) full.innerHTML = html;
+    setText('#benchmark-return', pct(benchmarkReturn));
+  }
+
+  function renderPortfolioTable(positions) {
+    const table = $('#portfolio-table');
+    if (!table) return;
+    table.innerHTML = positions.map(position => {
+      const pnl = num(position.pnl_percent);
+      const thesis = isEn ? (position.thesis_en || position.thesis_pl) : (position.thesis_pl || position.thesis_en);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(position.label || position.broker_symbol || T.position)}</strong><br><small>${escapeHtml(position.broker_symbol || '')}</small></td>
+          <td>${(num(position.current_weight ?? position.target_weight) * 100).toFixed(1)}%</td>
+          <td>${money(valueOf(position, 'current_value_usd', 'current_value_pln'))}</td>
+          <td class="${pnl >= 0 ? 'positive' : 'negative'}">${pct(pnl)}</td>
+          <td><span class="signal ${escapeHtml(position.review_flag || 'HOLD')}">${escapeHtml(position.review_flag || 'HOLD')}</span></td>
+          <td>${escapeHtml(thesis || '—')}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderRules(portfolio) {
+    const grid = $('#rules-grid');
+    if (grid) {
+      grid.innerHTML = (portfolio?.methodology?.rules || []).map((rule, index) =>
+        `<div><dt>${T.rule} ${index + 1}</dt><dd>${escapeHtml(rule)}</dd></div>`
+      ).join('');
+    }
+    setText('#objective', isEn
+      ? (portfolio?.methodology?.objective_en || portfolio?.methodology?.objective_pl || '—')
+      : (portfolio?.methodology?.objective_pl || portfolio?.methodology?.objective_en || '—'));
+  }
+
+  function renderPortfolio(portfolio) {
+    state.portfolio = portfolio;
+    const positions = activePositions(portfolio);
+    const cash = valueOf(portfolio, 'cash_usd', 'cash_pln');
+    const total = totalValue(portfolio);
+    const start = valueOf(portfolio, 'starting_capital_usd', 'starting_capital_pln') || 10000;
+    const result = total / start - 1;
+
+    setText('#portfolio-value', money(total));
+    setText('#portfolio-return', pct(result));
+    setText('#cash-value', money(cash));
+    setText('#invested-value', money(total - cash));
+    setText('#positions-count', positions.length);
+    setText('#updated-at', portfolio.last_updated_at
+      ? new Date(portfolio.last_updated_at).toLocaleString(locale)
+      : '—');
+    setText('#data-status', `${T.active} · ${currency}`);
+    setText('#data-freshness', `${T.market}: ${portfolio.last_market_session || '—'} · ${T.values}`);
+    setText('#broker-note', isEn
+      ? (portfolio.broker_note_en || portfolio.broker_note_pl || '')
+      : (portfolio.broker_note_pl || portfolio.broker_note_en || ''));
+
+    const returnElement = $('#portfolio-return');
+    if (returnElement) returnElement.className = result >= 0 ? 'positive' : 'negative';
+    const badge = $('.live-badge');
+    if (badge) {
+      badge.innerHTML = `<i></i> ${T.active}`;
+      badge.dataset.automationStatus = 'healthy';
+    }
+
+    renderAllocation(positions);
+    renderBenchmark(portfolio, result);
+    renderPortfolioTable(positions);
+    renderRules(portfolio);
+    document.body.dataset.investmentData = 'ready';
+    document.body.dataset.investmentCurrency = currency;
+    state.loaded = true;
+  }
+
+  function renderBrace(brace) {
+    state.brace = brace;
+    const score = num(brace?.portfolio?.score);
+    const confidence = num(brace?.portfolio?.confidence);
+    setText('#brace-score', score.toFixed(1));
+    setText('#side-brace-score', score.toFixed(0));
+    setText('#brace-confidence', `${confidence.toFixed(1)}%`);
+    const track = $('#brace-track');
+    if (track) track.style.width = `${Math.min(score, 100)}%`;
+    const counts = $('#brace-counts');
+    if (counts) counts.innerHTML = Object.entries(brace?.portfolio?.decision_counts || {})
+      .slice(0, 4).map(([key, value]) => `<span>${escapeHtml(key)}: <b>${escapeHtml(value)}</b></span>`).join('');
+    const impact = isEn
+      ? `BRACE analysed ${brace?.portfolio?.positions_reviewed || 0} positions. Market regime: ${brace?.market_context?.regime || '—'}.`
+      : `BRACE przeanalizował ${brace?.portfolio?.positions_reviewed || 0} pozycji. Reżim rynku: ${brace?.market_context?.regime || '—'}.`;
+    setText('#brace-impact', impact);
+  }
+
+  function ensurePanelsAreUsable() {
+    $$('.i10k-panel').forEach(panel => {
+      if (!panel.dataset.panel) return;
+      if (!panel.textContent.trim()) panel.innerHTML = `<div class="method-note">${T.fallback}</div>`;
+    });
+    document.body.dataset.investmentPanels = 'ready';
+  }
+
+  function showError(error) {
+    setText('#data-status', T.unavailable);
+    const panel = $('.i10k-panel.active') || $('.i10k-panel[data-panel="overview"]');
+    if (panel && !panel.querySelector('.stable-room-error')) {
+      panel.insertAdjacentHTML('afterbegin', `<div class="error-box stable-room-error">${escapeHtml(T.error)}<br><small>${escapeHtml(error?.message || error || '')}</small></div>`);
+    }
+    document.body.dataset.investmentData = 'error';
+  }
+
+  async function load() {
+    const [portfolioResult, braceResult] = await Promise.allSettled([
+      fetchJson(portfolioUrl), fetchJson(braceUrl)
+    ]);
+    if (portfolioResult.status === 'fulfilled') renderPortfolio(portfolioResult.value);
+    else showError(portfolioResult.reason);
+    if (braceResult.status === 'fulfilled') renderBrace(braceResult.value);
+    else setText('#brace-impact', T.braceUnavailable);
+    ensurePanelsAreUsable();
+    return portfolioResult.status === 'fulfilled';
+  }
+
+  function start() {
+    bindTabs();
+    reorderHeader();
+    const observer = new MutationObserver(() => {
+      if (reorderHeader()) observer.disconnect();
+    });
+    if (!reorderHeader()) observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 8000);
+    load().catch(showError);
+    window.setTimeout(() => {
+      if (!state.loaded) load().catch(showError);
+    }, 5000);
+  }
+
+  window.BriefRoomsInvestmentRoom = {
+    activateTab,
+    reload: load,
+    state,
+    audit() {
+      return {
+        tabsReady: document.body.dataset.investmentTabs === 'ready',
+        dataReady: document.body.dataset.investmentData === 'ready',
+        panelsReady: document.body.dataset.investmentPanels === 'ready',
+        activeTab: document.body.dataset.investmentActiveTab || '',
+        currency: document.body.dataset.investmentCurrency || ''
+      };
+    }
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
