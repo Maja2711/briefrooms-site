@@ -1,0 +1,133 @@
+name: Diagnose Daily Market Alert
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: daily-market-alert-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.event.issue.title == 'Diagnose Daily Market Alert'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      OPENAI_API_KEY: ""
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install alert dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests feedparser pandas_market_calendars
+
+      - name: Run focused alert tests
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          python -m unittest \
+            tests.test_daily_market_alert \
+            tests.test_daily_market_alert_quality \
+            tests.test_daily_market_alert_materiality \
+            tests.test_daily_market_alert_watchdog -v > /tmp/tests.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          tail -n 120 /tmp/tests.log
+          exit 0
+
+      - name: Run current bilingual generator
+        id: generate
+        shell: bash
+        run: |
+          set +e
+          python scripts/run_daily_market_alert_resilient.py --mode catchup > /tmp/generate.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          tail -n 160 /tmp/generate.log
+          exit 0
+
+      - name: Validate and publish only alert data
+        id: publish
+        if: steps.tests.outputs.status == '0' && steps.generate.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/run_daily_market_alert_resilient.py --validate-only > /tmp/validate.log 2>&1
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('data/investments/daily_market_alert.json').read_text(encoding='utf-8'))
+          assert p['market_regime']['pl']
+          assert p['market_regime']['en']
+          assert p['summary']['pl']
+          assert p['summary']['en']
+          assert {x['id'] for x in p['instruments']} == {'sp500','brent','us10y'}
+          print(json.dumps({
+              'alert_id': p['alert_id'],
+              'session_date': p['session_date'],
+              'edition': p['edition'],
+              'updated_at': p['updated_at'],
+              'pl': p['market_regime']['pl'],
+              'en': p['market_regime']['en'],
+          }, ensure_ascii=False, indent=2))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/daily_market_alert.json data/investments/daily_alert_history
+          if ! git diff --cached --quiet; then
+            git commit -m "Repair Daily Market Alert PL and EN publication"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                echo "published=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              sleep $((attempt * 4))
+            done
+            exit 1
+          fi
+          echo "published=false" >> "$GITHUB_OUTPUT"
+
+      - name: Report diagnostic
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_STATUS: ${{ steps.tests.outputs.status }}
+          GENERATE_STATUS: ${{ steps.generate.outputs.status }}
+          PUBLISH_STATUS: ${{ steps.publish.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '## Daily Market Alert diagnostic'
+            echo
+            echo "- focused tests: ${TEST_STATUS:-not-run}"
+            echo "- generator: ${GENERATE_STATUS:-not-run}"
+            echo "- publish step: ${PUBLISH_STATUS:-not-run}"
+            echo
+            echo '### Generator log'
+            echo '```text'
+            tail -n 160 /tmp/generate.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo '### Test log'
+            echo '```text'
+            tail -n 80 /tmp/tests.log 2>/dev/null || true
+            echo '```'
+          } > /tmp/comment.md
+          gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/comment.md
