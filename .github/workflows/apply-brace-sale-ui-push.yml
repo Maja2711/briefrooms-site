@@ -1,0 +1,215 @@
+name: Apply BRACE Completed Sale UI Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-brace-sale-ui-push.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: apply-brace-completed-sale-ui
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch only completed-sale presentation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/portfolio-10k-decision-overlay.js')
+          text = path.read_text(encoding='utf-8')
+
+          original = text
+          text = text.replace(
+              "  const lang = window.BR_PORTFOLIO_10K?.lang === 'en' ? 'en' : 'pl';\n",
+              "  const lang = window.BR_PORTFOLIO_10K?.lang === 'en' ? 'en' : 'pl';\n  const locale = lang === 'en' ? 'en-US' : 'pl-PL';\n",
+              1,
+          )
+          text = text.replace(
+              "    tableExit: 'PLANOWANA SPRZEDAŻ',\n",
+              "    tableExit: 'PLANOWANA SPRZEDAŻ',\n    tableCompleted: 'SPRZEDAŻ ZREALIZOWANA',\n    noPending: 'Brak decyzji oczekujących na wykonanie.',\n    completedPrefix: 'Pozycja została sprzedana w portfelu modelowym',\n    completedAt: 'Realizacja',\n    completedPrice: 'cena',\n",
+              1,
+          )
+          text = text.replace(
+              "    tableExit: 'SELL PLANNED',\n",
+              "    tableExit: 'SELL PLANNED',\n    tableCompleted: 'SALE COMPLETED',\n    noPending: 'No decisions are awaiting execution.',\n    completedPrefix: 'The position was sold in the model portfolio',\n    completedAt: 'Executed',\n    completedPrice: 'price',\n",
+              1,
+          )
+
+          marker = "  function currentPlan(decision) {\n"
+          helper = """  function isExecuted(decision) {
+    return decision?.order?.status === 'PAPER_EXECUTED' || decision?.status === 'PAPER_EXECUTED';
+  }
+
+  function executionSummary(decision) {
+    const order = decision?.order || decision || {};
+    const symbol = symbolFor(decision?.instrument);
+    const parts = [`${COPY.completedPrefix}: ${symbol}.`];
+    const executedAt = order.executed_at || decision?.executed_at;
+    if (executedAt) {
+      const date = new Date(executedAt);
+      if (!Number.isNaN(date.valueOf())) parts.push(`${COPY.completedAt}: ${date.toLocaleString(locale)}.`);
+    }
+    const price = Number(order.execution?.price ?? decision?.execution?.price);
+    if (Number.isFinite(price)) parts.push(`${COPY.completedPrice}: ${price.toLocaleString(locale, {maximumFractionDigits: 4})}.`);
+    return parts.join(' ');
+  }
+
+"""
+          assert marker in text
+          text = text.replace(marker, helper + marker, 1)
+
+          start = text.index('  function applyLatestDecision(decisions) {')
+          end = text.index('\n  function applyAll(decisions) {', start)
+          replacement = """  function applyLatestDecision(decisions) {
+    const root = document.getElementById('brace-decisions');
+    if (!root) return false;
+    const exit = [...decisions.values()].find(item => item.action === 'EXIT');
+    if (!exit) return false;
+    const executed = isExecuted(exit);
+    const symbol = symbolFor(exit.instrument);
+    const id = `${executed ? 'executed' : 'pending'}-${exit.decision_id}`;
+    for (const existing of root.querySelectorAll('[data-current-decision]')) {
+      if (existing.dataset.currentDecision?.endsWith(String(exit.decision_id)) && existing.dataset.currentDecision !== id) existing.remove();
+    }
+    let row = root.querySelector(`[data-current-decision="${id}"]`);
+    if (row) return false;
+    row = document.createElement('div');
+    row.className = `decision-row ${executed ? 'completed-exit-decision' : 'current-exit-decision'}`;
+    row.dataset.currentDecision = id;
+    const label = executed ? COPY.tableCompleted : COPY.tableExit;
+    const detail = executed
+      ? executionSummary(exit)
+      : ((lang === 'pl' ? exit.rationale_pl : exit.rationale_en) || '');
+    row.innerHTML = `<span class="signal EXIT ${executed ? 'execution-complete' : ''}">${esc(label)}</span><span><strong>${esc(symbol)}</strong><br><small>${esc(detail)}</small></span><b>${Math.round(Number(exit.confidence || 0) * 100)}%</b>`;
+    root.prepend(row);
+    return true;
+  }
+
+  function applyCompletedState(decisions) {
+    let changed = false;
+    for (const [instrument, decision] of decisions) {
+      if (!isExecuted(decision)) continue;
+      const symbol = symbolFor(instrument);
+
+      const braceRoot = document.getElementById('brace-positions');
+      for (const card of braceRoot?.querySelectorAll('.brace-position') || []) {
+        if (card.querySelector('.symbol')?.textContent?.trim() === symbol) {
+          card.remove();
+          changed = true;
+        }
+      }
+
+      const controlRoot = document.getElementById('brace-control-root');
+      for (const card of controlRoot?.querySelectorAll('.control-recommendations .recommendation') || []) {
+        if (card.querySelector('b')?.textContent?.trim() === symbol) {
+          card.remove();
+          changed = true;
+        }
+      }
+
+      const pendingSection = controlRoot?.querySelector('.control-columns > section:nth-child(3)');
+      for (const row of pendingSection?.querySelectorAll('.control-list article') || []) {
+        const content = row.textContent.toLowerCase();
+        if (content.includes(String(instrument).toLowerCase()) || content.includes(symbol.toLowerCase())) {
+          row.remove();
+          changed = true;
+        }
+      }
+      const pendingList = pendingSection?.querySelector('.control-list');
+      if (pendingList && !pendingList.children.length) {
+        pendingList.outerHTML = `<p class="brace-empty">${esc(COPY.noPending)}</p>`;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+"""
+          text = text[:start] + replacement + text[end:]
+
+          old = """  function applyAll(decisions) {
+    applyPortfolioTable(decisions);
+    applyAnalyticsCards(decisions);
+    applyMaterialReportLabels(decisions);
+    applyLatestDecision(decisions);
+  }
+"""
+          new = """  function applyAll(decisions) {
+    const actionable = new Map([...decisions].filter(([, decision]) => !isExecuted(decision)));
+    applyPortfolioTable(actionable);
+    applyAnalyticsCards(actionable);
+    applyMaterialReportLabels(actionable);
+    applyLatestDecision(decisions);
+    applyCompletedState(decisions);
+  }
+"""
+          assert old in text
+          text = text.replace(old, new, 1)
+          assert text != original
+          path.write_text(text, encoding='utf-8')
+
+          patcher = Path('scripts/patch_portfolio_10k_hourly_ui.py')
+          patch = patcher.read_text(encoding='utf-8')
+          patch = patch.replace('portfolio-10k-decision-overlay.js?v=2', 'portfolio-10k-decision-overlay.js?v=3')
+          patcher.write_text(patch, encoding='utf-8')
+          PY
+
+      - name: Validate targeted files
+        run: |
+          node --check scripts/portfolio-10k-decision-overlay.js
+          python -m py_compile scripts/patch_portfolio_10k_hourly_ui.py
+          grep -q 'SPRZEDAŻ ZREALIZOWANA' scripts/portfolio-10k-decision-overlay.js
+          grep -q 'SALE COMPLETED' scripts/portfolio-10k-decision-overlay.js
+          grep -q 'PAPER_EXECUTED' scripts/portfolio-10k-decision-overlay.js
+          grep -q 'applyCompletedState' scripts/portfolio-10k-decision-overlay.js
+          grep -q 'portfolio-10k-decision-overlay.js?v=3' scripts/patch_portfolio_10k_hourly_ui.py
+
+      - name: Commit fix and remove temporary workflows
+        run: |
+          rm -f .github/workflows/apply-brace-sale-ui-push.yml
+          rm -f .github/workflows/fix-brace-executed-sale-ui.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/portfolio-10k-decision-overlay.js \
+                  scripts/patch_portfolio_10k_hourly_ui.py \
+                  .github/workflows/apply-brace-sale-ui-push.yml \
+                  .github/workflows/fix-brace-executed-sale-ui.yml
+          git commit -m "Show completed Novo sale in BRACE views"
+          git pull --rebase origin main
+          git push origin main
+
+      - name: Close trigger issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            for (const issue_number of [193, 194]) {
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number,
+                  body: 'Applied and validated: NOVOB.DK is shown as a completed paper sale and removed from current-position / awaiting-execution views in PL and EN.'
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+              } catch (error) {
+                core.warning(`Issue ${issue_number}: ${error.message}`);
+              }
+            }
