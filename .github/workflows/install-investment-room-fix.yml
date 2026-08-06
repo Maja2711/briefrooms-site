@@ -1,0 +1,51 @@
+name: Install Investment Room Fix
+
+on:
+  push:
+    branches:
+      - fix/investment-room-root-cause-20260806
+    paths:
+      - "tmp/investment-room-*.gz.b64"
+      - ".github/workflows/install-investment-room-fix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: install-investment-room-fix
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/investment-room-root-cause-20260806
+          fetch-depth: 0
+      - name: Require complete package
+        run: |
+          test -s tmp/investment-room-controller.js.gz.b64
+          test -s tmp/investment-room-pl.html.gz.b64
+          test -s tmp/investment-room-en.html.gz.b64
+      - name: Expand normal source files
+        run: |
+          base64 -d tmp/investment-room-controller.js.gz.b64 | gzip -d > scripts/portfolio-10k-room.js
+          base64 -d tmp/investment-room-pl.html.gz.b64 | gzip -d > pl/inwestycje/portfel-10k.html
+          base64 -d tmp/investment-room-en.html.gz.b64 | gzip -d > en/investing/portfolio-10k.html
+          node --check scripts/portfolio-10k-room.js
+          test "$(grep -o 'data-panel="'"'"'[^"'"'"']*"'"'"'' pl/inwestycje/portfel-10k.html | wc -l)" -eq 9
+          test "$(grep -o 'data-panel="'"'"'[^"'"'"']*"'"'"'' en/investing/portfolio-10k.html | wc -l)" -eq 9
+      - name: Commit installed room
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/portfolio-10k-room.js pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "Investment room files already installed."
+          else
+            git commit -m "fix(investing): install single PL EN room controller"
+            git pull --rebase origin fix/investment-room-root-cause-20260806
+            git push origin HEAD:fix/investment-room-root-cause-20260806
+          fi
