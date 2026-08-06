@@ -2,6 +2,8 @@ name: Refresh Portfolio 10K Analytics News
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   schedule:
     - cron: "17 6,10,14,18 * * 1-5"
     - cron: "17 8 * * 0,6"
@@ -37,12 +39,14 @@ concurrency:
 
 jobs:
   refresh-analysis-news:
+    if: github.event_name != 'issues' || github.event.issue.title == 'Refresh Portfolio 10K Analytics news'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
