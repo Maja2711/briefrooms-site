@@ -3,13 +3,15 @@
 
 This module does not lower publication thresholds and does not invent a
 forecast. It makes existing candidate/final-copy requirements explicit and
-uses one bounded retry when Gemini violates them.
+uses bounded retries when Gemini violates the same methodology gate used by
+the publisher.
 """
 from __future__ import annotations
 
 import copy
 import json
 import re
+from datetime import date
 from typing import Any
 
 import comment_quality
@@ -31,7 +33,7 @@ def _user_payload(message: dict[str, str]) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _is_pl_candidate_request(messages: list[dict[str, str]]) -> bool:
+def _candidate_context(messages: list[dict[str, str]]) -> tuple[dict[str, Any] | None, list[dict[str, Any]], str, list[str]]:
     for message in messages or []:
         payload = _user_payload(message)
         if not payload:
@@ -42,8 +44,17 @@ def _is_pl_candidate_request(messages: list[dict[str, str]]) -> bool:
             and isinstance(shape, dict)
             and "candidates" in shape
         ):
-            return True
-    return False
+            return (
+                payload,
+                [row for row in payload.get("sources", []) if isinstance(row, dict)],
+                str(payload.get("publication_date_europe_warsaw") or ""),
+                [str(value) for value in payload.get("recent_titles_to_avoid", [])],
+            )
+    return None, [], "", []
+
+
+def _is_pl_candidate_request(messages: list[dict[str, str]]) -> bool:
+    return _candidate_context(messages)[0] is not None
 
 
 def _is_pl_final_request(messages: list[dict[str, str]]) -> bool:
@@ -65,7 +76,7 @@ def _is_pl_final_request(messages: list[dict[str, str]]) -> bool:
     return False
 
 
-def _augment_candidate(messages: list[dict[str, str]]) -> list[dict[str, str]]:
+def _augment_candidate(messages: list[dict[str, str]], retry_reasons: list[str] | None = None) -> list[dict[str, str]]:
     result = copy.deepcopy(messages)
     for message in result:
         payload = _user_payload(message)
@@ -88,18 +99,17 @@ def _augment_candidate(messages: list[dict[str, str]]) -> list[dict[str, str]]:
             ),
             "continuous_threshold": (
                 "Jeżeli unit nie jest zdarzeniem binarnym, threshold MUSI różnić się "
-                "od baseline_value i oznaczać przyszły poziom. Nie wolno kopiować "
-                "baseline do threshold. Baseline musi pochodzić ze źródła; threshold "
-                "jest prognozowanym poziomem, który sam oceniasz."
+                "od baseline_value i oznaczać przyszły poziom. Baseline musi pochodzić "
+                "ze źródła; threshold jest prognozowanym poziomem."
+            ),
+            "horizon_contract": (
+                "AI Outlook jest średnioterminowy. resolution_date musi przypadać co "
+                "najmniej 90 dni po publication_date. horizon_pl/horizon_en są etykietami "
+                "prezentacyjnymi i zostaną wyliczone z resolution_date przez kod."
             ),
             "verification_competence": (
                 "Wybierz oficjalne źródło mające kompetencję do potwierdzenia metryki. "
                 "Dla detalicznych obligacji Skarbu Państwa użyj Gov.pl, nie NBP."
-            ),
-            "preference": (
-                "Jeżeli masz kilka równie mocnych okazji, preferuj zapowiedziane "
-                "zdarzenie/decyzję z jednoznacznym terminem albo wskaźnik z wyraźnym "
-                "baseline i naturalnym oficjalnym źródłem weryfikacji."
             ),
         }
         rules = list(payload.get("hard_rules") or [])
@@ -108,10 +118,18 @@ def _augment_candidate(messages: list[dict[str, str]]) -> list[dict[str, str]]:
                 "selection_reason nie może zawierać słów artykuł, publikacja, komunikat, aktualizacja, nagłówek, wzmianka ani zainteresowanie",
                 "dla metryki ciągłej threshold != baseline_value",
                 "nie przedstawiaj osiągniętego już baseline jako przyszłego progu",
+                "resolution_date musi być co najmniej 90 dni po publication_date",
                 "verification_url musi odpowiadać kompetencji instytucji dla danej metryki",
             ]
         )
         payload["hard_rules"] = rules
+        if retry_reasons:
+            payload["retry_instruction"] = (
+                "Poprzednia próba została odrzucona przez obowiązującą metodologię. "
+                "Wygeneruj nowy zestaw, usuwając dokładnie te błędy: "
+                + ", ".join(sorted(set(retry_reasons)))
+                + ". Nie obniżaj jakości ani nie obchodź reguł."
+            )
         message["content"] = json.dumps(payload, ensure_ascii=False)
     return result
 
@@ -161,7 +179,7 @@ def _augment_final(messages: list[dict[str, str]], retry: bool = False) -> list[
     return result
 
 
-def _invalid_candidate(candidate: dict[str, Any]) -> bool:
+def _local_invalid_reason(candidate: dict[str, Any], publication_date: str) -> str | None:
     text = " ".join(
         str(candidate.get(field) or "")
         for field in ("title", "forecast_statement", "selection_reason")
@@ -169,7 +187,7 @@ def _invalid_candidate(candidate: dict[str, Any]) -> bool:
     resolution = candidate.get("resolution") if isinstance(candidate.get("resolution"), dict) else {}
     metric = str(resolution.get("metric") or "")
     if _META.search(text) or _META.search(metric):
-        return True
+        return "meta_forecast_contract"
 
     unit = str(resolution.get("unit") or "").lower()
     if "binar" not in unit:
@@ -177,10 +195,46 @@ def _invalid_candidate(candidate: dict[str, Any]) -> bool:
             baseline = float(resolution.get("baseline_value"))
             threshold = float(resolution.get("threshold"))
         except (TypeError, ValueError):
-            return False
-        if abs(baseline - threshold) <= max(1e-9, abs(baseline) * 1e-9):
-            return True
-    return False
+            baseline = threshold = None
+        if baseline is not None and abs(baseline - threshold) <= max(1e-9, abs(baseline) * 1e-9):
+            return "threshold_equals_baseline"
+
+    try:
+        published = date.fromisoformat(publication_date)
+        resolved = date.fromisoformat(str(resolution.get("resolution_date") or ""))
+        if (resolved - published).days < 90:
+            return "resolution_horizon_under_90_days"
+    except ValueError:
+        pass
+    return None
+
+
+def _methodology_valid_candidates(payload: Any, messages: list[dict[str, str]]) -> tuple[list[dict[str, Any]], list[str]]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("candidates"), list):
+        return [], ["missing_candidates_array"]
+    _, items, publication_date, _ = _candidate_context(messages)
+    try:
+        import ai_outlook_pl_methodology as plm
+    except Exception:
+        plm = None
+
+    valid: list[dict[str, Any]] = []
+    reasons: list[str] = []
+    for row in payload["candidates"]:
+        if not isinstance(row, dict):
+            reasons.append("candidate_not_object")
+            continue
+        local_reason = _local_invalid_reason(row, publication_date)
+        if local_reason:
+            reasons.append(local_reason)
+            continue
+        if plm is not None:
+            reason = plm.candidate_rejection_reason(row, items, publication_date)
+            if reason:
+                reasons.append(reason)
+                continue
+        valid.append(row)
+    return valid, reasons
 
 
 def _invalid_final(payload: Any) -> bool:
@@ -216,42 +270,28 @@ def install() -> None:
         if not _is_pl_candidate_request(messages):
             return original(**kwargs)
 
-        first_kwargs = dict(kwargs)
-        first_kwargs["messages"] = _augment_candidate(messages)
-        payload = original(**first_kwargs)
-        if not isinstance(payload, dict) or not isinstance(payload.get("candidates"), list):
-            return payload
-        valid = [
-            row for row in payload["candidates"]
-            if isinstance(row, dict) and not _invalid_candidate(row)
-        ]
-        if valid:
-            payload = dict(payload)
-            payload["candidates"] = valid
-            return payload
+        last_payload: Any = {"candidates": []}
+        retry_reasons: list[str] = []
+        for attempt in range(3):
+            attempt_messages = _augment_candidate(
+                messages,
+                retry_reasons=retry_reasons if attempt else None,
+            )
+            attempt_kwargs = dict(kwargs)
+            attempt_kwargs["messages"] = attempt_messages
+            last_payload = original(**attempt_kwargs)
+            valid, retry_reasons = _methodology_valid_candidates(last_payload, messages)
+            if valid:
+                result = dict(last_payload)
+                result["candidates"] = valid
+                return result
 
-        second_messages = _augment_candidate(messages)
-        for message in second_messages:
-            payload_message = _user_payload(message)
-            if isinstance(payload_message, dict) and payload_message.get("language") == "pl":
-                payload_message["retry_instruction"] = (
-                    "Poprzednia odpowiedź nie miała żadnego poprawnego kandydata: "
-                    "nie używaj języka medialnego w polach prognozy i nie ustawiaj "
-                    "threshold równego baseline. Wygeneruj nowego kandydata z "
-                    "rzeczywistym przyszłym rezultatem albo zwróć pustą listę tylko, "
-                    "jeśli żadne candidate_opportunities nie istnieją."
-                )
-                message["content"] = json.dumps(payload_message, ensure_ascii=False)
-        second_kwargs = dict(kwargs)
-        second_kwargs["messages"] = second_messages
-        payload = original(**second_kwargs)
-        if isinstance(payload, dict) and isinstance(payload.get("candidates"), list):
-            payload = dict(payload)
-            payload["candidates"] = [
-                row for row in payload["candidates"]
-                if isinstance(row, dict) and not _invalid_candidate(row)
-            ]
-        return payload
+        # Fail closed: the canonical publisher will stop instead of publishing filler.
+        if isinstance(last_payload, dict):
+            result = dict(last_payload)
+            result["candidates"] = []
+            return result
+        return {"candidates": []}
 
     comment_quality.request_json_completion = wrapped
     comment_quality._briefrooms_pl_candidate_contract_installed = True
