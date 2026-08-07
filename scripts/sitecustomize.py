@@ -103,6 +103,47 @@ if _quality is not None:
                     return min(75.0, max(1.0, float(match.group(1))))
         return 65.0 if attempt == 0 else 75.0
 
+    def _normalize_gemini_json_payload(payload, messages):
+        """Normalize only structurally valid Gemini JSON variants.
+
+        Gemini occasionally returns the requested candidate collection as a
+        top-level JSON array even when the prompt asks for
+        {"candidates": [...]}.  That is safe to normalize only for prompts
+        that explicitly define a candidates collection.  Other array-shaped
+        responses remain invalid so existing publication contracts stay strict.
+        """
+        if isinstance(payload, dict):
+            return payload
+
+        if isinstance(payload, str):
+            nested = json.loads(payload)
+            if nested == payload:
+                raise ValueError("Gemini JSON string does not contain structured JSON")
+            return _normalize_gemini_json_payload(nested, messages)
+
+        if isinstance(payload, list):
+            prompt_text = "\n".join(
+                str(message.get("content", ""))
+                for message in (messages or [])
+                if isinstance(message, dict)
+            ).lower()
+            expects_candidates = (
+                '"candidates"' in prompt_text
+                and (
+                    "required_json_shape" in prompt_text
+                    or "kandydat" in prompt_text
+                    or "candidate" in prompt_text
+                )
+            )
+            if expects_candidates and payload and all(
+                isinstance(item, dict) for item in payload
+            ):
+                return {"candidates": payload}
+            if len(payload) == 1 and isinstance(payload[0], dict):
+                return payload[0]
+
+        raise ValueError("Gemini response is not a JSON object")
+
     def _request_json_completion(
         *,
         post,
@@ -183,9 +224,7 @@ if _quality is not None:
                     if isinstance(part, dict)
                 ).strip()
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
-                payload = json.loads(raw)
-                if not isinstance(payload, dict):
-                    raise ValueError("Gemini response is not a JSON object")
+                payload = _normalize_gemini_json_payload(json.loads(raw), messages)
                 return payload
             except Exception as exc:
                 last_error = exc
