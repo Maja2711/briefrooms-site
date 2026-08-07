@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_VERSION = "5"
 PROFILE_VERSION = "1"
 SUMMARY_VERSION = "1"
-ROOM_CONTROLLER_VERSION = "6"
+ROOM_CONTROLLER_VERSION = "7"
 SCRIPT = f'<script src="/scripts/ai-tournament-public.js?v={SCRIPT_VERSION}" defer></script>'
 READINESS_SCRIPT = f'<script src="/scripts/ai-tournament-readiness.js?v={SCRIPT_VERSION}" defer></script>'
 PROFILE_SCRIPT = f'<script src="/scripts/ai-tournament-company-profiles.js?v={PROFILE_VERSION}" defer></script>'
@@ -29,9 +29,9 @@ PAGES = (
 
 
 def patch_text(source: str) -> str:
-    # The stable room controller was changed after the old v5 cache key had
-    # already been published. Always emit the current cache key so browsers do
-    # not keep executing a stale controller while the HTML and data are fresh.
+    # Keep a dedicated cache key for the stable room controller. Bumping this
+    # version forces already-cached browsers/CDN edges to request the current
+    # controller after a room recovery without changing the controller logic.
     source = ROOM_CONTROLLER_PATTERN.sub(
         lambda match: f'<script src="{match.group("path")}?v={ROOM_CONTROLLER_VERSION}" defer></script>',
         source,
