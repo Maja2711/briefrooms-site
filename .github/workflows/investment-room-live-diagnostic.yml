@@ -3,13 +3,17 @@ name: Investment Room Live Diagnostic
 on:
   issues:
     types: [opened]
+  push:
+    branches: [main]
+    paths:
+      - 'data/investments/nav-real-click-trigger.txt'
 
 permissions:
   contents: write
 
 jobs:
   diagnose:
-    if: github.event.issue.title == 'Diagnose live Investment Room'
+    if: github.event_name == 'push' || github.event.issue.title == 'Diagnose live Investment Room'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
