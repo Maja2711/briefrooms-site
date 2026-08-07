@@ -43,6 +43,12 @@ if _quality is not None:
         {"name": "NASA", "url": "https://www.nasa.gov/", "uses": ["scientific_result"]},
         {"name": "ESA", "url": "https://www.esa.int/", "uses": ["scientific_result"]},
     ]
+    _CONTENT_CATEGORIES_BY_AREA = {
+        "economy": ["macro", "market_investment", "regulatory"],
+        "geopolitics": ["geopolitics"],
+        "health": ["public_health", "clinical_health"],
+        "science": ["technology", "science_research"],
+    }
 
     def _get_ai_runtime():
         gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -91,17 +97,16 @@ if _quality is not None:
         ]
 
     def _pl_candidate_opportunities(sources) -> list[dict]:
-        """Extract forecastable evidence without inventing a forecast direction.
-
-        These are hints only. They expose a source ID, the observed statement and
-        suitable contract type/official verifier. Gemini still has to formulate
-        the future claim and the deterministic methodology still validates it.
-        """
+        """Extract forecastable evidence without inventing a forecast direction."""
         opportunities: list[dict] = []
         for source in sources or []:
             if not isinstance(source, dict):
                 continue
             source_id = source.get("id")
+            source_area = str(source.get("area") or "").strip()
+            if source_area not in _CONTENT_CATEGORIES_BY_AREA:
+                continue
+            compatible_categories = _CONTENT_CATEGORIES_BY_AREA[source_area]
             title = re.sub(r"\s+", " ", str(source.get("title") or "")).strip()
             summary = re.sub(r"\s+", " ", str(source.get("summary") or "")).strip()
             text = f"{title} {summary}".lower()
@@ -125,6 +130,11 @@ if _quality is not None:
                 opportunities.append(
                     {
                         "source_id": source_id,
+                        "source_area": source_area,
+                        "compatible_content_categories": compatible_categories,
+                        "preferred_content_category": (
+                            "regulatory" if source_area == "economy" else compatible_categories[0]
+                        ),
                         "kind": "scheduled_binary_or_regulatory_event",
                         "observed_evidence": (title + ". " + summary)[:700],
                         "allowed_forecast_types": [
@@ -146,7 +156,9 @@ if _quality is not None:
                         "instruction": (
                             "To jest tylko okazja do prognozy. Na podstawie źródła "
                             "sam oceń najbardziej prawdopodobny przyszły wynik; nie "
-                            "przedstawiaj warunku ze źródła jako faktu dokonanego."
+                            "przedstawiaj warunku ze źródła jako faktu dokonanego. "
+                            "Pole area musi być identyczne z source_area, a "
+                            "content_category musi pochodzić z compatible_content_categories."
                         ),
                     }
                 )
@@ -168,9 +180,16 @@ if _quality is not None:
                     (number + (" " + unit if unit else "")).strip()
                     for number, unit in numeric[:4]
                 ]
+                preferred = (
+                    "macro" if source_area == "economy" and "macro" in compatible_categories
+                    else compatible_categories[0]
+                )
                 opportunities.append(
                     {
                         "source_id": source_id,
+                        "source_area": source_area,
+                        "compatible_content_categories": compatible_categories,
+                        "preferred_content_category": preferred,
                         "kind": "official_or_market_indicator_with_numeric_evidence",
                         "observed_evidence": (title + ". " + summary)[:700],
                         "observed_numbers": observed_numbers,
@@ -184,8 +203,8 @@ if _quality is not None:
                         "instruction": (
                             "Użyj tylko wartości liczbowej jednoznacznie opisanej w "
                             "źródle jako baseline. Nie wymyślaj wartości bazowej. "
-                            "Próg prognozy musi być ekonomicznie interpretowalny i "
-                            "nie może udawać oficjalnej prognozy ze źródła."
+                            "Pole area musi być identyczne z source_area, a "
+                            "content_category musi pochodzić z compatible_content_categories."
                         ),
                     }
                 )
@@ -240,10 +259,12 @@ if _quality is not None:
                 "albo liczbową wartość bazową; nie narzucają kierunku prognozy. "
                 "Jeżeli candidate_opportunities nie jest puste, NIE zwracaj pustej "
                 "tablicy: wybierz co najmniej jedną z tych okazji i sformułuj "
-                "rzeczywistą, przyszłą, falsyfikowalną prognozę. Nie wypełniaj limitu "
-                "słabymi pomysłami. Dla decyzji/zdarzenia użyj kontraktu binarnego: "
-                "baseline_value=0, threshold=1, unit='zdarzenie binarne'. Dla "
-                "wskaźnika ciągłego baseline musi pochodzić dosłownie ze źródła."
+                "rzeczywistą, przyszłą, falsyfikowalną prognozę. Dla wybranej okazji "
+                "skopiuj source_area dokładnie do pola area i wybierz content_category "
+                "wyłącznie z compatible_content_categories. Dla decyzji/zdarzenia "
+                "użyj kontraktu binarnego baseline_value=0, threshold=1, "
+                "unit='zdarzenie binarne'. Dla wskaźnika ciągłego baseline musi "
+                "pochodzić dosłownie ze źródła."
             )
             rules = list(payload.get("hard_rules") or [])
             rules.extend(
@@ -252,6 +273,7 @@ if _quality is not None:
                     "data_source_for_verification musi odpowiadać nazwie wybranego wpisu official_verification_registry",
                     "candidate_opportunities są wskazówkami z istniejących źródeł, a nie gotową prognozą; nie wolno zmieniać observed_evidence ani observed_numbers",
                     "jeżeli korzystasz z candidate_opportunities, source_ids muszą zawierać wskazany source_id",
+                    "dla candidate_opportunities area musi równać się source_area, a content_category musi należeć do compatible_content_categories",
                     "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
                 ]
             )
@@ -308,18 +330,13 @@ if _quality is not None:
         return type(payload).__name__
 
     def _normalize_gemini_json_payload(payload, messages):
-        """Normalize only structurally valid Gemini JSON variants."""
         if isinstance(payload, dict):
             return payload
-
         if isinstance(payload, str):
             nested = json.loads(payload)
             if nested == payload:
-                raise ValueError(
-                    "Gemini JSON string does not contain structured JSON"
-                )
+                raise ValueError("Gemini JSON string does not contain structured JSON")
             return _normalize_gemini_json_payload(nested, messages)
-
         if isinstance(payload, list):
             prompt_text = "\n".join(
                 str(message.get("content", ""))
@@ -338,7 +355,6 @@ if _quality is not None:
                 return {"candidates": payload}
             if len(payload) == 1 and isinstance(payload[0], dict):
                 return payload[0]
-
         raise ValueError(
             "Gemini response is not a JSON object; "
             f"shape={_gemini_payload_shape(payload)}"
@@ -364,7 +380,6 @@ if _quality is not None:
                 review=review,
                 timeout=timeout,
             )
-
         if not runtime.available:
             raise RuntimeError("AI provider is unavailable")
 
@@ -425,10 +440,9 @@ if _quality is not None:
                     if isinstance(part, dict)
                 ).strip()
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
-                payload = _normalize_gemini_json_payload(
+                return _normalize_gemini_json_payload(
                     json.loads(raw), effective_messages
                 )
-                return payload
             except Exception as exc:
                 last_error = exc
                 permanent = status in _quality.PERMANENT_HTTP_STATUSES
