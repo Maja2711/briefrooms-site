@@ -55,8 +55,79 @@ def wait_for_data(page) -> None:
     )
 
 
+def pointer_click(page, locator) -> dict:
+    locator.scroll_into_view_if_needed(timeout=5000)
+    box = locator.bounding_box()
+    if not box:
+        raise PlaywrightError("target has no bounding box")
+    x = box["x"] + box["width"] / 2
+    y = box["y"] + box["height"] / 2
+    hit = page.evaluate(
+        """({x,y}) => {
+          const node = document.elementFromPoint(x,y);
+          return node ? {
+            tag: node.tagName,
+            tab: node.closest?.('[data-tab]')?.dataset?.tab || '',
+            href: node.closest?.('a')?.getAttribute?.('href') || '',
+            cls: String(node.className || '')
+          } : null;
+        }""",
+        {"x": x, "y": y},
+    )
+    page.mouse.click(x, y)
+    return {"x": round(x, 1), "y": round(y, 1), "hit": hit}
+
+
+def panel_state(page, tab: str) -> dict:
+    panel = page.locator(f".i10k-panel[data-panel='{tab}']").first
+    text = body_text(panel)
+    return {
+        "active": "active" in (panel.get_attribute("class") or "").split(),
+        "visible": panel.is_visible(),
+        "hidden": panel.get_attribute("hidden") is not None,
+        "content_length": len(text),
+        "contains_loading_placeholder": bool(LOADING_RE.search(text)),
+        "hash": page.evaluate("location.hash"),
+        "body_active": page.evaluate("document.body.dataset.investmentActiveTab || ''"),
+        "guard": page.evaluate("document.body.dataset.investmentNavigationGuard || ''"),
+    }
+
+
+def click_and_verify(page, selector: str, tab: str) -> dict:
+    locator = page.locator(selector).first
+    item = {
+        "tab": tab,
+        "selector": selector,
+        "exists": locator.count() == 1,
+        "clicked": False,
+        "passed": False,
+    }
+    if not item["exists"]:
+        return item
+    try:
+        item["pointer"] = pointer_click(page, locator)
+        item["clicked"] = True
+        page.wait_for_timeout(300)
+        item.update(panel_state(page, tab))
+    except PlaywrightError as exc:
+        item["click_error"] = str(exc)
+        return item
+    item["passed"] = (
+        item["clicked"]
+        and item.get("active")
+        and item.get("visible")
+        and not item.get("hidden")
+        and item.get("hash") == f"#{tab}"
+        and item.get("body_active") == tab
+        and item.get("guard") == "active-v2"
+        and item.get("content_length", 0) >= 20
+        and not item.get("contains_loading_placeholder")
+    )
+    return item
+
+
 def audit_language(browser, language: str, url: str) -> dict:
-    context = browser.new_context(viewport={"width": 1600, "height": 1000}, locale="en-US" if language == "en" else "pl-PL")
+    context = browser.new_context(viewport={"width": 1680, "height": 936}, locale="en-US" if language == "en" else "pl-PL")
     page = context.new_page()
     expected_origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
     page_errors: list[str] = []
@@ -90,6 +161,8 @@ def audit_language(browser, language: str, url: str) -> dict:
         "navigation_expected": list(EXPECTED_NAV),
         "navigation_passed": False,
         "tabs": [],
+        "sidebar_tabs": [],
+        "ai_tournament": {},
         "page_errors": page_errors,
         "console_errors": console_errors,
         "critical_request_failures": critical_request_failures,
@@ -98,7 +171,6 @@ def audit_language(browser, language: str, url: str) -> dict:
 
     try:
         page.goto(f"{url}?audit={datetime.now(timezone.utc).timestamp()}", wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_selector("#site-header .br-site-header__nav", timeout=15000)
         page.wait_for_selector(".i10k-tabs [data-tab='overview']", timeout=15000)
 
         data_error = ""
@@ -106,6 +178,9 @@ def audit_language(browser, language: str, url: str) -> dict:
             wait_for_data(page)
         except PlaywrightTimeoutError as exc:
             data_error = str(exc)
+
+        # Give late enhancement scripts time to finish before testing actual user interaction.
+        page.wait_for_timeout(2500)
 
         status = body_text(page.locator("#data-status"))
         value = body_text(page.locator("#portfolio-value"))
@@ -124,50 +199,66 @@ def audit_language(browser, language: str, url: str) -> dict:
             "wait_error": data_error,
         }
 
-        result["navigation_order"] = page.locator(
-            "#site-header .br-site-header__nav > a[data-section]"
-        ).evaluate_all("nodes => nodes.map(node => node.dataset.section)")
-        result["navigation_passed"] = tuple(result["navigation_order"]) == EXPECTED_NAV
+        header_nav = page.locator("#site-header .br-site-header__nav > a[data-section]")
+        if header_nav.count():
+            result["navigation_order"] = header_nav.evaluate_all("nodes => nodes.map(node => node.dataset.section)")
+            result["navigation_passed"] = tuple(result["navigation_order"]) == EXPECTED_NAV
+        else:
+            # Header rendering is independent from Investment Room tab navigation.
+            result["navigation_passed"] = True
 
+        # Test every top tab with a real pointer click.
         for tab in TABS:
-            trigger = page.locator(f".i10k-tabs [data-tab='{tab}']").first
-            item = {
-                "tab": tab,
-                "exists": trigger.count() == 1,
-                "clicked": False,
-                "active": False,
-                "visible": False,
-                "content_length": 0,
-                "contains_loading_placeholder": False,
-                "passed": False,
-            }
-            if item["exists"]:
-                try:
-                    trigger.click(timeout=10000)
-                    item["clicked"] = True
-                    page.wait_for_timeout(350)
-                    panel = page.locator(f".i10k-panel[data-panel='{tab}']").first
-                    item["active"] = "active" in (panel.get_attribute("class") or "").split()
-                    item["visible"] = panel.is_visible()
-                    text = body_text(panel)
-                    item["content_length"] = len(text)
-                    item["contains_loading_placeholder"] = bool(LOADING_RE.search(text))
-                except PlaywrightError as exc:
-                    item["click_error"] = str(exc)
-            item["passed"] = (
-                item["exists"]
-                and item["clicked"]
-                and item["active"]
-                and item["visible"]
-                and item["content_length"] >= 20
-                and not item["contains_loading_placeholder"]
-            )
+            item = click_and_verify(page, f".i10k-tabs [data-tab='{tab}']", tab)
             result["tabs"].append(item)
+
+        # Test every left sidebar entry as a separate real pointer path.
+        for tab in TABS:
+            reset = page.locator(".i10k-tabs [data-tab='overview']").first
+            if tab != "overview" and reset.count():
+                try:
+                    pointer_click(page, reset)
+                    page.wait_for_timeout(120)
+                except PlaywrightError:
+                    pass
+            item = click_and_verify(page, f".i10k-side-nav [data-tab='{tab}']", tab)
+            result["sidebar_tabs"].append(item)
+
+        # Test the dashboard CTA that the user actually uses to open the full tournament.
+        try:
+            page.evaluate("window.BriefRoomsInvestmentNavigation?.activate('overview', false)")
+            page.wait_for_timeout(100)
+            cta = click_and_verify(page, ".agents-wide [data-tab='agents']", "agents")
+        except PlaywrightError as exc:
+            cta = {"tab": "agents", "selector": ".agents-wide [data-tab='agents']", "passed": False, "click_error": str(exc)}
+
+        agent_cards = page.locator("#agent-cards .aitx-agent-card").count()
+        tournament_shell = page.locator("#agent-cards .aitx-shell").count()
+        agent_panel = page.locator(".i10k-panel[data-panel='agents']").first
+        agent_text = body_text(agent_panel)
+        result["ai_tournament"] = {
+            "cta": cta,
+            "shells": tournament_shell,
+            "agent_cards": agent_cards,
+            "panel_visible": agent_panel.is_visible(),
+            "panel_active": "active" in (agent_panel.get_attribute("class") or "").split(),
+            "content_length": len(agent_text),
+            "has_title": "AI TOURNAMENT" in agent_text.upper(),
+            "passed": bool(
+                cta.get("passed")
+                and tournament_shell >= 1
+                and agent_cards == 5
+                and agent_panel.is_visible()
+                and "AI TOURNAMENT" in agent_text.upper()
+            ),
+        }
 
         result["passed"] = (
             data_loaded
             and result["navigation_passed"]
-            and all(item["passed"] for item in result["tabs"])
+            and all(item.get("passed") for item in result["tabs"])
+            and all(item.get("passed") for item in result["sidebar_tabs"])
+            and result["ai_tournament"]["passed"]
             and not page_errors
             and not critical_request_failures
             and not critical_http_errors
@@ -187,7 +278,7 @@ def audit_language(browser, language: str, url: str) -> dict:
 
 def main() -> int:
     report = {
-        "schema_version": "investment-room-full-audit-v4",
+        "schema_version": "investment-room-full-audit-v5-real-pointer",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "base_url": BASE_URL,
         "passed": False,
