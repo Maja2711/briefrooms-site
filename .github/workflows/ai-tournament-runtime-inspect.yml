@@ -7,6 +7,9 @@ on:
 permissions:
   contents: write
 
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts
+
 jobs:
   inspect:
     if: github.event.issue.title == 'Inspect AI Tournament snapshot runtime'
@@ -25,7 +28,7 @@ jobs:
           python - <<'PY'
           import inspect
           from pathlib import Path
-          import scripts.ai_tournament_engine as engine
+          import ai_tournament_engine as engine
           names=[n for n in dir(engine) if 'snapshot' in n.lower() or 'session' in n.lower() or 'market' in n.lower()]
           lines=['NAMES: '+', '.join(names), '']
           for name in names:
