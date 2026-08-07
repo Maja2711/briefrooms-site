@@ -1,17 +1,19 @@
 name: Apply AI Outlook PL Prompt Hotfix
 
-# Triggered after exact rejection diagnosis: meta_forecast false positive.
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/ai-outlook-pl-prompt-hotfix.yml"
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: github.event_name != 'issues' || github.event.issue.title == 'Apply AI Outlook PL prompt hotfix'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
