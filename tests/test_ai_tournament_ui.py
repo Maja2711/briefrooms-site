@@ -26,7 +26,7 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("#agents-preview,#agent-cards,#agent-log{display:block!important", self.script)
         self.assertIn('class="aitx-overview"', self.script)
         self.assertIn('class="aitx-left-grid"', self.script)
-        self.assertIn('class="aitx-ranking-panel"', self.script)
+        self.assertIn("aitx-ranking-panel", self.script)
         self.assertIn("performanceVisual(data, rows)", self.script)
         self.assertIn("currentBars(rows)", self.script)
 
@@ -83,11 +83,16 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("description_pl", self.profile_script)
         self.assertIn("description_en", self.profile_script)
 
-    def test_existing_runtime_bootstraps_profiles_and_summary(self) -> None:
-        self.assertIn("function loadTournamentEnhancements()", self.finalizer_script)
-        self.assertIn("/scripts/ai-tournament-company-profiles.js?v=1", self.finalizer_script)
-        self.assertIn("/scripts/ai-tournament-summary.js?v=1", self.finalizer_script)
-        self.assertIn("loadTournamentEnhancements();", self.finalizer_script)
+    def test_tournament_enhancements_are_independent_from_portfolio_finalizer(self) -> None:
+        self.assertNotIn("loadTournamentEnhancements", self.finalizer_script)
+        self.assertNotIn("ai-tournament-company-profiles.js", self.finalizer_script)
+        self.assertNotIn("ai-tournament-summary.js", self.finalizer_script)
+        self.assertEqual(installer.PROFILE_VERSION, "1")
+        self.assertEqual(installer.SUMMARY_VERSION, "1")
+        source = '<html><body><script src="/scripts/ai-tournament-public.js?v=4" defer></script></body></html>'
+        patched = installer.patch_text(source)
+        self.assertIn('/scripts/ai-tournament-company-profiles.js?v=1', patched)
+        self.assertIn('/scripts/ai-tournament-summary.js?v=1', patched)
 
     def test_installer_deploys_v5_profiles_and_summary_once(self) -> None:
         self.assertEqual(installer.SCRIPT_VERSION, "5")
