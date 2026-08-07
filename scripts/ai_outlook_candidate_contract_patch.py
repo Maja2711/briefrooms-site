@@ -21,6 +21,12 @@ _META = re.compile(
     r"zainteresowani\w*|nagłów\w*|headline\w*|mention\w*|update\w*)\b",
     re.IGNORECASE,
 )
+_MONTHS_PL = {
+    "stycznia": 1, "lutego": 2, "marca": 3, "kwietnia": 4,
+    "maja": 5, "czerwca": 6, "lipca": 7, "sierpnia": 8,
+    "września": 9, "wrzesnia": 9, "października": 10,
+    "pazdziernika": 10, "listopada": 11, "grudnia": 12,
+}
 
 
 def _user_payload(message: dict[str, str]) -> dict[str, Any] | None:
@@ -39,11 +45,7 @@ def _candidate_context(messages: list[dict[str, str]]) -> tuple[dict[str, Any] |
         if not payload:
             continue
         shape = payload.get("required_json_shape")
-        if (
-            payload.get("language") == "pl"
-            and isinstance(shape, dict)
-            and "candidates" in shape
-        ):
+        if payload.get("language") == "pl" and isinstance(shape, dict) and "candidates" in shape:
             return (
                 payload,
                 [row for row in payload.get("sources", []) if isinstance(row, dict)],
@@ -66,11 +68,8 @@ def _is_pl_final_request(messages: list[dict[str, str]]) -> bool:
         if (
             isinstance(payload.get("locked_candidate"), dict)
             and isinstance(shape, dict)
-            and "category" in shape
-            and "title" in shape
-            and "thesis" in shape
-            and "pl" not in shape
-            and "en" not in shape
+            and "category" in shape and "title" in shape and "thesis" in shape
+            and "pl" not in shape and "en" not in shape
         ):
             return True
     return False
@@ -83,45 +82,42 @@ def _augment_candidate(messages: list[dict[str, str]], retry_reasons: list[str] 
         if not payload:
             continue
         shape = payload.get("required_json_shape")
-        if not (
-            payload.get("language") == "pl"
-            and isinstance(shape, dict)
-            and "candidates" in shape
-        ):
+        if not (payload.get("language") == "pl" and isinstance(shape, dict) and "candidates" in shape):
             continue
 
         payload["candidate_contract_correction"] = {
             "meta_forecast_scope": (
                 "Zakaz prognozowania mediów dotyczy title, forecast_statement, "
                 "selection_reason i resolution.metric. selection_reason ma opisywać "
-                "znaczenie przyszłego rezultatu, a nie artykuł, publikację, komunikat, "
-                "aktualizację, nagłówek, wzmiankę ani zainteresowanie tematem."
+                "znaczenie przyszłego rezultatu, nie aktywność medialną."
             ),
             "continuous_threshold": (
                 "Jeżeli unit nie jest zdarzeniem binarnym, threshold MUSI różnić się "
-                "od baseline_value i oznaczać przyszły poziom. Baseline musi pochodzić "
-                "ze źródła; threshold jest prognozowanym poziomem."
+                "od baseline_value i oznaczać przyszły poziom."
+            ),
+            "deadline_contract": (
+                "Jeżeli title lub forecast_statement zawiera konkretną datę lub termin "
+                "zdarzenia, resolution_date MUSI być dokładnie tą samą datą. Nie wolno "
+                "prognozować zdarzenia do jednej daty i rozstrzygać go później."
             ),
             "horizon_contract": (
-                "AI Outlook jest średnioterminowy. resolution_date musi przypadać co "
-                "najmniej 90 dni po publication_date. horizon_pl/horizon_en są etykietami "
-                "prezentacyjnymi i zostaną wyliczone z resolution_date przez kod."
+                "Dopuszczalne są także krótkie realne horyzonty. horizon_pl/horizon_en "
+                "są etykietami prezentacyjnymi i zostaną wyliczone przez kod z "
+                "resolution_date; nie wydłużaj resolution_date tylko po to, by dopasować etykietę."
             ),
             "verification_competence": (
-                "Wybierz oficjalne źródło mające kompetencję do potwierdzenia metryki. "
-                "Dla detalicznych obligacji Skarbu Państwa użyj Gov.pl, nie NBP."
+                "Wybierz oficjalne źródło mające kompetencję do potwierdzenia metryki."
             ),
         }
         rules = list(payload.get("hard_rules") or [])
-        rules.extend(
-            [
-                "selection_reason nie może zawierać słów artykuł, publikacja, komunikat, aktualizacja, nagłówek, wzmianka ani zainteresowanie",
-                "dla metryki ciągłej threshold != baseline_value",
-                "nie przedstawiaj osiągniętego już baseline jako przyszłego progu",
-                "resolution_date musi być co najmniej 90 dni po publication_date",
-                "verification_url musi odpowiadać kompetencji instytucji dla danej metryki",
-            ]
-        )
+        rules.extend([
+            "selection_reason nie może opisywać artykułu, publikacji, komunikatu, aktualizacji, nagłówka, wzmianki ani zainteresowania",
+            "dla metryki ciągłej threshold != baseline_value",
+            "nie przedstawiaj osiągniętego już baseline jako przyszłego progu",
+            "jeżeli prognoza podaje konkretną datę zdarzenia, resolution_date musi być identyczna z tą datą",
+            "nie wydłużaj resolution_date sztucznie; krótki horyzont jest dozwolony, jeśli wynika ze źródła",
+            "verification_url musi odpowiadać kompetencji instytucji dla danej metryki",
+        ])
         payload["hard_rules"] = rules
         if retry_reasons:
             payload["retry_instruction"] = (
@@ -142,10 +138,10 @@ def _augment_final(messages: list[dict[str, str]], retry: bool = False) -> list[
         if message.get("role") == "system":
             message["content"] = str(message.get("content") or "") + (
                 " W finalnym tekście opisuj wyłącznie prognozowany rezultat, jego mechanizm, "
-                "warunek potwierdzenia i warunek zanegowania. W żadnym polu nie używaj słów "
-                "artykuł, publikacja, komunikat, aktualizacja, nagłówek, wzmianka ani "
-                "zainteresowanie. Jeżeli trzeba wskazać weryfikację, napisz że wynik zostanie "
-                "sprawdzony w oficjalnych danych wskazanej instytucji."
+                "warunek potwierdzenia i warunek zanegowania. Daty w thesis, confirmation, "
+                "invalidation i resolution_summary muszą być zgodne z zablokowaną "
+                "resolution.resolution_date. Nie wprowadzaj alternatywnego terminu. "
+                "Nie używaj języka medialnego."
             )
             continue
         payload = _user_payload(message)
@@ -155,38 +151,54 @@ def _augment_final(messages: list[dict[str, str]], retry: bool = False) -> list[
         if not (
             isinstance(payload.get("locked_candidate"), dict)
             and isinstance(shape, dict)
-            and "category" in shape
-            and "title" in shape
-            and "thesis" in shape
-            and "pl" not in shape
-            and "en" not in shape
+            and "category" in shape and "title" in shape and "thesis" in shape
+            and "pl" not in shape and "en" not in shape
         ):
             continue
+        locked = payload.get("locked_candidate") or {}
+        resolution = locked.get("resolution") if isinstance(locked.get("resolution"), dict) else {}
+        deadline = str(resolution.get("resolution_date") or "")
         requirements = list(payload.get("requirements") or [])
-        requirements.extend(
-            [
-                "żadne pole finalnego tekstu nie może opisywać artykułu, publikacji, komunikatu, aktualizacji, nagłówka, wzmianki ani zainteresowania; opisuj wyłącznie wynik w świecie",
-                "resolution_summary opisuje metrykę i warunek rozstrzygnięcia bez fraz typu po publikacji/po komunikacie; użyj sformułowania w oficjalnych danych instytucji",
-                "nie kopiuj medialnego słownictwa z selection_reason zablokowanego kandydata",
-            ]
-        )
+        requirements.extend([
+            "żadne pole finalnego tekstu nie może opisywać aktywności medialnej; opisuj wyłącznie wynik w świecie",
+            f"jedynym terminem rozstrzygnięcia prognozy jest {deadline}; nie używaj innej daty granicznej w thesis, confirmation ani invalidation",
+            f"confirmation, invalidation i resolution_summary muszą jawnie zawierać termin {deadline}",
+            "resolution_summary opisuje metrykę i warunek rozstrzygnięcia w oficjalnych danych instytucji",
+        ])
         if retry:
             requirements.append(
-                "To jest poprawka po odrzuceniu redakcyjnym: zachowaj wszystkie zablokowane fakty i przepisz każde pole zawierające język medialny na opis rzeczywistego rezultatu."
+                "To jest poprawka po odrzuceniu: zachowaj zablokowane fakty, usuń sprzeczne daty i użyj wyłącznie resolution_date."
             )
         payload["requirements"] = requirements
         message["content"] = json.dumps(payload, ensure_ascii=False)
     return result
 
 
+def _explicit_dates(text: str) -> set[str]:
+    found: set[str] = set(re.findall(r"\b20\d{2}-\d{2}-\d{2}\b", text))
+    for day, month, year in re.findall(r"\b(\d{1,2})[.-](\d{1,2})[.-](20\d{2})\b", text):
+        try:
+            found.add(date(int(year), int(month), int(day)).isoformat())
+        except ValueError:
+            pass
+    month_pattern = "|".join(map(re.escape, _MONTHS_PL))
+    for day, month_name, year in re.findall(
+        rf"\b(\d{{1,2}})\s+({month_pattern})\s+(20\d{{2}})\b",
+        text.lower(),
+    ):
+        try:
+            found.add(date(int(year), _MONTHS_PL[month_name], int(day)).isoformat())
+        except ValueError:
+            pass
+    return found
+
+
 def _local_invalid_reason(candidate: dict[str, Any], publication_date: str) -> str | None:
-    text = " ".join(
-        str(candidate.get(field) or "")
-        for field in ("title", "forecast_statement", "selection_reason")
-    )
+    statement = " ".join(str(candidate.get(field) or "") for field in ("title", "forecast_statement"))
+    all_text = statement + " " + str(candidate.get("selection_reason") or "")
     resolution = candidate.get("resolution") if isinstance(candidate.get("resolution"), dict) else {}
     metric = str(resolution.get("metric") or "")
-    if _META.search(text) or _META.search(metric):
+    if _META.search(all_text) or _META.search(metric):
         return "meta_forecast_contract"
 
     unit = str(resolution.get("unit") or "").lower()
@@ -199,13 +211,10 @@ def _local_invalid_reason(candidate: dict[str, Any], publication_date: str) -> s
         if baseline is not None and abs(baseline - threshold) <= max(1e-9, abs(baseline) * 1e-9):
             return "threshold_equals_baseline"
 
-    try:
-        published = date.fromisoformat(publication_date)
-        resolved = date.fromisoformat(str(resolution.get("resolution_date") or ""))
-        if (resolved - published).days < 90:
-            return "resolution_horizon_under_90_days"
-    except ValueError:
-        pass
+    resolution_date = str(resolution.get("resolution_date") or "")
+    dates_in_claim = _explicit_dates(statement)
+    if dates_in_claim and resolution_date not in dates_in_claim:
+        return "forecast_deadline_mismatch"
     return None
 
 
@@ -240,10 +249,7 @@ def _methodology_valid_candidates(payload: Any, messages: list[dict[str, str]]) 
 def _invalid_final(payload: Any) -> bool:
     if not isinstance(payload, dict):
         return True
-    fields = (
-        "category", "title", "thesis", "horizon", "rationale",
-        "confirmation", "invalidation", "resolution_summary",
-    )
+    fields = ("category", "title", "thesis", "horizon", "rationale", "confirmation", "invalidation", "resolution_summary")
     if any(not str(payload.get(field) or "").strip() for field in fields):
         return True
     return bool(_META.search(" ".join(str(payload.get(field) or "") for field in fields)))
@@ -256,7 +262,6 @@ def install() -> None:
 
     def wrapped(**kwargs):
         messages = kwargs.get("messages") or []
-
         if _is_pl_final_request(messages):
             first_kwargs = dict(kwargs)
             first_kwargs["messages"] = _augment_final(messages, retry=False)
@@ -273,10 +278,7 @@ def install() -> None:
         last_payload: Any = {"candidates": []}
         retry_reasons: list[str] = []
         for attempt in range(3):
-            attempt_messages = _augment_candidate(
-                messages,
-                retry_reasons=retry_reasons if attempt else None,
-            )
+            attempt_messages = _augment_candidate(messages, retry_reasons if attempt else None)
             attempt_kwargs = dict(kwargs)
             attempt_kwargs["messages"] = attempt_messages
             last_payload = original(**attempt_kwargs)
@@ -286,7 +288,6 @@ def install() -> None:
                 result["candidates"] = valid
                 return result
 
-        # Fail closed: the canonical publisher will stop instead of publishing filler.
         if isinstance(last_payload, dict):
             result = dict(last_payload)
             result["candidates"] = []
