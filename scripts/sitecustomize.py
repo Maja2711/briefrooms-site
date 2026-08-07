@@ -103,14 +103,20 @@ if _quality is not None:
                     return min(75.0, max(1.0, float(match.group(1))))
         return 65.0 if attempt == 0 else 75.0
 
+    def _gemini_payload_shape(payload) -> str:
+        if isinstance(payload, list):
+            item_types = sorted({type(item).__name__ for item in payload})
+            return f"list(len={len(payload)},item_types={','.join(item_types) or 'none'})"
+        return type(payload).__name__
+
     def _normalize_gemini_json_payload(payload, messages):
         """Normalize only structurally valid Gemini JSON variants.
 
         Gemini occasionally returns the requested candidate collection as a
         top-level JSON array even when the prompt asks for
-        {"candidates": [...]}.  That is safe to normalize only for prompts
-        that explicitly define a candidates collection.  Other array-shaped
-        responses remain invalid so existing publication contracts stay strict.
+        {"candidates": [...]}. That array is normalized only for prompts that
+        explicitly define a candidates collection. Other response shapes remain
+        invalid so existing publication contracts stay strict.
         """
         if isinstance(payload, dict):
             return payload
@@ -118,7 +124,9 @@ if _quality is not None:
         if isinstance(payload, str):
             nested = json.loads(payload)
             if nested == payload:
-                raise ValueError("Gemini JSON string does not contain structured JSON")
+                raise ValueError(
+                    "Gemini JSON string does not contain structured JSON"
+                )
             return _normalize_gemini_json_payload(nested, messages)
 
         if isinstance(payload, list):
@@ -135,14 +143,15 @@ if _quality is not None:
                     or "candidate" in prompt_text
                 )
             )
-            if expects_candidates and payload and all(
-                isinstance(item, dict) for item in payload
-            ):
+            if expects_candidates and all(isinstance(item, dict) for item in payload):
                 return {"candidates": payload}
             if len(payload) == 1 and isinstance(payload[0], dict):
                 return payload[0]
 
-        raise ValueError("Gemini response is not a JSON object")
+        raise ValueError(
+            "Gemini response is not a JSON object; "
+            f"shape={_gemini_payload_shape(payload)}"
+        )
 
     def _request_json_completion(
         *,
