@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Reject PL AI Outlook candidates that are unrelated to their source URLs.
+"""Reject PL AI Outlook candidates unrelated to their cited source evidence.
 
-This mirrors the final public source-coherence guard before a candidate reaches
-selection, so Gemini can correct the topic instead of failing only at the end.
+Title and summary are the primary evidence. URL-path terms are a secondary
+fallback only, because one article may contain a forecastable secondary fact
+that is not reflected in its slug.
 """
 from __future__ import annotations
 
@@ -62,15 +63,28 @@ def _candidate_is_coherent(candidate: dict[str, Any], sources: dict[Any, dict[st
         if not isinstance(source, dict):
             continue
         matched_source = True
+
+        evidence_stems = _stems(
+            " ".join(
+                str(source.get(field) or "")
+                for field in ("title", "summary")
+            )
+        )
+        evidence_overlap = evidence_stems & topic_stems
+        if len(evidence_stems) >= 4:
+            # The actual article evidence is authoritative for topic matching.
+            if not evidence_overlap:
+                return False
+            continue
+
+        # Only when title/summary are too sparse do we fall back to the URL path.
         url = str(source.get("url") or "")
         parsed = urlparse(url)
         path_text = unquote(parsed.path.replace("-", " ").replace("_", " "))
         path_stems = _stems(path_text)
         if len(path_stems) >= 5 and not (path_stems & topic_stems):
             return False
-        title_stems = _stems(str(source.get("title") or ""))
-        if len(title_stems) >= 4 and not (title_stems & topic_stems):
-            return False
+
     return matched_source
 
 
@@ -85,15 +99,15 @@ def _augment(messages, retry=False):
             continue
         rules = list(payload.get("hard_rules") or [])
         rules.extend([
-            "temat title, forecast_statement i resolution.metric musi wynikać bezpośrednio z tytułu/opisu/URL każdego wskazanego źródła",
-            "nie wolno przenosić prognozy na inny program, fundusz, regulację lub projekt tylko dlatego, że dotyczy tej samej instytucji",
-            "kluczowe rzeczowniki prognozowanego rezultatu muszą być rozpoznawalne w źródle; sama zgodność nazwy instytucji nie wystarcza",
+            "temat title, forecast_statement i resolution.metric musi wynikać bezpośrednio z tytułu lub streszczenia wskazanego źródła",
+            "URL jest sygnałem pomocniczym; jeżeli streszczenie artykułu wprost opisuje prognozowane zdarzenie, nie odrzucaj go tylko dlatego, że slug URL opisuje główny wątek artykułu",
+            "nie wolno przenosić prognozy na inny program, fundusz, regulację lub projekt, którego nie ma ani w tytule, ani w streszczeniu",
+            "sama zgodność nazwy instytucji nie wystarcza; prognozowany rezultat musi mieć wspólne pojęcia z rzeczywistą treścią źródła",
         ])
         if retry:
             payload["source_topic_retry"] = (
-                "Poprzedni kandydat nie był zgodny tematycznie z URL/tytułem źródła. "
-                "Wybierz inny kandydat albo opisz dokładnie zdarzenie z wybranego źródła; "
-                "nie używaj pokrewnego programu tej samej instytucji."
+                "Poprzedni kandydat nie był zgodny tematycznie z tytułem/streszczeniem źródła. "
+                "Wybierz inne źródło albo opisz dokładnie zdarzenie, które jest w nim wprost wymienione."
             )
         payload["hard_rules"] = rules
         message["content"] = json.dumps(payload, ensure_ascii=False)
