@@ -18,7 +18,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Read latest issue-triggered tournament recovery
+      - name: Read latest actual tournament recovery
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -28,17 +28,17 @@ jobs:
             -H 'Accept: application/vnd.github+json' \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/ai-tournament-daily.yml/runs?branch=main&event=issues&per_page=20" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/ai-tournament-daily.yml/runs?branch=main&event=issues&per_page=30" \
             > /tmp/runs.json
           RUN_ID="$(python - <<'PY'
           import json
           runs=json.load(open('/tmp/runs.json')).get('workflow_runs',[])
-          chosen=next((r for r in runs if r.get('conclusion') != 'skipped'), None)
+          chosen=next((r for r in runs if r.get('display_title') == 'Run AI Tournament recovery'), None)
           print(chosen['id'] if chosen else '')
           PY
           )"
           if [[ -z "$RUN_ID" ]]; then
-            echo 'No issue-triggered AI Tournament run found' >&2
+            echo 'No Run AI Tournament recovery workflow run found' >&2
             exit 1
           fi
           curl --fail-with-body --silent --show-error \
@@ -51,12 +51,13 @@ jobs:
           import json
           from pathlib import Path
           runs=json.load(open('/tmp/runs.json')).get('workflow_runs',[])
-          run=next(r for r in runs if r.get('conclusion') != 'skipped')
+          run=next(r for r in runs if r.get('display_title') == 'Run AI Tournament recovery')
           jobs=json.load(open('/tmp/jobs.json')).get('jobs',[])
           out={
-            'schema_version':'ai-tournament-recovery-diagnostic-v1',
+            'schema_version':'ai-tournament-recovery-diagnostic-v2',
             'run':{
-              'id':run.get('id'),'status':run.get('status'),'conclusion':run.get('conclusion'),
+              'id':run.get('id'),'display_title':run.get('display_title'),
+              'status':run.get('status'),'conclusion':run.get('conclusion'),
               'event':run.get('event'),'created_at':run.get('created_at'),'updated_at':run.get('updated_at'),
               'head_sha':run.get('head_sha'),'html_url':run.get('html_url'),
             },
