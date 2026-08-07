@@ -24,11 +24,30 @@ legacy_contract.ALLOWED_HORIZONS["en"].update({"up to 1 month", "1–3 months"})
 _original_source_payload = pl_methodology._source_payload
 
 
-def _source_payload_with_provenance(item):
-    payload = _original_source_payload(item)
-    payload["url"] = str(item.get("url") or "")
-    payload["source_name"] = str(item.get("source") or item.get("source_name") or "")
-    return payload
+def _source_payload_with_provenance(items):
+    payloads = _original_source_payload(items)
+    if not isinstance(payloads, list):
+        return payloads
+
+    item_map = {
+        item.get("id"): item
+        for item in (items or [])
+        if isinstance(item, dict) and item.get("id") is not None
+    }
+    output = []
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            output.append(payload)
+            continue
+        row = dict(payload)
+        source = item_map.get(row.get("id"), {})
+        if isinstance(source, dict):
+            row["url"] = str(source.get("url") or "")
+            row["source_name"] = str(
+                source.get("source") or source.get("source_name") or ""
+            )
+        output.append(row)
+    return output
 
 
 pl_methodology._source_payload = _source_payload_with_provenance
