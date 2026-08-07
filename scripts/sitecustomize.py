@@ -82,15 +82,126 @@ if _quality is not None:
             system_instruction = {"parts": [{"text": "\n\n".join(system_parts)}]}
         return contents, system_instruction
 
-    def _augment_pl_outlook_candidate_messages(messages):
-        """Supply only pre-approved official verification URLs to PL Outlook.
+    def _registry_for(*forecast_types: str) -> list[dict]:
+        wanted = set(forecast_types)
+        return [
+            {"name": row["name"], "url": row["url"]}
+            for row in _PL_OUTLOOK_VERIFICATION_REGISTRY
+            if wanted.intersection(row.get("uses") or [])
+        ]
 
-        The PL methodology forbids invented URLs and requires an official
-        verification target. The candidate prompt previously supplied neither,
-        which could make an empty candidate set the only compliant response.
-        This augmentation resolves that contradiction without weakening the
-        deterministic quality gate.
+    def _pl_candidate_opportunities(sources) -> list[dict]:
+        """Extract forecastable evidence without inventing a forecast direction.
+
+        These are hints only. They expose a source ID, the observed statement and
+        suitable contract type/official verifier. Gemini still has to formulate
+        the future claim and the deterministic methodology still validates it.
         """
+        opportunities: list[dict] = []
+        for source in sources or []:
+            if not isinstance(source, dict):
+                continue
+            source_id = source.get("id")
+            title = re.sub(r"\s+", " ", str(source.get("title") or "")).strip()
+            summary = re.sub(r"\s+", " ", str(source.get("summary") or "")).strip()
+            text = f"{title} {summary}".lower()
+            if not title:
+                continue
+
+            scheduled = re.search(
+                r"\b(referend\w*|głosowan\w*|wybor\w*|decyzj\w*|"
+                r"negocjacj\w*|zatwierdz\w*|podpis\w*|wejd\w* w życie|"
+                r"przystąpi\w*|przyjęci\w*|uchwal\w*)\b",
+                text,
+                re.IGNORECASE,
+            )
+            date_signal = re.search(
+                r"\b(?:\d{1,2}\s+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|"
+                r"lipca|sierpnia|września|października|listopada|grudnia)|20\d{2})\b",
+                text,
+                re.IGNORECASE,
+            )
+            if scheduled and date_signal:
+                opportunities.append(
+                    {
+                        "source_id": source_id,
+                        "kind": "scheduled_binary_or_regulatory_event",
+                        "observed_evidence": (title + ". " + summary)[:700],
+                        "allowed_forecast_types": [
+                            "official_decision",
+                            "policy_implementation",
+                            "regulatory_milestone",
+                        ],
+                        "contract_hint": {
+                            "baseline_value": 0,
+                            "threshold": 1,
+                            "unit": "zdarzenie binarne",
+                            "comparison_operator": ">=",
+                        },
+                        "verification_choices": _registry_for(
+                            "official_decision",
+                            "policy_implementation",
+                            "regulatory_milestone",
+                        ),
+                        "instruction": (
+                            "To jest tylko okazja do prognozy. Na podstawie źródła "
+                            "sam oceń najbardziej prawdopodobny przyszły wynik; nie "
+                            "przedstawiaj warunku ze źródła jako faktu dokonanego."
+                        ),
+                    }
+                )
+
+            indicator_terms = re.search(
+                r"\b(inflacj\w*|pkb|bezroboci\w*|sprzedaż\w*|rentownoś\w*|"
+                r"stop\w* procent\w*|produkcj\w*|wynagrodzeni\w*|"
+                r"obligacj\w*|deficyt\w*|eksport\w*|import\w*)\b",
+                text,
+                re.IGNORECASE,
+            )
+            numeric = re.findall(
+                r"(?<!\d)(\d{1,3}(?:[\s.,]\d{1,3})?)\s*(%|proc\.|mld|mln|pb)?",
+                text,
+                re.IGNORECASE,
+            )
+            if indicator_terms and numeric:
+                observed_numbers = [
+                    (number + (" " + unit if unit else "")).strip()
+                    for number, unit in numeric[:4]
+                ]
+                opportunities.append(
+                    {
+                        "source_id": source_id,
+                        "kind": "official_or_market_indicator_with_numeric_evidence",
+                        "observed_evidence": (title + ". " + summary)[:700],
+                        "observed_numbers": observed_numbers,
+                        "allowed_forecast_types": [
+                            "official_indicator",
+                            "market_indicator",
+                        ],
+                        "verification_choices": _registry_for(
+                            "official_indicator", "market_indicator"
+                        ),
+                        "instruction": (
+                            "Użyj tylko wartości liczbowej jednoznacznie opisanej w "
+                            "źródle jako baseline. Nie wymyślaj wartości bazowej. "
+                            "Próg prognozy musi być ekonomicznie interpretowalny i "
+                            "nie może udawać oficjalnej prognozy ze źródła."
+                        ),
+                    }
+                )
+
+        deduped: list[dict] = []
+        seen = set()
+        for row in opportunities:
+            key = (row.get("source_id"), row.get("kind"))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(row)
+        return deduped[:12]
+
+    def _augment_pl_outlook_candidate_messages(messages):
+        """Supply governed verification URLs and forecastable source cues."""
         augmented = []
         for message in messages or []:
             if not isinstance(message, dict):
@@ -118,25 +229,31 @@ if _quality is not None:
                 augmented.append(copy)
                 continue
 
+            opportunities = _pl_candidate_opportunities(payload.get("sources"))
             payload["official_verification_registry"] = _PL_OUTLOOK_VERIFICATION_REGISTRY
+            payload["candidate_opportunities"] = opportunities
             payload["task"] = (
-                "Zaproponuj od 1 do 10 kandydatów, ale tylko takich, które da się "
-                "uczciwie rozstrzygnąć na podstawie dostarczonych źródeł i jednego z "
-                "zatwierdzonych oficjalnych źródeł weryfikacji. Nie wypełniaj limitu "
-                "słabymi pomysłami. Każdy kandydat ma dotyczyć jednego spójnego "
-                "zjawiska i jednego mierzalnego wyniku. Jeżeli źródła nie podają "
-                "liczbowej wartości bazowej dla wskaźnika ciągłego, nie twórz takiego "
-                "kandydata. Dla oczekującej decyzji urzędowej użyj zdarzenia binarnego: "
-                "baseline_value=0, threshold=1, unit='zdarzenie binarne'."
+                "Zwróć od 1 do 10 kandydatów, ale tylko takich, które da się "
+                "uczciwie rozstrzygnąć na podstawie dostarczonych źródeł i jednego "
+                "z zatwierdzonych oficjalnych źródeł weryfikacji. candidate_opportunities "
+                "wskazują miejsca, w których źródła zawierają zapowiedziane zdarzenie "
+                "albo liczbową wartość bazową; nie narzucają kierunku prognozy. "
+                "Jeżeli candidate_opportunities nie jest puste, NIE zwracaj pustej "
+                "tablicy: wybierz co najmniej jedną z tych okazji i sformułuj "
+                "rzeczywistą, przyszłą, falsyfikowalną prognozę. Nie wypełniaj limitu "
+                "słabymi pomysłami. Dla decyzji/zdarzenia użyj kontraktu binarnego: "
+                "baseline_value=0, threshold=1, unit='zdarzenie binarne'. Dla "
+                "wskaźnika ciągłego baseline musi pochodzić dosłownie ze źródła."
             )
             rules = list(payload.get("hard_rules") or [])
-            rules.append(
-                "verification_url wybierz dokładnie z official_verification_registry; "
-                "nie twórz ani nie zgaduj innego adresu"
-            )
-            rules.append(
-                "data_source_for_verification musi odpowiadać nazwie wybranego wpisu "
-                "official_verification_registry"
+            rules.extend(
+                [
+                    "verification_url wybierz dokładnie z official_verification_registry; nie twórz ani nie zgaduj innego adresu",
+                    "data_source_for_verification musi odpowiadać nazwie wybranego wpisu official_verification_registry",
+                    "candidate_opportunities są wskazówkami z istniejących źródeł, a nie gotową prognozą; nie wolno zmieniać observed_evidence ani observed_numbers",
+                    "jeżeli korzystasz z candidate_opportunities, source_ids muszą zawierać wskazany source_id",
+                    "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
+                ]
             )
             payload["hard_rules"] = rules
             copy["content"] = json.dumps(payload, ensure_ascii=False)
