@@ -24,6 +24,26 @@ if _quality is not None:
     _original_request_json_completion = _quality.request_json_completion
     _last_gemini_request_at = 0.0
 
+    _PL_OUTLOOK_VERIFICATION_REGISTRY = [
+        {"name": "GUS", "url": "https://stat.gov.pl/", "uses": ["official_indicator"]},
+        {"name": "NBP", "url": "https://nbp.pl/", "uses": ["official_indicator", "official_decision", "market_indicator"]},
+        {"name": "Gov.pl", "url": "https://www.gov.pl/", "uses": ["official_decision", "policy_implementation", "regulatory_milestone"]},
+        {"name": "Sejm RP", "url": "https://www.sejm.gov.pl/", "uses": ["official_decision", "regulatory_milestone"]},
+        {"name": "Dziennik Ustaw", "url": "https://dziennikustaw.gov.pl/", "uses": ["policy_implementation", "regulatory_milestone"]},
+        {"name": "KNF", "url": "https://www.knf.gov.pl/", "uses": ["official_decision", "regulatory_milestone", "market_indicator"]},
+        {"name": "UOKiK", "url": "https://uokik.gov.pl/", "uses": ["official_decision", "regulatory_milestone"]},
+        {"name": "Eurostat", "url": "https://ec.europa.eu/eurostat/", "uses": ["official_indicator"]},
+        {"name": "ECB", "url": "https://www.ecb.europa.eu/", "uses": ["official_indicator", "official_decision", "market_indicator"]},
+        {"name": "European Commission", "url": "https://ec.europa.eu/", "uses": ["official_decision", "policy_implementation", "regulatory_milestone"]},
+        {"name": "Council of the EU", "url": "https://www.consilium.europa.eu/", "uses": ["official_decision", "regulatory_milestone"]},
+        {"name": "EUR-Lex", "url": "https://eur-lex.europa.eu/", "uses": ["policy_implementation", "regulatory_milestone"]},
+        {"name": "EMA", "url": "https://www.ema.europa.eu/", "uses": ["official_decision", "clinical_endpoint", "regulatory_milestone"]},
+        {"name": "ClinicalTrials.gov", "url": "https://clinicaltrials.gov/", "uses": ["clinical_endpoint"]},
+        {"name": "WHO", "url": "https://www.who.int/", "uses": ["official_indicator", "public_health"]},
+        {"name": "NASA", "url": "https://www.nasa.gov/", "uses": ["scientific_result"]},
+        {"name": "ESA", "url": "https://www.esa.int/", "uses": ["scientific_result"]},
+    ]
+
     def _get_ai_runtime():
         gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
         if gemini_key:
@@ -61,6 +81,67 @@ if _quality is not None:
         if system_parts:
             system_instruction = {"parts": [{"text": "\n\n".join(system_parts)}]}
         return contents, system_instruction
+
+    def _augment_pl_outlook_candidate_messages(messages):
+        """Supply only pre-approved official verification URLs to PL Outlook.
+
+        The PL methodology forbids invented URLs and requires an official
+        verification target. The candidate prompt previously supplied neither,
+        which could make an empty candidate set the only compliant response.
+        This augmentation resolves that contradiction without weakening the
+        deterministic quality gate.
+        """
+        augmented = []
+        for message in messages or []:
+            if not isinstance(message, dict):
+                augmented.append(message)
+                continue
+            copy = dict(message)
+            if str(copy.get("role", "")) != "user":
+                augmented.append(copy)
+                continue
+            text = str(copy.get("content", ""))
+            try:
+                payload = json.loads(text)
+            except Exception:
+                augmented.append(copy)
+                continue
+            shape = payload.get("required_json_shape") if isinstance(payload, dict) else None
+            is_pl_candidate_prompt = (
+                isinstance(payload, dict)
+                and payload.get("language") == "pl"
+                and isinstance(shape, dict)
+                and "candidates" in shape
+                and isinstance(payload.get("sources"), list)
+            )
+            if not is_pl_candidate_prompt:
+                augmented.append(copy)
+                continue
+
+            payload["official_verification_registry"] = _PL_OUTLOOK_VERIFICATION_REGISTRY
+            payload["task"] = (
+                "Zaproponuj od 1 do 10 kandydatów, ale tylko takich, które da się "
+                "uczciwie rozstrzygnąć na podstawie dostarczonych źródeł i jednego z "
+                "zatwierdzonych oficjalnych źródeł weryfikacji. Nie wypełniaj limitu "
+                "słabymi pomysłami. Każdy kandydat ma dotyczyć jednego spójnego "
+                "zjawiska i jednego mierzalnego wyniku. Jeżeli źródła nie podają "
+                "liczbowej wartości bazowej dla wskaźnika ciągłego, nie twórz takiego "
+                "kandydata. Dla oczekującej decyzji urzędowej użyj zdarzenia binarnego: "
+                "baseline_value=0, threshold=1, unit='zdarzenie binarne'."
+            )
+            rules = list(payload.get("hard_rules") or [])
+            rules.append(
+                "verification_url wybierz dokładnie z official_verification_registry; "
+                "nie twórz ani nie zgaduj innego adresu"
+            )
+            rules.append(
+                "data_source_for_verification musi odpowiadać nazwie wybranego wpisu "
+                "official_verification_registry"
+            )
+            payload["hard_rules"] = rules
+            copy["content"] = json.dumps(payload, ensure_ascii=False)
+            augmented.append(copy)
+        return augmented
 
     def _pace_gemini_requests() -> None:
         global _last_gemini_request_at
@@ -110,14 +191,7 @@ if _quality is not None:
         return type(payload).__name__
 
     def _normalize_gemini_json_payload(payload, messages):
-        """Normalize only structurally valid Gemini JSON variants.
-
-        Gemini occasionally returns the requested candidate collection as a
-        top-level JSON array even when the prompt asks for
-        {"candidates": [...]}. That array is normalized only for prompts that
-        explicitly define a candidates collection. Other response shapes remain
-        invalid so existing publication contracts stay strict.
-        """
+        """Normalize only structurally valid Gemini JSON variants."""
         if isinstance(payload, dict):
             return payload
 
@@ -177,9 +251,10 @@ if _quality is not None:
         if not runtime.available:
             raise RuntimeError("AI provider is unavailable")
 
+        effective_messages = _augment_pl_outlook_candidate_messages(messages)
         model = runtime.review_model if review else runtime.generation_model
         url = f"{runtime.endpoint}/{model}:generateContent"
-        contents, system_instruction = _gemini_contents(messages)
+        contents, system_instruction = _gemini_contents(effective_messages)
         body = {
             "contents": contents,
             "generationConfig": {
@@ -233,7 +308,9 @@ if _quality is not None:
                     if isinstance(part, dict)
                 ).strip()
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
-                payload = _normalize_gemini_json_payload(json.loads(raw), messages)
+                payload = _normalize_gemini_json_payload(
+                    json.loads(raw), effective_messages
+                )
                 return payload
             except Exception as exc:
                 last_error = exc
