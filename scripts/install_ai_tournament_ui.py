@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install AI Tournament renderers, company profiles and summary statistics on PL and EN pages."""
+"""Install AI Tournament renderers and keep Investment Room controller cache keys current."""
 from __future__ import annotations
 
 import re
@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_VERSION = "5"
 PROFILE_VERSION = "1"
 SUMMARY_VERSION = "1"
+ROOM_CONTROLLER_VERSION = "6"
 SCRIPT = f'<script src="/scripts/ai-tournament-public.js?v={SCRIPT_VERSION}" defer></script>'
 READINESS_SCRIPT = f'<script src="/scripts/ai-tournament-readiness.js?v={SCRIPT_VERSION}" defer></script>'
 PROFILE_SCRIPT = f'<script src="/scripts/ai-tournament-company-profiles.js?v={PROFILE_VERSION}" defer></script>'
@@ -17,6 +18,10 @@ PATTERN = re.compile(r'<script\s+src=["\']/scripts/ai-tournament-public\.js(?:\?
 READINESS_PATTERN = re.compile(r'<script\s+src=["\']/scripts/ai-tournament-readiness\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 PROFILE_PATTERN = re.compile(r'<script\s+src=["\']/scripts/ai-tournament-company-profiles\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 SUMMARY_PATTERN = re.compile(r'<script\s+src=["\']/scripts/ai-tournament-summary\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
+ROOM_CONTROLLER_PATTERN = re.compile(
+    r'<script\s+src=["\'](?P<path>/scripts/portfolio-10k-dashboard(?:-en)?\.js)(?:\?[^"\']*)?["\']\s+defer></script>',
+    re.I,
+)
 PAGES = (
     ROOT / "pl" / "inwestycje" / "portfel-10k.html",
     ROOT / "en" / "investing" / "portfolio-10k.html",
@@ -24,6 +29,13 @@ PAGES = (
 
 
 def patch_text(source: str) -> str:
+    # The stable room controller was changed after the old v5 cache key had
+    # already been published. Always emit the current cache key so browsers do
+    # not keep executing a stale controller while the HTML and data are fresh.
+    source = ROOM_CONTROLLER_PATTERN.sub(
+        lambda match: f'<script src="{match.group("path")}?v={ROOM_CONTROLLER_VERSION}" defer></script>',
+        source,
+    )
     source = PATTERN.sub("", source)
     source = READINESS_PATTERN.sub("", source)
     source = PROFILE_PATTERN.sub("", source)
