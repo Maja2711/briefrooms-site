@@ -59,6 +59,7 @@ env:
 
 jobs:
   validate:
+    if: github.event_name != 'issues' || github.event.issue.title == 'Run AI Tournament recovery'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
