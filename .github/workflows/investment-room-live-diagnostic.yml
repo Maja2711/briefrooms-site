@@ -24,7 +24,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.54.2
           npx playwright install --with-deps chromium
-      - name: Diagnose PL and EN production rooms
+      - name: Diagnose PL and EN production rooms with real pointer clicks
         run: |
           node <<'JS'
           const fs = require('fs');
@@ -36,9 +36,9 @@ jobs:
           const tabs = ['overview','portfolio','benchmark','agents','projections','rules','brace','analytics','history'];
           (async () => {
             const browser = await chromium.launch({headless:true});
-            const report = {schema_version:'investment-room-live-diagnostic-v1', checked_at:new Date().toISOString(), pages:{}};
+            const report = {schema_version:'investment-room-live-diagnostic-v2', checked_at:new Date().toISOString(), pages:{}};
             for (const [lang, base] of Object.entries(urls)) {
-              const context = await browser.newContext();
+              const context = await browser.newContext({viewport:{width:1680,height:936}});
               const page = await context.newPage();
               const consoleErrors = [];
               const pageErrors = [];
@@ -49,39 +49,67 @@ jobs:
               let gotoError = null;
               try {
                 await page.goto(`${base}?diag=${Date.now()}`, {waitUntil:'domcontentloaded', timeout:30000});
-                await page.waitForTimeout(15000);
+                await page.waitForTimeout(12000);
               } catch (e) { gotoError = String(e && e.message || e); }
-              const result = await page.evaluate(async (tabs) => {
-                const text = sel => (document.querySelector(sel)?.textContent || '').trim();
-                const datasets = {...document.body.dataset};
-                const scripts = [...document.scripts].map(s => s.src).filter(Boolean);
-                const tabResults = {};
-                for (const name of tabs) {
-                  const trigger = document.querySelector(`.i10k-tabs [data-tab="${name}"]`) || document.querySelector(`.i10k-side-nav [data-tab="${name}"]`);
-                  if (!trigger) { tabResults[name] = {exists:false}; continue; }
-                  trigger.click();
-                  await new Promise(r => setTimeout(r, 150));
-                  const panel = document.querySelector(`.i10k-panel[data-panel="${name}"]`);
-                  tabResults[name] = {exists:true, active:!!panel?.classList.contains('active'), hash:location.hash};
+              const info = await page.evaluate(() => ({
+                title: document.title,
+                datasets: {...document.body.dataset},
+                data_status:(document.querySelector('#data-status')?.textContent || '').trim(),
+                value:(document.querySelector('#portfolio-value')?.textContent || '').trim(),
+                positions:(document.querySelector('#positions-count')?.textContent || '').trim(),
+                scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
+                htmlLang:document.documentElement.lang,
+                stableGlobal:!!window.BriefRoomsInvestmentRoom,
+                guard:document.body.dataset.investmentNavigationGuard || ''
+              })).catch(e => ({evaluate_error:String(e && e.message || e)}));
+              const tabResults = {};
+              for (const name of tabs) {
+                const selector = `.i10k-tabs [data-tab="${name}"]`;
+                const loc = page.locator(selector).first();
+                try {
+                  await loc.scrollIntoViewIfNeeded();
+                  const box = await loc.boundingBox();
+                  if (!box) { tabResults[name] = {exists:false}; continue; }
+                  const x = box.x + box.width/2, y = box.y + box.height/2;
+                  const before = await page.evaluate(({x,y,name}) => {
+                    const hit=document.elementFromPoint(x,y);
+                    const chain=[]; let n=hit;
+                    while(n && chain.length<7){
+                      const s=getComputedStyle(n);
+                      chain.push({tag:n.tagName,id:n.id||'',cls:String(n.className||''),tab:n.closest?.('[data-tab]')?.dataset?.tab||'',pointer:s.pointerEvents,z:s.zIndex,pos:s.position});
+                      n=n.parentElement;
+                    }
+                    return {hash:location.hash,hit:chain,targetRect:document.querySelector(`.i10k-tabs [data-tab="${name}"]`)?.getBoundingClientRect().toJSON?.()||null};
+                  }, {x,y,name});
+                  await page.mouse.click(x,y);
+                  await page.waitForTimeout(350);
+                  const after = await page.evaluate((name) => {
+                    const p=document.querySelector(`.i10k-panel[data-panel="${name}"]`);
+                    return {
+                      hash:location.hash,
+                      active:!!p?.classList.contains('active'),
+                      display:p?getComputedStyle(p).display:'missing',
+                      visible:!!p && p.getBoundingClientRect().height>0 && getComputedStyle(p).display!=='none',
+                      bodyActive:document.body.dataset.investmentActiveTab||'',
+                      guard:document.body.dataset.investmentNavigationGuard||''
+                    };
+                  }, name);
+                  tabResults[name] = {exists:true,before,after};
+                } catch(e) {
+                  tabResults[name] = {exists:true,error:String(e && e.message || e)};
                 }
+              }
+              const ai = await page.evaluate(() => {
+                const p=document.querySelector('.i10k-panel[data-panel="agents"]');
                 return {
-                  title: document.title,
-                  datasets,
-                  data_status:text('#data-status'),
-                  updated_at:text('#updated-at'),
-                  portfolio_value:text('#portfolio-value'),
-                  portfolio_return:text('#portfolio-return'),
-                  positions_count:text('#positions-count'),
-                  live_badge:text('.live-badge'),
-                  scripts,
-                  tabResults,
-                  stableGlobal: !!window.BriefRoomsInvestmentRoom,
-                  stableAudit: window.BriefRoomsInvestmentRoom?.audit?.() || null,
-                  htmlLang: document.documentElement.lang
+                  text:(p?.innerText||'').slice(0,1500),
+                  cards:document.querySelectorAll('#agent-cards > *').length,
+                  preview:document.querySelectorAll('#agents-preview > *').length,
+                  tournamentNodes:document.querySelectorAll('[data-ai-tournament-ui], .ai-tournament, .agent-card, .agent-ranking').length
                 };
-              }, tabs).catch(e => ({evaluate_error:String(e && e.message || e)}));
-              report.pages[lang] = {...result, gotoError, consoleErrors, pageErrors, failedRequests};
-              await page.screenshot({path:`/tmp/${lang}-room.png`, fullPage:true}).catch(()=>{});
+              }).catch(()=>({}));
+              report.pages[lang] = {...info, gotoError, consoleErrors, pageErrors, failedRequests, tabResults, ai};
+              await page.screenshot({path:`/tmp/${lang}-room-real-click.png`, fullPage:true}).catch(()=>{});
               await context.close();
             }
             await browser.close();
@@ -96,6 +124,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/investments/investment_room_live_diagnostic.json
-          git commit -m 'Record live Investment Room diagnostic' || exit 0
+          git commit -m 'Record live Investment Room pointer diagnostic' || exit 0
           git pull --rebase origin main
           git push origin HEAD:main
