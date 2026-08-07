@@ -12,7 +12,13 @@ install_candidate_contract()
 install_final_normalizer()
 
 import ai_outlook_pl_methodology as pl_methodology  # noqa: E402
+import update_ai_outlook as legacy_contract  # noqa: E402
 
+# AI Outlook may forecast a real scheduled event sooner than three months.
+# These labels extend only the presentation contract; the exact deadline lives
+# in resolution.resolution_date and remains the source of truth.
+legacy_contract.ALLOWED_HORIZONS["pl"].update({"do 1 miesiąca", "1–3 miesiące"})
+legacy_contract.ALLOWED_HORIZONS["en"].update({"up to 1 month", "1–3 months"})
 
 _original_filter_candidates = pl_methodology.filter_candidates
 
@@ -21,10 +27,14 @@ def _canonical_horizon(publication_date: str, resolution_date: str) -> tuple[str
     published = date.fromisoformat(publication_date)
     resolved = date.fromisoformat(resolution_date)
     days = (resolved - published).days
-    if days < 90:
+    if days <= 0:
         raise pl_methodology.PolishMethodologyError(
-            "Polish AI Outlook resolution horizon must be at least 90 days"
+            "Polish AI Outlook resolution date must be in the future"
         )
+    if days <= 31:
+        return "do 1 miesiąca", "up to 1 month"
+    if days <= 92:
+        return "1–3 miesiące", "1–3 months"
     if days <= 183:
         return "3–6 miesięcy", "3–6 months"
     if days <= 366:
