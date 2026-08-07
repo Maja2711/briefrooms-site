@@ -4,7 +4,8 @@
 This module does not lower publication thresholds and does not invent a
 forecast. It makes existing candidate/final-copy requirements explicit and
 uses bounded retries when Gemini violates the same methodology gate used by
-the publisher.
+the publisher. If two copy-edit attempts violate only the editorial contract,
+a deterministic final copy is rendered from the already locked candidate.
 """
 from __future__ import annotations
 
@@ -55,24 +56,29 @@ def _candidate_context(messages: list[dict[str, str]]) -> tuple[dict[str, Any] |
     return None, [], "", []
 
 
-def _is_pl_candidate_request(messages: list[dict[str, str]]) -> bool:
-    return _candidate_context(messages)[0] is not None
-
-
-def _is_pl_final_request(messages: list[dict[str, str]]) -> bool:
+def _final_context(messages: list[dict[str, str]]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     for message in messages or []:
         payload = _user_payload(message)
         if not payload:
             continue
         shape = payload.get("required_json_shape")
+        locked = payload.get("locked_candidate")
         if (
-            isinstance(payload.get("locked_candidate"), dict)
+            isinstance(locked, dict)
             and isinstance(shape, dict)
             and "category" in shape and "title" in shape and "thesis" in shape
             and "pl" not in shape and "en" not in shape
         ):
-            return True
-    return False
+            return payload, locked
+    return None, None
+
+
+def _is_pl_candidate_request(messages: list[dict[str, str]]) -> bool:
+    return _candidate_context(messages)[0] is not None
+
+
+def _is_pl_final_request(messages: list[dict[str, str]]) -> bool:
+    return _final_context(messages)[0] is not None
 
 
 def _augment_candidate(messages: list[dict[str, str]], retry_reasons: list[str] | None = None) -> list[dict[str, str]]:
@@ -255,6 +261,71 @@ def _invalid_final(payload: Any) -> bool:
     return bool(_META.search(" ".join(str(payload.get(field) or "") for field in fields)))
 
 
+def _operator_text(operator: str) -> tuple[str, str]:
+    mapping = {
+        ">=": ("co najmniej", "poniżej"),
+        ">": ("powyżej", "nie przekroczy"),
+        "<=": ("nie więcej niż", "powyżej"),
+        "<": ("poniżej", "nie spadnie poniżej"),
+        "==": ("osiągnie", "nie osiągnie"),
+        "=": ("osiągnie", "nie osiągnie"),
+    }
+    return mapping.get(str(operator or "").strip(), ("osiągnie", "nie osiągnie"))
+
+
+def _deterministic_final(messages: list[dict[str, str]]) -> dict[str, str] | None:
+    payload, locked = _final_context(messages)
+    if not payload or not locked:
+        return None
+    shape = payload.get("required_json_shape") or {}
+    resolution = locked.get("resolution") if isinstance(locked.get("resolution"), dict) else {}
+    deadline = str(resolution.get("resolution_date") or "").strip()
+    metric = " ".join(str(resolution.get("metric") or "").split()).strip()
+    threshold = resolution.get("threshold")
+    unit = " ".join(str(resolution.get("unit") or "").split()).strip()
+    source_name = " ".join(str(resolution.get("data_source_for_verification") or "oficjalnego źródła").split()).strip()
+    operator = str(resolution.get("comparison_operator") or "").strip()
+    confirm_phrase, reject_phrase = _operator_text(operator)
+    threshold_text = f"{threshold} {unit}".strip()
+
+    title = " ".join(str(locked.get("title") or "").split()).strip()
+    thesis = " ".join(str(locked.get("forecast_statement") or "").split()).strip()
+    reason = " ".join(str(locked.get("selection_reason") or "").split()).strip()
+    causal = " ".join(str(locked.get("causal_chain") or "").split()).strip()
+    rationale = " ".join(part for part in (reason, causal) if part).strip()
+    if _META.search(rationale):
+        rationale = reason if reason and not _META.search(reason) else (
+            "Punkt wyjścia i mechanizm wynikają bezpośrednio z cytowanego źródła oraz zablokowanej metryki."
+        )
+
+    confirmation = (
+        f"Do {deadline} w oficjalnych danych {source_name} metryka „{metric}” "
+        f"{confirm_phrase} {threshold_text}."
+    )
+    invalidation = (
+        f"Prognoza będzie nietrafiona, jeżeli do {deadline} w oficjalnych danych "
+        f"{source_name} metryka „{metric}” {reject_phrase} {threshold_text}."
+    )
+    resolution_summary = (
+        f"Termin rozstrzygnięcia: {deadline}. Sprawdzimy w oficjalnych danych "
+        f"{source_name}, czy „{metric}” {confirm_phrase} {threshold_text}."
+    )
+
+    result = {
+        "category": " ".join(str(shape.get("category") or "").split()).strip(),
+        "title": title,
+        "thesis": thesis,
+        "horizon": " ".join(str(shape.get("horizon") or locked.get("horizon_pl") or "").split()).strip(),
+        "rationale": rationale,
+        "confirmation": confirmation,
+        "invalidation": invalidation,
+        "resolution_summary": resolution_summary,
+    }
+    if any(not value for value in result.values()) or _invalid_final(result):
+        return None
+    return result
+
+
 def install() -> None:
     if getattr(comment_quality, "_briefrooms_pl_candidate_contract_installed", False):
         return
@@ -265,12 +336,18 @@ def install() -> None:
         if _is_pl_final_request(messages):
             first_kwargs = dict(kwargs)
             first_kwargs["messages"] = _augment_final(messages, retry=False)
-            payload = original(**first_kwargs)
-            if not _invalid_final(payload):
-                return payload
+            first = original(**first_kwargs)
+            if not _invalid_final(first):
+                return first
             second_kwargs = dict(kwargs)
             second_kwargs["messages"] = _augment_final(messages, retry=True)
-            return original(**second_kwargs)
+            second = original(**second_kwargs)
+            if not _invalid_final(second):
+                return second
+            fallback = _deterministic_final(messages)
+            if fallback is not None:
+                return fallback
+            return second
 
         if not _is_pl_candidate_request(messages):
             return original(**kwargs)
