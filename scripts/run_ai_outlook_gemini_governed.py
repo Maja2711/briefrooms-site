@@ -20,6 +20,20 @@ import update_ai_outlook as legacy_contract  # noqa: E402
 legacy_contract.ALLOWED_HORIZONS["pl"].update({"do 1 miesiąca", "1–3 miesiące"})
 legacy_contract.ALLOWED_HORIZONS["en"].update({"up to 1 month", "1–3 months"})
 
+# The final PL quality gate checks source URL/topic coherence. Candidate Gemini
+# must therefore see the same URL and source identity before selecting a topic.
+_original_source_payload = pl_methodology._source_payload
+
+
+def _source_payload_with_provenance(item):
+    payload = _original_source_payload(item)
+    payload["url"] = str(item.get("url") or "")
+    payload["source_name"] = str(item.get("source") or item.get("source_name") or "")
+    return payload
+
+
+pl_methodology._source_payload = _source_payload_with_provenance
+
 _original_filter_candidates = pl_methodology.filter_candidates
 
 
