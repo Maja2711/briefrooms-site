@@ -6,17 +6,16 @@ from datetime import date
 
 import sitecustomize  # noqa: F401 - activates Gemini transport adapter
 from ai_outlook_candidate_contract_patch import install as install_candidate_contract
+from ai_outlook_source_topic_contract import install as install_source_topic_contract
 from ai_outlook_final_contract_normalizer import install as install_final_normalizer
 
 install_candidate_contract()
+install_source_topic_contract()
 install_final_normalizer()
 
 import ai_outlook_pl_methodology as pl_methodology  # noqa: E402
 import update_ai_outlook as legacy_contract  # noqa: E402
 
-# AI Outlook may forecast a real scheduled event sooner than three months.
-# These labels extend only the presentation contract; the exact deadline lives
-# in resolution.resolution_date and remains the source of truth.
 legacy_contract.ALLOWED_HORIZONS["pl"].update({"do 1 miesiąca", "1–3 miesiące"})
 legacy_contract.ALLOWED_HORIZONS["en"].update({"up to 1 month", "1–3 months"})
 
