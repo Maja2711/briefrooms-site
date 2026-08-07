@@ -26,6 +26,7 @@ on:
       - "tests/test_publish_ai_outlook_gemini.py"
       - "tests/test_ai_outlook_pl_quality.py"
       - "tests/test_ai_provider_preflight.py"
+      - "data/deploy-triggers/ai-outlook-recovery.txt"
   schedule:
     - cron: "35 5 * * *"
     - cron: "35 7 * * *"
@@ -65,6 +66,25 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Resolve publication mode
+        id: publication
+        shell: bash
+        run: |
+          SHOULD_PUBLISH=false
+          FORCE=false
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            SHOULD_PUBLISH=true
+          elif [[ "${{ contains(github.event.head_commit.message, '[ai-outlook-recovery]') }}" == "true" ]]; then
+            SHOULD_PUBLISH=true
+            FORCE=true
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            FORCE=true
+          fi
+          echo "should_publish=$SHOULD_PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "force=$FORCE" >> "$GITHUB_OUTPUT"
+          echo "AI Outlook publication: should_publish=$SHOULD_PUBLISH force=$FORCE"
+
       - name: Test Gemini publication contract
         run: |
           set -euo pipefail
@@ -81,7 +101,7 @@ jobs:
             scripts/sitecustomize.py
 
       - name: Verify Gemini secret and live endpoint
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -99,19 +119,19 @@ jobs:
           sleep 8
 
       - name: Generate verified Gemini editions
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
           ARGS=""
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+          if [[ "${{ steps.publication.outputs.force }}" == "true" ]]; then
             ARGS="--force"
           fi
           python scripts/publish_ai_outlook_gemini.py $ARGS
           python scripts/publish_ai_outlook_gemini.py --validate-only --require-today
 
       - name: Refresh homepage runtime and metrics
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           set -euo pipefail
           python scripts/enforce_homepage_photo_only.py
@@ -119,7 +139,7 @@ jobs:
           python scripts/ai_outlook_metrics.py --validate-only
 
       - name: Verify local publication state
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           python - <<'PY'
           import json
@@ -149,7 +169,7 @@ jobs:
           PY
 
       - name: Commit Gemini publication
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -180,7 +200,7 @@ jobs:
           fi
 
       - name: Verify Gemini publication on briefrooms.com
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           python - <<'PY'
           import json
@@ -263,7 +283,7 @@ jobs:
           PY
 
       - name: Commit production verification
-        if: github.event_name != 'push'
+        if: steps.publication.outputs.should_publish == 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
