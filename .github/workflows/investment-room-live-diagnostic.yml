@@ -1,0 +1,101 @@
+name: Investment Room Live Diagnostic
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.event.issue.title == 'Diagnose live Investment Room'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.54.2
+          npx playwright install --with-deps chromium
+      - name: Diagnose PL and EN production rooms
+        run: |
+          node <<'JS'
+          const fs = require('fs');
+          const { chromium } = require('playwright');
+          const urls = {
+            pl: 'https://briefrooms.com/pl/inwestycje/portfel-10k.html',
+            en: 'https://briefrooms.com/en/investing/portfolio-10k.html'
+          };
+          const tabs = ['overview','portfolio','benchmark','agents','projections','rules','brace','analytics','history'];
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            const report = {schema_version:'investment-room-live-diagnostic-v1', checked_at:new Date().toISOString(), pages:{}};
+            for (const [lang, base] of Object.entries(urls)) {
+              const context = await browser.newContext();
+              const page = await context.newPage();
+              const consoleErrors = [];
+              const pageErrors = [];
+              const failedRequests = [];
+              page.on('console', msg => { if (msg.type()==='error') consoleErrors.push(msg.text()); });
+              page.on('pageerror', err => pageErrors.push(String(err && err.stack || err)));
+              page.on('requestfailed', req => failedRequests.push({url:req.url(), error:req.failure()?.errorText || ''}));
+              let gotoError = null;
+              try {
+                await page.goto(`${base}?diag=${Date.now()}`, {waitUntil:'domcontentloaded', timeout:30000});
+                await page.waitForTimeout(15000);
+              } catch (e) { gotoError = String(e && e.message || e); }
+              const result = await page.evaluate(async (tabs) => {
+                const text = sel => (document.querySelector(sel)?.textContent || '').trim();
+                const datasets = {...document.body.dataset};
+                const scripts = [...document.scripts].map(s => s.src).filter(Boolean);
+                const tabResults = {};
+                for (const name of tabs) {
+                  const trigger = document.querySelector(`.i10k-tabs [data-tab="${name}"]`) || document.querySelector(`.i10k-side-nav [data-tab="${name}"]`);
+                  if (!trigger) { tabResults[name] = {exists:false}; continue; }
+                  trigger.click();
+                  await new Promise(r => setTimeout(r, 150));
+                  const panel = document.querySelector(`.i10k-panel[data-panel="${name}"]`);
+                  tabResults[name] = {exists:true, active:!!panel?.classList.contains('active'), hash:location.hash};
+                }
+                return {
+                  title: document.title,
+                  datasets,
+                  data_status:text('#data-status'),
+                  updated_at:text('#updated-at'),
+                  portfolio_value:text('#portfolio-value'),
+                  portfolio_return:text('#portfolio-return'),
+                  positions_count:text('#positions-count'),
+                  live_badge:text('.live-badge'),
+                  scripts,
+                  tabResults,
+                  stableGlobal: !!window.BriefRoomsInvestmentRoom,
+                  stableAudit: window.BriefRoomsInvestmentRoom?.audit?.() || null,
+                  htmlLang: document.documentElement.lang
+                };
+              }, tabs).catch(e => ({evaluate_error:String(e && e.message || e)}));
+              report.pages[lang] = {...result, gotoError, consoleErrors, pageErrors, failedRequests};
+              await page.screenshot({path:`/tmp/${lang}-room.png`, fullPage:true}).catch(()=>{});
+              await context.close();
+            }
+            await browser.close();
+            fs.mkdirSync('data/investments', {recursive:true});
+            fs.writeFileSync('data/investments/investment_room_live_diagnostic.json', JSON.stringify(report,null,2)+'\n');
+            console.log(JSON.stringify(report,null,2));
+          })().catch(err => { console.error(err); process.exit(1); });
+          JS
+      - name: Publish diagnostic
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/investments/investment_room_live_diagnostic.json
+          git commit -m 'Record live Investment Room diagnostic' || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
