@@ -5,9 +5,11 @@ from __future__ import annotations
 from datetime import date
 
 import sitecustomize  # noqa: F401 - activates Gemini transport adapter
-from ai_outlook_candidate_contract_patch import install
+from ai_outlook_candidate_contract_patch import install as install_candidate_contract
+from ai_outlook_final_contract_normalizer import install as install_final_normalizer
 
-install()
+install_candidate_contract()
+install_final_normalizer()
 
 import ai_outlook_pl_methodology as pl_methodology  # noqa: E402
 
