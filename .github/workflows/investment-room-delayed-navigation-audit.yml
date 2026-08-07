@@ -1,20 +1,27 @@
 name: Audit Delayed Investment Room Navigation
 
 on:
-  issues:
-    types: [opened]
+  push:
+    branches: [main]
+    paths:
+      - 'data/portfolio10k/delayed-navigation-trigger.txt'
 
 permissions:
-  contents: read
-  issues: write
+  contents: write
+
+concurrency:
+  group: delayed-investment-room-navigation-audit
+  cancel-in-progress: false
 
 jobs:
   audit:
-    if: github.event.issue.title == 'Audit delayed Investment Room navigation'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -23,23 +30,30 @@ jobs:
           python -m pip install playwright
           python -m playwright install --with-deps chromium
       - name: Test delayed real clicks
-        env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_TOKEN: ${{ github.token }}
         run: |
+          set +e
           python - <<'PY'
           from playwright.sync_api import sync_playwright
+          from pathlib import Path
+          from datetime import datetime, timezone
           import json, time
 
           pages = {
               'PL': 'https://briefrooms.com/pl/inwestycje/portfel-10k.html',
               'EN': 'https://briefrooms.com/en/investing/portfolio-10k.html',
           }
-          report = {}
+          report = {
+              'schema_version': 'investment-room-delayed-navigation-v1',
+              'generated_at': datetime.now(timezone.utc).isoformat(),
+              'passed': False,
+              'languages': {},
+          }
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               for lang, url in pages.items():
                   page = browser.new_page(viewport={'width': 1680, 'height': 936})
+                  page_errors = []
+                  page.on('pageerror', lambda exc: page_errors.append(str(exc)))
                   page.goto(f'{url}?delayed-nav={time.time()}', wait_until='domcontentloaded', timeout=30000)
                   page.wait_for_function("document.body.dataset.investmentData === 'ready'", timeout=25000)
                   page.wait_for_timeout(8000)
@@ -58,9 +72,17 @@ jobs:
                       if box:
                           hit = page.evaluate("""({x,y}) => {
                             const el = document.elementFromPoint(x,y);
-                            return el ? {tag: el.tagName, tab: el.closest('[data-tab]')?.dataset?.tab || null, cls: el.className || ''} : null;
+                            return el ? {
+                              tag: el.tagName,
+                              tab: el.closest('[data-tab]')?.dataset?.tab || null,
+                              cls: String(el.className || '')
+                            } : null;
                           }""", {'x': box['x'] + box['width']/2, 'y': box['y'] + box['height']/2})
-                      locator.click(timeout=10000)
+                      click_error = None
+                      try:
+                          locator.click(timeout=10000)
+                      except Exception as exc:
+                          click_error = str(exc)
                       page.wait_for_timeout(500)
                       active = page.locator(f'.i10k-panel[data-panel="{expected}"]').first
                       checks.append({
@@ -71,27 +93,47 @@ jobs:
                           'visible': active.is_visible(),
                           'hit': hit,
                           'guard': page.evaluate("document.body.dataset.investmentNavigationGuard || ''"),
+                          'click_error': click_error,
                       })
-                  report[lang] = checks
+                  report['languages'][lang] = {
+                      'guard_script_present': page.locator('script[src*="portfolio-10k-navigation-guard.js?v=1"]').count() == 1,
+                      'guard_state': page.evaluate("document.body.dataset.investmentNavigationGuard || ''"),
+                      'page_errors': page_errors,
+                      'checks': checks,
+                  }
                   page.close()
               browser.close()
 
-          failed = [f'{lang}:{c["selector"]}' for lang, rows in report.items() for c in rows if not c['active'] or not c['visible'] or c['hash'] != '#'+c['expected'] or c['guard'] != 'active']
-          body = ['## Delayed Investment Room navigation audit', '', f"Result: **{'PASS' if not failed else 'FAIL'}**", '']
-          for lang, rows in report.items():
-              body.append(f'### {lang}')
-              for c in rows:
-                  body.append(f"- `{c['selector']}` → `{c['expected']}`: active={c['active']}, visible={c['visible']}, hash=`{c['hash']}`, guard=`{c['guard']}`, hit={json.dumps(c['hit'], ensure_ascii=False)}")
-          if failed:
-              body += ['', 'Failures: ' + ', '.join(failed)]
-          open('/tmp/nav-audit.md','w',encoding='utf-8').write('\n'.join(body)+'\n')
+          failures = []
+          for lang, result in report['languages'].items():
+              if not result['guard_script_present'] or result['guard_state'] != 'active' or result['page_errors']:
+                  failures.append(f'{lang}:guard')
+              for check in result['checks']:
+                  if check['click_error'] or not check['active'] or not check['visible'] or check['hash'] != '#'+check['expected']:
+                      failures.append(f"{lang}:{check['selector']}")
+          report['failures'] = failures
+          report['passed'] = not failures
+          Path('data/portfolio10k/delayed_navigation_report.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
           print(json.dumps(report, ensure_ascii=False, indent=2))
-          if failed:
-              raise SystemExit(1)
           PY
-      - name: Comment result
+          exit 0
+      - name: Publish audit report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: gh issue comment "$ISSUE_NUMBER" --body-file /tmp/nav-audit.md
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/portfolio10k/delayed_navigation_report.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Record delayed Investment Room navigation audit'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Require pass
+        run: |
+          python - <<'PY'
+          import json
+          data=json.load(open('data/portfolio10k/delayed_navigation_report.json',encoding='utf-8'))
+          raise SystemExit(0 if data.get('passed') else 1)
+          PY
