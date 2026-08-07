@@ -97,7 +97,6 @@ if _quality is not None:
         ]
 
     def _pl_candidate_opportunities(sources) -> list[dict]:
-        """Extract forecastable evidence without inventing a forecast direction."""
         opportunities: list[dict] = []
         for source in sources or []:
             if not isinstance(source, dict):
@@ -127,100 +126,51 @@ if _quality is not None:
                 re.IGNORECASE,
             )
             if scheduled and date_signal:
-                opportunities.append(
-                    {
-                        "source_id": source_id,
-                        "source_area": source_area,
-                        "compatible_content_categories": compatible_categories,
-                        "preferred_content_category": (
-                            "regulatory" if source_area == "economy" else compatible_categories[0]
-                        ),
-                        "kind": "scheduled_binary_or_regulatory_event",
-                        "observed_evidence": (title + ". " + summary)[:700],
-                        "allowed_forecast_types": [
-                            "official_decision",
-                            "policy_implementation",
-                            "regulatory_milestone",
-                        ],
-                        "contract_hint": {
-                            "baseline_value": 0,
-                            "threshold": 1,
-                            "unit": "zdarzenie binarne",
-                            "comparison_operator": ">=",
-                        },
-                        "verification_choices": _registry_for(
-                            "official_decision",
-                            "policy_implementation",
-                            "regulatory_milestone",
-                        ),
-                        "instruction": (
-                            "To jest tylko okazja do prognozy. Na podstawie źródła "
-                            "sam oceń najbardziej prawdopodobny przyszły wynik; nie "
-                            "przedstawiaj warunku ze źródła jako faktu dokonanego. "
-                            "Pole area musi być identyczne z source_area, a "
-                            "content_category musi pochodzić z compatible_content_categories."
-                        ),
-                    }
-                )
+                opportunities.append({
+                    "source_id": source_id,
+                    "source_area": source_area,
+                    "compatible_content_categories": compatible_categories,
+                    "preferred_content_category": "regulatory" if source_area == "economy" else compatible_categories[0],
+                    "kind": "scheduled_binary_or_regulatory_event",
+                    "observed_evidence": (title + ". " + summary)[:700],
+                    "allowed_forecast_types": ["official_decision", "policy_implementation", "regulatory_milestone"],
+                    "contract_hint": {"baseline_value": 0, "threshold": 1, "unit": "zdarzenie binarne", "comparison_operator": ">="},
+                    "verification_choices": _registry_for("official_decision", "policy_implementation", "regulatory_milestone"),
+                    "instruction": "Na podstawie źródła oceń najbardziej prawdopodobny przyszły wynik. area musi być identyczne z source_area, a content_category musi pochodzić z compatible_content_categories.",
+                })
 
             indicator_terms = re.search(
-                r"\b(inflacj\w*|pkb|bezroboci\w*|sprzedaż\w*|rentownoś\w*|"
-                r"stop\w* procent\w*|produkcj\w*|wynagrodzeni\w*|"
-                r"obligacj\w*|deficyt\w*|eksport\w*|import\w*)\b",
+                r"\b(inflacj\w*|pkb|bezroboci\w*|sprzedaż\w*|rentownoś\w*|stop\w* procent\w*|produkcj\w*|wynagrodzeni\w*|obligacj\w*|deficyt\w*|eksport\w*|import\w*)\b",
                 text,
                 re.IGNORECASE,
             )
-            numeric = re.findall(
-                r"(?<!\d)(\d{1,3}(?:[\s.,]\d{1,3})?)\s*(%|proc\.|mld|mln|pb)?",
-                text,
-                re.IGNORECASE,
-            )
+            numeric = re.findall(r"(?<!\d)(\d{1,3}(?:[\s.,]\d{1,3})?)\s*(%|proc\.|mld|mln|pb)?", text, re.IGNORECASE)
             if indicator_terms and numeric:
-                observed_numbers = [
-                    (number + (" " + unit if unit else "")).strip()
-                    for number, unit in numeric[:4]
-                ]
-                preferred = (
-                    "macro" if source_area == "economy" and "macro" in compatible_categories
-                    else compatible_categories[0]
-                )
-                opportunities.append(
-                    {
-                        "source_id": source_id,
-                        "source_area": source_area,
-                        "compatible_content_categories": compatible_categories,
-                        "preferred_content_category": preferred,
-                        "kind": "official_or_market_indicator_with_numeric_evidence",
-                        "observed_evidence": (title + ". " + summary)[:700],
-                        "observed_numbers": observed_numbers,
-                        "allowed_forecast_types": [
-                            "official_indicator",
-                            "market_indicator",
-                        ],
-                        "verification_choices": _registry_for(
-                            "official_indicator", "market_indicator"
-                        ),
-                        "instruction": (
-                            "Użyj tylko wartości liczbowej jednoznacznie opisanej w "
-                            "źródle jako baseline. Nie wymyślaj wartości bazowej. "
-                            "Pole area musi być identyczne z source_area, a "
-                            "content_category musi pochodzić z compatible_content_categories."
-                        ),
-                    }
-                )
+                observed_numbers = [(number + (" " + unit if unit else "")).strip() for number, unit in numeric[:4]]
+                preferred = "macro" if source_area == "economy" and "macro" in compatible_categories else compatible_categories[0]
+                opportunities.append({
+                    "source_id": source_id,
+                    "source_area": source_area,
+                    "compatible_content_categories": compatible_categories,
+                    "preferred_content_category": preferred,
+                    "kind": "official_or_market_indicator_with_numeric_evidence",
+                    "observed_evidence": (title + ". " + summary)[:700],
+                    "observed_numbers": observed_numbers,
+                    "allowed_forecast_types": ["official_indicator", "market_indicator"],
+                    "verification_choices": _registry_for("official_indicator", "market_indicator"),
+                    "instruction": "Użyj tylko liczby jednoznacznie opisanej w źródle jako baseline. area musi być identyczne z source_area, a content_category musi pochodzić z compatible_content_categories.",
+                })
 
         deduped: list[dict] = []
         seen = set()
         for row in opportunities:
             key = (row.get("source_id"), row.get("kind"))
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(row)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(row)
         return deduped[:12]
 
     def _augment_pl_outlook_candidate_messages(messages):
-        """Supply governed verification URLs and forecastable source cues."""
         augmented = []
         for message in messages or []:
             if not isinstance(message, dict):
@@ -230,9 +180,8 @@ if _quality is not None:
             if str(copy.get("role", "")) != "user":
                 augmented.append(copy)
                 continue
-            text = str(copy.get("content", ""))
             try:
-                payload = json.loads(text)
+                payload = json.loads(str(copy.get("content", "")))
             except Exception:
                 augmented.append(copy)
                 continue
@@ -251,32 +200,45 @@ if _quality is not None:
             opportunities = _pl_candidate_opportunities(payload.get("sources"))
             payload["official_verification_registry"] = _PL_OUTLOOK_VERIFICATION_REGISTRY
             payload["candidate_opportunities"] = opportunities
+            payload["dimension_scoring_guide"] = {
+                "scale": "0-100; oceniaj faktycznie, nie pozostawiaj wartości przykładowych 0",
+                "evidence_quality": "siła i bezpośredniość dowodów w cytowanych źródłach",
+                "measurability": "czy rezultat ma jedną precyzyjną metrykę, próg i termin",
+                "causal_strength": "czy źródła dają racjonalny mechanizm prowadzący do prognozowanego wyniku",
+                "verifiability": "czy wynik da się jednoznacznie sprawdzić w podanym oficjalnym źródle",
+                "novelty": "czy prognoza nie powtarza recent_titles_to_avoid",
+                "speculation_risk": "ryzyko, że prognoza wykracza poza dostarczone dowody; niżej = lepiej",
+            }
+            try:
+                example = payload["required_json_shape"]["candidates"][0]
+                example.update({
+                    "evidence_quality": 75,
+                    "measurability": 90,
+                    "causal_strength": 70,
+                    "verifiability": 90,
+                    "novelty": 70,
+                    "speculation_risk": 30,
+                })
+            except Exception:
+                pass
             payload["task"] = (
-                "Zwróć od 1 do 10 kandydatów, ale tylko takich, które da się "
-                "uczciwie rozstrzygnąć na podstawie dostarczonych źródeł i jednego "
-                "z zatwierdzonych oficjalnych źródeł weryfikacji. candidate_opportunities "
-                "wskazują miejsca, w których źródła zawierają zapowiedziane zdarzenie "
-                "albo liczbową wartość bazową; nie narzucają kierunku prognozy. "
-                "Jeżeli candidate_opportunities nie jest puste, NIE zwracaj pustej "
-                "tablicy: wybierz co najmniej jedną z tych okazji i sformułuj "
-                "rzeczywistą, przyszłą, falsyfikowalną prognozę. Dla wybranej okazji "
-                "skopiuj source_area dokładnie do pola area i wybierz content_category "
-                "wyłącznie z compatible_content_categories. Dla decyzji/zdarzenia "
-                "użyj kontraktu binarnego baseline_value=0, threshold=1, "
-                "unit='zdarzenie binarne'. Dla wskaźnika ciągłego baseline musi "
-                "pochodzić dosłownie ze źródła."
+                "Zwróć od 1 do 10 kandydatów, ale tylko takich, które da się uczciwie rozstrzygnąć. "
+                "Jeżeli candidate_opportunities nie jest puste, wybierz co najmniej jedną okazję. "
+                "Dla niej skopiuj source_area dokładnie do area i wybierz content_category wyłącznie z compatible_content_categories. "
+                "Dla decyzji użyj kontraktu binarnego baseline_value=0, threshold=1, unit='zdarzenie binarne'. "
+                "Dla wskaźnika ciągłego baseline musi pochodzić dosłownie ze źródła. "
+                "Wypełnij sześć pól jakości rzeczywistymi ocenami 0-100 według dimension_scoring_guide; nie kopiuj zer ani wartości przykładowych bez oceny."
             )
             rules = list(payload.get("hard_rules") or [])
-            rules.extend(
-                [
-                    "verification_url wybierz dokładnie z official_verification_registry; nie twórz ani nie zgaduj innego adresu",
-                    "data_source_for_verification musi odpowiadać nazwie wybranego wpisu official_verification_registry",
-                    "candidate_opportunities są wskazówkami z istniejących źródeł, a nie gotową prognozą; nie wolno zmieniać observed_evidence ani observed_numbers",
-                    "jeżeli korzystasz z candidate_opportunities, source_ids muszą zawierać wskazany source_id",
-                    "dla candidate_opportunities area musi równać się source_area, a content_category musi należeć do compatible_content_categories",
-                    "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
-                ]
-            )
+            rules.extend([
+                "verification_url wybierz dokładnie z official_verification_registry; nie twórz innego adresu",
+                "data_source_for_verification musi odpowiadać nazwie wybranego wpisu official_verification_registry",
+                "jeżeli korzystasz z candidate_opportunities, source_ids muszą zawierać wskazany source_id",
+                "dla candidate_opportunities area musi równać się source_area, a content_category musi należeć do compatible_content_categories",
+                "evidence_quality, measurability, causal_strength, verifiability, novelty i speculation_risk muszą być uczciwymi liczbami 0-100, nie placeholderami",
+                "wysoka ocena nie jest celem sama w sobie; odrzuć słaby pomysł zamiast zawyżać punktację",
+                "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
+            ])
             payload["hard_rules"] = rules
             copy["content"] = json.dumps(payload, ensure_ascii=False)
             augmented.append(copy)
@@ -285,10 +247,7 @@ if _quality is not None:
     def _pace_gemini_requests() -> None:
         global _last_gemini_request_at
         try:
-            minimum_interval = max(
-                0.0,
-                float(os.getenv("GEMINI_MIN_INTERVAL_SECONDS", "7") or 7),
-            )
+            minimum_interval = max(0.0, float(os.getenv("GEMINI_MIN_INTERVAL_SECONDS", "7") or 7))
         except ValueError:
             minimum_interval = 7.0
         elapsed = time.monotonic() - _last_gemini_request_at
@@ -303,22 +262,14 @@ if _quality is not None:
             return min(75.0, max(1.0, float(retry_after)))
         except (TypeError, ValueError):
             pass
-
         try:
             payload = response.json()
         except Exception:
             payload = {}
-        details = (
-            payload.get("error", {}).get("details", [])
-            if isinstance(payload, dict)
-            else []
-        )
+        details = payload.get("error", {}).get("details", []) if isinstance(payload, dict) else []
         for detail in details:
-            if not isinstance(detail, dict):
-                continue
-            retry_delay = detail.get("retryDelay")
-            if isinstance(retry_delay, str):
-                match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", retry_delay.strip())
+            if isinstance(detail, dict) and isinstance(detail.get("retryDelay"), str):
+                match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", detail["retryDelay"].strip())
                 if match:
                     return min(75.0, max(1.0, float(match.group(1))))
         return 65.0 if attempt == 0 else 75.0
@@ -338,47 +289,19 @@ if _quality is not None:
                 raise ValueError("Gemini JSON string does not contain structured JSON")
             return _normalize_gemini_json_payload(nested, messages)
         if isinstance(payload, list):
-            prompt_text = "\n".join(
-                str(message.get("content", ""))
-                for message in (messages or [])
-                if isinstance(message, dict)
-            ).lower()
-            expects_candidates = (
-                '"candidates"' in prompt_text
-                and (
-                    "required_json_shape" in prompt_text
-                    or "kandydat" in prompt_text
-                    or "candidate" in prompt_text
-                )
-            )
+            prompt_text = "\n".join(str(message.get("content", "")) for message in (messages or []) if isinstance(message, dict)).lower()
+            expects_candidates = '"candidates"' in prompt_text and ("required_json_shape" in prompt_text or "kandydat" in prompt_text or "candidate" in prompt_text)
             if expects_candidates and all(isinstance(item, dict) for item in payload):
                 return {"candidates": payload}
             if len(payload) == 1 and isinstance(payload[0], dict):
                 return payload[0]
-        raise ValueError(
-            "Gemini response is not a JSON object; "
-            f"shape={_gemini_payload_shape(payload)}"
-        )
+        raise ValueError("Gemini response is not a JSON object; " f"shape={_gemini_payload_shape(payload)}")
 
-    def _request_json_completion(
-        *,
-        post,
-        runtime,
-        messages,
-        max_tokens,
-        temperature,
-        review=False,
-        timeout=40,
-    ):
+    def _request_json_completion(*, post, runtime, messages, max_tokens, temperature, review=False, timeout=40):
         if runtime.provider != "gemini":
             return _original_request_json_completion(
-                post=post,
-                runtime=runtime,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                review=review,
-                timeout=timeout,
+                post=post, runtime=runtime, messages=messages, max_tokens=max_tokens,
+                temperature=temperature, review=review, timeout=timeout,
             )
         if not runtime.available:
             raise RuntimeError("AI provider is unavailable")
@@ -387,13 +310,7 @@ if _quality is not None:
         model = runtime.review_model if review else runtime.generation_model
         url = f"{runtime.endpoint}/{model}:generateContent"
         contents, system_instruction = _gemini_contents(effective_messages)
-        body = {
-            "contents": contents,
-            "generationConfig": {
-                "maxOutputTokens": max_tokens,
-                "responseMimeType": "application/json",
-            },
-        }
+        body = {"contents": contents, "generationConfig": {"maxOutputTokens": max_tokens, "responseMimeType": "application/json"}}
         if system_instruction:
             body["systemInstruction"] = system_instruction
 
@@ -401,19 +318,9 @@ if _quality is not None:
         last_status = None
         for attempt in range(3):
             status = None
-            response = None
             try:
                 _pace_gemini_requests()
-                response = post(
-                    url,
-                    headers={
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": runtime.api_key,
-                    },
-                    json=body,
-                    timeout=timeout,
-                )
+                response = post(url, headers={"Accept": "application/json", "Content-Type": "application/json", "x-goog-api-key": runtime.api_key}, json=body, timeout=timeout)
                 status = int(getattr(response, "status_code", 200) or 200)
                 last_status = status
                 if status == 429 and attempt < 2:
@@ -426,23 +333,11 @@ if _quality is not None:
                 data = response.json()
                 candidates = data.get("candidates") or []
                 if not candidates:
-                    raise ValueError(
-                        f"Gemini response has no candidates: {json.dumps(data)[:600]}"
-                    )
-                parts = (
-                    candidates[0].get("content", {}).get("parts", [])
-                    if isinstance(candidates[0], dict)
-                    else []
-                )
-                raw = "".join(
-                    str(part.get("text", ""))
-                    for part in parts
-                    if isinstance(part, dict)
-                ).strip()
+                    raise ValueError(f"Gemini response has no candidates: {json.dumps(data)[:600]}")
+                parts = candidates[0].get("content", {}).get("parts", []) if isinstance(candidates[0], dict) else []
+                raw = "".join(str(part.get("text", "")) for part in parts if isinstance(part, dict)).strip()
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I | re.S)
-                return _normalize_gemini_json_payload(
-                    json.loads(raw), effective_messages
-                )
+                return _normalize_gemini_json_payload(json.loads(raw), effective_messages)
             except Exception as exc:
                 last_error = exc
                 permanent = status in _quality.PERMANENT_HTTP_STATUSES
@@ -451,18 +346,11 @@ if _quality is not None:
                     break
 
         if last_status == 429:
-            raise _quality.AiRateLimitError(
-                f"Gemini project quota remained exhausted after paced retries: {last_error}"
-            ) from last_error
+            raise _quality.AiRateLimitError(f"Gemini project quota remained exhausted after paced retries: {last_error}") from last_error
         if last_status in _quality.PERMANENT_HTTP_STATUSES:
-            raise _quality.AiPermanentError(
-                last_status,
-                f"Gemini returned permanent HTTP {last_status}; request was not retried: {last_error}",
-            ) from last_error
+            raise _quality.AiPermanentError(last_status, f"Gemini returned permanent HTTP {last_status}; request was not retried: {last_error}") from last_error
         if last_status in _quality.TRANSIENT_HTTP_STATUSES:
-            raise _quality.AiTransientError(
-                f"Gemini remained unavailable after bounded retries (HTTP {last_status}): {last_error}"
-            ) from last_error
+            raise _quality.AiTransientError(f"Gemini remained unavailable after bounded retries (HTTP {last_status}): {last_error}") from last_error
         raise RuntimeError(f"Gemini request failed after retries: {last_error}") from last_error
 
     _quality.get_ai_runtime = _get_ai_runtime
