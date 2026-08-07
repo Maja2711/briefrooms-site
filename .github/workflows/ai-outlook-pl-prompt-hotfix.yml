@@ -1,0 +1,76 @@
+name: Apply AI Outlook PL Prompt Hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-outlook-pl-prompt-hotfix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch only Polish AI Outlook candidate instructions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/sitecustomize.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''                "Dla wskaźnika ciągłego baseline musi pochodzić dosłownie ze źródła. "
+                "Wypełnij sześć pól jakości rzeczywistymi ocenami 0-100 według dimension_scoring_guide; nie kopiuj zer ani wartości przykładowych bez oceny."
+'''
+          new = '''                "Dla wskaźnika ciągłego baseline musi pochodzić dosłownie ze źródła, a threshold ma być prognozowanym przyszłym poziomem różnym od baseline_value; nie wolno ustawiać threshold równego baseline. "
+                "Wypełnij sześć pól jakości rzeczywistymi ocenami 0-100 według dimension_scoring_guide; nie kopiuj zer ani wartości przykładowych bez oceny."
+'''
+          if old not in text:
+              raise SystemExit('Expected PL Outlook task block not found')
+          text = text.replace(old, new, 1)
+
+          old_rules = '''                "wysoka ocena nie jest celem sama w sobie; odrzuć słaby pomysł zamiast zawyżać punktację",
+                "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
+'''
+          new_rules = '''                "wysoka ocena nie jest celem sama w sobie; odrzuć słaby pomysł zamiast zawyżać punktację",
+                "selection_reason opisuje znaczenie prognozowanego rezultatu i nie może odwoływać się do artykułu, publikacji, komunikatu, aktualizacji ani aktywności medialnej; te pojęcia nie są częścią prognozy",
+                "title, forecast_statement i resolution.metric opisują wyłącznie rezultat w świecie, bez słów artykuł, publikacja, komunikat, aktualizacja, wzmianka lub zainteresowanie",
+                "dla wskaźnika ciągłego threshold musi różnić się od baseline_value i oznaczać rzeczywistą przyszłą zmianę; threshold równy baseline jest niedopuszczalny",
+                "wybrane oficjalne źródło weryfikacji musi mieć kompetencję do publikowania lub potwierdzania danej metryki; dla detalicznych obligacji Skarbu Państwa preferuj Gov.pl zamiast NBP",
+                "nie wolno prognozować liczby artykułów, komunikatów, publikacji ani zainteresowania tematem",
+'''
+          if old_rules not in text:
+              raise SystemExit('Expected PL Outlook rules block not found')
+          text = text.replace(old_rules, new_rules, 1)
+          path.write_text(text, encoding='utf-8', newline='\n')
+
+          marker = Path('data/deploy-triggers/ai-outlook-recovery.txt')
+          marker.parent.mkdir(parents=True, exist_ok=True)
+          marker.write_text(
+              'Recovery requested for 2026-08-07 after eliminating false meta-forecast wording and trivial continuous thresholds.\n',
+              encoding='utf-8',
+              newline='\n',
+          )
+          PY
+
+      - name: Compile adapter
+        run: python -m py_compile scripts/sitecustomize.py
+
+      - name: Commit and trigger today's governed recovery
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/sitecustomize.py data/deploy-triggers/ai-outlook-recovery.txt
+          git commit -m "[ai-outlook-recovery] fix PL candidate semantics without lowering quality"
+          git pull --rebase origin main
+          git push origin HEAD:main
