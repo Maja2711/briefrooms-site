@@ -10,7 +10,7 @@ SCRIPT_VERSION = "5"
 PROFILE_VERSION = "1"
 SUMMARY_VERSION = "1"
 ROOM_CONTROLLER_VERSION = "7"
-NAV_GUARD_VERSION = "1"
+NAV_GUARD_VERSION = "2"
 SCRIPT = f'<script src="/scripts/ai-tournament-public.js?v={SCRIPT_VERSION}" defer></script>'
 READINESS_SCRIPT = f'<script src="/scripts/ai-tournament-readiness.js?v={SCRIPT_VERSION}" defer></script>'
 PROFILE_SCRIPT = f'<script src="/scripts/ai-tournament-company-profiles.js?v={PROFILE_VERSION}" defer></script>'
