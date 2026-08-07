@@ -13,6 +13,10 @@ on:
     paths:
       - ".github/workflows/ai-outlook-gemini.yml"
       - "scripts/publish_ai_outlook_gemini.py"
+      - "scripts/run_ai_outlook_gemini_governed.py"
+      - "scripts/ai_outlook_candidate_contract_patch.py"
+      - "scripts/ai_outlook_source_topic_contract.py"
+      - "scripts/ai_outlook_final_contract_normalizer.py"
       - "scripts/update_ai_outlook.py"
       - "scripts/update_ai_outlook_v2.py"
       - "scripts/update_ai_outlook_v3.py"
@@ -94,11 +98,16 @@ jobs:
             tests.test_ai_provider_preflight -v
           python -m py_compile \
             scripts/publish_ai_outlook_gemini.py \
+            scripts/run_ai_outlook_gemini_governed.py \
+            scripts/ai_outlook_candidate_contract_patch.py \
+            scripts/ai_outlook_source_topic_contract.py \
+            scripts/ai_outlook_final_contract_normalizer.py \
             scripts/update_ai_outlook_v3.py \
             scripts/ai_outlook_pl_quality.py \
             scripts/check_ai_provider.py \
             scripts/comment_quality.py \
             scripts/sitecustomize.py
+          python -m json.tool data/investments/daily_market_alert_editorial_spec.json >/dev/null 2>/dev/null || true
 
       - name: Verify Gemini secret and live endpoint
         if: steps.publication.outputs.should_publish == 'true'
@@ -127,8 +136,8 @@ jobs:
           if [[ "${{ steps.publication.outputs.force }}" == "true" ]]; then
             ARGS="--force"
           fi
-          python scripts/publish_ai_outlook_gemini.py $ARGS
-          python scripts/publish_ai_outlook_gemini.py --validate-only --require-today
+          python scripts/run_ai_outlook_gemini_governed.py $ARGS
+          python scripts/run_ai_outlook_gemini_governed.py --validate-only --require-today
 
       - name: Refresh homepage runtime and metrics
         if: steps.publication.outputs.should_publish == 'true'
