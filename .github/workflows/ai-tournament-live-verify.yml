@@ -1,0 +1,106 @@
+name: Verify AI Tournament Production
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.event.issue.title == 'Verify AI Tournament live production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify exact tournament state on production
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          expected = json.loads(Path('data/ai_tournament/public.json').read_text(encoding='utf-8'))
+          expected_rows = {r['agent_id']: r for r in expected.get('leaderboard', [])}
+          result = {
+              'schema_version': 'ai-tournament-production-check-v1',
+              'status': 'failed',
+              'expected_latest_session': expected.get('latest_session'),
+              'observed_latest_session': None,
+              'pl': {},
+              'en': {},
+              'errors': [],
+          }
+          headers = {
+              'User-Agent': 'BriefRooms-AI-Tournament-verifier/1.0',
+              'Cache-Control': 'no-cache, no-store, max-age=0',
+              'Pragma': 'no-cache',
+          }
+
+          def fetch(url):
+              req = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(req, timeout=25) as response:
+                  return response.read().decode('utf-8')
+
+          for attempt in range(1, 49):
+              token = f'{int(time.time())}-{attempt}'
+              errors = []
+              try:
+                  live = json.loads(fetch(f'https://briefrooms.com/data/ai_tournament/public.json?v={token}'))
+                  result['observed_latest_session'] = live.get('latest_session')
+                  if live.get('latest_session') != expected.get('latest_session'):
+                      errors.append('latest_session mismatch')
+                  live_rows = {r['agent_id']: r for r in live.get('leaderboard', [])}
+                  if list(live_rows) != list(expected_rows):
+                      errors.append('leaderboard order mismatch')
+                  for agent_id, expected_row in expected_rows.items():
+                      actual = live_rows.get(agent_id, {})
+                      for account in ('metrics_pln', 'metrics_usd'):
+                          if actual.get(account) != expected_row.get(account):
+                              errors.append(f'{agent_id} {account} mismatch')
+                  pl_html = fetch(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}')
+                  en_html = fetch(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}')
+                  result['pl'] = {
+                      'lang_marker': "BR_PORTFOLIO_10K={lang:'pl'}" in pl_html,
+                      'public_v5': 'ai-tournament-public.js?v=5' in pl_html,
+                      'readiness_v5': 'ai-tournament-readiness.js?v=5' in pl_html,
+                  }
+                  result['en'] = {
+                      'lang_marker': "BR_PORTFOLIO_10K={lang:'en'}" in en_html,
+                      'public_v5': 'ai-tournament-public.js?v=5' in en_html,
+                      'readiness_v5': 'ai-tournament-readiness.js?v=5' in en_html,
+                  }
+                  for language in ('pl', 'en'):
+                      if not all(result[language].values()):
+                          errors.append(f'{language} page renderer mismatch')
+              except Exception as exc:
+                  errors.append(str(exc))
+              result['errors'] = errors
+              if not errors:
+                  result['status'] = 'passed'
+                  break
+              time.sleep(10)
+
+          Path('data/ai_tournament/production_check.json').write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(result, ensure_ascii=False))
+          if result['status'] != 'passed':
+              raise SystemExit('AI Tournament production does not match latest main')
+          PY
+      - name: Commit verification result
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/ai_tournament/production_check.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Verify bilingual AI Tournament on production'
+          git pull --rebase origin main
+          git push origin HEAD:main
