@@ -1,0 +1,97 @@
+name: Audit Delayed Investment Room Navigation
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    if: github.event.issue.title == 'Audit delayed Investment Room navigation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test delayed real clicks
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          import json, time
+
+          pages = {
+              'PL': 'https://briefrooms.com/pl/inwestycje/portfel-10k.html',
+              'EN': 'https://briefrooms.com/en/investing/portfolio-10k.html',
+          }
+          report = {}
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              for lang, url in pages.items():
+                  page = browser.new_page(viewport={'width': 1680, 'height': 936})
+                  page.goto(f'{url}?delayed-nav={time.time()}', wait_until='domcontentloaded', timeout=30000)
+                  page.wait_for_function("document.body.dataset.investmentData === 'ready'", timeout=25000)
+                  page.wait_for_timeout(8000)
+                  checks = []
+                  targets = [
+                      ('.i10k-side-nav [data-tab="agents"]', 'agents'),
+                      ('.i10k-tabs [data-tab="portfolio"]', 'portfolio'),
+                      ('.i10k-tabs [data-tab="benchmark"]', 'benchmark'),
+                      ('.agents-wide [data-tab="agents"]', 'agents'),
+                      ('.i10k-side-nav [data-tab="history"]', 'history'),
+                  ]
+                  for selector, expected in targets:
+                      locator = page.locator(selector).first
+                      box = locator.bounding_box()
+                      hit = None
+                      if box:
+                          hit = page.evaluate("""({x,y}) => {
+                            const el = document.elementFromPoint(x,y);
+                            return el ? {tag: el.tagName, tab: el.closest('[data-tab]')?.dataset?.tab || null, cls: el.className || ''} : null;
+                          }""", {'x': box['x'] + box['width']/2, 'y': box['y'] + box['height']/2})
+                      locator.click(timeout=10000)
+                      page.wait_for_timeout(500)
+                      active = page.locator(f'.i10k-panel[data-panel="{expected}"]').first
+                      checks.append({
+                          'selector': selector,
+                          'expected': expected,
+                          'hash': page.evaluate('location.hash'),
+                          'active': 'active' in (active.get_attribute('class') or '').split(),
+                          'visible': active.is_visible(),
+                          'hit': hit,
+                          'guard': page.evaluate("document.body.dataset.investmentNavigationGuard || ''"),
+                      })
+                  report[lang] = checks
+                  page.close()
+              browser.close()
+
+          failed = [f'{lang}:{c["selector"]}' for lang, rows in report.items() for c in rows if not c['active'] or not c['visible'] or c['hash'] != '#'+c['expected'] or c['guard'] != 'active']
+          body = ['## Delayed Investment Room navigation audit', '', f"Result: **{'PASS' if not failed else 'FAIL'}**", '']
+          for lang, rows in report.items():
+              body.append(f'### {lang}')
+              for c in rows:
+                  body.append(f"- `{c['selector']}` → `{c['expected']}`: active={c['active']}, visible={c['visible']}, hash=`{c['hash']}`, guard=`{c['guard']}`, hit={json.dumps(c['hit'], ensure_ascii=False)}")
+          if failed:
+              body += ['', 'Failures: ' + ', '.join(failed)]
+          open('/tmp/nav-audit.md','w',encoding='utf-8').write('\n'.join(body)+'\n')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          if failed:
+              raise SystemExit(1)
+          PY
+      - name: Comment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --body-file /tmp/nav-audit.md
