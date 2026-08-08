@@ -147,7 +147,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertNotIn("inputs.mode || 'ensure-exposure'", weekly)
         self.assertIn("Verify weekly position lifecycle", weekly)
         self.assertIn("weekly position remains open after", weekly)
-        self.assertIn("tests/test_automation_workflow_ownership.py", weekly)
+        self.assertIn("tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure", weekly)
 
     def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
