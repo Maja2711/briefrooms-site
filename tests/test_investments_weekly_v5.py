@@ -81,6 +81,25 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(result["strategy_id"], "weekly_trend")
         self.assertEqual(result["direction"], "long")
 
+    def test_close_normalizes_v5_exposure_metadata(self):
+        item = {
+            "continuous_exposure_active": True,
+            "continuous_exposure_status": "open",
+            "next_entry_status": "open",
+            "pending_entry_decision": {"decision": {"direction": "long"}},
+        }
+        self.assertTrue(v5.v2.mark_exposure_closed(item))
+        self.assertFalse(item["continuous_exposure_active"])
+        self.assertEqual(item["continuous_exposure_status"], "closed")
+        self.assertEqual(item["next_entry_status"], "closed")
+        self.assertIsNone(item["pending_entry_decision"])
+
+    def test_close_does_not_add_v5_metadata_to_legacy_row(self):
+        item = {"trade_status": "closed", "exit_price": 100.0}
+        self.assertFalse(v5.v2.mark_exposure_closed(item))
+        self.assertNotIn("continuous_exposure_active", item)
+        self.assertNotIn("continuous_exposure_status", item)
+
 
 if __name__ == "__main__":
     unittest.main()
