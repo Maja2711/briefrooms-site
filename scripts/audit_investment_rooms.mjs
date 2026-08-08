@@ -164,7 +164,9 @@ async function auditPage(browser, spec) {
 
   try {
     await page.goto(`${baseUrl}${spec.path}?audit=${Date.now()}#overview`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('.i10k-tabs [data-tab="overview"]', { timeout: 10000 });
+    // The tab shell is static HTML. Wait for DOM attachment here; real pointer
+    // visibility is verified separately for every top and sidebar control.
+    await page.waitForSelector('.i10k-tabs [data-tab="overview"]', { state: 'attached', timeout: 10000 });
     await page.waitForFunction(controller => {
       const value = document.querySelector('#portfolio-value')?.textContent?.trim() || '';
       const status = document.querySelector('#data-status')?.textContent?.trim() || '';
