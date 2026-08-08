@@ -112,6 +112,12 @@ def lifecycle_errors(week: Dict[str, Any], now: datetime) -> List[str]:
             .lower()
             .replace(" ", "_")
         )
+        risk_status = (
+            str(item.get("risk_status") or "")
+            .strip()
+            .lower()
+            .replace(" ", "_")
+        )
 
         if direction in DIRECTIONAL and entry is not None and exit_price is None:
             errors.append(f"{prefix}: directional position has no numeric exit after {deadline.isoformat()}")
@@ -127,6 +133,8 @@ def lifecycle_errors(week: Dict[str, Any], now: datetime) -> List[str]:
             errors.append(
                 f"{prefix}: continuous_exposure_status remains {exposure_status!r} after the close deadline"
             )
+        if risk_status == "open" or risk_status.startswith("open_"):
+            errors.append(f"{prefix}: risk_status remains {risk_status!r} after the close deadline")
 
     return errors
 
