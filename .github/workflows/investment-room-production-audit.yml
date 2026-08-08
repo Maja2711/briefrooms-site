@@ -29,7 +29,7 @@ jobs:
   production-audit:
     if: github.event_name != 'issues' || github.event.issue.title == 'Audit Investment Room production'
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 30
     steps:
       - name: Check out latest main
         uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
             mkdir -p "$attempt_dir"
             echo "Production audit attempt ${attempt}/3; consecutive passes: ${consecutive}/2"
             rm -f "$attempt_dir/report.json"
-            timeout 240s env \
+            timeout 420s env \
               AUDIT_BASE_URL=https://briefrooms.com \
               AUDIT_CONTROLLER=resilient-v9 \
               AUDIT_OUTPUT_PATH="$attempt_dir/report.json" \

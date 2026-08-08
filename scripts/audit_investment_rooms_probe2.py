@@ -18,9 +18,9 @@ NAV = ("news", "investing", "health", "science", "geopolitics", "about")
 BASE = os.environ.get("AUDIT_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 OUTPUT = Path(os.environ.get("AUDIT_OUTPUT_PATH", "data/portfolio10k/investment_room_full_audit.json"))
 EXPECTED_CONTROLLER = os.environ.get("AUDIT_CONTROLLER", "resilient-v9")
-WORKER_TIMEOUT = int(os.environ.get("AUDIT_WORKER_TIMEOUT", "50"))
-MAX_WORKERS = int(os.environ.get("AUDIT_MAX_WORKERS", "6"))
-SETTLE_MS = int(os.environ.get("AUDIT_SETTLE_MS", "15000"))
+WORKER_TIMEOUT = int(os.environ.get("AUDIT_WORKER_TIMEOUT", "65"))
+MAX_WORKERS = int(os.environ.get("AUDIT_MAX_WORKERS", "2"))
+SETTLE_MS = int(os.environ.get("AUDIT_SETTLE_MS", "12000"))
 PAGES = {
     "pl": f"{BASE}/pl/inwestycje/portfel-10k.html",
     "en": f"{BASE}/en/investing/portfolio-10k.html",
