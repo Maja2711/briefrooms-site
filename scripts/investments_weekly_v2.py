@@ -451,6 +451,15 @@ def mark_exposure_closed(item: Dict[str, Any]) -> bool:
     if item.get("pending_entry_decision") is not None:
         item["pending_entry_decision"] = None
         changed = True
+    risk_status = str(item.get("risk_status") or "").strip().lower()
+    if risk_status == "open" or risk_status.startswith("open_"):
+        reason = str(item.get("exit_reason") or "")
+        item["risk_status"] = (
+            "closed_scheduled_week_close"
+            if reason == "scheduled_week_close"
+            else "closed"
+        )
+        changed = True
     return changed
 
 
