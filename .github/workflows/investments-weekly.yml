@@ -77,7 +77,8 @@ jobs:
           python -m unittest \
             tests/test_investments_weekly_v4.py \
             tests/test_investments_weekly_v5.py \
-            tests/test_investments_weekly_macro.py
+            tests/test_investments_weekly_macro.py \
+            tests/test_automation_workflow_ownership.py
 
       - name: Replace current-week placeholder with frozen model output
         run: python scripts/ensure_current_week_forecast.py
@@ -87,7 +88,7 @@ jobs:
 
       - name: Run canonical governed exposure model
         env:
-          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'ensure-exposure' }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
         run: python scripts/investments_weekly_v5.py --mode "$MODE"
 
       - name: Review positions and restore governed exposure
@@ -96,7 +97,7 @@ jobs:
           python scripts/investments_weekly_v5.py --mode ensure-exposure
           python scripts/apply_instrument_validation_gate.py
 
-      - name: Verify every enabled instrument is directional
+      - name: Verify weekly position lifecycle
         run: |
           python - <<'PY'
           import json
@@ -104,24 +105,51 @@ jobs:
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
-          now = datetime.now(ZoneInfo('Europe/Warsaw'))
+          timezone = ZoneInfo('Europe/Warsaw')
+          now = datetime.now(timezone)
           week_id = f"{now.isocalendar().year}-W{now.isocalendar().week:02d}"
           week_path = Path(f'data/investments/weekly/{week_id}.json')
           week = json.loads(week_path.read_text(encoding='utf-8'))
           policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
           required = {str(x['instrument_id']) for x in policy.get('instruments', []) if x.get('enabled')}
           rows = {str(x.get('instrument_id')): x for x in week.get('instruments', [])}
+          market_window = week.get('market_window') or {}
+
+          def parsed(value):
+              if not value:
+                  return None
+              parsed_value = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+              if parsed_value.tzinfo is None:
+                  parsed_value = parsed_value.replace(tzinfo=timezone)
+              return parsed_value.astimezone(timezone)
+
+          entry_target = parsed(market_window.get('entry_target_local'))
+          exit_target = parsed(market_window.get('exit_target_local'))
           errors = []
           for instrument_id in sorted(required):
               item = rows.get(instrument_id) or {}
-              is_open = item.get('direction') in {'long', 'short'} and item.get('entry_price') is not None and item.get('exit_price') is None
+              direction = item.get('direction')
+              entry_price = item.get('entry_price')
+              exit_price = item.get('exit_price')
               pending = item.get('pending_entry_decision') or {}
               pending_direction = (pending.get('decision') or {}).get('direction') in {'long', 'short'}
-              if not is_open and not pending_direction:
-                  errors.append(f'{instrument_id}: neither open nor pending directional entry')
+              is_open = direction in {'long', 'short'} and entry_price is not None and exit_price is None
+
+              if exit_target and now >= exit_target:
+                  if is_open:
+                      errors.append(f'{instrument_id}: weekly position remains open after {exit_target.isoformat()}')
+                  if pending_direction:
+                      errors.append(f'{instrument_id}: pending weekly entry remains after the close deadline')
+                  if direction in {'long', 'short'} and entry_price is not None and exit_price is None:
+                      errors.append(f'{instrument_id}: directional entry has no exit price after the close deadline')
+              elif entry_target and now >= entry_target:
+                  if not is_open and not pending_direction:
+                      errors.append(f'{instrument_id}: neither open nor pending directional entry during the weekly window')
+
           if errors:
-              raise SystemExit('\n'.join(errors))
-          print('Every enabled instrument is open or has a valid directional entry pending.')
+              raise SystemExit('\n'.join(dict.fromkeys(errors)))
+          phase = 'closed after weekly deadline' if exit_target and now >= exit_target else 'valid for current lifecycle phase'
+          print(f'Every enabled instrument is {phase}.')
           PY
 
       - name: Verify EURUSD macro governance
