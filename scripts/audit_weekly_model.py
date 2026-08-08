@@ -86,14 +86,15 @@ def expected_metrics(item: Dict[str, Any]) -> Optional[Dict[str, float]]:
         return None
     move = exit_price - entry if side == "long" else entry - exit_price
     percent = move / entry * 100.0
-    if str(item.get("instrument_id") or "") == "eurusd":
+    instrument_id = str(item.get("instrument_id") or "")
+    if instrument_id == "eurusd":
         notional = numeric(item.get("notional_eur")) or 10000.0
         value = move * notional
         units = move / 0.0001
     else:
         notional = numeric(item.get("notional_usd")) or 10000.0
         value = move / entry * notional
-        units = move
+        units = percent if instrument_id == "btcusd" else move
     return {"value": value, "units": units, "percent": percent}
 
 
