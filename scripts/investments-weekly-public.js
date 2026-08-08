@@ -101,14 +101,25 @@
       minimumFractionDigits: 2, maximumFractionDigits: 2,
     })}`;
   }
-  function calculatedMetrics(item, mark) {
+  function majorVersion(value) {
+    const parsed = Number.parseInt(String(value || '0').split('.', 1)[0], 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function calculatedMetrics(item, mark, methodVersion = null) {
     const entry = good(item.entry_price);
     const market = good(mark);
     if (dir(item) === 'neutral' || entry === null || market === null) return null;
     const move = dir(item) === 'long' ? market - entry : entry - market;
     const percent = move / entry * 100;
     const value = item.instrument_id === 'eurusd' ? move * notional(item) : move / entry * notional(item);
-    const units = item.instrument_id === 'eurusd' ? move / 0.0001 : move;
+    const legacyBtcPriceUnits = item.instrument_id === 'btcusd'
+      && methodVersion !== null
+      && (majorVersion(methodVersion) < 2 || String(methodVersion).includes('reconstructed'));
+    const units = item.instrument_id === 'eurusd'
+      ? move / 0.0001
+      : item.instrument_id === 'btcusd' && !legacyBtcPriceUnits
+        ? percent
+        : move;
     return { value, units, percent };
   }
   function metrics(item, mark) {
@@ -183,7 +194,7 @@
     }
     return map;
   }
-  function integrityIssues(item) {
+  function integrityIssues(item, methodVersion = null) {
     const issues = [];
     const side = dir(item);
     const entry = good(item.entry_price);
@@ -204,7 +215,7 @@
       if (side === 'short' && !(plan.tp < entry && entry < plan.sl)) issues.push('invalid_short_risk_order');
     }
     if (entry !== null && exit !== null && side !== 'neutral') {
-      const expected = calculatedMetrics(item, exit);
+      const expected = calculatedMetrics(item, exit, methodVersion);
       const unitTolerance = item.instrument_id === 'eurusd' ? 0.15 : 0.05;
       if (n(item.result_units) !== null && !closeEnough(n(item.result_units), expected.units, unitTolerance)) issues.push('result_units_mismatch');
       if (n(item.result_percent) !== null && !closeEnough(n(item.result_percent), expected.percent, 0.02)) issues.push('result_percent_mismatch');
@@ -227,7 +238,7 @@
   function auditState(week, item, quarantine) {
     const explicit = quarantine.get(`${week.week_id}/${item.instrument_id}`) || null;
     if (explicit?.manual_public_result) return { withheld: false, reason: '', issues: [], item: approvedItem(item, explicit) };
-    const issues = integrityIssues(item);
+    const issues = integrityIssues(item, week.method_version || null);
     if (explicit || issues.length) {
       return { withheld: true, reason: explicit?.reason || `${T.auditText} [${issues.join(', ')}]`, issues, item };
     }

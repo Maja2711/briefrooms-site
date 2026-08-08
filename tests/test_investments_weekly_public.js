@@ -100,6 +100,56 @@ test('shows normalized investment results with units and notional', async () => 
   assert.doesNotMatch(html, /DANE W AUDYCIE/);
 });
 
+test('publishes current BTC percentage result units', async () => {
+  const week = validWeek();
+  week.method_version = '5.0.0-experimental';
+  week.instruments = [{
+    instrument_id: 'btcusd',
+    symbol: 'BTC-USD',
+    label_pl: 'BTC/USD',
+    label_en: 'BTC/USD',
+    direction: 'short',
+    trade_status: 'closed',
+    entry_price: 200,
+    entry_captured_at: '2026-08-03T10:00:00+02:00',
+    exit_price: 190,
+    exit_captured_at: '2026-08-07T22:00:00+02:00',
+    exit_reason: 'scheduled_week_close',
+    notional_usd: 10000,
+    result_value: 500,
+    result_units: 5,
+    result_percent: 5,
+  }];
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.doesNotMatch(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /\+500,00 USD · \+5,00%/);
+});
+
+test('preserves reconstructed BTC price-move result units', async () => {
+  const week = validWeek();
+  week.method_version = '5.0.1-reconstructed';
+  week.instruments = [{
+    instrument_id: 'btcusd',
+    symbol: 'BTC-USD',
+    label_pl: 'BTC/USD',
+    label_en: 'BTC/USD',
+    direction: 'short',
+    trade_status: 'closed',
+    entry_price: 200,
+    entry_captured_at: '2026-07-27T10:00:00+02:00',
+    exit_price: 190,
+    exit_captured_at: '2026-07-31T22:00:00+02:00',
+    exit_reason: 'scheduled_week_close',
+    notional_usd: 10000,
+    result_value: 500,
+    result_units: 10,
+    result_percent: 5,
+  }];
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.doesNotMatch(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /\+500,00 USD · \+5,00%/);
+});
+
 test('marks stored current prices as delayed when live data is stale', async () => {
   const { elements, classes } = await renderWithLive({ updatedAt: '2000-01-01T00:00:00Z' });
   assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
