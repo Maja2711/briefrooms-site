@@ -52,6 +52,7 @@ class InvestmentRoomResilienceTests(unittest.TestCase):
         self.assertIn("sidebarTabs", audit)
         self.assertIn("languageSwitch", audit)
         self.assertIn("withTimeout(auditPage(browser, spec), 75000", audit)
+        self.assertIn("closeSafely(browser, `close ${spec.lang} browser`)", audit)
 
 
 if __name__ == "__main__":

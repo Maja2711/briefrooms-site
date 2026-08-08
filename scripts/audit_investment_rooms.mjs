@@ -236,18 +236,27 @@ async function main() {
     passed: false,
     results: {}
   };
-  let browser;
   try {
-    browser = await chromium.launch({ headless: true });
     for (const spec of pages) {
       process.stdout.write(`Auditing ${spec.lang.toUpperCase()} ${baseUrl}${spec.path}\n`);
-      report.results[spec.lang] = await withTimeout(auditPage(browser, spec), 75000, `${spec.lang} audit`);
+      let browser;
+      try {
+        browser = await chromium.launch({ headless: true });
+        report.results[spec.lang] = await withTimeout(auditPage(browser, spec), 75000, `${spec.lang} audit`);
+      } catch (error) {
+        report.results[spec.lang] = {
+          language: spec.lang,
+          url: `${baseUrl}${spec.path}`,
+          passed: false,
+          fatalError: String(error?.stack || error)
+        };
+      } finally {
+        await closeSafely(browser, `close ${spec.lang} browser`);
+      }
     }
     report.passed = pages.every(spec => report.results[spec.lang]?.passed);
   } catch (error) {
     report.fatalError = String(error?.stack || error);
-  } finally {
-    await closeSafely(browser, 'close browser');
   }
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n');
