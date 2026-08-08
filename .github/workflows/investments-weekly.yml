@@ -6,7 +6,7 @@ on:
       mode:
         description: "Run mode"
         required: true
-        default: "ensure-exposure"
+        default: "auto"
         type: choice
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
@@ -23,7 +23,9 @@ on:
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-public.js"
       - "scripts/investments-weekly-governance.js"
+      - "scripts/verify_weekly_close_deadline.py"
       - "tests/test_investments_weekly*.py"
+      - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_investments_weekly_public.js"
       - "tests/test_audit_weekly_integrity.py"
       - "tests/test_automation_workflow_ownership.py"
@@ -38,7 +40,7 @@ permissions:
 
 concurrency:
   group: investment-weekly-positions
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   maintain-weekly-positions:
@@ -71,7 +73,8 @@ jobs:
             scripts/ensure_current_week_forecast.py \
             scripts/daily_position_review.py \
             scripts/apply_instrument_validation_gate.py \
-            scripts/render_simple_investments.py
+            scripts/render_simple_investments.py \
+            scripts/verify_weekly_close_deadline.py
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
@@ -80,7 +83,9 @@ jobs:
             tests/test_investments_weekly_v5.py \
             tests/test_investments_weekly_macro.py \
             tests/test_audit_weekly_integrity.py \
-            tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure
+            tests/test_verify_weekly_close_deadline.py \
+            tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure \
+            tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_settlement_paths_are_independent_queued_and_fail_closed
 
       - name: Replace current-week placeholder with frozen model output
         run: python scripts/ensure_current_week_forecast.py
@@ -100,59 +105,7 @@ jobs:
           python scripts/apply_instrument_validation_gate.py
 
       - name: Verify weekly position lifecycle
-        run: |
-          python - <<'PY'
-          import json
-          from datetime import datetime
-          from pathlib import Path
-          from zoneinfo import ZoneInfo
-
-          timezone = ZoneInfo('Europe/Warsaw')
-          now = datetime.now(timezone)
-          week_id = f"{now.isocalendar().year}-W{now.isocalendar().week:02d}"
-          week_path = Path(f'data/investments/weekly/{week_id}.json')
-          week = json.loads(week_path.read_text(encoding='utf-8'))
-          policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
-          required = {str(x['instrument_id']) for x in policy.get('instruments', []) if x.get('enabled')}
-          rows = {str(x.get('instrument_id')): x for x in week.get('instruments', [])}
-          market_window = week.get('market_window') or {}
-
-          def parsed(value):
-              if not value:
-                  return None
-              parsed_value = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
-              if parsed_value.tzinfo is None:
-                  parsed_value = parsed_value.replace(tzinfo=timezone)
-              return parsed_value.astimezone(timezone)
-
-          entry_target = parsed(market_window.get('entry_target_local'))
-          exit_target = parsed(market_window.get('exit_target_local'))
-          errors = []
-          for instrument_id in sorted(required):
-              item = rows.get(instrument_id) or {}
-              direction = item.get('direction')
-              entry_price = item.get('entry_price')
-              exit_price = item.get('exit_price')
-              pending = item.get('pending_entry_decision') or {}
-              pending_direction = (pending.get('decision') or {}).get('direction') in {'long', 'short'}
-              is_open = direction in {'long', 'short'} and entry_price is not None and exit_price is None
-
-              if exit_target and now >= exit_target:
-                  if is_open:
-                      errors.append(f'{instrument_id}: weekly position remains open after {exit_target.isoformat()}')
-                  if pending_direction:
-                      errors.append(f'{instrument_id}: pending weekly entry remains after the close deadline')
-                  if direction in {'long', 'short'} and entry_price is not None and exit_price is None:
-                      errors.append(f'{instrument_id}: directional entry has no exit price after the close deadline')
-              elif entry_target and now >= entry_target:
-                  if not is_open and not pending_direction:
-                      errors.append(f'{instrument_id}: neither open nor pending directional entry during the weekly window')
-
-          if errors:
-              raise SystemExit('\n'.join(dict.fromkeys(errors)))
-          phase = 'closed after weekly deadline' if exit_target and now >= exit_target else 'valid for current lifecycle phase'
-          print(f'Every enabled instrument is {phase}.')
-          PY
+        run: python scripts/verify_weekly_close_deadline.py
 
       - name: Verify EURUSD macro governance
         run: |

@@ -437,6 +437,32 @@ def set_result(item: Dict[str, Any], exit_price: float) -> None:
     item["result_value"] = round(value, 8); item["result_percent"] = round(pct, 4); item["result_units"] = round(units, 8); item["result_currency"] = "USD"
 
 
+def mark_exposure_closed(item: Dict[str, Any]) -> bool:
+    """Clear v5 exposure flags without adding metadata to legacy rows."""
+    changed = False
+    for key, value in (
+        ("continuous_exposure_active", False),
+        ("continuous_exposure_status", "closed"),
+        ("next_entry_status", "closed"),
+    ):
+        if key in item and item.get(key) != value:
+            item[key] = value
+            changed = True
+    if item.get("pending_entry_decision") is not None:
+        item["pending_entry_decision"] = None
+        changed = True
+    risk_status = str(item.get("risk_status") or "").strip().lower()
+    if risk_status == "open" or risk_status.startswith("open_"):
+        reason = str(item.get("exit_reason") or "")
+        item["risk_status"] = (
+            "closed_scheduled_week_close"
+            if reason == "scheduled_week_close"
+            else "closed"
+        )
+        changed = True
+    return changed
+
+
 def _row_value(row: Any, name: str) -> Optional[float]:
     try:
         value = row[name]
@@ -487,6 +513,7 @@ def review_open_positions(path: Optional[Path] = None) -> bool:
             reason, level, ts = hit
             item["exit_price"] = level; item["exit_captured_at"] = ts.isoformat(timespec="seconds"); item["exit_source"] = f"Yahoo Finance:{item.get('symbol')}:5m:OHLC_threshold"
             item["exit_reason"] = reason; item["exit_execution_model"] = "planned_level_first_intraday_bar_conservative"; item["risk_status"] = "stop_loss_hit" if reason == "stop_loss" else "take_profit_hit"; item["trade_status"] = "closed"
+            mark_exposure_closed(item)
             set_result(item, level)
     if changed:
         write_json(path, week)
@@ -505,14 +532,23 @@ def close_due_weeks() -> bool:
             if side == "neutral":
                 if item.get("result") != "no_trade":
                     item.update({"result": "no_trade", "result_value": 0.0, "result_percent": 0.0, "trade_status": "no_trade"}); changed = True
+                if mark_exposure_closed(item):
+                    changed = True
                 continue
-            if sf(item.get("entry_price")) is None or sf(item.get("exit_price")) is not None:
+            entry_price = sf(item.get("entry_price"))
+            exit_price = sf(item.get("exit_price"))
+            if entry_price is None:
+                continue
+            if exit_price is not None:
+                if mark_exposure_closed(item):
+                    changed = True
                 continue
             point = first_bar_at_or_after(str(item.get("symbol") or ""), target)
             if point is None:
                 item["close_quality_status"] = "target_close_price_unavailable_no_live_fallback"; changed = True; continue
             item["exit_price"] = point["price"]; item["exit_captured_at"] = point["timestamp"]; item["exit_source"] = point["source"]
             item["exit_reason"] = "scheduled_week_close"; item["exit_execution_model"] = "first_5m_bar_at_or_after_frozen_deadline"; item["close_quality_status"] = "valid_target_bar"; item["trade_status"] = "closed"
+            mark_exposure_closed(item)
             set_result(item, float(point["price"])); changed = True
         if changed:
             week["weekly_close_audit"] = {"status": "applied_without_current_price_fallback", "checked_at": now.isoformat(timespec="seconds"), "target": target.isoformat(timespec="seconds")}
