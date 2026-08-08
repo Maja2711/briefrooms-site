@@ -13,6 +13,9 @@
     ? '/data/investments/portfolio_10k_usd.json'
     : '/data/investments/portfolio_10k.json';
   const braceUrl = '/data/investments/portfolio_10k_brace.json';
+  const CONTROLLER_VERSION = 'resilient-v9';
+  const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
   const COLORS = ['#15964d', '#2768c7', '#7050c8', '#d99a25', '#22a2a8', '#d35d76', '#8291a8', '#bcc4ce'];
   const NAV_ORDER = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
 
@@ -32,7 +35,19 @@
     error: 'Pokój Inwestycje odzyskał nawigację, ale bieżących danych portfela nie udało się załadować.'
   };
 
-  const state = { portfolio: null, brace: null, bound: false, loaded: false };
+  const state = {
+    portfolio: null,
+    brace: null,
+    bound: false,
+    loaded: false,
+    portfolioPromise: null,
+    bracePromise: null,
+    retryAttempt: 0,
+    retryTimer: null,
+    braceRetryAttempt: 0,
+    braceRetryTimer: null,
+    dataSource: ''
+  };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -104,19 +119,69 @@
     document.body.dataset.investmentTabs = 'ready';
   }
 
-  async function fetchJson(url, timeoutMs = 12000) {
+  function cacheKey(kind) {
+    return `briefrooms:investment-room:${kind}:${lang}:v9`;
+  }
+
+  function readCache(kind, validator) {
+    try {
+      const cached = JSON.parse(window.localStorage.getItem(cacheKey(kind)) || 'null');
+      if (!cached || Date.now() - Number(cached.savedAt || 0) > CACHE_MAX_AGE_MS) return null;
+      return validator(cached.payload) ? cached.payload : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeCache(kind, payload) {
+    try {
+      window.localStorage.setItem(cacheKey(kind), JSON.stringify({ savedAt: Date.now(), payload }));
+    } catch (_) {
+      // Storage can be disabled; the network path remains fully functional.
+    }
+  }
+
+  function validPortfolio(payload) {
+    const start = isEn ? payload?.starting_capital_usd : payload?.starting_capital_pln;
+    return Boolean(payload && Array.isArray(payload.positions) && Number(start) > 0 && payload.last_updated_at);
+  }
+
+  function validBrace(payload) {
+    return Boolean(payload?.portfolio && Number.isFinite(Number(payload.portfolio.score)));
+  }
+
+  async function fetchJson(url, timeoutMs = 8000, cacheBust = false) {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const separator = url.includes('?') ? '&' : '?';
-      const response = await window.fetch(`${url}${separator}stable=${Date.now()}`, {
-        cache: 'no-store', signal: controller.signal
+      const requestUrl = cacheBust
+        ? `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`
+        : url;
+      const response = await window.fetch(requestUrl, {
+        cache: cacheBust ? 'no-store' : 'default', signal: controller.signal
       });
       if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
       return await response.json();
     } finally {
       window.clearTimeout(timer);
     }
+  }
+
+  async function fetchJsonResilient(url, validator) {
+    let firstError = null;
+    for (const attempt of [
+      { timeoutMs: 8000, cacheBust: false },
+      { timeoutMs: 12000, cacheBust: true }
+    ]) {
+      try {
+        const payload = await fetchJson(url, attempt.timeoutMs, attempt.cacheBust);
+        if (!validator(payload)) throw new Error(`${url}: invalid payload`);
+        return payload;
+      } catch (error) {
+        firstError ||= error;
+      }
+    }
+    throw firstError || new Error(`${url}: unavailable`);
   }
 
   function activePositions(portfolio) {
@@ -199,7 +264,7 @@
       : (portfolio?.methodology?.objective_pl || portfolio?.methodology?.objective_en || '—'));
   }
 
-  function renderPortfolio(portfolio) {
+  function renderPortfolio(portfolio, source = 'network') {
     state.portfolio = portfolio;
     const positions = activePositions(portfolio);
     const cash = valueOf(portfolio, 'cash_usd', 'cash_pln');
@@ -233,9 +298,13 @@
     renderBenchmark(portfolio, result);
     renderPortfolioTable(positions);
     renderRules(portfolio);
+    $('.stable-room-error')?.remove();
     document.body.dataset.investmentData = 'ready';
     document.body.dataset.investmentCurrency = currency;
+    document.body.dataset.investmentDataSource = source;
+    document.body.dataset.investmentNetwork = source === 'network' ? 'healthy' : 'refreshing';
     state.loaded = true;
+    state.dataSource = source;
   }
 
   function renderBrace(brace) {
@@ -265,24 +334,99 @@
   }
 
   function showError(error) {
+    document.body.dataset.investmentNetwork = 'degraded';
+    if (state.loaded) return;
     setText('#data-status', T.unavailable);
     const panel = $('.i10k-panel.active') || $('.i10k-panel[data-panel="overview"]');
     if (panel && !panel.querySelector('.stable-room-error')) {
-      panel.insertAdjacentHTML('afterbegin', `<div class="error-box stable-room-error">${escapeHtml(T.error)}<br><small>${escapeHtml(error?.message || error || '')}</small></div>`);
+      const retryLabel = isEn ? 'Retry now' : 'Spróbuj ponownie';
+      panel.insertAdjacentHTML('afterbegin', `<div class="error-box stable-room-error">${escapeHtml(T.error)}<br><small>${escapeHtml(error?.message || error || '')}</small><br><button type="button" class="text-button" data-investment-retry>${escapeHtml(retryLabel)}</button></div>`);
     }
     document.body.dataset.investmentData = 'error';
   }
 
-  async function load() {
-    const [portfolioResult, braceResult] = await Promise.allSettled([
-      fetchJson(portfolioUrl), fetchJson(braceUrl)
-    ]);
-    if (portfolioResult.status === 'fulfilled') renderPortfolio(portfolioResult.value);
-    else showError(portfolioResult.reason);
-    if (braceResult.status === 'fulfilled') renderBrace(braceResult.value);
-    else setText('#brace-impact', T.braceUnavailable);
+  function scheduleRetry() {
+    if (state.retryTimer) return;
+    const delay = RETRY_DELAYS_MS[Math.min(state.retryAttempt, RETRY_DELAYS_MS.length - 1)];
+    state.retryAttempt += 1;
+    state.retryTimer = window.setTimeout(() => {
+      state.retryTimer = null;
+      loadPortfolio();
+    }, delay);
+  }
+
+  function clearRetry() {
+    state.retryAttempt = 0;
+    if (state.retryTimer) window.clearTimeout(state.retryTimer);
+    state.retryTimer = null;
+  }
+
+  function scheduleBraceRetry() {
+    if (state.braceRetryTimer) return;
+    const delay = RETRY_DELAYS_MS[Math.min(state.braceRetryAttempt, RETRY_DELAYS_MS.length - 1)];
+    state.braceRetryAttempt += 1;
+    state.braceRetryTimer = window.setTimeout(() => {
+      state.braceRetryTimer = null;
+      loadBrace();
+    }, delay);
+  }
+
+  function clearBraceRetry() {
+    state.braceRetryAttempt = 0;
+    if (state.braceRetryTimer) window.clearTimeout(state.braceRetryTimer);
+    state.braceRetryTimer = null;
+  }
+
+  function loadPortfolio() {
+    if (state.portfolioPromise) return state.portfolioPromise;
+    const cached = !state.loaded ? readCache('portfolio', validPortfolio) : null;
+    if (cached) renderPortfolio(cached, 'cache');
+    state.portfolioPromise = (async () => {
+      try {
+        const portfolio = await fetchJsonResilient(portfolioUrl, validPortfolio);
+        renderPortfolio(portfolio, 'network');
+        writeCache('portfolio', portfolio);
+        clearRetry();
+        return true;
+      } catch (error) {
+        showError(error);
+        scheduleRetry();
+        return state.loaded;
+      } finally {
+        state.portfolioPromise = null;
+      }
+    })();
+    return state.portfolioPromise;
+  }
+
+  function loadBrace() {
+    if (state.bracePromise) return state.bracePromise;
+    const cached = !state.brace ? readCache('brace', validBrace) : null;
+    if (cached) renderBrace(cached);
+    state.bracePromise = (async () => {
+      try {
+        const brace = await fetchJsonResilient(braceUrl, validBrace);
+        renderBrace(brace);
+        writeCache('brace', brace);
+        clearBraceRetry();
+        document.body.dataset.investmentBrace = 'ready';
+        return true;
+      } catch (_) {
+        if (!state.brace) setText('#brace-impact', T.braceUnavailable);
+        document.body.dataset.investmentBrace = state.brace ? 'cached' : 'error';
+        scheduleBraceRetry();
+        return Boolean(state.brace);
+      } finally {
+        state.bracePromise = null;
+      }
+    })();
+    return state.bracePromise;
+  }
+
+  function load() {
     ensurePanelsAreUsable();
-    return portfolioResult.status === 'fulfilled';
+    loadBrace();
+    return loadPortfolio();
   }
 
   function start() {
@@ -293,10 +437,21 @@
     });
     if (!reorderHeader()) observer.observe(document.documentElement, { childList: true, subtree: true });
     window.setTimeout(() => observer.disconnect(), 8000);
+    document.body.dataset.investmentController = CONTROLLER_VERSION;
+    document.addEventListener('click', event => {
+      if (!event.target.closest('[data-investment-retry]')) return;
+      event.preventDefault();
+      clearRetry();
+      load();
+    });
+    window.addEventListener('online', () => load());
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && (
+        document.body.dataset.investmentNetwork !== 'healthy'
+        || document.body.dataset.investmentBrace !== 'ready'
+      )) load();
+    });
     load().catch(showError);
-    window.setTimeout(() => {
-      if (!state.loaded) load().catch(showError);
-    }, 5000);
   }
 
   window.BriefRoomsInvestmentRoom = {
@@ -309,7 +464,11 @@
         dataReady: document.body.dataset.investmentData === 'ready',
         panelsReady: document.body.dataset.investmentPanels === 'ready',
         activeTab: document.body.dataset.investmentActiveTab || '',
-        currency: document.body.dataset.investmentCurrency || ''
+        currency: document.body.dataset.investmentCurrency || '',
+        controller: document.body.dataset.investmentController || '',
+        source: document.body.dataset.investmentDataSource || '',
+        network: document.body.dataset.investmentNetwork || '',
+        brace: document.body.dataset.investmentBrace || ''
       };
     }
   };
