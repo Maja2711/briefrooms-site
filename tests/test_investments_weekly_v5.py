@@ -89,12 +89,15 @@ class GovernedWeeklyModelTests(unittest.TestCase):
             "continuous_exposure_status": "open",
             "next_entry_status": "open",
             "pending_entry_decision": {"decision": {"direction": "long"}},
+            "risk_status": "open_multi_instrument_continuous_exposure",
+            "exit_reason": "scheduled_week_close",
         }
         self.assertTrue(v5.v2.mark_exposure_closed(item))
         self.assertFalse(item["continuous_exposure_active"])
         self.assertEqual(item["continuous_exposure_status"], "closed")
         self.assertEqual(item["next_entry_status"], "closed")
         self.assertIsNone(item["pending_entry_decision"])
+        self.assertEqual(item["risk_status"], "closed_scheduled_week_close")
 
     def test_close_does_not_add_v5_metadata_to_legacy_row(self):
         item = {"trade_status": "closed", "exit_price": 100.0}
@@ -118,6 +121,7 @@ class GovernedWeeklyModelTests(unittest.TestCase):
                 "continuous_exposure_status": "open",
                 "next_entry_status": "open",
                 "pending_entry_decision": {"decision": {"direction": "short"}},
+                "risk_status": "open_multi_instrument_continuous_exposure",
                 "notional_eur": 10000,
             }],
         }
@@ -142,6 +146,7 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertFalse(item["continuous_exposure_active"])
         self.assertEqual("closed", item["continuous_exposure_status"])
         self.assertIsNone(item["pending_entry_decision"])
+        self.assertEqual("closed_scheduled_week_close", item["risk_status"])
 
 
 if __name__ == "__main__":
