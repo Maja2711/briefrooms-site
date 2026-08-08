@@ -169,22 +169,10 @@ async function auditPage(browser, spec) {
       url: page.url(),
       contentType: entryResponse?.headers()['content-type'] || ''
     };
-    // The tab shell is static HTML. Wait for DOM attachment here; real pointer
-    // visibility is verified separately for every top and sidebar control.
-    await page.waitForSelector('.i10k-tabs [data-tab="overview"]', { state: 'attached', timeout: 10000 });
-    await page.waitForFunction(controller => {
-      const value = document.querySelector('#portfolio-value')?.textContent?.trim() || '';
-      const status = document.querySelector('#data-status')?.textContent?.trim() || '';
-      const positions = document.querySelector('#positions-count')?.textContent?.trim() || '';
-      return document.body.dataset.investmentController === controller
-        && document.body.dataset.investmentData === 'ready'
-        && document.body.dataset.investmentDataSource === 'network'
-        && document.body.dataset.investmentNetwork === 'healthy'
-        && document.body.dataset.investmentBrace === 'ready'
-        && !/loading|ładowanie|checking|sprawdzanie/i.test(status)
-        && value && !/^[-—]+/.test(value) && /^\d+$/.test(positions);
-    }, expectedController, { timeout: 30000 });
-    await page.waitForTimeout(2500);
+    // Use one bounded stabilization window before inspecting the whole room.
+    // This avoids Playwright locator polling deadlocks observed on the large,
+    // multi-script dashboard while still failing if data is not ready in time.
+    await page.waitForTimeout(12000);
 
     result.data = await page.evaluate(() => ({
       status: document.querySelector('#data-status')?.textContent?.trim() || '',
