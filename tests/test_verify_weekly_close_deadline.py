@@ -27,6 +27,7 @@ def row(**updates):
         "trade_status": "open",
         "continuous_exposure_active": True,
         "continuous_exposure_status": "open",
+        "risk_status": "open_multi_instrument_continuous_exposure",
         "pending_entry_decision": None,
     }
     value.update(updates)
@@ -67,6 +68,7 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
             trade_status="closed",
             continuous_exposure_active=False,
             continuous_exposure_status="closed",
+            risk_status="closed",
         )
         self.assertEqual([], guard.lifecycle_errors(week(closed), now))
 
@@ -80,6 +82,7 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
         errors = guard.lifecycle_errors(week(stale), now)
         self.assertTrue(any("continuous_exposure_active remains true" in error for error in errors))
         self.assertTrue(any("continuous_exposure_status remains" in error for error in errors))
+        self.assertTrue(any("risk_status remains" in error for error in errors))
 
     def test_pending_entry_is_rejected_after_deadline(self):
         now = datetime(2026, 8, 7, 22, 1, tzinfo=TZ)
@@ -88,6 +91,7 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
             trade_status="planned",
             continuous_exposure_active=False,
             continuous_exposure_status="pending",
+            risk_status="closed",
             pending_entry_decision={"decision": {"direction": "short"}},
         )
         errors = guard.lifecycle_errors(week(pending), now)
