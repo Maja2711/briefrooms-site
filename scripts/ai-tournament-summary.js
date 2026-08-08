@@ -4,7 +4,7 @@
   const cfg = window.BR_PORTFOLIO_10K || { lang: 'pl' };
   const lang = cfg.lang === 'en' ? 'en' : 'pl';
   const endpoint = '/data/ai_tournament/public.json';
-  const state = { data: null, observer: null };
+  const state = { data: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[character]));
@@ -131,30 +131,31 @@
       </div>`;
   }
 
-  function observe() {
-    const root = document.getElementById('agent-cards');
-    if (!root) return;
-    if (state.observer) state.observer.disconnect();
-    state.observer = new MutationObserver(() => window.requestAnimationFrame(render));
-    state.observer.observe(root, { childList: true, subtree: true });
-  }
-
   async function load() {
     installStyles();
-    observe();
+    if (window.BR_AI_TOURNAMENT_DATA?.schema_version === 'ai-tournament-v1') {
+      state.data = window.BR_AI_TOURNAMENT_DATA;
+      render();
+      return;
+    }
     try {
-      const response = await fetch(`${endpoint}?summary=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`${endpoint}?v=6`, { cache: 'no-cache' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (data.schema_version !== 'ai-tournament-v1') throw new Error('unsupported schema');
       state.data = data;
       render();
-      window.setTimeout(render, 300);
-      window.setTimeout(render, 1000);
     } catch (_) {
       // The base tournament renderer remains usable when this optional summary layer fails.
     }
   }
+
+  window.addEventListener('briefrooms:ai-tournament-rendered', event => {
+    const data = event.detail?.data;
+    if (data?.schema_version !== 'ai-tournament-v1') return;
+    state.data = data;
+    render();
+  });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();

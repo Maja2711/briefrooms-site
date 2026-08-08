@@ -43,12 +43,17 @@ jobs:
           cat /tmp/briefrooms-http.log
           exit 1
       - name: Diagnose and click every PL and EN option
-        id: audit
-        continue-on-error: true
-        run: timeout 90s python -u scripts/audit_investment_rooms_probe2.py
+        run: |
+          rm -f data/portfolio10k/investment_room_full_audit.json
+          timeout 420s python -u scripts/audit_investment_rooms_probe2.py
       - name: Print complete report
         if: always()
-        run: cat data/portfolio10k/investment_room_full_audit.json
+        run: |
+          if [ -s data/portfolio10k/investment_room_full_audit.json ]; then
+            cat data/portfolio10k/investment_room_full_audit.json
+          else
+            echo "No fresh audit report was produced."
+          fi
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,12 +61,18 @@ jobs:
           name: investment-room-controlled-browser-audit
           path: data/portfolio10k/investment_room_full_audit.json
           if-no-files-found: error
-      - name: Require every option to pass
+      - name: Require a fresh complete report
+        if: always()
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          report = json.loads(Path('data/portfolio10k/investment_room_full_audit.json').read_text(encoding='utf-8'))
+          path = Path('data/portfolio10k/investment_room_full_audit.json')
+          if not path.is_file():
+              raise SystemExit('Fresh controlled browser report is missing')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          if report.get('schema_version') != 'investment-room-isolated-audit-v10':
+              raise SystemExit('Controlled browser report is stale or has the wrong schema')
           if not report.get('passed'):
               raise SystemExit('Controlled investment room browser audit failed')
           print('Both languages and all 18 views passed')

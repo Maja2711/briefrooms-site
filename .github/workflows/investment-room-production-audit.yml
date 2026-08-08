@@ -4,6 +4,22 @@ on:
   issues:
     types: [opened]
   workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/portfolio-10k-dashboard.js"
+      - "scripts/portfolio-10k-dashboard-en.js"
+      - "scripts/portfolio-10k-navigation-guard.js"
+      - "scripts/ai-tournament-public.js"
+      - "scripts/ai-tournament-readiness.js"
+      - "scripts/ai-tournament-company-profiles.js"
+      - "scripts/ai-tournament-summary.js"
+      - "scripts/audit_investment_rooms_probe2.py"
+      - ".github/workflows/investment-room-production-audit.yml"
 
 permissions:
   contents: read
@@ -15,9 +31,9 @@ concurrency:
 
 jobs:
   production-audit:
-    if: github.event_name == 'workflow_dispatch' || github.event.issue.title == 'Audit Investment Room production'
+    if: github.event_name != 'issues' || github.event.issue.title == 'Audit Investment Room production'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out latest main
         uses: actions/checkout@v4
@@ -27,65 +43,110 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Playwright and Chromium
         run: |
-          python -m pip install --upgrade pip playwright
+          python -m pip install playwright==1.54.0
           python -m playwright install --with-deps chromium
 
-      - name: Audit all 9 PL and 9 EN production views
+      - name: Wait for the resilient controller on production
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            page_pl="$(curl -fsS --max-time 20 "https://briefrooms.com/pl/inwestycje/portfel-10k.html?deploy=${GITHUB_SHA}-${attempt}" || true)"
+            page_en="$(curl -fsS --max-time 20 "https://briefrooms.com/en/investing/portfolio-10k.html?deploy=${GITHUB_SHA}-${attempt}" || true)"
+            controller="$(curl -fsS --max-time 20 "https://briefrooms.com/scripts/portfolio-10k-dashboard.js?deploy=${GITHUB_SHA}-${attempt}" || true)"
+            if grep -q 'portfolio-10k-dashboard.js?v=9' <<<"$page_pl" \
+              && grep -q 'portfolio-10k-dashboard-en.js?v=9' <<<"$page_en" \
+              && grep -q 'ai-tournament-public.js?v=6' <<<"$page_pl" \
+              && grep -q 'ai-tournament-public.js?v=6' <<<"$page_en" \
+              && grep -q 'ai-tournament-company-profiles.js?v=2' <<<"$page_pl" \
+              && grep -q 'ai-tournament-summary.js?v=2' <<<"$page_en" \
+              && grep -q "resilient-v9" <<<"$controller"; then
+              echo "Production serves the resilient v9 controller and event-driven AI Tournament."
+              exit 0
+            fi
+            echo "Production not ready yet (attempt ${attempt}/30)."
+            sleep 10
+          done
+          echo "Production did not publish resilient v9 within five minutes."
+          exit 1
+
+      - name: Require two consecutive complete production passes
         id: audit
         shell: bash
         run: |
           set +e
-          AUDIT_BASE_URL=https://briefrooms.com \
-          AUDIT_OUTPUT_PATH=artifacts/investment-room-production/report.json \
-          AUDIT_SCREENSHOT_DIR=artifacts/investment-room-production/screenshots \
-          python scripts/audit_investment_rooms_fast.py
-          code=$?
-          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          mkdir -p artifacts/investment-room-production
+          consecutive=0
+          final_code=1
+          for attempt in 1 2 3; do
+            attempt_dir="artifacts/investment-room-production/attempt-${attempt}"
+            mkdir -p "$attempt_dir"
+            echo "Production audit attempt ${attempt}/3; consecutive passes: ${consecutive}/2"
+            rm -f "$attempt_dir/report.json"
+            timeout 420s env \
+              AUDIT_BASE_URL=https://briefrooms.com \
+              AUDIT_CONTROLLER=resilient-v9 \
+              AUDIT_OUTPUT_PATH="$attempt_dir/report.json" \
+              AUDIT_SCREENSHOT_DIR="$attempt_dir/screenshots" \
+              python -u scripts/audit_investment_rooms_probe2.py
+            code=$?
+            if [ "$code" -eq 0 ] && [ -s "$attempt_dir/report.json" ]; then
+              consecutive=$((consecutive + 1))
+            else
+              consecutive=0
+            fi
+            if [ "$consecutive" -ge 2 ]; then
+              final_code=0
+              break
+            fi
+            sleep 10
+          done
+          echo "exit_code=${final_code}" >> "$GITHUB_OUTPUT"
+          echo "consecutive_passes=${consecutive}" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Build audit summary
         if: always()
         shell: bash
+        env:
+          CONSECUTIVE_PASSES: ${{ steps.audit.outputs.consecutive_passes || '0' }}
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          report_path = Path('artifacts/investment-room-production/report.json')
-          if not report_path.exists():
-              Path('/tmp/investment-room-audit.md').write_text(
-                  '## Production Investment Room audit: FAIL\n\nThe audit did not produce a report.',
-                  encoding='utf-8',
-              )
-              raise SystemExit(0)
-
-          report = json.loads(report_path.read_text(encoding='utf-8'))
-          passed = bool(report.get('passed'))
-          lines = [
-              f"## Production Investment Room audit: {'PASS' if passed else 'FAIL'}",
-              '',
-              f"Public target: `{report.get('base_url', 'https://briefrooms.com')}`",
-              '',
-          ]
-          for language in ('pl', 'en'):
-              result = report.get('results', {}).get(language, {})
-              tabs = result.get('tabs', [])
-              tabs_passed = sum(1 for item in tabs if item.get('passed'))
-              data = result.get('data', {})
-              lines.extend([
-                  f"- **{language.upper()}**: {'PASS' if result.get('passed') else 'FAIL'}; tabs {tabs_passed}/9; status `{data.get('status', '')}`; value `{data.get('portfolio_value', '')}`; positions `{data.get('positions', '')}`",
-                  f"  - JavaScript errors: {len(result.get('page_errors', [])) + len(result.get('console_errors', []))}",
-                  f"  - critical request/HTTP errors: {len(result.get('critical_request_failures', [])) + len(result.get('critical_http_errors', []))}",
-              ])
-              if result.get('fatal_error'):
-                  lines.append(f"  - fatal error: `{result['fatal_error']}`")
-          lines.extend(['', f"Generated at: `{report.get('generated_at', '')}`"])
-          Path('/tmp/investment-room-audit.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
+          node <<'JS'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'artifacts/investment-room-production';
+          const reports = fs.existsSync(root)
+            ? fs.readdirSync(root).filter(name => /^attempt-\d+$/.test(name)).sort().map(name => {
+                const file = path.join(root, name, 'report.json');
+                return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+              }).filter(Boolean)
+            : [];
+          const report = reports.at(-1);
+          const passes = Number(process.env.CONSECUTIVE_PASSES || 0);
+          const passed = passes >= 2 && Boolean(report?.passed);
+          const lines = [
+            `## Production Investment Room audit: ${passed ? 'PASS' : 'FAIL'}`,
+            '',
+            `Consecutive complete passes: **${passes}/2**`,
+            `Completed attempts: **${reports.length}/3**`,
+            ''
+          ];
+          for (const language of ['pl', 'en']) {
+            const result = report?.results?.[language] || {};
+            const top = (result.tabs || []).filter(item => item.passed).length;
+            const side = (result.sidebar_tabs || []).filter(item => item.passed).length;
+            lines.push(`- **${language.toUpperCase()}**: ${result.passed ? 'PASS' : 'FAIL'}; top ${top}/9; sidebar ${side}/9; status \`${result.data?.status || ''}\`; value \`${result.data?.portfolio_value || ''}\`; positions \`${result.data?.positions || ''}\``);
+            lines.push(`  - controller/source/network/BRACE: \`${result.data?.controller || ''}\` / \`${result.data?.source || ''}\` / \`${result.data?.network || ''}\` / \`${result.data?.brace || ''}\``);
+            lines.push(`  - JS/page/request/HTTP errors: ${(result.console_errors || []).length}/${(result.page_errors || []).length}/${(result.critical_request_failures || []).length}/${(result.critical_http_errors || []).length}`);
+          }
+          if (!report) lines.push('- No report was produced before the hard timeout.');
+          lines.push('', `Generated at: \`${report?.generated_at || new Date().toISOString()}\``);
+          fs.writeFileSync('/tmp/investment-room-audit.md', lines.join('\n') + '\n');
+          JS
 
       - name: Comment result on trigger issue
         if: always() && github.event_name == 'issues'
@@ -94,15 +155,15 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: gh issue comment "$ISSUE_NUMBER" --body-file /tmp/investment-room-audit.md
 
-      - name: Upload production report and screenshots
+      - name: Upload production reports and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: investment-room-production-audit
           path: artifacts/investment-room-production
-          if-no-files-found: error
+          if-no-files-found: warn
 
-      - name: Require production audit to pass
+      - name: Require the audit loop to pass
         if: always()
         shell: bash
         run: exit "${{ steps.audit.outputs.exit_code || '1' }}"

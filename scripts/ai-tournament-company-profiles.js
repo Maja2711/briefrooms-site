@@ -7,7 +7,6 @@
   const state = {
     profiles: {},
     activeTrigger: null,
-    observer: null,
   };
 
   const T = lang === 'en' ? {
@@ -163,15 +162,6 @@
     });
   }
 
-  function observeTournament() {
-    const root = document.getElementById('agent-cards');
-    if (!root) return;
-    decorateHoldings(root);
-    if (state.observer) state.observer.disconnect();
-    state.observer = new MutationObserver(() => decorateHoldings(root));
-    state.observer.observe(root, { childList: true, subtree: true });
-  }
-
   async function loadProfiles() {
     installStyles();
     ensureModal();
@@ -181,7 +171,7 @@
       const payload = await response.json();
       if (payload.schema_version !== 'ai-tournament-company-profiles-v1') throw new Error('unsupported schema');
       state.profiles = payload.profiles || {};
-      observeTournament();
+      decorateHoldings(document.getElementById('agent-cards') || document);
     } catch (_) {
       // Tickers remain readable even when the optional profile layer is unavailable.
     }
@@ -190,6 +180,9 @@
   document.addEventListener('click', event => {
     const trigger = event.target.closest('.ait-company-trigger');
     if (trigger) openModal(trigger);
+  });
+  window.addEventListener('briefrooms:ai-tournament-rendered', () => {
+    if (Object.keys(state.profiles).length) decorateHoldings(document.getElementById('agent-cards') || document);
   });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadProfiles, { once: true });

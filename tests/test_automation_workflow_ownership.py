@@ -203,7 +203,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(3, exposure.count(path))
 
-    def test_portfolio_frontends_use_registry_and_cache_busting(self) -> None:
+    def test_portfolio_frontends_fail_open_with_validated_cache_and_retry(self) -> None:
         pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
             encoding="utf-8"
         )
@@ -211,15 +211,18 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             encoding="utf-8"
         )
         for source in (pl, en):
-            self.assertIn("/data/system/automation_status.json?v=${Date.now()}", source)
-            self.assertIn("dataset.automationStatus=state", source)
-            self.assertIn("cache:'no-store'", source)
+            self.assertIn("const CONTROLLER_VERSION = 'resilient-v9'", source)
+            self.assertIn("readCache('portfolio', validPortfolio)", source)
+            self.assertIn("fetchJsonResilient", source)
+            self.assertIn("cache: cacheBust ? 'no-store' : 'default'", source)
+            self.assertIn("loadBrace();\n    return loadPortfolio();", source)
+            self.assertNotIn("Promise.allSettled", source)
         pl_page = (ROOT / "pl/inwestycje/portfel-10k.html").read_text(encoding="utf-8")
         en_page = (ROOT / "en/investing/portfolio-10k.html").read_text(encoding="utf-8")
         self.assertIn("SPRAWDZANIE", pl_page)
         self.assertIn("CHECKING", en_page)
-        self.assertIn("portfolio-10k-dashboard.js?v=5", pl_page)
-        self.assertIn("portfolio-10k-dashboard-en.js?v=5", en_page)
+        self.assertIn("portfolio-10k-dashboard.js?v=9", pl_page)
+        self.assertIn("portfolio-10k-dashboard-en.js?v=9", en_page)
 
 
 if __name__ == "__main__":

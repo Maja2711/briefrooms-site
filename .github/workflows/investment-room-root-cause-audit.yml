@@ -8,8 +8,12 @@ on:
       - "en/investing/portfolio-10k.html"
       - "scripts/portfolio-10k-dashboard.js"
       - "scripts/portfolio-10k-dashboard-en.js"
-      - "scripts/portfolio-10k-execution-finalizer.js"
-      - "scripts/audit_investment_rooms_fast.py"
+      - "scripts/portfolio-10k-navigation-guard.js"
+      - "scripts/ai-tournament-public.js"
+      - "scripts/ai-tournament-readiness.js"
+      - "scripts/ai-tournament-company-profiles.js"
+      - "scripts/ai-tournament-summary.js"
+      - "scripts/audit_investment_rooms_probe2.py"
       - ".github/workflows/investment-room-root-cause-audit.yml"
   workflow_dispatch:
 
@@ -23,7 +27,7 @@ concurrency:
 jobs:
   audit-18-views:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     steps:
       - name: Check out tested commit
         uses: actions/checkout@v4
@@ -35,26 +39,28 @@ jobs:
 
       - name: Install Playwright and Chromium
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install playwright
+          python -m pip install playwright==1.54.0
           python -m playwright install --with-deps chromium
 
       - name: Start local site
         run: |
           python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
-          echo $! > /tmp/briefrooms-http.pid
           for attempt in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8000/pl/inwestycje/portfel-10k.html >/dev/null && exit 0
             sleep 1
           done
-          cat /tmp/briefrooms-http.log
+          tail -100 /tmp/briefrooms-http.log
           exit 1
 
-      - name: Test all 9 PL and 9 EN views
+      - name: Test all top tabs, sidebar tabs and language switch in PL and EN
         run: |
-          AUDIT_OUTPUT_PATH=artifacts/investment-room-audit/report.json \
-          AUDIT_SCREENSHOT_DIR=artifacts/investment-room-audit/screenshots \
-          python scripts/audit_investment_rooms_fast.py
+          rm -f artifacts/investment-room-audit/report.json
+          timeout 420s env \
+            AUDIT_BASE_URL=http://127.0.0.1:8000 \
+            AUDIT_CONTROLLER=resilient-v9 \
+            AUDIT_OUTPUT_PATH=artifacts/investment-room-audit/report.json \
+            AUDIT_SCREENSHOT_DIR=artifacts/investment-room-audit/screenshots \
+            python -u scripts/audit_investment_rooms_probe2.py
 
       - name: Upload report and screenshots
         if: always()
