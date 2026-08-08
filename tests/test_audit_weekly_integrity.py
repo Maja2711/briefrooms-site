@@ -58,6 +58,26 @@ class WeeklyIntegrityTests(unittest.TestCase):
         }
         self.assertEqual(audit.item_violations(item), [])
 
+    def test_reconstructed_btc_result_units_preserve_price_move(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "short",
+            "entry_price": 65197.8984375,
+            "entry_captured_at": "2026-07-27T10:00:00+02:00",
+            "exit_price": 62891.37109375,
+            "exit_captured_at": "2026-07-31T22:00:00+02:00",
+            "exit_reason": "scheduled_week_close",
+            "trade_status": "closed",
+            "notional_usd": 10000,
+            "result_value": 353.773266,
+            "result_units": 2306.52734375,
+            "result_percent": 3.53773266,
+        }
+        self.assertEqual(
+            audit.item_violations(item, "5.0.1-reconstructed"),
+            [],
+        )
+
     def test_invalid_short_risk_order_is_rejected(self):
         item = self.valid_short()
         item["risk_plan"]["stop_loss_price"] = 1.15000
