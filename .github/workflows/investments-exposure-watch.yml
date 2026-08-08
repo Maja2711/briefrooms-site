@@ -5,11 +5,15 @@ on:
   schedule:
     # Critical paper-risk monitoring every 15 minutes on trading days.
     - cron: "*/15 * * * 1-5"
+    # Independent settlement retries after the Friday deadline, including DST.
+    - cron: "7,37 0-6 * * 6"
   push:
     branches: [main]
     paths:
+      - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_v5_finalize.py"
+      - "scripts/verify_weekly_close_deadline.py"
       - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/ensure_current_week_forecast.py"
@@ -23,6 +27,9 @@ on:
       - "scripts/investments-weekly-public.js"
       - "scripts/investments-weekly-governance.js"
       - "tests/test_investments_weekly_public.js"
+      - "tests/test_investments_weekly_v5.py"
+      - "tests/test_verify_weekly_close_deadline.py"
+      - "tests/test_automation_workflow_ownership.py"
       - "tests/test_audit_weekly_integrity.py"
       - "data/investments/manual_risk_exit_overrides.json"
       - "data/investments/public_quarantine.json"
@@ -46,6 +53,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -56,12 +64,52 @@ jobs:
       - name: Install market-data dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
+      # Settlement is committed before broad audits, rendering or learning.
+      # A failure in any later step can no longer discard a valid close.
+      - name: Settle due weekly positions before downstream work
+        run: python scripts/investments_weekly_v5.py --mode close
+
+      - name: Verify no weekly exposure survives its deadline
+        run: python scripts/verify_weekly_close_deadline.py
+
+      - name: Persist weekly exits before downstream audits
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git restore --worktree -- data/investments/live_prices.json
+          git add data/investments/weekly \
+                  data/investments/multi_instrument_exposure_state_v5.json \
+                  data/investments/multi_instrument_exposure_report_v5.json
+          if git diff --cached --quiet; then
+            echo "No weekly settlement change to persist."
+          else
+            git commit -m "Settle weekly paper positions at frozen deadline"
+            if ! git diff --quiet; then
+              echo "::error::Settlement fast lane left unstaged files."
+              git status --short
+              exit 1
+            fi
+            for attempt in 1 2 3 4 5; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                break
+              fi
+              if [ "$attempt" -eq 5 ]; then exit 1; fi
+              sleep $((attempt * 8))
+            done
+          fi
+
       - name: Validate publication integrity code
         run: |
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
-          python -m unittest tests/test_audit_weekly_integrity.py
+          python -m py_compile scripts/verify_weekly_close_deadline.py
+          python -m unittest \
+            tests/test_audit_weekly_integrity.py \
+            tests/test_investments_weekly_v5.py \
+            tests/test_verify_weekly_close_deadline.py \
+            tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_settlement_paths_are_independent_queued_and_fail_closed
 
       - name: Recover a missing current-week paper forecast
         run: python scripts/ensure_current_week_forecast.py
@@ -77,21 +125,7 @@ jobs:
       - name: Fail-safe audit of all frozen SL TP levels
         run: python scripts/audit_intraday_risk_exits.py
 
-      # Primary strategy runtime check. Both checks must precede learning,
-      # governance and replay steps so a later failure cannot lose a risk exit.
-      - name: Check every 5-minute bar for SL TP and scheduled closes
-        run: python scripts/investments_weekly_v5.py --mode close
-
-      - name: Block same-week re-entry after SL or TP
-        run: python scripts/enforce_weekly_risk_exit_lock.py
-
-      - name: Audit ledger integrity before publication
-        run: python scripts/audit_weekly_model.py
-
-      - name: Render audited weekly positions dashboard
-        run: python scripts/render_simple_investments.py
-
-      - name: Persist risk exits immediately
+      - name: Persist audited intraday risk exits before broad audits
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -126,6 +160,15 @@ jobs:
               sleep $((attempt * 10))
             done
           fi
+
+      - name: Block same-week re-entry after SL or TP
+        run: python scripts/enforce_weekly_risk_exit_lock.py
+
+      - name: Audit ledger integrity before publication
+        run: python scripts/audit_weekly_model.py
+
+      - name: Render audited weekly positions dashboard
+        run: python scripts/render_simple_investments.py
 
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
