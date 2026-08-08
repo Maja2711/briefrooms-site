@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "weekly-16"
+ASSET_VERSION = "weekly-17"
 TZ = ZoneInfo("Europe/Warsaw")
 
 PAGES = {
