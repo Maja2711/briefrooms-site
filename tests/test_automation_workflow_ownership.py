@@ -157,8 +157,9 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             "investments-exposure-watch.yml",
             "investments-weekly.yml",
         }
-        actual_owners = set(owners("data/investments/weekly"))
+        actual_owners = set(owners("git add data/investments/weekly \\"))
         self.assertEqual(expected_owners, actual_owners)
+        self.assertFalse((WORKFLOWS / "investments-w32-emergency.yml").exists())
 
         for workflow_name in expected_owners:
             source = sources[workflow_name]
@@ -200,7 +201,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             "data/investments/multi_instrument_exposure_report_v5.json",
         ):
             with self.subTest(path=path):
-                self.assertEqual(2, exposure.count(path))
+                self.assertEqual(3, exposure.count(path))
 
     def test_portfolio_frontends_use_registry_and_cache_busting(self) -> None:
         pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
