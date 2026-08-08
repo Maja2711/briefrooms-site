@@ -57,7 +57,8 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("spread: bestReturn - worstReturn", self.summary_script)
         self.assertIn("worst = ranked.reduce", self.summary_script)
         self.assertEqual(self.summary_script.count('class="ait-summary-stat"'), 4)
-        self.assertIn("MutationObserver", self.summary_script)
+        self.assertIn("briefrooms:ai-tournament-rendered", self.summary_script)
+        self.assertNotIn("MutationObserver", self.summary_script)
 
     def test_company_profiles_cover_the_full_locked_universe(self) -> None:
         self.assertEqual(self.profiles["schema_version"], "ai-tournament-company-profiles-v1")
@@ -77,7 +78,8 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertIn("aria-modal=\"true\"", self.profile_script)
         self.assertIn("aria-haspopup", self.profile_script)
         self.assertIn("event.key === 'Escape'", self.profile_script)
-        self.assertIn("MutationObserver", self.profile_script)
+        self.assertIn("briefrooms:ai-tournament-rendered", self.profile_script)
+        self.assertNotIn("MutationObserver", self.profile_script)
         self.assertIn(".aitx-holdings span:not([data-company-profile-ready])", self.profile_script)
         self.assertIn("T.open", self.profile_script)
         self.assertIn("description_pl", self.profile_script)
@@ -87,17 +89,17 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertNotIn("loadTournamentEnhancements", self.finalizer_script)
         self.assertNotIn("ai-tournament-company-profiles.js", self.finalizer_script)
         self.assertNotIn("ai-tournament-summary.js", self.finalizer_script)
-        self.assertEqual(installer.PROFILE_VERSION, "1")
-        self.assertEqual(installer.SUMMARY_VERSION, "1")
+        self.assertEqual(installer.PROFILE_VERSION, "2")
+        self.assertEqual(installer.SUMMARY_VERSION, "2")
         source = '<html><body><script src="/scripts/ai-tournament-public.js?v=4" defer></script></body></html>'
         patched = installer.patch_text(source)
-        self.assertIn('/scripts/ai-tournament-company-profiles.js?v=1', patched)
-        self.assertIn('/scripts/ai-tournament-summary.js?v=1', patched)
+        self.assertIn('/scripts/ai-tournament-company-profiles.js?v=2', patched)
+        self.assertIn('/scripts/ai-tournament-summary.js?v=2', patched)
 
-    def test_installer_deploys_v5_profiles_and_summary_once(self) -> None:
-        self.assertEqual(installer.SCRIPT_VERSION, "5")
-        self.assertEqual(installer.PROFILE_VERSION, "1")
-        self.assertEqual(installer.SUMMARY_VERSION, "1")
+    def test_installer_deploys_v6_profiles_and_summary_once(self) -> None:
+        self.assertEqual(installer.SCRIPT_VERSION, "6")
+        self.assertEqual(installer.PROFILE_VERSION, "2")
+        self.assertEqual(installer.SUMMARY_VERSION, "2")
         source = (
             '<html><body>'
             '<script src="/scripts/ai-tournament-public.js?v=4" defer></script>'
@@ -107,10 +109,10 @@ class AiTournamentUiTests(unittest.TestCase):
             '</body></html>'
         )
         patched = installer.patch_text(source)
-        self.assertEqual(patched.count('ai-tournament-public.js?v=5'), 1)
-        self.assertEqual(patched.count('ai-tournament-readiness.js?v=5'), 1)
-        self.assertEqual(patched.count('ai-tournament-company-profiles.js?v=1'), 1)
-        self.assertEqual(patched.count('ai-tournament-summary.js?v=1'), 1)
+        self.assertEqual(patched.count('ai-tournament-public.js?v=6'), 1)
+        self.assertEqual(patched.count('ai-tournament-readiness.js?v=6'), 1)
+        self.assertEqual(patched.count('ai-tournament-company-profiles.js?v=2'), 1)
+        self.assertEqual(patched.count('ai-tournament-summary.js?v=2'), 1)
         self.assertNotIn('ai-tournament-public.js?v=4', patched)
         self.assertNotIn('ai-tournament-readiness.js?v=4', patched)
         self.assertNotIn('ai-tournament-company-profiles.js?v=old', patched)

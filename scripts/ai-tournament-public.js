@@ -282,11 +282,13 @@
     installStyles();
     updateStaticLabels();
     try {
-      const response = await fetch(`${endpoint}?v=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`${endpoint}?v=6`, { cache: 'no-cache' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (data.schema_version !== 'ai-tournament-v1') throw new Error('unsupported schema');
+      window.BR_AI_TOURNAMENT_DATA = data;
       preview(data); cards(data); history(data);
+      window.dispatchEvent(new CustomEvent('briefrooms:ai-tournament-rendered', { detail: { data, lang } }));
     } catch (_) {
       const note = `<div class="aitx-empty">${esc(T.noData)}</div>`;
       if ($('#agents-preview')) $('#agents-preview').innerHTML = note;

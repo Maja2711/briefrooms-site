@@ -14,6 +14,10 @@ on:
       - "scripts/portfolio-10k-dashboard.js"
       - "scripts/portfolio-10k-dashboard-en.js"
       - "scripts/portfolio-10k-navigation-guard.js"
+      - "scripts/ai-tournament-public.js"
+      - "scripts/ai-tournament-readiness.js"
+      - "scripts/ai-tournament-company-profiles.js"
+      - "scripts/ai-tournament-summary.js"
       - "scripts/audit_investment_rooms_probe2.py"
       - ".github/workflows/investment-room-production-audit.yml"
 
@@ -56,8 +60,12 @@ jobs:
             controller="$(curl -fsS --max-time 20 "https://briefrooms.com/scripts/portfolio-10k-dashboard.js?deploy=${GITHUB_SHA}-${attempt}" || true)"
             if grep -q 'portfolio-10k-dashboard.js?v=9' <<<"$page_pl" \
               && grep -q 'portfolio-10k-dashboard-en.js?v=9' <<<"$page_en" \
+              && grep -q 'ai-tournament-public.js?v=6' <<<"$page_pl" \
+              && grep -q 'ai-tournament-public.js?v=6' <<<"$page_en" \
+              && grep -q 'ai-tournament-company-profiles.js?v=2' <<<"$page_pl" \
+              && grep -q 'ai-tournament-summary.js?v=2' <<<"$page_en" \
               && grep -q "resilient-v9" <<<"$controller"; then
-              echo "Production serves the resilient v9 controller."
+              echo "Production serves the resilient v9 controller and event-driven AI Tournament."
               exit 0
             fi
             echo "Production not ready yet (attempt ${attempt}/30)."

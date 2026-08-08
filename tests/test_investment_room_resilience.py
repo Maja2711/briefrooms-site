@@ -72,6 +72,21 @@ class InvestmentRoomResilienceTests(unittest.TestCase):
         self.assertIn('"--worker", language, tab', audit)
         self.assertIn('"tournament_cta": agents.get', audit)
 
+    def test_ai_tournament_enhancements_are_event_driven_without_observer_loops(self):
+        public = (ROOT / "scripts" / "ai-tournament-public.js").read_text(encoding="utf-8")
+        profiles = (ROOT / "scripts" / "ai-tournament-company-profiles.js").read_text(encoding="utf-8")
+        summary = (ROOT / "scripts" / "ai-tournament-summary.js").read_text(encoding="utf-8")
+        readiness = (ROOT / "scripts" / "ai-tournament-readiness.js").read_text(encoding="utf-8")
+        self.assertIn("briefrooms:ai-tournament-rendered", public)
+        self.assertIn("BR_AI_TOURNAMENT_DATA", public)
+        self.assertIn("briefrooms:ai-tournament-rendered", profiles)
+        self.assertIn("briefrooms:ai-tournament-rendered", summary)
+        self.assertIn("briefrooms:ai-tournament-rendered", readiness)
+        self.assertNotIn("MutationObserver", profiles)
+        self.assertNotIn("MutationObserver", summary)
+        self.assertEqual(self.pl_page.count("ai-tournament-public.js?v=6"), 1)
+        self.assertEqual(self.en_page.count("ai-tournament-public.js?v=6"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

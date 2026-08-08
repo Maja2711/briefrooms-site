@@ -58,14 +58,20 @@
   }
 
   async function load() {
+    if (window.BR_AI_TOURNAMENT_DATA?.schema_version === 'ai-tournament-v1') {
+      render(window.BR_AI_TOURNAMENT_DATA);
+      return;
+    }
     try {
-      const response = await fetch(`${endpoint}?v=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`${endpoint}?v=6`, { cache: 'no-cache' });
       if (!response.ok) return;
       render(await response.json());
     } catch (_) {
       // The base tournament renderer remains available on transient network errors.
     }
   }
+
+  window.addEventListener('briefrooms:ai-tournament-rendered', event => render(event.detail?.data));
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
