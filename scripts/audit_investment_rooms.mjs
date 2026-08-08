@@ -163,7 +163,7 @@ async function auditPage(browser, spec) {
   };
 
   try {
-    const entryResponse = await page.goto(`${baseUrl}${spec.path}?audit=${Date.now()}#overview`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const entryResponse = await page.goto(`${baseUrl}${spec.path}?audit=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     result.entry = {
       status: entryResponse?.status() || 0,
       url: page.url(),
