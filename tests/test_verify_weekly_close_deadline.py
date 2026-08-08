@@ -111,6 +111,7 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
             trade_status="closed",
             continuous_exposure_active=False,
             continuous_exposure_status="closed",
+            risk_status="closed",
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "2026-W32.json"
