@@ -1,4 +1,6 @@
+import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -99,6 +101,47 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertFalse(v5.v2.mark_exposure_closed(item))
         self.assertNotIn("continuous_exposure_active", item)
         self.assertNotIn("continuous_exposure_status", item)
+
+    def test_due_week_is_closed_at_first_bar_and_exposure_is_cleared(self):
+        now = datetime(2026, 8, 7, 22, 15, tzinfo=v5.legacy.TZ)
+        payload = {
+            "week_id": "2026-W32",
+            "market_window": {"exit_target_local": "2026-08-07T22:00:00+02:00"},
+            "instruments": [{
+                "instrument_id": "eurusd",
+                "symbol": "EURUSD=X",
+                "direction": "short",
+                "entry_price": 1.15,
+                "exit_price": None,
+                "trade_status": "open",
+                "continuous_exposure_active": True,
+                "continuous_exposure_status": "open",
+                "next_entry_status": "open",
+                "pending_entry_decision": {"decision": {"direction": "short"}},
+                "notional_eur": 10000,
+            }],
+        }
+        point = {
+            "price": 1.16,
+            "timestamp": "2026-08-07T22:00:00+02:00",
+            "source": "test:first_bar_at_or_after_target",
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "2026-W32.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with patch.object(v5.v2, "WEEKLY_DIR", Path(temp_dir)), \
+                    patch.object(v5.v2.legacy, "now_local", return_value=now), \
+                    patch.object(v5.v2, "first_bar_at_or_after", return_value=point):
+                self.assertTrue(v5.v2.close_due_weeks())
+            saved = json.loads(path.read_text(encoding="utf-8"))
+
+        item = saved["instruments"][0]
+        self.assertEqual(1.16, item["exit_price"])
+        self.assertEqual("scheduled_week_close", item["exit_reason"])
+        self.assertEqual("closed", item["trade_status"])
+        self.assertFalse(item["continuous_exposure_active"])
+        self.assertEqual("closed", item["continuous_exposure_status"])
+        self.assertIsNone(item["pending_entry_decision"])
 
 
 if __name__ == "__main__":
