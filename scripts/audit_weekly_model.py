@@ -78,7 +78,7 @@ def quarantine_index(data: Dict[str, Any]) -> Dict[tuple[str, str], Dict[str, An
     return result
 
 
-def expected_metrics(item: Dict[str, Any]) -> Optional[Dict[str, float]]:
+def expected_metrics(item: Dict[str, Any], method_version: Optional[str] = None) -> Optional[Dict[str, float]]:
     side = str(item.get("direction") or "")
     entry = numeric(item.get("entry_price"))
     exit_price = numeric(item.get("exit_price"))
@@ -94,7 +94,12 @@ def expected_metrics(item: Dict[str, Any]) -> Optional[Dict[str, float]]:
     else:
         notional = numeric(item.get("notional_usd")) or 10000.0
         value = move / entry * notional
-        units = percent if instrument_id == "btcusd" else move
+        legacy_btc_price_units = (
+            instrument_id == "btcusd"
+            and method_version is not None
+            and (major_version(method_version) < 2 or "reconstructed" in method_version)
+        )
+        units = move if legacy_btc_price_units else percent if instrument_id == "btcusd" else move
     return {"value": value, "units": units, "percent": percent}
 
 
@@ -109,7 +114,7 @@ def violation(code: str, **details: Any) -> Dict[str, Any]:
     return row
 
 
-def item_violations(item: Dict[str, Any]) -> list[Dict[str, Any]]:
+def item_violations(item: Dict[str, Any], method_version: Optional[str] = None) -> list[Dict[str, Any]]:
     issues: list[Dict[str, Any]] = []
     instrument_id = str(item.get("instrument_id") or "")
     side = str(item.get("direction") or "neutral")
@@ -145,7 +150,7 @@ def item_violations(item: Dict[str, Any]) -> list[Dict[str, Any]]:
         if side == "short" and not (tp < entry < sl):
             issues.append(violation("invalid_short_risk_order", entry=entry, stop_loss=sl, take_profit=tp))
 
-    metrics = expected_metrics(item)
+    metrics = expected_metrics(item, method_version)
     if metrics is not None:
         unit_tolerance = 0.15 if instrument_id == "eurusd" else 0.05
         if mismatch(item.get("result_units"), metrics["units"], unit_tolerance):
@@ -230,7 +235,7 @@ def audit_paths(paths: Iterable[Path]) -> Dict[str, Any]:
                 if not isinstance(item.get("risk_plan"), dict):
                     errors.append({"week": week_id, "instrument": instrument_id, "error": "missing_frozen_risk_plan"})
 
-            issues = item_violations(item)
+            issues = item_violations(item, version)
             if not issues:
                 continue
             key = (week_id, instrument_id)
