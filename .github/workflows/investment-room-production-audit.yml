@@ -78,14 +78,15 @@ jobs:
             attempt_dir="artifacts/investment-room-production/attempt-${attempt}"
             mkdir -p "$attempt_dir"
             echo "Production audit attempt ${attempt}/3; consecutive passes: ${consecutive}/2"
-            timeout 170s env \
+            rm -f "$attempt_dir/report.json"
+            timeout 240s env \
               AUDIT_BASE_URL=https://briefrooms.com \
               AUDIT_CONTROLLER=resilient-v9 \
               AUDIT_OUTPUT_PATH="$attempt_dir/report.json" \
               AUDIT_SCREENSHOT_DIR="$attempt_dir/screenshots" \
               python -u scripts/audit_investment_rooms_probe2.py
             code=$?
-            if [ "$code" -eq 0 ]; then
+            if [ "$code" -eq 0 ] && [ -s "$attempt_dir/report.json" ]; then
               consecutive=$((consecutive + 1))
             else
               consecutive=0

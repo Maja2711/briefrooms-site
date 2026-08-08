@@ -48,11 +48,29 @@ class InvestmentRoomResilienceTests(unittest.TestCase):
         self.assertIn('cron: "17 */2 * * *"', workflow)
         self.assertIn("consecutive=$((consecutive + 1))", workflow)
         self.assertIn('if [ "$consecutive" -ge 2 ]', workflow)
-        self.assertIn('"tabs": []', audit)
-        self.assertIn('"sidebar_tabs": []', audit)
-        self.assertIn('"language_switch": {}', audit)
+        self.assertIn('"tabs": [item.get("top"', audit)
+        self.assertIn('"sidebar_tabs": [', audit)
+        self.assertIn('"language_switch": overview.get', audit)
         self.assertIn("os._exit(code)", audit)
         self.assertIn("EXPECTED_CONTROLLER", audit)
+        self.assertIn("ThreadPoolExecutor", audit)
+        self.assertIn("subprocess.run", audit)
+        self.assertIn("OUTPUT.unlink(missing_ok=True)", audit)
+
+    def test_pr_audit_cannot_reuse_a_stale_report(self):
+        workflow = (ROOT / ".github" / "workflows" / "investment-room-pr-browser-audit.yml").read_text(encoding="utf-8")
+        self.assertIn("rm -f data/portfolio10k/investment_room_full_audit.json", workflow)
+        self.assertIn("investment-room-isolated-audit-v10", workflow)
+        self.assertIn("Fresh controlled browser report is missing", workflow)
+        self.assertNotIn("continue-on-error: true", workflow)
+
+    def test_browser_audit_uses_real_pointer_clicks_in_isolated_workers(self):
+        audit = (ROOT / "scripts" / "audit_investment_rooms_probe2.py").read_text(encoding="utf-8")
+        self.assertIn("page.mouse.click(x, y)", audit)
+        self.assertIn('f".i10k-tabs [data-tab=\'{tab}\']"', audit)
+        self.assertIn('f".i10k-side-nav [data-tab=\'{tab}\']"', audit)
+        self.assertIn('"--worker", language, tab', audit)
+        self.assertIn('"tournament_cta": agents.get', audit)
 
 
 if __name__ == "__main__":
