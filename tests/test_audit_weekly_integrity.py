@@ -41,6 +41,23 @@ class WeeklyIntegrityTests(unittest.TestCase):
         self.assertIn("result_units_mismatch", codes)
         self.assertIn("result_value_mismatch", codes)
 
+    def test_btc_result_units_are_percent(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "short",
+            "entry_price": 100.0,
+            "entry_captured_at": "2026-08-03T10:00:00+02:00",
+            "exit_price": 95.0,
+            "exit_captured_at": "2026-08-07T22:00:00+02:00",
+            "exit_reason": "scheduled_week_close",
+            "trade_status": "closed",
+            "notional_usd": 10000,
+            "result_value": 500.0,
+            "result_units": 5.0,
+            "result_percent": 5.0,
+        }
+        self.assertEqual(audit.item_violations(item), [])
+
     def test_invalid_short_risk_order_is_rejected(self):
         item = self.valid_short()
         item["risk_plan"]["stop_loss_price"] = 1.15000
