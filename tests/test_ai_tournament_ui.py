@@ -18,6 +18,7 @@ class AiTournamentUiTests(unittest.TestCase):
         self.script = (ROOT / "scripts" / "ai-tournament-public.js").read_text(encoding="utf-8")
         self.profile_script = (ROOT / "scripts" / "ai-tournament-company-profiles.js").read_text(encoding="utf-8")
         self.summary_script = (ROOT / "scripts" / "ai-tournament-summary.js").read_text(encoding="utf-8")
+        self.workflow = (ROOT / ".github" / "workflows" / "ai-tournament-ui.yml").read_text(encoding="utf-8")
         self.finalizer_script = (ROOT / "scripts" / "portfolio-10k-execution-finalizer.js").read_text(encoding="utf-8")
         self.config = json.loads((ROOT / "data" / "ai_tournament" / "config.json").read_text(encoding="utf-8"))
         self.profiles = json.loads((ROOT / "data" / "ai_tournament" / "company_profiles.json").read_text(encoding="utf-8"))
@@ -117,6 +118,13 @@ class AiTournamentUiTests(unittest.TestCase):
         self.assertNotIn('ai-tournament-readiness.js?v=4', patched)
         self.assertNotIn('ai-tournament-company-profiles.js?v=old', patched)
         self.assertNotIn('ai-tournament-summary.js?v=old', patched)
+
+    def test_workflow_validates_event_driven_v6_contract(self) -> None:
+        self.assertIn("assert 'briefrooms:ai-tournament-rendered' in profiles_script", self.workflow)
+        self.assertIn("assert 'MutationObserver' not in profiles_script", self.workflow)
+        self.assertIn("ai-tournament-public.js?v=6", self.workflow)
+        self.assertIn("ai-tournament-company-profiles.js?v=2", self.workflow)
+        self.assertIn("ai-tournament-ui-status-v4", self.workflow)
 
 
 if __name__ == "__main__":
