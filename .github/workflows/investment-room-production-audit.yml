@@ -14,7 +14,7 @@ on:
       - "scripts/portfolio-10k-dashboard.js"
       - "scripts/portfolio-10k-dashboard-en.js"
       - "scripts/portfolio-10k-navigation-guard.js"
-      - "scripts/audit_investment_rooms.mjs"
+      - "scripts/audit_investment_rooms_probe2.py"
       - ".github/workflows/investment-room-production-audit.yml"
 
 permissions:
@@ -36,15 +36,15 @@ jobs:
         with:
           ref: main
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.11"
 
       - name: Install Playwright and Chromium
         run: |
-          npm install --no-save playwright@1.54.0
-          npx playwright install --with-deps chromium
+          python -m pip install playwright==1.54.0
+          python -m playwright install --with-deps chromium
 
       - name: Wait for the resilient controller on production
         shell: bash
@@ -83,7 +83,7 @@ jobs:
               AUDIT_CONTROLLER=resilient-v9 \
               AUDIT_OUTPUT_PATH="$attempt_dir/report.json" \
               AUDIT_SCREENSHOT_DIR="$attempt_dir/screenshots" \
-              node scripts/audit_investment_rooms.mjs
+              python -u scripts/audit_investment_rooms_probe2.py
             code=$?
             if [ "$code" -eq 0 ]; then
               consecutive=$((consecutive + 1))
@@ -128,14 +128,14 @@ jobs:
           ];
           for (const language of ['pl', 'en']) {
             const result = report?.results?.[language] || {};
-            const top = (result.topTabs || []).filter(item => item.passed).length;
-            const side = (result.sidebarTabs || []).filter(item => item.passed).length;
-            lines.push(`- **${language.toUpperCase()}**: ${result.passed ? 'PASS' : 'FAIL'}; top ${top}/9; sidebar ${side}/9; status \`${result.data?.status || ''}\`; value \`${result.data?.portfolioValue || ''}\`; positions \`${result.data?.positions || ''}\``);
+            const top = (result.tabs || []).filter(item => item.passed).length;
+            const side = (result.sidebar_tabs || []).filter(item => item.passed).length;
+            lines.push(`- **${language.toUpperCase()}**: ${result.passed ? 'PASS' : 'FAIL'}; top ${top}/9; sidebar ${side}/9; status \`${result.data?.status || ''}\`; value \`${result.data?.portfolio_value || ''}\`; positions \`${result.data?.positions || ''}\``);
             lines.push(`  - controller/source/network/BRACE: \`${result.data?.controller || ''}\` / \`${result.data?.source || ''}\` / \`${result.data?.network || ''}\` / \`${result.data?.brace || ''}\``);
-            lines.push(`  - JS/page/request/HTTP errors: ${(result.consoleErrors || []).length}/${(result.pageErrors || []).length}/${(result.criticalRequestFailures || []).length}/${(result.criticalHttpErrors || []).length}`);
+            lines.push(`  - JS/page/request/HTTP errors: ${(result.console_errors || []).length}/${(result.page_errors || []).length}/${(result.critical_request_failures || []).length}/${(result.critical_http_errors || []).length}`);
           }
           if (!report) lines.push('- No report was produced before the hard timeout.');
-          lines.push('', `Generated at: \`${report?.generatedAt || new Date().toISOString()}\``);
+          lines.push('', `Generated at: \`${report?.generated_at || new Date().toISOString()}\``);
           fs.writeFileSync('/tmp/investment-room-audit.md', lines.join('\n') + '\n');
           JS
 

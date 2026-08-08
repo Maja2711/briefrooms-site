@@ -44,15 +44,15 @@ class InvestmentRoomResilienceTests(unittest.TestCase):
 
     def test_production_audit_requires_two_complete_passes(self):
         workflow = (ROOT / ".github" / "workflows" / "investment-room-production-audit.yml").read_text(encoding="utf-8")
-        audit = (ROOT / "scripts" / "audit_investment_rooms.mjs").read_text(encoding="utf-8")
+        audit = (ROOT / "scripts" / "audit_investment_rooms_probe2.py").read_text(encoding="utf-8")
         self.assertIn('cron: "17 */2 * * *"', workflow)
         self.assertIn("consecutive=$((consecutive + 1))", workflow)
         self.assertIn('if [ "$consecutive" -ge 2 ]', workflow)
-        self.assertIn("topTabs", audit)
-        self.assertIn("sidebarTabs", audit)
-        self.assertIn("languageSwitch", audit)
-        self.assertIn("withTimeout(auditPage(browser, spec), 75000", audit)
-        self.assertIn("closeSafely(browser, `close ${spec.lang} browser`)", audit)
+        self.assertIn('"tabs": []', audit)
+        self.assertIn('"sidebar_tabs": []', audit)
+        self.assertIn('"language_switch": {}', audit)
+        self.assertIn("os._exit(code)", audit)
+        self.assertIn("EXPECTED_CONTROLLER", audit)
 
 
 if __name__ == "__main__":

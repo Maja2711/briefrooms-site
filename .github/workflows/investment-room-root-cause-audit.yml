@@ -9,7 +9,7 @@ on:
       - "scripts/portfolio-10k-dashboard.js"
       - "scripts/portfolio-10k-dashboard-en.js"
       - "scripts/portfolio-10k-navigation-guard.js"
-      - "scripts/audit_investment_rooms.mjs"
+      - "scripts/audit_investment_rooms_probe2.py"
       - ".github/workflows/investment-room-root-cause-audit.yml"
   workflow_dispatch:
 
@@ -28,15 +28,15 @@ jobs:
       - name: Check out tested commit
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.11"
 
       - name: Install Playwright and Chromium
         run: |
-          npm install --no-save playwright@1.54.0
-          npx playwright install --with-deps chromium
+          python -m pip install playwright==1.54.0
+          python -m playwright install --with-deps chromium
 
       - name: Start local site
         run: |
@@ -55,7 +55,7 @@ jobs:
             AUDIT_CONTROLLER=resilient-v9 \
             AUDIT_OUTPUT_PATH=artifacts/investment-room-audit/report.json \
             AUDIT_SCREENSHOT_DIR=artifacts/investment-room-audit/screenshots \
-            node scripts/audit_investment_rooms.mjs
+            python -u scripts/audit_investment_rooms_probe2.py
 
       - name: Upload report and screenshots
         if: always()
