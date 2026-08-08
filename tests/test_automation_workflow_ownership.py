@@ -143,11 +143,42 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
 
     def test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
+        self.assertIn('default: "auto"', weekly)
         self.assertIn("inputs.mode || 'auto'", weekly)
         self.assertNotIn("inputs.mode || 'ensure-exposure'", weekly)
         self.assertIn("Verify weekly position lifecycle", weekly)
-        self.assertIn("weekly position remains open after", weekly)
+        self.assertIn("python scripts/verify_weekly_close_deadline.py", weekly)
+        self.assertIn("cancel-in-progress: false", weekly)
         self.assertIn("tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure", weekly)
+
+    def test_weekly_settlement_paths_are_independent_queued_and_fail_closed(self) -> None:
+        sources = workflow_sources()
+        expected_owners = {
+            "investments-exposure-watch.yml",
+            "investments-weekly.yml",
+        }
+        actual_owners = set(owners("data/investments/weekly"))
+        self.assertEqual(expected_owners, actual_owners)
+
+        for workflow_name in expected_owners:
+            source = sources[workflow_name]
+            with self.subTest(workflow=workflow_name):
+                self.assertIn("group: investment-weekly-positions", source)
+                self.assertIn("cancel-in-progress: false", source)
+                self.assertIn("ref: main", source)
+                self.assertIn("python scripts/verify_weekly_close_deadline.py", source)
+
+        exposure = sources["investments-exposure-watch.yml"]
+        self.assertIn('cron: "7,37 0-6 * * 6"', exposure)
+        settle = exposure.index("Settle due weekly positions before downstream work")
+        verify = exposure.index("Verify no weekly exposure survives its deadline")
+        persist = exposure.index("Persist weekly exits before downstream audits")
+        broad_validation = exposure.index("Validate publication integrity code")
+        broad_audit = exposure.index("Audit ledger integrity before publication")
+        self.assertLess(settle, verify)
+        self.assertLess(verify, persist)
+        self.assertLess(persist, broad_validation)
+        self.assertLess(persist, broad_audit)
 
     def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
