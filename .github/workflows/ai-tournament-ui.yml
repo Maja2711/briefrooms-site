@@ -59,7 +59,10 @@ jobs:
 
           assert '<details class="aitx-thesis">' in renderer
           assert 'role="dialog" aria-modal="true"' in profiles_script
-          assert 'MutationObserver' in profiles_script
+          assert 'briefrooms:ai-tournament-rendered' in profiles_script
+          assert 'MutationObserver' not in profiles_script
+          assert 'briefrooms:ai-tournament-rendered' in summary_script
+          assert 'MutationObserver' not in summary_script
           assert 'Najważniejsze liczby bez powtarzania rankingu' in summary_script
           assert summary_script.count('class="ait-summary-stat"') == 4
           assert profiles['schema_version'] == 'ai-tournament-company-profiles-v1'
@@ -76,10 +79,10 @@ jobs:
           from pathlib import Path
 
           required = (
-              'ai-tournament-public.js?v=5',
-              'ai-tournament-readiness.js?v=5',
-              'ai-tournament-company-profiles.js?v=1',
-              'ai-tournament-summary.js?v=1',
+              'ai-tournament-public.js?v=6',
+              'ai-tournament-readiness.js?v=6',
+              'ai-tournament-company-profiles.js?v=2',
+              'ai-tournament-summary.js?v=2',
           )
           for path in (
               Path('pl/inwestycje/portfel-10k.html'),
@@ -151,10 +154,10 @@ jobs:
                       with urllib.request.urlopen(request, timeout=20) as response:
                           body = response.read().decode('utf-8', errors='replace')
                       required = (
-                          'ai-tournament-public.js?v=5',
-                          'ai-tournament-readiness.js?v=5',
-                          'ai-tournament-company-profiles.js?v=1',
-                          'ai-tournament-summary.js?v=1',
+                          'ai-tournament-public.js?v=6',
+                          'ai-tournament-readiness.js?v=6',
+                          'ai-tournament-company-profiles.js?v=2',
+                          'ai-tournament-summary.js?v=2',
                       )
                       found = all(item in body for item in required)
                       observed[f'{language}_assets'] = found
@@ -165,8 +168,8 @@ jobs:
 
               checks = {
                   'renderer': ('<details class="aitx-thesis">', 'class="aitx-overview"'),
-                  'profiles': ('ait-company-modal', 'MutationObserver', "event.key === 'Escape'"),
-                  'summary': ('ait-summary-grid', 'Lead over second', 'Average return', 'Best-to-worst spread'),
+                  'profiles': ('ait-company-modal', 'briefrooms:ai-tournament-rendered', "event.key === 'Escape'"),
+                  'summary': ('ait-summary-grid', 'briefrooms:ai-tournament-rendered', 'Lead over second', 'Average return', 'Best-to-worst spread'),
               }
               for key, markers in checks.items():
                   try:
@@ -201,12 +204,12 @@ jobs:
               time.sleep(10)
 
           status = {
-              'schema_version': 'ai-tournament-ui-status-v3',
+              'schema_version': 'ai-tournament-ui-status-v4',
               'status': 'passed' if passed else 'failed',
               'checked_at': datetime.now(timezone.utc).isoformat(),
-              'renderer_version': '5',
-              'company_profiles_version': '1',
-              'summary_version': '1',
+              'renderer_version': '6',
+              'company_profiles_version': '2',
+              'summary_version': '2',
               'observed': observed,
               'errors': last_errors,
           }
