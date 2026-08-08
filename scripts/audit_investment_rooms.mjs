@@ -163,7 +163,17 @@ async function auditPage(browser, spec) {
   };
 
   try {
-    await page.goto(`${baseUrl}${spec.path}?audit=${Date.now()}#overview`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const entryResponse = await page.goto(`${baseUrl}${spec.path}?audit=${Date.now()}#overview`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const entryHtml = await page.content();
+    result.entry = {
+      status: entryResponse?.status() || 0,
+      url: page.url(),
+      title: await page.title(),
+      contentType: entryResponse?.headers()['content-type'] || '',
+      htmlLength: entryHtml.length,
+      hasTabShell: entryHtml.includes('class="i10k-tabs"'),
+      htmlStart: entryHtml.slice(0, 240)
+    };
     // The tab shell is static HTML. Wait for DOM attachment here; real pointer
     // visibility is verified separately for every top and sidebar control.
     await page.waitForSelector('.i10k-tabs [data-tab="overview"]', { state: 'attached', timeout: 10000 });
