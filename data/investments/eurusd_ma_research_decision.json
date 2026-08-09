@@ -1,9 +1,57 @@
 {
-  "status": "pending_workflow_recalculation",
+  "status": "research_recommendation_ready",
+  "sample_weeks": 139,
   "decision": "keep_sma_structural_layer_and_test_ema_h1_as_secondary_timing",
   "production_action": "no_automatic_replacement",
   "recommended_next_test": "walk_forward_holdout_for_H1_EMA_price_vs_all_with_existing_W1_SMA_structure",
+  "rationale": [
+    "H1 EMA price-vs-all is the most repeatable positive result on both long and short sides.",
+    "W1 SMA support remains promising but its current common-sample count is too small for promotion by itself.",
+    "EMA or hybrid full-stack/fast-slow rules on D1 and W1 do not show broad enough positive expectancy to replace SMA globally.",
+    "High hit rate with negative mean return is rejected by governance."
+  ],
+  "checks": {
+    "h1_ema_price_long": {
+      "passed": false,
+      "count": 58,
+      "mean_week_percent": 0.015348,
+      "median_week_percent": 0.045805,
+      "hit_rate": 0.517241
+    },
+    "h1_ema_price_short": {
+      "passed": true,
+      "count": 37,
+      "mean_week_percent": 0.032328,
+      "median_week_percent": 0.172651,
+      "hit_rate": 0.540541
+    },
+    "h1_sma_price_short": {
+      "passed": true,
+      "count": 36,
+      "mean_week_percent": 0.020952,
+      "median_week_percent": 0.134642,
+      "hit_rate": 0.527778
+    },
+    "w1_sma_support_long": {
+      "passed": false,
+      "reason": "sample_below_30_even_if_promising",
+      "count": 9,
+      "mean_week_percent": 0.321698,
+      "median_week_percent": 0.279498,
+      "hit_rate": 0.777778
+    },
+    "w1_hybrid_fast_long": {
+      "passed": false,
+      "count": 59,
+      "mean_week_percent": 0.026186,
+      "median_week_percent": 0.046941,
+      "hit_rate": 0.508475
+    }
+  },
   "guardrails": {
+    "min_count": 30,
+    "min_hit_rate": 0.52,
+    "min_mean_week_percent": 0.015,
     "auto_modify_production": false
   }
 }
