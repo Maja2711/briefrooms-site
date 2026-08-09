@@ -1,0 +1,57 @@
+name: Autonomous Weekly Strategy Research Lab
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 1,7,13,19 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/investments_research_lab.py"
+      - "scripts/investments_research_bridge.py"
+      - "scripts/investments_weekly_macro.py"
+      - "data/investments/research_lab_policy.json"
+      - "tests/test_research_lab_bridge.py"
+      - ".github/workflows/research-lab.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autonomous-strategy-research-lab
+  cancel-in-progress: false
+
+jobs:
+  research-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate bridge and research loop
+        run: |
+          python -m py_compile scripts/investments_research_lab.py scripts/investments_research_bridge.py scripts/investments_weekly_macro.py
+          PYTHONPATH=. python -m unittest tests/test_research_lab_bridge.py
+      - name: Run autonomous research cycle
+        run: python scripts/investments_research_lab.py
+      - name: Persist lab state and promotion registry
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/research_lab_state.json data/investments/research_lab_report.json data/investments/research_lab_promotion_registry.json
+          if git diff --cached --quiet; then
+            echo "No Research Lab state change to commit."
+            exit 0
+          fi
+          git commit -m "Run autonomous strategy research cycle"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push; then exit 0; fi
+            sleep $((attempt * 4))
+          done
+          exit 1
