@@ -142,8 +142,8 @@ def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]
     if instrument_id != "eurusd" or ma_context.get("data_quality") != "passed":
         return rows
     cfg = _cfg(policy)
-    score = float(ma_context.get("score") or 0.0)
     cap = abs(float(ma_context.get("score_cap") or cfg.get("score_cap") or 4.0)) or 4.0
+    score = max(-cap, min(cap, float(ma_context.get("score") or 0.0)))
     max_adjust = abs(float(cfg.get("candidate_alignment_bonus_max") or 3.0))
     for row in rows.values():
         side = 1.0 if row.get("direction") == "long" else -1.0 if row.get("direction") == "short" else 0.0
