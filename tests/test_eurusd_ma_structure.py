@@ -22,11 +22,11 @@ class TestEurusdMAStructure(unittest.TestCase):
         self.assertEqual(out["short_method"]["conviction"], 2.0)
         self.assertEqual(out["long_method"]["ma_structure_adjustment"], 3.0)
 
-    def test_adjustment_is_bounded(self):
+    def test_adjustment_is_bounded_even_for_bad_input(self):
         candidates = {"m": {"direction": "short", "conviction": 1.0}}
         out = ma.apply_to_candidates("eurusd", candidates, {"data_quality": "passed", "score": -999.0, "score_cap": 4.0}, self.policy())
-        self.assertEqual(out["m"]["ma_structure_adjustment"], 749.25)
-        # Context producer clips score to its configured cap; apply layer preserves that audited value.
+        self.assertEqual(out["m"]["ma_structure_adjustment"], 3.0)
+        self.assertEqual(out["m"]["conviction"], 4.0)
 
     def test_not_applicable_does_not_change_candidates(self):
         candidates = {"m": {"direction": "long", "conviction": 2.0}}
