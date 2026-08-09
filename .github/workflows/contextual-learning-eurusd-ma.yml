@@ -12,6 +12,7 @@ on:
       - "scripts/investments_weekly_eurusd_ma_research.py"
       - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
       - "scripts/investments_weekly_eurusd_sma_ema_research.py"
+      - "scripts/decide_eurusd_ma_research.py"
       - "scripts/run_eurusd_ma_multitimeframe_research.py"
       - "tests/test_contextual_learning.py"
       - "tests/test_eurusd_ma_structure.py"
@@ -41,7 +42,7 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate contextual learning and MA production layer
         run: |
-          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py scripts/investments_weekly_ma_structure.py scripts/validate_eurusd_ma_structure.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/investments_weekly_eurusd_sma_ema_research.py scripts/run_eurusd_ma_multitimeframe_research.py
+          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py scripts/investments_weekly_ma_structure.py scripts/validate_eurusd_ma_structure.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/investments_weekly_eurusd_sma_ema_research.py scripts/decide_eurusd_ma_research.py scripts/run_eurusd_ma_multitimeframe_research.py
           python -m unittest tests/test_contextual_learning.py tests/test_eurusd_ma_structure.py tests/test_investments_weekly_v5.py
       - name: Validate live EURUSD MA structure integration
         run: python scripts/validate_eurusd_ma_structure.py
@@ -51,16 +52,18 @@ jobs:
         run: python scripts/run_eurusd_ma_multitimeframe_research.py
       - name: Research EURUSD SMA versus EMA and hybrid
         run: python scripts/investments_weekly_eurusd_sma_ema_research.py
-      - name: Commit validation and research reports
+      - name: Decide next MA research action
+        run: python scripts/decide_eurusd_ma_research.py
+      - name: Commit validation research and decision reports
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/eurusd_ma_structure_validation.json data/investments/eurusd_ma_30_60_100_200_research.json data/investments/eurusd_ma_multitimeframe_research.json data/investments/eurusd_sma_vs_ema_research.json
+          git add data/investments/eurusd_ma_structure_validation.json data/investments/eurusd_ma_30_60_100_200_research.json data/investments/eurusd_ma_multitimeframe_research.json data/investments/eurusd_sma_vs_ema_research.json data/investments/eurusd_ma_research_decision.json
           if git diff --cached --quiet; then
-            echo "No MA validation/research change to commit."
+            echo "No MA validation/research/decision change to commit."
             exit 0
           fi
-          git commit -m "Validate EURUSD MA research suite"
+          git commit -m "Validate EURUSD MA research decision loop"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push; then exit 0; fi
