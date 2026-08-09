@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import investments_weekly_v2 as v2
 import investments_weekly_ma_structure as ma_structure
+import investments_research_bridge as research_bridge
 
 
 def clip(value: float, low: float, high: float) -> float:
@@ -114,7 +115,11 @@ def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]
         tie = str(next((row.get("default_tie_direction") for row in policy.get("instruments") or [] if row.get("instrument_id") == instrument_id), "long"))
         direction = "long" if combined > 0 else "short" if combined < 0 else (tie if tie in {"long", "short"} else "long")
         rows["macro_weekly_blend"] = {"direction": direction, "raw_score": round(combined, 4), "conviction": round(abs(combined) * 0.15, 4), "base_conviction": round(abs(combined) * 0.15, 4), "macro_alignment_adjustment": 0.0, "macro_context_score": round(score, 4), "inputs": {"daily_score": daily_score, "weekly_score": weekly_score, "macro_score_normalized": round(macro_scaled, 4), "weights": {"daily": daily_weight, "weekly": weekly_weight, "macro": macro_weight}}}
-    return ma_structure.apply_to_candidates(instrument_id, rows, macro_context.get("ma_structure") or {}, policy)
+    rows = ma_structure.apply_to_candidates(instrument_id, rows, macro_context.get("ma_structure") or {}, policy)
+    rows, bridge = research_bridge.apply(instrument_id, rows)
+    for row in rows.values():
+        row["research_lab_bridge"] = bridge
+    return rows
 
 
 def position_review(item: Dict[str, Any], macro_context: Dict[str, Any]) -> Dict[str, Any]:
