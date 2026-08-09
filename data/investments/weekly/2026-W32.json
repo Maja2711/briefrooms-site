@@ -284,7 +284,170 @@
       "exit_execution_model": "first_5m_bar_at_or_after_frozen_deadline",
       "close_quality_status": "valid_target_bar",
       "result_units": -35.99762917,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "position_legs": [
+        {
+          "leg_id": "f8de534200a3822a",
+          "instrument_id": "eurusd",
+          "symbol": "EURUSD=X",
+          "direction": "short",
+          "strategy_id": "ema_mean_reversion",
+          "entry_regime": "trend_down:vol_normal",
+          "entry_decision": {
+            "direction": "short",
+            "raw_score": -40.0,
+            "conviction": 6.0,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 8.5,
+            "candidates": {
+              "ema_mean_reversion": {
+                "direction": "short",
+                "raw_score": -40.0,
+                "conviction": 6.0,
+                "strategy_id": "ema_mean_reversion",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 8.5
+              },
+              "inverse_v2": {
+                "direction": "short",
+                "raw_score": -25.0,
+                "conviction": 3.75,
+                "strategy_id": "inverse_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.25
+              },
+              "base_v2": {
+                "direction": "long",
+                "raw_score": 25.0,
+                "conviction": 3.75,
+                "strategy_id": "base_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.25
+              },
+              "weekly_trend": {
+                "direction": "short",
+                "raw_score": -20.0,
+                "conviction": 3.0,
+                "strategy_id": "weekly_trend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 5.5
+              },
+              "daily_weekly_blend": {
+                "direction": "long",
+                "raw_score": 7.0,
+                "conviction": 1.05,
+                "strategy_id": "daily_weekly_blend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 3.55
+              }
+            },
+            "regime": "trend_down:vol_normal",
+            "weekly_features": {
+              "data_quality": "passed",
+              "score": -20,
+              "regime": "trend_down:vol_normal",
+              "last_week_close": 1.15287066,
+              "ema_fast": 1.14972767,
+              "ema_slow": 1.15648284,
+              "weekly_atr13": 0.0118295,
+              "return_4w_percent": 0.8335,
+              "return_13w_percent": -1.7293,
+              "volatility_ratio_13w_52w": 0.8031,
+              "range_26w_position": 0.3296,
+              "components": {
+                "trend": -13.32,
+                "momentum_fast": 11.22,
+                "momentum_slow": -10.33,
+                "breakout": -5.11,
+                "last_candle": -2.32,
+                "volatility_scale": 1.0
+              }
+            },
+            "fresh_v2_signal": {
+              "direction": "neutral",
+              "score": 25,
+              "signal_strength": 0.25,
+              "confidence": 0.25,
+              "confidence_type": "heuristic_signal_strength_not_probability",
+              "data_quality": "passed",
+              "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+              "signals": {
+                "last_close": 1.15287066,
+                "ema20": 1.14402955,
+                "ema50": 1.14827498,
+                "atr14": 0.00537655,
+                "ret5_pct": 1.1736,
+                "ret20_pct": 0.7955,
+                "vol20_annualized_pct": 4.5006,
+                "vol60_annualized_pct": 4.661,
+                "volatility_regime_ratio": 0.9656,
+                "volatility_score_scale": 1.0,
+                "range55_position": 0.5798,
+                "components": {
+                  "trend_ema": -10.53,
+                  "trend_price": 10.0,
+                  "momentum5": 15.0,
+                  "momentum20": 8.37,
+                  "breakout": 2.4,
+                  "macro_bias": 0.0,
+                  "event_risk_penalty": 0.0
+                },
+                "agreement": {
+                  "positive_groups": 1,
+                  "negative_groups": 0,
+                  "required": 2
+                }
+              },
+              "risk_distance": {
+                "source": "ATR14_sqrt5_frozen_at_forecast",
+                "stop_price_distance": 0.00661228,
+                "take_price_distance": 0.0108201,
+                "stop_units": 66.1228,
+                "take_units": 108.201,
+                "reward_to_risk": 1.6364
+              }
+            }
+          },
+          "entry_price": 1.1528706550598145,
+          "entry_captured_at": "2026-08-03T10:30:00+02:00",
+          "entry_source": "Yahoo Finance:EURUSD=X:5m:last_completed_bar_continuous_exposure",
+          "exit_price": 1.1564704179763794,
+          "exit_captured_at": "2026-08-07T22:00:00+02:00",
+          "exit_source": "Yahoo Finance:EURUSD=X:5m:first_bar_at_or_after_target",
+          "exit_reason": "scheduled_week_close",
+          "gross_result_percent": -0.3122,
+          "estimated_round_trip_cost_percent": 0.013011,
+          "net_result_percent": -0.325211,
+          "risk_plan": {
+            "model_version": "2.0.0",
+            "created_from_frozen_forecast": true,
+            "generated_at": "2026-08-03T10:37:51+02:00",
+            "direction": "short",
+            "stop_loss_price": 1.15948294,
+            "take_profit_price": 1.14205056,
+            "stop_loss_distance": 0.00661228,
+            "take_profit_distance": 0.0108201,
+            "reward_to_risk": 1.6364,
+            "same_bar_rule": "stop_loss_first_conservative"
+          },
+          "archived_at": "2026-08-09T09:19:50+02:00"
+        }
+      ],
+      "continuous_last_exit_at": "2026-08-07T22:00:00+02:00",
+      "continuous_last_closed_leg_id": "f8de534200a3822a"
     },
     {
       "instrument_id": "sp500_futures",
@@ -557,7 +720,170 @@
         "policy": "sl_tp_exit_blocks_same_week_reentry",
         "created_from_exit_at": "2026-08-04T18:05:00+02:00"
       },
-      "next_entry_status": "closed"
+      "next_entry_status": "closed",
+      "position_legs": [
+        {
+          "leg_id": "e5c84236f3ce922d",
+          "instrument_id": "sp500_futures",
+          "symbol": "ES=F",
+          "direction": "long",
+          "strategy_id": "weekly_trend",
+          "entry_regime": "trend_up:vol_normal",
+          "entry_decision": {
+            "direction": "long",
+            "raw_score": 45.0,
+            "conviction": 6.75,
+            "strategy_id": "weekly_trend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 9.25,
+            "candidates": {
+              "weekly_trend": {
+                "direction": "long",
+                "raw_score": 45.0,
+                "conviction": 6.75,
+                "strategy_id": "weekly_trend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 9.25
+              },
+              "daily_weekly_blend": {
+                "direction": "long",
+                "raw_score": 33.6,
+                "conviction": 5.04,
+                "strategy_id": "daily_weekly_blend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 7.54
+              },
+              "inverse_v2": {
+                "direction": "short",
+                "raw_score": -26.0,
+                "conviction": 3.9,
+                "strategy_id": "inverse_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.4
+              },
+              "base_v2": {
+                "direction": "long",
+                "raw_score": 26.0,
+                "conviction": 3.9,
+                "strategy_id": "base_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.4
+              },
+              "ema_mean_reversion": {
+                "direction": "short",
+                "raw_score": -20.985169762500014,
+                "conviction": 3.1478,
+                "strategy_id": "ema_mean_reversion",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 5.6478
+              }
+            },
+            "regime": "trend_up:vol_normal",
+            "weekly_features": {
+              "data_quality": "passed",
+              "score": 45,
+              "regime": "trend_up:vol_normal",
+              "last_week_close": 7548.5,
+              "ema_fast": 7473.10065094,
+              "ema_slow": 7217.9201881,
+              "weekly_atr13": 180.92307692,
+              "return_4w_percent": -0.9416,
+              "return_13w_percent": 1.7455,
+              "volatility_ratio_13w_52w": 0.8184,
+              "range_26w_position": 0.9406,
+              "components": {
+                "trend": 32.91,
+                "momentum_fast": -5.95,
+                "momentum_slow": 4.9,
+                "breakout": 13.22,
+                "last_candle": -0.32,
+                "volatility_scale": 1.0
+              }
+            },
+            "fresh_v2_signal": {
+              "direction": "neutral",
+              "score": 26,
+              "signal_strength": 0.26,
+              "confidence": 0.26,
+              "confidence_type": "heuristic_signal_strength_not_probability",
+              "data_quality": "passed",
+              "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+              "signals": {
+                "last_close": 7548.5,
+                "ema20": 7498.13559257,
+                "ema50": 7453.25256325,
+                "atr14": 96.0,
+                "ret5_pct": 1.346,
+                "ret20_pct": -0.5664,
+                "vol20_annualized_pct": 12.2342,
+                "vol60_annualized_pct": 13.2475,
+                "volatility_regime_ratio": 0.9235,
+                "volatility_score_scale": 1.0,
+                "range55_position": 0.782,
+                "components": {
+                  "trend_ema": 6.23,
+                  "trend_price": 5.25,
+                  "momentum5": 7.81,
+                  "momentum20": -2.19,
+                  "breakout": 8.46,
+                  "macro_bias": 0.0,
+                  "event_risk_penalty": 0.0
+                },
+                "agreement": {
+                  "positive_groups": 3,
+                  "negative_groups": 0,
+                  "required": 2
+                }
+              },
+              "risk_distance": {
+                "source": "ATR14_sqrt5_frozen_at_forecast",
+                "stop_price_distance": 118.06438921,
+                "take_price_distance": 193.19627326,
+                "stop_units": 118.0644,
+                "take_units": 193.1963,
+                "reward_to_risk": 1.6364
+              }
+            }
+          },
+          "entry_price": 7548.5,
+          "entry_captured_at": "2026-08-03T10:25:00+02:00",
+          "entry_source": "Yahoo Finance:ES=F:5m:last_completed_bar_continuous_exposure",
+          "exit_price": 7741.69627326,
+          "exit_captured_at": "2026-08-04T18:05:00+02:00",
+          "exit_source": "Yahoo Finance:ES=F:5m:OHLC_threshold",
+          "exit_reason": "take_profit",
+          "gross_result_percent": 2.5594,
+          "estimated_round_trip_cost_percent": 0.013248,
+          "net_result_percent": 2.546152,
+          "risk_plan": {
+            "model_version": "2.0.0",
+            "created_from_frozen_forecast": true,
+            "generated_at": "2026-08-03T10:37:52+02:00",
+            "direction": "long",
+            "stop_loss_price": 7430.43561079,
+            "take_profit_price": 7741.69627326,
+            "stop_loss_distance": 118.06438921,
+            "take_profit_distance": 193.19627326,
+            "reward_to_risk": 1.6364,
+            "same_bar_rule": "stop_loss_first_conservative"
+          },
+          "archived_at": "2026-08-09T09:19:50+02:00"
+        }
+      ],
+      "continuous_last_exit_at": "2026-08-04T18:05:00+02:00",
+      "continuous_last_closed_leg_id": "e5c84236f3ce922d"
     },
     {
       "instrument_id": "btcusd",
@@ -830,7 +1156,170 @@
         "policy": "sl_tp_exit_blocks_same_week_reentry",
         "created_from_exit_at": "2026-08-05T01:05:00+02:00"
       },
-      "next_entry_status": "closed"
+      "next_entry_status": "closed",
+      "position_legs": [
+        {
+          "leg_id": "057623acec0bc808",
+          "instrument_id": "btcusd",
+          "symbol": "BTC-USD",
+          "direction": "short",
+          "strategy_id": "weekly_trend",
+          "entry_regime": "trend_down:vol_normal",
+          "entry_decision": {
+            "direction": "short",
+            "raw_score": -67.0,
+            "conviction": 10.05,
+            "strategy_id": "weekly_trend",
+            "learning_count": 1,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.7678,
+            "utility": 11.8178,
+            "candidates": {
+              "weekly_trend": {
+                "direction": "short",
+                "raw_score": -67.0,
+                "conviction": 10.05,
+                "strategy_id": "weekly_trend",
+                "learning_count": 1,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 1.7678,
+                "utility": 11.8178
+              },
+              "daily_weekly_blend": {
+                "direction": "short",
+                "raw_score": -41.2,
+                "conviction": 6.18,
+                "strategy_id": "daily_weekly_blend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 8.68
+              },
+              "ema_mean_reversion": {
+                "direction": "long",
+                "raw_score": 39.28181318525232,
+                "conviction": 5.8923,
+                "strategy_id": "ema_mean_reversion",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 8.3923
+              },
+              "inverse_v2": {
+                "direction": "long",
+                "raw_score": 24.0,
+                "conviction": 3.6,
+                "strategy_id": "inverse_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.1
+              },
+              "base_v2": {
+                "direction": "short",
+                "raw_score": -24.0,
+                "conviction": 3.6,
+                "strategy_id": "base_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 6.1
+              }
+            },
+            "regime": "trend_down:vol_normal",
+            "weekly_features": {
+              "data_quality": "passed",
+              "score": -67,
+              "regime": "trend_down:vol_normal",
+              "last_week_close": 62302.8984375,
+              "ema_fast": 64646.80864254,
+              "ema_slow": 72259.79208519,
+              "weekly_atr13": 5045.03215144,
+              "return_4w_percent": -2.8447,
+              "return_13w_percent": -22.3028,
+              "volatility_ratio_13w_52w": 1.0298,
+              "range_26w_position": 0.1134,
+              "components": {
+                "trend": -35.0,
+                "momentum_fast": -4.07,
+                "momentum_slow": -14.16,
+                "breakout": -11.6,
+                "last_candle": -2.02,
+                "volatility_scale": 1.0
+              }
+            },
+            "fresh_v2_signal": {
+              "direction": "neutral",
+              "score": -24,
+              "signal_strength": 0.24,
+              "confidence": 0.24,
+              "confidence_type": "heuristic_signal_strength_not_probability",
+              "data_quality": "passed",
+              "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+              "signals": {
+                "last_close": 62302.8984375,
+                "ema20": 63850.16620399,
+                "ema50": 64633.95314575,
+                "atr14": 1575.55636161,
+                "ret5_pct": -2.4557,
+                "ret20_pct": 0.1025,
+                "vol20_annualized_pct": 26.2902,
+                "vol60_annualized_pct": 27.9852,
+                "volatility_regime_ratio": 0.9394,
+                "volatility_score_scale": 1.0,
+                "range55_position": 0.4712,
+                "components": {
+                  "trend_ema": -6.63,
+                  "trend_price": -9.82,
+                  "momentum5": -6.63,
+                  "momentum20": 0.18,
+                  "breakout": -0.86,
+                  "macro_bias": 0.0,
+                  "event_risk_penalty": 0.0
+                },
+                "agreement": {
+                  "positive_groups": 0,
+                  "negative_groups": 2,
+                  "required": 2
+                }
+              },
+              "risk_distance": {
+                "source": "ATR14_sqrt5_frozen_at_forecast",
+                "stop_price_distance": 2180.60144531,
+                "take_price_distance": 3426.65941406,
+                "stop_units": 3.5,
+                "take_units": 5.5,
+                "reward_to_risk": 1.5714
+              }
+            }
+          },
+          "entry_price": 62231.328125,
+          "entry_captured_at": "2026-08-03T10:30:00+02:00",
+          "entry_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_continuous_exposure",
+          "exit_price": 64411.92957031,
+          "exit_captured_at": "2026-08-05T01:05:00+02:00",
+          "exit_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold",
+          "exit_reason": "stop_loss",
+          "gross_result_percent": -3.504,
+          "estimated_round_trip_cost_percent": 0.2,
+          "net_result_percent": -3.704,
+          "risk_plan": {
+            "model_version": "2.0.0",
+            "created_from_frozen_forecast": true,
+            "generated_at": "2026-08-03T10:37:52+02:00",
+            "direction": "short",
+            "stop_loss_price": 64411.92957031,
+            "take_profit_price": 58804.66871094,
+            "stop_loss_distance": 2180.60144531,
+            "take_profit_distance": 3426.65941406,
+            "reward_to_risk": 1.5714,
+            "same_bar_rule": "stop_loss_first_conservative"
+          },
+          "archived_at": "2026-08-09T09:19:50+02:00"
+        }
+      ],
+      "continuous_last_exit_at": "2026-08-05T01:05:00+02:00",
+      "continuous_last_closed_leg_id": "057623acec0bc808"
     }
   ],
   "forecast_hash": "50d4d0704ff458bb92d075386dc57c2c6b713ea7c802fab6b9114c32405e1b0e",
