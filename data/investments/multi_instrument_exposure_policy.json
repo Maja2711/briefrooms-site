@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.3.0",
+  "policy_version": "5.4.0",
   "name": "BriefRooms continuous multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -24,7 +24,7 @@
     "performance_weight": 18.0,
     "exploration_bonus": 2.5,
     "maximum_learning_adjustment": 18.0,
-    "rule": "Select the highest-utility directional candidate for every enabled instrument using only earlier closed paper legs. EUR/USD candidates also receive a bounded oil and US10Y alignment adjustment."
+    "rule": "Select the highest-utility directional candidate for every enabled instrument using only earlier closed paper legs. EUR/USD candidates also receive bounded macro, contextual-learning and MA-structure adjustments."
   },
   "contextual_learning": {
     "enabled": true,
@@ -38,6 +38,18 @@
     "maximum_adjustment": 10.0,
     "apply_to_methods": ["ema_mean_reversion"],
     "rule": "Track mean-reversion performance separately when the candidate direction opposes aligned 5-day and 20-day momentum. Do not change utility until at least six earlier closed paper legs exist in the same context; then apply a shrunk bounded adjustment. A single loss must never change weights by itself."
+  },
+  "eurusd_ma_structure": {
+    "enabled": true,
+    "research_source": "data/investments/eurusd_ma_multitimeframe_research.json",
+    "windows": [30, 60, 100, 200],
+    "roles": {"W1": "structural_support_resistance", "D1": "price_location_confirmation", "H1": "execution_timing", "H4": "research_context_no_veto", "M1": "background_regime_no_veto"},
+    "weights": {"w1_support_long": 1.0, "w1_resistance_short": 2.5, "d1_price_location": 1.0, "h1_timing": 0.5},
+    "score_cap": 4.0,
+    "candidate_alignment_bonus_max": 3.0,
+    "support_distance_atr": 0.35,
+    "touch_zone_atr": 0.10,
+    "rule": "Use W1 MA support/resistance as the primary structure signal, D1 price-vs-all-MAs as confirmation and H1 price-vs-all-MAs only as timing. H4 and M1 never veto a trade. The MA layer is a bounded context adjustment and never a standalone trade trigger."
   },
   "weekly_candle_model": {
     "enabled": true,
