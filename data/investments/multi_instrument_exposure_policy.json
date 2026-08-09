@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.2.0",
+  "policy_version": "5.3.0",
   "name": "BriefRooms continuous multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -25,6 +25,19 @@
     "exploration_bonus": 2.5,
     "maximum_learning_adjustment": 18.0,
     "rule": "Select the highest-utility directional candidate for every enabled instrument using only earlier closed paper legs. EUR/USD candidates also receive a bounded oil and US10Y alignment adjustment."
+  },
+  "contextual_learning": {
+    "enabled": true,
+    "scope": ["eurusd"],
+    "tracked_contexts": ["against_aligned_up_momentum", "against_aligned_down_momentum"],
+    "momentum_inputs": ["ret5_pct", "ret20_pct"],
+    "minimum_absolute_momentum_pct": 0.15,
+    "minimum_observations_before_adjustment": 6,
+    "prior_observations": 5,
+    "performance_weight": 18.0,
+    "maximum_adjustment": 10.0,
+    "apply_to_methods": ["ema_mean_reversion"],
+    "rule": "Track mean-reversion performance separately when the candidate direction opposes aligned 5-day and 20-day momentum. Do not change utility until at least six earlier closed paper legs exist in the same context; then apply a shrunk bounded adjustment. A single loss must never change weights by itself."
   },
   "weekly_candle_model": {
     "enabled": true,
