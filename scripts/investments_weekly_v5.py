@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.2.1-experimental"
+VERSION = "5.3.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -154,13 +154,7 @@ def _store_macro_review(item: Dict[str, Any], context: Dict[str, Any]) -> bool:
 
 
 def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]) -> int:
-    """Archive every newly closed governed leg before any time-window early return.
-
-    Scheduled Friday closes happen before ensure_all() is called. Without this
-    settlement pass, ensure_all() used to return as after_friday_close before
-    v4.archive_leg() ran, which meant the final weekly result could be absent from
-    position_legs and therefore invisible to the next week's learning_stats().
-    """
+    """Archive every newly closed governed leg before any time-window early return."""
     items = {str(x.get("instrument_id")): x for x in week.get("instruments", []) if isinstance(x, dict)}
     archived = 0
     for p_cfg in v4.policy_instruments(policy):
@@ -169,6 +163,71 @@ def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]
         if item is not None and closed_position(item) and v4.archive_leg(item, p_cfg):
             archived += 1
     return archived
+
+
+def momentum_context(direction: str, fresh: Dict[str, Any], policy: Dict[str, Any]) -> str:
+    cfg = policy.get("contextual_learning") or {}
+    signals = fresh.get("signals") if isinstance(fresh.get("signals"), dict) else {}
+    r5, r20 = sf(signals.get("ret5_pct")), sf(signals.get("ret20_pct"))
+    floor = abs(float(cfg.get("minimum_absolute_momentum_pct") or 0.15))
+    if r5 is None or r20 is None:
+        return "momentum_context_unavailable"
+    aligned_up = r5 >= floor and r20 >= floor
+    aligned_down = r5 <= -floor and r20 <= -floor
+    if direction == "short" and aligned_up:
+        return "against_aligned_up_momentum"
+    if direction == "long" and aligned_down:
+        return "against_aligned_down_momentum"
+    return "not_against_aligned_momentum"
+
+
+def historical_leg_context(leg: Dict[str, Any], policy: Dict[str, Any]) -> str:
+    decision = leg.get("entry_decision") if isinstance(leg.get("entry_decision"), dict) else {}
+    fresh = decision.get("fresh_v2_signal") if isinstance(decision.get("fresh_v2_signal"), dict) else {}
+    return momentum_context(str(leg.get("direction") or decision.get("direction") or "neutral"), fresh, policy)
+
+
+def apply_contextual_learning(instrument_id: str, candidates: Dict[str, Dict[str, Any]], fresh: Dict[str, Any], policy: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+    cfg = policy.get("contextual_learning") or {}
+    out = {key: dict(value) for key, value in candidates.items()}
+    summary: Dict[str, Any] = {"enabled": bool(cfg.get("enabled")), "instrument_id": instrument_id, "methods": {}}
+    if not cfg.get("enabled") or instrument_id not in set(cfg.get("scope") or []):
+        return out, summary
+    allowed_methods = set(cfg.get("apply_to_methods") or [])
+    tracked = set(cfg.get("tracked_contexts") or [])
+    limit = int((policy.get("strategy_tournament") or {}).get("rolling_closed_legs") or 120)
+    minimum = int(cfg.get("minimum_observations_before_adjustment") or 6)
+    prior_n = float(cfg.get("prior_observations") or 5)
+    weight = float(cfg.get("performance_weight") or 18.0)
+    cap = abs(float(cfg.get("maximum_adjustment") or 10.0))
+    legs = list(v4.iter_legs(instrument_id, limit))
+    for method_id, row in out.items():
+        direction = str(row.get("direction") or "neutral")
+        context = momentum_context(direction, fresh, policy)
+        values = [
+            float(leg.get("net_result_percent"))
+            for leg in legs
+            if leg.get("strategy_id") == method_id
+            and sf(leg.get("net_result_percent")) is not None
+            and historical_leg_context(leg, policy) == context
+        ]
+        mean = sum(values) / len(values) if values else 0.0
+        shrunk = mean * len(values) / (len(values) + prior_n) if values else 0.0
+        adjustment = max(-cap, min(cap, shrunk * weight)) if method_id in allowed_methods and context in tracked and len(values) >= minimum else 0.0
+        row["base_conviction"] = row.get("conviction", 0.0)
+        row["contextual_learning_context"] = context
+        row["contextual_learning_count"] = len(values)
+        row["contextual_learning_mean_net_percent"] = round(mean, 6)
+        row["contextual_learning_adjustment"] = round(adjustment, 4)
+        row["conviction"] = round(float(row.get("conviction") or 0.0) + adjustment, 4)
+        summary["methods"][method_id] = {
+            "context": context,
+            "count": len(values),
+            "mean_net_percent": round(mean, 6),
+            "shrunk_mean_percent": round(shrunk, 6),
+            "adjustment": round(adjustment, 4),
+        }
+    return out, summary
 
 
 def ensure_all() -> Dict[str, Any]:
@@ -213,10 +272,12 @@ def ensure_all() -> Dict[str, Any]:
         learning = v4.learning_stats(iid, regime, policy)
         base_candidates = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
         candidates = macro.apply_to_candidates(iid, base_candidates, fresh, weekly, macro_context, policy)
+        candidates, contextual_learning = apply_contextual_learning(iid, candidates, fresh, policy)
         decision = no_trade(v4.choose(candidates, learning, policy), fresh, weekly, policy)
         decision["macro_context"] = macro_context
-        state["instruments"][iid] = {"regime": regime, "learning": learning, "decision": decision,
-                                     "macro_context": macro_context,
+        decision["contextual_learning"] = contextual_learning
+        state["instruments"][iid] = {"regime": regime, "learning": learning, "contextual_learning": contextual_learning,
+                                     "decision": decision, "macro_context": macro_context,
                                      "validation_gate": item.get("validation_gate"), "reentry_lock": item.get("reentry_lock")}
         if _store_macro_review(item, macro_context):
             changed = True
@@ -246,6 +307,7 @@ def ensure_all() -> Dict[str, Any]:
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
         "no_trade_first_class": True, "weekly_candles_used": True,
         "eurusd_oil_us10y_context_used": True,
+        "contextual_momentum_learning": True,
         "learning_settlement_archive_before_window_exit": True,
         "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
         "last_checked_at": now.isoformat(timespec="seconds"),
