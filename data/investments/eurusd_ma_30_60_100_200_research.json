@@ -1,0 +1,74 @@
+{
+  "status": "completed",
+  "research_only": true,
+  "symbol": "EURUSD=X",
+  "daily_bars": 3905,
+  "usable_bars": 3701,
+  "ma_windows": [
+    30,
+    60,
+    100,
+    200
+  ],
+  "forward_horizon_sessions": 5,
+  "methodology": "Signal is computed from close and trailing simple moving averages available on that date; outcome is the next five-session close-to-close return. No transaction costs are included because this is a regime-screening study, not a trading P/L backtest.",
+  "results": {
+    "full_stack": {
+      "long": {
+        "count": 792,
+        "mean_forward_5d_percent": -0.054103,
+        "median_forward_5d_percent": -0.109124,
+        "hit_rate": 0.450758
+      },
+      "short": {
+        "count": 1017,
+        "mean_forward_5d_percent": 0.067601,
+        "median_forward_5d_percent": 0.051166,
+        "hit_rate": 0.519174
+      }
+    },
+    "price_vs_all": {
+      "long": {
+        "count": 1137,
+        "mean_forward_5d_percent": -0.039825,
+        "median_forward_5d_percent": -0.082675,
+        "hit_rate": 0.473175
+      },
+      "short": {
+        "count": 1332,
+        "mean_forward_5d_percent": 0.028832,
+        "median_forward_5d_percent": 0.023147,
+        "hit_rate": 0.511261
+      }
+    },
+    "ma30_60_with_100_200_filter": {
+      "long": {
+        "count": 1006,
+        "mean_forward_5d_percent": -0.044477,
+        "median_forward_5d_percent": -0.106655,
+        "hit_rate": 0.452286
+      },
+      "short": {
+        "count": 1190,
+        "mean_forward_5d_percent": 0.071478,
+        "median_forward_5d_percent": 0.064121,
+        "hit_rate": 0.526891
+      }
+    },
+    "ma100_200_trend": {
+      "long": {
+        "count": 1743,
+        "mean_forward_5d_percent": -0.024051,
+        "median_forward_5d_percent": -0.044605,
+        "hit_rate": 0.477338
+      },
+      "short": {
+        "count": 1958,
+        "mean_forward_5d_percent": -0.005075,
+        "median_forward_5d_percent": 0.020953,
+        "hit_rate": 0.504597
+      }
+    }
+  },
+  "interpretation_rule": "Do not promote an MA rule into the production tournament solely on in-sample mean return. Require adequate sample size, directional hit-rate improvement, stability across subperiods, and a separate holdout before production use."
+}
