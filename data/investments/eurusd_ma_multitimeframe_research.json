@@ -1,0 +1,828 @@
+{
+  "status": "completed",
+  "research_only": true,
+  "symbol": "EURUSD=X",
+  "ma_windows": [
+    30,
+    60,
+    100,
+    200
+  ],
+  "timeframes": [
+    "H1",
+    "H4",
+    "D1",
+    "W1",
+    "M1"
+  ],
+  "data_scope": {
+    "H1_bars": 17002,
+    "H4_bars": 4376,
+    "D1_bars": 3905,
+    "common_weekly_samples": 0,
+    "common_sample_first_week": null,
+    "common_sample_last_week": null,
+    "note": "Intraday history is limited by the data vendor; cross-timeframe comparisons use only the common weekly sample. D1/W1/M1 also receive a separate long-history panel."
+  },
+  "weekly_execution_definition": "Signals use only completed bars before Monday 08:00 Europe/Warsaw. Entry is the first H1 close at/after Monday 08:00; exit is first H1 close at/after Friday 22:00. No overlapping daily forward-return observations are used in the common weekly sample.",
+  "feature_definitions": {
+    "trend_confirmation": "MA30 vs MA60 plus MA100 vs MA200; full stack additionally requires 30/60/100/200 monotonic order.",
+    "trigger": "MA30 reclaim/rejection or MA30/MA60 cross on H1/H4, using only the completed pre-entry bar.",
+    "support_resistance_hold": "Price remains on the slow-trend side, is within 0.35 ATR14 of the nearest MA and the bar range touches a 0.10 ATR zone around it.",
+    "timeframe_roles_tested": "M1 macro regime; W1 structural trend; D1 primary weekly trend; H4 setup/support; H1 timing trigger."
+  },
+  "common_sample_standalone": {
+    "H1": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    },
+    "H4": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    },
+    "D1": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    },
+    "W1": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    },
+    "M1": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    }
+  },
+  "common_sample_combinations": {
+    "D1_W1_trend_confirmation": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "H4_trigger_D1_W1_trend": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "H1_trigger_H4_D1_trend": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "H4_support_D1_W1_trend": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "H1_H4_D1_W1_unanimous_stack": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "D1_W1_with_M1_macro_filter": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    },
+    "H4_trigger_D1_W1_M1_confirmation": {
+      "long": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      },
+      "short": {
+        "count": 0,
+        "mean_week_percent": null,
+        "median_week_percent": null,
+        "hit_rate": null
+      }
+    }
+  },
+  "long_history_D1_W1_M1": {
+    "D1": {
+      "full_stack": {
+        "long": {
+          "count": 159,
+          "mean_week_percent": -0.061135,
+          "median_week_percent": -0.130065,
+          "hit_rate": 0.433962
+        },
+        "short": {
+          "count": 203,
+          "mean_week_percent": 0.052541,
+          "median_week_percent": 0.060035,
+          "hit_rate": 0.53202
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 200,
+          "mean_week_percent": -0.045936,
+          "median_week_percent": -0.150927,
+          "hit_rate": 0.44
+        },
+        "short": {
+          "count": 238,
+          "mean_week_percent": 0.056134,
+          "median_week_percent": 0.117971,
+          "hit_rate": 0.542017
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 221,
+          "mean_week_percent": -0.061984,
+          "median_week_percent": -0.084061,
+          "hit_rate": 0.475113
+        },
+        "short": {
+          "count": 273,
+          "mean_week_percent": 0.025505,
+          "median_week_percent": 0.046215,
+          "hit_rate": 0.516484
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 48,
+          "mean_week_percent": -0.244671,
+          "median_week_percent": -0.318897,
+          "hit_rate": 0.333333
+        },
+        "short": {
+          "count": 57,
+          "mean_week_percent": 0.065045,
+          "median_week_percent": 0.171371,
+          "hit_rate": 0.561404
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 14,
+          "mean_week_percent": 0.019795,
+          "median_week_percent": 0.23428,
+          "hit_rate": 0.571429
+        },
+        "short": {
+          "count": 26,
+          "mean_week_percent": 0.018664,
+          "median_week_percent": 0.158911,
+          "hit_rate": 0.538462
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 5,
+          "mean_week_percent": -0.67571,
+          "median_week_percent": -0.769565,
+          "hit_rate": 0.2
+        },
+        "short": {
+          "count": 8,
+          "mean_week_percent": -0.118726,
+          "median_week_percent": -0.435798,
+          "hit_rate": 0.375
+        }
+      }
+    },
+    "W1": {
+      "full_stack": {
+        "long": {
+          "count": 70,
+          "mean_week_percent": -0.037929,
+          "median_week_percent": -0.20597,
+          "hit_rate": 0.442857
+        },
+        "short": {
+          "count": 155,
+          "mean_week_percent": -0.241926,
+          "median_week_percent": -0.128072,
+          "hit_rate": 0.425806
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 70,
+          "mean_week_percent": -0.037929,
+          "median_week_percent": -0.20597,
+          "hit_rate": 0.442857
+        },
+        "short": {
+          "count": 180,
+          "mean_week_percent": -0.219897,
+          "median_week_percent": -0.115526,
+          "hit_rate": 0.427778
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 134,
+          "mean_week_percent": 0.02772,
+          "median_week_percent": 0.02959,
+          "hit_rate": 0.522388
+        },
+        "short": {
+          "count": 197,
+          "mean_week_percent": -0.026836,
+          "median_week_percent": 0.088386,
+          "hit_rate": 0.517766
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 26,
+          "mean_week_percent": 0.01329,
+          "median_week_percent": 0.245962,
+          "hit_rate": 0.576923
+        },
+        "short": {
+          "count": 55,
+          "mean_week_percent": 0.052158,
+          "median_week_percent": 0.128115,
+          "hit_rate": 0.527273
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 9,
+          "mean_week_percent": -0.191249,
+          "median_week_percent": -0.540001,
+          "hit_rate": 0.333333
+        },
+        "short": {
+          "count": 19,
+          "mean_week_percent": -0.089967,
+          "median_week_percent": 0.031248,
+          "hit_rate": 0.526316
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 7,
+          "mean_week_percent": 0.021433,
+          "median_week_percent": 0.483271,
+          "hit_rate": 0.714286
+        },
+        "short": {
+          "count": 7,
+          "mean_week_percent": -0.271715,
+          "median_week_percent": -0.180573,
+          "hit_rate": 0.428571
+        }
+      }
+    },
+    "M1": {
+      "full_stack": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "fast_with_slow_filter": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "price_vs_all": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "support_or_resistance_hold": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_reclaim_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      },
+      "ma30_60_cross_trigger": {
+        "long": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        },
+        "short": {
+          "count": 0,
+          "mean_week_percent": null,
+          "median_week_percent": null,
+          "hit_rate": null
+        }
+      }
+    }
+  },
+  "top_common_sample_edges": [],
+  "governance": "Research results must not change production trading rules automatically. Promotion requires stable subperiod/holdout evidence, adequate sample size and a separate implementation review."
+}
