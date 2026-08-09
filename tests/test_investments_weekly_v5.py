@@ -148,6 +148,44 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertIsNone(item["pending_entry_decision"])
         self.assertEqual("closed_scheduled_week_close", item["risk_status"])
 
+    def test_scheduled_close_is_archived_as_next_week_learning_sample(self):
+        week = {
+            "week_id": "2026-W32",
+            "instruments": [{
+                "instrument_id": "eurusd",
+                "symbol": "EURUSD=X",
+                "direction": "long",
+                "entry_price": 1.10,
+                "entry_captured_at": "2026-08-03T08:05:00+02:00",
+                "entry_source": "test",
+                "exit_price": 1.12,
+                "exit_captured_at": "2026-08-07T22:00:00+02:00",
+                "exit_source": "test",
+                "exit_reason": "scheduled_week_close",
+                "result_percent": 1.8181818,
+                "continuous_entry_decision": {
+                    "strategy_id": "daily_weekly_blend",
+                    "regime": "trend",
+                },
+            }],
+        }
+        policy = {
+            "instruments": [{
+                "instrument_id": "eurusd",
+                "enabled": True,
+                "round_trip_cost": 0.8,
+                "cost_unit": "pips",
+            }]
+        }
+        archived = v5.archive_closed_learning_samples(week, policy)
+        self.assertEqual(1, archived)
+        legs = week["instruments"][0]["position_legs"]
+        self.assertEqual(1, len(legs))
+        self.assertEqual("daily_weekly_blend", legs[0]["strategy_id"])
+        self.assertEqual("trend", legs[0]["entry_regime"])
+        self.assertIsNotNone(legs[0]["net_result_percent"])
+        self.assertEqual(0, v5.archive_closed_learning_samples(week, policy))
+
 
 if __name__ == "__main__":
     unittest.main()

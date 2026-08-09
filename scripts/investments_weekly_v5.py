@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.2.0-experimental"
+VERSION = "5.2.1-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -153,6 +153,24 @@ def _store_macro_review(item: Dict[str, Any], context: Dict[str, Any]) -> bool:
     return True
 
 
+def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]) -> int:
+    """Archive every newly closed governed leg before any time-window early return.
+
+    Scheduled Friday closes happen before ensure_all() is called. Without this
+    settlement pass, ensure_all() used to return as after_friday_close before
+    v4.archive_leg() ran, which meant the final weekly result could be absent from
+    position_legs and therefore invisible to the next week's learning_stats().
+    """
+    items = {str(x.get("instrument_id")): x for x in week.get("instruments", []) if isinstance(x, dict)}
+    archived = 0
+    for p_cfg in v4.policy_instruments(policy):
+        iid = str(p_cfg.get("instrument_id"))
+        item = items.get(iid)
+        if item is not None and closed_position(item) and v4.archive_leg(item, p_cfg):
+            archived += 1
+    return archived
+
+
 def ensure_all() -> Dict[str, Any]:
     now = legacy.now_local(); policy = read(POLICY, {}); method = read(METHOD, {})
     report = {"layer_version": VERSION, "checked_at": now.isoformat(timespec="seconds"), "actions": [], "status": "skipped"}
@@ -161,9 +179,19 @@ def ensure_all() -> Dict[str, Any]:
     path = v4.ensure_week(now, method)
     if not path or not path.exists():
         report["reason"] = "current_week_missing"; write(REPORT, report); return report
-    week = read(path, {}); active, reason = v4.active_window(week, now)
+    week = read(path, {})
+    archived_after_close = archive_closed_learning_samples(week, policy)
+    if archived_after_close:
+        write(path, week)
+        report["actions"].append({"action": "archive_closed_learning_samples", "count": archived_after_close})
+    active, reason = v4.active_window(week, now)
     if not active:
-        report["reason"] = reason; write(REPORT, report); return report
+        report["reason"] = reason
+        if archived_after_close:
+            report["status"] = "completed"
+            report["week_id"] = week.get("week_id")
+        write(REPORT, report)
+        return report
     week.setdefault("base_method_version", week.get("method_version")); week.setdefault("base_forecast_hash", week.get("forecast_hash"))
     week.update(method_version=VERSION, model_status="experimental_governed_execution_parity_paper_only")
     items = {str(x.get("instrument_id")): x for x in week.get("instruments", [])}
@@ -218,6 +246,7 @@ def ensure_all() -> Dict[str, Any]:
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
         "no_trade_first_class": True, "weekly_candles_used": True,
         "eurusd_oil_us10y_context_used": True,
+        "learning_settlement_archive_before_window_exit": True,
         "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
         "last_checked_at": now.isoformat(timespec="seconds"),
     }
