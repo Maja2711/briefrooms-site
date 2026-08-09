@@ -6,10 +6,13 @@ on:
     branches: [main]
     paths:
       - "scripts/investments_weekly_v5.py"
+      - "scripts/investments_weekly_macro.py"
+      - "scripts/investments_weekly_ma_structure.py"
       - "scripts/investments_weekly_eurusd_ma_research.py"
       - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
       - "scripts/run_eurusd_ma_multitimeframe_research.py"
       - "tests/test_contextual_learning.py"
+      - "tests/test_eurusd_ma_structure.py"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/contextual-learning-eurusd-ma.yml"
 
@@ -34,10 +37,10 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
-      - name: Validate contextual learning and research code
+      - name: Validate contextual learning and MA production layer
         run: |
-          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/run_eurusd_ma_multitimeframe_research.py
-          python -m unittest tests/test_contextual_learning.py tests/test_investments_weekly_v5.py
+          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py scripts/investments_weekly_ma_structure.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/run_eurusd_ma_multitimeframe_research.py
+          python -m unittest tests/test_contextual_learning.py tests/test_eurusd_ma_structure.py tests/test_investments_weekly_v5.py
       - name: Research EURUSD MA 30 60 100 200 daily
         run: python scripts/investments_weekly_eurusd_ma_research.py
       - name: Research EURUSD MA multi-timeframe weekly fit
