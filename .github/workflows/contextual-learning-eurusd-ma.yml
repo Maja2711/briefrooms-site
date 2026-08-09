@@ -8,6 +8,7 @@ on:
       - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_eurusd_ma_research.py"
       - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
+      - "scripts/run_eurusd_ma_multitimeframe_research.py"
       - "tests/test_contextual_learning.py"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/contextual-learning-eurusd-ma.yml"
@@ -35,12 +36,12 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate contextual learning and research code
         run: |
-          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py
+          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/run_eurusd_ma_multitimeframe_research.py
           python -m unittest tests/test_contextual_learning.py tests/test_investments_weekly_v5.py
       - name: Research EURUSD MA 30 60 100 200 daily
         run: python scripts/investments_weekly_eurusd_ma_research.py
       - name: Research EURUSD MA multi-timeframe weekly fit
-        run: python scripts/investments_weekly_eurusd_ma_multitimeframe_research.py
+        run: python scripts/run_eurusd_ma_multitimeframe_research.py
       - name: Commit research reports
         run: |
           git config user.name "github-actions[bot]"
