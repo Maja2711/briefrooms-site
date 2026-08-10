@@ -1,0 +1,91 @@
+name: Publish homepage weekly top position
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/home-weekly-top-position.js"
+      - "tests/test_home_weekly_top_position.js"
+      - ".github/workflows/one-shot-home-weekly-top-position.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: homepage-weekly-top-position
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate widget logic
+        run: |
+          node --check scripts/home-weekly-top-position.js
+          node --test tests/test_home_weekly_top_position.js
+
+      - name: Attach widget to PL and EN homepages
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          tag = '<script src="/scripts/home-weekly-top-position.js?v=1" defer></script>'
+          anchor = '<script src="/scripts/home-briefs.js?v=seo-static-1" defer></script>'
+          for name in ('pl/index.html', 'en/index.html'):
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              if text.count(tag) == 0:
+                  if text.count(anchor) != 1:
+                      raise SystemExit(f'{name}: expected exactly one home-briefs anchor')
+                  text = text.replace(anchor, anchor + '\n' + tag, 1)
+                  path.write_text(text, encoding='utf-8')
+              if path.read_text(encoding='utf-8').count(tag) != 1:
+                  raise SystemExit(f'{name}: weekly widget script tag is not unique')
+          PY
+
+      - name: Verify current W33 ticket selects S&P 500 long
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const w = require('./scripts/home-weekly-top-position.js');
+          const data = JSON.parse(fs.readFileSync('data/investments/weekly/2026-W33.json', 'utf8'));
+          const top = w.selectTopPosition(data.instruments);
+          if (!top) throw new Error('No eligible weekly position');
+          if (top.instrument_id !== 'sp500_futures' || top.direction !== 'long') {
+            throw new Error(`Unexpected W33 top position: ${top.instrument_id} ${top.direction}`);
+          }
+          if (Number(top.entry_price) !== 7787) throw new Error('Unexpected W33 S&P entry');
+          if (!Number.isFinite(Number(top.risk_plan?.take_profit_price)) || !Number.isFinite(Number(top.risk_plan?.stop_loss_price))) {
+            throw new Error('W33 S&P risk plan incomplete');
+          }
+          console.log({instrument: top.instrument_id, direction: top.direction, entry: top.entry_price, tp: top.risk_plan.take_profit_price, sl: top.risk_plan.stop_loss_price});
+          NODE
+
+      - name: Commit homepage wiring and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-home-weekly-top-position.yml
+          git add pl/index.html en/index.html scripts/home-weekly-top-position.js tests/test_home_weekly_top_position.js
+          if git diff --cached --quiet; then
+            echo "No homepage weekly-top changes to publish."
+            exit 0
+          fi
+          git commit -m "Publish weekly top position shortcut on homepages"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 5))
+          done
+          exit 1
