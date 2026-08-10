@@ -1,9 +1,9 @@
 {
-  "method_version": "2.2.0-weekly-macro-context",
-  "configuration_updated_at": "2026-08-03T10:58:00+02:00",
+  "method_version": "2.3.0-weekly-no-trade-admission",
+  "configuration_updated_at": "2026-08-10T12:32:00+02:00",
   "name": "BriefRooms Weekly Market Direction Model",
-  "model_status": "paper_trading_only_continuous_exposure",
-  "language_note": "Every enabled instrument must hold a LONG or SHORT paper position. Neutral signals are resolved by the strategy tournament and instrument default tie direction. No real broker orders are sent.",
+  "model_status": "paper_trading_only_governed_no_trade_enabled",
+  "language_note": "An enabled instrument may be LONG, SHORT or NO TRADE. The strategy tournament proposes the strongest directional candidate, but a separate admission gate may abstain when signal quality or utility is insufficient. NO TRADE remains actively monitored by WES for a later qualified trigger. No real broker orders are sent.",
   "timezone": "Europe/Warsaw",
   "market_window": {
     "forecast_day": "Sunday",
@@ -15,9 +15,9 @@
     "same_bar_sl_tp_rule": "stop_loss_first_conservative"
   },
   "instruments": [
-    {"id":"eurusd","label_pl":"EUR/USD","label_en":"EUR/USD","symbol":"EURUSD=X","asset_class":"fx","result_unit":"pips","pip_size":0.0001,"notional_eur":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"continuous_paper_exposure_required_not_a_live_validation_claim"},
-    {"id":"sp500_futures","label_pl":"S&P 500 futures","label_en":"S&P 500 futures","symbol":"ES=F","asset_class":"equity_index_futures","result_unit":"points","point_size":1.0,"notional_usd":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"continuous_paper_exposure_required_not_a_live_validation_claim"},
-    {"id":"btcusd","label_pl":"BTC/USD","label_en":"BTC/USD","symbol":"BTC-USD","asset_class":"crypto","result_unit":"percent","point_size":1.0,"notional_usd":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"continuous_paper_exposure_required_not_a_live_validation_claim"}
+    {"id":"eurusd","label_pl":"EUR/USD","label_en":"EUR/USD","symbol":"EURUSD=X","asset_class":"fx","result_unit":"pips","pip_size":0.0001,"notional_eur":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"experimental_paper_new_entries_allowed_not_a_live_validation_claim"},
+    {"id":"sp500_futures","label_pl":"S&P 500 futures","label_en":"S&P 500 futures","symbol":"ES=F","asset_class":"equity_index_futures","result_unit":"points","point_size":1.0,"notional_usd":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"experimental_paper_new_entries_allowed_not_a_live_validation_claim"},
+    {"id":"btcusd","label_pl":"BTC/USD","label_en":"BTC/USD","symbol":"BTC-USD","asset_class":"crypto","result_unit":"percent","point_size":1.0,"notional_usd":10000,"result_currency":"USD","enabled_for_new_positions":true,"validation_gate_reason":"experimental_paper_new_entries_allowed_not_a_live_validation_claim"}
   ],
   "signal_model": {
     "minimum_daily_closes":260,
@@ -27,19 +27,19 @@
     "volatility_regime":{"input":"annualized 20-day volatility divided by annualized 60-day volatility","rule":"high volatility scales down the directional score instead of adding directional points"},
     "weekly_candle_model":{"inputs":"Friday-labelled weekly OHLC bars","components":"10/30-week EMA trend, 4/13-week momentum, 26-week range position, latest candle body and 13/52-week volatility regime","role":"structural weekly direction and regime"},
     "eurusd_macro_context":{"oil":"WTI CL=F one-week and four-week changes","us10y":"Yahoo ^TNX one-week and four-week yield changes in basis points","interpretation":"falling oil and falling US10Y support EUR/USD; rising values support the dollar","controls":"normalized, score-capped, requires both sources and cannot trigger a trade by itself"},
-    "agreement_rule":"Strategy tournament selects a directional candidate even when the base signal is neutral.",
+    "agreement_rule":"The strategy tournament ranks directional candidates. The NO_TRADE admission gate may reject the winner when the directional edge or utility is too weak, or when daily and weekly signals conflict without a dominant edge.",
     "manual_override_rule":"manual macro overrides are ignored unless timestamped before forecast creation and explicitly marked valid for the forecast week",
     "confidence_definition":"heuristic signal strength only; never a probability of success"
   },
   "decision_process": {
-    "new_eurusd_positions":"Daily technical signal, weekly candle regime and bounded oil/US10Y context are combined before candidate selection.",
+    "new_eurusd_positions":"Daily technical signal, weekly candle regime and bounded oil/US10Y context are combined before candidate selection, then the NO_TRADE admission gate decides whether the directional candidate may be opened.",
     "open_position_review":"An existing position is never rewritten after the fact. The oil/US10Y context enters the governed 23:00 Europe/Warsaw review together with daily and weekly scores.",
     "standalone_macro_trade_forbidden":true,
     "history_rewrite_forbidden":true
   },
   "manual_overrides":{"eurusd":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null},"sp500_futures":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null},"btcusd":{"macro_bias":0,"event_risk_penalty":0,"valid_for_week":"","set_at":null}},
-  "decision_rules":{"neutral_label":"direction_resolved_by_tournament_or_default_tie_direction","continuous_position_required":true,"entry_thresholds":{"eurusd":{"long":35,"short":-35},"sp500_futures":{"long":35,"short":-42},"btcusd":{"long":45,"short":-45}}},
+  "decision_rules":{"neutral_label":"no_trade_is_first_class_when_admission_gate_not_met","continuous_position_required":false,"no_trade_admission":{"minimum_directional_raw_score":35.0,"minimum_directional_utility":6.0,"conflict_no_trade_below_raw_score":45.0},"entry_thresholds":{"eurusd":{"long":35,"short":-35},"sp500_futures":{"long":35,"short":-42},"btcusd":{"long":45,"short":-45}}},
   "risk_model":{"source":"ATR14 multiplied by square root of five and frozen at decision time","stop_atr_week_multiplier":0.55,"take_atr_week_multiplier":0.9,"same_bar_rule":"stop loss first when both SL and TP are inside one 5-minute bar","reentry_after_stop_loss":true,"unit_limits":{"eurusd":{"min_stop_units":35,"max_stop_units":95,"min_take_units":55,"max_take_units":150},"sp500_futures":{"min_stop_units":55,"max_stop_units":170,"min_take_units":85,"max_take_units":260},"btcusd":{"min_stop_units":3.5,"max_stop_units":6.0,"min_take_units":5.5,"max_take_units":9.5}}},
-  "validation":{"status":"paper_trading_continuous_exposure_experiment_not_live_validated","last_report":"data/investments/model_validation_v2.json","policy":"Historical validation results remain disclosed, but do not disable experimental paper positions. Never describe these positions as validated live signals.","transaction_cost_assumptions":{"eurusd_round_trip_pips":1.5,"sp500_futures_round_trip_points":1.0,"btcusd_round_trip_percent":0.2},"minimum_requirements_before_claiming_validation":{"aggregate_closed_trades":150,"minimum_trades_per_instrument":40,"positive_net_expectancy_after_costs":true,"profit_factor_above":1.05,"maximum_drawdown_below_percent":20},"live_paper_requirement":{"minimum_closed_positions":30,"must_be_positive_after_costs":true,"must_match_frozen_forecast_and_execution_rules":true}},
-  "publishing_rules":{"forecast_must_include_method_version":true,"forecast_must_include_hash":true,"do_not_edit_closed_history":true,"open_direction_for_every_enabled_instrument":true,"do_not_use_current_price_as_retroactive_entry":true,"show_educational_disclaimer":true,"use_model_scenario_language_only":true,"avoid_order_instruction_language":true}
+  "validation":{"status":"paper_trading_governed_no_trade_experiment_not_live_validated","last_report":"data/investments/model_validation_v2.json","policy":"Historical validation results remain disclosed, but do not disable experimental paper candidates. A candidate may still be rejected by the NO_TRADE admission gate. Never describe these positions as validated live signals.","transaction_cost_assumptions":{"eurusd_round_trip_pips":1.5,"sp500_futures_round_trip_points":1.0,"btcusd_round_trip_percent":0.2},"minimum_requirements_before_claiming_validation":{"aggregate_closed_trades":150,"minimum_trades_per_instrument":40,"positive_net_expectancy_after_costs":true,"profit_factor_above":1.05,"maximum_drawdown_below_percent":20},"live_paper_requirement":{"minimum_closed_positions":30,"must_be_positive_after_costs":true,"must_match_frozen_forecast_and_execution_rules":true}},
+  "publishing_rules":{"forecast_must_include_method_version":true,"forecast_must_include_hash":true,"do_not_edit_closed_history":true,"open_direction_for_every_enabled_instrument":false,"allow_no_trade_state":true,"do_not_use_current_price_as_retroactive_entry":true,"show_educational_disclaimer":true,"use_model_scenario_language_only":true,"avoid_order_instruction_language":true}
 }
