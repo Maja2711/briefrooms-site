@@ -7,6 +7,6 @@
 - **Warunki pozostale do awansu:** minimum calendar days, daily rotation limit, weekly change limit, weekly turnover limit, new position limit, minimum confidence, transaction cost buffer applied, cooldown applied, material advantage required
 - **Stan ryzyka:** WITHIN_LIMITS / safe mode: False
 - **Cel 10% rocznie:** TARGET_CURRENTLY_JUSTIFIED_WITHIN_MODEL
-- **Decyzje oczekujace:** 1
+- **Decyzje oczekujace:** 2
 
 **Uwaga:** BRACE dziala wylacznie na portfelu modelowym; nie laczy sie z brokerem.
