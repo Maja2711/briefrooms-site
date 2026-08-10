@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from portfolio_10k_cash_yield import advance_usd_cash_ledger, load_policy
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "data/investments/portfolio_10k.json"
 TARGET = ROOT / "data/investments/portfolio_10k_usd.json"
@@ -50,20 +52,6 @@ def local_to_usd(local_to_pln: float, usd_to_pln: float) -> float:
     if local_to_pln <= 0 or usd_to_pln <= 0:
         return 1.0
     return local_to_pln / usd_to_pln
-
-
-def rebased_cash_usd(source: dict) -> float:
-    """Scale source cash to the independent USD portfolio's starting capital.
-
-    The USD portfolio is a separate 10,000 USD model using the source portfolio's
-    weights and returns. Cash therefore has to be rebased by its share of source
-    starting capital. Dividing PLN cash by the current USD/PLN rate would mix two
-    different notionals and materially understate cash after a closed position.
-    """
-    source_start = number(source.get("starting_capital_pln"))
-    if source_start <= 0:
-        return 0.0
-    return number(source.get("cash_pln")) / source_start * STARTING_CAPITAL_USD
 
 
 def convert_position(position: dict, source: dict, usd_pln_now: float) -> dict:
@@ -132,34 +120,70 @@ def convert_benchmark(benchmark: dict, source: dict, usd_pln_now: float) -> dict
     return item
 
 
-def build() -> dict:
+def load_previous() -> dict:
+    if not TARGET.exists():
+        return {}
+    try:
+        return json.loads(TARGET.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def build(now: datetime | None = None) -> dict:
+    now_dt = now or datetime.now(timezone.utc)
+    if now_dt.tzinfo is None:
+        now_dt = now_dt.replace(tzinfo=timezone.utc)
+    now_dt = now_dt.astimezone(timezone.utc)
+
     source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    previous = load_previous()
+    policy = load_policy()
     usd_pln_now = current_usd_pln(source)
     positions = [convert_position(p, source, usd_pln_now) for p in source.get("positions") or []]
-    cash_usd = rebased_cash_usd(source)
+
+    cash_ledger = advance_usd_cash_ledger(
+        previous,
+        source,
+        policy,
+        now_dt,
+        starting_capital_usd=STARTING_CAPITAL_USD,
+    )
+    cash_usd = number(cash_ledger.get("cash_usd"))
     total_value_usd = sum(number(p.get("current_value_usd")) for p in positions) + cash_usd
     total_return_usd = total_value_usd - STARTING_CAPITAL_USD
     for position in positions:
-        position["current_weight"] = round(number(position.get("current_value_usd")) / total_value_usd, 8) if total_value_usd else 0.0
+        position["current_weight"] = (
+            round(number(position.get("current_value_usd")) / total_value_usd, 8)
+            if total_value_usd else 0.0
+        )
 
     benchmark = convert_benchmark(source.get("benchmark") or {}, source, usd_pln_now)
-    now = datetime.now(timezone.utc).isoformat()
+    now_iso = now_dt.isoformat(timespec="seconds")
     payload = copy.deepcopy(source)
     payload.update({
-        "schema_version": "1.1.1-usd",
+        "schema_version": "1.2.0-usd",
         "portfolio_id": "briefrooms-xtb-10k-usd",
         "name_en": "10K Investing — USD model portfolio",
         "base_currency": "USD",
         "reporting_currency": "USD",
         "starting_capital_usd": STARTING_CAPITAL_USD,
+        "cash_principal_usd": round(number(cash_ledger.get("cash_principal_usd")), 8),
+        "cash_interest_balance_usd": round(number(cash_ledger.get("cash_interest_balance_usd")), 8),
+        "cash_interest_accrued_usd": round(number(cash_ledger.get("cash_interest_accrued_usd")), 8),
+        "cash_yield": cash_ledger.get("cash_yield"),
         "cash_usd": round(cash_usd, 2),
         "total_value_usd": round(total_value_usd, 2),
         "total_return_usd": round(total_return_usd, 2),
         "total_return_percent": round(total_value_usd / STARTING_CAPITAL_USD - 1, 8),
         "benchmark_return_percent": benchmark.get("return_percent"),
-        "generated_from": "portfolio_10k.json instruments, prices and target weights; independently rebased to USD 10,000",
-        "generated_at": now,
+        "generated_from": (
+            "portfolio_10k.json instruments, prices and mirrored trade cash flows; "
+            "independently rebased to USD 10,000 with Fed-target-midpoint cash yield"
+        ),
+        "generated_at": now_iso,
         "source_portfolio_id": source.get("portfolio_id"),
+        # Compatibility aliases used by shared renderers. In this USD dataset
+        # the numeric values are denominated in USD despite the historic key names.
         "starting_capital_pln": STARTING_CAPITAL_USD,
         "cash_pln": round(cash_usd, 2),
         "base_cash_pln": round(cash_usd, 2),
@@ -188,6 +212,7 @@ def build() -> dict:
                 "total_value_pln": round(total_value_usd, 2),
                 "benchmark_value_pln": benchmark.get("current_value_usd"),
                 "cash_pln": round(cash_usd, 2),
+                "cash_interest_accrued_usd": round(number(cash_ledger.get("cash_interest_accrued_usd")), 8),
             },
         ],
     })
@@ -197,7 +222,11 @@ def build() -> dict:
 def main() -> None:
     payload = build()
     TARGET.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {TARGET.relative_to(ROOT)}: {payload['total_value_usd']:.2f} USD")
+    print(
+        f"Wrote {TARGET.relative_to(ROOT)}: {payload['total_value_usd']:.2f} USD; "
+        f"cash={payload['cash_usd']:.2f} USD; "
+        f"cash-yield={payload['cash_yield']['rate_percent']:.3f}%"
+    )
 
 
 if __name__ == "__main__":
