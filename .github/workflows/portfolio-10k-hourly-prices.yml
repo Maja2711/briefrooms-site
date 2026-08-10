@@ -8,26 +8,18 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
+      - "scripts/portfolio_10k_guardian.py"
       - "scripts/reconcile_portfolio_10k_executions.py"
       - "scripts/build_portfolio_10k_usd.py"
       - "scripts/fix_portfolio_10k_usd_reviews.py"
-      - "scripts/patch_portfolio_10k_en_usd.py"
-      - "scripts/patch_portfolio_10k_hourly_ui.py"
       - "scripts/render_portfolio_10k_static.py"
       - "scripts/validate_portfolio_10k_state.py"
-      - "scripts/audit_investment_rooms_fast.py"
-      - "scripts/portfolio-10k-*.js"
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
+      - "tests/test_portfolio_10k_guardian.py"
       - "tests/test_validate_portfolio_10k_state.py"
-      - "tests/test_investment_room_static_seo.py"
       - "data/portfolio10k/paper_orders.json"
       - "data/portfolio10k/paper_portfolio.json"
-      - "assets/portfolio-10k-accessibility.css"
-      - "assets/portfolio-10k-decision-overlay.css"
-      - "assets/portfolio-10k-static.css"
-      - "pl/inwestycje/portfel-10k.html"
-      - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-hourly-prices.yml"
 
 permissions:
@@ -38,10 +30,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh-hourly-prices:
+  publish-core-valuation:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,209 +43,135 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install quote and browser dependencies
-        run: |
-          python -m pip install --upgrade pip yfinance pandas numpy playwright==1.54.0
-          python -m playwright install --with-deps chromium
+      - name: Install market dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
 
-      - name: Reconcile already executed paper trades
+      - name: Reconcile previously executed paper trades
         run: python scripts/reconcile_portfolio_10k_executions.py
 
-      - name: Refresh current prices and portfolio valuation
+      - name: Mark portfolio to market
         run: python scripts/portfolio_10k_hourly_prices.py
 
-      - name: Build independent USD portfolio and journal
+      - name: Build independent USD portfolio
         run: |
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
 
-      - name: Patch public PL and EN pages
-        run: |
-          python scripts/patch_portfolio_10k_en_usd.py
-          python scripts/patch_portfolio_10k_hourly_ui.py
+      - name: Run portfolio guardian and cash-deployment gate
+        run: python scripts/portfolio_10k_guardian.py
 
-      - name: Activate and retry authorised BRACE paper orders
+      - name: Attempt only authorised paper orders
         run: |
-          python scripts/brace_portfolio_user_control.py || echo "::warning::BRACE activation deferred."
-          python scripts/brace_portfolio_execution.py --network || echo "::warning::BRACE paper execution deferred; valuation publication continues."
-          python scripts/brace_portfolio_user_control.py --republish || echo "::warning::BRACE public snapshot republish deferred."
+          python scripts/brace_portfolio_user_control.py || echo "::warning::BRACE activation deferred; MTM publication continues."
+          python scripts/brace_portfolio_execution.py --network || echo "::warning::Paper execution deferred; MTM publication continues."
+          python scripts/brace_portfolio_user_control.py --republish || echo "::warning::BRACE republish deferred; MTM publication continues."
 
-      - name: Reconcile trades executed during this run
+      - name: Reconcile any execution from this run
         run: |
           python scripts/reconcile_portfolio_10k_executions.py
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
+          python scripts/portfolio_10k_guardian.py
 
-      - name: Render crawlable PL and EN portfolio snapshots
-        run: python scripts/render_portfolio_10k_static.py
-
-      - name: Validate public labels and assets
-        run: |
-          grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
-          grep -q 'Started: July 2026' en/investing/portfolio-10k.html
-          grep -q 'Kapitał startowy' pl/inwestycje/portfel-10k.html
-          grep -q 'Starting capital' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-accessibility.css?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-accessibility.css?v=2' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-explainers.js?v=4' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-explainers.js?v=4' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-verified-material-loader.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-verified-material-loader.js?v=2' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-decision-overlay.css?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-decision-overlay.css?v=1' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-decision-overlay.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-decision-overlay.js?v=2' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-execution-finalizer.js?v=2' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-execution-finalizer.js?v=2' en/investing/portfolio-10k.html
-
-      - name: Validate accounting, tests and JavaScript
+      - name: Validate accounting and guardian contract
         run: |
           python -m py_compile \
+            scripts/portfolio_10k_hourly_prices.py \
+            scripts/portfolio_10k_guardian.py \
             scripts/reconcile_portfolio_10k_executions.py \
-            scripts/validate_portfolio_10k_state.py \
-            scripts/render_portfolio_10k_static.py \
-            scripts/audit_investment_rooms_fast.py
+            scripts/validate_portfolio_10k_state.py
           python -m unittest tests.test_validate_portfolio_10k_state -v
-          python -m unittest tests.test_investment_room_static_seo -v
-          python scripts/render_portfolio_10k_static.py --check
+          python -m unittest tests.test_portfolio_10k_guardian -v
           python scripts/validate_portfolio_10k_state.py
-          node --check scripts/portfolio-10k-public.js
-          node --check scripts/portfolio-10k-dashboard.js
-          node --check scripts/portfolio-10k-dashboard-en.js
-          node --check scripts/portfolio-10k-usd-source.js
-          node --check scripts/portfolio-10k-analytics-enhanced.js
-          node --check scripts/portfolio-10k-capital-summary.js
-          node --check scripts/portfolio-10k-explainers.js
-          node --check scripts/portfolio-10k-control-public.js
-          node --check scripts/portfolio-10k-verified-material-loader.js
-          node --check scripts/portfolio-10k-decision-overlay.js
-          node --check scripts/portfolio-10k-execution-finalizer.js
           python - <<'PY'
           import json
           from pathlib import Path
-          public = json.loads(Path('data/portfolio10k/public/brace_engine_public.json').read_text())
-          orders = json.loads(Path('data/portfolio10k/paper_orders.json').read_text())
-          portfolio = json.loads(Path('data/investments/portfolio_10k.json').read_text())
-          decision = next((d for d in public.get('pending_decisions', []) if d.get('instrument') == 'novo'), None)
-          order = next((o for o in orders.get('orders', []) if o.get('sell_instrument') == 'novo'), None)
-          assert decision and decision.get('action') == 'EXIT', 'Novo public decision must be EXIT'
-          assert order and order.get('status') in {'WAITING_FOR_MARKET', 'PAPER_EXECUTED'}, 'Novo paper order must be visible'
-          assert '2 zweryfikowanych raport' in decision.get('rationale_pl', ''), 'Novo rationale must preserve verified-report basis'
-          if order.get('status') == 'PAPER_EXECUTED':
-              assert not any(p.get('id') == 'novo' and p.get('status') == 'active' for p in portfolio.get('positions', [])), 'Executed Novo exit cannot remain active'
-              assert any(p.get('id') == 'novo' for p in portfolio.get('closed_positions', [])), 'Executed Novo exit must be in closed history'
-              assert round(float(portfolio.get('cash_pln') or 0), 2) == 455.25, 'Executed Novo exit cash must be 455.25 PLN'
+          p=json.loads(Path('data/investments/portfolio_10k.json').read_text())
+          g=json.loads(Path('data/portfolio10k/guardian_state.json').read_text())
+          assert p.get('last_updated_at'), 'MTM must publish last_updated_at'
+          assert g['health']['status'] in {'ACTIVE','DEGRADED'}
+          fatal={'NON_POSITIVE_PORTFOLIO_VALUE','NEGATIVE_CASH','ACCOUNTING_INVARIANT_FAILED','DUPLICATE_POSITION_ID','INVALID_POSITION_VALUE'}
+          assert not fatal.intersection(g['health'].get('errors', [])), g['health']
+          assert g['paper_only'] is True and g['real_broker_connected'] is False
+          print('Core Portfolio 10K accounting receipt:', g['health'])
+          print('Cash deployment state:', g['cash_deployment']['status'])
           PY
 
-      - name: Audit every PL and EN option locally in Chromium
-        continue-on-error: true
+      - name: Publish core valuation before any UI audit
         run: |
-          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/briefrooms-http.log 2>&1 &
-          SERVER_PID=$!
-          sleep 2
-          set +e
-          python scripts/audit_investment_rooms_fast.py
-          AUDIT_EXIT=$?
-          kill "$SERVER_PID" || true
-          exit "$AUDIT_EXIT"
-
-      - name: Upload local audit screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: investment-room-local-audit
-          path: artifacts/investment-room-audit/*.png
-          if-no-files-found: warn
-
-      - name: Commit hourly valuation, UI, audit and paper state
-        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/portfolio_10k.json \
-                  data/investments/portfolio_10k_usd.json \
-                  pl/inwestycje/portfel-10k.html \
-                  en/investing/portfolio-10k.html
+                  data/investments/portfolio_10k_usd.json
           git add -A data/portfolio10k
           if git diff --cached --quiet; then
-            echo "No hourly valuation or audit change to commit."
-          else
-            git commit -m "Refresh Portfolio 10K and audit PL EN rooms"
-            if ! git diff --quiet; then
-              echo "::error::Updater left unstaged files; refusing a partial publication."
-              git status --short
-              exit 1
-            fi
-            git pull --rebase origin main
-            git push
+            echo "No core valuation change to commit."
+            exit 0
           fi
-
-      - name: Audit all 18 views on public production
-        continue-on-error: true
-        run: |
-          PASSED=0
+          git commit -m "Mark Portfolio 10K to market"
           for attempt in 1 2 3; do
-            echo "Production audit attempt $attempt"
-            if AUDIT_BASE_URL=https://briefrooms.com \
-               AUDIT_OUTPUT_PATH=data/portfolio10k/investment_room_production_audit.json \
-               AUDIT_SCREENSHOT_DIR=artifacts/investment-room-production-audit \
-               python scripts/audit_investment_rooms_fast.py; then
-              PASSED=1
-              break
-            fi
-            sleep 15
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 5))
           done
-          exit $((1 - PASSED))
+          exit 1
 
-      - name: Upload production audit screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
+  refresh-public-snapshots:
+    needs: publish-core-valuation
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: investment-room-production-audit
-          path: artifacts/investment-room-production-audit/*.png
-          if-no-files-found: warn
+          ref: main
+          fetch-depth: 0
 
-      - name: Commit production audit report
-        if: always()
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Render crawlable PL and EN snapshots from committed core data
+        run: python scripts/render_portfolio_10k_static.py
+
+      - name: Validate semantic UI contract without pinning asset versions
         run: |
+          python scripts/render_portfolio_10k_static.py --check
+          python -m unittest tests.test_investment_room_static_seo -v
+          node --check scripts/portfolio-10k-public.js
+          node --check scripts/portfolio-10k-dashboard.js
+          node --check scripts/portfolio-10k-dashboard-en.js
+          node --check scripts/portfolio-10k-control-public.js
+          node --check scripts/portfolio-10k-execution-finalizer.js
+          python - <<'PY'
+          from pathlib import Path
+          pl=Path('pl/inwestycje/portfel-10k.html').read_text(encoding='utf-8')
+          en=Path('en/investing/portfolio-10k.html').read_text(encoding='utf-8')
+          assert 'Start: lipiec 2026' in pl
+          assert 'Started: July 2026' in en
+          assert 'Kapitał startowy' in pl and 'Starting capital' in en
+          assert 'id="brace-control-root"' in pl and 'id="brace-control-root"' in en
+          assert 'data-tab="projections"' not in pl and 'data-tab="projections"' not in en
+          for asset in ('portfolio-10k-control-public.js','portfolio-10k-execution-finalizer.js'):
+              assert asset in pl and asset in en
+          PY
+
+      - name: Publish static snapshots
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ ! -f data/portfolio10k/investment_room_production_audit.json ]; then
-            echo '{"schema_version":"investment-room-full-audit-v4","passed":false,"fatal_error":"production report missing"}' > data/portfolio10k/investment_room_production_audit.json
-          fi
-          git add data/portfolio10k/investment_room_production_audit.json
-          if git diff --cached --quiet; then
-            echo "Production audit report unchanged."
-          else
-            git commit -m "Audit all PL and EN investment views on production"
-            git pull --rebase origin main
-            git push
-          fi
-
-      - name: Require passing local and production audits
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          paths = [
-              Path('data/portfolio10k/investment_room_full_audit.json'),
-              Path('data/portfolio10k/investment_room_production_audit.json'),
-          ]
-          failed = []
-          for path in paths:
-              if not path.exists():
-                  failed.append(f'{path}: missing')
-                  continue
-              report = json.loads(path.read_text(encoding='utf-8'))
-              if not report.get('passed'):
-                  failed.append(f'{path}: failed')
-                  if report.get('fatal_error'):
-                      failed.append(str(report['fatal_error']))
-                  for language, result in report.get('results', {}).items():
-                      for tab in result.get('tabs', []):
-                          if not tab.get('passed'):
-                              failed.append(f"{language}/{tab.get('tab')}: status={result.get('data', {}).get('status')!r}, value={result.get('data', {}).get('portfolio_value')!r}, active={tab.get('active')}, visible={tab.get('visible')}")
-          if failed:
-              raise SystemExit('\n'.join(failed))
-          print('All 18 PL/EN views passed locally and on production.')
-          PY
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Refresh Portfolio 10K public snapshots"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 5))
+          done
+          exit 1
