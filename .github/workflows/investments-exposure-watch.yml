@@ -20,6 +20,7 @@ on:
       - "scripts/daily_position_review.py"
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/audit_weekly_model.py"
+      - "scripts/audit_weekly_model_runtime.py"
       - "scripts/apply_manual_risk_exit_overrides.py"
       - "scripts/enforce_weekly_risk_exit_lock.py"
       - "scripts/render_weekly_public_pages.py"
@@ -104,7 +105,7 @@ jobs:
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
-          python -m py_compile scripts/verify_weekly_close_deadline.py
+          python -m py_compile scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py
           python -m unittest \
             tests/test_audit_weekly_integrity.py \
             tests/test_investments_weekly_v5.py \
@@ -165,7 +166,7 @@ jobs:
         run: python scripts/enforce_weekly_risk_exit_lock.py
 
       - name: Audit ledger integrity before publication
-        run: python scripts/audit_weekly_model.py
+        run: python scripts/audit_weekly_model_runtime.py
 
       - name: Render audited weekly positions dashboard
         run: python scripts/render_simple_investments.py
@@ -183,7 +184,7 @@ jobs:
         run: python scripts/investments_weekly_v5_finalize.py
 
       - name: Re-audit ledger integrity after exposure changes
-        run: python scripts/audit_weekly_model.py
+        run: python scripts/audit_weekly_model_runtime.py
 
       - name: Replay exact published execution ledger
         run: python scripts/backtest_weekly_execution_parity_v5.py
