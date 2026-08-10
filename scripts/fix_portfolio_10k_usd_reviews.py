@@ -41,7 +41,10 @@ def main() -> int:
         row["benchmark_return_percent"] = round(benchmark_return, 8)
         reviews.append(row)
     data["weekly_reviews"] = reviews
-    data["schema_version"] = "1.1.1-usd"
+    # Do not downgrade the schema written by the USD builder.  v1.2 adds the
+    # independent Fed cash-yield ledger and executed-quantity mirroring.
+    if not str(data.get("schema_version") or "").startswith("1.2"):
+        data["schema_version"] = "1.2.0-usd"
     PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Rebuilt {len(reviews)} USD-native decision-journal entrie(s)")
     return 0
