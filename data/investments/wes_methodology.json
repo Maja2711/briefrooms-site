@@ -1,0 +1,36 @@
+{
+  "methodology": "Weekly Engine Star",
+  "short_name": "WES",
+  "version": "1.0.0",
+  "status": "experimental_governed_paper_only",
+  "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
+  "principles": [
+    "NO TRADE is an active monitoring state, not a terminal weekly decision.",
+    "A late-week entry requires a new qualified trigger and increasingly strong confirmation as Friday close approaches.",
+    "All positions remain subject to the frozen Friday weekly close; no weekend carry.",
+    "Friday tactical entries use a deliberately reduced TP and tighter SL because the remaining holding horizon is short.",
+    "TP and SL are adaptive to remaining holding time, signal strength and learned results by entry class.",
+    "Learning must improve expected net profit, not maximize trade count or win rate in isolation.",
+    "No rule may force a directional position when admission gates are not met."
+  ],
+  "entry_classes": {
+    "monday_weekly": "normal weekly horizon",
+    "midweek_trigger": "NO TRADE converted to a qualified Tuesday-Thursday or late-Monday trigger",
+    "friday_tactical": "very high-conviction Friday trigger with short time-to-close and low TP"
+  },
+  "friday_guardrails": {
+    "minimum_minutes_to_scheduled_close": 45,
+    "very_late_raw_score_minimum": 80,
+    "very_late_minimum_confirmations": 3,
+    "low_tp_cap_vs_base": 0.35,
+    "sl_cap_vs_base": 0.45,
+    "minimum_reward_to_risk": 1.05
+  },
+  "learning_guardrails": {
+    "minimum_observations_before_entry_threshold_learning": 6,
+    "weak_class_penalty_points": 6,
+    "strong_class_relief_points": 3,
+    "paper_trading_only": true,
+    "research_lab_linked": true
+  }
+}
