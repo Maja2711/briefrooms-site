@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Refresh Portfolio 10K prices from recent completed intraday bars.
 
-Entry prices and quantities are immutable. This script only updates current
-quotes, FX rates, valuation, P/L, weights and the benchmark. It is intended to
-run once per hour while at least one portfolio market may be trading.
+Entry prices and quantities are immutable. This script updates current quotes,
+FX rates, valuation, P/L, weights and the benchmark. Before marking positions
+to market it also credits the PLN cash ledger with the configured NBP reference
+rate, keeping the public and BRACE paper cash ledgers in sync.
 """
 from __future__ import annotations
 
@@ -20,8 +21,11 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
+from portfolio_10k_cash_yield import accrue_pln_ledgers, load_policy
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "investments" / "portfolio_10k.json"
+PAPER_PATH = ROOT / "data" / "portfolio10k" / "paper_portfolio.json"
 WARSAW = ZoneInfo("Europe/Warsaw")
 UTC = timezone.utc
 FX_SYMBOLS = {"PLN": None, "USD": "USDPLN=X", "EUR": "EURPLN=X", "DKK": "DKKPLN=X"}
@@ -239,13 +243,15 @@ def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
     if latest_market_dates:
         data["last_market_session"] = max(latest_market_dates)
     data["hourly_valuation"] = {
-        "policy_version": "1.0.0",
+        "policy_version": "1.1.0-cash-yield",
         "checked_at": now_local.isoformat(timespec="seconds"),
         "updated_instruments": updated,
         "active_instruments": len(active),
         "errors": errors,
-        "rule_pl": "Bieżąca wycena jest odświeżana co godzinę w dni handlowe z ostatniej zakończonej świecy 5-minutowej. Po zamknięciu rynku pozostaje ostatnia dostępna cena sesyjna; cena zakupu nie zastępuje ceny bieżącej.",
-        "rule_en": "Current valuation is refreshed hourly on trading days from the latest completed five-minute bar. After the market closes, the latest available session price remains visible; the purchase price is never substituted for the current price.",
+        "cash_yield_benchmark": (data.get("cash_yield") or {}).get("benchmark"),
+        "cash_yield_rate": (data.get("cash_yield") or {}).get("annual_rate"),
+        "rule_pl": "Bieżąca wycena jest odświeżana co godzinę w dni handlowe z ostatniej zakończonej świecy 5-minutowej. Wolna gotówka PLN jest oprocentowana stopą referencyjną NBP w konwencji ACT/365. Po zamknięciu rynku pozostaje ostatnia dostępna cena sesyjna; cena zakupu nie zastępuje ceny bieżącej.",
+        "rule_en": "Current valuation is refreshed hourly on trading days from the latest completed five-minute bar. Free PLN model cash earns the NBP reference rate on an ACT/365 basis. After the market closes, the latest available session price remains visible; the purchase price is never substituted for the current price.",
     }
     data["last_run_error"] = "; ".join(errors) if errors and not updated else None
 
@@ -261,6 +267,7 @@ def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
             "total_value_pln": total_value,
             "benchmark_value_pln": data.get("benchmark_value_pln"),
             "cash_pln": cash,
+            "cash_interest_accrued_pln": data.get("cash_interest_accrued_pln"),
             "reporting_usd_pln": (data.get("reporting_fx") or {}).get("usd_pln"),
         })
         data["snapshots"] = snapshots[-1000:]
@@ -273,7 +280,14 @@ def main() -> None:
     if data.get("status") not in {"active", "partially_active"}:
         print(f"Portfolio status {data.get('status')} does not require hourly valuation")
         return
-    result = update_portfolio(data, datetime.now(UTC))
+
+    now = datetime.now(UTC)
+    paper = load_json(PAPER_PATH)
+    yield_result = accrue_pln_ledgers(data, paper, load_policy(), now)
+    write_json_atomic(PAPER_PATH, paper)
+
+    result = update_portfolio(data, now)
+    result["cash_yield"] = yield_result
     write_json_atomic(DATA_PATH, data)
     print(json.dumps(result, ensure_ascii=False))
     if result["updated"] == 0:
