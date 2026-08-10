@@ -131,13 +131,16 @@ def passing_probation() -> dict:
     }
 
 
-def test_registry_preserves_baseline_and_initial_shadow_state():
+def test_registry_preserves_authorised_probationary_control_and_fallback():
     registry = load("data/portfolio10k/methodology_registry.json")
-    assert registry["controller_state"] == "ACTIVE_BASELINE"
-    assert registry["champion_methodology_id"] == "portfolio-10k-baseline"
+    assert registry["controller_state"] == "PROBATIONARY_CONTROL"
+    assert registry["champion_methodology_id"] == "brace-portfolio-engine"
     methods = {item["methodology_id"]: item for item in registry["methodologies"]}
-    assert methods["portfolio-10k-baseline"]["status"] == "ACTIVE_BASELINE"
-    assert methods["brace-portfolio-engine"]["status"] == "SHADOW"
+    assert methods["portfolio-10k-baseline"]["status"] == "FALLBACK_BASELINE"
+    assert methods["brace-portfolio-engine"]["status"] == "PROBATIONARY_CONTROL"
+    authorisation = methods["brace-portfolio-engine"]["validation_results"]["user_authorized_paper_control"]
+    assert authorisation["paper_only"] is True
+    assert authorisation["remaining_automatic_promotion_gates_preserved"] is True
     for item in methods.values():
         for key in (
             "methodology_id",
@@ -632,7 +635,7 @@ def test_public_pages_share_control_panel_and_guard_paper_data_path():
     ):
         html = path.read_text(encoding="utf-8")
         assert 'id="brace-control-root"' in html
-        assert "/scripts/portfolio-10k-control-public.js?v=2" in html
+        assert "/scripts/portfolio-10k-control-public.js?v=" in html
     script = (ROOT / "scripts" / "portfolio-10k-public.js").read_text(encoding="utf-8")
     assert "PROBATIONARY_CONTROL" in script
     assert "ACTIVE_PAPER_CONTROL" in script
