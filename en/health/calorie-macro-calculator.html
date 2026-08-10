@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calorie and macro calculator | BriefRooms</title>
+  <meta name="description" content="Estimate daily calorie needs, choose a calorie deficit, maintenance or surplus goal, and calculate protein, fat and carbohydrate targets." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="canonical" href="https://briefrooms.com/en/health/calorie-macro-calculator.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/calorie-macro-calculator.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/kalkulator-kalorii-makro.html" />
+  <link rel="stylesheet" href="/assets/calorie-calculator.css?v=1" />
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260810-1" defer></script>
+</head>
+<body>
+  <header id="site-header"></header>
+  <header class="calorie-hero">
+    <h1>Calorie and macronutrient calculator</h1>
+    <p class="lead">Estimate calories for weight maintenance, set a gentle deficit or surplus, and get a daily protein, fat and carbohydrate split.</p>
+  </header>
+
+  <main>
+    <section class="calculator" aria-labelledby="calculator-title">
+      <h2 id="calculator-title">Enter your details and choose a goal</h2>
+      <p class="intro-note"><strong>Activity level is usually the largest uncertainty.</strong> Choose the option that best describes a typical week, then use the result as a starting point and observe your weight trend for 2–3 weeks.</p>
+
+      <form id="calorie-form" novalidate>
+        <div class="fields">
+          <div class="field">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="number" min="18" max="80" step="1" inputmode="numeric" autocomplete="off" placeholder="e.g. 42" />
+            <small>Supported range: 18–80 years</small>
+          </div>
+          <div class="field">
+            <label for="sex">Sex used by the equation</label>
+            <select id="sex" name="sex">
+              <option value="">Select</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+            <small>The Mifflin–St Jeor equation uses two different constants</small>
+          </div>
+          <div class="field">
+            <label for="weight">Body weight</label>
+            <input id="weight" name="weight" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 78.5" />
+            <small>In kilograms; supported range: 30–300 kg</small>
+          </div>
+          <div class="field">
+            <label for="height">Height</label>
+            <input id="height" name="height" type="number" min="120" max="230" step="1" inputmode="numeric" autocomplete="off" placeholder="e.g. 180" />
+            <small>In centimetres; supported range: 120–230 cm</small>
+          </div>
+          <div class="field">
+            <label for="activity">Typical activity level</label>
+            <select id="activity" name="activity">
+              <option value="">Select</option>
+              <option value="sedentary">Low — mostly seated, no regular training</option>
+              <option value="light">Light — 1–3 light training sessions per week</option>
+              <option value="moderate" selected>Moderate — 3–5 training sessions per week</option>
+              <option value="high">High — 6–7 sessions or an active job</option>
+              <option value="very-high">Very high — physical work and intense training</option>
+            </select>
+            <small>PAL factors from 1.2 to 1.9</small>
+          </div>
+          <div class="field">
+            <label for="goal">Calorie goal</label>
+            <select id="goal" name="goal">
+              <option value="loss-15">15% calorie deficit</option>
+              <option value="loss-10">Gentle 10% deficit</option>
+              <option value="maintain" selected>Weight maintenance</option>
+              <option value="gain-10">10% calorie surplus</option>
+            </select>
+            <small>Adjustment versus maintenance calories</small>
+          </div>
+          <div class="field">
+            <label for="protein">Protein target</label>
+            <select id="protein" name="protein">
+              <option value="1.2">1.2 g/kg — lower activity</option>
+              <option value="1.6" selected>1.6 g/kg — general starting point for an active adult</option>
+              <option value="2">2.0 g/kg — high activity / training during a deficit</option>
+            </select>
+            <small>Grams per kilogram of current body weight</small>
+          </div>
+          <div class="field">
+            <label for="fat">Energy from fat</label>
+            <select id="fat" name="fat">
+              <option value="25">25% of calories</option>
+              <option value="30" selected>30% of calories</option>
+              <option value="35">35% of calories</option>
+            </select>
+            <small>Carbohydrate receives the remaining energy</small>
+          </div>
+        </div>
+
+        <fieldset class="eligibility">
+          <legend>Do any of these apply: pregnancy or breastfeeding, an active eating disorder, or a condition requiring a therapeutic diet (such as advanced kidney or liver disease)?</legend>
+          <div class="radio-row">
+            <label class="radio-option"><input type="radio" name="eligibility" value="no" /> No</label>
+            <label class="radio-option"><input type="radio" name="eligibility" value="yes" /> Yes / unsure</label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="button" type="submit">Calculate calories and macros</button>
+          <button class="button secondary" type="reset">Clear</button>
+        </div>
+        <div id="calorie-error" class="error" role="alert" hidden></div>
+      </form>
+
+      <section id="calorie-results" class="calorie-results" aria-live="polite" aria-labelledby="calorie-results-title" hidden>
+        <h2 id="calorie-results-title">Your estimated daily target</h2>
+        <strong id="target-calories" class="target-number"></strong>
+        <p class="target-label">kilocalories per day</p>
+
+        <div class="energy-summary">
+          <div class="energy-card"><span>Resting energy</span><strong id="resting-calories"></strong></div>
+          <div class="energy-card"><span>Weight maintenance</span><strong id="maintenance-calories"></strong></div>
+          <div class="energy-card"><span>Goal adjustment</span><strong id="goal-adjustment"></strong></div>
+        </div>
+
+        <h3 class="macro-heading">Macronutrients</h3>
+        <div class="macro-grid">
+          <article class="macro-card protein">
+            <h4>Protein</h4>
+            <strong id="protein-grams"></strong>
+            <span id="protein-meta"></span>
+          </article>
+          <article class="macro-card fat">
+            <h4>Fat</h4>
+            <strong id="fat-grams"></strong>
+            <span id="fat-meta"></span>
+          </article>
+          <article class="macro-card carbohydrate">
+            <h4>Carbohydrate</h4>
+            <strong id="carbohydrate-grams"></strong>
+            <span id="carbohydrate-meta"></span>
+          </article>
+        </div>
+
+        <p id="calorie-profile" class="result-note"></p>
+        <p id="macro-balance-note" class="result-note"></p>
+        <p id="resting-warning" class="result-warning" hidden></p>
+
+        <div class="result-guidance">
+          <h3>How should you use the result?</h3>
+          <p>Keep a similar calorie average for 2–3 weeks and observe your weight trend under comparable conditions. If the trend does not match the goal, change the daily value by a small step, such as 100–150 kcal.</p>
+          <p>Protein is based on current body weight. With substantial excess weight, this may overestimate the protein target; a registered dietitian can select a more appropriate reference weight.</p>
+        </div>
+      </section>
+
+      <p class="privacy">Calculations take place entirely in your browser. The details you enter are not sent to the server.</p>
+    </section>
+
+    <section class="method" aria-labelledby="method-title">
+      <h2 id="method-title">Method and limitations</h2>
+      <ul>
+        <li>Resting energy is estimated with the Mifflin–St Jeor equation using age, the sex used by the equation, body weight and height.</li>
+        <li>Maintenance calories equal resting energy multiplied by the selected activity factor. Actual expenditure can differ substantially.</li>
+        <li>A deficit or surplus is a simple percentage adjustment, not an individual obesity-treatment or sports-nutrition plan.</li>
+        <li>Protein and carbohydrate provide 4 kcal/g, while fat provides 9 kcal/g. Carbohydrate receives the energy left after protein and fat.</li>
+        <li>General adult AMDR ranges are 10–35% of energy from protein, 20–35% from fat and 45–65% from carbohydrate.</li>
+      </ul>
+      <p class="disclaimer"><strong>Important:</strong> this is an educational tool for generally healthy adults. It does not replace medical history, body-composition measurement or an individual nutrition plan.</p>
+      <h3>Sources</h3>
+      <ul class="source-list">
+        <li><a href="https://doi.org/10.1093/ajcn/51.2.241" target="_blank" rel="noopener noreferrer external">Mifflin et al. — predictive equation for resting energy expenditure, American Journal of Clinical Nutrition (1990)</a></li>
+        <li><a href="https://www.fao.org/4/y5686e/y5686e00.htm" target="_blank" rel="noopener noreferrer external">FAO/WHO/UNU — Human energy requirements</a></li>
+        <li><a href="https://www.nationalacademies.org/cdn/materials/9fb9fae1-63a0-4048-88ad-3f972639149a" target="_blank" rel="noopener noreferrer external">National Academies — Dietary Reference Intakes: Macronutrients</a></li>
+        <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5477153/" target="_blank" rel="noopener noreferrer external">International Society of Sports Nutrition — protein and exercise position stand (2017)</a></li>
+      </ul>
+      <p class="back">← <a href="/en/health.html">Back to Health</a></p>
+    </section>
+  </main>
+
+  <footer></footer>
+  <script src="/scripts/calorie-model.js?v=1"></script>
+  <script src="/scripts/calorie-calculator.js?v=1"></script>
+  <script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
+</body>
+</html>
