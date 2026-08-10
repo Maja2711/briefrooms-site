@@ -1,0 +1,83 @@
+name: One-shot Portfolio 10K post-fix sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-portfolio-postfix-sync.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio-10k-postfix-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Rebuild USD, guardian and static snapshots
+        run: |
+          python scripts/build_portfolio_10k_usd.py
+          python scripts/fix_portfolio_10k_usd_reviews.py
+          python scripts/portfolio_10k_guardian.py
+          python scripts/render_portfolio_10k_static.py
+      - name: Validate corrected cross-currency state
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          pl=json.loads(Path('data/investments/portfolio_10k.json').read_text())
+          usd=json.loads(Path('data/investments/portfolio_10k_usd.json').read_text())
+          guardian=json.loads(Path('data/portfolio10k/guardian_state.json').read_text())
+          googl_pl=next(p for p in pl['positions'] if p['id']=='googl')
+          googl_usd=next(p for p in usd['positions'] if p['id']=='googl')
+          assert float(googl_pl['current_weight']) < 0.08
+          assert float(googl_usd['source_model_retained_fraction']) < 0.5
+          assert float(googl_usd['current_weight']) < 0.08
+          assert usd['schema_version']=='1.2.0-usd'
+          assert usd['cash_yield']['benchmark']=='FEDERAL_FUNDS_TARGET_MIDPOINT'
+          assert abs(float(usd['cash_yield']['annual_rate'])-0.03625)<1e-12
+          assert pl['cash_yield']['benchmark']=='NBP_REFERENCE_RATE'
+          assert abs(float(pl['cash_yield']['annual_rate'])-0.0375)<1e-12
+          assert 8000 < float(pl['total_value_pln']) < 12000
+          assert 8000 < float(usd['total_value_usd']) < 12000
+          assert guardian['health']['status'] in {'ACTIVE','DEGRADED'}
+          assert abs(float(guardian['health']['total_value_pln'])-float(pl['total_value_pln']))<0.01
+          pl_html=Path('pl/inwestycje/portfel-10k.html').read_text()
+          en_html=Path('en/investing/portfolio-10k.html').read_text()
+          assert 'Gotówka · NBP 3,75%' in pl_html
+          assert 'Cash · Fed midpoint 3.625%' in en_html
+          print('PL', pl['total_value_pln'], pl['cash_pln'], googl_pl['current_weight'])
+          print('USD', usd['total_value_usd'], usd['cash_usd'], googl_usd['current_weight'])
+          print('Guardian', guardian['health'])
+          PY
+      - name: Commit synced state and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-portfolio-postfix-sync.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/portfolio_10k_usd.json \
+                  data/portfolio10k/guardian_state.json \
+                  pl/inwestycje/portfel-10k.html \
+                  en/investing/portfolio-10k.html \
+                  .github/workflows/one-shot-portfolio-postfix-sync.yml
+          git commit -m "Sync Portfolio 10K corrected PLN and USD state"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 4))
+          done
+          exit 1
