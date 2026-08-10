@@ -1,0 +1,114 @@
+{
+  "schema_version": "6.0.0",
+  "generation_id": "spx-orthogonal-core-v6",
+  "status": "predeclared_before_first_generation6_run",
+  "research_only": true,
+  "live_activation": false,
+  "design_goal": "Test orthogonal information families, not a parameter grid.",
+  "development": {
+    "end_exclusive": "2022-08-01"
+  },
+  "sealed_holdout": {
+    "start": "2022-08-01",
+    "end": "2026-07-31",
+    "must_remain_sealed": true
+  },
+  "shadow": {
+    "start": "2026-08-03",
+    "warmup_observations": 70,
+    "orders_allowed": false,
+    "all_candidates_parallel": true
+  },
+  "source_families": {
+    "price_trend": {
+      "inputs": [
+        "SPY 20/63-day moving-average gaps",
+        "SPY 21/63-session momentum"
+      ],
+      "max_candidate_lookback_sessions": 63
+    },
+    "rates": {
+      "inputs": [
+        "US 10Y yield 21/63-session changes",
+        "TLT 63-session momentum"
+      ],
+      "revised_macro_data": false
+    },
+    "liquidity": {
+      "inputs": [
+        "HYG/LQD 21/63-session relative change",
+        "UUP 63-session momentum"
+      ],
+      "revised_macro_data": false
+    },
+    "options_vix": {
+      "inputs": [
+        "VIX level",
+        "VIX 5/21-session change",
+        "VIX/VIX3M term structure"
+      ],
+      "revised_macro_data": false
+    }
+  },
+  "candidate_space_size": 8,
+  "candidates": [
+    {
+      "name": "g6-price-trend",
+      "sources": ["price_trend"]
+    },
+    {
+      "name": "g6-rates",
+      "sources": ["rates"]
+    },
+    {
+      "name": "g6-liquidity",
+      "sources": ["liquidity"]
+    },
+    {
+      "name": "g6-options-vix",
+      "sources": ["options_vix"]
+    },
+    {
+      "name": "g6-trend-rates",
+      "sources": ["price_trend", "rates"]
+    },
+    {
+      "name": "g6-trend-liquidity",
+      "sources": ["price_trend", "liquidity"]
+    },
+    {
+      "name": "g6-defensive-macro",
+      "sources": ["rates", "liquidity", "options_vix"]
+    },
+    {
+      "name": "g6-equal-four",
+      "sources": ["price_trend", "rates", "liquidity", "options_vix"]
+    }
+  ],
+  "candidate_signature": "671ef03a8e1a58ead80388072be6f701177222a96d60db27c7004b6fe7572638",
+  "exposure_geometry": {
+    "shared_by_all_candidates": true,
+    "score_bands": {
+      "full_short": "<= -0.45",
+      "half_short": "(-0.45,-0.15]",
+      "flat": "(-0.15,0.15)",
+      "half_long": "[0.15,0.45)",
+      "full_long": ">= 0.45"
+    },
+    "weekly_scheduled_rebalance": true,
+    "daily_defensive_shock_gate": true,
+    "shock_gate_can_invent_short": false,
+    "gross_exposure_cap": 1.0,
+    "leverage_allowed": false
+  },
+  "governance": {
+    "candidate_definitions_predeclared": true,
+    "parameter_mutation_after_first_run": false,
+    "human_approval_required_before_holdout": true,
+    "human_approval_required_before_live_use": true,
+    "no_live_orders": true,
+    "global_multiple_testing_penalty_retained": true,
+    "walk_forward_retained": true,
+    "costs_retained": true
+  }
+}
