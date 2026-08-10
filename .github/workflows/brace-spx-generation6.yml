@@ -1,0 +1,272 @@
+name: BRACE-SPX Generation 6
+
+on:
+  workflow_dispatch:
+    inputs:
+      rerun_research:
+        description: "Re-run the fixed Generation 6 development protocol"
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-spx-generation6.yml"
+  schedule:
+    - cron: "35 21 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-spx-generation6
+  cancel-in-progress: false
+
+jobs:
+  research-and-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out research branch
+        uses: actions/checkout@v4
+        with:
+          ref: brace-spx-research
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance pytest
+
+      - name: Validate Generation 6 code and immutable manifest
+        run: |
+          python -m py_compile \
+            scripts/brace_spx_architecture_v2.py \
+            scripts/brace_spx_architecture_v2s.py \
+            scripts/brace_spx_generation6.py \
+            scripts/brace_spx_generation6_shadow.py
+          python -m pytest -q tests/test_brace_spx_generation6.py
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          import brace_spx_generation6 as g6
+
+          manifest = json.loads(Path('data/research/brace_spx_generation6_manifest.json').read_text())
+          assert manifest['generation_id'] == g6.GENERATION_ID
+          assert manifest['candidate_space_size'] == 8
+          assert len(manifest['source_families']) == 4
+          assert set(manifest['source_families']) == set(g6.SOURCE_FAMILIES)
+          assert manifest['candidate_signature'] == g6.candidate_signature()
+          assert manifest['sealed_holdout']['must_remain_sealed'] is True
+          assert manifest['governance']['parameter_mutation_after_first_run'] is False
+          assert manifest['governance']['no_live_orders'] is True
+          print('Generation 6 immutable manifest validated:', g6.candidate_signature())
+          PY
+
+      - name: Decide whether fixed development research is due
+        id: precheck
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RERUN_RESEARCH: ${{ github.event.inputs.rerun_research || 'false' }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          report = Path('data/research/brace_spx_generation6_report.json')
+          rerun = os.environ.get('RERUN_RESEARCH', 'false').lower() == 'true'
+          event = os.environ.get('EVENT_NAME', '')
+          should = (not report.exists()) or rerun or event == 'push'
+          with open('/tmp/g6_should_research', 'w') as f:
+              f.write('true' if should else 'false')
+          print('research_due=', should, 'report_exists=', report.exists(), 'event=', event)
+          PY
+          echo "should_research=$(cat /tmp/g6_should_research)" >> "$GITHUB_OUTPUT"
+
+      - name: Run fixed Generation 6 development research
+        if: steps.precheck.outputs.should_research == 'true'
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if python scripts/brace_spx_generation6.py \
+              --output data/research/brace_spx_generation6_report.json \
+              --trace-csv /tmp/brace_spx_generation6_trace.csv \
+              2>&1 | tee data/research/brace_spx_generation6.log; then
+              exit 0
+            fi
+            sleep $((attempt * 45))
+          done
+          exit 1
+
+      - name: Validate Generation 6 development evidence
+        if: steps.precheck.outputs.should_research == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/research/brace_spx_generation6_report.json').read_text())
+          assert report['generation_id'] == 'spx-orthogonal-core-v6'
+          assert report['candidate_space_size'] == 8
+          assert report['experiments_total'] == 8
+          assert set(report['design']['source_families']) == {'price_trend','rates','liquidity','options_vix'}
+          assert report['design']['source_family_count'] == 4
+          assert report['design']['derived_from_best_g5_parameters'] is False
+          assert report['design']['holdout_used_for_design'] is False
+          assert report['holdout']['accessed'] is False
+          assert report['holdout']['access_count'] == 0
+          assert report['live_activation'] is False
+          assert report['mandate']['orders_allowed'] is False
+          assert report['mandate']['leverage_allowed'] is False
+          print('Generation 6 development status:', report['status'])
+          print('Strict gate:', report['strict_gate_passed'])
+          PY
+
+      - name: Run post-holdout Generation 6 shadow loop
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if python scripts/brace_spx_generation6_shadow.py \
+              --output data/shadow/brace_spx_generation6_shadow.json; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
+
+      - name: Validate shadow isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          shadow = json.loads(Path('data/shadow/brace_spx_generation6_shadow.json').read_text())
+          assert shadow['generation_id'] == 'spx-orthogonal-core-v6'
+          assert shadow['holdout_accessed'] is False
+          assert shadow['live_orders'] is False
+          assert shadow['autonomous_trading'] is False
+          assert shadow['warmup_required'] == 70
+          assert len(shadow['source_families']) == 4
+          if shadow['status'] == 'shadow_active_no_orders':
+              assert len(shadow['candidate_snapshots']) == 8
+          else:
+              assert shadow['status'] == 'warming_up'
+              assert shadow['candidate_snapshots'] == []
+          print('Generation 6 shadow:', shadow['status'], shadow['observations_collected'], '/', shadow['warmup_required'])
+          PY
+
+      - name: Build sanitized public Generation 6 status
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          manifest = json.loads(Path('data/research/brace_spx_generation6_manifest.json').read_text())
+          report_path = Path('data/research/brace_spx_generation6_report.json')
+          report = json.loads(report_path.read_text()) if report_path.exists() else {}
+          shadow = json.loads(Path('data/shadow/brace_spx_generation6_shadow.json').read_text())
+
+          payload = {
+              'schema_version': '6.0.0',
+              'model': 'BRACE-SPX Lab',
+              'generation_id': 'spx-orthogonal-core-v6',
+              'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'research_only': True,
+              'live_activation': False,
+              'source_families': list(manifest['source_families'].keys()),
+              'candidate_space_size': 8,
+              'candidate_signature': manifest['candidate_signature'],
+              'design': {
+                  'goal': manifest['design_goal'],
+                  'shared_exposure_geometry': True,
+                  'max_candidate_lookback_sessions': 63,
+                  'parameter_grid': False,
+              },
+              'development': {
+                  'status': report.get('status', 'not_run_yet'),
+                  'experiments_completed': report.get('experiments_total', 0),
+                  'strict_gate_passed': report.get('strict_gate_passed'),
+                  'single_champion_authorized': bool(report.get('single_champion_authorized', False)),
+              },
+              'sealed_holdout': {
+                  'start': manifest['sealed_holdout']['start'],
+                  'end': manifest['sealed_holdout']['end'],
+                  'accessed': False,
+                  'access_count': 0,
+              },
+              'shadow': {
+                  'status': shadow['status'],
+                  'start': shadow['shadow_start'],
+                  'updated_at': shadow['updated_at'],
+                  'observations_collected': shadow['observations_collected'],
+                  'warmup_required': shadow['warmup_required'],
+                  'observations_remaining': shadow['observations_remaining'],
+                  'latest_market_date': shadow.get('latest_market_date'),
+                  'live_orders': False,
+                  'autonomous_trading': False,
+              },
+              'governance': {
+                  'orders_allowed': False,
+                  'leverage_allowed': False,
+                  'human_approval_required_before_holdout': True,
+                  'candidate_mutation_allowed': False,
+              },
+          }
+          Path('data/public').mkdir(parents=True, exist_ok=True)
+          Path('data/public/brace_spx_generation6_public.json').write_text(json.dumps(payload, indent=2) + '\n')
+          PY
+
+      - name: Upload Generation 6 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-generation6-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            data/research/brace_spx_generation6_manifest.json
+            data/research/brace_spx_generation6_report.json
+            data/research/brace_spx_generation6.log
+            data/shadow/brace_spx_generation6_shadow.json
+            data/public/brace_spx_generation6_public.json
+            /tmp/brace_spx_generation6_trace.csv
+
+      - name: Persist Generation 6 evidence on research branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f \
+            data/research/brace_spx_generation6_manifest.json \
+            data/research/brace_spx_generation6_report.json \
+            data/research/brace_spx_generation6.log \
+            data/shadow/brace_spx_generation6_shadow.json \
+            data/public/brace_spx_generation6_public.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update BRACE-SPX Generation 6 evidence"
+            for attempt in 1 2 3; do
+              if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              sleep $((attempt * 15))
+            done
+          fi
+
+      - name: Publish sanitized Generation 6 status to main
+        run: |
+          set -euo pipefail
+          cp data/public/brace_spx_generation6_public.json /tmp/brace_spx_generation6_public.json
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p data/public
+          cp /tmp/brace_spx_generation6_public.json data/public/brace_spx_generation6_public.json
+          git add data/public/brace_spx_generation6_public.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Publish BRACE-SPX Generation 6 status"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 15))
+          done
+          exit 1
