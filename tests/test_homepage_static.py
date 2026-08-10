@@ -69,6 +69,19 @@ def marker_block(source: str) -> str:
 
 
 class HomepageStaticTests(unittest.TestCase):
+    def test_root_homepage_is_indexable_and_bilingual(self) -> None:
+        source = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn('content="noindex', source.lower())
+        self.assertIn(
+            'name="robots" content="index,follow,max-image-preview:large,max-snippet:-1"',
+            source,
+        )
+        self.assertIn('hreflang="pl"', source)
+        self.assertIn('hreflang="en"', source)
+        self.assertIn('hreflang="x-default"', source)
+        self.assertIn('href="/pl/"', source)
+        self.assertIn('href="/en/"', source)
+
     def test_repository_homepages_contain_real_static_briefs(self) -> None:
         for lang, directory in (("pl", "briefy"), ("en", "briefs")):
             page = ROOT / lang / "index.html"
