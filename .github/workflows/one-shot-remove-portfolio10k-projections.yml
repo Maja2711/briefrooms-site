@@ -1,0 +1,78 @@
+name: One-shot remove Portfolio 10K projections
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-remove-portfolio10k-projections.yml"
+      - "scripts/remove_portfolio10k_projections_once.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio10k-remove-projections
+  cancel-in-progress: false
+
+jobs:
+  remove-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Remove projections from PL and EN
+        run: python scripts/remove_portfolio10k_projections_once.py
+
+      - name: Validate removal
+        run: |
+          node --check scripts/portfolio-10k-navigation-guard.js
+          node --check scripts/portfolio-10k-execution-finalizer.js
+          python - <<'PY'
+          from pathlib import Path
+          pages = [
+              Path('pl/inwestycje/portfel-10k.html'),
+              Path('en/investing/portfolio-10k.html'),
+          ]
+          forbidden = [
+              'data-tab="projections"',
+              'data-panel="projections"',
+              'id="projection-overview"',
+              'href="#projections"',
+          ]
+          for page in pages:
+              text = page.read_text(encoding='utf-8')
+              remaining = [token for token in forbidden if token in text]
+              if remaining:
+                  raise SystemExit(f'{page}: {remaining}')
+              if 'data-tab="overview"' not in text or 'data-tab="portfolio"' not in text or 'data-tab="brace"' not in text:
+                  raise SystemExit(f'{page}: core navigation damaged')
+          guard = Path('scripts/portfolio-10k-navigation-guard.js').read_text(encoding='utf-8')
+          valid_line = next(line for line in guard.splitlines() if 'const VALID_TABS' in line)
+          if 'projections' in valid_line:
+              raise SystemExit('projections still valid in navigation guard')
+          finalizer = Path('scripts/portfolio-10k-execution-finalizer.js').read_text(encoding='utf-8')
+          if 'projection-overview' in finalizer or 'projectionsPanel' in finalizer:
+              raise SystemExit('dead projections finalizer logic remains')
+          print('PL/EN projections removal validated')
+          PY
+
+      - name: Commit production removal and clean one-shot files
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-remove-portfolio10k-projections.yml
+          rm -f scripts/remove_portfolio10k_projections_once.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html scripts/portfolio-10k-navigation-guard.js scripts/portfolio-10k-execution-finalizer.js .github/workflows/one-shot-remove-portfolio10k-projections.yml scripts/remove_portfolio10k_projections_once.py
+          git commit -m "Remove Portfolio 10K projections tab"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 8))
+          done
