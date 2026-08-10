@@ -3,10 +3,10 @@
 - **Aktualny status:** BRACE_PROBATIONARY_PAPER_CONTROL
 - **Champion:** brace-portfolio-engine 3.0.0
 - **Challenger:** brace-portfolio-engine 3.0.0 (PROBATIONARY_CONTROL)
-- **Postep awansu:** 26/34 (76.5%)
-- **Warunki pozostale do awansu:** out of sample beats baseline, parameter neighborhood stable, expected shortfall within limit, minimum calendar days, minimum decisions, minimum completed trades, risk adjusted advantage, confidence interval positive
+- **Postep awansu:** 9/18 (50.0%)
+- **Warunki pozostale do awansu:** minimum calendar days, daily rotation limit, weekly change limit, weekly turnover limit, new position limit, minimum confidence, transaction cost buffer applied, cooldown applied, material advantage required
 - **Stan ryzyka:** WITHIN_LIMITS / safe mode: False
-- **Cel 10% rocznie:** TARGET_NOT_CURRENTLY_JUSTIFIED
+- **Cel 10% rocznie:** TARGET_CURRENTLY_JUSTIFIED_WITHIN_MODEL
 - **Decyzje oczekujace:** 1
 
 **Uwaga:** BRACE dziala wylacznie na portfelu modelowym; nie laczy sie z brokerem.

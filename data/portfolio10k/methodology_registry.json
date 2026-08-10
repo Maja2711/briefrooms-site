@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-10T18:03:22+00:00",
+  "generated_at": "2026-08-10T18:08:33+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -30,9 +30,9 @@
       "validation_results": {
         "status": "production_baseline",
         "history_preserved": true,
-        "entry_history_sha256": "38a031703e4fbae6a73045e8914dbf4e743c303cfd3579834fee71a41c881b49",
-        "source_snapshot_sha256": "abdd9a2d5d2c93a59da1c344f3d5806dd039470a7131d74be3923ac7454271d8",
-        "validated_at": "2026-08-02T20:00:14+00:00"
+        "entry_history_sha256": "b75aa7ce3a96dbef8a80222c7d687902a920f3760d5f56c175b6c1f9b907f34a",
+        "source_snapshot_sha256": "e0e3f53487f104b623899e0eab742406acc6d2334bac261a6c3343baac09df91",
+        "validated_at": "2026-08-10T18:08:04+00:00"
       }
     },
     {
@@ -56,41 +56,21 @@
         "automatic_activation_allowed_only_by_controller": true,
         "active_paper_control": false,
         "latest_gate_evaluation": {
-          "evaluated_at": "2026-08-02T20:00:14+00:00",
-          "current_status": "SHADOW",
+          "evaluated_at": "2026-08-10T18:08:04+00:00",
+          "current_status": "PROBATIONARY_CONTROL",
           "conditions": {
-            "historical": {
-              "positive_after_costs": true,
-              "out_of_sample_beats_baseline": false,
-              "no_lookahead_audit": true,
-              "costs_and_fx_included": true,
-              "regime_stability": true,
-              "minimum_observations": true,
-              "parameter_neighborhood_stable": false,
-              "not_single_instrument_dependent": true,
-              "reproducible_run": true,
-              "full_manifest": true
-            },
-            "risk": {
-              "drawdown_within_limit": true,
-              "drawdown_not_materially_worse": true,
-              "concentration_within_limits": true,
-              "no_leverage": true,
-              "no_short_sales": true,
-              "no_cfds": true,
-              "turnover_within_limit": true,
-              "expected_shortfall_within_limit": false,
-              "downside_volatility_within_limit": true
-            },
-            "shadow": {
+            "probation": {
               "minimum_calendar_days": false,
-              "minimum_decisions": false,
-              "minimum_completed_trades": false,
-              "return_advantage": true,
-              "risk_adjusted_advantage": false,
-              "drawdown_within_limit": true,
-              "turnover_within_limit": true,
-              "confidence_interval_positive": false
+              "daily_rotation_limit": false,
+              "weekly_change_limit": false,
+              "weekly_turnover_limit": false,
+              "new_position_limit": false,
+              "minimum_confidence": false,
+              "no_full_portfolio_replacement": true,
+              "transaction_cost_buffer_applied": false,
+              "cooldown_applied": false,
+              "material_advantage_required": false,
+              "no_fallback_trigger": true
             },
             "operational": {
               "no_critical_data_errors": true,
