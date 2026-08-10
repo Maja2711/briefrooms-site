@@ -1,0 +1,49 @@
+name: One-shot validate manual Hot X
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-validate-hot-x-manual.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate manual Hot X feed
+        run: |
+          python -m unittest tests/test_hot_x_items.py
+          node --check scripts/hot-x-render.js
+          node tests/test_hot_x_render.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.hot_x_items import comment_text, duplicate_free, is_direct_post, valid_item
+          p=json.loads(Path('data/hot_tweets.json').read_text(encoding='utf-8'))
+          items=p['items']
+          assert len(items)==10
+          assert duplicate_free(items)
+          assert all(valid_item(x) for x in items)
+          assert all(is_direct_post(x.get('tweet_url')) for x in items)
+          assert all(min(len(comment_text(x,l)) for l in ('pl','en')) >= 80 for x in items)
+          assert sum(1 for x in items if x['category'].startswith('ai-')) == 7
+          assert sum(1 for x in items if not x['category'].startswith('ai-')) == 3
+          print('manual Hot X feed validation passed')
+          PY
+      - name: Remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-validate-hot-x-manual.yml
+          git commit -m "Remove manual Hot X validation workflow"
+          git pull --rebase origin main
+          git push origin HEAD:main
