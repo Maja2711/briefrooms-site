@@ -1,0 +1,76 @@
+name: Weekly Engine Star
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/investments_wes.py"
+      - "scripts/investments_wes_runner.py"
+      - "scripts/investments-wes-public.js"
+      - "scripts/render_weekly_public_pages.py"
+      - "tests/test_investments_wes.py"
+      - "data/investments/wes_methodology.json"
+      - ".github/workflows/investments-wes.yml"
+  workflow_run:
+    workflows: ["Governed Weekly Paper Exposure Watch"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-weekly-positions
+  cancel-in-progress: false
+
+jobs:
+  wes-cycle:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
+      - name: Validate WES code
+        run: |
+          python -m py_compile scripts/investments_wes.py scripts/investments_wes_runner.py
+          node --check scripts/investments-wes-public.js
+          python -m unittest tests/test_investments_wes.py
+      - name: WES preflight trigger gate
+        run: python scripts/investments_wes_runner.py --mode preflight
+      - name: Execute governed v5 decision after WES admission gate
+        run: python scripts/investments_weekly_v5.py --mode ensure-exposure
+      - name: Freeze WES adaptive TP and SL after any new entry
+        run: python scripts/investments_wes_runner.py --mode postflight
+      - name: Render WES public status
+        run: python scripts/render_simple_investments.py
+      - name: Commit WES state and public pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git restore --worktree -- data/investments/live_prices.json || true
+          git add data/investments/weekly \
+                  data/investments/wes_report.json \
+                  data/investments/wes_learning.json \
+                  pl/inwestycje/pozycje-tygodniowe.html \
+                  en/investing/open-weekly-positions.html \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "No WES change to commit."
+            exit 0
+          fi
+          git commit -m "Run Weekly Engine Star cycle"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 8))
+          done
