@@ -46,8 +46,8 @@ for path in PAGES:
     text = re.sub(r'/scripts/portfolio-10k-execution-finalizer\.js\?v=\d+', '/scripts/portfolio-10k-execution-finalizer.js?v=3', text)
     text = ensure_asset(text, "/scripts/portfolio-10k-closed-history.js", CLOSED_HISTORY_JS, "</body>")
     text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=3', text)
-    text = text.replace('/scripts/portfolio-10k-dashboard.js?v=4', '/scripts/portfolio-10k-dashboard.js?v=5')
-    text = text.replace('/scripts/portfolio-10k-dashboard-en.js?v=4', '/scripts/portfolio-10k-dashboard-en.js?v=5')
+    text = re.sub(r'/scripts/portfolio-10k-dashboard\.js\?v=\d+', '/scripts/portfolio-10k-dashboard.js?v=9', text)
+    text = re.sub(r'/scripts/portfolio-10k-dashboard-en\.js\?v=\d+', '/scripts/portfolio-10k-dashboard-en.js?v=9', text)
 
     if path.parts[-3] == "pl":
         text = text.replace('<span class="live-badge"><i></i> LIVE</span>', '<span class="live-badge" aria-live="polite"><i></i> SPRAWDZANIE</span>')
