@@ -13,16 +13,19 @@ on:
       - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/patch_portfolio_10k_en_usd.py"
       - "scripts/patch_portfolio_10k_hourly_ui.py"
+      - "scripts/render_portfolio_10k_static.py"
       - "scripts/validate_portfolio_10k_state.py"
       - "scripts/audit_investment_rooms_fast.py"
       - "scripts/portfolio-10k-*.js"
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
       - "tests/test_validate_portfolio_10k_state.py"
+      - "tests/test_investment_room_static_seo.py"
       - "data/portfolio10k/paper_orders.json"
       - "data/portfolio10k/paper_portfolio.json"
       - "assets/portfolio-10k-accessibility.css"
       - "assets/portfolio-10k-decision-overlay.css"
+      - "assets/portfolio-10k-static.css"
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
       - ".github/workflows/portfolio-10k-hourly-prices.yml"
@@ -82,6 +85,9 @@ jobs:
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
 
+      - name: Render crawlable PL and EN portfolio snapshots
+        run: python scripts/render_portfolio_10k_static.py
+
       - name: Validate public labels and assets
         run: |
           grep -q 'Start: lipiec 2026' pl/inwestycje/portfel-10k.html
@@ -106,8 +112,11 @@ jobs:
           python -m py_compile \
             scripts/reconcile_portfolio_10k_executions.py \
             scripts/validate_portfolio_10k_state.py \
+            scripts/render_portfolio_10k_static.py \
             scripts/audit_investment_rooms_fast.py
           python -m unittest tests.test_validate_portfolio_10k_state -v
+          python -m unittest tests.test_investment_room_static_seo -v
+          python scripts/render_portfolio_10k_static.py --check
           python scripts/validate_portfolio_10k_state.py
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-dashboard.js
