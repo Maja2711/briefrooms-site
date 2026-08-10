@@ -1,0 +1,95 @@
+name: One-shot enable governed NO TRADE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-enable-no-trade.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-weekly-positions
+  cancel-in-progress: false
+
+jobs:
+  patch-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Make continuous exposure opt-in and preserve abstention candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/investments_weekly_v5.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''def no_trade(decision: Dict[str, Any], fresh: Dict[str, Any], weekly: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:\n    cfg = policy.get("no_trade") or {}\n    if not cfg.get("enabled", True):\n        return decision\n'''
+          new = '''def no_trade(decision: Dict[str, Any], fresh: Dict[str, Any], weekly: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:\n    cfg = policy.get("no_trade") or {}\n    # The policy switch is authoritative: forced continuous exposure is an explicit experiment,\n    # not the default runtime behaviour. When disabled, the NO_TRADE admission gate may abstain.\n    if bool(policy.get("continuous_position_required", False)):\n        return decision\n    if not cfg.get("enabled", True):\n        return decision\n'''
+          if old not in text:
+              raise SystemExit('Expected no_trade policy switch block not found')
+          text = text.replace(old, new, 1)
+
+          old_return = '''    return {"strategy_id": "no_trade", "direction": "neutral", "raw_score": 0.0,\n            "utility": utility, "reason_codes": reasons, "candidates": decision.get("candidates", {})}\n'''
+          new_return = '''    shadow_candidate = {\n        key: decision.get(key) for key in ("strategy_id", "direction", "raw_score", "utility", "conviction")\n        if decision.get(key) is not None\n    }\n    return {"strategy_id": "no_trade", "direction": "neutral", "raw_score": 0.0,\n            "utility": utility, "reason_codes": reasons, "candidates": decision.get("candidates", {}),\n            "shadow_candidate": shadow_candidate}\n'''
+          if old_return not in text:
+              raise SystemExit('Expected no_trade return block not found')
+          text = text.replace(old_return, new_return, 1)
+          path.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/test_investments_weekly_v5.py')
+          test_text = tests.read_text(encoding='utf-8')
+          anchor = '''    def test_strong_aligned_signal_remains_directional(self):\n'''
+          addition = '''    def test_continuous_position_required_explicitly_bypasses_no_trade_gate(self):\n        policy = {"continuous_position_required": True, "no_trade": {"enabled": True,\n                  "minimum_directional_raw_score": 35, "minimum_directional_utility": 6,\n                  "conflict_no_trade_below_raw_score": 45}}\n        decision = {"strategy_id": "base_v2", "direction": "long", "raw_score": 18,\n                    "utility": 4, "candidates": {}}\n        result = v5.no_trade(decision, {"score": 18, "data_quality": "passed"},\n                             {"score": 12, "data_quality": "passed"}, policy)\n        self.assertEqual(result["strategy_id"], "base_v2")\n        self.assertEqual(result["direction"], "long")\n\n    def test_no_trade_preserves_counterfactual_directional_candidate(self):\n        policy = {"continuous_position_required": False, "no_trade": {"enabled": True,\n                  "minimum_directional_raw_score": 35, "minimum_directional_utility": 6,\n                  "conflict_no_trade_below_raw_score": 45}}\n        decision = {"strategy_id": "base_v2", "direction": "long", "raw_score": 18,\n                    "utility": 4, "conviction": 2.7, "candidates": {}}\n        result = v5.no_trade(decision, {"score": 18, "data_quality": "passed"},\n                             {"score": 12, "data_quality": "passed"}, policy)\n        self.assertEqual(result["strategy_id"], "no_trade")\n        self.assertEqual(result["shadow_candidate"]["strategy_id"], "base_v2")\n        self.assertEqual(result["shadow_candidate"]["direction"], "long")\n        self.assertEqual(result["shadow_candidate"]["raw_score"], 18)\n\n'''
+          if 'test_continuous_position_required_explicitly_bypasses_no_trade_gate' not in test_text:
+              if anchor not in test_text:
+                  raise SystemExit('Expected test insertion anchor not found')
+              test_text = test_text.replace(anchor, addition + anchor, 1)
+              tests.write_text(test_text, encoding='utf-8')
+          PY
+
+      - name: Validate policy and runtime
+        run: |
+          python -m json.tool data/investments/multi_instrument_exposure_policy.json >/dev/null
+          python -m json.tool data/investments/methodology.json >/dev/null
+          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_wes.py scripts/investments_wes_runner.py
+          python -m unittest tests/test_investments_weekly_v5.py tests/test_investments_wes.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path('data/investments/multi_instrument_exposure_policy.json').read_text())
+          method = json.loads(Path('data/investments/methodology.json').read_text())
+          assert policy['continuous_position_required'] is False
+          assert policy['mandatory_monday_position'] is False
+          assert policy['no_trade']['enabled'] is True
+          assert policy['no_trade']['minimum_directional_raw_score'] == 35.0
+          assert policy['no_trade']['minimum_directional_utility'] == 6.0
+          assert policy['no_trade']['conflict_no_trade_below_raw_score'] == 45.0
+          assert method['decision_rules']['continuous_position_required'] is False
+          assert method['publishing_rules']['open_direction_for_every_enabled_instrument'] is False
+          assert method['publishing_rules']['allow_no_trade_state'] is True
+          PY
+
+      - name: Commit runtime migration and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-enable-no-trade.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/investments_weekly_v5.py tests/test_investments_weekly_v5.py .github/workflows/one-shot-enable-no-trade.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Make continuous weekly exposure opt-in"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 8))
+          done
