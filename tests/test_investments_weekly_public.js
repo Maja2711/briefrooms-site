@@ -205,3 +205,50 @@ test('publishes an explicitly approved arithmetic stop settlement', async () => 
   assert.match(elements.app.innerHTML, /-100,00 USD · -100,0 pips · -0,87%/);
   assert.match(elements.app.innerHTML, /<strong>0 \/ 1<\/strong>/);
 });
+
+test('planned directional entry is not withheld before entry deadline', async () => {
+  const week = validWeek();
+  week.method_version = '5.3.0-experimental';
+  week.market_window = { entry_latest_local: '2099-08-10T10:00:00+02:00' };
+  week.instruments = [{
+    instrument_id: 'sp500_futures',
+    symbol: 'ES=F',
+    label_pl: 'S&P 500 FUTURES',
+    label_en: 'S&P 500 FUTURES',
+    direction: 'long',
+    trade_status: 'planned',
+    entry_price: null,
+    pending_entry_decision: {
+      decided_at: '2026-08-10T08:58:59+02:00',
+      entry_not_before: '2026-08-10T08:58:59+02:00',
+      decision: { direction: 'long' },
+    },
+  }];
+  const { elements, window } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.doesNotMatch(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.match(elements.app.innerHTML, /oczekuje na otwarcie/);
+  assert.deepEqual(Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0], week.method_version, week)), []);
+});
+
+test('planned directional entry is withheld after entry deadline', async () => {
+  const week = validWeek();
+  week.method_version = '5.3.0-experimental';
+  week.market_window = { entry_latest_local: '2000-08-10T10:00:00+02:00' };
+  week.instruments = [{
+    instrument_id: 'sp500_futures',
+    symbol: 'ES=F',
+    label_pl: 'S&P 500 FUTURES',
+    label_en: 'S&P 500 FUTURES',
+    direction: 'long',
+    trade_status: 'planned',
+    entry_price: null,
+    pending_entry_decision: {
+      decided_at: '2026-08-10T08:58:59+02:00',
+      entry_not_before: '2026-08-10T08:58:59+02:00',
+      decision: { direction: 'long' },
+    },
+  }];
+  const { elements, window } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.match(elements.app.innerHTML, /DANE W AUDYCIE/);
+  assert.deepEqual(Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0], week.method_version, week)), ['directional_missing_entry']);
+});
