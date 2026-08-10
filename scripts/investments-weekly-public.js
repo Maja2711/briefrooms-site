@@ -194,7 +194,17 @@
     }
     return map;
   }
-  function integrityIssues(item, methodVersion = null) {
+  function plannedEntryIsValid(week, item, now = new Date()) {
+    if (!week || dir(item) === 'neutral' || good(item.entry_price) !== null || item.trade_status !== 'planned') return false;
+    const pending = item.pending_entry_decision;
+    if (!pending || typeof pending !== 'object' || !pending.decision || typeof pending.decision !== 'object') return false;
+    const decidedAt = parseTime(pending.decided_at);
+    const entryNotBefore = parseTime(pending.entry_not_before);
+    const latest = parseTime(week?.market_window?.entry_latest_local);
+    if (!decidedAt || !entryNotBefore || !latest || entryNotBefore < decidedAt) return false;
+    return now <= latest;
+  }
+  function integrityIssues(item, methodVersion = null, week = null) {
     const issues = [];
     const side = dir(item);
     const entry = good(item.entry_price);
@@ -203,7 +213,7 @@
     const exitAt = parseTime(item.exit_captured_at);
     const plan = riskPlan(item);
 
-    if (side !== 'neutral' && entry === null) issues.push('directional_missing_entry');
+    if (side !== 'neutral' && entry === null && !plannedEntryIsValid(week, item)) issues.push('directional_missing_entry');
     if (entry !== null && !entryAt) issues.push('missing_entry_timestamp');
     if (exit !== null && !exitAt) issues.push('missing_exit_timestamp');
     if (entryAt && exitAt && exitAt < entryAt) issues.push('exit_before_entry');
@@ -238,7 +248,7 @@
   function auditState(week, item, quarantine) {
     const explicit = quarantine.get(`${week.week_id}/${item.instrument_id}`) || null;
     if (explicit?.manual_public_result) return { withheld: false, reason: '', issues: [], item: approvedItem(item, explicit) };
-    const issues = integrityIssues(item, week.method_version || null);
+    const issues = integrityIssues(item, week.method_version || null, week);
     if (explicit || issues.length) {
       return { withheld: true, reason: explicit?.reason || `${T.auditText} [${issues.join(', ')}]`, issues, item };
     }
@@ -327,7 +337,7 @@
       render();
     }
   };
-  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState };
+  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid };
 
   async function main() {
     try {
