@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "en/investing/portfolio-10k.html"
@@ -14,13 +15,10 @@ def main() -> None:
     marker = '<script src="/scripts/portfolio-10k-material-reports-public.js?v=1" defer></script>'
     if source not in html:
         html = html.replace(marker, source + marker, 1)
-    html = html.replace(
-        '/scripts/portfolio-10k-dashboard-en.js?v=2',
-        '/scripts/portfolio-10k-dashboard-en.js?v=5',
-    )
-    html = html.replace(
-        '/scripts/portfolio-10k-dashboard-en.js?v=4',
-        '/scripts/portfolio-10k-dashboard-en.js?v=5',
+    html = re.sub(
+        r'/scripts/portfolio-10k-dashboard-en\.js\?v=\d+',
+        '/scripts/portfolio-10k-dashboard-en.js?v=9',
+        html,
     )
     PAGE.write_text(html, encoding="utf-8")
     print("Patched English 10K page for native USD portfolio")

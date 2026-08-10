@@ -1,0 +1,44 @@
+/* Crawlable snapshot: visible to people and present in the initial HTML response. */
+.i10k-static-summary {
+  margin-top: 13px;
+  min-height: 0;
+}
+
+.i10k-static-summary > .metric-strip {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 16px 0 20px;
+}
+
+.i10k-static-summary > h3 {
+  margin: 22px 0 10px;
+  font-size: 13px;
+}
+
+.i10k-static-summary > ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  color: var(--dash-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1150px) {
+  .i10k-static-summary > .metric-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .i10k-static-summary > .metric-strip,
+  .i10k-static-summary > ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 500px) {
+  .i10k-static-summary > .metric-strip,
+  .i10k-static-summary > ol {
+    grid-template-columns: 1fr;
+  }
+}
