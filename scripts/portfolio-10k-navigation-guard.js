@@ -5,7 +5,7 @@
   const DATA_TAB_SELECTOR = `${APP_SELECTOR} [data-tab]`;
   const PROJECT_HASH_SELECTOR = `${APP_SELECTOR} .i10k-projects a[href^="#"]`;
   const PANEL_SELECTOR = `${APP_SELECTOR} .i10k-panel[data-panel]`;
-  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','projections','rules','brace','analytics','history']);
+  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','rules','brace','analytics','history']);
 
   function cssEscape(value) {
     if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
