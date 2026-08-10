@@ -68,6 +68,8 @@
     '/en/health/cholesterol.html': '/pl/zdrowie/cholesterol.html',
     '/pl/zdrowie/kalkulator-cholesterolu.html': '/en/health/cholesterol-calculator.html',
     '/en/health/cholesterol-calculator.html': '/pl/zdrowie/kalkulator-cholesterolu.html',
+    '/pl/zdrowie/kalkulator-score2.html': '/en/health/score2-calculator.html',
+    '/en/health/score2-calculator.html': '/pl/zdrowie/kalkulator-score2.html',
     '/pl/zdrowie/protokol-zywnosciowy.html': '/en/health/food-protocol.html',
     '/en/health/food-protocol.html': '/pl/zdrowie/protokol-zywnosciowy.html',
     '/pl/nauka/ciemny-tlen.html': '/en/science/dark-oxygen.html',
