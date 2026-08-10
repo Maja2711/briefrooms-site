@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kalkulator ryzyka sercowo-naczyniowego SCORE2 | BriefRooms</title>
+  <meta name="description" content="Oblicz szacowane 10-letnie ryzyko pierwszego zawału, udaru lub zgonu sercowo-naczyniowego według modelu SCORE2." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="canonical" href="https://briefrooms.com/pl/zdrowie/kalkulator-score2.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/kalkulator-score2.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/score2-calculator.html" />
+  <link rel="stylesheet" href="/assets/score2-calculator.css?v=1" />
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260719-1" defer></script>
+</head>
+<body>
+  <header id="site-header"></header>
+  <header class="score2-hero">
+    <h1>Kalkulator ryzyka sercowo-naczyniowego SCORE2</h1>
+    <p class="lead">Oszacuj 10-letnie ryzyko pierwszego zawału, udaru lub zgonu z przyczyn sercowo-naczyniowych. Kalkulator jest przeznaczony dla pozornie zdrowych osób w wieku 40–69 lat.</p>
+  </header>
+
+  <main>
+    <section class="calculator" aria-labelledby="calculator-title">
+      <h2 id="calculator-title">Wpisz dane</h2>
+      <p class="intro-note"><strong>Polska należy w modelu SCORE2 do regionu wysokiego ryzyka</strong>, dlatego taki region jest wybrany domyślnie. Jeżeli mieszkasz w innym kraju, wybierz jego kategorię ryzyka zgodnie z mapą SCORE2.</p>
+
+      <form id="score2-form" novalidate>
+        <div class="fields">
+          <div class="field">
+            <label for="age">Wiek</label>
+            <input id="age" name="age" type="number" min="40" max="69" step="1" inputmode="numeric" autocomplete="off" placeholder="np. 55" />
+            <small>Od 40 do 69 lat</small>
+          </div>
+          <div class="field">
+            <label for="sex">Płeć biologiczna</label>
+            <select id="sex" name="sex">
+              <option value="">Wybierz</option>
+              <option value="female">Kobieta</option>
+              <option value="male">Mężczyzna</option>
+            </select>
+            <small>Model ma osobne równania dla kobiet i mężczyzn</small>
+          </div>
+          <div class="field">
+            <label for="smoker">Czy obecnie palisz?</label>
+            <select id="smoker" name="smoker">
+              <option value="">Wybierz</option>
+              <option value="0">Nie</option>
+              <option value="1">Tak</option>
+            </select>
+            <small>Dotyczy aktualnego palenia tytoniu</small>
+          </div>
+          <div class="field">
+            <label for="sbp">Skurczowe ciśnienie tętnicze</label>
+            <input id="sbp" name="sbp" type="number" min="100" max="200" step="1" inputmode="decimal" autocomplete="off" placeholder="np. 130" />
+            <small>mmHg; najlepiej średnia z wiarygodnych pomiarów</small>
+          </div>
+          <div class="field">
+            <label for="cholesterol-unit">Jednostka cholesterolu</label>
+            <select id="cholesterol-unit" name="cholesterol-unit">
+              <option value="mg-dl" selected>mg/dl</option>
+              <option value="mmol-l">mmol/l</option>
+            </select>
+            <small>Wybierz jednostkę widoczną na wyniku</small>
+          </div>
+          <div class="field">
+            <label for="risk-region">Region ryzyka SCORE2</label>
+            <select id="risk-region" name="risk-region">
+              <option value="low">Małe ryzyko</option>
+              <option value="moderate">Umiarkowane ryzyko</option>
+              <option value="high" selected>Wysokie ryzyko — Polska</option>
+              <option value="very-high">Bardzo wysokie ryzyko</option>
+            </select>
+            <small>Kalibracja geograficzna modelu</small>
+          </div>
+          <div class="field">
+            <label for="total-cholesterol">Cholesterol całkowity</label>
+            <input id="total-cholesterol" name="total-cholesterol" type="text" inputmode="decimal" autocomplete="off" />
+            <small>TC lub CHOL, w <span data-chol-unit>mg/dl</span></small>
+          </div>
+          <div class="field">
+            <label for="hdl-cholesterol">Cholesterol HDL</label>
+            <input id="hdl-cholesterol" name="hdl-cholesterol" type="text" inputmode="decimal" autocomplete="off" />
+            <small>HDL-C, w <span data-chol-unit>mg/dl</span></small>
+          </div>
+        </div>
+
+        <fieldset class="eligibility">
+          <legend>Czy dotyczy Cię którekolwiek z poniższych: rozpoznana choroba sercowo-naczyniowa, cukrzyca, przewlekła choroba nerek, hipercholesterolemia rodzinna, rzadkie/genetyczne zaburzenie lipidowe lub ciśnienia albo ciąża?</legend>
+          <div class="radio-row">
+            <label class="radio-option"><input type="radio" name="eligibility" value="no" /> Nie</label>
+            <label class="radio-option"><input type="radio" name="eligibility" value="yes" /> Tak / nie wiem</label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="button" type="submit">Oblicz ryzyko</button>
+          <button class="button secondary" type="reset">Wyczyść</button>
+        </div>
+        <div id="score2-error" class="error" role="alert" hidden></div>
+      </form>
+
+      <section id="score2-results" class="score2-results" aria-live="polite" aria-labelledby="score2-results-title" hidden>
+        <h2 id="score2-results-title">Szacowane ryzyko 10-letnie</h2>
+        <strong id="score2-risk-value" class="risk-number"></strong>
+        <p class="risk-label">pierwszego śmiertelnego lub nieśmiertelnego zdarzenia sercowo-naczyniowego objętego modelem SCORE2</p>
+        <p class="risk-category"><strong>Kategoria dla Twojej grupy wieku: <span id="score2-category"></span></strong><span id="score2-threshold"></span></p>
+        <div class="result-details">
+          <p id="score2-profile" class="result-detail"></p>
+          <p id="score2-non-hdl" class="result-detail"></p>
+        </div>
+        <div class="result-guidance">
+          <h3>Jak potraktować wynik?</h3>
+          <p>To szacunek populacyjny, a nie diagnoza ani automatyczna decyzja o lekach. Omów wynik z lekarzem, szczególnie jeżeli jest duży lub bardzo duży albo masz istotne czynniki nieuwzględniane przez model.</p>
+          <p><a href="https://www.heartscore.org/" target="_blank" rel="noopener noreferrer external">Sprawdź także oficjalne narzędzie ESC HeartScore →</a></p>
+        </div>
+      </section>
+
+      <p class="privacy">Obliczenia odbywają się wyłącznie w przeglądarce. Wpisane dane nie są wysyłane na serwer.</p>
+    </section>
+
+    <section class="method" aria-labelledby="method-title">
+      <h2 id="method-title">Zakres i metodologia</h2>
+      <ul>
+        <li>SCORE2 szacuje ryzyko w ciągu 10 lat u osób w wieku 40–69 lat bez wcześniejszej choroby sercowo-naczyniowej i bez cukrzycy.</li>
+        <li>Uwzględnia wiek, płeć, aktualne palenie, skurczowe ciśnienie tętnicze, cholesterol całkowity, HDL oraz europejski region ryzyka.</li>
+        <li>Wynik obejmuje pierwszy niezakończony zgonem zawał lub udar oraz zgon sercowo-naczyniowy.</li>
+        <li>Dla osób od 70. roku życia stosuje się odrębny model SCORE2-OP. Przy cukrzycy typu 2 właściwy może być SCORE2-Diabetes.</li>
+      </ul>
+      <p class="disclaimer"><strong>Ważne:</strong> to niezależna implementacja edukacyjna na podstawie opublikowanego modelu, a nie oficjalne narzędzie Europejskiego Towarzystwa Kardiologicznego. Wynik powinien zostać zweryfikowany w konsultacji medycznej.</p>
+      <h3>Źródła</h3>
+      <ul class="source-list">
+        <li><a href="https://doi.org/10.1093/eurheartj/ehab309" target="_blank" rel="noopener noreferrer external">SCORE2 Working Group — oryginalna publikacja modelu, European Heart Journal (2021)</a></li>
+        <li><a href="https://www.escardio.org/guidelines/practice-tools/cvd-prevention-toolbox/score-risk-charts/" target="_blank" rel="noopener noreferrer external">ESC — kalkulatory SCORE2 i SCORE2-OP</a></li>
+        <li><a href="https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/cvd-prevention/" target="_blank" rel="noopener noreferrer external">ESC — wytyczne prewencji chorób sercowo-naczyniowych</a></li>
+      </ul>
+      <p class="back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
+    </section>
+  </main>
+
+  <footer></footer>
+  <script src="/scripts/score2-model.js?v=1"></script>
+  <script src="/scripts/score2-calculator.js?v=1"></script>
+  <script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
+</body>
+</html>

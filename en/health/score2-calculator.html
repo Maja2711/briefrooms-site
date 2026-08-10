@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SCORE2 cardiovascular risk calculator | BriefRooms</title>
+  <meta name="description" content="Estimate 10-year risk of a first heart attack, stroke or cardiovascular death with the SCORE2 model." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="canonical" href="https://briefrooms.com/en/health/score2-calculator.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/score2-calculator.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/kalkulator-score2.html" />
+  <link rel="stylesheet" href="/assets/score2-calculator.css?v=1" />
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260719-1" defer></script>
+</head>
+<body>
+  <header id="site-header"></header>
+  <header class="score2-hero">
+    <h1>SCORE2 cardiovascular risk calculator</h1>
+    <p class="lead">Estimate 10-year risk of a first heart attack, stroke or cardiovascular death. This calculator is intended for apparently healthy people aged 40–69 years.</p>
+  </header>
+
+  <main>
+    <section class="calculator" aria-labelledby="calculator-title">
+      <h2 id="calculator-title">Enter your details</h2>
+      <p class="intro-note"><strong>Poland is classified as a high-risk region in SCORE2</strong>, so that region is selected by default. If you live elsewhere, choose your country's category from the SCORE2 risk-region map.</p>
+
+      <form id="score2-form" novalidate>
+        <div class="fields">
+          <div class="field">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="number" min="40" max="69" step="1" inputmode="numeric" autocomplete="off" placeholder="e.g. 55" />
+            <small>40 to 69 years</small>
+          </div>
+          <div class="field">
+            <label for="sex">Sex at birth</label>
+            <select id="sex" name="sex">
+              <option value="">Select</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+            <small>The model uses separate equations for women and men</small>
+          </div>
+          <div class="field">
+            <label for="smoker">Do you currently smoke?</label>
+            <select id="smoker" name="smoker">
+              <option value="">Select</option>
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </select>
+            <small>This refers to current tobacco smoking</small>
+          </div>
+          <div class="field">
+            <label for="sbp">Systolic blood pressure</label>
+            <input id="sbp" name="sbp" type="number" min="100" max="200" step="1" inputmode="decimal" autocomplete="off" placeholder="e.g. 130" />
+            <small>mmHg; ideally an average of reliable readings</small>
+          </div>
+          <div class="field">
+            <label for="cholesterol-unit">Cholesterol unit</label>
+            <select id="cholesterol-unit" name="cholesterol-unit">
+              <option value="mg-dl" selected>mg/dL</option>
+              <option value="mmol-l">mmol/L</option>
+            </select>
+            <small>Choose the unit shown on your lab report</small>
+          </div>
+          <div class="field">
+            <label for="risk-region">SCORE2 risk region</label>
+            <select id="risk-region" name="risk-region">
+              <option value="low">Low risk</option>
+              <option value="moderate">Moderate risk</option>
+              <option value="high" selected>High risk — includes Poland</option>
+              <option value="very-high">Very high risk</option>
+            </select>
+            <small>Geographical calibration of the model</small>
+          </div>
+          <div class="field">
+            <label for="total-cholesterol">Total cholesterol</label>
+            <input id="total-cholesterol" name="total-cholesterol" type="text" inputmode="decimal" autocomplete="off" />
+            <small>TC or CHOL, in <span data-chol-unit>mg/dL</span></small>
+          </div>
+          <div class="field">
+            <label for="hdl-cholesterol">HDL cholesterol</label>
+            <input id="hdl-cholesterol" name="hdl-cholesterol" type="text" inputmode="decimal" autocomplete="off" />
+            <small>HDL-C, in <span data-chol-unit>mg/dL</span></small>
+          </div>
+        </div>
+
+        <fieldset class="eligibility">
+          <legend>Do any of these apply to you: established cardiovascular disease, diabetes, chronic kidney disease, familial hypercholesterolaemia, a rare/genetic lipid or blood-pressure disorder, or pregnancy?</legend>
+          <div class="radio-row">
+            <label class="radio-option"><input type="radio" name="eligibility" value="no" /> No</label>
+            <label class="radio-option"><input type="radio" name="eligibility" value="yes" /> Yes / unsure</label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="button" type="submit">Calculate risk</button>
+          <button class="button secondary" type="reset">Clear</button>
+        </div>
+        <div id="score2-error" class="error" role="alert" hidden></div>
+      </form>
+
+      <section id="score2-results" class="score2-results" aria-live="polite" aria-labelledby="score2-results-title" hidden>
+        <h2 id="score2-results-title">Estimated 10-year risk</h2>
+        <strong id="score2-risk-value" class="risk-number"></strong>
+        <p class="risk-label">of a first fatal or non-fatal cardiovascular event covered by SCORE2</p>
+        <p class="risk-category"><strong>Category for your age group: <span id="score2-category"></span></strong><span id="score2-threshold"></span></p>
+        <div class="result-details">
+          <p id="score2-profile" class="result-detail"></p>
+          <p id="score2-non-hdl" class="result-detail"></p>
+        </div>
+        <div class="result-guidance">
+          <h3>How should you use this result?</h3>
+          <p>This is a population-based estimate, not a diagnosis or an automatic decision about medication. Discuss it with a clinician, particularly if it is high or very high or if you have important risk factors not included in the model.</p>
+          <p><a href="https://www.heartscore.org/" target="_blank" rel="noopener noreferrer external">Also check the official ESC HeartScore tool →</a></p>
+        </div>
+      </section>
+
+      <p class="privacy">Calculations take place entirely in your browser. The details you enter are not sent to the server.</p>
+    </section>
+
+    <section class="method" aria-labelledby="method-title">
+      <h2 id="method-title">Scope and method</h2>
+      <ul>
+        <li>SCORE2 estimates 10-year risk in people aged 40–69 without previous cardiovascular disease or diabetes.</li>
+        <li>It uses age, sex, current smoking, systolic blood pressure, total cholesterol, HDL cholesterol and European risk region.</li>
+        <li>The outcome covers a first non-fatal heart attack or stroke, or cardiovascular death.</li>
+        <li>SCORE2-OP is the separate model for people aged 70 and over. SCORE2-Diabetes may be appropriate for people with type 2 diabetes.</li>
+      </ul>
+      <p class="disclaimer"><strong>Important:</strong> this is an independent educational implementation based on the published model, not an official European Society of Cardiology tool. The result should be verified in a medical consultation.</p>
+      <h3>Sources</h3>
+      <ul class="source-list">
+        <li><a href="https://doi.org/10.1093/eurheartj/ehab309" target="_blank" rel="noopener noreferrer external">SCORE2 Working Group — original model paper, European Heart Journal (2021)</a></li>
+        <li><a href="https://www.escardio.org/guidelines/practice-tools/cvd-prevention-toolbox/score-risk-charts/" target="_blank" rel="noopener noreferrer external">ESC — SCORE2 and SCORE2-OP calculators</a></li>
+        <li><a href="https://www.escardio.org/guidelines/clinical-practice-guidelines/all-esc-practice-guidelines/cvd-prevention/" target="_blank" rel="noopener noreferrer external">ESC — cardiovascular disease prevention guidelines</a></li>
+      </ul>
+      <p class="back">← <a href="/en/health.html">Back to Health</a></p>
+    </section>
+  </main>
+
+  <footer></footer>
+  <script src="/scripts/score2-model.js?v=1"></script>
+  <script src="/scripts/score2-calculator.js?v=1"></script>
+  <script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
+</body>
+</html>
