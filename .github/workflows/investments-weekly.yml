@@ -19,6 +19,7 @@ on:
       - "scripts/daily_position_review.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/audit_weekly_model.py"
+      - "scripts/audit_weekly_model_runtime.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
       - "scripts/investments-weekly-public.js"
@@ -73,6 +74,7 @@ jobs:
             scripts/ensure_current_week_forecast.py \
             scripts/daily_position_review.py \
             scripts/apply_instrument_validation_gate.py \
+            scripts/audit_weekly_model_runtime.py \
             scripts/render_simple_investments.py \
             scripts/verify_weekly_close_deadline.py
           node --check scripts/investments-weekly-public.js
@@ -125,7 +127,7 @@ jobs:
       - name: Finalize, audit and render PL and EN
         run: |
           python scripts/investments_weekly_v5_finalize.py
-          python scripts/audit_weekly_model.py
+          python scripts/audit_weekly_model_runtime.py
           python scripts/render_simple_investments.py
 
       - name: Commit weekly positions atomically

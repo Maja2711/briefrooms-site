@@ -11,6 +11,7 @@ on:
       - "scripts/backtest_multi_strategy_v4.py"
       - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/audit_weekly_model.py"
+      - "scripts/audit_weekly_model_runtime.py"
       - "tests/test_audit_weekly_integrity.py"
       - ".github/workflows/investments-weekly-validation.yml"
 
@@ -43,7 +44,7 @@ jobs:
           FORCE_BACKTEST: "1"
         run: |
           python -m unittest tests/test_audit_weekly_integrity.py
-          python scripts/audit_weekly_model.py
+          python scripts/audit_weekly_model_runtime.py
           python scripts/backtest_weekly_model_v2.py
           python scripts/backtest_multi_strategy_v4.py
           python scripts/backtest_weekly_execution_parity_v5.py
