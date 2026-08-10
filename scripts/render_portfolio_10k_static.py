@@ -189,6 +189,9 @@ def render_snapshot(payload: dict, config: PageConfig) -> str:
     benchmark = number(payload.get("benchmark_return_percent"))
     objective_key = "objective_pl" if config.lang == "pl" else "objective_en"
     objective = payload.get("methodology", {}).get(objective_key, "")
+    cash_yield = payload.get("cash_yield") or {}
+    yield_label = cash_yield.get("label_pl" if config.lang == "pl" else "label_en")
+    cash_caption = f"{config.cash} · {yield_label}" if yield_label else config.cash
 
     rows = []
     for position in positions:
@@ -221,7 +224,7 @@ def render_snapshot(payload: dict, config: PageConfig) -> str:
         f"<div><small>{esc(config.portfolio_value)}</small><b>{esc(money(total, config))}</b></div>"
         f"<div><small>{esc(config.portfolio_return)}</small><b>{esc(percentage(result))}</b></div>"
         f"<div><small>{esc(config.benchmark_return)}</small><b>{esc(percentage(benchmark))}</b></div>"
-        f"<div><small>{esc(config.cash)}</small><b>{esc(money(cash, config))}</b></div>"
+        f"<div><small>{esc(cash_caption)}</small><b>{esc(money(cash, config))}</b></div>"
         f"<div><small>{esc(config.positions)}</small><b>{len(positions)}</b></div>"
         "</div>"
         f"<h3>{esc(config.holdings)}</h3>"
@@ -286,6 +289,11 @@ def render_page(source: str, payload: dict, config: PageConfig) -> str:
     source = re.sub(
         r'/scripts/portfolio-10k-dashboard(-en)?\.js\?v=\d+',
         lambda match: f"/scripts/portfolio-10k-dashboard{match.group(1) or ''}.js?v=9",
+        source,
+    )
+    source = re.sub(
+        r'/scripts/portfolio-10k-navigation-guard\.js\?v=\d+',
+        '/scripts/portfolio-10k-navigation-guard.js?v=4',
         source,
     )
     snapshot = render_snapshot(payload, config)
