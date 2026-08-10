@@ -54,10 +54,41 @@ def local_to_usd(local_to_pln: float, usd_to_pln: float) -> float:
     return local_to_pln / usd_to_pln
 
 
+def source_original_quantity(position: dict) -> float:
+    """Infer the original source-model quantity before later REDUCE/ADD actions."""
+    entry_notional = number(position.get("entry_notional_pln"))
+    entry_price = number(position.get("entry_price"))
+    entry_fx = number(position.get("entry_fx_to_pln"), 1.0)
+    inferred = entry_notional / max(entry_price * entry_fx, 1e-12)
+    if inferred > 0:
+        return inferred
+    return max(number(position.get("quantity")), 0.0)
+
+
+def retained_position_fraction(position: dict) -> float:
+    """Return current units as a fraction of the source model's original units.
+
+    A value below 1 mirrors a partial REDUCE; a value above 1 mirrors an ADD to
+    an existing holding.  This prevents the native USD portfolio from silently
+    rebuilding every holding to its original target weight after paper trades.
+    """
+    original = source_original_quantity(position)
+    current = max(number(position.get("quantity")), 0.0)
+    if original <= 0:
+        return 1.0
+    return current / original
+
+
 def convert_position(position: dict, source: dict, usd_pln_now: float) -> dict:
     item = copy.deepcopy(position)
     target_weight = number(item.get("target_weight"))
-    entry_value_usd = STARTING_CAPITAL_USD * target_weight
+    retained_fraction = retained_position_fraction(item)
+
+    # Start from the same weight in the native USD account, then mirror every
+    # executed quantity change proportionally.  This preserves the independent
+    # USD currency treatment while keeping BRACE allocation actions identical.
+    original_entry_value_usd = STARTING_CAPITAL_USD * target_weight
+    entry_value_usd = original_entry_value_usd * retained_fraction
     fee_ratio = number(item.get("entry_fee_pln")) / max(number(item.get("entry_value_pln")), 1e-9)
     entry_fee_usd = entry_value_usd * fee_ratio
     invested_usd = max(0.0, entry_value_usd - entry_fee_usd)
@@ -68,13 +99,16 @@ def convert_position(position: dict, source: dict, usd_pln_now: float) -> dict:
     entry_price = number(item.get("entry_price"))
     current_price = number(item.get("current_price"), entry_price)
     quantity = invested_usd / max(entry_price * entry_local_usd, 1e-9)
-    dividends_usd = number(item.get("dividends_pln")) / usd_pln_now
+    dividends_usd = number(item.get("dividends_pln")) / max(usd_pln_now, 1e-9)
     current_value_usd = quantity * current_price * current_local_usd + dividends_usd
     pnl_usd = current_value_usd - entry_value_usd
     pnl_percent = pnl_usd / entry_value_usd if entry_value_usd else 0.0
 
     item.update({
         "reporting_currency": "USD",
+        "source_model_original_quantity": round(source_original_quantity(item), 8),
+        "source_model_current_quantity": round(number(item.get("quantity")), 8),
+        "source_model_retained_fraction": round(retained_fraction, 8),
         "quantity": round(quantity, 8),
         "entry_fx_to_usd": round(entry_local_usd, 8),
         "current_fx_to_usd": round(current_local_usd, 8),
@@ -177,8 +211,9 @@ def build(now: datetime | None = None) -> dict:
         "total_return_percent": round(total_value_usd / STARTING_CAPITAL_USD - 1, 8),
         "benchmark_return_percent": benchmark.get("return_percent"),
         "generated_from": (
-            "portfolio_10k.json instruments, prices and mirrored trade cash flows; "
-            "independently rebased to USD 10,000 with Fed-target-midpoint cash yield"
+            "portfolio_10k.json instruments, prices, proportional executed quantity changes "
+            "and mirrored trade cash flows; independently rebased to USD 10,000 with "
+            "Fed-target-midpoint cash yield"
         ),
         "generated_at": now_iso,
         "source_portfolio_id": source.get("portfolio_id"),
