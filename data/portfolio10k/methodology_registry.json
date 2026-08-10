@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-10T18:47:51+00:00",
+  "generated_at": "2026-08-10T19:36:06+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -8,15 +8,15 @@
     "legacy_brace": "data/investments/portfolio_10k_brace.json",
     "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
   },
-  "controller_state": "PROBATIONARY_CONTROL",
-  "champion_methodology_id": "brace-portfolio-engine",
+  "controller_state": "FALLBACK_BASELINE",
+  "champion_methodology_id": "portfolio-10k-baseline",
   "challenger_methodology_id": "brace-portfolio-engine",
   "baseline_methodology_id": "portfolio-10k-baseline",
   "methodologies": [
     {
       "methodology_id": "portfolio-10k-baseline",
       "version": "1.0.0",
-      "status": "FALLBACK_BASELINE",
+      "status": "ACTIVE_BASELINE",
       "activated_at": "2026-07-20T12:10:00+00:00",
       "retired_at": null,
       "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
@@ -30,15 +30,15 @@
       "validation_results": {
         "status": "production_baseline",
         "history_preserved": true,
-        "entry_history_sha256": "b75aa7ce3a96dbef8a80222c7d687902a920f3760d5f56c175b6c1f9b907f34a",
-        "source_snapshot_sha256": "e0e3f53487f104b623899e0eab742406acc6d2334bac261a6c3343baac09df91",
-        "validated_at": "2026-08-10T18:28:46+00:00"
+        "entry_history_sha256": "cbbe3eeec4bfdc73590f7dbe0c02ca3a39e5e7a4c7f6149dad8aea2de99f79e6",
+        "source_snapshot_sha256": "0000add5c05362c3187c57eb0f0de5da640981484c49d7b69827c3832f27a71c",
+        "validated_at": "2026-08-10T19:36:06+00:00"
       }
     },
     {
       "methodology_id": "brace-portfolio-engine",
       "version": "3.0.0",
-      "status": "PROBATIONARY_CONTROL",
+      "status": "FALLBACK_BASELINE",
       "activated_at": "2026-07-29T00:00:00+00:00",
       "retired_at": null,
       "description": "Modular BRACE challenger with candidate ranking, constrained optimization, governed promotion and paper-only execution.",
@@ -56,32 +56,9 @@
         "automatic_activation_allowed_only_by_controller": true,
         "active_paper_control": false,
         "latest_gate_evaluation": {
-          "evaluated_at": "2026-08-10T18:28:46+00:00",
-          "current_status": "PROBATIONARY_CONTROL",
-          "conditions": {
-            "probation": {
-              "minimum_calendar_days": false,
-              "daily_rotation_limit": false,
-              "weekly_change_limit": false,
-              "weekly_turnover_limit": false,
-              "new_position_limit": false,
-              "minimum_confidence": false,
-              "no_full_portfolio_replacement": true,
-              "transaction_cost_buffer_applied": false,
-              "cooldown_applied": false,
-              "material_advantage_required": false,
-              "no_fallback_trigger": true
-            },
-            "operational": {
-              "no_critical_data_errors": true,
-              "decisions_reproducible": true,
-              "entry_history_unchanged": true,
-              "timestamps_complete": true,
-              "workflow_stable": true,
-              "public_internal_consistent": true,
-              "integrity_tests_pass": true
-            }
-          },
+          "evaluated_at": "2026-08-10T19:36:06+00:00",
+          "current_status": "FALLBACK_BASELINE",
+          "conditions": {},
           "reason": "No status change; promotion gates remain incomplete."
         },
         "user_authorized_paper_control": {

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-10T18:47:51+00:00",
+  "generated_at": "2026-08-10T19:36:06+00:00",
   "methodology_version": "promotion-controller-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -26,6 +26,36 @@
         "reason_pl": "Właściciel projektu autoryzuje BRACE do sterowania oddzielnym portfelem modelowym w trybie próbnym, z limitami ryzyka i automatycznym fallbackiem do baseline.",
         "reason_en": "The project owner authorises BRACE to control a separate model portfolio in probationary mode, with risk limits and automatic baseline fallback."
       }
+    },
+    {
+      "promotion_id": "promotion-becc4a8bde063152",
+      "methodology_id": "brace-portfolio-engine",
+      "previous_status": "PROBATIONARY_CONTROL",
+      "new_status": "FALLBACK_BASELINE",
+      "evaluated_at": "2026-08-10T19:36:06+00:00",
+      "conditions": {
+        "fallback": {
+          "STALE_DATA": true
+        }
+      },
+      "validation_window": {
+        "training": {
+          "from": "2017-04-21",
+          "to": "2022-11-09"
+        },
+        "validation": {
+          "from": "2022-11-10",
+          "to": "2024-09-13"
+        },
+        "out_of_sample": {
+          "from": "2024-09-16",
+          "to": "2026-07-31"
+        }
+      },
+      "all_conditions_passed": true,
+      "reason": "Automatic fallback: STALE_DATA",
+      "code_commit_sha": "4bb18c19fd99938dc18d0c2979181fc8d8e99e54",
+      "data_manifest_sha": "34bfa437f64c30fe49476491760ce0183bbfc8ef2f797119c1a5daba33fff7c0"
     }
   ]
 }
