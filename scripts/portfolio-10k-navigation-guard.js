@@ -6,6 +6,7 @@
   const PROJECT_HASH_SELECTOR = `${APP_SELECTOR} .i10k-projects a[href^="#"]`;
   const PANEL_SELECTOR = `${APP_SELECTOR} .i10k-panel[data-panel]`;
   const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','rules','brace','analytics','history']);
+  const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
 
   function cssEscape(value) {
     if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
@@ -59,7 +60,7 @@
 
     if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
     document.body.dataset.investmentActiveTab = name;
-    document.body.dataset.investmentNavigationGuard = 'active-v2';
+    document.body.dataset.investmentNavigationGuard = 'active-v3';
 
     if (name === 'agents') {
       requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
@@ -100,6 +101,48 @@
     consume(event, true);
   }
 
+  function applyOperationalStatus() {
+    const status = document.querySelector('#data-status');
+    if (!status) return;
+    const text = String(status.textContent || '').trim().toUpperCase();
+    const active = text.startsWith('AKTYWNY') || text.startsWith('ACTIVE');
+    status.classList.toggle('portfolio-status-active', active);
+    if (active) {
+      status.style.color = '#15964d';
+      status.style.fontWeight = '900';
+    } else {
+      status.style.removeProperty('color');
+      status.style.removeProperty('font-weight');
+    }
+  }
+
+  async function applyCashYieldLabel() {
+    const url = isEn
+      ? '/data/investments/portfolio_10k_usd.json'
+      : '/data/investments/portfolio_10k.json';
+    try {
+      const response = await fetch(`${url}?cashYield=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const portfolio = await response.json();
+      const cashYield = portfolio?.cash_yield || {};
+      const rate = Number(cashYield.rate_percent);
+      if (!Number.isFinite(rate)) return;
+      const cashValue = document.querySelector('#cash-value');
+      const label = cashValue?.parentElement?.querySelector('small');
+      if (!label) return;
+      if (isEn) {
+        label.textContent = `Cash · ${cashYield.label_en || `Fed midpoint ${rate.toFixed(3)}%`}`;
+        label.title = 'Model cash earns the Federal Reserve target-range midpoint on an ACT/365 basis.';
+      } else {
+        label.textContent = `Gotówka · ${cashYield.label_pl || `NBP ${rate.toFixed(2).replace('.', ',')}%`}`;
+        label.title = 'Gotówka modelowa jest oprocentowana stopą referencyjną NBP w konwencji ACT/365.';
+      }
+      document.body.dataset.portfolioCashYield = String(cashYield.benchmark || 'active');
+    } catch (_) {
+      // Cash-yield metadata is supplemental; the core portfolio remains usable.
+    }
+  }
+
   function installInteractionLayer() {
     if (!document.getElementById('investment-navigation-v2-style')) {
       const style = document.createElement('style');
@@ -109,6 +152,7 @@
         .i10k-tabs [data-tab],.i10k-side-nav [data-tab],.i10k-projects a[href^="#"],.text-button[data-tab]{position:relative;z-index:31;pointer-events:auto!important;touch-action:manipulation}
         .i10k-panel[hidden]{display:none!important}
         .i10k-panel.active:not([hidden]){display:block!important}
+        .top-meta #data-status.portfolio-status-active{color:#15964d!important;font-weight:900!important}
       `;
       document.head.appendChild(style);
     }
@@ -121,6 +165,8 @@
 
     const hash = location.hash.slice(1);
     activate(VALID_TABS.has(hash) ? hash : 'overview', false);
+    applyOperationalStatus();
+    applyCashYieldLabel();
   }
 
   // Capture on window is deliberately first in the event path. Once a valid
@@ -148,12 +194,14 @@
             if (trigger.tagName === 'BUTTON') trigger.disabled = false;
             trigger.style.pointerEvents = 'auto';
           });
+          applyOperationalStatus();
         });
-      }).observe(app, { childList: true, subtree: true });
+      }).observe(app, { childList: true, subtree: true, characterData: true });
     }
+    window.setTimeout(applyCashYieldLabel, 1500);
   };
 
-  window.BriefRoomsInvestmentNavigation = { activate, version: 2 };
+  window.BriefRoomsInvestmentNavigation = { activate, version: 3 };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
