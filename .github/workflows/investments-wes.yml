@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/investments_wes.py"
+      - "scripts/investments_wes_runner.py"
       - "scripts/investments-wes-public.js"
       - "scripts/render_weekly_public_pages.py"
       - "tests/test_investments_wes.py"
@@ -39,15 +40,15 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate WES code
         run: |
-          python -m py_compile scripts/investments_wes.py
+          python -m py_compile scripts/investments_wes.py scripts/investments_wes_runner.py
           node --check scripts/investments-wes-public.js
           python -m unittest tests/test_investments_wes.py
       - name: WES preflight trigger gate
-        run: python scripts/investments_wes.py --mode preflight
+        run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
         run: python scripts/investments_weekly_v5.py --mode ensure-exposure
       - name: Freeze WES adaptive TP and SL after any new entry
-        run: python scripts/investments_wes.py --mode postflight
+        run: python scripts/investments_wes_runner.py --mode postflight
       - name: Render WES public status
         run: python scripts/render_simple_investments.py
       - name: Commit WES state and public pages
