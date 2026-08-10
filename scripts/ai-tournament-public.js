@@ -41,7 +41,7 @@
     rankRule: 'Ranking uses cumulative return; drawdown and Sharpe break ties.',
     liveStatus: 'Tournament active', paperOnly: 'Public paper portfolios — not investment advice.',
     noData: 'The tournament is waiting for its first completed market round.', unchanged: 'unchanged', up: 'up', down: 'down',
-    currentRanking: 'Current ranking', currentReturns: 'Current returns', openFull: 'Open full AI Tournament →',
+    currentRanking: 'Current ranking', currentReturns: 'Performance over time — line colors match the ranking', openFull: 'Open full AI Tournament →',
     latestUpdate: 'Latest update', compactMethod: 'Same rules for every agent'
   } : {
     nav: 'AI Tournament', overviewTitle: 'AI TOURNAMENT',
@@ -59,7 +59,7 @@
     rankRule: 'Ranking według skumulowanego wyniku; drawdown i Sharpe rozstrzygają remis.',
     liveStatus: 'Turniej aktywny', paperOnly: 'Publiczne portfele modelowe — to nie jest porada inwestycyjna.',
     noData: 'Turniej czeka na pierwszą zakończoną rundę rynkową.', unchanged: 'bez zmian', up: 'awans', down: 'spadek',
-    currentRanking: 'Aktualny ranking', currentReturns: 'Aktualne wyniki', openFull: 'Otwórz pełny AI Tournament →',
+    currentRanking: 'Aktualny ranking', currentReturns: 'Wynik w czasie — kolory linii odpowiadają rankingowi', openFull: 'Otwórz pełny AI Tournament →',
     latestUpdate: 'Ostatnia aktualizacja', compactMethod: 'Te same zasady dla każdego agenta'
   };
 
@@ -135,6 +135,40 @@
     }
   }
 
+  function installAgentLinking() {
+    if (window.__AITX_AGENT_LINKING__) return;
+    window.__AITX_AGENT_LINKING__ = true;
+    const interactive = '.aitx-rank-row[data-agent],.aitx-chart-line[data-agent],.aitx-chart-dot[data-agent],.aitx-chart-label[data-agent]';
+    const setHighlight = (node, enabled) => {
+      const shell = node?.closest?.('.aitx-shell');
+      const agentId = node?.getAttribute?.('data-agent');
+      if (!shell || !agentId) return;
+      shell.classList.toggle('aitx-has-highlight', enabled);
+      shell.querySelectorAll('[data-agent]').forEach(element => {
+        const same = element.getAttribute('data-agent') === agentId;
+        element.classList.toggle('is-highlighted', enabled && same);
+        element.classList.toggle('is-dimmed', enabled && !same);
+      });
+    };
+    document.addEventListener('pointerover', event => {
+      const node = event.target?.closest?.(interactive);
+      if (node) setHighlight(node, true);
+    });
+    document.addEventListener('pointerout', event => {
+      const node = event.target?.closest?.(interactive);
+      if (!node || (event.relatedTarget && node.contains(event.relatedTarget))) return;
+      setHighlight(node, false);
+    });
+    document.addEventListener('focusin', event => {
+      const node = event.target?.closest?.(interactive);
+      if (node) setHighlight(node, true);
+    });
+    document.addEventListener('focusout', event => {
+      const node = event.target?.closest?.(interactive);
+      if (node) setHighlight(node, false);
+    });
+  }
+
   function installStyles() {
     if ($('#ai-tournament-redesign-style')) return;
     const style = document.createElement('style');
@@ -145,7 +179,7 @@
       .aitx-meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 15px}.aitx-chip{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:7px 11px;border:1px solid #dce5ef;border-radius:10px;background:#f8fafc;color:#51627a;font-size:11px;font-weight:800}.aitx-chip b{color:#172b45}.aitx-dot{width:8px;height:8px;border-radius:50%;background:#20a968;box-shadow:0 0 0 4px rgba(32,169,104,.12)}
       .aitx-overview{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(420px,.95fr);gap:18px;align-items:stretch}.aitx-left-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
       .aitx-card{min-width:0;border:1px solid #dde5ef;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(28,47,73,.045);padding:15px}.aitx-card.performance{grid-column:1/-1}.aitx-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.aitx-card-head h3{margin:0;color:#172b45;font-size:12px;letter-spacing:.02em}.aitx-card-head p{margin:4px 0 0;color:#748197;font-size:11px;line-height:1.4}.aitx-card-head .aitx-soft{padding:5px 8px;border-radius:8px;background:#f1f5f9;color:#5c6e84;font-size:10px;font-weight:800}
-      .aitx-chart{display:block;width:100%;height:auto;min-height:170px}.aitx-chart-grid{stroke:#e7edf4;stroke-width:1}.aitx-chart-axis{fill:#7a889a;font-size:10px;font-weight:700}.aitx-chart-line{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.aitx-chart-dot{stroke:#fff;stroke-width:2}
+      .aitx-chart{display:block;width:100%;height:auto;min-height:180px}.aitx-chart-grid{stroke:#e7edf4;stroke-width:1}.aitx-chart-axis{fill:#7a889a;font-size:10px;font-weight:700}.aitx-chart-line{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;transition:opacity .16s ease,stroke-width .16s ease}.aitx-chart-dot{stroke:#fff;stroke-width:2;transition:opacity .16s ease,r .16s ease}.aitx-chart-label{font-size:10px;font-weight:900;dominant-baseline:middle;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;transition:opacity .16s ease}.aitx-chart-leader{stroke-width:1.25;opacity:.55;transition:opacity .16s ease}.aitx-rank-row[data-agent]{border-left:4px solid var(--aitx-agent-color);cursor:pointer;transition:opacity .16s ease,box-shadow .16s ease,transform .16s ease}.aitx-rank-row[data-agent]:hover,.aitx-rank-row[data-agent]:focus{outline:none;box-shadow:0 8px 22px rgba(28,47,73,.10);transform:translateY(-1px)}.aitx-shell.aitx-has-highlight .is-dimmed{opacity:.16!important}.aitx-shell.aitx-has-highlight .aitx-rank-row.is-dimmed{opacity:.38!important}.aitx-chart-line.is-highlighted{stroke-width:5}.aitx-chart-dot.is-highlighted{r:5}.aitx-chart-label.is-highlighted{font-size:11px}.aitx-rank-row.is-highlighted{box-shadow:0 8px 22px rgba(28,47,73,.12)}
       .aitx-bars{display:grid;gap:10px}.aitx-bar-row{display:grid;grid-template-columns:minmax(115px,1fr) minmax(90px,2fr) 64px;align-items:center;gap:10px;font-size:11px}.aitx-bar-name{display:flex;align-items:center;gap:8px;min-width:0;font-weight:800}.aitx-mini-rank{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:#edf2f7;color:#33465f;font-size:10px}.aitx-bar-track{height:8px;border-radius:999px;background:#edf2f7;overflow:hidden}.aitx-bar-track i{display:block;height:100%;min-width:4px;border-radius:inherit}.aitx-bar-value{text-align:right;font-weight:900;color:#172b45}
       .aitx-info-list{display:grid;gap:8px}.aitx-info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border-radius:10px;background:#f8fafc;color:#617086;font-size:11px}.aitx-info-row b{color:#172b45;text-align:right}.aitx-rule-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.aitx-rule{display:flex;align-items:center;gap:8px;padding:9px;border-radius:10px;background:#f8fafc;color:#4f6076;font-size:10px;font-weight:750}.aitx-rule i{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#e7f7ef;color:#168f55;font-style:normal;font-weight:900}
       .aitx-ranking-panel{display:flex;flex-direction:column;min-width:0}.aitx-ranking-list{display:grid;gap:9px}.aitx-rank-row{display:grid;grid-template-columns:38px minmax(130px,1fr) 90px 120px 86px 72px;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e1e8f1;border-radius:13px;background:#fff}.aitx-rank-number{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#edf2f7;font-weight:900}.aitx-rank-row:first-child .aitx-rank-number{background:#fff1bd;color:#795700}.aitx-agent{display:flex;align-items:center;gap:10px;min-width:0}.aitx-agent-icon{display:grid;place-items:center;flex:0 0 auto;width:34px;height:34px;border-radius:11px;font-size:11px;font-weight:950}.aitx-agent-copy{min-width:0}.aitx-agent-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.aitx-agent-copy small{display:flex;align-items:center;gap:6px;margin-top:3px;color:#748197;font-size:10px}.aitx-agent-copy small i{width:7px;height:7px;border-radius:50%;background:#22aa6a}.aitx-cell{text-align:right;min-width:0}.aitx-cell small{display:block;color:#8490a0;font-size:9px;text-transform:uppercase;letter-spacing:.02em}.aitx-cell strong{display:block;margin-top:3px;color:#172b45;font-size:12px;white-space:nowrap}.aitx-cell.return strong{color:#13945a}.aitx-change{font-size:10px;font-weight:850;color:#718096;text-align:right}.aitx-change.up{color:#14864a}.aitx-change.down{color:#c84646}
@@ -155,6 +189,7 @@
       @media(max-width:1180px){.aitx-overview,.aitx-detail{grid-template-columns:1fr}.aitx-detail-side{position:static}.aitx-ranking-panel{min-height:0}}@media(max-width:900px){.aitx-rank-row{grid-template-columns:36px minmax(120px,1fr) 82px 110px 72px}.aitx-rank-row .aitx-cell.cash{display:none}.aitx-agent-main{grid-template-columns:36px minmax(140px,1fr) repeat(3,minmax(76px,.7fr))}.aitx-agent-main .aitx-metric.alpha{display:none}}@media(max-width:680px){.aitx-left-grid{grid-template-columns:1fr}.aitx-card.performance{grid-column:auto}.aitx-rule-list{grid-template-columns:1fr}.aitx-rank-row{grid-template-columns:34px minmax(105px,1fr) 72px}.aitx-rank-row .aitx-cell.value,.aitx-rank-row .aitx-cell.cash{display:none}.aitx-change{display:none}.aitx-agent-main{grid-template-columns:34px minmax(120px,1fr) 72px}.aitx-agent-main .aitx-metric:not(.primary){display:none}.aitx-card{padding:12px}.aitx-meta{gap:6px}.aitx-chip{font-size:10px}}
     `;
     document.head.appendChild(style);
+    installAgentLinking();
   }
 
   function icon(agentId) {
@@ -192,7 +227,7 @@
   }
 
   function performanceVisual(data, rows) {
-    const history = Array.isArray(data.history) ? data.history.slice(-14) : [];
+    const history = Array.isArray(data.history) ? data.history.slice().sort((a, b) => String(a?.session_date || '').localeCompare(String(b?.session_date || ''))).slice(-14) : [];
     if (history.length < 2) return currentBars(rows);
     const series = rows.map(row => ({
       agentId: row.agent_id,
@@ -206,7 +241,7 @@
     const spread = Math.max(maximum - minimum, 0.01);
     minimum -= spread * 0.12;
     maximum += spread * 0.12;
-    const width = 560, height = 205, left = 44, right = 12, top = 12, bottom = 34;
+    const width = 640, height = 215, left = 44, right = 116, top = 14, bottom = 34;
     const innerWidth = width - left - right, innerHeight = height - top - bottom;
     const x = index => left + index / (history.length - 1) * innerWidth;
     const y = value => top + (maximum - value) / (maximum - minimum) * innerHeight;
@@ -215,13 +250,35 @@
       const py = y(value);
       return `<line class="aitx-chart-grid" x1="${left}" x2="${width - right}" y1="${py}" y2="${py}"></line><text class="aitx-chart-axis" x="2" y="${py + 3}">${(value * 100).toFixed(1)}%</text>`;
     }).join('');
+    const endpoints = series.map(item => {
+      let lastIndex = -1;
+      item.values.forEach((value, index) => { if (Number.isFinite(value)) lastIndex = index; });
+      const lastValue = item.values[lastIndex];
+      return Number.isFinite(lastValue) ? { agentId: item.agentId, lastValue, py: y(lastValue) } : null;
+    }).filter(Boolean).sort((a, b) => a.py - b.py);
+    const minLabelGap = 15;
+    const minLabelY = top + 7;
+    const maxLabelY = height - bottom - 7;
+    endpoints.forEach((item, index) => {
+      item.labelY = Math.max(item.py, index ? endpoints[index - 1].labelY + minLabelGap : minLabelY);
+    });
+    if (endpoints.length && endpoints[endpoints.length - 1].labelY > maxLabelY) {
+      endpoints[endpoints.length - 1].labelY = maxLabelY;
+      for (let index = endpoints.length - 2; index >= 0; index -= 1) {
+        endpoints[index].labelY = Math.min(endpoints[index].labelY, endpoints[index + 1].labelY - minLabelGap);
+      }
+    }
+    const labelYByAgent = new Map(endpoints.map(item => [item.agentId, Math.max(minLabelY, item.labelY)]));
+
     const lines = series.map(item => {
       const color = theme(item.agentId).color;
       const points = item.values.map((value, index) => Number.isFinite(value) ? `${x(index)},${y(value)}` : null).filter(Boolean).join(' ');
       let lastIndex = -1;
       item.values.forEach((value, index) => { if (Number.isFinite(value)) lastIndex = index; });
       const lastValue = item.values[lastIndex];
-      return `<polyline class="aitx-chart-line" stroke="${color}" points="${points}"></polyline>${Number.isFinite(lastValue) ? `<circle class="aitx-chart-dot" fill="${color}" cx="${x(lastIndex)}" cy="${y(lastValue)}" r="4"></circle>` : ''}`;
+      const agentId = esc(item.agentId);
+      const labelY = Number.isFinite(lastValue) ? (labelYByAgent.get(item.agentId) ?? y(lastValue)) : 0;
+      return `<polyline class="aitx-chart-line" data-agent="${agentId}" stroke="${color}" points="${points}"></polyline>${Number.isFinite(lastValue) ? `<circle class="aitx-chart-dot" data-agent="${agentId}" fill="${color}" cx="${x(lastIndex)}" cy="${y(lastValue)}" r="4"></circle><line class="aitx-chart-leader" data-agent="${agentId}" stroke="${color}" x1="${x(lastIndex) + 5}" y1="${y(lastValue)}" x2="${x(lastIndex) + 13}" y2="${labelY}"></line><text class="aitx-chart-label" data-agent="${agentId}" fill="${color}" x="${x(lastIndex) + 17}" y="${labelY}">${agentId}</text>` : ''}`;
     }).join('');
     return `<svg class="aitx-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(T.performance)}">${grid}${lines}<text class="aitx-chart-axis" x="${left}" y="${height - 9}">${esc(dateLabel(history[0]?.session_date))}</text><text class="aitx-chart-axis" text-anchor="end" x="${width - right}" y="${height - 9}">${esc(dateLabel(history[history.length - 1]?.session_date))}</text></svg>`;
   }
@@ -239,7 +296,7 @@
     if (!rows.length) return `<div class="aitx-empty">${esc(T.noData)}</div>`;
     return `<div class="aitx-ranking-list">${rows.map(row => {
       const metrics = selectedMetrics(row);
-      return `<div class="aitx-rank-row"><span class="aitx-rank-number">${esc(row.rank || '—')}</span><span class="aitx-agent">${icon(row.agent_id)}<span class="aitx-agent-copy"><strong>${esc(row.agent_id)}</strong><small><i></i>${esc(statusLabel(row))}</small></span></span><span class="aitx-cell return"><small>${esc(T.result)}</small><strong>${pct(metrics.return_pct)}</strong></span><span class="aitx-cell value"><small>${esc(T.value)}</small><strong>${money(selectedValue(metrics))}</strong></span><span class="aitx-cell cash"><small>${esc(T.cash)}</small><strong>${pct(selectedCashWeight(row))}</strong></span>${changeLabel(row.rank_change)}</div>`;
+      return `<div class="aitx-rank-row" data-agent="${esc(row.agent_id)}" tabindex="0" style="--aitx-agent-color:${theme(row.agent_id).color}"><span class="aitx-rank-number">${esc(row.rank || '—')}</span><span class="aitx-agent">${icon(row.agent_id)}<span class="aitx-agent-copy"><strong>${esc(row.agent_id)}</strong><small><i></i>${esc(statusLabel(row))}</small></span></span><span class="aitx-cell return"><small>${esc(T.result)}</small><strong>${pct(metrics.return_pct)}</strong></span><span class="aitx-cell value"><small>${esc(T.value)}</small><strong>${money(selectedValue(metrics))}</strong></span><span class="aitx-cell cash"><small>${esc(T.cash)}</small><strong>${pct(selectedCashWeight(row))}</strong></span>${changeLabel(row.rank_change)}</div>`;
     }).join('')}</div>`;
   }
 
