@@ -1,0 +1,87 @@
+:root{
+  --ink:#102019;
+  --muted:#56655e;
+  --line:#d5ddd8;
+  --cream:#f4efe6;
+  --green:#146847;
+  --green-soft:#e9f6ef;
+  --blue:#2459a9;
+  --amber:#98600c;
+  --red:#9f2636;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:
+    radial-gradient(720px 360px at 88% 0%,rgba(39,141,99,.10),transparent 68%),
+    var(--cream);
+  color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  line-height:1.55;
+}
+.calorie-hero{max-width:1060px;margin:auto;padding:38px 22px 14px;text-align:center}
+.calorie-hero h1{margin:0 0 10px;color:#0b2218;font-size:clamp(30px,5vw,48px);letter-spacing:-.035em}
+.lead{max-width:820px;margin:auto;color:var(--muted);font-size:18px}
+main{max-width:1060px;margin:20px auto 70px;padding:0 20px}
+.calculator{padding:28px;border:1px solid rgba(16,32,25,.09);border-radius:24px;background:rgba(255,255,255,.95);box-shadow:0 18px 46px rgba(22,50,38,.10)}
+.calculator>h2{margin-top:0}
+.intro-note{padding:15px 17px;border:1px solid #bcd7c9;border-radius:14px;background:#eef8f2;color:#234a38}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:22px 0}
+.field label{display:block;margin-bottom:7px;font-weight:760}
+.field input,.field select{width:100%;min-height:50px;padding:12px 14px;border:1px solid #b7c4bd;border-radius:12px;background:#fff;color:#102019;font:inherit}
+.field small{display:block;margin-top:5px;color:#65736c}
+.field input:focus,.field select:focus,.eligibility input:focus-visible{outline:3px solid rgba(20,104,71,.16);border-color:var(--green)}
+.eligibility{margin:22px 0;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fafcfb}
+.eligibility legend{max-width:880px;padding:0 6px;font-weight:760}
+.radio-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.radio-option{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #c6d0ca;border-radius:999px;background:#fff;cursor:pointer}
+.radio-option input{width:18px;height:18px;margin:0;accent-color:var(--green)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.button{padding:12px 19px;border:0;border-radius:12px;background:#153f2e;color:#fff;font:inherit;font-weight:760;cursor:pointer}
+.button:hover{background:#1d5940}
+.button.secondary{background:#e6ece8;color:#17382a}
+.button.secondary:hover{background:#d9e3dd}
+.button:focus-visible{outline:3px solid rgba(36,89,169,.3);outline-offset:2px}
+.error{margin-top:16px;padding:14px 16px;border:1px solid #f1b7bd;border-radius:12px;background:#fff0f0;color:#8b1e1e;font-weight:700}
+.calorie-results{margin-top:26px;padding:24px;border:1px solid var(--line);border-radius:20px;background:#f7faf8;scroll-margin-top:24px}
+.calorie-results h2{margin:0 0 4px}
+.target-number{display:block;margin:8px 0 2px;color:var(--green);font-size:clamp(46px,9vw,78px);font-weight:850;letter-spacing:-.055em;line-height:1}
+.target-label{margin:0;color:var(--muted)}
+.energy-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
+.energy-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.energy-card span{display:block;margin-bottom:6px;color:#68766f;font-size:.82rem;font-weight:760;text-transform:uppercase;letter-spacing:.04em}
+.energy-card strong{font-size:1.05rem}
+.macro-heading{margin:26px 0 12px}
+.macro-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.macro-card{position:relative;overflow:hidden;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.macro-card::before{position:absolute;inset:0 auto 0 0;width:5px;background:var(--green);content:""}
+.macro-card.fat::before{background:#c58018}
+.macro-card.carbohydrate::before{background:#315fa6}
+.macro-card h4{margin:0 0 7px;font-size:1rem}
+.macro-card strong{display:block;font-size:1.45rem;letter-spacing:-.02em}
+.macro-card span{color:var(--muted);font-size:.9rem}
+.result-note{margin:16px 0 0;padding:14px 16px;border:1px solid #c8d8cf;border-radius:12px;background:#fff;color:#344a40}
+.result-warning{margin:12px 0 0;padding:14px 16px;border-left:4px solid var(--red);border-radius:9px;background:#fff0f0;color:#7f1d2d;font-weight:700}
+.has-balance-warning #macro-balance-note{border-color:#efd49f;background:#fff8e9;color:#69440b}
+.result-guidance{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.result-guidance h3{margin:0 0 8px}
+.result-guidance p{margin:8px 0}
+.privacy{color:var(--muted);font-size:.92rem}
+.method{margin-top:24px;padding:22px;border:1px solid rgba(16,32,25,.09);border-radius:20px;background:rgba(255,255,255,.74)}
+.method h2{margin-top:0}
+.method ul{padding-left:21px}
+.method a,.back a{color:#1d4ed8}
+.source-list li+li{margin-top:7px}
+.disclaimer{padding:15px 17px;border-left:4px solid #7d8796;border-radius:8px;background:#f0f2f5;color:#3b4655}
+.back{margin-top:24px}
+footer{min-height:30px}
+@media(max-width:760px){
+  .calorie-hero{padding-top:28px}
+  .calculator{padding:18px}
+  .fields,.energy-summary,.macro-grid{grid-template-columns:1fr}
+  .radio-row{flex-direction:column}
+  .radio-option{border-radius:12px}
+  .method{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
