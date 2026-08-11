@@ -37,6 +37,7 @@ from ai_outlook_engine import (  # noqa: E402
     WEIGHTS_VERSION,
     weights_snapshot,
 )
+from ai_outlook_analysis_contract import ANALYSIS_CONTRACT_VERSION  # noqa: E402
 
 STATUS_PATH = ROOT / "data" / "ai_outlook_status.json"
 FALLBACK_VERSION = "ai-outlook-daily-fallback-v1"
@@ -212,7 +213,7 @@ def _fallback_copy(
     topic: str,
     summary: str,
     resolution_date: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if language == "pl":
         title = _compact(f"{topic}: pojawią się kolejne mierzalne potwierdzenia", 100)
         thesis = _compact(
@@ -241,6 +242,38 @@ def _fallback_copy(
             "publicznie weryfikowalne aktualizacje dotyczące wskazanego tematu.",
             320,
         )
+        probability_event = _compact(
+            f"Podany procent dotyczy wystąpienia co najmniej dwóch niezależnych, "
+            f"publicznie weryfikowalnych aktualizacji do {resolution_date}.",
+            420,
+        )
+        analysis_summary = _compact(
+            "To prognoza ciągłości zdarzeń, a nie ocena ich treści. Jej słabością jest "
+            "brak pełnej analizy kierunku; procent mówi wyłącznie, czy pojawią się dwa "
+            "odrębne punkty weryfikacji w założonym czasie.",
+            620,
+        )
+        impact = _compact(
+            "Dwa niezależne potwierdzenia pozwolą zastąpić pojedynczy sygnał trwalszym "
+            "wnioskiem. Ich brak będzie oznaczał, że dzisiejsza informacja nie rozwinęła "
+            "się w mierzalny proces i nie powinna być nadinterpretowana.",
+            620,
+        )
+        watch_items = _compact(
+            f"Do {resolution_date} liczą się wyłącznie nowe decyzje, odczyty danych lub "
+            "zdarzenia z niezależnym pochodzeniem; powtórzenie tej samej informacji nie "
+            "podnosi oceny.",
+            520,
+        )
+        direction = {
+            "status": "not_applicable",
+            "perspective": "",
+            "explanation": (
+                "Prognoza mierzy liczbę przyszłych punktów weryfikacji, więc nie stanowi "
+                "oceny korzystnego ani niekorzystnego kierunku samego zjawiska."
+            ),
+            "scenarios": [],
+        }
     else:
         title = _compact(f"{topic}: further measurable confirmation is likely", 100)
         thesis = _compact(
@@ -269,6 +302,37 @@ def _fallback_copy(
             f"on the selected issue appear by {resolution_date}.",
             320,
         )
+        probability_event = _compact(
+            f"The percentage measures whether at least two independent, publicly verifiable "
+            f"follow-up events occur by {resolution_date}.",
+            420,
+        )
+        analysis_summary = _compact(
+            "This is a continuity forecast, not an assessment of the follow-up's direction. "
+            "Its key limitation is that the percentage measures only whether two independent "
+            "verification points appear within the stated window.",
+            620,
+        )
+        impact = _compact(
+            "Two independent confirmations would turn a single signal into stronger evidence "
+            "of a continuing process. Their absence would mean today's item did not develop "
+            "into a measurable trend and should not be overinterpreted.",
+            620,
+        )
+        watch_items = _compact(
+            f"By {resolution_date}, only new decisions, data releases or events with independent "
+            "provenance count; repetition of the same underlying report does not raise the assessment.",
+            520,
+        )
+        direction = {
+            "status": "not_applicable",
+            "perspective": "",
+            "explanation": (
+                "The forecast counts future verification points and therefore does not assess "
+                "whether the underlying development is favourable or unfavourable."
+            ),
+            "scenarios": [],
+        }
     return {
         "title": title,
         "thesis": thesis,
@@ -276,6 +340,11 @@ def _fallback_copy(
         "confirmation": confirmation,
         "invalidation": invalidation,
         "resolution_summary": resolution_summary,
+        "probability_event": probability_event,
+        "analysis_summary": analysis_summary,
+        "impact": impact,
+        "watch_items": watch_items,
+        "direction": direction,
     }
 
 
@@ -343,6 +412,7 @@ def build_fallback(
             "forecast_id": f"{publication_date}-{language}-fallback-{digest}",
             "date_label": date_labels[language],
             "probability": probability,
+            "analysis_contract_version": ANALYSIS_CONTRACT_VERSION,
             "source_language": language,
             "source_policy": v3.SOURCE_POLICY[language],
             "sources": source_rows,

@@ -33,6 +33,11 @@ from ai_outlook_engine import (  # noqa: E402
     weights_snapshot,
 )
 from comment_quality import get_ai_runtime, request_json_completion  # noqa: E402
+from ai_outlook_analysis_contract import (  # noqa: E402
+    ANALYSIS_CONTRACT_VERSION,
+    ANALYSIS_TEXT_FIELDS,
+    validate_public_analysis,
+)
 
 MAX_RAW_SOURCES = 80
 MAX_CANDIDATES = 10
@@ -200,6 +205,15 @@ def final_messages(winner: dict[str, Any], items: list[dict[str, Any]], probabil
             "title max 100 characters; thesis max 520; rationale max 480",
             "confirmation and invalidation max 260 characters each",
             "resolution_summary must accurately summarize the locked resolution JSON",
+            "probability_event must name exactly what the locked probability measures, including the deadline and threshold or binary outcome",
+            "analysis_summary must add an inference or mechanism beyond the source recap and explicitly separate known evidence from inference",
+            "impact must explain the downstream consequence of both success and failure of the forecast",
+            "watch_items must name 2-4 concrete future observations that would materially change the assessment",
+            "direction must never call an outcome positive or negative without naming the stakeholder perspective",
+            "for a procedural decision forecast, use direction.status=estimated only when supplied evidence supports a directional split; otherwise use insufficient_evidence",
+            "when the locked probability already measures a substantive direction, use direction.status=embedded_in_event",
+            "for non-directional indicators use direction.status=not_applicable",
+            "direction.scenarios must contain 2-3 mutually exclusive integer probabilities summing to 100 only when status=estimated",
             "do not present the forecast as an established fact",
         ],
         "required_json_shape": {
@@ -207,11 +221,31 @@ def final_messages(winner: dict[str, Any], items: list[dict[str, Any]], probabil
                 "category": AREA_LABELS[winner["area"]]["pl"], "title": "...", "thesis": "...",
                 "horizon": winner["horizon_pl"], "rationale": "...", "confirmation": "...",
                 "invalidation": "...", "resolution_summary": "...",
+                "probability_event": "Dokładne zdarzenie objęte procentem, wraz z terminem...",
+                "analysis_summary": "Wniosek analityczny wykraczający poza streszczenie...",
+                "impact": "Konsekwencje realizacji i braku realizacji prognozy...",
+                "watch_items": "2-4 konkretne sygnały, które zmienią ocenę...",
+                "direction": {
+                    "status": "estimated | embedded_in_event | insufficient_evidence | not_applicable",
+                    "perspective": "dla kogo oceniany jest kierunek",
+                    "explanation": "co dokładnie można i czego nie można wnioskować",
+                    "scenarios": [{"label": "...", "probability": 60, "meaning": "..."}],
+                },
             },
             "en": {
                 "category": AREA_LABELS[winner["area"]]["en"], "title": "...", "thesis": "...",
                 "horizon": winner["horizon_en"], "rationale": "...", "confirmation": "...",
                 "invalidation": "...", "resolution_summary": "...",
+                "probability_event": "The exact event measured by the probability, including its deadline...",
+                "analysis_summary": "An analytical inference beyond the source recap...",
+                "impact": "Consequences if the forecast occurs and if it does not...",
+                "watch_items": "2-4 concrete observations that would change the assessment...",
+                "direction": {
+                    "status": "estimated | embedded_in_event | insufficient_evidence | not_applicable",
+                    "perspective": "the stakeholder whose direction is assessed",
+                    "explanation": "what can and cannot be inferred",
+                    "scenarios": [{"label": "...", "probability": 60, "meaning": "..."}],
+                },
             },
         },
     }
@@ -273,7 +307,7 @@ def build_payload(raw: dict[str, Any], winner: dict[str, Any], ranked: list[dict
             } for item in ranked[:5]],
         },
     }
-    limits = {"category": 90, "title": 100, "thesis": 520, "horizon": 30, "rationale": 480, "confirmation": 260, "invalidation": 260, "resolution_summary": 320}
+    limits = {"category": 90, "title": 100, "thesis": 520, "horizon": 30, "rationale": 480, "confirmation": 260, "invalidation": 260, "resolution_summary": 320, "probability_event": 420, "analysis_summary": 620, "impact": 620, "watch_items": 520}
     for language, date_label in (("pl", pl_date), ("en", en_date)):
         section = raw.get(language)
         if not isinstance(section, dict):
@@ -284,6 +318,15 @@ def build_payload(raw: dict[str, Any], winner: dict[str, Any], ranked: list[dict
             if not value:
                 raise ValueError(f"missing final {language}.{field}")
             clean[field] = value
+        for field in ANALYSIS_TEXT_FIELDS:
+            value = legacy.compact(section.get(field), limits[field])
+            if not value:
+                raise ValueError(f"missing final {language}.{field}")
+            clean[field] = value
+        direction = section.get("direction")
+        if not isinstance(direction, dict):
+            raise ValueError(f"missing final {language}.direction")
+        clean["direction"] = direction
         expected_horizon = winner["horizon_pl" if language == "pl" else "horizon_en"]
         if clean["horizon"] != expected_horizon or clean["horizon"] not in legacy.ALLOWED_HORIZONS[language]:
             raise ValueError(f"final {language} horizon changed")
@@ -294,7 +337,11 @@ def build_payload(raw: dict[str, Any], winner: dict[str, Any], ranked: list[dict
             "selection_reason": legacy.compact(winner.get("selection_reason"), 300),
             "resolution_criteria": clean["resolution_summary"],
             "disclaimer": governance["disclaimers"][language],
+            "analysis_contract_version": ANALYSIS_CONTRACT_VERSION,
+            "resolution": winner["resolution"],
         })
+        validate_public_analysis(clean, language)
+        clean.pop("resolution", None)
         payload[language] = clean
     audit = {
         "schema_version": "ai-outlook-audit-v1",
@@ -356,7 +403,7 @@ def generate(moment: datetime) -> tuple[dict[str, Any], dict[str, Any]]:
     final_raw = request_json_completion(
         post=requests.post, runtime=runtime,
         messages=final_messages(winner, items, probability, publication_date),
-        max_tokens=1900, temperature=0.18, timeout=90,
+        max_tokens=2600, temperature=0.18, timeout=90,
     )
     return build_payload(final_raw, winner, ranked, decision_log, items, moment, probability)
 

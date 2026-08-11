@@ -105,24 +105,36 @@
       '.ai-outlook__metric{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid rgba(255,255,255,.11);border-radius:999px;background:rgba(5,20,34,.36);white-space:nowrap}',
       '.ai-outlook__metric small{color:#8299ad;font-size:8px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}',
       '.ai-outlook__metric strong{color:#eef8ff;font-size:11px}',
+      '.ai-outlook__event{margin:8px 0 0;color:#b9cedd;font-size:11px;line-height:1.4}',
+      '.ai-outlook__event b{color:#91e8e3;font-size:9px;letter-spacing:.06em;text-transform:uppercase}',
       '.ai-outlook__toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:100px;min-height:38px;padding:0 13px;border:1px solid rgba(56,214,201,.3);border-radius:12px;background:rgba(56,214,201,.09);color:#91fff6;font:inherit;font-size:12px;font-weight:900;cursor:pointer;transition:background .18s ease,border-color .18s ease,transform .18s ease}',
       '.ai-outlook__toggle:hover{transform:translateY(-1px);background:rgba(56,214,201,.16);border-color:rgba(56,214,201,.48)}',
       '.ai-outlook__chevron{font-size:12px;transition:transform .22s ease}',
       '.ai-outlook.is-expanded .ai-outlook__chevron{transform:rotate(180deg)}',
       '.ai-outlook__details{max-height:0;overflow:hidden;opacity:0;visibility:hidden;transform:translateY(-5px);transition:max-height .38s ease,opacity .24s ease,transform .24s ease,visibility 0s linear .38s}',
-      '.ai-outlook.is-expanded .ai-outlook__details{max-height:1100px;opacity:1;visibility:visible;transform:none;transition:max-height .5s ease,opacity .28s ease .06s,transform .28s ease .06s,visibility 0s}',
+      '.ai-outlook.is-expanded .ai-outlook__details{max-height:1900px;opacity:1;visibility:visible;transform:none;transition:max-height .5s ease,opacity .28s ease .06s,transform .28s ease .06s,visibility 0s}',
       '.ai-outlook__details-inner{margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,.09)}',
       '.ai-outlook__thesis{max-width:980px;margin:0 0 14px;color:#d7e6f2;font-size:14px;line-height:1.58}',
       '.ai-outlook__grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:10px}',
       '.ai-outlook__note{padding:12px 13px;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.035)}',
       '.ai-outlook__note b{display:block;margin-bottom:5px;color:#91e8e3;font-size:9px;letter-spacing:.07em;text-transform:uppercase}',
       '.ai-outlook__note p{margin:0;color:#afc0cf;font-size:11px;line-height:1.48}',
+      '.ai-outlook__analysis-grid{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:10px;margin-bottom:10px}',
+      '.ai-outlook__analysis-grid .ai-outlook__note{background:linear-gradient(145deg,rgba(56,214,201,.075),rgba(255,255,255,.025))}',
+      '.ai-outlook__direction{margin:0 0 10px;padding:13px 14px;border:1px solid rgba(143,255,246,.16);border-radius:14px;background:rgba(5,20,34,.34)}',
+      '.ai-outlook__direction-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}',
+      '.ai-outlook__direction-head b{color:#91e8e3;font-size:9px;letter-spacing:.07em;text-transform:uppercase}',
+      '.ai-outlook__direction-head span{color:#839caf;font-size:9px;text-align:right}',
+      '.ai-outlook__direction p{margin:0;color:#bdcfdd;font-size:11px;line-height:1.5}',
+      '.ai-outlook__scenarios{display:grid;gap:7px;margin-top:10px}',
+      '.ai-outlook__scenario{display:grid;grid-template-columns:minmax(110px,.55fr) 42px 1.45fr;gap:9px;align-items:start;padding-top:7px;border-top:1px solid rgba(255,255,255,.07)}',
+      '.ai-outlook__scenario b{color:#e8f7ff;font-size:10px}.ai-outlook__scenario strong{color:#8ffff6;font-size:11px}.ai-outlook__scenario span{color:#9db2c2;font-size:10px;line-height:1.4}',
       '.ai-outlook__footer{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)}',
       '.ai-outlook__sources{display:flex;flex-wrap:wrap;gap:8px}',
       '.ai-outlook__source{display:inline-flex;align-items:center;gap:5px;color:#78e4df;font-size:10px;font-weight:850}',
       '.ai-outlook__source:hover{color:#fff}',
       '.ai-outlook__disclaimer{max-width:360px;color:#71889c;font-size:8px;line-height:1.4;text-align:right}',
-      '@media(max-width:850px){.ai-outlook__summary{grid-template-columns:auto minmax(0,1fr)}.ai-outlook__toggle{grid-column:1/-1;width:100%}.ai-outlook__grid{grid-template-columns:1fr}.ai-outlook__footer{display:block}.ai-outlook__disclaimer{margin-top:10px;max-width:none;text-align:left}}',
+      '@media(max-width:850px){.ai-outlook__summary{grid-template-columns:auto minmax(0,1fr)}.ai-outlook__toggle{grid-column:1/-1;width:100%}.ai-outlook__grid,.ai-outlook__analysis-grid{grid-template-columns:1fr}.ai-outlook__footer{display:block}.ai-outlook__disclaimer{margin-top:10px;max-width:none;text-align:left}}',
       '@media(max-width:560px){.ai-outlook__inner{padding:14px}.ai-outlook__summary{grid-template-columns:1fr;gap:10px}.ai-outlook__brand{min-width:0}.ai-outlook h2{font-size:19px}.ai-outlook__metrics{gap:6px}.ai-outlook__metric{padding:5px 7px}.ai-outlook__toggle{grid-column:auto}.ai-outlook__thesis{font-size:13px}}',
       '@media(prefers-reduced-motion:reduce){.ai-outlook__details,.ai-outlook__toggle,.ai-outlook__chevron{transition:none!important}}'
     ].join('');
@@ -157,6 +169,33 @@
     element.appendChild(textElement('small', '', label));
     element.appendChild(textElement('strong', '', value));
     return element;
+  }
+
+  function directionSummary(direction, language) {
+    if (!direction || typeof direction !== 'object') {
+      return language === 'pl' ? 'nieoszacowany osobno' : 'not separately estimated';
+    }
+    if (direction.status === 'estimated' && Array.isArray(direction.scenarios)) {
+      var ranked = direction.scenarios.slice().sort(function (a, b) {
+        return Number(b && b.probability || 0) - Number(a && a.probability || 0);
+      });
+      if (ranked[0]) return String(ranked[0].label || '') + ' ' + String(ranked[0].probability || '') + '%';
+    }
+    if (direction.status === 'embedded_in_event') {
+      return language === 'pl' ? 'ujęty w zdarzeniu' : 'included in event';
+    }
+    if (direction.status === 'insufficient_evidence') {
+      return language === 'pl' ? 'brak podstaw do oceny' : 'insufficient evidence';
+    }
+    return '';
+  }
+
+  function addNote(container, label, value) {
+    if (!value) return;
+    var note = textElement('div', 'ai-outlook__note', '');
+    note.appendChild(textElement('b', '', label));
+    note.appendChild(textElement('p', '', value));
+    container.appendChild(note);
   }
 
   function renderAiOutlook(payload) {
@@ -194,10 +233,24 @@
     title.id = 'ai-outlook-title';
     lead.appendChild(title);
     var metrics = textElement('div', 'ai-outlook__metrics', '');
-    metrics.appendChild(metric(language === 'pl' ? 'Szansa' : 'Chance', String(item.probability) + '%'));
+    metrics.appendChild(metric(language === 'pl' ? 'Prawdopodobieństwo' : 'Probability', String(item.probability) + '%'));
     metrics.appendChild(metric(language === 'pl' ? 'Horyzont' : 'Horizon', item.horizon));
     metrics.appendChild(metric(language === 'pl' ? 'Obszar' : 'Area', item.category || (language === 'pl' ? 'Gospodarka' : 'Economy')));
+    var directionHeadline = directionSummary(item.direction, language);
+    if (directionHeadline) metrics.appendChild(metric(language === 'pl' ? 'Kierunek' : 'Direction', directionHeadline));
     lead.appendChild(metrics);
+    var probabilityEvent = item.probability_event;
+    if (!probabilityEvent && item.resolution && item.resolution.metric) {
+      probabilityEvent = String(item.resolution.metric) + (item.resolution.resolution_date
+        ? (language === 'pl' ? ' do ' : ' by ') + String(item.resolution.resolution_date)
+        : '');
+    }
+    if (probabilityEvent) {
+      var eventLine = textElement('p', 'ai-outlook__event', '');
+      eventLine.appendChild(textElement('b', '', language === 'pl' ? String(item.probability) + '% dotyczy: ' : String(item.probability) + '% measures: '));
+      eventLine.appendChild(root.document.createTextNode(String(probabilityEvent)));
+      lead.appendChild(eventLine);
+    }
     summary.appendChild(lead);
 
     var detailsId = 'ai-outlook-details';
@@ -217,17 +270,42 @@
     var detailsInner = textElement('div', 'ai-outlook__details-inner', '');
     detailsInner.appendChild(textElement('p', 'ai-outlook__thesis', item.thesis));
 
+    var analysis = textElement('div', 'ai-outlook__analysis-grid', '');
+    addNote(analysis, language === 'pl' ? 'Wniosek AI' : 'AI conclusion', item.analysis_summary);
+    addNote(analysis, language === 'pl' ? 'Skutki' : 'Implications', item.impact);
+    addNote(analysis, language === 'pl' ? 'Co zmieni ocenę' : 'What would change the assessment', item.watch_items);
+    if (analysis.childNodes.length) detailsInner.appendChild(analysis);
+
+    var direction = item.direction;
+    if (direction && typeof direction === 'object' && direction.explanation) {
+      var directionBox = textElement('div', 'ai-outlook__direction', '');
+      var directionHead = textElement('div', 'ai-outlook__direction-head', '');
+      directionHead.appendChild(textElement('b', '', language === 'pl' ? 'Ocena kierunku' : 'Direction assessment'));
+      directionHead.appendChild(textElement('span', '', direction.perspective || ''));
+      directionBox.appendChild(directionHead);
+      directionBox.appendChild(textElement('p', '', direction.explanation));
+      if (direction.status === 'estimated' && Array.isArray(direction.scenarios)) {
+        var scenarioList = textElement('div', 'ai-outlook__scenarios', '');
+        direction.scenarios.forEach(function (scenario) {
+          if (!scenario || !scenario.label) return;
+          var row = textElement('div', 'ai-outlook__scenario', '');
+          row.appendChild(textElement('b', '', scenario.label));
+          row.appendChild(textElement('strong', '', String(scenario.probability) + '%'));
+          row.appendChild(textElement('span', '', scenario.meaning || ''));
+          scenarioList.appendChild(row);
+        });
+        directionBox.appendChild(scenarioList);
+      }
+      detailsInner.appendChild(directionBox);
+    }
+
     var notes = textElement('div', 'ai-outlook__grid', '');
     [
-      [language === 'pl' ? 'Dlaczego' : 'Why', item.rationale],
-      [language === 'pl' ? 'Co potwierdzi' : 'What would confirm it', item.confirmation],
-      [language === 'pl' ? 'Co obali' : 'What would invalidate it', item.invalidation]
+      [language === 'pl' ? 'Mechanizm' : 'Mechanism', item.rationale],
+      [language === 'pl' ? 'Warunek trafności' : 'Success condition', item.confirmation],
+      [language === 'pl' ? 'Warunek nietrafności' : 'Failure condition', item.invalidation]
     ].forEach(function (pair) {
-      if (!pair[1]) return;
-      var note = textElement('div', 'ai-outlook__note', '');
-      note.appendChild(textElement('b', '', pair[0]));
-      note.appendChild(textElement('p', '', pair[1]));
-      notes.appendChild(note);
+      addNote(notes, pair[0], pair[1]);
     });
     detailsInner.appendChild(notes);
 

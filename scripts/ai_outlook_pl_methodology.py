@@ -37,6 +37,10 @@ from ai_outlook_engine import (
     weights_snapshot,
 )
 from ai_outlook_pl_quality import validate_pl_edition
+from ai_outlook_analysis_contract import (
+    ANALYSIS_CONTRACT_VERSION,
+    validate_public_analysis,
+)
 from comment_quality import request_json_completion
 
 METHODOLOGY_VERSION = "pl-outcome-forecast-v2"
@@ -82,6 +86,7 @@ OFFICIAL_VERIFICATION_HOSTS = (
     "ecb.europa.eu",
     "consilium.europa.eu",
     "eur-lex.europa.eu",
+    "curia.europa.eu",
     "who.int",
     "clinicaltrials.gov",
     "nasa.gov",
@@ -403,8 +408,9 @@ def _final_messages(
     system = (
         "Jesteś redaktorem polskiego BriefRooms AI Outlook. Kandydat, kierunek prognozy, "
         "metryka, próg, wartość bazowa, termin i źródła są zablokowane. Napisz prostą, "
-        "konkretną prognozę po polsku. Nie dodawaj innych tematów. Nie prognozuj liczby "
-        "komunikatów ani zainteresowania mediów. Zwróć wyłącznie poprawny JSON."
+        "konkretną prognozę po polsku oraz własny wniosek analityczny. Nie dodawaj innych "
+        "tematów. Nie prognozuj liczby komunikatów ani zainteresowania mediów. Nie składaj "
+        "tekstu przez parafrazowanie kolejnych zdań źródła. Zwróć wyłącznie poprawny JSON."
     )
     user = {
         "publication_date": publication_date,
@@ -417,6 +423,15 @@ def _final_messages(
             "rationale maksymalnie 420 znaków i wyjaśnia punkt wyjścia oraz mechanizm",
             "confirmation i invalidation są wzajemnie rozłączne",
             "resolution_summary dokładnie odpowiada zablokowanej metryce",
+            "probability_event jednym zdaniem nazywa dokładne zdarzenie objęte locked_probability i zawiera termin rozstrzygnięcia",
+            "analysis_summary to nowy wniosek: oddziela fakt ze źródła od inferencji, pokazuje mechanizm i nie powtarza thesis ani rationale",
+            "impact opisuje konsekwencje zarówno realizacji, jak i braku realizacji prognozy",
+            "watch_items wskazuje 2-4 konkretne przyszłe fakty, które istotnie podniosą albo obniżą ocenę",
+            "direction nigdy nie używa słów korzystny/niekorzystny, pozytywny/negatywny bez podania perspektywy interesariusza",
+            "jeśli prognoza dotyczy tylko wydania decyzji lub orzeczenia, a źródła nie pozwalają ocenić meritum, ustaw direction.status=insufficient_evidence i pozostaw scenarios=[]",
+            "jeśli locked_probability już mierzy konkretny kierunek decyzji, ustaw direction.status=embedded_in_event",
+            "direction.status=estimated jest dozwolony tylko przy dowodach na kierunek; wtedy podaj 2-3 rozłączne scenariusze z całkowitymi procentami sumującymi się do 100",
+            "dla wskaźnika bez pojęcia kierunku decyzji ustaw direction.status=not_applicable",
             "nie przedstawiaj prognozy jako faktu",
             "unikaj języka technicznego, jeżeli można użyć prostszego",
         ],
@@ -429,6 +444,18 @@ def _final_messages(
             "confirmation": "...",
             "invalidation": "...",
             "resolution_summary": "...",
+            "probability_event": "Dokładne zdarzenie objęte procentem, wraz z terminem...",
+            "analysis_summary": "Wniosek analityczny wykraczający poza streszczenie...",
+            "impact": "Skutki realizacji oraz braku realizacji prognozy...",
+            "watch_items": "2-4 konkretne sygnały zmieniające ocenę...",
+            "direction": {
+                "status": "estimated | embedded_in_event | insufficient_evidence | not_applicable",
+                "perspective": "dla kogo oceniany jest kierunek",
+                "explanation": "co dokładnie można i czego nie można wnioskować",
+                "scenarios": [
+                    {"label": "...", "probability": 60, "meaning": "..."}
+                ],
+            },
         },
     }
     return [
@@ -437,7 +464,7 @@ def _final_messages(
     ]
 
 
-def _clean_final(raw: dict[str, Any], winner: dict[str, Any]) -> dict[str, str]:
+def _clean_final(raw: dict[str, Any], winner: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise PolishMethodologyError("Polish final response is not an object")
     limits = {
@@ -449,8 +476,12 @@ def _clean_final(raw: dict[str, Any], winner: dict[str, Any]) -> dict[str, str]:
         "confirmation": 280,
         "invalidation": 280,
         "resolution_summary": 340,
+        "probability_event": 420,
+        "analysis_summary": 620,
+        "impact": 620,
+        "watch_items": 520,
     }
-    clean: dict[str, str] = {}
+    clean: dict[str, Any] = {}
     for field, limit in limits.items():
         value = _compact(raw.get(field), limit)
         if not value:
@@ -462,6 +493,10 @@ def _clean_final(raw: dict[str, Any], winner: dict[str, Any]) -> dict[str, str]:
         raise PolishMethodologyError("Polish final horizon changed")
     if META_FORECAST_RE.search(" ".join(clean.values())):
         raise PolishMethodologyError("Polish final copy reverted to a meta-forecast")
+    direction = raw.get("direction")
+    if not isinstance(direction, dict):
+        raise PolishMethodologyError("missing Polish final field: direction")
+    clean["direction"] = direction
     return clean
 
 
@@ -514,7 +549,7 @@ def generate_pl_edition(
         messages=_final_messages(
             winner, items, probability, publication_date
         ),
-        max_tokens=1500,
+        max_tokens=2300,
         temperature=0.10,
         timeout=90,
     )
@@ -529,6 +564,7 @@ def generate_pl_edition(
         **final,
         "date_label": date_label,
         "probability": probability,
+        "analysis_contract_version": ANALYSIS_CONTRACT_VERSION,
         "sources": sources,
         "selection_reason": _compact(winner.get("selection_reason"), 320),
         "resolution_criteria": final["resolution_summary"],
@@ -587,6 +623,7 @@ def generate_pl_edition(
         },
     }
     v3.validate_edition("pl", edition)
+    validate_public_analysis(edition, "pl")
     validate_pl_edition(edition)
 
     audit = {
