@@ -37,6 +37,7 @@ if _quality is not None:
         {"name": "European Commission", "url": "https://ec.europa.eu/", "uses": ["official_decision", "policy_implementation", "regulatory_milestone"]},
         {"name": "Council of the EU", "url": "https://www.consilium.europa.eu/", "uses": ["official_decision", "regulatory_milestone"]},
         {"name": "EUR-Lex", "url": "https://eur-lex.europa.eu/", "uses": ["policy_implementation", "regulatory_milestone"]},
+        {"name": "Court of Justice of the European Union", "url": "https://curia.europa.eu/", "uses": ["official_decision"]},
         {"name": "EMA", "url": "https://www.ema.europa.eu/", "uses": ["official_decision", "clinical_endpoint", "regulatory_milestone"]},
         {"name": "ClinicalTrials.gov", "url": "https://clinicaltrials.gov/", "uses": ["clinical_endpoint"]},
         {"name": "WHO", "url": "https://www.who.int/", "uses": ["official_indicator", "public_health"]},
