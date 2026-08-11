@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 START = "<!-- HOME_BRIEFS_START -->"
 END = "<!-- HOME_BRIEFS_END -->"
-SCRIPT_VERSION = "ai-outlook-analysis-1"
+SCRIPT_VERSION = "ai-outlook-direction-2"
 GUARD_VERSION = "governance-v3"
 FRESHNESS_VERSION = "daily-v1"
 SCRIPT = f'<script src="/scripts/homepage-photo-only.js?v={SCRIPT_VERSION}" defer></script>'
