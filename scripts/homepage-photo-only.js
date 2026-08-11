@@ -234,10 +234,18 @@
     lead.appendChild(title);
     var metrics = textElement('div', 'ai-outlook__metrics', '');
     metrics.appendChild(metric(language === 'pl' ? 'Prawdopodobieństwo' : 'Probability', String(item.probability) + '%'));
+    if (item.assessment_perspective) {
+      metrics.appendChild(metric(language === 'pl' ? 'Perspektywa' : 'Perspective', item.assessment_perspective));
+    }
+    if (item.assessment_confidence) {
+      metrics.appendChild(metric(language === 'pl' ? 'Pewność oceny' : 'Assessment confidence', item.assessment_confidence));
+    }
     metrics.appendChild(metric(language === 'pl' ? 'Horyzont' : 'Horizon', item.horizon));
     metrics.appendChild(metric(language === 'pl' ? 'Obszar' : 'Area', item.category || (language === 'pl' ? 'Gospodarka' : 'Economy')));
     var directionHeadline = directionSummary(item.direction, language);
-    if (directionHeadline) metrics.appendChild(metric(language === 'pl' ? 'Kierunek' : 'Direction', directionHeadline));
+    if (directionHeadline && !item.assessment_perspective) {
+      metrics.appendChild(metric(language === 'pl' ? 'Kierunek' : 'Direction', directionHeadline));
+    }
     lead.appendChild(metrics);
     var probabilityEvent = item.probability_event;
     if (!probabilityEvent && item.resolution && item.resolution.metric) {
