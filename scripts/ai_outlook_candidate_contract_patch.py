@@ -170,6 +170,9 @@ def _augment_final(messages: list[dict[str, str]], retry: bool = False) -> list[
             f"jedynym terminem rozstrzygnięcia prognozy jest {deadline}; nie używaj innej daty granicznej w thesis, confirmation ani invalidation",
             f"confirmation, invalidation i resolution_summary muszą jawnie zawierać termin {deadline}",
             "resolution_summary opisuje metrykę i warunek rozstrzygnięcia w oficjalnych danych instytucji",
+            "probability_event nazywa dokładnie zdarzenie objęte procentem i zawiera resolution_date",
+            "analysis_summary, impact i watch_items muszą dodawać analizę, skutki oraz konkretne sygnały zmieniające ocenę; nie mogą powtarzać streszczenia źródła",
+            "direction musi wskazać perspektywę interesariusza; nie używaj pozytywny/negatywny ani korzystny/niekorzystny bez tej perspektywy",
         ])
         if retry:
             requirements.append(
@@ -255,8 +258,15 @@ def _methodology_valid_candidates(payload: Any, messages: list[dict[str, str]]) 
 def _invalid_final(payload: Any) -> bool:
     if not isinstance(payload, dict):
         return True
-    fields = ("category", "title", "thesis", "horizon", "rationale", "confirmation", "invalidation", "resolution_summary")
+    fields = (
+        "category", "title", "thesis", "horizon", "rationale", "confirmation",
+        "invalidation", "resolution_summary", "probability_event",
+        "analysis_summary", "impact", "watch_items",
+    )
     if any(not str(payload.get(field) or "").strip() for field in fields):
+        return True
+    direction = payload.get("direction")
+    if not isinstance(direction, dict) or not str(direction.get("status") or "").strip():
         return True
     return bool(_META.search(" ".join(str(payload.get(field) or "") for field in fields)))
 
@@ -310,6 +320,59 @@ def _deterministic_final(messages: list[dict[str, str]]) -> dict[str, str] | Non
         f"Termin rozstrzygnięcia: {deadline}. Sprawdzimy w oficjalnych danych "
         f"{source_name}, czy „{metric}” {confirm_phrase} {threshold_text}."
     )
+    probability_event = (
+        f"Podany procent dotyczy tego, czy do {deadline} metryka „{metric}” "
+        f"{confirm_phrase} {threshold_text}."
+    )
+    analysis_summary = (
+        "Najważniejsze rozróżnienie: model ocenia dokładnie zablokowane zdarzenie, "
+        "a nie wszystkie możliwe skutki opisywanego procesu. Największą niepewność "
+        "stanowi to, czy wskazany mechanizm doprowadzi do wyniku przed terminem."
+    )
+    impact = (
+        f"Realizacja prognozy oznacza osiągnięcie warunku „{metric}” w terminie; "
+        "brak realizacji pozostawi stan bazowy bez zakładanej zmiany i osłabi "
+        "wniosek o skuteczności opisanego mechanizmu."
+    )
+    watch_items = (
+        f"Ocenę zmienią nowe oficjalne dane {source_name}, zmiana harmonogramu lub "
+        "procedury oraz fakty pokazujące, że metryka zbliża się do progu przed {deadline}."
+    )
+    forecast_type = str(locked.get("forecast_type") or "")
+    metric_lower = metric.lower()
+    procedural = forecast_type == "official_decision" and any(
+        token in metric_lower for token in ("wydanie", "orzeczeni", "rozpatrzenie")
+    )
+    if procedural:
+        direction = {
+            "status": "insufficient_evidence",
+            "perspective": "dla stron objętych decyzją",
+            "explanation": (
+                "Zablokowane źródła pozwalają ocenić wystąpienie decyzji, lecz nie dają "
+                "wystarczających podstaw do procentowego podziału jej merytorycznego kierunku."
+            ),
+            "scenarios": [],
+        }
+    elif forecast_type in {"official_decision", "policy_implementation", "regulatory_milestone"}:
+        direction = {
+            "status": "embedded_in_event",
+            "perspective": "dla rezultatu opisanego w prognozie",
+            "explanation": (
+                "Podany procent już dotyczy konkretnego kierunku zapisanego w zdarzeniu; "
+                "odwrotnym wynikiem jest niespełnienie tego warunku do terminu."
+            ),
+            "scenarios": [],
+        }
+    else:
+        direction = {
+            "status": "not_applicable",
+            "perspective": "",
+            "explanation": (
+                "Prognoza dotyczy mierzalnego poziomu lub zdarzenia, dlatego odrębny "
+                "podział na korzystny i niekorzystny kierunek nie ma zastosowania."
+            ),
+            "scenarios": [],
+        }
 
     result = {
         "category": " ".join(str(shape.get("category") or "").split()).strip(),
@@ -320,6 +383,11 @@ def _deterministic_final(messages: list[dict[str, str]]) -> dict[str, str] | Non
         "confirmation": confirmation,
         "invalidation": invalidation,
         "resolution_summary": resolution_summary,
+        "probability_event": probability_event,
+        "analysis_summary": analysis_summary,
+        "impact": impact,
+        "watch_items": watch_items,
+        "direction": direction,
     }
     if any(not value for value in result.values()) or _invalid_final(result):
         return None
