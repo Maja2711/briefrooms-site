@@ -5,8 +5,18 @@
   const DATA_TAB_SELECTOR = `${APP_SELECTOR} [data-tab]`;
   const PROJECT_HASH_SELECTOR = `${APP_SELECTOR} .i10k-projects a[href^="#"]`;
   const PANEL_SELECTOR = `${APP_SELECTOR} .i10k-panel[data-panel]`;
-  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','rules','brace','analytics','history']);
+  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','analytics','history','rules']);
+  const TAB_ALIASES = Object.freeze({ brace: 'analytics' });
   const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
+
+  function normalizeTab(name) {
+    const value = String(name || '');
+    return TAB_ALIASES[value] || value;
+  }
+
+  function isNavigableTab(name) {
+    return VALID_TABS.has(normalizeTab(name));
+  }
 
   function cssEscape(value) {
     if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
@@ -14,7 +24,8 @@
   }
 
   function panelFor(name) {
-    if (!VALID_TABS.has(String(name || ''))) return null;
+    name = normalizeTab(name);
+    if (!VALID_TABS.has(name)) return null;
     return document.querySelector(`${APP_SELECTOR} .i10k-panel[data-panel="${cssEscape(name)}"]`);
   }
 
@@ -31,7 +42,7 @@
   }
 
   function activate(name, scroll = false) {
-    name = String(name || '');
+    name = normalizeTab(name);
     const panel = panelFor(name);
     if (!panel) return false;
 
@@ -60,7 +71,7 @@
 
     if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
     document.body.dataset.investmentActiveTab = name;
-    document.body.dataset.investmentNavigationGuard = 'active-v3';
+    document.body.dataset.investmentNavigationGuard = 'active-v4';
 
     if (name === 'agents') {
       requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
@@ -79,7 +90,7 @@
   function consume(event, scroll) {
     const trigger = triggerFromEvent(event);
     const name = nameFromTrigger(trigger);
-    if (!name || !VALID_TABS.has(name)) return false;
+    if (!name || !isNavigableTab(name)) return false;
     if (!activate(name, scroll)) return false;
     event.preventDefault();
     event.stopPropagation();
@@ -164,7 +175,7 @@
     });
 
     const hash = location.hash.slice(1);
-    activate(VALID_TABS.has(hash) ? hash : 'overview', false);
+    activate(isNavigableTab(hash) ? hash : 'overview', false);
     applyOperationalStatus();
     applyCashYieldLabel();
   }
@@ -177,7 +188,7 @@
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('hashchange', () => {
     const name = location.hash.slice(1);
-    if (VALID_TABS.has(name)) activate(name, false);
+    if (isNavigableTab(name)) activate(name, false);
   });
 
   const start = () => {
@@ -201,7 +212,7 @@
     window.setTimeout(applyCashYieldLabel, 1500);
   };
 
-  window.BriefRoomsInvestmentNavigation = { activate, version: 3 };
+  window.BriefRoomsInvestmentNavigation = { activate, version: 4 };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
