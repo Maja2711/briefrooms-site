@@ -30,12 +30,16 @@ class HomepagePhotoOnlyTests(unittest.TestCase):
         script = (ROOT / "scripts" / "homepage-photo-only.js").read_text(encoding="utf-8")
         self.assertIn("probability_event", script)
         self.assertIn("Prawdopodobieństwo", script)
+        self.assertIn("Perspektywa", script)
+        self.assertIn("Pewność oceny", script)
+        self.assertIn("assessment_perspective", script)
+        self.assertIn("assessment_confidence", script)
         self.assertIn("Wniosek AI", script)
         self.assertIn("Ocena kierunku", script)
         self.assertIn("direction.scenarios", script)
         for lang in ("pl", "en"):
             source = (ROOT / lang / "index.html").read_text(encoding="utf-8")
-            self.assertIn("homepage-photo-only.js?v=ai-outlook-analysis-1", source)
+            self.assertIn("homepage-photo-only.js?v=ai-outlook-direction-2", source)
 
     def test_repository_homepages_have_only_source_linked_photo_cards(self) -> None:
         for lang in ("pl", "en"):
