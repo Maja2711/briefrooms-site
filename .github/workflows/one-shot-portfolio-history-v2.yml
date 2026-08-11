@@ -1,0 +1,72 @@
+name: One-shot Portfolio 10K transaction history v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-portfolio-history-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio-10k-history-v2
+  cancel-in-progress: false
+
+jobs:
+  deploy-history-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate transaction history JavaScript
+        run: node --check scripts/portfolio-10k-closed-history.js
+      - name: Bump transaction history asset version
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          pages = [
+              Path('pl/inwestycje/portfel-10k.html'),
+              Path('en/investing/portfolio-10k.html'),
+          ]
+          for path in pages:
+              text = path.read_text(encoding='utf-8')
+              old = '/scripts/portfolio-10k-closed-history.js?v=1'
+              new = '/scripts/portfolio-10k-closed-history.js?v=2'
+              if old in text:
+                  text = text.replace(old, new)
+              elif new not in text:
+                  raise SystemExit(f'Missing closed-history script tag in {path}')
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Verify history data contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('data/portfolio10k/paper_portfolio.json').read_text(encoding='utf-8'))
+          tx = data.get('transactions') or []
+          assert tx, 'paper_portfolio.transactions is empty'
+          assert any(t.get('instrument_id') == 'googl' and t.get('side') == 'SELL' for t in tx), 'GOOGL partial SELL missing from transaction ledger'
+          for t in tx:
+              assert t.get('executed_at'), f'missing executed_at: {t}'
+              assert t.get('side') in {'BUY','SELL'}, f'invalid side: {t}'
+              assert float(t.get('quantity') or 0) > 0, f'invalid quantity: {t}'
+          print(f'Validated {len(tx)} executed transaction(s)')
+          PY
+      - name: Commit public page asset bump
+        run: |
+          if git diff --quiet -- pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html; then
+            echo "Pages already use history v2"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          git commit -m "Load Portfolio 10K transaction history v2"
+          git push
