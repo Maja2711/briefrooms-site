@@ -72,6 +72,18 @@ class GpwDailyPickTests(unittest.TestCase):
         self.assertIsNone(stale)
         self.assertIsNone(illiquid)
 
+    def test_learning_stays_neutral_until_configured_sample_exists(self):
+        sector = "banki"
+        row = {
+            "selection": {"sector": sector},
+            "outcome": {"status": "RESOLVED", "r_multiple": 1.0},
+        }
+        score_29, sample_29 = gpw.history_expectancy_score([row] * 29, sector, 30)
+        score_30, sample_30 = gpw.history_expectancy_score([row] * 30, sector, 30)
+        self.assertEqual((score_29, sample_29), (50.0, 29))
+        self.assertGreater(score_30, 50)
+        self.assertEqual(sample_30, 30)
+
     def test_generate_trade_requires_sources_gemini_and_second_review(self):
         source = {
             "id": "src-primary",

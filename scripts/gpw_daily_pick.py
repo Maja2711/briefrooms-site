@@ -249,14 +249,16 @@ def return_over(bars: list[Bar], sessions: int) -> float:
     return bars[-1].close / bars[-sessions - 1].close - 1.0
 
 
-def history_expectancy_score(history: list[dict[str, Any]], sector: str) -> tuple[float, int]:
+def history_expectancy_score(
+    history: list[dict[str, Any]], sector: str, minimum_sample: int
+) -> tuple[float, int]:
     resolved = [
         item
         for item in history
         if item.get("selection", {}).get("sector") == sector
         and item.get("outcome", {}).get("status") == "RESOLVED"
     ]
-    if len(resolved) < 8:
+    if len(resolved) < minimum_sample:
         return 50.0, len(resolved)
     expectancy = statistics.fmean(float(item["outcome"].get("r_multiple", 0)) for item in resolved)
     return clamp(50.0 + expectancy * 22.0), len(resolved)
@@ -289,7 +291,7 @@ def build_quant_candidate(
 
     momentum = clamp(50 + ret_5 * 330 + ret_20 * 125 + (8 if close > ma20 else -8) + (6 if ma20 > ma50 else -6))
     liquidity = clamp(38 + math.log10(max(turnover, 1_000_000) / 1_000_000) * 32 + math.log(max(volume_ratio, 0.25)) * 16)
-    context = clamp(50 + ret_1 * 180 + ret_5 * 90)
+    context = 50.0  # Replaced by the GPW breadth/sector context cross-section.
 
     risk = max(atr * 1.1, close * 0.012)
     risk_percent = risk / close
@@ -297,7 +299,11 @@ def build_quant_candidate(
     risk_score = clamp(92 - abs(atr_percent - 0.025) * 1250)
     if risk_percent > float(config["maximum_risk_percent"]):
         return None
-    historical, historical_n = history_expectancy_score(history, company["sector"])
+    historical, historical_n = history_expectancy_score(
+        history,
+        company["sector"],
+        int(config["learning"]["minimum_resolved_trades_for_adaptation"]),
+    )
     return {
         **company,
         "last_session": bars[-1].day.isoformat(),
@@ -326,12 +332,32 @@ def normalize_cross_section(candidates: list[dict[str, Any]]) -> None:
     returns = [candidate["returns"]["5d"] for candidate in candidates]
     lower, upper = min(returns), max(returns)
     median_return = statistics.median(returns)
+    market_1d = statistics.median(candidate["returns"]["1d"] for candidate in candidates)
+    breadth = sum(candidate["returns"]["1d"] > 0 for candidate in candidates) / len(candidates)
+    sectors = {candidate["sector"] for candidate in candidates}
+    sector_5d = {
+        sector: statistics.median(
+            candidate["returns"]["5d"]
+            for candidate in candidates
+            if candidate["sector"] == sector
+        )
+        for sector in sectors
+    }
     for candidate in candidates:
         relative = candidate["returns"]["5d"] - median_return
         cross = percentile_score(candidate["returns"]["5d"], lower, upper)
         candidate["relative_5d"] = round(relative, 5)
         candidate["scores"]["relative_momentum"] = round2(
             0.55 * candidate["raw_momentum"] + 0.45 * cross
+        )
+        candidate["scores"]["market_context"] = round2(
+            clamp(
+                50
+                + (breadth - 0.5) * 36
+                + market_1d * 180
+                + median_return * 70
+                + sector_5d[candidate["sector"]] * 85
+            )
         )
         scores = candidate["scores"]
         candidate["quant_pre_score"] = round2(
