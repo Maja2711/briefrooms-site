@@ -1,0 +1,69 @@
+name: One-shot BRACE executed decisions card
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-brace-executed-decisions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-executed-decisions-card
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate finalizer JavaScript
+        run: node --check scripts/portfolio-10k-execution-finalizer.js
+      - name: Verify executed GOOGL reduction exists
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          orders = json.loads(Path('data/portfolio10k/paper_orders.json').read_text(encoding='utf-8'))
+          assert any(
+              o.get('status') == 'PAPER_EXECUTED'
+              and o.get('action') == 'REDUCE'
+              and o.get('sell_instrument') == 'googl'
+              for o in orders.get('orders', [])
+          ), 'Executed GOOGL REDUCE not found'
+          PY
+      - name: Bump finalizer asset version on PL and EN
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for rel in ('pl/inwestycje/portfel-10k.html', 'en/investing/portfolio-10k.html'):
+              path = Path(rel)
+              text = path.read_text(encoding='utf-8')
+              text = text.replace('/scripts/portfolio-10k-execution-finalizer.js?v=2', '/scripts/portfolio-10k-execution-finalizer.js?v=3')
+              if '/scripts/portfolio-10k-execution-finalizer.js?v=3' not in text:
+                  raise SystemExit(f'finalizer v3 script tag missing in {rel}')
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit page cache-bust
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Load executed BRACE decisions card v3"
+            git push
+          fi
+      - name: Remove one-shot workflow
+        run: |
+          git pull --rebase
+          rm -f .github/workflows/one-shot-brace-executed-decisions.yml
+          git add -A
+          git commit -m "Remove one-shot BRACE decisions deployment" || true
+          git push
