@@ -28,6 +28,7 @@ from ai_outlook_engine import (  # noqa: E402
     weights_snapshot,
 )
 from comment_quality import get_ai_runtime, request_json_completion  # noqa: E402
+from ai_outlook_analysis_contract import validate_public_analysis  # noqa: E402
 
 OUT = ROOT / "data" / "ai_outlook.json"
 HISTORY_DIR = ROOT / "data" / "ai_outlook_history"
@@ -179,7 +180,7 @@ def generate_language(
         post=requests.post,
         runtime=runtime,
         messages=v2.final_messages(winner, items, probability, publication_date),
-        max_tokens=1900,
+        max_tokens=2600,
         temperature=0.18,
         timeout=90,
     )
@@ -265,6 +266,7 @@ def validate_edition(language: str, edition: dict[str, Any]) -> None:
         raise OutlookV3ValidationError(f"invalid {language} engine language")
     if engine.get("weights_snapshot") != weights_snapshot():
         raise OutlookV3ValidationError(f"invalid {language} weights snapshot")
+    validate_public_analysis(edition, language)
 
 
 def validate_payload(payload: dict[str, Any], *, require_v2: bool = True) -> None:
