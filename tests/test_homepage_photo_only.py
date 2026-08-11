@@ -26,6 +26,17 @@ def marker_cards(source: str) -> list[str]:
 
 
 class HomepagePhotoOnlyTests(unittest.TestCase):
+    def test_ai_outlook_names_probability_event_and_direction(self) -> None:
+        script = (ROOT / "scripts" / "homepage-photo-only.js").read_text(encoding="utf-8")
+        self.assertIn("probability_event", script)
+        self.assertIn("Prawdopodobieństwo", script)
+        self.assertIn("Wniosek AI", script)
+        self.assertIn("Ocena kierunku", script)
+        self.assertIn("direction.scenarios", script)
+        for lang in ("pl", "en"):
+            source = (ROOT / lang / "index.html").read_text(encoding="utf-8")
+            self.assertIn("homepage-photo-only.js?v=ai-outlook-analysis-1", source)
+
     def test_repository_homepages_have_only_source_linked_photo_cards(self) -> None:
         for lang in ("pl", "en"):
             source = (ROOT / lang / "index.html").read_text(encoding="utf-8")
