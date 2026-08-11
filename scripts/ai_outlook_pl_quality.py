@@ -44,6 +44,7 @@ OFFICIAL_VERIFICATION_HOSTS = (
     "ecb.europa.eu",
     "consilium.europa.eu",
     "eur-lex.europa.eu",
+    "curia.europa.eu",
     "who.int",
     "clinicaltrials.gov",
     "nasa.gov",
