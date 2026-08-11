@@ -29,7 +29,7 @@ class AlternateLinkParser(HTMLParser):
 
 def test_every_public_page_has_one_shared_header() -> None:
     pages = sync_site_header.public_pages()
-    assert len(pages) == 55
+    assert len(pages) == 57
 
     for page in pages:
         text = page.read_text(encoding="utf-8")

@@ -57,6 +57,8 @@
     '/en/methodology.html': '/pl/metodologia.html',
     '/pl/geo/rosja-drony-paliwa-zboze.html': '/en/geo/russia-drones-fuel-grain.html',
     '/en/geo/russia-drones-fuel-grain.html': '/pl/geo/rosja-drony-paliwa-zboze.html',
+    '/pl/geo/niewidzialny-front-baltyku.html': '/en/geo/baltic-invisible-front.html',
+    '/en/geo/baltic-invisible-front.html': '/pl/geo/niewidzialny-front-baltyku.html',
     '/pl/geo/upadek-hegemona.html': '/en/geo/falling-hegemon.html',
     '/en/geo/falling-hegemon.html': '/pl/geo/upadek-hegemona.html',
     '/pl/geo/usa-chiny-2025.html': '/en/geo/usa-china-2025.html',

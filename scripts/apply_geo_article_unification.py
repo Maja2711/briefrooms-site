@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 TARGETS = (
+    "pl/geo/niewidzialny-front-baltyku.html",
     "pl/geo/rosja-drony-paliwa-zboze.html",
     "pl/geo/polska-panstwo-frontowe.html",
     "pl/geo/ziemie-rzadkie.html",
@@ -21,6 +22,7 @@ TARGETS = (
     "en/geo/rare-earths.html",
     "en/geo/falling-hegemon.html",
     "en/geo/usa-china-2025.html",
+    "en/geo/baltic-invisible-front.html",
 )
 
 CSS_HREF = "/assets/geo-article-unified.css?v=1"

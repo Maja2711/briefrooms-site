@@ -2,6 +2,7 @@
   'use strict';
 
   const FALLBACK_DATES = {
+    '/pl/geo/niewidzialny-front-baltyku.html': ['2026-08-11', '11.08.2026'],
     '/pl/geo/rosja-drony-paliwa-zboze.html': ['2026-07-14', '14.07.2026'],
     '/pl/geo/polska-panstwo-frontowe.html': ['2026-06-13', '13.06.2026'],
     '/pl/geo/ziemie-rzadkie.html': ['2025', '2025'],
@@ -11,7 +12,8 @@
     '/en/geo/black-sea.html': ['2025', '2025'],
     '/en/geo/rare-earths.html': ['2025', '2025'],
     '/en/geo/falling-hegemon.html': ['2025-11-24', '24 Nov 2025'],
-    '/en/geo/usa-china-2025.html': ['2025-10-25', '25 Oct 2025']
+    '/en/geo/usa-china-2025.html': ['2025-10-25', '25 Oct 2025'],
+    '/en/geo/baltic-invisible-front.html': ['2026-08-11', '11 Aug 2026']
   };
 
   const lang = document.documentElement.lang?.toLowerCase().startsWith('en') ? 'en' : 'pl';

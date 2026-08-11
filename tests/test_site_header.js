@@ -101,6 +101,7 @@ test('active sections are detected for hubs and articles', () => {
     '/pl/aktualnosci.html': 'news',
     '/en/news.html': 'news',
     '/pl/geo/ziemie-rzadkie.html': 'geopolitics',
+    '/en/geo/baltic-invisible-front.html': 'geopolitics',
     '/en/geo/black-sea.html': 'geopolitics',
     '/pl/zdrowie/kalkulator-cholesterolu.html': 'health',
     '/en/science/dark-oxygen.html': 'science',
@@ -118,6 +119,7 @@ test('language counterparts resolve to existing pages and fall back to home', ()
   }
   assert.equal(header.counterpartForPath('/pl/geo/polska-panstwo-frontowe.html'), '/en/');
   assert.equal(header.counterpartForPath('/en/geo/black-sea.html'), '/pl/');
+  assert.equal(header.counterpartForPath('/pl/geo/niewidzialny-front-baltyku.html'), '/en/geo/baltic-invisible-front.html');
 });
 
 test('rendered header exposes active state, language link and accessible mobile controls', () => {
