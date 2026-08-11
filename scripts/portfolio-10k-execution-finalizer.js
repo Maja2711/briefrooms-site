@@ -1,28 +1,50 @@
 (() => {
   'use strict';
 
-  // Compatibility entry point kept intentionally small. The portfolio JSON and
-  // the bilingual dashboard controller remain the only sources of live values.
-  // This script finalises static Polish placeholders and reconciles completed
-  // paper executions in BRACE-only presentation layers.
-
   const lang = (window.BR_PORTFOLIO_10K?.lang || document.documentElement.lang)
     .toLowerCase()
     .startsWith('en') ? 'en' : 'pl';
   const isPolish = lang === 'pl';
   const locale = isPolish ? 'pl-PL' : 'en-US';
+
   const COPY = isPolish ? {
-    completed: 'SPRZEDAŻ ZREALIZOWANA',
-    sold: 'Pozycja została sprzedana w portfelu modelowym',
+    cardTitle: 'OSTATNIE ZREALIZOWANE DECYZJE (BRACE)',
+    viewHistory: 'Pełna historia',
+    noExecuted: 'Brak zrealizowanych decyzji BRACE.',
+    noPending: 'Brak decyzji oczekujących na wykonanie.',
     executed: 'Realizacja',
     price: 'cena',
-    noPending: 'Brak decyzji oczekujących na wykonanie.'
+    units: 'jednostki',
+    costs: 'koszty',
+    reduce: 'REDUKCJA ZREALIZOWANA',
+    reduceText: 'Zmniejszono pozycję',
+    exit: 'SPRZEDAŻ ZREALIZOWANA',
+    exitText: 'Zamknięto pozycję',
+    add: 'ZAKUP ZREALIZOWANY',
+    addText: 'Dodano pozycję',
+    replace: 'ROTACJA ZREALIZOWANA',
+    replaceText: 'Zrealizowano rotację',
+    sold: 'sprzedano',
+    bought: 'kupiono'
   } : {
-    completed: 'SALE COMPLETED',
-    sold: 'The position was sold in the model portfolio',
+    cardTitle: 'LATEST EXECUTED DECISIONS (BRACE)',
+    viewHistory: 'Full history',
+    noExecuted: 'No BRACE decisions have been executed yet.',
+    noPending: 'No decisions are awaiting execution.',
     executed: 'Executed',
     price: 'price',
-    noPending: 'No decisions are awaiting execution.'
+    units: 'units',
+    costs: 'costs',
+    reduce: 'REDUCTION EXECUTED',
+    reduceText: 'Reduced position',
+    exit: 'SALE EXECUTED',
+    exitText: 'Closed position',
+    add: 'PURCHASE EXECUTED',
+    addText: 'Added position',
+    replace: 'ROTATION EXECUTED',
+    replaceText: 'Executed rotation',
+    sold: 'sold',
+    bought: 'bought'
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -35,50 +57,206 @@
     return response.json();
   }
 
-  function symbolFor(instrument) {
-    return { novo: 'NOVOB.DK' }[instrument] || String(instrument || '').toUpperCase();
+  function number(value) {
+    const result = Number(value);
+    return Number.isFinite(result) ? result : null;
   }
 
-  function executionText(order) {
-    const symbol = symbolFor(order.sell_instrument);
-    const parts = [`${COPY.sold}: ${symbol}.`];
-    if (order.executed_at) {
-      const date = new Date(order.executed_at);
-      if (!Number.isNaN(date.valueOf())) parts.push(`${COPY.executed}: ${date.toLocaleString(locale)}.`);
+  function metadataMap(paperPortfolio, universe) {
+    const map = new Map();
+    for (const item of universe?.instruments || []) {
+      if (!item?.instrument_id) continue;
+      map.set(String(item.instrument_id), {
+        symbol: item.broker_symbol || item.data_symbol || String(item.instrument_id).toUpperCase(),
+        label: item.label || '',
+        currency: item.currency || ''
+      });
     }
-    const price = Number(order.execution?.price);
-    if (Number.isFinite(price)) {
-      parts.push(`${COPY.price}: ${price.toLocaleString(locale, { maximumFractionDigits: 4 })}.`);
+    for (const item of [
+      ...(paperPortfolio?.positions || []),
+      ...(paperPortfolio?.closed_positions || [])
+    ]) {
+      const id = String(item?.id || item?.instrument_id || '');
+      if (!id) continue;
+      map.set(id, {
+        symbol: item.broker_symbol || item.market_symbol || id.toUpperCase(),
+        label: item.label || '',
+        currency: item.currency || ''
+      });
     }
+    return map;
+  }
+
+  function metaFor(instrument, meta) {
+    return meta.get(String(instrument || '')) || {
+      symbol: String(instrument || '').toUpperCase(),
+      label: '',
+      currency: ''
+    };
+  }
+
+  function orderTransactions(order, paperPortfolio) {
+    return (paperPortfolio?.transactions || []).filter(transaction =>
+      String(transaction?.order_id || '') === String(order?.order_id || '')
+    );
+  }
+
+  function formatDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.valueOf())) return String(value);
+    return date.toLocaleString(locale, {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function formatPrice(value, currency) {
+    const amount = number(value);
+    if (amount === null) return '';
+    return `${amount.toLocaleString(locale, { maximumFractionDigits: 4 })}${currency ? ` ${currency}` : ''}`;
+  }
+
+  function formatUnits(value) {
+    const amount = number(value);
+    if (amount === null) return '';
+    return amount.toLocaleString(locale, { maximumFractionDigits: 8 });
+  }
+
+  function formatCost(value, transaction) {
+    const amount = number(value);
+    if (amount === null) return '';
+    if (!isPolish && transaction?.fx_to_pln && metaCurrency(transaction) === 'USD') {
+      return `${(amount / Number(transaction.fx_to_pln)).toLocaleString(locale, { maximumFractionDigits: 2 })} USD`;
+    }
+    return `${amount.toLocaleString(locale, { maximumFractionDigits: 2 })} PLN`;
+  }
+
+  function metaCurrency(transaction) {
+    return String(transaction?.currency || '').toUpperCase();
+  }
+
+  function actionCopy(action) {
+    const key = String(action || '').toUpperCase();
+    if (key === 'REDUCE') return { badge: COPY.reduce, text: COPY.reduceText, className: 'REDUCE' };
+    if (key === 'ADD') return { badge: COPY.add, text: COPY.addText, className: 'ADD' };
+    if (key === 'REPLACE') return { badge: COPY.replace, text: COPY.replaceText, className: 'REPLACE' };
+    return { badge: COPY.exit, text: COPY.exitText, className: 'EXIT' };
+  }
+
+  function transactionDetail(transaction, instrumentMeta) {
+    if (!transaction) return '';
+    const parts = [];
+    const side = String(transaction.side || '').toUpperCase();
+    const units = formatUnits(transaction.quantity);
+    if (units) parts.push(`${side === 'BUY' ? COPY.bought : COPY.sold} ${units} ${COPY.units}`);
+    const price = formatPrice(transaction.price, instrumentMeta.currency);
+    if (price) parts.push(`${COPY.price}: ${price}`);
+    const cost = number(transaction.transaction_cost_pln);
+    if (cost !== null) parts.push(`${COPY.costs}: ${cost.toLocaleString(locale, { maximumFractionDigits: 2 })} PLN`);
+    return parts.join(' · ');
+  }
+
+  function executionText(order, paperPortfolio, meta) {
+    const action = String(order.action || '').toUpperCase();
+    const transactions = orderTransactions(order, paperPortfolio);
+    const parts = [];
+
+    if (action === 'REPLACE') {
+      const sellMeta = metaFor(order.sell_instrument, meta);
+      const buyMeta = metaFor(order.buy_instrument, meta);
+      parts.push(`${COPY.replaceText}: ${sellMeta.symbol} → ${buyMeta.symbol}.`);
+      const sellTx = transactions.find(tx => String(tx.side).toUpperCase() === 'SELL');
+      const buyTx = transactions.find(tx => String(tx.side).toUpperCase() === 'BUY');
+      const sellDetail = transactionDetail(sellTx, sellMeta);
+      const buyDetail = transactionDetail(buyTx, buyMeta);
+      if (sellDetail) parts.push(`${sellMeta.symbol}: ${sellDetail}.`);
+      if (buyDetail) parts.push(`${buyMeta.symbol}: ${buyDetail}.`);
+    } else {
+      const instrument = action === 'ADD' ? order.buy_instrument : order.sell_instrument;
+      const instrumentMeta = metaFor(instrument, meta);
+      parts.push(`${actionCopy(action).text}: ${instrumentMeta.symbol}.`);
+      const transaction = transactions[0];
+      const detail = transactionDetail(transaction, instrumentMeta);
+      if (detail) parts.push(`${detail}.`);
+      else {
+        const price = formatPrice(order.execution?.price, instrumentMeta.currency);
+        if (price) parts.push(`${COPY.price}: ${price}.`);
+      }
+    }
+
+    if (order.executed_at) parts.push(`${COPY.executed}: ${formatDate(order.executed_at)}.`);
+    const rationale = isPolish ? order.rationale_pl : order.rationale_en;
+    if (rationale) parts.push(rationale);
     return parts.join(' ');
   }
 
-  function applyLatestDecision(order) {
+  function ensureDecisionStyles() {
+    if (document.getElementById('brace-executed-decisions-style')) return;
+    const style = document.createElement('style');
+    style.id = 'brace-executed-decisions-style';
+    style.textContent = `
+      #brace-decisions .signal.REDUCE{background:#fff4db;color:#9a6700}
+      #brace-decisions .signal.ADD{background:#e7f7ee;color:#138a47}
+      #brace-decisions .signal.REPLACE{background:#f1eafe;color:#6941c6}
+      #brace-decisions .signal.EXIT{background:#feecec;color:#b42318}
+      #brace-decisions .completed-brace-decision small{line-height:1.4}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function completedOrders(orders) {
+    return (orders?.orders || [])
+      .filter(order => order?.status === 'PAPER_EXECUTED' && ['ADD', 'REDUCE', 'EXIT', 'REPLACE'].includes(String(order?.action || '').toUpperCase()))
+      .sort((a, b) => String(b.executed_at || '').localeCompare(String(a.executed_at || '')))
+      .slice(0, 3);
+  }
+
+  function decisionRow(order, paperPortfolio, meta) {
+    const action = String(order.action || '').toUpperCase();
+    const copy = actionCopy(action);
+    const instrument = action === 'ADD' ? order.buy_instrument : order.sell_instrument;
+    const symbol = action === 'REPLACE'
+      ? `${metaFor(order.sell_instrument, meta).symbol} → ${metaFor(order.buy_instrument, meta).symbol}`
+      : metaFor(instrument, meta).symbol;
+    const confidence = Math.round(Number(order.confidence || 0) * 100);
+    return `<div class="decision-row completed-brace-decision" data-executed-order="${esc(order.order_id || '')}">
+      <span class="signal ${esc(copy.className)} execution-complete">${esc(copy.badge)}</span>
+      <span><strong>${esc(symbol)}</strong><br><small>${esc(executionText(order, paperPortfolio, meta))}</small></span>
+      <b>${confidence}%</b>
+    </div>`;
+  }
+
+  function renderExecutedDecisions(orders, paperPortfolio, universe) {
     const root = document.getElementById('brace-decisions');
     if (!root) return false;
-    const symbol = symbolFor(order.sell_instrument);
-    const decisionId = String(order.decision_id || order.order_id || symbol);
-    const stableId = `pending-${decisionId}`;
+    ensureDecisionStyles();
 
-    for (const row of root.querySelectorAll('.decision-row')) {
-      const rowId = row.dataset.currentDecision || '';
-      const rowText = row.textContent || '';
-      if (rowId.endsWith(decisionId) || rowText.includes(symbol)) row.remove();
+    const article = root.closest('article');
+    const heading = article?.querySelector('.card-head h2');
+    if (heading) heading.textContent = COPY.cardTitle;
+    const button = article?.querySelector('.card-head .text-button');
+    if (button) {
+      button.textContent = COPY.viewHistory;
+      button.dataset.tab = 'history';
     }
 
-    const row = document.createElement('div');
-    row.className = 'decision-row completed-exit-decision';
-    // Keep the original pending id so the older overlay recognises the row and
-    // does not reinsert the stale "planned sale" version while it is retrying.
-    row.dataset.currentDecision = stableId;
-    row.dataset.executionStatus = 'PAPER_EXECUTED';
-    row.innerHTML = `<span class="signal EXIT execution-complete">${esc(COPY.completed)}</span><span><strong>${esc(symbol)}</strong><br><small>${esc(executionText(order))}</small></span><b>${Math.round(Number(order.confidence || 0) * 100)}%</b>`;
-    root.prepend(row);
+    const meta = metadataMap(paperPortfolio, universe);
+    const completed = completedOrders(orders);
+    root.dataset.braceDecisionMode = 'executed-only';
+    root.innerHTML = completed.length
+      ? completed.map(order => decisionRow(order, paperPortfolio, meta)).join('')
+      : `<p class="brace-empty">${esc(COPY.noExecuted)}</p>`;
+    document.body.dataset.braceExecutions = 'reconciled';
     return true;
   }
 
-  function removeCurrentPositionCards(order) {
-    const symbol = symbolFor(order.sell_instrument);
+  function removeCurrentPositionCards(order, meta) {
+    const action = String(order.action || '').toUpperCase();
+    if (!['EXIT', 'REPLACE'].includes(action) || !order.sell_instrument) return false;
+
+    const instrumentMeta = metaFor(order.sell_instrument, meta);
+    const symbol = instrumentMeta.symbol;
     const instrument = String(order.sell_instrument || '').toLowerCase();
     let changed = false;
 
@@ -111,48 +289,58 @@
       pendingList.outerHTML = `<p class="brace-empty">${esc(COPY.noPending)}</p>`;
       changed = true;
     }
-
     return changed;
-  }
-
-  function reconcileCompletedOrders(orders) {
-    const completed = (orders?.orders || []).filter(order =>
-      order?.status === 'PAPER_EXECUTED' && order?.action === 'EXIT' && order?.sell_instrument
-    );
-    for (const order of completed) {
-      applyLatestDecision(order);
-      removeCurrentPositionCards(order);
-    }
-    if (completed.length) document.body.dataset.braceExecutions = 'reconciled';
   }
 
   async function startExecutionReconciliation() {
     try {
-      const orders = await json('/data/portfolio10k/paper_orders.json');
-      let attempts = 0;
+      const [orders, paperPortfolio, universe] = await Promise.all([
+        json('/data/portfolio10k/paper_orders.json'),
+        json('/data/portfolio10k/paper_portfolio.json'),
+        json('/data/portfolio10k/universe.json').catch(() => ({ instruments: [] }))
+      ]);
+      const meta = metadataMap(paperPortfolio, universe);
       const render = () => {
-        reconcileCompletedOrders(orders);
-        attempts += 1;
-        if (attempts < 48) window.setTimeout(render, attempts < 12 ? 300 : 700);
+        renderExecutedDecisions(orders, paperPortfolio, universe);
+        for (const order of completedOrders(orders)) removeCurrentPositionCards(order, meta);
       };
+
       render();
-      window.addEventListener('hashchange', () => window.setTimeout(() => reconcileCompletedOrders(orders), 0));
+      let attempts = 0;
+      const retry = () => {
+        render();
+        attempts += 1;
+        if (attempts < 48) window.setTimeout(retry, attempts < 12 ? 300 : 700);
+      };
+      window.setTimeout(retry, 300);
+
+      const root = document.getElementById('brace-decisions');
+      if (root && !root.dataset.executedObserver) {
+        root.dataset.executedObserver = 'true';
+        const observer = new MutationObserver(() => {
+          const foreignRow = [...root.children].some(child =>
+            child.classList?.contains('decision-row') && !child.dataset.executedOrder
+          );
+          if (foreignRow) window.setTimeout(render, 0);
+        });
+        observer.observe(root, { childList: true });
+      }
+
+      window.addEventListener('hashchange', () => window.setTimeout(render, 0));
       document.addEventListener('click', event => {
-        if (event.target.closest('[data-tab]')) window.setTimeout(() => reconcileCompletedOrders(orders), 0);
+        if (event.target.closest('[data-tab]')) window.setTimeout(render, 0);
       });
     } catch (_) {
-      // The base investment room remains unchanged if paper-order data is unavailable.
+      // The base investment room remains usable if BRACE execution data is unavailable.
     }
   }
 
   function replacePolishPlaceholders() {
     if (!isPolish) return;
-
     const braceImpact = document.getElementById('brace-impact');
     if (braceImpact && /ładowanie|sprawdzanie/i.test(braceImpact.textContent || '')) {
       braceImpact.textContent = 'Ocena BRACE jest aktualizowana niezależnie od bieżących danych portfela.';
     }
-
     document.body.dataset.investmentPlaceholders = 'finalized';
   }
 
