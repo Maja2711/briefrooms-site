@@ -16,6 +16,8 @@
     price: 'cena',
     units: 'jednostki',
     costs: 'koszty',
+    reason: 'Powód',
+    strength: 'Siła decyzji',
     reduce: 'REDUKCJA ZREALIZOWANA',
     reduceText: 'Zmniejszono pozycję',
     exit: 'SPRZEDAŻ ZREALIZOWANA',
@@ -35,6 +37,8 @@
     price: 'price',
     units: 'units',
     costs: 'costs',
+    reason: 'Reason',
+    strength: 'Decision strength',
     reduce: 'REDUCTION EXECUTED',
     reduceText: 'Reduced position',
     exit: 'SALE EXECUTED',
@@ -123,19 +127,6 @@
     return amount.toLocaleString(locale, { maximumFractionDigits: 8 });
   }
 
-  function formatCost(value, transaction) {
-    const amount = number(value);
-    if (amount === null) return '';
-    if (!isPolish && transaction?.fx_to_pln && metaCurrency(transaction) === 'USD') {
-      return `${(amount / Number(transaction.fx_to_pln)).toLocaleString(locale, { maximumFractionDigits: 2 })} USD`;
-    }
-    return `${amount.toLocaleString(locale, { maximumFractionDigits: 2 })} PLN`;
-  }
-
-  function metaCurrency(transaction) {
-    return String(transaction?.currency || '').toUpperCase();
-  }
-
   function actionCopy(action) {
     const key = String(action || '').toUpperCase();
     if (key === 'REDUCE') return { badge: COPY.reduce, text: COPY.reduceText, className: 'REDUCE' };
@@ -157,7 +148,47 @@
     return parts.join(' · ');
   }
 
-  function executionText(order, paperPortfolio, meta) {
+  function decisionForOrder(order, pending) {
+    return (pending?.decisions || []).find(item => String(item?.decision_id || '') === String(order?.decision_id || ''))
+      || null;
+  }
+
+  function reportIdsForOrder(order, pending) {
+    const decision = decisionForOrder(order, pending);
+    const directIds = decision?.material_event_context?.latest_report_ids || [];
+    if (directIds.length) return directIds.map(String);
+
+    const instrument = String(order?.action || '').toUpperCase() === 'ADD'
+      ? order?.buy_instrument
+      : order?.sell_instrument;
+    const recommendation = (pending?.recommendations || []).find(item => String(item?.instrument || '') === String(instrument || ''));
+    return (recommendation?.material_event_context?.latest_report_ids || []).map(String);
+  }
+
+  function materialReason(order, pending, reports, decisionContext) {
+    const ids = reportIdsForOrder(order, pending);
+    if (!ids.length) return '';
+
+    const contextByReport = new Map((decisionContext?.contexts || []).map(item => [String(item?.report_id || ''), item]));
+    for (const id of ids) {
+      const context = contextByReport.get(id);
+      const enriched = isPolish ? context?.reason_pl : context?.reason_en;
+      if (enriched) return enriched;
+    }
+
+    const reportById = new Map((reports?.reports || []).map(item => [String(item?.id || ''), item]));
+    for (const id of ids) {
+      const report = reportById.get(id);
+      if (!report) continue;
+      const summary = isPolish ? report.summary_pl : report.summary_en;
+      if (summary) return summary;
+      const title = isPolish ? report.title_pl : report.title_en;
+      if (title) return title;
+    }
+    return '';
+  }
+
+  function executionText(order, paperPortfolio, meta, pending, reports, decisionContext) {
     const action = String(order.action || '').toUpperCase();
     const transactions = orderTransactions(order, paperPortfolio);
     const parts = [];
@@ -186,8 +217,14 @@
     }
 
     if (order.executed_at) parts.push(`${COPY.executed}: ${formatDate(order.executed_at)}.`);
-    const rationale = isPolish ? order.rationale_pl : order.rationale_en;
-    if (rationale) parts.push(rationale);
+
+    const material = materialReason(order, pending, reports, decisionContext);
+    if (material) {
+      parts.push(`${COPY.reason}: ${material}`);
+    } else {
+      const rationale = isPolish ? order.rationale_pl : order.rationale_en;
+      if (rationale) parts.push(rationale);
+    }
     return parts.join(' ');
   }
 
@@ -200,7 +237,10 @@
       #brace-decisions .signal.ADD{background:#e7f7ee;color:#138a47}
       #brace-decisions .signal.REPLACE{background:#f1eafe;color:#6941c6}
       #brace-decisions .signal.EXIT{background:#feecec;color:#b42318}
-      #brace-decisions .completed-brace-decision small{line-height:1.4}
+      #brace-decisions .completed-brace-decision small{line-height:1.45}
+      #brace-decisions .decision-strength{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
+      #brace-decisions .decision-strength small{font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#7c8aa0}
+      #brace-decisions .decision-strength span{font-size:13px;font-weight:800;color:#172b4d}
     `;
     document.head.appendChild(style);
   }
@@ -212,22 +252,21 @@
       .slice(0, 3);
   }
 
-  function decisionRow(order, paperPortfolio, meta) {
+  function decisionRow(order, paperPortfolio, meta, pending, reports, decisionContext) {
     const action = String(order.action || '').toUpperCase();
     const copy = actionCopy(action);
     const instrument = action === 'ADD' ? order.buy_instrument : order.sell_instrument;
     const symbol = action === 'REPLACE'
       ? `${metaFor(order.sell_instrument, meta).symbol} → ${metaFor(order.buy_instrument, meta).symbol}`
       : metaFor(instrument, meta).symbol;
-    const confidence = Math.round(Number(order.confidence || 0) * 100);
     return `<div class="decision-row completed-brace-decision" data-executed-order="${esc(order.order_id || '')}">
       <span class="signal ${esc(copy.className)} execution-complete">${esc(copy.badge)}</span>
-      <span><strong>${esc(symbol)}</strong><br><small>${esc(executionText(order, paperPortfolio, meta))}</small></span>
-      <b>${confidence}%</b>
+      <span><strong>${esc(symbol)}</strong><br><small>${esc(executionText(order, paperPortfolio, meta, pending, reports, decisionContext))}</small></span>
+      <b class="decision-strength"><small>${esc(COPY.strength)}</small><span>${esc(action)}</span></b>
     </div>`;
   }
 
-  function renderExecutedDecisions(orders, paperPortfolio, universe) {
+  function renderExecutedDecisions(orders, paperPortfolio, universe, pending, reports, decisionContext) {
     const root = document.getElementById('brace-decisions');
     if (!root) return false;
     ensureDecisionStyles();
@@ -245,7 +284,7 @@
     const completed = completedOrders(orders);
     root.dataset.braceDecisionMode = 'executed-only';
     root.innerHTML = completed.length
-      ? completed.map(order => decisionRow(order, paperPortfolio, meta)).join('')
+      ? completed.map(order => decisionRow(order, paperPortfolio, meta, pending, reports, decisionContext)).join('')
       : `<p class="brace-empty">${esc(COPY.noExecuted)}</p>`;
     document.body.dataset.braceExecutions = 'reconciled';
     return true;
@@ -294,14 +333,17 @@
 
   async function startExecutionReconciliation() {
     try {
-      const [orders, paperPortfolio, universe] = await Promise.all([
+      const [orders, paperPortfolio, universe, pending, reports, decisionContext] = await Promise.all([
         json('/data/portfolio10k/paper_orders.json'),
         json('/data/portfolio10k/paper_portfolio.json'),
-        json('/data/portfolio10k/universe.json').catch(() => ({ instruments: [] }))
+        json('/data/portfolio10k/universe.json').catch(() => ({ instruments: [] })),
+        json('/data/portfolio10k/pending_decisions.json').catch(() => ({ decisions: [], recommendations: [] })),
+        json('/data/investments/portfolio_10k_material_reports.json').catch(() => ({ reports: [] })),
+        json('/data/portfolio10k/decision_context.json').catch(() => ({ contexts: [] }))
       ]);
       const meta = metadataMap(paperPortfolio, universe);
       const render = () => {
-        renderExecutedDecisions(orders, paperPortfolio, universe);
+        renderExecutedDecisions(orders, paperPortfolio, universe, pending, reports, decisionContext);
         for (const order of completedOrders(orders)) removeCurrentPositionCards(order, meta);
       };
 
