@@ -1,5 +1,6 @@
 from html.parser import HTMLParser
 from pathlib import Path
+import re
 import unittest
 
 
@@ -105,6 +106,38 @@ class PortfolioNavigationTests(unittest.TestCase):
         )
         self.assertIn("const TAB_ALIASES = Object.freeze({ brace: 'analytics' });", guard)
         self.assertIn("name = normalizeTab(name);", guard)
+
+    def test_misleading_brace_activity_metrics_are_not_rendered(self) -> None:
+        control = (ROOT / "scripts" / "portfolio-10k-control-public.js").read_text(
+            encoding="utf-8"
+        )
+        for hidden_copy in (
+            "Okres działania",
+            "Operating period",
+            "Automatyczne bramki jakości",
+            "Automatic quality gates",
+            "BRACE paper",
+            "completed paper trades",
+        ):
+            self.assertNotIn(hidden_copy, control)
+        self.assertNotIn("metric(T.period", control)
+        self.assertNotIn('<section class="control-progress">', control)
+
+        metrics = re.search(
+            r'<div class="control-metrics">(.*?)</div>', control, flags=re.DOTALL
+        )
+        self.assertIsNotNone(metrics)
+        self.assertEqual(metrics.group(1).count("${metric("), 4)
+
+        css = (ROOT / "assets" / "portfolio-10k.css").read_text(encoding="utf-8")
+        self.assertIn(
+            ".control-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))",
+            css,
+        )
+        for path in PAGES.values():
+            html = path.read_text(encoding="utf-8")
+            self.assertIn("portfolio-10k.css?v=5", html)
+            self.assertIn("portfolio-10k-control-public.js?v=4", html)
 
 
 if __name__ == "__main__":
