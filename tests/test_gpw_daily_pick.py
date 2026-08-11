@@ -159,6 +159,7 @@ class GpwDailyPickTests(unittest.TestCase):
 
     def test_stale_publication_is_rejected(self):
         payload = gpw.failure_payload(self.now, self.config, "test", "fixture")
+        self.assertEqual(payload["reason"], "Brak dzisiaj wyboru.")
         tomorrow = self.now + timedelta(days=1)
         with self.assertRaises(gpw.PublicationError):
             gpw.validate_payload(payload, require_today=True, now=tomorrow)

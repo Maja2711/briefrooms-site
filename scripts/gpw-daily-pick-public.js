@@ -7,8 +7,17 @@
   const DATA_URL = "/data/investments/gpw_daily_pick.json";
   const labels = {
     TRANSAKCJA: ["TRANSAKCJA", "trade"],
-    BRAK_TRANSAKCJI: ["BRAK TRANSAKCJI", "no-trade"],
-    AWARIA_DANYCH: ["AWARIA DANYCH", "error"]
+    BRAK_TRANSAKCJI: ["BRAK DZISIAJ WYBORU", "no-trade"],
+    AWARIA_DANYCH: ["ANALIZA DANYCH — TRWA", "pending"]
+  };
+
+  const scoreLabels = {
+    catalyst: "Katalizator",
+    relative_momentum: "Momentum relatywne",
+    volume_liquidity: "Wolumen i płynność",
+    market_context: "Rynek i sektor",
+    risk_reward: "Relacja zysku do ryzyka",
+    historical_expectancy: "Dotychczasowa skuteczność układu"
   };
 
   const warsawDate = () => {
@@ -61,31 +70,69 @@
     const decision = stale ? "AWARIA_DANYCH" : payload.decision;
     const [statusText, statusClass] = labels[decision] || labels.AWARIA_DANYCH;
     root.querySelector("[data-gpw-status]").className = `gpw-pick-status ${statusClass}`;
-    root.querySelector("[data-gpw-status]").textContent = stale ? "DANE NIEAKTUALNE" : statusText;
+    root.querySelector("[data-gpw-status]").textContent = stale ? "ANALIZA DANYCH — TRWA" : statusText;
     root.querySelector("[data-gpw-date]").textContent = payload.date || "—";
     root.querySelector("[data-gpw-generated]").textContent = `Aktualizacja: ${formatTimestamp(payload.generated_at)}`;
   };
 
   const renderEmpty = (payload, stale = false) => {
     setShell(payload, stale);
-    const error = stale || payload.decision === "AWARIA_DANYCH";
-    const reason = stale
-      ? "Dzisiejszy zapis nie został jeszcze bezpiecznie opublikowany. Poprzedni sygnał nie jest pokazywany jako aktualny."
-      : payload.reason;
     root.querySelector("[data-gpw-body]").innerHTML = `
-      <div class="gpw-pick-empty ${error ? "error" : ""}">
-        <strong>${error ? "Publikacja zatrzymana przez zabezpieczenia" : "Dziś bez wymuszonego wyboru"}</strong><br>
-        ${escapeHtml(reason || "Brak kandydatury spełniającej pełny próg jakości.")}
-      </div>`;
+      <div class="gpw-pick-empty"><strong>Brak dzisiaj wyboru</strong></div>`;
     root.querySelector("[data-gpw-metrics]").textContent = metricsText(payload.metrics);
+    renderDetails(payload);
   };
 
   const metricsText = (metrics = {}) => {
     const count = Number(metrics.resolved_trades || 0);
-    if (!count) return "Historia: brak zakończonych paper trades";
+    if (!count) return "Historia: brak zakończonych transakcji dziennych";
     const winRate = metrics.win_rate == null ? "—" : `${Math.round(Number(metrics.win_rate) * 100)}%`;
     const averageR = metrics.average_r == null ? "—" : `${Number(metrics.average_r).toFixed(2)}R`;
     return `Historia: ${count} zakończonych · skuteczność ${winRate} · średnio ${averageR}`;
+  };
+
+  const renderDetails = (payload) => {
+    const details = root.querySelector("[data-gpw-details]");
+    const body = root.querySelector("[data-gpw-details-body]");
+    const sections = [];
+    const scores = payload.selection?.scores || {};
+    const scoreRows = Object.entries(scoreLabels)
+      .filter(([key]) => Number.isFinite(Number(scores[key])))
+      .map(([key, label]) => `<div><span>${label}</span><b>${Number(scores[key]).toFixed(1)}/100</b></div>`)
+      .join("");
+    if (scoreRows) {
+      sections.push(`<section><h3>Skład oceny</h3><div class="gpw-pick-detail-grid">${scoreRows}</div></section>`);
+    }
+
+    const metrics = payload.metrics || {};
+    const resolved = Number(metrics.resolved_trades || 0);
+    if (resolved > 0) {
+      const winRate = metrics.win_rate == null ? "—" : `${Math.round(Number(metrics.win_rate) * 100)}%`;
+      const averageReturn = metrics.average_return_percent == null ? "—" : `${Number(metrics.average_return_percent).toFixed(2)}%`;
+      const averageR = metrics.average_r == null ? "—" : `${Number(metrics.average_r).toFixed(2)}R`;
+      sections.push(`<section><h3>Wyniki zakończonych transakcji</h3><div class="gpw-pick-detail-grid">
+        <div><span>Liczba</span><b>${resolved}</b></div>
+        <div><span>Skuteczność</span><b>${winRate}</b></div>
+        <div><span>Średni wynik</span><b>${averageReturn}</b></div>
+        <div><span>Średnio względem ryzyka</span><b>${averageR}</b></div>
+      </div></section>`);
+    }
+
+    const outcome = payload.outcome || {};
+    if (outcome.status === "RESOLVED") {
+      const result = outcome.activated
+        ? `${Number(outcome.return_percent || 0).toFixed(2)}%`
+        : "Nie aktywowano";
+      sections.push(`<section><h3>Rozliczenie ostatniego wyboru</h3><p>${escapeHtml(result)}</p></section>`);
+    }
+
+    details.hidden = sections.length === 0;
+    if (!sections.length) {
+      details.open = false;
+      body.innerHTML = "";
+      return;
+    }
+    body.innerHTML = sections.join("");
   };
 
   const renderTrade = (payload) => {
@@ -117,6 +164,7 @@
         </section>
       </div>`;
     root.querySelector("[data-gpw-metrics]").textContent = metricsText(payload.metrics);
+    renderDetails(payload);
   };
 
   const render = (payload) => {
@@ -138,7 +186,7 @@
         date: warsawDate(),
         generated_at: new Date().toISOString(),
         decision: "AWARIA_DANYCH",
-        reason: "Nie udało się pobrać zweryfikowanego zapisu. Nie pokazujemy poprzedniego sygnału jako aktualnego.",
+        reason: "Brak dzisiaj wyboru.",
         metrics: {}
       });
     }

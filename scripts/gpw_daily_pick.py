@@ -592,7 +592,7 @@ def common_payload(now: datetime, config: dict[str, Any], decision: str, reason:
             "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
         },
         "metrics": metric_summary(all_history()),
-        "disclaimer": "Materiał badawczy i paper trading. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+        "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
     }
 
 
@@ -618,7 +618,7 @@ def publish(payload: dict[str, Any]) -> bool:
 
 
 def failure_payload(now: datetime, config: dict[str, Any], reason: str, stage: str) -> dict[str, Any]:
-    payload = common_payload(now, config, "AWARIA_DANYCH", reason)
+    payload = common_payload(now, config, "AWARIA_DANYCH", "Brak dzisiaj wyboru.")
     payload["data_quality"] = {"status": "failed", "failed_stage": stage}
     return payload
 
@@ -718,7 +718,7 @@ def generate(
                 "score": score,
                 "reference_price": candidate["reference_price"],
                 "entry_zone": candidate["entry_zone"],
-                "activation": "Paper trade aktywuje się na oficjalnym otwarciu tylko przy cenie w strefie wejścia; brak aktywacji oznacza brak transakcji.",
+                "activation": "Transakcja dzienna w modelu aktywuje się na oficjalnym otwarciu tylko przy cenie w strefie wejścia; brak aktywacji oznacza brak transakcji.",
                 "stop": candidate["stop"],
                 "target": candidate["target"],
                 "reward_risk": candidate["reward_risk"],
