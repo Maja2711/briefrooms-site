@@ -30,6 +30,37 @@ class AiOutlookV3Tests(unittest.TestCase):
             "date_label": "3 sierpnia 2026" if language == "pl" else "August 3, 2026",
             "forecast_id": f"2026-08-03-{language}-cand_01",
             "probability": probability,
+            "analysis_contract_version": "ai-outlook-analysis-v1",
+            "probability_event": (
+                "Metryka metric osiągnie próg do 2027-08-03 w oficjalnych danych."
+                if language == "pl"
+                else "The metric reaches its threshold by 2027-08-03 in official data."
+            ),
+            "analysis_summary": (
+                "Wniosek analityczny oddziela dzisiejszy fakt od przyszłego wyniku i wskazuje główne źródło niepewności w mechanizmie."
+                if language == "pl"
+                else "The analytical conclusion separates today's evidence from the future outcome and identifies the mechanism's main uncertainty."
+            ),
+            "impact": (
+                "Spełnienie progu wzmocni wniosek o trwałości procesu, a brak realizacji osłabi go i pozostawi stan bazowy bez zakładanej zmiany."
+                if language == "pl"
+                else "Meeting the threshold would strengthen the case for persistence; missing it would weaken that inference and leave the baseline unchanged."
+            ),
+            "watch_items": (
+                "Ocenę zmienią dwa kolejne oficjalne odczyty, rewizja harmonogramu oraz trwałe odejście metryki od progu."
+                if language == "pl"
+                else "Two further official readings, a schedule revision and a sustained move away from the threshold would change the assessment."
+            ),
+            "direction": {
+                "status": "not_applicable",
+                "perspective": "",
+                "explanation": (
+                    "Prognoza dotyczy mierzalnego progu, więc odrębny podział kierunku decyzji nie ma w tym przypadku zastosowania."
+                    if language == "pl"
+                    else "The forecast concerns a measurable threshold, so a separate decision-direction split does not apply in this case."
+                ),
+                "scenarios": [],
+            },
             "source_language": language,
             "source_policy": MODULE.SOURCE_POLICY[language],
             "sources": [
