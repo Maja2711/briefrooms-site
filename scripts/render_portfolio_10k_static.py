@@ -293,7 +293,7 @@ def render_page(source: str, payload: dict, config: PageConfig) -> str:
     )
     source = re.sub(
         r'/scripts/portfolio-10k-navigation-guard\.js\?v=\d+',
-        '/scripts/portfolio-10k-navigation-guard.js?v=4',
+        '/scripts/portfolio-10k-navigation-guard.js?v=5',
         source,
     )
     snapshot = render_snapshot(payload, config)
