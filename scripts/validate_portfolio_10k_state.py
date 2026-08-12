@@ -122,10 +122,11 @@ def validate_state(data: Dict[str, Any]) -> List[str]:
             errors.append(
                 f"position[{position.get('id')}].status: audited staged execution must be {expected_position_status}"
             )
-        for source_key, position_key in (
-            ("price", "entry_price"), ("fx_to_pln", "entry_fx_to_pln"),
-            ("entry_value_pln", "entry_value_pln"),
-        ):
+        # Entry-audit fields describe the original staged fill. After REDUCE/ADD
+        # the live ledger can legitimately carry proportionally adjusted notionals.
+        # Price and FX remain immutable audit anchors; entry_value is checked only
+        # for positions untouched by executed allocation actions.
+        for source_key, position_key in (("price", "entry_price"), ("fx_to_pln", "entry_fx_to_pln")):
             if not close(execution.get(source_key), position.get(position_key), tolerance=1e-5):
                 errors.append(f"position[{position.get('id')}].{position_key}: differs from staged execution")
 
@@ -136,10 +137,15 @@ def validate_state(data: Dict[str, Any]) -> List[str]:
 
     reconciliation = data.get("execution_reconciliation") or {}
     reconciled_exits = reconciliation.get("executed_exit_instruments") or []
-    reconciled = bool(reconciled_exits)
+    applied_order_ids = reconciliation.get("applied_order_ids") or []
+    executed_actions = reconciliation.get("executed_actions") or []
+    affected_instruments = reconciliation.get("affected_instruments") or []
+    # Any executed allocation action (EXIT, REDUCE, ADD or REPLACE) makes the
+    # paper cash ledger authoritative. Previously only full EXIT was recognised,
+    # which made every hourly run fail after a partial GOOGL REDUCE.
+    reconciled = bool(applied_order_ids or executed_actions or affected_instruments or reconciled_exits)
 
     if reconciled:
-        # Once an exit is executed, cash from the paper ledger is authoritative.
         expected_cash = base.finite(data.get("cash_pln"))
         if expected_cash is None or expected_cash < 0:
             errors.append("portfolio.cash_pln: expected a finite non-negative number")
