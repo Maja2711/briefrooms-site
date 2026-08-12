@@ -96,17 +96,19 @@ jobs:
             exit 0
           fi
           git commit -m "Mark Portfolio 10K to market"
+          git reset --hard HEAD
+          git clean -fd
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             git rebase --abort 2>/dev/null || true
+            git reset --hard HEAD
+            git clean -fd
             git fetch origin main
             git rebase origin/main
             sleep $((attempt * 5))
           done
           exit 1
 
-      # This is deliberately non-blocking. It checks broader historical/schema
-      # assumptions, but must never freeze a correct MTM publication again.
       - name: Legacy and schema audit after publication
         continue-on-error: true
         run: |
@@ -164,13 +166,17 @@ jobs:
           git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Refresh Portfolio 10K public snapshots"
+          git reset --hard HEAD
+          git clean -fd
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             git rebase --abort 2>/dev/null || true
+            git reset --hard HEAD
+            git clean -fd
             git fetch origin main
             git rebase origin/main
             sleep $((attempt * 5))
           done
           exit 1
 
-# trigger: hardened publication gate 2026-08-12
+# trigger: hardened clean-worktree publication 2026-08-12
