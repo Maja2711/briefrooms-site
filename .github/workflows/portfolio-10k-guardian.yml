@@ -85,9 +85,16 @@ jobs:
             exit 1
           fi
           git commit -m "Guardian repair Portfolio 10K freshness"
+          # Generators may also touch diagnostic/cache files that are not part of
+          # the public freshness transaction. Never let those scratch changes
+          # block rebase/push of the already hard-gated valuation commit.
+          git reset --hard HEAD
+          git clean -fd
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             git rebase --abort 2>/dev/null || true
+            git reset --hard HEAD
+            git clean -fd
             git fetch origin main
             git rebase origin/main
             sleep $((attempt * 5))
