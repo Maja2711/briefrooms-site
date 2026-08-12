@@ -27,18 +27,26 @@ jobs:
           node-version: '22'
       - name: Validate freshness guard JavaScript
         run: node --check scripts/portfolio-10k-navigation-guard.js
-      - name: Bump freshness guard asset in PL and EN
+      - name: Pin freshness guard v5 in renderer, PL and EN
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
-          for path in [Path('pl/inwestycje/portfel-10k.html'), Path('en/investing/portfolio-10k.html')]:
-              text=path.read_text(encoding='utf-8')
-              if 'portfolio-10k-navigation-guard.js?v=5' in text:
-                  continue
-              if 'portfolio-10k-navigation-guard.js?v=4' not in text:
-                  raise SystemExit(f'{path}: v4 guard reference not found')
-              path.write_text(text.replace('portfolio-10k-navigation-guard.js?v=4','portfolio-10k-navigation-guard.js?v=5'), encoding='utf-8')
+          paths = [
+              Path('scripts/render_portfolio_10k_static.py'),
+              Path('pl/inwestycje/portfel-10k.html'),
+              Path('en/investing/portfolio-10k.html'),
+          ]
+          pattern = re.compile(r'portfolio-10k-navigation-guard\.js\?v=\d+')
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              updated, count = pattern.subn('portfolio-10k-navigation-guard.js?v=5', text)
+              if count == 0 and 'portfolio-10k-navigation-guard.js?v=5' not in text:
+                  raise SystemExit(f'{path}: navigation guard reference not found')
+              path.write_text(updated, encoding='utf-8')
           PY
+          node --check scripts/portfolio-10k-navigation-guard.js
+          python scripts/render_portfolio_10k_static.py --check
       - name: Remove one-shot workflow
         run: rm .github/workflows/one-shot-portfolio-freshness-ui-v5.yml
       - name: Commit deployment
@@ -46,8 +54,13 @@ jobs:
           set -euo pipefail
           git config user.name 'briefrooms-bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html .github/workflows/one-shot-portfolio-freshness-ui-v5.yml
+          git add scripts/render_portfolio_10k_static.py \
+                  pl/inwestycje/portfel-10k.html \
+                  en/investing/portfolio-10k.html \
+                  .github/workflows/one-shot-portfolio-freshness-ui-v5.yml
           git diff --cached --quiet && exit 0
-          git commit -m 'Load Portfolio 10K freshness guard v5'
+          git commit -m 'Pin Portfolio 10K freshness guard v5'
+          git reset --hard HEAD
+          git clean -fd
           git pull --rebase origin main
           git push origin HEAD:main
