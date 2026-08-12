@@ -8,6 +8,10 @@
   const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','analytics','history','rules']);
   const TAB_ALIASES = Object.freeze({ brace: 'analytics' });
   const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
+  const currency = isEn ? 'USD' : 'PLN';
+  const FRESHNESS_SLA_MS = 100 * 60 * 1000;
+  const FRESHNESS_POLL_MS = 5 * 60 * 1000;
+  let freshnessMode = 'unknown';
 
   function normalizeTab(name) {
     const value = String(name || '');
@@ -71,11 +75,9 @@
 
     if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
     document.body.dataset.investmentActiveTab = name;
-    document.body.dataset.investmentNavigationGuard = 'active-v4';
+    document.body.dataset.investmentNavigationGuard = 'active-v5';
 
-    if (name === 'agents') {
-      requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
-    }
+    if (name === 'agents') requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     try {
       window.dispatchEvent(new CustomEvent('briefrooms:investment-tab-change', { detail: { tab: name } }));
     } catch (_) {}
@@ -112,7 +114,72 @@
     consume(event, true);
   }
 
+  function expectedRefreshWindow(now = new Date()) {
+    const day = now.getUTCDay();
+    const hour = now.getUTCHours();
+    return day >= 1 && day <= 5 && hour >= 6 && hour <= 22;
+  }
+
+  function setStatusVisual(mode) {
+    const status = document.querySelector('#data-status');
+    const badge = document.querySelector('.live-badge');
+    if (!status) return;
+
+    status.classList.remove('portfolio-status-active', 'portfolio-status-stale', 'portfolio-status-after-hours');
+    if (mode === 'stale') {
+      status.textContent = `${isEn ? 'STALE DATA' : 'DANE OPÓŹNIONE'} · ${currency}`;
+      status.classList.add('portfolio-status-stale');
+      status.style.color = '#b42318';
+      status.style.fontWeight = '900';
+      if (badge) {
+        badge.innerHTML = `<i></i> ${isEn ? 'STALE' : 'OPÓŹNIONE'}`;
+        badge.dataset.automationStatus = 'stale';
+      }
+      return;
+    }
+    if (mode === 'after-hours') {
+      status.textContent = `${isEn ? 'AFTER HOURS' : 'PO SESJI'} · ${currency}`;
+      status.classList.add('portfolio-status-after-hours');
+      status.style.color = '#667085';
+      status.style.fontWeight = '800';
+      if (badge) {
+        badge.innerHTML = `<i></i> ${isEn ? 'AFTER HOURS' : 'PO SESJI'}`;
+        badge.dataset.automationStatus = 'after-hours';
+      }
+      return;
+    }
+    status.textContent = `${isEn ? 'ACTIVE' : 'AKTYWNY'} · ${currency}`;
+    status.classList.add('portfolio-status-active');
+    status.style.color = '#15964d';
+    status.style.fontWeight = '900';
+    if (badge) {
+      badge.innerHTML = `<i></i> ${isEn ? 'ACTIVE' : 'AKTYWNY'}`;
+      badge.dataset.automationStatus = 'healthy';
+    }
+  }
+
+  function applyPortfolioFreshness(portfolio) {
+    const updated = new Date(portfolio?.last_updated_at || '');
+    const now = new Date();
+    if (Number.isNaN(updated.valueOf())) {
+      freshnessMode = 'stale';
+      setStatusVisual(freshnessMode);
+      return;
+    }
+    const age = Math.max(0, now.valueOf() - updated.valueOf());
+    if (expectedRefreshWindow(now) && age > FRESHNESS_SLA_MS) freshnessMode = 'stale';
+    else if (!expectedRefreshWindow(now) && age > FRESHNESS_SLA_MS) freshnessMode = 'after-hours';
+    else freshnessMode = 'active';
+    document.body.dataset.portfolioFreshness = freshnessMode;
+    document.body.dataset.portfolioFreshnessAgeMinutes = String(Math.round(age / 60000));
+    setStatusVisual(freshnessMode);
+  }
+
   function applyOperationalStatus() {
+    if (freshnessMode !== 'unknown') {
+      setStatusVisual(freshnessMode);
+      return;
+    }
     const status = document.querySelector('#data-status');
     if (!status) return;
     const text = String(status.textContent || '').trim().toUpperCase();
@@ -132,9 +199,10 @@
       ? '/data/investments/portfolio_10k_usd.json'
       : '/data/investments/portfolio_10k.json';
     try {
-      const response = await fetch(`${url}?cashYield=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`${url}?freshness=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) return;
       const portfolio = await response.json();
+      applyPortfolioFreshness(portfolio);
       const cashYield = portfolio?.cash_yield || {};
       const rate = Number(cashYield.rate_percent);
       if (!Number.isFinite(rate)) return;
@@ -150,7 +218,7 @@
       }
       document.body.dataset.portfolioCashYield = String(cashYield.benchmark || 'active');
     } catch (_) {
-      // Cash-yield metadata is supplemental; the core portfolio remains usable.
+      // A failed supplemental fetch does not overwrite the last verified state.
     }
   }
 
@@ -164,6 +232,8 @@
         .i10k-panel[hidden]{display:none!important}
         .i10k-panel.active:not([hidden]){display:block!important}
         .top-meta #data-status.portfolio-status-active{color:#15964d!important;font-weight:900!important}
+        .top-meta #data-status.portfolio-status-stale{color:#b42318!important;font-weight:900!important}
+        .top-meta #data-status.portfolio-status-after-hours{color:#667085!important;font-weight:800!important}
       `;
       document.head.appendChild(style);
     }
@@ -180,9 +250,6 @@
     applyCashYieldLabel();
   }
 
-  // Capture on window is deliberately first in the event path. Once a valid
-  // Investment Room navigation target is handled, legacy listeners do not get
-  // the same event and therefore cannot switch the view back afterwards.
   window.addEventListener('pointerdown', handlePointerDown, true);
   window.addEventListener('click', handleClick, true);
   window.addEventListener('keydown', handleKeyDown, true);
@@ -210,9 +277,10 @@
       }).observe(app, { childList: true, subtree: true, characterData: true });
     }
     window.setTimeout(applyCashYieldLabel, 1500);
+    window.setInterval(applyCashYieldLabel, FRESHNESS_POLL_MS);
   };
 
-  window.BriefRoomsInvestmentNavigation = { activate, version: 4 };
+  window.BriefRoomsInvestmentNavigation = { activate, version: 5 };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
