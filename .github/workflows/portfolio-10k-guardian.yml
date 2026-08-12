@@ -4,6 +4,14 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "*/20 6-21 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/portfolio-10k-guardian.yml"
+      - ".github/workflows/portfolio-10k-hourly-prices.yml"
+      - "scripts/portfolio_10k_hard_gate.py"
+      - "scripts/validate_portfolio_10k_state.py"
+      - "scripts/reconcile_portfolio_10k_executions.py"
 
 permissions:
   contents: write
@@ -105,8 +113,6 @@ jobs:
           if dt.tzinfo is None: dt=dt.replace(tzinfo=timezone.utc)
           age=(datetime.now(timezone.utc)-dt.astimezone(timezone.utc)).total_seconds()/60
           print(f'Committed/public Portfolio 10K age: {age:.1f} min')
-          # When no repair was needed, <=70 is the expected condition. After a
-          # repair, the working tree contains the newly generated timestamp.
           if age > 75:
               raise SystemExit('Portfolio 10K freshness SLA still violated')
           PY
