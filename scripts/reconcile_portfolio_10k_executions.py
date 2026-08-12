@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Reconcile completed BRACE paper trades into the public Portfolio 10K state.
 
-The public portfolio mirrors authorised PAPER_EXECUTED allocation changes.  EXIT
+The public portfolio mirrors authorised PAPER_EXECUTED allocation changes. EXIT
 removes a holding, REDUCE synchronises the reduced quantity, ADD synchronises or
-creates the bought holding, and REPLACE applies both legs.  Only instruments
+creates the bought holding, and REPLACE applies both legs. Only instruments
 actually touched by executed orders are copied from the paper ledger, so stale
 paper quotes cannot overwrite unrelated current holdings.
+
+Original entry audit fields remain immutable. For a partial REDUCE we additionally
+store a proportional remaining cost basis, which is the denominator for the
+unrealised P/L of the surviving lot.
 """
 from __future__ import annotations
 
@@ -100,6 +104,44 @@ def sync_active_position(
     return changed
 
 
+def apply_remaining_cost_basis(position: dict[str, Any]) -> bool:
+    """Attach a proportional cost basis for the surviving lot after REDUCE.
+
+    Entry price/notional/fee remain the immutable audit of the original staged
+    purchase. The new fields are cumulative and can survive multiple reductions
+    because the current quantity is always compared with the original quantity.
+    """
+    quantity = finite(position.get("quantity"))
+    entry_price = finite(position.get("entry_price"))
+    entry_fx = finite(position.get("entry_fx_to_pln"))
+    original_notional = finite(position.get("entry_notional_pln"))
+    original_fee = finite(position.get("entry_fee_pln"))
+    if min(quantity, entry_price, entry_fx, original_notional) <= 0:
+        return False
+
+    original_quantity = original_notional / (entry_price * entry_fx)
+    if original_quantity <= 0:
+        return False
+    ratio = min(1.0, max(0.0, quantity / original_quantity))
+    remaining_notional = original_notional * ratio
+    remaining_fee = original_fee * ratio
+    remaining_basis = remaining_notional + remaining_fee
+    updates = {
+        "original_quantity_audit": round(original_quantity, 10),
+        "remaining_quantity_ratio": round(ratio, 10),
+        "remaining_entry_notional_pln": round(remaining_notional, 8),
+        "remaining_entry_fee_pln": round(remaining_fee, 8),
+        "remaining_cost_basis_pln": round(remaining_basis, 8),
+        "cost_basis_method": "proportional_original_lot_after_reduce",
+    }
+    changed = False
+    for key, value in updates.items():
+        if position.get(key) != value:
+            position[key] = value
+            changed = True
+    return changed
+
+
 def close_position(
     active_positions: list[dict[str, Any]],
     existing_closed: dict[str, dict[str, Any]],
@@ -181,6 +223,9 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
             affected.add(sell_id)
         elif action == "REDUCE" and sell_id:
             changed = sync_active_position(active_positions, paper_active, sell_id) or changed
+            reduced = find_position(active_positions, sell_id)
+            if reduced is not None:
+                changed = apply_remaining_cost_basis(reduced) or changed
             affected.add(sell_id)
 
         if action in {"ADD", "REPLACE"} and buy_id:
@@ -194,9 +239,6 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
     public["positions"] = active_positions
     public["closed_positions"] = list(existing_closed.values())
 
-    # The paper ledger is authoritative for cash created/consumed by executed
-    # paper trades. Preserve sub-cent precision because the cash-yield ledger
-    # accrues continuously and public display rounding happens later.
     paper_cash = finite(paper.get("cash_pln"), finite(public.get("cash_pln")))
     if abs(finite(public.get("base_cash_pln"), -1.0) - paper_cash) > 1e-10:
         public["base_cash_pln"] = round(paper_cash, 8)
@@ -204,7 +246,6 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
     public["cash_pln"] = round(paper_cash, 8)
     public["cash_balance_pln"] = round(paper_cash, 8)
 
-    # Keep cumulative cash-yield metadata aligned with the authoritative ledger.
     if paper.get("cash_yield"):
         public["cash_yield"] = dict(paper.get("cash_yield") or {})
         public["cash_interest_accrued_pln"] = round(
@@ -227,7 +268,7 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
 
     now = datetime.now(timezone.utc).astimezone(WARSAW).isoformat(timespec="seconds")
     public["execution_reconciliation"] = {
-        "version": "2.0.0",
+        "version": "2.1.0-cost-basis",
         "checked_at": now,
         "source_orders": "/data/portfolio10k/paper_orders.json",
         "source_paper_portfolio": "/data/portfolio10k/paper_portfolio.json",

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Refresh Portfolio 10K prices from recent completed intraday bars.
 
-Entry prices and quantities are immutable. This script updates current quotes,
-FX rates, valuation, P/L, weights and the benchmark. Before marking positions
-to market it also credits the PLN cash ledger with the configured NBP reference
-rate, keeping the public and BRACE paper cash ledgers in sync.
+Entry prices and original quantities remain immutable audit anchors. This script
+updates current quotes, FX rates, valuation, P/L, weights and the benchmark.
+For a partially reduced position, unrealised P/L is measured against the
+remaining cost basis recorded by execution reconciliation, not against the
+original full-position capital. Before marking positions to market it also
+credits the PLN cash ledger with the configured NBP reference rate.
 """
 from __future__ import annotations
 
@@ -106,13 +108,10 @@ def fetch_completed_quote(symbol: str, assumed_tz: str, now_utc: datetime) -> Qu
     frame = normalized_intraday(frame, assumed_tz)
     if frame.empty:
         raise RuntimeError(f"No intraday data for {symbol}")
-
-    # yfinance labels five-minute bars by their start, so wait until the bar is complete.
     completed_before = pd.Timestamp(now_utc - timedelta(minutes=5))
     eligible = frame[frame.index <= completed_before]
     if eligible.empty:
         raise RuntimeError(f"No completed intraday bar for {symbol}")
-
     timestamp = pd.Timestamp(eligible.index[-1]).to_pydatetime().astimezone(UTC)
     price = finite(eligible["Close"].iloc[-1])
     if price is None or price <= 0:
@@ -124,8 +123,6 @@ def quote_is_usable(quote: Quote, open_now: bool, now_utc: datetime) -> bool:
     age = now_utc - quote.timestamp_utc
     if age < timedelta(minutes=-1):
         return False
-    # During trading reject a feed that has stopped moving. Outside trading use the
-    # latest completed session quote rather than falling back to the purchase price.
     return age <= (timedelta(minutes=90) if open_now else timedelta(days=7))
 
 
@@ -142,6 +139,13 @@ def fx_quote(currency: str, now_utc: datetime, cache: Dict[str, Quote]) -> Tuple
         cache[currency] = quote
     quote = cache[currency]
     return quote.price, quote.timestamp_utc, quote.source
+
+
+def unrealised_cost_basis(position: Dict[str, Any]) -> float:
+    remaining = finite(position.get("remaining_cost_basis_pln"))
+    if remaining is not None and remaining > 0:
+        return remaining
+    return finite(position.get("entry_value_pln")) or 0.0
 
 
 def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
@@ -167,8 +171,8 @@ def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
             quantity = finite(position.get("quantity")) or 0.0
             current_value = quantity * quote.price * rate
             dividends = finite(position.get("dividends_pln")) or 0.0
-            entry_value = finite(position.get("entry_value_pln")) or 0.0
-            pnl = current_value + dividends - entry_value
+            cost_basis = unrealised_cost_basis(position)
+            pnl = current_value + dividends - cost_basis
             position.update({
                 "current_price": round(quote.price, 6),
                 "current_price_updated_at": quote.timestamp_utc.isoformat(timespec="seconds"),
@@ -178,7 +182,8 @@ def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
                 "current_fx_source": fx_source,
                 "current_value_pln": round(current_value, 2),
                 "pnl_pln": round(pnl, 2),
-                "pnl_percent": round(pnl / entry_value, 6) if entry_value else None,
+                "pnl_percent": round(pnl / cost_basis, 6) if cost_basis else None,
+                "pnl_cost_basis_pln": round(cost_basis, 8),
                 "market_date": quote.timestamp_utc.astimezone(ZoneInfo(session.timezone_name)).date().isoformat(),
                 "quote_update_error": None,
             })
@@ -243,15 +248,15 @@ def update_portfolio(data: Dict[str, Any], now_utc: datetime) -> Dict[str, Any]:
     if latest_market_dates:
         data["last_market_session"] = max(latest_market_dates)
     data["hourly_valuation"] = {
-        "policy_version": "1.1.0-cash-yield",
+        "policy_version": "1.2.0-cash-yield-reduced-cost-basis",
         "checked_at": now_local.isoformat(timespec="seconds"),
         "updated_instruments": updated,
         "active_instruments": len(active),
         "errors": errors,
         "cash_yield_benchmark": (data.get("cash_yield") or {}).get("benchmark"),
         "cash_yield_rate": (data.get("cash_yield") or {}).get("annual_rate"),
-        "rule_pl": "Bieżąca wycena jest odświeżana co godzinę w dni handlowe z ostatniej zakończonej świecy 5-minutowej. Wolna gotówka PLN jest oprocentowana stopą referencyjną NBP w konwencji ACT/365. Po zamknięciu rynku pozostaje ostatnia dostępna cena sesyjna; cena zakupu nie zastępuje ceny bieżącej.",
-        "rule_en": "Current valuation is refreshed hourly on trading days from the latest completed five-minute bar. Free PLN model cash earns the NBP reference rate on an ACT/365 basis. After the market closes, the latest available session price remains visible; the purchase price is never substituted for the current price.",
+        "rule_pl": "Bieżąca wycena jest odświeżana co godzinę w dni handlowe z ostatniej zakończonej świecy 5-minutowej. Po częściowej sprzedaży niezrealizowany wynik pozostałej pozycji jest liczony względem proporcjonalnego kosztu pozostałego pakietu. Wolna gotówka PLN jest oprocentowana stopą referencyjną NBP w konwencji ACT/365.",
+        "rule_en": "Current valuation is refreshed hourly on trading days from the latest completed five-minute bar. After a partial sale, unrealised P/L for the surviving lot is measured against its proportional remaining cost basis. Free PLN model cash earns the NBP reference rate on an ACT/365 basis.",
     }
     data["last_run_error"] = "; ".join(errors) if errors and not updated else None
 
