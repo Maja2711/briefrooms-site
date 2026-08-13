@@ -1,0 +1,254 @@
+name: AI Outlook Freshness Guardian
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "55 5-12 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-outlook-gemini-daily
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Decide whether AI Outlook needs repair
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          errors = []
+
+          def read(path):
+              try:
+                  return json.loads(Path(path).read_text(encoding='utf-8'))
+              except Exception as exc:
+                  errors.append(f'{path}: {exc}')
+                  return {}
+
+          payload = read('data/ai_outlook.json')
+          status = read('data/ai_outlook_status.json')
+          provider = read('data/ai_outlook_provider_status.json')
+          production = read('data/ai_outlook_production_status.json')
+
+          if payload.get('date') != today:
+              errors.append(f"payload date={payload.get('date')!r}")
+          if payload.get('generation_mode') != 'ai_primary':
+              errors.append(f"generation_mode={payload.get('generation_mode')!r}")
+          if payload.get('ai_provider') != 'gemini':
+              errors.append(f"ai_provider={payload.get('ai_provider')!r}")
+          if status.get('date') != today or status.get('mode') != 'ai_primary' or status.get('provider') != 'gemini':
+              errors.append('daily status is stale or non-Gemini')
+          if provider.get('date') != today or provider.get('status') != 'healthy' or provider.get('provider') != 'gemini':
+              errors.append('provider status is stale or unhealthy')
+          if production.get('date') != today or production.get('status') != 'passed':
+              errors.append('production verification is stale or failed')
+
+          for language in ('pl', 'en'):
+              edition = payload.get(language) or {}
+              if edition.get('source_language') != language:
+                  errors.append(f'{language} source language mismatch')
+              if not str(edition.get('forecast_id') or '').startswith(f'{today}-{language}-'):
+                  errors.append(f'{language} forecast id is stale')
+
+          repair = bool(errors)
+          print(json.dumps({'today': today, 'repair': repair, 'errors': errors}, ensure_ascii=False))
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'NEED_REPAIR={1 if repair else 0}\n')
+          PY
+
+      - name: Install repair dependency
+        if: env.NEED_REPAIR == '1'
+        run: pip install requests
+
+      - name: Verify Gemini before repair
+        if: env.NEED_REPAIR == '1'
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_publish_ai_outlook_gemini \
+            tests.test_ai_outlook_pl_quality \
+            tests.test_ai_provider_preflight -v
+          python scripts/check_ai_provider.py
+          sleep 8
+
+      - name: Regenerate stale PL and EN with bounded retry
+        if: env.NEED_REPAIR == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUCCESS=0
+          for attempt in 1 2; do
+            echo "AI Outlook repair generation attempt ${attempt}/2"
+            if python scripts/run_ai_outlook_gemini_governed.py --force && \
+               python scripts/run_ai_outlook_gemini_governed.py --validate-only --require-today; then
+              SUCCESS=1
+              break
+            fi
+            echo "::warning::AI Outlook generation attempt ${attempt} failed validation; retrying with a fresh Gemini response."
+            sleep $((attempt * 12))
+          done
+          if [[ "$SUCCESS" != "1" ]]; then
+            echo "::error::AI Outlook guardian could not produce a valid current edition."
+            exit 1
+          fi
+          python scripts/enforce_homepage_photo_only.py
+          python scripts/ai_outlook_metrics.py
+          python scripts/ai_outlook_metrics.py --validate-only
+
+      - name: Hard local freshness receipt
+        if: env.NEED_REPAIR == '1'
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          status = json.loads(Path('data/ai_outlook_status.json').read_text(encoding='utf-8'))
+          provider = json.loads(Path('data/ai_outlook_provider_status.json').read_text(encoding='utf-8'))
+          assert payload['date'] == today
+          assert payload['generation_mode'] == 'ai_primary'
+          assert payload['ai_provider'] == 'gemini'
+          assert status['date'] == today and status['mode'] == 'ai_primary' and status['provider'] == 'gemini'
+          assert provider['date'] == today and provider['status'] == 'healthy' and provider['provider'] == 'gemini'
+          for language in ('pl', 'en'):
+              edition = payload[language]
+              assert edition['source_language'] == language
+              assert edition['forecast_id'].startswith(f'{today}-{language}-')
+              assert len(str(edition.get('probability_event') or '')) >= 34
+              assert str(edition['resolution']['resolution_date'])[:4] in edition['probability_event']
+          print('Guardian local freshness receipt passed for PL and EN.')
+          PY
+
+      - name: Publish repaired AI Outlook
+        if: env.NEED_REPAIR == '1'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/ai_outlook.json \
+            data/ai_outlook_status.json \
+            data/ai_outlook_provider_status.json \
+            data/ai_outlook_history.json \
+            data/ai_outlook_metrics.json \
+            data/internal/ai_outlook_audit \
+            pl/index.html \
+            en/index.html
+          if git diff --cached --quiet; then
+            echo "::error::Guardian detected stale AI Outlook but repair produced no public diff."
+            exit 1
+          fi
+          git commit -m "Guardian repair AI Outlook freshness"
+          git reset --hard HEAD
+          git clean -fd
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git reset --hard HEAD
+            git clean -fd
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 4))
+          done
+          exit 1
+
+      - name: Verify repaired edition on briefrooms.com
+        if: env.NEED_REPAIR == '1'
+        run: |
+          python - <<'PY'
+          import json, time
+          from datetime import datetime
+          from urllib.request import Request, urlopen
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          urls = [
+              'https://briefrooms.com/data/ai_outlook.json',
+              'https://www.briefrooms.com/data/ai_outlook.json',
+          ]
+          last_errors = []
+          observed = {}
+          passed = False
+          for _ in range(24):
+              current_errors = []
+              for url in urls:
+                  try:
+                      req = Request(url + '?guardian=' + str(time.time_ns()), headers={'User-Agent': 'BriefRooms-AI-Outlook-Guardian/1.0'})
+                      with urlopen(req, timeout=20) as response:
+                          observed = json.load(response)
+                      if observed.get('date') != today:
+                          current_errors.append(f'{url}: stale date {observed.get("date")!r}')
+                          continue
+                      if observed.get('generation_mode') != 'ai_primary' or observed.get('ai_provider') != 'gemini':
+                          current_errors.append(f'{url}: wrong provider/mode')
+                          continue
+                      for language in ('pl', 'en'):
+                          edition = observed.get(language) or {}
+                          if not str(edition.get('forecast_id') or '').startswith(f'{today}-{language}-'):
+                              current_errors.append(f'{url}: stale {language} forecast')
+                      if not current_errors:
+                          passed = True
+                          break
+                  except Exception as exc:
+                      current_errors.append(f'{url}: {exc}')
+              if passed:
+                  break
+              last_errors = current_errors
+              time.sleep(10)
+          if not passed:
+              raise SystemExit('Production AI Outlook freshness verification failed: ' + '; '.join(last_errors))
+          print('Production AI Outlook freshness receipt passed.')
+          PY
+
+      - name: Final no-op freshness receipt
+        if: env.NEED_REPAIR != '1'
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          payload = json.loads(Path('data/ai_outlook.json').read_text(encoding='utf-8'))
+          production = json.loads(Path('data/ai_outlook_production_status.json').read_text(encoding='utf-8'))
+          assert payload['date'] == today
+          assert payload['generation_mode'] == 'ai_primary'
+          assert payload['ai_provider'] == 'gemini'
+          assert production['date'] == today and production['status'] == 'passed'
+          for language in ('pl', 'en'):
+              assert payload[language]['forecast_id'].startswith(f'{today}-{language}-')
+          print('AI Outlook is current; guardian repair not required.')
+          PY
