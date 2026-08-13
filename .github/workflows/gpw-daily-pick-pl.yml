@@ -6,11 +6,10 @@ on:
       mode:
         description: "Run mode"
         required: true
-        default: morning
+        default: auto
         type: choice
         options:
-          - morning
-          - watchdog
+          - auto
           - settle
           - validate
   push:
@@ -18,20 +17,26 @@ on:
     paths:
       - ".github/workflows/gpw-daily-pick-pl.yml"
       - "scripts/gpw_daily_pick.py"
+      - "scripts/gpw_daily_control_loop.py"
       - "scripts/gpw-daily-pick-public.js"
       - "assets/gpw-daily-pick.css"
       - "data/investments/gpw_daily_pick_config.json"
       - "tests/test_gpw_daily_pick.py"
+      - "tests/test_gpw_daily_control_loop.py"
       - "tests/test_gpw_daily_pick_ui.py"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
-    # Paired UTC schedules cover CET and CEST; the Warsaw-time gate admits one.
-    - cron: "35 5 * * 1-5"
-    - cron: "35 6 * * 1-5"
-    - cron: "17 6 * * 1-5"
-    - cron: "17 7 * * 1-5"
-    - cron: "23 16 * * 1-5"
-    - cron: "23 17 * * 1-5"
+    # Redundant pre-open attempts. In CEST these are 07:45-08:45 Warsaw;
+    # in CET they are 06:45-07:45. The Python control loop, not cron arrival,
+    # decides whether to generate, retry, no-op or fail closed after 08:30.
+    - cron: "45 5 * * 1-5"
+    - cron: "0 6 * * 1-5"
+    - cron: "15 6 * * 1-5"
+    - cron: "30 6 * * 1-5"
+    - cron: "45 6 * * 1-5"
+    # End-of-day settlement / learning refresh, paired for CET/CEST.
+    - cron: "40 16 * * 1-5"
+    - cron: "40 17 * * 1-5"
 
 permissions:
   contents: write
@@ -44,7 +49,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -67,7 +72,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Resolve Warsaw-time execution window
+      - name: Resolve control-loop mode
         id: run
         shell: bash
         env:
@@ -75,47 +80,32 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
-          MODE="${REQUESTED_MODE:-validate}"
-          SHOULD_RUN=false
-          EXTRA_ARGS=""
-          LOCAL_HHMM="$(TZ=Europe/Warsaw date +%H%M)"
-
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+          MODE="auto"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MODE="${REQUESTED_MODE:-auto}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             case "$EVENT_SCHEDULE" in
-              "35 5 * * 1-5"|"35 6 * * 1-5")
-                MODE=morning
-                if (( 10#$LOCAL_HHMM >= 725 && 10#$LOCAL_HHMM <= 755 )); then SHOULD_RUN=true; fi
-                ;;
-              "17 6 * * 1-5"|"17 7 * * 1-5")
-                MODE=watchdog
-                if (( 10#$LOCAL_HHMM >= 805 && 10#$LOCAL_HHMM <= 825 )); then SHOULD_RUN=true; fi
-                ;;
-              "23 16 * * 1-5"|"23 17 * * 1-5")
-                MODE=settle
-                if (( 10#$LOCAL_HHMM >= 1720 && 10#$LOCAL_HHMM <= 1900 )); then SHOULD_RUN=true; fi
-                ;;
+              "40 16 * * 1-5"|"40 17 * * 1-5") MODE="settle" ;;
+              *) MODE="auto" ;;
             esac
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            SHOULD_RUN=true
-            EXTRA_ARGS="--allow-outside-window"
           fi
-
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
-          echo "extra_args=$EXTRA_ARGS" >> "$GITHUB_OUTPUT"
-          echo "Mode=$MODE should_run=$SHOULD_RUN Warsaw=$LOCAL_HHMM"
+          echo "GPW control mode=$MODE Warsaw=$(TZ=Europe/Warsaw date +%H:%M) schedule=${EVENT_SCHEDULE:-push}"
 
-      - name: Test fail-closed publication contract
+      - name: Test GPW control and learning contracts
         run: |
           set -euo pipefail
-          python -m unittest tests.test_gpw_daily_pick tests.test_gpw_daily_pick_ui -v
-          python -m py_compile scripts/gpw_daily_pick.py
+          python -m unittest \
+            tests.test_gpw_daily_pick \
+            tests.test_gpw_daily_control_loop \
+            tests.test_gpw_daily_pick_ui -v
+          python -m py_compile scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/gpw_daily_pick.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
 
-      - name: Check Gemini endpoint without blocking fail-closed publication
-        if: steps.run.outputs.should_run == 'true' && (steps.run.outputs.mode == 'morning' || steps.run.outputs.mode == 'watchdog')
+      - name: Check Gemini endpoint without blocking fail-closed state
+        if: steps.run.outputs.mode == 'auto'
         shell: bash
         run: |
           set +e
@@ -123,25 +113,53 @@ jobs:
           STATUS=$?
           set -e
           if [[ "$STATUS" != "0" ]]; then
-            echo "Gemini preflight failed; the publisher will write AWARIA_DANYCH if AI analysis is required."
+            echo "Gemini preflight failed; control loop will retry and then publish today's fail-closed state if required."
           fi
 
-      - name: Generate or settle the PL daily record
-        if: steps.run.outputs.should_run == 'true'
+      - name: Run self-healing PL GPW loop
         shell: bash
         env:
           MODE: ${{ steps.run.outputs.mode }}
-          EXTRA_ARGS: ${{ steps.run.outputs.extra_args }}
         run: |
           set -euo pipefail
-          python scripts/gpw_daily_pick.py --mode "$MODE" $EXTRA_ARGS
-          if [[ "$MODE" == "morning" || "$MODE" == "watchdog" || "$MODE" == "validate" ]]; then
-            python scripts/gpw_daily_pick.py --mode validate
+          python scripts/gpw_daily_control_loop.py --mode "$MODE"
+          if [[ "$MODE" == "auto" ]]; then
+            python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
+          payload = json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          if payload.get('date') == today:
+              import subprocess
+              subprocess.run(['python', 'scripts/gpw_daily_control_loop.py', '--mode', 'validate'], check=True)
+          else:
+              print('Pre-open control run finished before publication window; no validation required yet.')
+          PY
           fi
 
-      - name: Commit scoped publication files
+      - name: Cache-bust the Polish GPW widget
+        if: steps.run.outputs.mode == 'auto'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('pl/inwestycje/portfel-10k.html')
+          text = path.read_text(encoding='utf-8')
+          updated = text.replace(
+              '/scripts/gpw-daily-pick-public.js?v=2',
+              '/scripts/gpw-daily-pick-public.js?v=3',
+          )
+          if updated != text:
+              path.write_text(updated, encoding='utf-8')
+              print('Bumped GPW client asset to v3.')
+          else:
+              print('GPW client cache version already current.')
+          PY
+
+      - name: Commit scoped GPW state
         id: commit
-        if: steps.run.outputs.should_run == 'true' && steps.run.outputs.mode != 'validate'
+        if: steps.run.outputs.mode != 'validate'
         shell: bash
         run: |
           set -euo pipefail
@@ -150,14 +168,16 @@ jobs:
           git add \
             data/investments/gpw_daily_pick.json \
             data/investments/gpw_daily_pick_metrics.json \
-            data/investments/gpw_daily_pick_history
+            data/investments/gpw_daily_pick_learning.json 2>/dev/null || true
+          git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           git add data/internal/gpw_daily_pick_audit 2>/dev/null || true
+          git add pl/inwestycje/portfel-10k.html 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No GPW publication change."
             exit 0
           fi
-          git commit -m "Publish PL GPW daily paper-trade record"
+          git commit -m "Publish PL GPW daily control-loop state"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
@@ -188,8 +208,8 @@ jobs:
           done
           exit 1
 
-      - name: Verify current record on briefrooms.com
-        if: steps.commit.outputs.changed == 'true' && (steps.run.outputs.mode == 'morning' || steps.run.outputs.mode == 'watchdog')
+      - name: Verify today's PL GPW state on briefrooms.com
+        if: steps.commit.outputs.changed == 'true' && steps.run.outputs.mode == 'auto'
         run: |
           python - <<'PY'
           import json
@@ -199,7 +219,7 @@ jobs:
           from zoneinfo import ZoneInfo
 
           today = datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat()
-          headers = {"User-Agent": "BriefRooms-GPW-production-verifier/1.0", "Cache-Control": "no-cache"}
+          headers = {"User-Agent": "BriefRooms-GPW-production-verifier/2.0", "Cache-Control": "no-cache"}
           for attempt in range(1, 37):
               url = f"https://briefrooms.com/data/investments/gpw_daily_pick.json?v={int(time.time())}-{attempt}"
               try:
@@ -212,5 +232,5 @@ jobs:
               except Exception as error:
                   print(f"Attempt {attempt}: {type(error).__name__}")
               time.sleep(10)
-          raise SystemExit("Production did not expose today's fail-closed GPW record in time.")
+          raise SystemExit("Production did not expose today's GPW control-loop state in time.")
           PY

@@ -31,6 +31,10 @@
     return `${value.year}-${value.month}-${value.day}`;
   };
 
+  const isWarsawWeekday = () => ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(
+    new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Warsaw", weekday: "short" }).format(new Date())
+  );
+
   const escapeHtml = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -68,17 +72,29 @@
 
   const setShell = (payload, stale = false) => {
     const decision = stale ? "AWARIA_DANYCH" : payload.decision;
-    const [statusText, statusClass] = labels[decision] || labels.AWARIA_DANYCH;
+    let [statusText, statusClass] = labels[decision] || labels.AWARIA_DANYCH;
+    if (stale) {
+      statusText = "DANE NIEAKTUALNE — TRWA NAPRAWA";
+      statusClass = "pending";
+    } else if (payload.decision === "AWARIA_DANYCH" && payload.locked) {
+      statusText = "BRAK POTWIERDZONEGO SYGNAŁU";
+      statusClass = "no-trade";
+    }
     root.querySelector("[data-gpw-status]").className = `gpw-pick-status ${statusClass}`;
-    root.querySelector("[data-gpw-status]").textContent = stale ? "ANALIZA DANYCH — TRWA" : statusText;
+    root.querySelector("[data-gpw-status]").textContent = statusText;
     root.querySelector("[data-gpw-date]").textContent = payload.date || "—";
     root.querySelector("[data-gpw-generated]").textContent = `Aktualizacja: ${formatTimestamp(payload.generated_at)}`;
   };
 
   const renderEmpty = (payload, stale = false) => {
     setShell(payload, stale);
+    let message = "Brak dzisiaj wyboru";
+    if (stale) message = "Trwa automatyczna naprawa porannego wyboru";
+    else if (payload.decision === "AWARIA_DANYCH" && payload.locked) {
+      message = "Brak dzisiaj wyboru — sygnał nie został potwierdzony przed 08:30";
+    }
     root.querySelector("[data-gpw-body]").innerHTML = `
-      <div class="gpw-pick-empty"><strong>Brak dzisiaj wyboru</strong></div>`;
+      <div class="gpw-pick-empty"><strong>${escapeHtml(message)}</strong></div>`;
     root.querySelector("[data-gpw-metrics]").textContent = metricsText(payload.metrics);
     renderDetails(payload);
   };
@@ -116,6 +132,19 @@
         <div><span>Średni wynik</span><b>${averageReturn}</b></div>
         <div><span>Średnio względem ryzyka</span><b>${averageR}</b></div>
       </div></section>`);
+    }
+
+    const learning = payload.learning || {};
+    if (learning.method) {
+      const learned = Number(learning.resolved_trades || 0);
+      const minimum = Number(learning.minimum_sample || 0);
+      const state = learning.adaptation_active
+        ? `Aktywna · próba ${learned}`
+        : `Zbieranie próby · ${learned}/${minimum || "—"}`;
+      const last = learning.last_lesson?.lesson
+        ? `<p><b>Ostatni wniosek:</b> ${escapeHtml(learning.last_lesson.lesson)}</p>`
+        : "<p>Brak jeszcze rozliczonej transakcji do nauki.</p>";
+      sections.push(`<section><h3>Pętla uczenia</h3><p>${escapeHtml(state)}. Wagi strategii pozostają zamrożone; historia może tylko korygować 10% składnik skuteczności układu.</p>${last}</section>`);
     }
 
     const outcome = payload.outcome || {};
@@ -170,8 +199,7 @@
   const render = (payload) => {
     if (!payload || !labels[payload.decision]) throw new Error("Niepoprawny kontrakt danych");
     const today = warsawDate();
-    const weekday = new Date(`${today}T12:00:00+02:00`).getDay();
-    const stale = payload.date !== today && weekday >= 1 && weekday <= 5;
+    const stale = payload.date !== today && isWarsawWeekday();
     if (payload.decision === "TRANSAKCJA" && !stale) renderTrade(payload);
     else renderEmpty(payload, stale);
   };
@@ -186,6 +214,7 @@
         date: warsawDate(),
         generated_at: new Date().toISOString(),
         decision: "AWARIA_DANYCH",
+        locked: false,
         reason: "Brak dzisiaj wyboru.",
         metrics: {}
       });

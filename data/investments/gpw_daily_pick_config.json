@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-pick-config-v1",
-  "policy_version": "gpw-short-horizon-pl-v1",
+  "policy_version": "gpw-short-horizon-pl-v1.1",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "08:30",
   "minimum_data_completeness": 0.8,
@@ -18,8 +18,13 @@
     "historical_expectancy": 10
   },
   "learning": {
-    "minimum_resolved_trades_for_adaptation": 30,
-    "automatic_weight_changes": false
+    "minimum_resolved_trades_for_adaptation": 8,
+    "recent_window": 20,
+    "prior_strength": 10,
+    "max_historical_score_adjustment": 12,
+    "method": "bayesian_shrinkage_historical_overlay_v1",
+    "automatic_weight_changes": false,
+    "single_trade_weight_mutation": false
   },
   "non_session_dates": [
     "2026-01-01",
