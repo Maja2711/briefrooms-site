@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-pick-config-v1",
-  "policy_version": "gpw-short-horizon-pl-v1.1",
+  "policy_version": "gpw-short-horizon-pl-v1.2-event-driven",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "08:30",
   "minimum_data_completeness": 0.8,
@@ -25,6 +25,19 @@
     "method": "bayesian_shrinkage_historical_overlay_v1",
     "automatic_weight_changes": false,
     "single_trade_weight_mutation": false
+  },
+  "event_layer": {
+    "enabled": true,
+    "official_channels": ["ESPI", "EBI", "PAP MediaRoom", "Biznes PAP"],
+    "independent_news_channel": true,
+    "official_report_lookback_hours": 120,
+    "general_news_lookback_hours": 84,
+    "minimum_resolved_events_for_adaptation": 6,
+    "prior_strength": 8,
+    "max_catalyst_score_adjustment": 8,
+    "market_reaction_measurement": "latest_completed_session",
+    "automatic_weight_changes": false,
+    "single_event_weight_mutation": false
   },
   "non_session_dates": [
     "2026-01-01",
