@@ -2,8 +2,9 @@
 """Deterministically normalize locked AI Outlook final-contract fields.
 
 The normalizer never changes the selected forecast, probability, threshold,
-metric or deadline. It only exposes information already locked in the
-resolution contract when the model omits a mechanically derivable field.
+metric or deadline. Mechanically derivable probability semantics are always
+rendered from the immutable resolution contract so model wording cannot drift
+away from the event that will later be resolved.
 """
 from __future__ import annotations
 
@@ -119,10 +120,13 @@ def _normalize_bilingual(result: dict[str, Any], resolution: dict[str, Any]) -> 
         section = normalized.get(language)
         if not isinstance(section, dict):
             continue
-        if not str(section.get("probability_event") or "").strip():
-            section["probability_event"] = probability_event_from_resolution(
-                resolution, language
-            )
+        # This field is contract metadata, not editorial prose. Always replace
+        # model wording with the deterministic representation of the locked
+        # metric/threshold/deadline so the displayed percentage and resolver
+        # can never describe different events.
+        event = probability_event_from_resolution(resolution, language)
+        if event:
+            section["probability_event"] = event
         if len(deadline) == 10:
             for field in ("confirmation", "invalidation", "resolution_summary"):
                 section[field] = _ensure_deadline(
@@ -143,13 +147,13 @@ def install() -> None:
         if not resolution or not isinstance(result, dict) or not isinstance(shape, dict):
             return result
 
-        # Canonical v2 final editor asks for bilingual {pl, en}. If Gemini omits
-        # probability_event, derive it from the immutable resolution rubric
-        # instead of failing the whole daily publication.
+        # Canonical v2 final editor asks for bilingual {pl, en}. Probability
+        # semantics come exclusively from the locked resolution contract.
         if "pl" in shape and "en" in shape:
             return _normalize_bilingual(result, resolution)
 
-        # Preserve the older single-language PL normalization path.
+        # Preserve the older single-language PL normalization path while also
+        # locking probability_event to the same resolution rubric.
         if "title" in shape and "thesis" in shape and "category" in shape:
             deadline = str(resolution.get("resolution_date") or "").strip()
             if len(deadline) != 10:
@@ -159,10 +163,9 @@ def install() -> None:
                 normalized[field] = _ensure_deadline(
                     normalized.get(field), deadline, "pl"
                 )
-            if not str(normalized.get("probability_event") or "").strip():
-                normalized["probability_event"] = probability_event_from_resolution(
-                    resolution, "pl"
-                )
+            event = probability_event_from_resolution(resolution, "pl")
+            if event:
+                normalized["probability_event"] = event
             return normalized
         return result
 
