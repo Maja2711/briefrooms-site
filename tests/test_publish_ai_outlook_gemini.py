@@ -139,6 +139,26 @@ class GeminiAiOutlookPublisherTests(unittest.TestCase):
             "By 2027-08-01, Average Brent crude price is at least 75 USD per barrel.",
         )
 
+    def test_bilingual_normalizer_overrides_model_probability_wording(self) -> None:
+        resolution = {
+            "metric": "Average Brent crude price",
+            "comparison_operator": ">=",
+            "threshold": 75.0,
+            "unit": "USD per barrel",
+            "resolution_date": "2027-08-01",
+        }
+        raw = {
+            "pl": {"probability_event": "Ogólny wzrost cen energii w przyszłości."},
+            "en": {"probability_event": "Energy markets stay strong."},
+        }
+        normalized = final_normalizer._normalize_bilingual(raw, resolution)
+        self.assertIn("Average Brent crude price", normalized["pl"]["probability_event"])
+        self.assertIn("75 USD per barrel", normalized["pl"]["probability_event"])
+        self.assertEqual(
+            normalized["en"]["probability_event"],
+            "By 2027-08-01, Average Brent crude price is at least 75 USD per barrel.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
