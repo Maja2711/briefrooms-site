@@ -12,6 +12,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import ai_outlook_final_contract_normalizer as final_normalizer
 import publish_ai_outlook_gemini as publisher
 from comment_quality import AiRuntime
 
@@ -111,6 +112,32 @@ class GeminiAiOutlookPublisherTests(unittest.TestCase):
         self.assertIs(payload["en"], en)
         self.assertEqual(audit["editions"]["pl"], {"pl": "audit"})
         self.assertEqual(audit["editions"]["en"], {"en": "audit"})
+
+    def test_probability_event_fallback_for_binary_resolution(self) -> None:
+        resolution = {
+            "metric": "Wydanie przez TSUE orzeczenia w sprawie pytania NSA",
+            "comparison_operator": ">=",
+            "threshold": 1.0,
+            "unit": "zdarzenie binarne",
+            "resolution_date": "2027-12-31",
+        }
+        text = final_normalizer.probability_event_from_resolution(resolution, "pl")
+        self.assertIn("2027-12-31", text)
+        self.assertIn("TSUE", text)
+
+    def test_probability_event_fallback_for_numeric_resolution(self) -> None:
+        resolution = {
+            "metric": "Average Brent crude price",
+            "comparison_operator": ">=",
+            "threshold": 75.0,
+            "unit": "USD per barrel",
+            "resolution_date": "2027-08-01",
+        }
+        text = final_normalizer.probability_event_from_resolution(resolution, "en")
+        self.assertEqual(
+            text,
+            "By 2027-08-01, Average Brent crude price is at least 75 USD per barrel.",
+        )
 
 
 if __name__ == "__main__":
