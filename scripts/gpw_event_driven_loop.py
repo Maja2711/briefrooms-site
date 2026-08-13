@@ -1,18 +1,4 @@
 #!/usr/bin/env python3
-"""Event-driven entrypoint for the Polish GPW daily outlook.
-
-This adapter deliberately leaves the tested core engine intact and installs a
-small set of bounded overlays before delegating to ``gpw_daily_control_loop``:
-
-* ESPI/EBI/PAP issuer-report discovery is merged with independent news;
-* event type/materiality and latest completed-session market reaction are sent
-  to Gemini as evidence metadata;
-* resolved paper trades with the same event family contribute a bounded,
-  shrinkage-based adjustment to the catalyst score;
-* the final selected trade persists its event context for future learning.
-
-The wrapper is PL-only because only the Polish GPW workflow invokes it.
-"""
 from __future__ import annotations
 
 import copy
@@ -22,11 +8,10 @@ try:
     from scripts import gpw_daily_control_loop as loop
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_event_layer as events
-except ModuleNotFoundError:  # GitHub Actions uses PYTHONPATH=scripts
+except ModuleNotFoundError:
     import gpw_daily_control_loop as loop
     import gpw_daily_pick as gpw
     import gpw_event_layer as events
-
 
 _ORIGINAL_GENERATE = gpw.generate
 _ORIGINAL_GEMINI_ANALYSIS = gpw.gemini_analysis
@@ -72,11 +57,7 @@ def _build_learning_snapshot(history, config, *, now):
         for row in reversed(history):
             selection = row.get("selection") or {}
             outcome = row.get("outcome") or {}
-            if (
-                row.get("decision") == "TRANSAKCJA"
-                and outcome.get("status") == "RESOLVED"
-                and outcome.get("activated") is True
-            ):
+            if row.get("decision") == "TRANSAKCJA" and outcome.get("status") == "RESOLVED" and outcome.get("activated") is True:
                 event_context = selection.get("event_context") or {}
                 if event_context:
                     last["event_type"] = event_context.get("primary_type")
@@ -92,20 +73,33 @@ def _public_learning(snapshot: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _filter_context_to_approved(context: dict[str, Any], approved_ids: set[str]) -> dict[str, Any]:
+def _context_from_final_sources(context: dict[str, Any], final_sources: list[dict[str, Any]]) -> dict[str, Any]:
     value = copy.deepcopy(context)
-    selected_ids = [
-        source_id
-        for source_id in value.get("selected_event_source_ids") or []
-        if source_id in approved_ids
-    ]
-    value["selected_event_source_ids"] = selected_ids
-    if value.get("primary_source_id") not in approved_ids:
-        value["primary_source_id"] = selected_ids[0] if selected_ids else None
-        # Do not claim that an unapproved primary source was official evidence.
-        value["official_report_used"] = False
+    approved = sorted(
+        [source for source in final_sources if source.get("id")],
+        key=lambda source: (
+            0 if source.get("source_kind") == "issuer_report" else 1,
+            -int(source.get("materiality") or 0),
+            float(source.get("age_hours") or 9999),
+        ),
+    )
+    value["selected_event_source_ids"] = [str(source["id"]) for source in approved]
+    primary = approved[0] if approved else None
+    if primary:
+        event_type = str(primary.get("event_type") or "other")
+        value["primary_type"] = event_type
+        value["primary_label"] = str(primary.get("event_label") or events.EVENT_LABELS.get(event_type, "inne zdarzenie"))
+        value["primary_source_id"] = primary.get("id")
+        value["primary_source_kind"] = primary.get("source_kind")
+        value["primary_channel"] = primary.get("channel")
+        value["materiality"] = int(primary.get("materiality") or 0)
+        value["official_report_used"] = primary.get("source_kind") == "issuer_report"
+    else:
+        value["primary_source_id"] = None
         value["primary_source_kind"] = None
         value["primary_channel"] = None
+        value["materiality"] = 0
+        value["official_report_used"] = False
     return value
 
 
@@ -118,27 +112,16 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
         "event_learning": "bayesian shrinkage po typie zdarzenia",
         "weights_frozen": True,
     }
-    enriched.setdefault("learning", {})["event_expectancy"] = copy.deepcopy(
-        snapshot.get("event_expectancy") or []
-    )
+    enriched.setdefault("learning", {})["event_expectancy"] = copy.deepcopy(snapshot.get("event_expectancy") or [])
     selection = enriched.get("selection")
     if isinstance(selection, dict):
-        symbol = str(selection.get("symbol") or "")
-        context = _EVENT_CONTEXT_BY_SYMBOL.get(symbol)
+        context = _EVENT_CONTEXT_BY_SYMBOL.get(str(selection.get("symbol") or ""))
         if context:
-            approved_ids = {
-                str(source.get("id"))
-                for source in (selection.get("sources") or [])
-                if source.get("id")
-            }
-            selection["event_context"] = _filter_context_to_approved(context, approved_ids)
+            final_sources = list(selection.get("sources") or [])
+            selection["event_context"] = _context_from_final_sources(context, final_sources)
             selection["evidence_summary"] = {
-                "official_reports": sum(
-                    1 for source in (selection.get("sources") or []) if source.get("source_kind") == "issuer_report"
-                ),
-                "independent_news": sum(
-                    1 for source in (selection.get("sources") or []) if source.get("source_kind") != "issuer_report"
-                ),
+                "official_reports": sum(1 for source in final_sources if source.get("source_kind") == "issuer_report"),
+                "independent_news": sum(1 for source in final_sources if source.get("source_kind") != "issuer_report"),
                 "primary_event": selection["event_context"].get("primary_label"),
             }
     return enriched
