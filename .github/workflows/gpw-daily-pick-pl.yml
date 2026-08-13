@@ -139,6 +139,24 @@ jobs:
           PY
           fi
 
+      - name: Cache-bust the Polish GPW widget
+        if: steps.run.outputs.mode == 'auto'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('pl/inwestycje/portfel-10k.html')
+          text = path.read_text(encoding='utf-8')
+          updated = text.replace(
+              '/scripts/gpw-daily-pick-public.js?v=2',
+              '/scripts/gpw-daily-pick-public.js?v=3',
+          )
+          if updated != text:
+              path.write_text(updated, encoding='utf-8')
+              print('Bumped GPW client asset to v3.')
+          else:
+              print('GPW client cache version already current.')
+          PY
+
       - name: Commit scoped GPW state
         id: commit
         if: steps.run.outputs.mode != 'validate'
@@ -153,6 +171,7 @@ jobs:
             data/investments/gpw_daily_pick_learning.json 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           git add data/internal/gpw_daily_pick_audit 2>/dev/null || true
+          git add pl/inwestycje/portfel-10k.html 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No GPW publication change."
