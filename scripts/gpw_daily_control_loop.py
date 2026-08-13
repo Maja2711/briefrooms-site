@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Self-healing control loop for the Polish GPW 1-2 session paper outlook.
 
-The core ranking remains in ``gpw_daily_pick.py``.  This wrapper closes two
-operational gaps:
+The deterministic ranking remains in ``gpw_daily_pick.py``.  This wrapper:
 
-* scheduled GitHub Actions may start late, so publication must be driven by the
-  current Warsaw state instead of a narrow cron-arrival window;
-* resolved paper decisions must feed a bounded learning overlay before the next
-  forecast, without allowing one trade to rewrite the strategy.
+* makes publication resilient to delayed GitHub cron starts;
+* retries transient data/provider failures before the 08:30 Warsaw cutoff;
+* closes and scores expired paper decisions before the next forecast;
+* feeds a bounded, shrinkage-based learning overlay back into the 10% historical
+  expectancy component without mutating the strategy weights;
+* publishes a current-day fail-closed record if no valid signal was produced by
+  the cutoff, so the website never remains stuck on an old date.
 
-Only the Polish GPW daily module uses this loop.
+This module is intentionally used only by the Polish GPW daily-trading widget.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ from typing import Any, Callable
 
 try:
     from scripts import gpw_daily_pick as gpw
-except ModuleNotFoundError:  # GitHub Actions PYTHONPATH=scripts
+except ModuleNotFoundError:  # GitHub Actions uses PYTHONPATH=scripts
     import gpw_daily_pick as gpw
 
 
@@ -67,12 +69,7 @@ def _shrink(value: float | None, sample: int, prior_strength: float) -> float:
 def adaptive_history_expectancy_score(
     history: list[dict[str, Any]], sector: str, minimum_sample: int
 ) -> tuple[float, int]:
-    """Return a bounded, shrinkage-based historical score.
-
-    Adaptation starts only after the configured *global* sample is available.
-    The score remains only one 10% component of the core composite, so history
-    can refine a decision but cannot dominate price, liquidity, risk or news.
-    """
+    """Bounded learning score used by the core engine's historical component."""
     resolved = _resolved_activated(history)
     sample = len(resolved)
     if sample < minimum_sample:
@@ -86,11 +83,14 @@ def adaptive_history_expectancy_score(
     )
 
     recent = resolved[-recent_window:]
-    sector_rows = [row for row in resolved if row.get("selection", {}).get("sector") == sector]
+    sector_rows = [
+        row for row in resolved if row.get("selection", {}).get("sector") == sector
+    ]
 
-    components: list[tuple[float, float]] = []
-    components.append((_shrink(_mean_r(resolved), len(resolved), prior_strength), 0.45))
-    components.append((_shrink(_mean_r(recent), len(recent), prior_strength), 0.35))
+    components: list[tuple[float, float]] = [
+        (_shrink(_mean_r(resolved), len(resolved), prior_strength), 0.45),
+        (_shrink(_mean_r(recent), len(recent), prior_strength), 0.35),
+    ]
     if sector_rows:
         components.append(
             (_shrink(_mean_r(sector_rows), len(sector_rows), prior_strength), 0.20)
@@ -116,23 +116,22 @@ def _last_lesson(resolved: list[dict[str, Any]]) -> dict[str, Any] | None:
     if reason == "stop":
         lesson = (
             f"{symbol}: pozycja zakończyła się stopem ({r_value:.2f}R). "
-            "Pętla obniża ocenę podobnych układów dopiero po zebraniu wymaganej próby; "
-            "pojedyncza strata nie zmienia wag strategii."
+            "Pojedyncza strata nie zmienia wag; dopiero zbiorcza próba obniża ocenę podobnych układów."
         )
     elif reason == "target":
         lesson = (
             f"{symbol}: cel został osiągnięty ({r_value:.2f}R). "
-            "Pętla zachowuje ten wynik jako dodatni dowód, ale nie zwiększa wag po jednej obserwacji."
+            "Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
         )
     elif r_value > 0:
         lesson = (
-            f"{symbol}: pozycja zakończyła horyzont dodatnio ({r_value:.2f}R). "
+            f"{symbol}: horyzont zakończył się dodatnio ({r_value:.2f}R). "
             "Wynik zasila oczekiwaną skuteczność podobnych układów po shrinkage."
         )
     else:
         lesson = (
-            f"{symbol}: pozycja zakończyła horyzont słabo ({r_value:.2f}R). "
-            "Wynik obniża oczekiwaną skuteczność podobnych układów dopiero w ramach zbiorczej próby."
+            f"{symbol}: horyzont zakończył się słabo ({r_value:.2f}R). "
+            "Wynik obniża ocenę podobnych układów dopiero w ramach zbiorczej próby."
         )
     return {
         "date": row.get("date"),
@@ -160,22 +159,27 @@ def build_learning_snapshot(
         sector = str(row.get("selection", {}).get("sector") or "inne")
         by_sector.setdefault(sector, []).append(row)
 
-    sector_rows = []
-    for sector, rows in sorted(by_sector.items()):
-        sector_rows.append(
-            {
-                "sector": sector,
-                "sample": len(rows),
-                "average_r": round(_mean_r(rows) or 0.0, 3),
-                "shrunk_r": round(
-                    _shrink(_mean_r(rows), len(rows), prior_strength), 3
-                ),
-            }
-        )
+    sector_expectancy = [
+        {
+            "sector": sector,
+            "sample": len(rows),
+            "average_r": round(_mean_r(rows) or 0.0, 3),
+            "shrunk_r": round(_shrink(_mean_r(rows), len(rows), prior_strength), 3),
+        }
+        for sector, rows in sorted(by_sector.items())
+    ]
 
-    stops = sum(1 for row in resolved if row.get("outcome", {}).get("exit_reason") == "stop")
-    targets = sum(1 for row in resolved if row.get("outcome", {}).get("exit_reason") == "target")
-    wins = sum(1 for row in resolved if float(row.get("outcome", {}).get("return_percent", 0.0)) > 0)
+    stops = sum(
+        1 for row in resolved if row.get("outcome", {}).get("exit_reason") == "stop"
+    )
+    targets = sum(
+        1 for row in resolved if row.get("outcome", {}).get("exit_reason") == "target"
+    )
+    wins = sum(
+        1
+        for row in resolved
+        if float(row.get("outcome", {}).get("return_percent", 0.0)) > 0
+    )
 
     return {
         "schema_version": "gpw-daily-learning-v1",
@@ -191,13 +195,17 @@ def build_learning_snapshot(
         "win_rate": round(wins / len(resolved), 4) if resolved else None,
         "stop_rate": round(stops / len(resolved), 4) if resolved else None,
         "target_rate": round(targets / len(resolved), 4) if resolved else None,
-        "sector_expectancy": sector_rows,
+        "sector_expectancy": sector_expectancy,
         "last_lesson": _last_lesson(resolved),
         "guardrails": {
             "weights_frozen": True,
-            "historical_component_weight_percent": float(config.get("weights", {}).get("historical_expectancy", 10)),
+            "historical_component_weight_percent": float(
+                config.get("weights", {}).get("historical_expectancy", 10)
+            ),
             "max_historical_score_adjustment": float(
-                learning.get("max_historical_score_adjustment", DEFAULT_MAX_SCORE_ADJUSTMENT)
+                learning.get(
+                    "max_historical_score_adjustment", DEFAULT_MAX_SCORE_ADJUSTMENT
+                )
             ),
             "single_trade_weight_mutation": False,
         },
@@ -209,14 +217,13 @@ def write_learning_snapshot(snapshot: dict[str, Any]) -> None:
 
 
 def _public_learning(snapshot: dict[str, Any]) -> dict[str, Any]:
-    last = snapshot.get("last_lesson") or None
     return {
         "method": snapshot.get("method"),
         "resolved_trades": snapshot.get("resolved_trades", 0),
         "adaptation_active": bool(snapshot.get("adaptation_active")),
         "minimum_sample": snapshot.get("minimum_sample"),
         "recent_average_r": snapshot.get("recent_average_r"),
-        "last_lesson": last,
+        "last_lesson": snapshot.get("last_lesson"),
         "weights_frozen": True,
     }
 
@@ -236,10 +243,7 @@ def _install_learning_overlay(config: dict[str, Any], snapshot: dict[str, Any]) 
                 payload = json.loads(str(message.get("content") or ""))
             except Exception:
                 continue
-            if not isinstance(payload, dict):
-                continue
-            task = str(payload.get("task") or "")
-            if "GPW" not in task:
+            if not isinstance(payload, dict) or "GPW" not in str(payload.get("task") or ""):
                 continue
             payload["learning_context"] = {
                 **_ACTIVE_LEARNING_CONTEXT,
@@ -271,7 +275,9 @@ def prefetch_market(config: dict[str, Any]) -> dict[str, list[gpw.Bar]]:
     return result
 
 
-def _market_fetcher_from_cache(cache: dict[str, list[gpw.Bar]]) -> Callable[[str], list[gpw.Bar]]:
+def _market_fetcher_from_cache(
+    cache: dict[str, list[gpw.Bar]],
+) -> Callable[[str], list[gpw.Bar]]:
     def fetch(symbol: str) -> list[gpw.Bar]:
         bars = cache.get(symbol)
         if not bars:
@@ -281,11 +287,13 @@ def _market_fetcher_from_cache(cache: dict[str, list[gpw.Bar]]) -> Callable[[str
     return fetch
 
 
-def _refresh_learning(config: dict[str, Any], now: datetime) -> tuple[dict[str, Any], str | None]:
+def _refresh_learning(
+    config: dict[str, Any], now: datetime
+) -> tuple[dict[str, Any], str | None]:
     settle_error: str | None = None
     try:
         gpw.settle_history()
-    except Exception as exc:  # settlement must not block the next morning publication
+    except Exception as exc:  # settlement must never block today's publication
         settle_error = type(exc).__name__
     history = gpw.all_history()
     snapshot = build_learning_snapshot(history, config, now=now)
@@ -296,7 +304,9 @@ def _refresh_learning(config: dict[str, Any], now: datetime) -> tuple[dict[str, 
     return snapshot, settle_error
 
 
-def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attempts: int) -> dict[str, Any]:
+def _enrich_payload(
+    payload: dict[str, Any], snapshot: dict[str, Any], *, attempts: int
+) -> dict[str, Any]:
     enriched = copy.deepcopy(payload)
     enriched["learning"] = _public_learning(snapshot)
     enriched.setdefault("data_quality", {})["control_loop_attempts"] = attempts
@@ -312,13 +322,10 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
 def _publish_current_failure(
     now: datetime, config: dict[str, Any], snapshot: dict[str, Any], stage: str
 ) -> dict[str, Any]:
-    payload = gpw.failure_payload(
-        now,
-        config,
-        "Poranny wybór nie został poprawnie opublikowany przed 08:30; na dziś nie otwieramy transakcji.",
-        stage,
+    payload = gpw.failure_payload(now, config, "Brak dzisiaj wyboru.", stage)
+    payload["reason"] = (
+        "Brak dzisiaj wyboru — poranny sygnał nie został potwierdzony przed 08:30."
     )
-    payload["reason"] = "Brak dzisiaj wyboru — poranny sygnał nie został potwierdzony przed 08:30."
     payload["locked"] = True
     payload = _enrich_payload(payload, snapshot, attempts=0)
     gpw.publish(payload)
@@ -329,7 +336,9 @@ def control_once(
     *,
     now: datetime | None = None,
     attempts: int = DEFAULT_ATTEMPTS,
-    market_prefetcher: Callable[[dict[str, Any]], dict[str, list[gpw.Bar]]] = prefetch_market,
+    market_prefetcher: Callable[
+        [dict[str, Any]], dict[str, list[gpw.Bar]]
+    ] = prefetch_market,
 ) -> dict[str, Any]:
     now = now or gpw.now_warsaw()
     config = gpw.load_config()
@@ -339,18 +348,29 @@ def control_once(
     if not gpw.is_session_day(now.date(), config):
         if isinstance(current, dict) and current.get("date") == now.date().isoformat():
             return current
-        payload = gpw.common_payload(now, config, "BRAK_TRANSAKCJI", "Dziś nie ma sesji GPW.")
+        payload = gpw.common_payload(
+            now, config, "BRAK_TRANSAKCJI", "Dziś nie ma sesji GPW."
+        )
         payload["locked"] = True
-        payload["data_quality"] = {"status": "not_applicable", "complete_ratio": 1.0}
+        payload["data_quality"] = {
+            "status": "not_applicable",
+            "complete_ratio": 1.0,
+        }
         payload = _enrich_payload(payload, snapshot, attempts=0)
         gpw.publish(payload)
         return payload
 
     cutoff = gpw.cutoff_for(now.date(), config)
     if now >= cutoff:
-        if isinstance(current, dict) and current.get("date") == now.date().isoformat():
+        if (
+            isinstance(current, dict)
+            and current.get("date") == now.date().isoformat()
+            and current.get("decision") != "AWARIA_DANYCH"
+        ):
             gpw.validate_payload(current, require_today=True, now=now)
             return current
+        # A pre-cutoff AWARIA must not remain visually "in progress" all day.
+        # Replace it (or a stale record) with a current, locked fail-closed state.
         return _publish_current_failure(now, config, snapshot, "missed_cutoff_guardian")
 
     if now.timetz().replace(tzinfo=None) < EARLIEST_GENERATION:
@@ -381,7 +401,9 @@ def control_once(
         last_payload = payload
         if payload.get("decision") != "AWARIA_DANYCH":
             gpw.publish(payload)
-            gpw.validate_payload(gpw.load_json(gpw.PUBLIC_PATH), require_today=True, now=attempt_now)
+            gpw.validate_payload(
+                gpw.load_json(gpw.PUBLIC_PATH), require_today=True, now=attempt_now
+            )
             return payload
         if attempt < attempts and gpw.now_warsaw() + timedelta(seconds=20) < cutoff:
             time.sleep(12)
@@ -389,7 +411,9 @@ def control_once(
     if last_payload is not None and gpw.now_warsaw() < cutoff:
         gpw.publish(last_payload)
         return last_payload
-    return _publish_current_failure(gpw.now_warsaw(), config, snapshot, "cutoff_after_retries")
+    return _publish_current_failure(
+        gpw.now_warsaw(), config, snapshot, "cutoff_after_retries"
+    )
 
 
 def validate_control_state(*, now: datetime | None = None) -> None:
@@ -397,27 +421,37 @@ def validate_control_state(*, now: datetime | None = None) -> None:
     payload = gpw.load_json(gpw.PUBLIC_PATH)
     gpw.validate_payload(payload, require_today=True, now=now)
     learning = gpw.load_json(LEARNING_PATH)
-    if not isinstance(learning, dict) or learning.get("schema_version") != "gpw-daily-learning-v1":
+    if (
+        not isinstance(learning, dict)
+        or learning.get("schema_version") != "gpw-daily-learning-v1"
+    ):
         raise gpw.PublicationError("Brak poprawnego stanu uczenia GPW.")
     if learning.get("automatic_weight_changes") is not False:
-        raise gpw.PublicationError("Pętla GPW nie może samodzielnie mutować wag strategii.")
+        raise gpw.PublicationError(
+            "Pętla GPW nie może samodzielnie mutować wag strategii."
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("auto", "settle", "validate"), default="auto")
+    parser.add_argument(
+        "--mode", choices=("auto", "settle", "validate"), default="auto"
+    )
     parser.add_argument("--attempts", type=int, default=DEFAULT_ATTEMPTS)
     args = parser.parse_args()
 
     if args.mode == "settle":
         config = gpw.load_config()
         now = gpw.now_warsaw()
+        changed = 0
         try:
             changed = gpw.settle_history()
         finally:
             snapshot = build_learning_snapshot(gpw.all_history(), config, now=now)
             write_learning_snapshot(snapshot)
-        print(f"GPW settle: changed={changed}; resolved={snapshot['resolved_trades']}")
+        print(
+            f"GPW settle: changed={changed}; resolved={snapshot['resolved_trades']}"
+        )
         return 0
 
     if args.mode == "validate":
