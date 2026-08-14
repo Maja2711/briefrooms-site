@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+from datetime import time as clock_time
 from typing import Any
 
 try:
@@ -131,6 +132,11 @@ def install() -> None:
     global _INSTALLED
     if _INSTALLED:
         return
+    # GitHub Actions cron can be delayed substantially. Insurance schedules may
+    # arrive early, but the actual daily research must remain close enough to the
+    # session to use fresh overnight evidence. 07:15 Warsaw leaves a 75-minute
+    # SLA buffer before the immutable 08:30 publication cutoff.
+    loop.EARLIEST_GENERATION = clock_time(7, 15)
     gpw.generate = _event_generate
     gpw.gemini_analysis = _event_aware_analysis
     loop.build_learning_snapshot = _build_learning_snapshot
