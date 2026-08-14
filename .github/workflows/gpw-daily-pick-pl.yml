@@ -29,9 +29,16 @@ on:
       - "tests/test_gpw_daily_pick_ui.py"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
-    # Redundant pre-open attempts. In CEST these are 07:45-08:45 Warsaw;
-    # in CET they are 06:45-07:45. Python decides whether to generate, retry,
-    # no-op or fail closed after the immutable 08:30 cutoff.
+    # Insurance attempts start early because GitHub scheduled workflows may be
+    # delayed. The event-driven wrapper will not perform the actual research
+    # before 07:15 Europe/Warsaw, so early arrivals are harmless no-ops while
+    # delayed arrivals can still rescue the immutable 08:30 publication SLA.
+    # Together these cover both CET and CEST without relying on one cron firing
+    # at the exact requested minute.
+    - cron: "45 4 * * 1-5"
+    - cron: "0 5 * * 1-5"
+    - cron: "15 5 * * 1-5"
+    - cron: "30 5 * * 1-5"
     - cron: "45 5 * * 1-5"
     - cron: "0 6 * * 1-5"
     - cron: "15 6 * * 1-5"
@@ -241,4 +248,38 @@ jobs:
                   print(f"Attempt {attempt}: {type(error).__name__}")
               time.sleep(10)
           raise SystemExit("Production did not expose today's GPW event-driven control state in time.")
+          PY
+
+      - name: Enforce scheduled pre-open SLA
+        if: always() && github.event_name == 'schedule' && steps.run.outputs.mode == 'auto'
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, time as clock_time
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(ZoneInfo("Europe/Warsaw"))
+          if now.time() < clock_time(8, 30):
+              print(f"Pre-open insurance run completed at {now:%H:%M}; SLA audit waits until cutoff.")
+              raise SystemExit(0)
+
+          payload = json.loads(Path("data/investments/gpw_daily_pick.json").read_text(encoding="utf-8"))
+          quality = payload.get("data_quality") or {}
+          attempts = int(quality.get("control_loop_attempts") or 0)
+          failed_stage = str(quality.get("failed_stage") or "")
+          operational_failure = payload.get("decision") == "AWARIA_DANYCH" and (
+              attempts == 0
+              or failed_stage in {"missed_cutoff_guardian", "cutoff_after_retries", "cutoff_after_review"}
+          )
+          if operational_failure:
+              print(
+                  f"::error title=GPW pre-open SLA missed::No valid pre-open analysis was completed before 08:30. "
+                  f"stage={failed_stage or 'unknown'} attempts={attempts} generated_at={payload.get('generated_at')}"
+              )
+              raise SystemExit(1)
+          print(
+              f"GPW pre-open SLA healthy: decision={payload.get('decision')} attempts={attempts} "
+              f"generated_at={payload.get('generated_at')}"
+          )
           PY

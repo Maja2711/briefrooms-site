@@ -43,13 +43,20 @@ class GpwDailyPickUiTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/gpw-daily-pick-pl.yml").read_text(encoding="utf-8")
         self.assertIn('GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}', workflow)
         self.assertNotIn("OPENAI_API_KEY", workflow)
-        for cron in ("45 5", "0 6", "15 6", "30 6", "45 6"):
+        for cron in ("45 4", "0 5", "15 5", "30 5", "45 5", "0 6", "15 6", "30 6", "45 6"):
             self.assertIn(cron, workflow)
         self.assertIn("scripts/gpw_daily_control_loop.py", workflow)
+        self.assertIn("scripts/gpw_event_driven_loop.py", workflow)
+        self.assertIn("Enforce scheduled pre-open SLA", workflow)
+        self.assertIn("GPW pre-open SLA missed", workflow)
         self.assertIn("data/investments/gpw_daily_pick_learning.json", workflow)
         self.assertIn("data/investments/gpw_daily_pick_history", workflow)
         self.assertNotIn("git add .", workflow)
         self.assertNotIn("should_run=false", workflow)
+
+        wrapper = (ROOT / "scripts/gpw_event_driven_loop.py").read_text(encoding="utf-8")
+        self.assertIn("loop.EARLIEST_GENERATION = clock_time(7, 15)", wrapper)
+
         deploy = (ROOT / ".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
         self.assertIn('"Publish PL GPW Daily Pick"', deploy)
 
