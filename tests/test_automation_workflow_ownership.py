@@ -156,6 +156,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         expected_owners = {
             "investments-exposure-watch.yml",
             "investments-weekly.yml",
+            "investments-wes.yml",
         }
         actual_owners = set(owners("git add data/investments/weekly \\"))
         self.assertEqual(expected_owners, actual_owners)
