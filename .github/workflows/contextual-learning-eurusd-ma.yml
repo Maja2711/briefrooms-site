@@ -3,7 +3,9 @@ name: Validate Contextual Learning and EURUSD MA Research
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - codex/contextual-weekly-learning-v56
     paths:
       - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_macro.py"
@@ -23,7 +25,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: contextual-learning-eurusd-ma
+  group: contextual-learning-eurusd-ma-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -33,7 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -45,16 +46,22 @@ jobs:
           python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py scripts/investments_weekly_ma_structure.py scripts/validate_eurusd_ma_structure.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/investments_weekly_eurusd_sma_ema_research.py scripts/decide_eurusd_ma_research.py scripts/run_eurusd_ma_multitimeframe_research.py
           python -m unittest tests/test_contextual_learning.py tests/test_eurusd_ma_structure.py tests/test_investments_weekly_v5.py
       - name: Validate live EURUSD MA structure integration
+        if: github.ref == 'refs/heads/main'
         run: python scripts/validate_eurusd_ma_structure.py
       - name: Research EURUSD MA 30 60 100 200 daily
+        if: github.ref == 'refs/heads/main'
         run: python scripts/investments_weekly_eurusd_ma_research.py
       - name: Research EURUSD MA multi-timeframe weekly fit
+        if: github.ref == 'refs/heads/main'
         run: python scripts/run_eurusd_ma_multitimeframe_research.py
       - name: Research EURUSD SMA versus EMA and hybrid
+        if: github.ref == 'refs/heads/main'
         run: python scripts/investments_weekly_eurusd_sma_ema_research.py
       - name: Decide next MA research action
+        if: github.ref == 'refs/heads/main'
         run: python scripts/decide_eurusd_ma_research.py
       - name: Commit validation research and decision reports
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
