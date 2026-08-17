@@ -184,6 +184,26 @@ h1{
 }
 .card > b{margin-top:auto;color:#9ffff6}
 
+.belief-lab-entry{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  margin:16px 0 22px;
+  padding:17px 20px;
+  border:1px solid rgba(56,214,201,.26);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(56,214,201,.09),rgba(110,168,255,.055) 58%,rgba(3,10,18,.48));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  transition:transform .2s ease,border-color .2s ease,background .2s ease;
+}
+.belief-lab-entry:hover{transform:translateY(-2px);border-color:rgba(56,214,201,.48);background:linear-gradient(135deg,rgba(56,214,201,.13),rgba(110,168,255,.075) 58%,rgba(3,10,18,.54))}
+.belief-lab-copy{min-width:0}
+.belief-lab-kicker{display:block;margin-bottom:5px;color:#73eee4;font-size:9px;font-weight:950;letter-spacing:.085em;text-transform:uppercase}
+.belief-lab-entry h2{margin:0 0 5px;font-size:20px;letter-spacing:-.025em}
+.belief-lab-entry p{margin:0;color:#9fb2c8;font-size:11px;line-height:1.5}
+.belief-lab-entry b{flex:0 0 auto;color:#9ffff6;font-size:12px;white-space:nowrap}
+
 /* Model direction stays available, but no longer competes with the three main entries. */
 .model{margin:14px 0 22px;padding:15px 18px}
 .model-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -266,6 +286,8 @@ h1{
   .card{min-height:220px;padding:21px}
   .card h2{font-size:26px}
   .card p{font-size:13px;line-height:1.52}
+  .belief-lab-entry{align-items:flex-start;flex-direction:column;gap:10px;padding:16px}
+  .belief-lab-entry b{white-space:normal}
   .model{padding:14px}
   .model-head{margin-bottom:10px}
   .model-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
@@ -287,7 +309,7 @@ h1{
   .card{min-height:210px;padding:19px}
 }
 @media(prefers-reduced-motion:reduce){
-  .card.weekly,.card.portfolio,.card.scenario{transition:none}
+  .card.weekly,.card.portfolio,.card.scenario,.belief-lab-entry{transition:none}
 }
 </style>
 <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
@@ -320,6 +342,15 @@ h1{
       <b>Otwórz →</b>
     </a>
   </section>
+
+  <a class="belief-lab-entry" href="/pl/belief-lab.html" aria-label="Otwórz Belief Lab">
+    <span class="belief-lab-copy">
+      <span class="belief-lab-kicker">Laboratorium AI · Shadow mode</span>
+      <h2>Belief Lab — Belief Core</h2>
+      <p>World State, probability vs confidence, evidence, provenance, sprzeczności, audit i kalibracja. Laboratorium obserwuje — nie steruje jeszcze strategiami.</p>
+    </span>
+    <b>Otwórz Belief Lab →</b>
+  </a>
 
   <h2 class="quotes-head">Bieżące kwotowania</h2>
   <section class="quotes" id="quotes" aria-label="Bieżące kwotowania" aria-live="polite">
