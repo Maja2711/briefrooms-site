@@ -14,6 +14,8 @@ from ai_outlook_value_add_guard import install as install_value_add_guard
 install_candidate_contract()
 install_source_topic_contract()
 install_final_normalizer()
+# Value-add v2.1 penalizes source-like candidates in ranking and still fails
+# closed on generic final prose, so a thin daily source pool cannot become empty.
 install_value_add_guard()
 
 import ai_outlook_pl_methodology as pl_methodology  # noqa: E402
