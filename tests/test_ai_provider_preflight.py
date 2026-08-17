@@ -39,7 +39,7 @@ class AiProviderPreflightTests(unittest.TestCase):
         self.assertEqual("Bearer secret-token", headers["Authorization"])
         self.assertEqual("2026-03-10", headers["X-GitHub-Api-Version"])
 
-    def test_gemini_35_preflight_uses_minimal_thinking_and_real_output_budget(self):
+    def test_gemini_35_preflight_is_minimal_text_health_probe(self):
         runtime = quality.AiRuntime(
             "gemini",
             "secret-token",
@@ -50,7 +50,7 @@ class AiProviderPreflightTests(unittest.TestCase):
         payload = {
             "candidates": [
                 {
-                    "content": {"parts": [{"text": '{"ok":true}'}]},
+                    "content": {"parts": [{"text": "OK"}]},
                     "finishReason": "STOP",
                 }
             ]
@@ -60,9 +60,11 @@ class AiProviderPreflightTests(unittest.TestCase):
         self.assertEqual("healthy", result["status"])
         request = post.call_args.kwargs["json"]
         config = request["generationConfig"]
-        self.assertEqual(256, config["maxOutputTokens"])
+        self.assertEqual(128, config["maxOutputTokens"])
         self.assertEqual("minimal", config["thinkingConfig"]["thinkingLevel"])
         self.assertNotIn("temperature", config)
+        self.assertNotIn("responseMimeType", config)
+        self.assertEqual(45, post.call_args.kwargs["timeout"])
 
     def test_gemini_empty_200_is_transient_not_permanent(self):
         runtime = quality.AiRuntime(
