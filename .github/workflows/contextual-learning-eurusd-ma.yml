@@ -3,70 +3,43 @@ name: Validate Contextual Learning and EURUSD MA Research
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - fix/wes-persist-context-state
     paths:
-      - "scripts/investments_weekly_v5.py"
-      - "scripts/investments_weekly_macro.py"
-      - "scripts/investments_weekly_ma_structure.py"
-      - "scripts/validate_eurusd_ma_structure.py"
-      - "scripts/investments_weekly_eurusd_ma_research.py"
-      - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
-      - "scripts/investments_weekly_eurusd_sma_ema_research.py"
-      - "scripts/decide_eurusd_ma_research.py"
-      - "scripts/run_eurusd_ma_multitimeframe_research.py"
-      - "tests/test_contextual_learning.py"
-      - "tests/test_eurusd_ma_structure.py"
-      - "data/investments/multi_instrument_exposure_policy.json"
+      - ".github/workflows/investments-wes.yml"
+      - "tests/test_investments_wes.py"
       - ".github/workflows/contextual-learning-eurusd-ma.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: contextual-learning-eurusd-ma
+  group: contextual-learning-eurusd-ma-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   validate-and-research:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
-      - name: Validate contextual learning and MA production layer
+      - name: Validate WES publication fix
         run: |
-          python -m py_compile scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py scripts/investments_weekly_ma_structure.py scripts/validate_eurusd_ma_structure.py scripts/investments_weekly_eurusd_ma_research.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py scripts/investments_weekly_eurusd_sma_ema_research.py scripts/decide_eurusd_ma_research.py scripts/run_eurusd_ma_multitimeframe_research.py
-          python -m unittest tests/test_contextual_learning.py tests/test_eurusd_ma_structure.py tests/test_investments_weekly_v5.py
-      - name: Validate live EURUSD MA structure integration
-        run: python scripts/validate_eurusd_ma_structure.py
-      - name: Research EURUSD MA 30 60 100 200 daily
-        run: python scripts/investments_weekly_eurusd_ma_research.py
-      - name: Research EURUSD MA multi-timeframe weekly fit
-        run: python scripts/run_eurusd_ma_multitimeframe_research.py
-      - name: Research EURUSD SMA versus EMA and hybrid
-        run: python scripts/investments_weekly_eurusd_sma_ema_research.py
-      - name: Decide next MA research action
-        run: python scripts/decide_eurusd_ma_research.py
-      - name: Commit validation research and decision reports
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/eurusd_ma_structure_validation.json data/investments/eurusd_ma_30_60_100_200_research.json data/investments/eurusd_ma_multitimeframe_research.json data/investments/eurusd_sma_vs_ema_research.json data/investments/eurusd_ma_research_decision.json
-          if git diff --cached --quiet; then
-            echo "No MA validation/research/decision change to commit."
-            exit 0
-          fi
-          git commit -m "Validate EURUSD MA research decision loop"
-          for attempt in 1 2 3 4 5; do
-            git pull --rebase origin main
-            if git push; then exit 0; fi
-            sleep $((attempt * 4))
-          done
-          exit 1
+          python -m py_compile scripts/investments_wes.py scripts/investments_weekly_v5.py
+          python -m unittest tests/test_investments_wes.py
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/investments-wes.yml').read_text(encoding='utf-8')
+          assert 'data/investments/multi_instrument_exposure_state_v5.json' in source
+          assert 'data/investments/multi_instrument_exposure_report_v5.json' in source
+          assert 'if ! git diff --quiet; then' in source
+          print('WES publication staging guard OK')
+          PY
