@@ -20,24 +20,26 @@ jobs:
           ref: agent/belief-core-v2
           fetch-depth: 0
 
-      - name: Assemble Belief Core v2 package
+      - name: Assemble and verify Belief Core v2 package
         run: |
-          cat .belief-v2-payload/part-*.txt | tr -d '\n\r ' | base64 -d > /tmp/belief-core-v2.tgz
-          gzip -t /tmp/belief-core-v2.tgz
-          tar -tzf /tmp/belief-core-v2.tgz >/dev/null
-          tar -xzf /tmp/belief-core-v2.tgz -C .
+          cat .belief-v2-final/final-*.txt | tr -d '\n\r ' | base64 -d > /tmp/belief-core-v2-final.tgz
+          echo "8bdb8cc28a4b9877a1d22c51629478e5eb49487d7fc3a84af9869c1b9166f5bd  /tmp/belief-core-v2-final.tgz" | sha256sum -c -
+          gzip -t /tmp/belief-core-v2-final.tgz
+          tar -tzf /tmp/belief-core-v2-final.tgz >/dev/null
+          tar -xzf /tmp/belief-core-v2-final.tgz -C .
 
       - name: Validate v2
         run: |
-          python -m py_compile scripts/belief_core.py scripts/belief_core_v2.py scripts/belief_core_shadow.py scripts/belief_core_verify.py
+          python -m py_compile scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py
           python -m unittest discover -s tests -p 'test_belief_core.py' -v
 
       - name: Commit validated v2
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f .github/workflows/install-belief-core-v2.yml .belief-v2-payload/part-*.txt
-          git add scripts/belief_core.py scripts/belief_core_v2.py scripts/belief_core_shadow.py scripts/belief_core_verify.py tests/test_belief_core.py docs/BELIEF_CORE.md .github/workflows/belief-core-tests.yml
-          if git diff --cached --quiet; then exit 0; fi
+          git rm -f .github/workflows/install-belief-core-v2.yml
+          git rm -f .belief-v2-payload/part-*.txt
+          git rm -f .belief-v2-final/final-*.txt
+          git add scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py tests/test_belief_core.py docs/BELIEF_CORE.md .github/workflows/belief-core-tests.yml
           git commit -m "Build Belief Core v2 calibration engine"
           git push origin HEAD:agent/belief-core-v2
