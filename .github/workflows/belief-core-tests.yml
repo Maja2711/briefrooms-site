@@ -1,0 +1,28 @@
+name: Belief Core tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/belief_core.py"
+      - "scripts/belief_core_shadow.py"
+      - "tests/test_belief_core.py"
+      - "data/belief_core/**"
+      - ".github/workflows/belief-core-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Belief Core unit tests
+        run: python -m unittest discover -s tests -p 'test_belief_core.py' -v
