@@ -1,0 +1,52 @@
+name: One-shot fix homepage growth escaping
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-fix-homepage-growth-escaping.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fix escaped title verification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/sync_hot_x_homepages.py')
+          source = path.read_text(encoding='utf-8')
+          old = '        if expected_title not in source:\n'
+          new = '        if html.escape(expected_title) not in source:\n'
+          if old not in source:
+              raise SystemExit('expected verifier line not found')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+          python -m py_compile scripts/sync_hot_x_homepages.py
+      - name: Commit fix and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/sync_hot_x_homepages.py
+          git rm .github/workflows/one-shot-fix-homepage-growth-escaping.yml
+          git commit -m "Fix escaped Hot X title verification"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; git reset --hard origin/main; exit 1; }
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
