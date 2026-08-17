@@ -85,6 +85,13 @@ class WesTests(unittest.TestCase):
         self.assertEqual(choice_learning, result['learning'])
         self.assertEqual(selected_learning, result['selected_leg_learning'])
 
+    def test_wes_workflow_persists_v5_context_state_and_fails_on_unstaged_changes(self):
+        workflow = (ROOT / '.github' / 'workflows' / 'investments-wes.yml').read_text(encoding='utf-8')
+        self.assertIn('data/investments/multi_instrument_exposure_state_v5.json', workflow)
+        self.assertIn('data/investments/multi_instrument_exposure_report_v5.json', workflow)
+        self.assertIn('if ! git diff --quiet; then', workflow)
+        self.assertIn('Unexpected unstaged WES changes block safe rebase', workflow)
+
 
 if __name__ == '__main__':
     unittest.main()
