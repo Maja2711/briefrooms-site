@@ -8,7 +8,8 @@ import re
 import time
 import urllib.request
 from pathlib import Path
-from urllib.parse import urlsplit
+
+from hot_x_items import is_direct_post, is_editorial_search, item_url
 
 ROOT = Path(__file__).resolve().parents[1]
 FEED_PATH = ROOT / "data" / "hot_tweets.json"
@@ -17,7 +18,6 @@ HOME_PATHS = {
     "en": ROOT / "en" / "index.html",
 }
 INITIAL_VISIBLE = 4
-DIRECT_X_POST = re.compile(r"^/[^/\s]+/status/\d+/?$", re.I)
 MARKER_BLOCK = re.compile(
     r'<div\s+class=["\']source-feed["\'][^>]*>\s*'
     r'<!-- HOT_X_STATIC_START -->[\s\S]*?<!-- HOT_X_STATIC_END -->\s*</div>',
@@ -34,28 +34,33 @@ def load_feed() -> dict:
     return data
 
 
-def clean_direct_x_url(value: object) -> str:
-    raw = str(value or "").strip()
-    try:
-        parsed = urlsplit(raw)
-    except ValueError:
-        return ""
-    if parsed.scheme not in {"http", "https"}:
-        return ""
-    if (parsed.hostname or "").lower() not in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}:
-        return ""
-    path = re.sub(r"/{2,}", "/", parsed.path or "").rstrip("/")
-    if not DIRECT_X_POST.match(path):
-        return ""
-    return "https://x.com" + path
-
-
 def text(item: dict, field: str, lang: str) -> str:
     return str(item.get(f"{field}_{lang}") or "").strip()
 
 
+def link_meta(item: dict, lang: str) -> tuple[str, str, str, str]:
+    url = item_url(item)
+    if not url:
+        return "", "", "", ""
+    if is_direct_post(item.get("tweet_url")):
+        return (
+            url,
+            "Konkretny post" if lang == "pl" else "Specific post",
+            "Otwórz post na X →" if lang == "pl" else "Open post on X →",
+            "",
+        )
+    if is_editorial_search(item):
+        return (
+            url,
+            "Temat na X" if lang == "pl" else "X topic search",
+            "Zobacz dyskusję na X →" if lang == "pl" else "View the discussion on X →",
+            " hot-x-editorial-topic",
+        )
+    return "", "", "", ""
+
+
 def card_html(item: dict, lang: str, index: int) -> str:
-    url = clean_direct_x_url(item.get("tweet_url"))
+    url, post_label, cta, editorial_class = link_meta(item, lang)
     title = text(item, "title", lang)
     label = text(item, "label", lang) or "X"
     comment = text(item, "comment", lang) or text(item, "summary", lang)
@@ -64,8 +69,6 @@ def card_html(item: dict, lang: str, index: int) -> str:
         raise RuntimeError(f"Invalid Hot X item at position {index + 1}")
     extra = " hot-x-extra" if index >= INITIAL_VISIBLE else ""
     comment_label = "Komentarz" if lang == "pl" else "Comment"
-    post_label = "Konkretny post" if lang == "pl" else "Specific post"
-    cta = "Otwórz post na X →" if lang == "pl" else "Open post on X →"
     image_html = ""
     if image:
         image_html = (
@@ -74,7 +77,7 @@ def card_html(item: dict, lang: str, index: int) -> str:
             "</div>"
         )
     return (
-        f'<article class="source-card hot-tweet hot-x-card{extra}">'
+        f'<article class="source-card hot-tweet hot-x-card{extra}{editorial_class}">'
         f'<a class="hot-x-card-link" href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer external">'
         f'{image_html}<div class="hot-x-badges">'
         f'<span class="tweet-kicker">{html.escape(label)}</span>'
@@ -126,7 +129,7 @@ def patch_homepage(path: Path, lang: str, data: dict) -> bool:
 
 def check_files(data: dict) -> None:
     updated_at = str(data.get("updated_at") or "")
-    expected_urls = [clean_direct_x_url(item.get("tweet_url")) for item in data["items"][:10]]
+    expected_urls = [item_url(item) for item in data["items"][:10]]
     for lang, path in HOME_PATHS.items():
         source = path.read_text(encoding="utf-8")
         if f'data-hot-x-static-updated-at="{updated_at}"' not in source:
@@ -143,7 +146,7 @@ def check_files(data: dict) -> None:
 
 def verify_production(data: dict, base_url: str, status_path: Path) -> None:
     updated_at = str(data.get("updated_at") or "")
-    first_url = clean_direct_x_url(data["items"][0].get("tweet_url"))
+    first_url = item_url(data["items"][0])
     status = {
         "expected_updated_at": updated_at,
         "expected_first_url": first_url,
