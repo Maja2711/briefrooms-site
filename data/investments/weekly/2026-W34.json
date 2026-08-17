@@ -1,6 +1,6 @@
 {
   "week_id": "2026-W34",
-  "method_version": "5.0.0-experimental",
+  "method_version": "5.6.0-experimental",
   "model_status": "experimental_governed_execution_parity_paper_only",
   "forecast_created_at": "2026-08-17T03:24:18+02:00",
   "forecast_locked_at": "2026-08-17T03:24:18+02:00",
@@ -68,16 +68,29 @@
       "exit_source": null,
       "exit_reason": null,
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-08-17T09:57:50+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-08-17T18:49:56+02:00",
         "direction": "short",
-        "stop_loss_price": 1.16640367,
-        "take_profit_price": 1.14905637,
-        "stop_loss_distance": 0.00658001,
-        "take_profit_distance": 0.01076729,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 1.16538825,
+        "take_profit_price": 1.14743968,
+        "stop_loss_distance": 0.00556459,
+        "take_profit_distance": 0.01238398,
+        "reward_to_risk": 2.2255,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-08-21T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9495,
+          "conviction_factor": 0.43,
+          "tp_multiplier": 1.1501,
+          "sl_multiplier": 0.8457,
+          "target_min_rr": 1.2,
+          "learning_count": 0,
+          "learning_mean_net_percent": null,
+          "learning_win_rate": null
+        },
+        "friday_tactical_low_tp": false
       },
       "trade_status": "open",
       "result": null,
@@ -87,15 +100,15 @@
       "latest_macro_context": {
         "as_of": "2026-08-17T00:00:00",
         "data_quality": "passed",
-        "macro_score": -2.266,
+        "macro_score": -2.1823,
         "macro_direction": "short",
         "position_direction": "short",
         "aligned": true,
         "observations": {
-          "oil_1w_percent": 0.7793,
-          "oil_4w_percent": -0.5527,
-          "us10y_1w_bps": 0.7,
-          "us10y_4w_bps": 10.8
+          "oil_1w_percent": 0.8036,
+          "oil_4w_percent": -0.5287,
+          "us10y_1w_bps": 0.5,
+          "us10y_4w_bps": 10.6
         },
         "ma_structure": {
           "enabled": true,
@@ -151,13 +164,13 @@
           "reasons": [
             "h1_above_all_ma_timing"
           ],
-          "evaluated_at": "2026-08-17T18:46:35+02:00",
+          "evaluated_at": "2026-08-17T18:49:54+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
       },
       "pending_entry_decision": null,
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "forecast_direction": "long",
       "forecast_score": 39,
       "continuous_entry_decision": {
@@ -659,7 +672,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:EURUSD=X:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:EURUSD=X:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     },
     {
       "instrument_id": "sp500_futures",
@@ -716,16 +731,29 @@
       "exit_source": null,
       "exit_reason": null,
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-08-17T09:57:51+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-08-17T18:49:56+02:00",
         "direction": "long",
-        "stop_loss_price": 7716.0044318,
-        "take_profit_price": 7989.51547523,
-        "stop_loss_distance": 103.7455682,
-        "take_profit_distance": 169.76547523,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 7736.68283513,
+        "take_profit_price": 8031.81221079,
+        "stop_loss_distance": 83.06716487,
+        "take_profit_distance": 212.06221079,
+        "reward_to_risk": 2.5529,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-08-21T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9495,
+          "conviction_factor": 0.88,
+          "tp_multiplier": 1.2491,
+          "sl_multiplier": 0.8007,
+          "target_min_rr": 1.2,
+          "learning_count": 0,
+          "learning_mean_net_percent": null,
+          "learning_win_rate": null
+        },
+        "friday_tactical_low_tp": false
       },
       "trade_status": "open",
       "result": null,
@@ -733,7 +761,7 @@
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "forecast_direction": "long",
       "forecast_score": 61,
       "continuous_entry_decision": {
@@ -905,7 +933,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     },
     {
       "instrument_id": "btcusd",
@@ -962,16 +992,29 @@
       "exit_source": null,
       "exit_reason": null,
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-08-17T09:57:51+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-08-17T18:49:56+02:00",
         "direction": "short",
-        "stop_loss_price": 65746.15880859,
-        "take_profit_price": 60021.61986328,
-        "stop_loss_distance": 2226.20958984,
-        "take_profit_distance": 3498.32935547,
-        "reward_to_risk": 1.5714,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 65389.25639174,
+        "take_profit_price": 59450.17461678,
+        "stop_loss_distance": 1869.30717299,
+        "take_profit_distance": 4069.77460197,
+        "reward_to_risk": 2.1772,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-08-21T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9495,
+          "conviction_factor": 0.49,
+          "tp_multiplier": 1.1633,
+          "sl_multiplier": 0.8397,
+          "target_min_rr": 1.2,
+          "learning_count": 0,
+          "learning_mean_net_percent": null,
+          "learning_win_rate": null
+        },
+        "friday_tactical_low_tp": false
       },
       "trade_status": "open",
       "result": null,
@@ -979,7 +1022,7 @@
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "forecast_direction": "neutral",
       "forecast_score": -19,
       "continuous_entry_decision": {
@@ -1151,7 +1194,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     }
   ],
   "forecast_timing_warning": "Created after the weekly window began; not treated as a pre-week frozen forecast.",
@@ -1160,13 +1205,20 @@
   "base_forecast_hash": "0d2a138cc2e4b2abf02704109f6a66b36aceb07338dac5cc4e7238c63cd9f4f4",
   "multi_instrument_exposure_layer": {
     "enabled": true,
-    "version": "5.0.0-experimental",
+    "version": "5.6.0-experimental",
     "common_validation_gate": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-17T18:46:37+02:00"
+    "last_checked_at": "2026-08-17T18:49:54+02:00"
   },
   "common_validation_gate": {
     "version": "5.0.1",
@@ -1174,5 +1226,11 @@
     "scope": "active_or_future_weeks_new_entries_only",
     "closed_history_rewritten": false
   },
-  "governance_started_at": "2026-08-17T18:43:19+02:00"
+  "governance_started_at": "2026-08-17T18:43:19+02:00",
+  "wes": {
+    "version": "WES-1.0.0",
+    "last_postflight_at": "2026-08-17T18:49:56+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
+  }
 }
