@@ -315,7 +315,7 @@ def check_files(data: dict) -> None:
             if not url or escaped_url not in source:
                 raise RuntimeError(f"Missing Hot X URL {url!r} in {path}")
         expected_title = text(data["items"][0], "title", lang)
-        if expected_title not in source:
+        if html.escape(expected_title) not in source:
             raise RuntimeError(f"Missing first {lang} Hot X title in {path}")
         meta = PAGE_META[lang]
         required_growth_markers = (
