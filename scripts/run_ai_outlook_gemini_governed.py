@@ -9,10 +9,12 @@ import sitecustomize  # noqa: F401 - activates Gemini transport adapter
 from ai_outlook_candidate_contract_patch import install as install_candidate_contract
 from ai_outlook_source_topic_contract import install as install_source_topic_contract
 from ai_outlook_final_contract_normalizer import install as install_final_normalizer
+from ai_outlook_value_add_guard import install as install_value_add_guard
 
 install_candidate_contract()
 install_source_topic_contract()
 install_final_normalizer()
+install_value_add_guard()
 
 import ai_outlook_pl_methodology as pl_methodology  # noqa: E402
 import ai_outlook_pl_quality as pl_quality  # noqa: E402
