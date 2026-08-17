@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.5.0",
+  "policy_version": "5.6.0",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -24,20 +24,24 @@
     "performance_weight": 18.0,
     "exploration_bonus": 2.5,
     "maximum_learning_adjustment": 18.0,
-    "rule": "Select the highest-utility directional candidate using only earlier closed paper legs. The selected candidate is a proposal, not a forced trade: the NO_TRADE admission gate may abstain. EUR/USD candidates also receive bounded macro, contextual-learning and MA-structure adjustments."
+    "rule": "Select the highest-utility directional candidate using only earlier closed paper legs. The selected candidate is a proposal, not a forced trade: the NO_TRADE admission gate may abstain. Counterfactual observations of all candidates may reduce exploration uncertainty, but only realized selected-strategy legs drive the legacy global performance adjustment."
   },
   "contextual_learning": {
     "enabled": true,
-    "scope": ["eurusd"],
-    "tracked_contexts": ["against_aligned_up_momentum", "against_aligned_down_momentum"],
+    "schema_version": "2.0",
+    "scope": ["eurusd", "sp500_futures", "btcusd"],
+    "context_dimensions": ["momentum", "weekly_regime", "macro_alignment", "ma_structure_alignment"],
     "momentum_inputs": ["ret5_pct", "ret20_pct"],
     "minimum_absolute_momentum_pct": 0.15,
     "minimum_observations_before_adjustment": 6,
     "prior_observations": 5,
-    "performance_weight": 18.0,
-    "maximum_adjustment": 10.0,
-    "apply_to_methods": ["ema_mean_reversion"],
-    "rule": "Track mean-reversion performance separately when the candidate direction opposes aligned 5-day and 20-day momentum. Do not change utility until at least six earlier closed paper legs exist in the same context; then apply a shrunk bounded adjustment. A single loss must never change weights by itself."
+    "performance_weight": 6.0,
+    "maximum_adjustment": 2.0,
+    "apply_to_methods": ["base_v2", "inverse_v2", "weekly_trend", "daily_weekly_blend", "ema_mean_reversion", "macro_weekly_blend"],
+    "use_counterfactual_candidate_outcomes": true,
+    "candidate_observations_reduce_exploration": true,
+    "realized_selected_legs_only_for_global_performance_weight": true,
+    "rule": "Learn separately for each instrument, strategy and matching market context. At every closed paper leg evaluate every candidate that was present at entry on the same entry-to-exit path. Do not change contextual utility until at least six earlier observations exist in the exact context. Apply Bayesian-style shrinkage and cap the contextual adjustment at +/-2 conviction points. Counterfactual samples reduce exploration uncertainty but never masquerade as realized selected-strategy PnL. Open frozen positions are never rewritten by learning."
   },
   "eurusd_ma_structure": {
     "enabled": true,
