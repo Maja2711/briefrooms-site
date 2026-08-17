@@ -101,13 +101,26 @@ def governed_candidate(iid: str, cfg: Dict[str, Any], p_cfg: Dict[str, Any], wee
     weekly = v3.weekly_candle_signal(cfg, policy)
     regime = str(weekly.get("regime") or "unknown")
     macro_context = macro.context(iid, now, policy)
-    learning = v4.learning_stats(iid, regime, policy)
+    selected_leg_learning = v4.learning_stats(iid, regime, policy)
     base = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
     candidates = macro.apply_to_candidates(iid, base, fresh, weekly, macro_context, policy)
-    candidates, contextual = v5.apply_contextual_learning(iid, candidates, fresh, policy)
-    decision = v4.choose(candidates, learning, policy)
+    candidates, contextual = v5.apply_contextual_learning(
+        iid, candidates, fresh, policy, weekly=weekly, macro_context=macro_context
+    )
+    choice_learning = v5.learning_with_candidate_observations(selected_leg_learning, contextual)
+    decision = v4.choose(candidates, choice_learning, policy)
     count, sources = confirmations(str(decision.get("direction") or "neutral"), fresh, weekly, macro_context)
-    return {"decision": decision, "fresh": fresh, "weekly": weekly, "macro": macro_context, "contextual": contextual, "confirmations": count, "confirmation_sources": sources}
+    return {
+        "decision": decision,
+        "fresh": fresh,
+        "weekly": weekly,
+        "macro": macro_context,
+        "contextual": contextual,
+        "learning": choice_learning,
+        "selected_leg_learning": selected_leg_learning,
+        "confirmations": count,
+        "confirmation_sources": sources,
+    }
 
 
 def iter_wes_legs() -> Iterable[Dict[str, Any]]:
