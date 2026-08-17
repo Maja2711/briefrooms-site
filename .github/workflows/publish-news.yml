@@ -11,10 +11,12 @@ on:
       - "scripts/publish_live_news_filtered.py"
       - "scripts/news_quality.py"
       - "scripts/render_live_news_static.py"
+      - "scripts/generate_permanent_briefs.py"
       - "scripts/news-live.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
       - "tests/test_news_quality.py"
+      - "tests/test_homepage_static.py"
       - ".github/workflows/publish-news.yml"
 
 permissions:
@@ -53,6 +55,7 @@ jobs:
             scripts/publish_live_news_filtered.py \
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
+            scripts/generate_permanent_briefs.py \
             scripts/install_news_live_runtime.py
           python -m unittest \
             tests.test_publish_live_news \
@@ -65,10 +68,21 @@ jobs:
           set -euo pipefail
           marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
+
+          # Live/source-only news and the SEO/editorial homepage are separate layers.
+          # The live publisher may create compatibility home feeds, but those are not
+          # allowed to replace the last strictly reviewed homepage brief set.
           python scripts/publish_live_news_filtered.py --marker "${marker}"
           python scripts/render_live_news_static.py
+
+          cp .cache/home_brief_pl_last_good.json pl/home_brief.json
+          cp .cache/home_brief_en_last_good.json en/home_brief.json
+          python scripts/generate_permanent_briefs.py
+
           python scripts/install_news_live_runtime.py
           python scripts/publish_live_news_filtered.py --validate --max-age-minutes 10
+          python -m unittest tests.test_homepage_static -v
+
           for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
             grep -F '/scripts/news-live.js?v=3' "$path"
             grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
@@ -82,9 +96,11 @@ jobs:
           git add \
             data/news/pl.json data/news/en.json data/news/status.json \
             data/news_publication_status.json \
+            data/permanent_briefs_pl.json data/permanent_briefs_en.json \
             pl/home_brief.json en/home_brief.json \
             pl/aktualnosci.html en/news.html \
-            pl/index.html en/index.html
+            pl/index.html en/index.html \
+            pl/briefy en/briefs sitemap.xml
           if git diff --cached --quiet; then
             echo "::error::Canonical publisher produced no tracked output."
             exit 1
