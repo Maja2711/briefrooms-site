@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.3.0-experimental"
+VERSION = "5.6.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -153,6 +153,53 @@ def _store_macro_review(item: Dict[str, Any], context: Dict[str, Any]) -> bool:
     return True
 
 
+def _candidate_net_percent(direction: str, entry: float, exit_price: float, cost_percent: float) -> Optional[float]:
+    if direction not in {"long", "short"} or entry <= 0:
+        return None
+    gross = ((exit_price - entry) / entry * 100.0) if direction == "long" else ((entry - exit_price) / entry * 100.0)
+    return gross - cost_percent
+
+
+def _enrich_latest_archived_leg(item: Dict[str, Any]) -> None:
+    legs = item.get("position_legs") if isinstance(item.get("position_legs"), list) else []
+    lid = str(item.get("continuous_last_closed_leg_id") or "")
+    leg = next((x for x in reversed(legs) if isinstance(x, dict) and str(x.get("leg_id") or "") == lid), None)
+    if not leg:
+        return
+    decision = leg.get("entry_decision") if isinstance(leg.get("entry_decision"), dict) else {}
+    candidates = decision.get("candidates") if isinstance(decision.get("candidates"), dict) else {}
+    entry, exit_price = sf(leg.get("entry_price")), sf(leg.get("exit_price"))
+    cost = float(sf(leg.get("estimated_round_trip_cost_percent")) or 0.0)
+    if entry is None or exit_price is None or not candidates:
+        return
+    outcomes: Dict[str, Dict[str, Any]] = {}
+    for method_id, candidate in candidates.items():
+        if not isinstance(candidate, dict):
+            continue
+        direction = str(candidate.get("direction") or "neutral")
+        net = _candidate_net_percent(direction, entry, exit_price, cost)
+        if net is None:
+            continue
+        gross = net + cost
+        outcomes[str(method_id)] = {
+            "direction": direction,
+            "gross_result_percent": round(gross, 6),
+            "estimated_round_trip_cost_percent": round(cost, 6),
+            "net_result_percent": round(net, 6),
+            "source": "same_entry_exit_counterfactual_candidate",
+        }
+    if outcomes:
+        leg["candidate_outcomes"] = outcomes
+        leg["contextual_learning_schema"] = "2.0"
+
+
+def archive_leg_with_contextual_outcomes(item: Dict[str, Any], policy_row: Dict[str, Any]) -> bool:
+    archived = v4.archive_leg(item, policy_row)
+    if archived:
+        _enrich_latest_archived_leg(item)
+    return archived
+
+
 def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]) -> int:
     """Archive every newly closed governed leg before any time-window early return."""
     items = {str(x.get("instrument_id")): x for x in week.get("instruments", []) if isinstance(x, dict)}
@@ -160,7 +207,7 @@ def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]
     for p_cfg in v4.policy_instruments(policy):
         iid = str(p_cfg.get("instrument_id"))
         item = items.get(iid)
-        if item is not None and closed_position(item) and v4.archive_leg(item, p_cfg):
+        if item is not None and closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg):
             archived += 1
     return archived
 
@@ -181,53 +228,129 @@ def momentum_context(direction: str, fresh: Dict[str, Any], policy: Dict[str, An
     return "not_against_aligned_momentum"
 
 
-def historical_leg_context(leg: Dict[str, Any], policy: Dict[str, Any]) -> str:
+def _alignment_context(prefix: str, direction: str, reference: Dict[str, Any]) -> str:
+    if reference.get("data_quality") != "passed" or str(reference.get("direction") or "neutral") not in {"long", "short"}:
+        return f"{prefix}_not_applicable"
+    ref_direction = str(reference.get("direction"))
+    return f"{prefix}_aligned" if direction == ref_direction else f"{prefix}_opposed"
+
+
+def contextual_key(direction: str, fresh: Dict[str, Any], weekly: Optional[Dict[str, Any]], macro_context: Optional[Dict[str, Any]], policy: Dict[str, Any]) -> Dict[str, str]:
+    weekly = weekly if isinstance(weekly, dict) else {}
+    macro_context = macro_context if isinstance(macro_context, dict) else {}
+    ma_context = macro_context.get("ma_structure") if isinstance(macro_context.get("ma_structure"), dict) else {}
+    regime = str(weekly.get("regime") or "unknown") if weekly.get("data_quality") == "passed" else "unknown"
+    momentum = momentum_context(direction, fresh, policy)
+    macro_alignment = _alignment_context("macro", direction, macro_context)
+    ma_alignment = _alignment_context("ma", direction, ma_context)
+    key = f"momentum={momentum}|regime={regime}|macro={macro_alignment}|ma={ma_alignment}"
+    return {
+        "key": key,
+        "momentum": momentum,
+        "weekly_regime": regime,
+        "macro_alignment": macro_alignment,
+        "ma_alignment": ma_alignment,
+    }
+
+
+def _historical_candidate(leg: Dict[str, Any], method_id: str) -> Dict[str, Any]:
     decision = leg.get("entry_decision") if isinstance(leg.get("entry_decision"), dict) else {}
+    candidates = decision.get("candidates") if isinstance(decision.get("candidates"), dict) else {}
+    candidate = candidates.get(method_id)
+    if isinstance(candidate, dict):
+        return candidate
+    if str(leg.get("strategy_id") or "") == method_id:
+        return {"direction": leg.get("direction") or decision.get("direction")}
+    return {}
+
+
+def historical_leg_context(leg: Dict[str, Any], policy: Dict[str, Any], method_id: Optional[str] = None) -> str:
+    decision = leg.get("entry_decision") if isinstance(leg.get("entry_decision"), dict) else {}
+    candidate = _historical_candidate(leg, method_id) if method_id else {}
+    direction = str(candidate.get("direction") or leg.get("direction") or decision.get("direction") or "neutral")
     fresh = decision.get("fresh_v2_signal") if isinstance(decision.get("fresh_v2_signal"), dict) else {}
-    return momentum_context(str(leg.get("direction") or decision.get("direction") or "neutral"), fresh, policy)
+    weekly = decision.get("weekly_features") if isinstance(decision.get("weekly_features"), dict) else {}
+    if not weekly and leg.get("entry_regime"):
+        weekly = {"data_quality": "passed", "regime": leg.get("entry_regime")}
+    macro_context = decision.get("macro_context") if isinstance(decision.get("macro_context"), dict) else {}
+    return contextual_key(direction, fresh, weekly, macro_context, policy)["key"]
 
 
-def apply_contextual_learning(instrument_id: str, candidates: Dict[str, Dict[str, Any]], fresh: Dict[str, Any], policy: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+def _historical_candidate_value(leg: Dict[str, Any], method_id: str) -> Optional[float]:
+    outcomes = leg.get("candidate_outcomes") if isinstance(leg.get("candidate_outcomes"), dict) else {}
+    outcome = outcomes.get(method_id)
+    if isinstance(outcome, dict) and sf(outcome.get("net_result_percent")) is not None:
+        return float(outcome["net_result_percent"])
+    candidate = _historical_candidate(leg, method_id)
+    direction = str(candidate.get("direction") or "neutral")
+    entry, exit_price = sf(leg.get("entry_price")), sf(leg.get("exit_price"))
+    cost = float(sf(leg.get("estimated_round_trip_cost_percent")) or 0.0)
+    if entry is not None and exit_price is not None and candidate:
+        return _candidate_net_percent(direction, entry, exit_price, cost)
+    if str(leg.get("strategy_id") or "") == method_id and sf(leg.get("net_result_percent")) is not None:
+        return float(leg["net_result_percent"])
+    return None
+
+
+def apply_contextual_learning(instrument_id: str, candidates: Dict[str, Dict[str, Any]], fresh: Dict[str, Any], policy: Dict[str, Any], weekly: Optional[Dict[str, Any]] = None, macro_context: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
     cfg = policy.get("contextual_learning") or {}
     out = {key: dict(value) for key, value in candidates.items()}
-    summary: Dict[str, Any] = {"enabled": bool(cfg.get("enabled")), "instrument_id": instrument_id, "methods": {}}
+    summary: Dict[str, Any] = {"enabled": bool(cfg.get("enabled")), "instrument_id": instrument_id, "schema": "2.0", "methods": {}}
     if not cfg.get("enabled") or instrument_id not in set(cfg.get("scope") or []):
         return out, summary
-    allowed_methods = set(cfg.get("apply_to_methods") or [])
-    tracked = set(cfg.get("tracked_contexts") or [])
+    allowed_methods = set(cfg.get("apply_to_methods") or out.keys())
     limit = int((policy.get("strategy_tournament") or {}).get("rolling_closed_legs") or 120)
     minimum = int(cfg.get("minimum_observations_before_adjustment") or 6)
     prior_n = float(cfg.get("prior_observations") or 5)
-    weight = float(cfg.get("performance_weight") or 18.0)
-    cap = abs(float(cfg.get("maximum_adjustment") or 10.0))
+    weight = float(cfg.get("performance_weight") or 6.0)
+    cap = abs(float(cfg.get("maximum_adjustment") or 2.0))
     legs = list(v4.iter_legs(instrument_id, limit))
     for method_id, row in out.items():
         direction = str(row.get("direction") or "neutral")
-        context = momentum_context(direction, fresh, policy)
+        context = contextual_key(direction, fresh, weekly, macro_context, policy)
+        all_values = [value for leg in legs if (value := _historical_candidate_value(leg, method_id)) is not None]
         values = [
-            float(leg.get("net_result_percent"))
-            for leg in legs
-            if leg.get("strategy_id") == method_id
-            and sf(leg.get("net_result_percent")) is not None
-            and historical_leg_context(leg, policy) == context
+            value for leg in legs
+            if (value := _historical_candidate_value(leg, method_id)) is not None
+            and historical_leg_context(leg, policy, method_id) == context["key"]
         ]
         mean = sum(values) / len(values) if values else 0.0
         shrunk = mean * len(values) / (len(values) + prior_n) if values else 0.0
-        adjustment = max(-cap, min(cap, shrunk * weight)) if method_id in allowed_methods and context in tracked and len(values) >= minimum else 0.0
+        eligible_context = context["momentum"] != "momentum_context_unavailable" and context["weekly_regime"] != "unknown"
+        adjustment = max(-cap, min(cap, shrunk * weight)) if method_id in allowed_methods and eligible_context and len(values) >= minimum else 0.0
         row["base_conviction"] = row.get("conviction", 0.0)
-        row["contextual_learning_context"] = context
+        row["contextual_learning_context"] = context["key"]
+        row["contextual_learning_components"] = context
         row["contextual_learning_count"] = len(values)
+        row["contextual_candidate_observation_count"] = len(all_values)
         row["contextual_learning_mean_net_percent"] = round(mean, 6)
         row["contextual_learning_adjustment"] = round(adjustment, 4)
-        row["conviction"] = round(float(row.get("conviction") or 0.0) + adjustment, 4)
+        row["conviction"] = round(max(0.0, float(row.get("conviction") or 0.0) + adjustment), 4)
         summary["methods"][method_id] = {
             "context": context,
             "count": len(values),
+            "candidate_observation_count": len(all_values),
             "mean_net_percent": round(mean, 6),
             "shrunk_mean_percent": round(shrunk, 6),
             "adjustment": round(adjustment, 4),
+            "eligible": bool(method_id in allowed_methods and eligible_context and len(values) >= minimum),
         }
     return out, summary
+
+
+def learning_with_candidate_observations(learning: Dict[str, Any], contextual_learning: Dict[str, Any]) -> Dict[str, Any]:
+    out = {key: value for key, value in learning.items()}
+    methods = {key: dict(value) for key, value in (learning.get("methods") or {}).items()}
+    for method_id, contextual in (contextual_learning.get("methods") or {}).items():
+        row = methods.setdefault(method_id, {})
+        selected_count = int(row.get("count") or 0)
+        candidate_count = int(contextual.get("candidate_observation_count") or 0)
+        if candidate_count > selected_count:
+            row["count"] = candidate_count
+            row["count_source"] = "counterfactual_candidate_observations_for_exploration_only"
+            row["selected_leg_count"] = selected_count
+    out["methods"] = methods
+    return out
 
 
 def ensure_all() -> Dict[str, Any]:
@@ -260,7 +383,7 @@ def ensure_all() -> Dict[str, Any]:
         iid = str(p_cfg.get("instrument_id")); cfg = v4.instrument_cfg(method, iid); item = items.get(iid)
         if not cfg or item is None:
             report["actions"].append({"instrument_id": iid, "action": "skip", "reason": "missing_config"}); continue
-        if closed_position(item) and v4.archive_leg(item, p_cfg): changed = True
+        if closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg): changed = True
         allowed, c = gate(item, method, iid); changed |= c
         blocked, c = lock_reentry(item, week, now); changed |= c
         if not allowed or blocked:
@@ -272,12 +395,13 @@ def ensure_all() -> Dict[str, Any]:
         learning = v4.learning_stats(iid, regime, policy)
         base_candidates = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
         candidates = macro.apply_to_candidates(iid, base_candidates, fresh, weekly, macro_context, policy)
-        candidates, contextual_learning = apply_contextual_learning(iid, candidates, fresh, policy)
-        decision = no_trade(v4.choose(candidates, learning, policy), fresh, weekly, policy)
+        candidates, contextual_learning = apply_contextual_learning(iid, candidates, fresh, policy, weekly=weekly, macro_context=macro_context)
+        choice_learning = learning_with_candidate_observations(learning, contextual_learning)
+        decision = no_trade(v4.choose(candidates, choice_learning, policy), fresh, weekly, policy)
         decision["macro_context"] = macro_context
         decision["contextual_learning"] = contextual_learning
-        state["instruments"][iid] = {"regime": regime, "learning": learning, "contextual_learning": contextual_learning,
-                                     "decision": decision, "macro_context": macro_context,
+        state["instruments"][iid] = {"regime": regime, "learning": choice_learning, "selected_leg_learning": learning,
+                                     "contextual_learning": contextual_learning, "decision": decision, "macro_context": macro_context,
                                      "validation_gate": item.get("validation_gate"), "reentry_lock": item.get("reentry_lock")}
         if _store_macro_review(item, macro_context):
             changed = True
@@ -308,6 +432,9 @@ def ensure_all() -> Dict[str, Any]:
         "no_trade_first_class": True, "weekly_candles_used": True,
         "eurusd_oil_us10y_context_used": True,
         "contextual_momentum_learning": True,
+        "contextual_multidimensional_learning": True,
+        "counterfactual_candidate_learning": True,
+        "counterfactual_observations_reduce_exploration_only": True,
         "learning_settlement_archive_before_window_exit": True,
         "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
         "last_checked_at": now.isoformat(timespec="seconds"),
