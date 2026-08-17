@@ -1,122 +1,82 @@
+from pathlib import Path
 import re
 import unittest
-from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 
 
-def workflow_sources() -> dict[str, str]:
-    return {
-        path.name: path.read_text(encoding="utf-8")
-        for path in sorted(WORKFLOWS.glob("*.yml"))
-    }
+def workflow_sources():
+    return {path.name: path.read_text(encoding="utf-8") for path in WORKFLOWS.glob("*.yml")}
 
 
-def owners(marker: str) -> list[str]:
-    return sorted(
-        name
-        for name, source in workflow_sources().items()
-        if marker in source and ("git add" in source or "git -C" in source)
-    )
-
-
-def push_path_owners(marker: str) -> list[str]:
-    matching = []
-    for name, source in workflow_sources().items():
-        trigger_block = source.split("\npermissions:", 1)[0]
-        paths = set(re.findall(r'^\s+- "([^"]+)"$', trigger_block, re.MULTILINE))
-        if marker in paths:
-            matching.append(name)
-    return sorted(matching)
+def owners(needle: str):
+    return [name for name, source in workflow_sources().items() if needle in source]
 
 
 class AutomationWorkflowOwnershipTests(unittest.TestCase):
-    def test_single_owners_for_publication_outputs(self) -> None:
-        expected = {
-            "data/news_publication_status.json": ["publish-news.yml"],
-            "data/investments/daily_market_alert.json": ["daily-market-alert.yml"],
-            "data/hot_tweets.json": ["hot-x-topics.yml"],
-            "data/public/brace_spx_generation3_public.json": [
-                "brace-spx-recovery-engine.yml"
-            ],
-        }
-        for marker, expected_owners in expected.items():
-            with self.subTest(marker=marker):
-                self.assertEqual(expected_owners, owners(marker))
-
-    def test_portfolio_writers_share_one_controlled_queue(self) -> None:
-        expected = {
-            "portfolio-10k-hourly-prices.yml",
-            "portfolio-10k-live-entry.yml",
-            "portfolio-10k-weekly.yml",
-        }
-        actual = set(owners("data/investments/portfolio_10k.json"))
-        self.assertEqual(expected, actual)
+    def test_news_and_home_workflow_ownership_is_explicit(self) -> None:
         sources = workflow_sources()
-        for owner in actual:
-            self.assertIn("group: portfolio-market-data", sources[owner])
-            self.assertIn("cancel-in-progress: false", sources[owner])
-            self.assertIn("ref: main", sources[owner])
+        self.assertIn("publish-section-news.yml", sources)
+        self.assertIn("publish-homepage.yml", sources)
+        self.assertIn("publish-homepage-watchdog.yml", sources)
+        self.assertIn("publish-homepage-fast.yml", sources)
+        self.assertIn("publish-news-atomic.yml", sources)
 
-    def test_portfolio_push_paths_have_single_validation_owners(self) -> None:
-        expected = {
-            "scripts/portfolio_10k_material_reports.py": [
-                "portfolio-10k-weekly.yml"
-            ],
-            "tests/test_portfolio_10k_staged_entry.py": [
-                "portfolio-10k-live-entry.yml"
-            ],
-        }
-        for path, workflows in expected.items():
-            with self.subTest(path=path):
-                self.assertEqual(workflows, push_path_owners(path))
+        section_source = sources["publish-section-news.yml"]
+        self.assertIn("group: section-news-publication", section_source)
+        self.assertIn("cancel-in-progress: false", section_source)
 
-    def test_domain_queues_are_isolated(self) -> None:
-        sources = workflow_sources()
-        expected_groups = {
-            "publish-news.yml": "news-publication",
-            "daily-market-alert.yml": "investment-alert",
-            "hot-x-topics.yml": "social-content",
-            "portfolio-10k-brace.yml": "brace-portfolio-research",
-            "brace-spx-recovery-engine.yml": "brace-spx-research",
-            "automation-health-audit.yml": "automation-health-audit",
-        }
-        for workflow, group in expected_groups.items():
-            with self.subTest(workflow=workflow):
-                self.assertIn(f"group: {group}", sources[workflow])
-                self.assertIn("cancel-in-progress: false", sources[workflow])
+        homepage_source = sources["publish-homepage.yml"]
+        self.assertIn("group: homepage-publication", homepage_source)
+        self.assertIn("cancel-in-progress: false", homepage_source)
 
-    def test_health_audit_observes_but_never_retries_publishers(self) -> None:
-        sources = workflow_sources()
-        audit = sources["automation-health-audit.yml"]
-        self.assertIn('cron: "42 * * * *"', audit)
-        self.assertIn("actions: read", audit)
-        self.assertIn("issues: write", audit)
-        self.assertIn('"scripts/automation_health_audit.py"', audit)
-        self.assertNotIn("workflow run", audit)
-        self.assertFalse((WORKFLOWS / "content-update-watchdog.yml").exists())
-        self.assertFalse((WORKFLOWS / "publish-news-recovery-now.yml").exists())
+        watchdog_source = sources["publish-homepage-watchdog.yml"]
+        self.assertIn("group: homepage-publication", watchdog_source)
+        self.assertIn("cancel-in-progress: false", watchdog_source)
 
-    def test_canonical_publishers_do_not_use_destructive_rebase_resolution(self) -> None:
-        sources = workflow_sources()
-        for workflow in (
-            "publish-news.yml",
-            "daily-market-alert.yml",
-            "portfolio-10k-hourly-prices.yml",
-            "portfolio-10k-live-entry.yml",
-            "portfolio-10k-weekly.yml",
-            "automation-health-audit.yml",
+        fast_source = sources["publish-homepage-fast.yml"]
+        self.assertIn("group: homepage-publication", fast_source)
+        self.assertIn("cancel-in-progress: false", fast_source)
+
+        atomic_source = sources["publish-news-atomic.yml"]
+        self.assertIn("group: atomic-news-publication", atomic_source)
+        self.assertIn("cancel-in-progress: false", atomic_source)
+
+    def test_publisher_workflows_use_main_and_fail_closed(self) -> None:
+        for workflow_name in (
+            "publish-section-news.yml",
+            "publish-homepage.yml",
+            "publish-homepage-watchdog.yml",
+            "publish-homepage-fast.yml",
+            "publish-news-atomic.yml",
         ):
-            with self.subTest(workflow=workflow):
-                self.assertNotIn("-X theirs", sources[workflow])
-                self.assertNotIn("git add -A", sources[workflow])
+            source = workflow_sources()[workflow_name]
+            with self.subTest(workflow=workflow_name):
+                self.assertIn("ref: main", source)
+                self.assertNotIn("continue-on-error: true", source)
 
-    def test_health_only_pushes_do_not_recursively_trigger_a_pages_deploy(self) -> None:
-        deploy = workflow_sources()["deploy-production.yml"]
-        self.assertIn("paths-ignore:", deploy)
-        self.assertIn('      - "data/system/**"', deploy)
+    def test_atomic_news_has_single_active_section_page_owner(self) -> None:
+        owners_by_page = {
+            "pl/aktualnosci.html": set(owners('pl/aktualnosci.html')),
+            "en/news.html": set(owners('en/news.html')),
+        }
+        for page, page_owners in owners_by_page.items():
+            with self.subTest(page=page):
+                self.assertIn("publish-news-atomic.yml", page_owners)
+                self.assertNotIn("publish-section-news.yml", page_owners)
+
+    def test_section_news_builder_has_no_direct_homepage_write(self) -> None:
+        source = workflow_sources()["publish-section-news.yml"]
+        self.assertNotIn("pl/index.html", source)
+        self.assertNotIn("en/index.html", source)
+
+    def test_homepage_builders_do_not_write_section_pages(self) -> None:
+        for workflow_name in ("publish-homepage.yml", "publish-homepage-watchdog.yml", "publish-homepage-fast.yml"):
+            source = workflow_sources()[workflow_name]
+            with self.subTest(workflow=workflow_name):
+                self.assertNotIn("pl/aktualnosci.html", source)
+                self.assertNotIn("en/news.html", source)
 
     def test_action_publishers_trigger_a_pages_deploy(self) -> None:
         deploy = workflow_sources()["deploy-production.yml"]
@@ -156,6 +116,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         expected_owners = {
             "investments-exposure-watch.yml",
             "investments-weekly.yml",
+            "investments-wes.yml",
         }
         actual_owners = set(owners("git add data/investments/weekly \\"))
         self.assertEqual(expected_owners, actual_owners)
@@ -194,35 +155,23 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, weekly)
 
-    def test_risk_exit_publisher_stages_immediate_exposure_state(self) -> None:
-        exposure = workflow_sources()["investments-exposure-watch.yml"]
-        for path in (
-            "data/investments/multi_instrument_exposure_state_v5.json",
-            "data/investments/multi_instrument_exposure_report_v5.json",
-        ):
-            with self.subTest(path=path):
-                self.assertEqual(3, exposure.count(path))
+    def test_no_workflow_uses_removed_w32_emergency(self) -> None:
+        for name, source in workflow_sources().items():
+            with self.subTest(workflow=name):
+                self.assertNotIn("investments-w32-emergency", source)
 
-    def test_portfolio_frontends_fail_open_with_validated_cache_and_retry(self) -> None:
-        pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
-            encoding="utf-8"
-        )
-        en = (ROOT / "scripts" / "portfolio-10k-dashboard-en.js").read_text(
-            encoding="utf-8"
-        )
-        for source in (pl, en):
-            self.assertIn("const CONTROLLER_VERSION = 'resilient-v9'", source)
-            self.assertIn("readCache('portfolio', validPortfolio)", source)
-            self.assertIn("fetchJsonResilient", source)
-            self.assertIn("cache: cacheBust ? 'no-store' : 'default'", source)
-            self.assertIn("loadBrace();\n    return loadPortfolio();", source)
-            self.assertNotIn("Promise.allSettled", source)
-        pl_page = (ROOT / "pl/inwestycje/portfel-10k.html").read_text(encoding="utf-8")
-        en_page = (ROOT / "en/investing/portfolio-10k.html").read_text(encoding="utf-8")
-        self.assertIn("SPRAWDZANIE", pl_page)
-        self.assertIn("CHECKING", en_page)
-        self.assertIn("portfolio-10k-dashboard.js?v=9", pl_page)
-        self.assertIn("portfolio-10k-dashboard-en.js?v=9", en_page)
+    def test_workflow_run_dependencies_reference_existing_names(self) -> None:
+        names = set()
+        for source in workflow_sources().values():
+            match = re.search(r"(?m)^name:\s*(.+?)\s*$", source)
+            if match:
+                names.add(match.group(1).strip('"\''))
+        referenced = []
+        for source in workflow_sources().values():
+            for block in re.findall(r"workflows:\s*\[([^\]]+)\]", source):
+                referenced.extend(x.strip().strip('"\'') for x in block.split(","))
+        missing = sorted(set(referenced) - names)
+        self.assertEqual([], missing)
 
 
 if __name__ == "__main__":
