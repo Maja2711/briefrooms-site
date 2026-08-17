@@ -1,0 +1,114 @@
+name: Submit changed URLs to IndexNow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 5,17 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "pl/**/*.html"
+      - "en/**/*.html"
+      - "sitemap.xml"
+      - "scripts/submit_indexnow.py"
+      - "c5b0d236f963163a96596ec8d463a402.txt"
+      - ".github/workflows/indexnow.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: indexnow-organic-distribution
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate client
+        run: python -m py_compile scripts/submit_indexnow.py
+
+      - name: Wait for public IndexNow key
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="c5b0d236f963163a96596ec8d463a402"
+          url="https://briefrooms.com/c5b0d236f963163a96596ec8d463a402.txt"
+          for attempt in $(seq 1 36); do
+            body="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${url}?v=${GITHUB_SHA}-${attempt}" || true)"
+            if [[ "${body//$'\r'/}" == "${expected}" || "${body//$'\r'/}" == "${expected}"$'\n' ]]; then
+              echo "IndexNow key is public."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::IndexNow key file is not publicly reachable yet."
+          exit 1
+
+      - name: Collect recently changed public pages
+        id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            base="${{ github.event.before }}"
+          else
+            base="$(git rev-list -n 1 --before='13 hours ago' HEAD || true)"
+            if [[ -z "$base" ]]; then
+              base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+            fi
+          fi
+          git diff --name-only "$base" HEAD -- pl en sitemap.xml > /tmp/indexnow_paths.txt
+          echo "Changed public files:"
+          cat /tmp/indexnow_paths.txt || true
+          if [[ -f data/indexnow_status.json ]]; then
+            echo "bootstrap=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "bootstrap=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--paths-file /tmp/indexnow_paths.txt)
+          if [[ "${{ steps.changed.outputs.bootstrap }}" == "1" ]]; then
+            args+=(--bootstrap)
+          fi
+          python scripts/submit_indexnow.py "${args[@]}"
+
+      - name: Commit IndexNow receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/indexnow_status.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(indexnow): record URL submission"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              git rebase origin/main
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Could not push IndexNow receipt."
+          exit 1
