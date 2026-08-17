@@ -62,10 +62,17 @@ jobs:
           git add data/investments/weekly \
                   data/investments/wes_report.json \
                   data/investments/wes_learning.json \
+                  data/investments/multi_instrument_exposure_state_v5.json \
+                  data/investments/multi_instrument_exposure_report_v5.json \
                   pl/inwestycje/pozycje-tygodniowe.html \
                   en/investing/open-weekly-positions.html \
                   pl/inwestycje/prognozy-tygodniowe.html \
                   en/investing/weekly-forecasts.html
+          if ! git diff --quiet; then
+            echo "Unexpected unstaged WES changes block safe rebase:"
+            git status --short
+            exit 1
+          fi
           if git diff --cached --quiet; then
             echo "No WES change to commit."
             exit 0
