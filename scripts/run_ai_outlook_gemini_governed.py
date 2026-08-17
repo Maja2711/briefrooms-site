@@ -9,11 +9,14 @@ import sitecustomize  # noqa: F401 - activates Gemini transport adapter
 from ai_outlook_candidate_contract_patch import install as install_candidate_contract
 from ai_outlook_source_topic_contract import install as install_source_topic_contract
 from ai_outlook_final_contract_normalizer import install as install_final_normalizer
+from ai_outlook_placeholder_normalizer import install as install_placeholder_normalizer
 from ai_outlook_value_add_guard import install as install_value_add_guard
 
 install_candidate_contract()
 install_source_topic_contract()
 install_final_normalizer()
+# Expand only template tokens whose values are already locked in the forecast.
+install_placeholder_normalizer()
 # Value-add v2.2 leaves the established candidate generator untouched, then
 # down-ranks source restatements and fails closed on generic final prose.
 install_value_add_guard()
