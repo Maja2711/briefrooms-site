@@ -39,6 +39,46 @@ class AiProviderPreflightTests(unittest.TestCase):
         self.assertEqual("Bearer secret-token", headers["Authorization"])
         self.assertEqual("2026-03-10", headers["X-GitHub-Api-Version"])
 
+    def test_gemini_35_preflight_uses_minimal_thinking_and_real_output_budget(self):
+        runtime = quality.AiRuntime(
+            "gemini",
+            "secret-token",
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash",
+        )
+        payload = {
+            "candidates": [
+                {
+                    "content": {"parts": [{"text": '{"ok":true}'}]},
+                    "finishReason": "STOP",
+                }
+            ]
+        }
+        post = mock.Mock(return_value=Response(200, payload))
+        result = preflight.check_provider(runtime=runtime, post=post)
+        self.assertEqual("healthy", result["status"])
+        request = post.call_args.kwargs["json"]
+        config = request["generationConfig"]
+        self.assertEqual(256, config["maxOutputTokens"])
+        self.assertEqual("minimal", config["thinkingConfig"]["thinkingLevel"])
+        self.assertNotIn("temperature", config)
+
+    def test_gemini_empty_200_is_transient_not_permanent(self):
+        runtime = quality.AiRuntime(
+            "gemini",
+            "secret-token",
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash",
+        )
+        payload = {"candidates": [{"content": {}, "finishReason": "MAX_TOKENS"}]}
+        post = mock.Mock(return_value=Response(200, payload))
+        with self.assertRaises(preflight.PreflightError) as caught:
+            preflight.check_provider(runtime=runtime, post=post)
+        self.assertFalse(caught.exception.permanent)
+        self.assertEqual("provider_output_budget_exhausted", caught.exception.error_class)
+
     def test_preflight_classifies_permanent_status_without_retry(self):
         for status in (400, 401, 403, 404, 410, 422):
             with self.subTest(status=status):

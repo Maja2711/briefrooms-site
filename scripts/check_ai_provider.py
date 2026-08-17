@@ -66,7 +66,21 @@ def diagnostic(runtime: AiRuntime, **values) -> dict:
 
 
 def _gemini_request(runtime: AiRuntime, post):
+    """Use a tiny, low-thinking probe that still leaves room for visible output.
+
+    Gemini 3.5 Flash reasons by default. A 32-token preflight can therefore end
+    with HTTP 200 but no visible ``content.parts``. The probe explicitly uses
+    minimal thinking for Gemini 3.x and reserves enough output for the requested
+    JSON object. Sampling parameters are intentionally omitted for Gemini 3.x.
+    """
     url = f"{runtime.endpoint.rstrip('/')}/{runtime.generation_model}:generateContent"
+    generation_config = {
+        "maxOutputTokens": 256,
+        "responseMimeType": "application/json",
+    }
+    if str(runtime.generation_model).startswith("gemini-3"):
+        generation_config["thinkingConfig"] = {"thinkingLevel": "minimal"}
+
     response = post(
         url,
         headers={
@@ -81,11 +95,7 @@ def _gemini_request(runtime: AiRuntime, post):
                     "parts": [{"text": 'Return only this JSON object: {"ok":true}'}],
                 }
             ],
-            "generationConfig": {
-                "temperature": 0,
-                "maxOutputTokens": 32,
-                "responseMimeType": "application/json",
-            },
+            "generationConfig": generation_config,
         },
         timeout=20,
     )
@@ -111,6 +121,27 @@ def _openai_compatible_request(runtime: AiRuntime, post):
         timeout=20,
     )
     return response, runtime.endpoint
+
+
+def _gemini_visible_text(payload: dict) -> tuple[str, str]:
+    """Return visible text plus finish reason without assuming ``parts`` exists."""
+    candidates = payload.get("candidates") or [] if isinstance(payload, dict) else []
+    if not candidates or not isinstance(candidates[0], dict):
+        return "", ""
+    candidate = candidates[0]
+    finish_reason = str(candidate.get("finishReason") or "")
+    content = candidate.get("content")
+    if not isinstance(content, dict):
+        return "", finish_reason
+    parts = content.get("parts")
+    if not isinstance(parts, list):
+        return "", finish_reason
+    text = "".join(
+        str(part.get("text") or "")
+        for part in parts
+        if isinstance(part, dict) and part.get("text") is not None
+    ).strip()
+    return text, finish_reason
 
 
 def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
@@ -163,11 +194,28 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
     try:
         payload = response.json()
         if runtime.provider == "gemini":
-            candidates = payload.get("candidates") or []
-            parts = candidates[0]["content"]["parts"]
-            content = "".join(str(part.get("text", "")) for part in parts)
+            content, finish_reason = _gemini_visible_text(payload)
+            if not content:
+                # HTTP 200 with an output-budget finish is a request-shape issue,
+                # not broken credentials. Keep the classification transient so a
+                # temporary empty model response never permanently poisons health.
+                error_class = (
+                    "provider_output_budget_exhausted"
+                    if finish_reason.upper() == "MAX_TOKENS"
+                    else "empty_provider_response"
+                )
+                raise PreflightError(
+                    runtime.provider,
+                    safe_endpoint(request_endpoint),
+                    runtime.generation_model,
+                    status,
+                    error_class,
+                    False,
+                )
         else:
             content = payload["choices"][0]["message"]["content"]
+    except PreflightError:
+        raise
     except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
         raise PreflightError(
             runtime.provider,
@@ -175,8 +223,9 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
             runtime.generation_model,
             status,
             "invalid_provider_response",
-            True,
+            False if runtime.provider == "gemini" else True,
         ) from exc
+
     if not str(content).strip():
         raise PreflightError(
             runtime.provider,
@@ -184,8 +233,33 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
             runtime.generation_model,
             status,
             "empty_provider_response",
-            True,
+            False if runtime.provider == "gemini" else True,
         )
+
+    # A JSON preflight should prove structured output works, not merely that the
+    # endpoint returned arbitrary text.
+    if runtime.provider == "gemini":
+        try:
+            parsed = json.loads(str(content))
+        except (TypeError, ValueError) as exc:
+            raise PreflightError(
+                runtime.provider,
+                safe_endpoint(request_endpoint),
+                runtime.generation_model,
+                status,
+                "invalid_json_provider_response",
+                False,
+            ) from exc
+        if not isinstance(parsed, dict) or parsed.get("ok") is not True:
+            raise PreflightError(
+                runtime.provider,
+                safe_endpoint(request_endpoint),
+                runtime.generation_model,
+                status,
+                "unexpected_json_provider_response",
+                False,
+            )
+
     return diagnostic(runtime, status="healthy", status_code=status)
 
 
