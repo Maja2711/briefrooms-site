@@ -18,8 +18,8 @@
       "symbol": "EURUSD=X",
       "label_pl": "EUR/USD",
       "label_en": "EUR/USD",
-      "direction": "long",
-      "score": 39,
+      "direction": "short",
+      "score": -43.0,
       "signal_strength": 0.39,
       "confidence": 0.39,
       "confidence_type": "heuristic_signal_strength_not_probability",
@@ -54,21 +54,32 @@
       },
       "risk_distance": {
         "source": "ATR14_sqrt5_frozen_at_forecast",
-        "stop_price_distance": 0.00646195,
-        "take_price_distance": 0.0105741,
-        "stop_units": 64.6195,
-        "take_units": 105.741,
+        "stop_price_distance": 0.00658001,
+        "take_price_distance": 0.01076729,
+        "stop_units": 65.8001,
+        "take_units": 107.6729,
         "reward_to_risk": 1.6364
       },
-      "entry_price": null,
-      "entry_captured_at": null,
-      "entry_source": null,
+      "entry_price": 1.1598236560821533,
+      "entry_captured_at": "2026-08-17T09:05:00+02:00",
+      "entry_source": "Yahoo Finance:EURUSD=X:5m:first_bar_at_or_after_target",
       "exit_price": null,
       "exit_captured_at": null,
       "exit_source": null,
       "exit_reason": null,
-      "risk_plan": null,
-      "trade_status": "planned",
+      "risk_plan": {
+        "model_version": "2.0.0",
+        "created_from_frozen_forecast": true,
+        "generated_at": "2026-08-17T09:57:50+02:00",
+        "direction": "short",
+        "stop_loss_price": 1.16640367,
+        "take_profit_price": 1.14905637,
+        "stop_loss_distance": 0.00658001,
+        "take_profit_distance": 0.01076729,
+        "reward_to_risk": 1.6364,
+        "same_bar_rule": "stop_loss_first_conservative"
+      },
+      "trade_status": "open",
       "result": null,
       "result_value": null,
       "result_percent": null,
@@ -76,13 +87,13 @@
       "latest_macro_context": {
         "as_of": "2026-08-17T00:00:00",
         "data_quality": "passed",
-        "macro_score": -2.3636,
+        "macro_score": -2.4365,
         "macro_direction": "short",
         "position_direction": "long",
         "aligned": false,
         "observations": {
-          "oil_1w_percent": -0.4383,
-          "oil_4w_percent": -1.7542,
+          "oil_1w_percent": -0.3896,
+          "oil_4w_percent": -1.7061,
           "us10y_1w_bps": 3.6,
           "us10y_4w_bps": 15.5
         },
@@ -96,43 +107,43 @@
           "components": {
             "W1": {
               "bar_at": "2026-08-14T00:00:00+02:00",
-              "close": 1.153536,
-              "ma30": 1.161825,
-              "ma60": 1.163976,
-              "ma100": 1.132175,
-              "ma200": 1.104955,
+              "close": 1.153004,
+              "ma30": 1.161808,
+              "ma60": 1.163967,
+              "ma100": 1.13217,
+              "ma200": 1.104952,
               "slow_trend": 1,
               "price_vs_all": 0,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 0.7037,
+              "nearest_ma_distance_atr": 0.7566,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "D1": {
               "bar_at": "2026-08-17T02:00:00+02:00",
-              "close": 1.159958,
-              "ma30": 1.146622,
-              "ma60": 1.149293,
-              "ma100": 1.156929,
-              "ma200": 1.162836,
+              "close": 1.161036,
+              "ma30": 1.146333,
+              "ma60": 1.14949,
+              "ma100": 1.156896,
+              "ma200": 1.162822,
               "slow_trend": -1,
               "price_vs_all": 0,
               "nearest_ma": "ma200",
-              "nearest_ma_distance_atr": 0.5379,
+              "nearest_ma_distance_atr": 0.3283,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
-              "bar_at": "2026-08-17T08:00:00+02:00",
-              "close": 1.159958,
-              "ma30": 1.156763,
-              "ma60": 1.154977,
-              "ma100": 1.154689,
-              "ma200": 1.15466,
+              "bar_at": "2026-08-17T09:00:00+02:00",
+              "close": 1.161036,
+              "ma30": 1.156991,
+              "ma60": 1.155121,
+              "ma100": 1.154756,
+              "ma200": 1.154699,
               "slow_trend": 1,
               "price_vs_all": 1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 5.2109,
+              "nearest_ma_distance_atr": 6.1131,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -140,407 +151,199 @@
           "reasons": [
             "h1_above_all_ma_timing"
           ],
-          "evaluated_at": "2026-08-17T09:00:12+02:00",
+          "evaluated_at": "2026-08-17T09:57:49+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
       },
-      "pending_entry_decision": {
-        "decided_at": "2026-08-17T09:00:12+02:00",
-        "entry_not_before": "2026-08-17T09:00:12+02:00",
-        "decision": {
-          "direction": "short",
-          "raw_score": -43.0,
-          "conviction": 6.5477,
-          "base_conviction": 6.5477,
-          "macro_alignment_adjustment": 0.4727,
-          "macro_context_score": -2.3636,
-          "ma_structure_base_conviction": 6.9227,
-          "ma_structure_adjustment": -0.375,
-          "ma_structure_score": 0.5,
-          "research_lab_bridge": {
-            "enabled": true,
-            "cap_points": 2.0,
-            "applied": []
-          },
-          "contextual_learning_context": "against_aligned_up_momentum",
-          "contextual_learning_count": 0,
-          "contextual_learning_mean_net_percent": 0.0,
-          "contextual_learning_adjustment": 0.0,
-          "strategy_id": "inverse_v2",
-          "learning_count": 0,
-          "learning_adjustment": 0.0,
-          "exploration_bonus": 2.5,
-          "utility": 9.0477,
-          "candidates": {
-            "inverse_v2": {
-              "direction": "short",
-              "raw_score": -43.0,
-              "conviction": 6.5477,
-              "base_conviction": 6.5477,
-              "macro_alignment_adjustment": 0.4727,
-              "macro_context_score": -2.3636,
-              "ma_structure_base_conviction": 6.9227,
-              "ma_structure_adjustment": -0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "against_aligned_up_momentum",
-              "contextual_learning_count": 0,
-              "contextual_learning_mean_net_percent": 0.0,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "inverse_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 9.0477
-            },
-            "base_v2": {
-              "direction": "long",
-              "raw_score": 43.0,
-              "conviction": 6.3523,
-              "base_conviction": 6.3523,
-              "macro_alignment_adjustment": -0.4727,
-              "macro_context_score": -2.3636,
-              "ma_structure_base_conviction": 5.9773,
-              "ma_structure_adjustment": 0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "not_against_aligned_momentum",
-              "contextual_learning_count": 1,
-              "contextual_learning_mean_net_percent": 0.11432,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "base_v2",
-              "learning_count": 1,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 1.7678,
-              "utility": 8.1201
-            },
-            "ema_mean_reversion": {
-              "direction": "short",
-              "raw_score": -40.0,
-              "conviction": 6.0977,
-              "base_conviction": 6.0977,
-              "macro_alignment_adjustment": 0.4727,
-              "macro_context_score": -2.3636,
-              "ma_structure_base_conviction": 6.4727,
-              "ma_structure_adjustment": -0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "against_aligned_up_momentum",
-              "contextual_learning_count": 1,
-              "contextual_learning_mean_net_percent": -0.325211,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "ema_mean_reversion",
-              "learning_count": 1,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 1.7678,
-              "utility": 7.8655
-            },
-            "daily_weekly_blend": {
-              "direction": "long",
-              "raw_score": 34.2,
-              "conviction": 5.0323,
-              "base_conviction": 5.0323,
-              "macro_alignment_adjustment": -0.4727,
-              "macro_context_score": -2.3636,
-              "ma_structure_base_conviction": 4.6573,
-              "ma_structure_adjustment": 0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "not_against_aligned_momentum",
-              "contextual_learning_count": 0,
-              "contextual_learning_mean_net_percent": 0.0,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "daily_weekly_blend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 7.5323
-            },
-            "macro_weekly_blend": {
-              "direction": "long",
-              "raw_score": 21.4803,
-              "conviction": 3.597,
-              "base_conviction": 3.597,
-              "macro_alignment_adjustment": 0.0,
-              "macro_context_score": -2.3636,
-              "inputs": {
-                "daily_score": 43.0,
-                "weekly_score": 21.0,
-                "macro_score_normalized": -7.8787,
-                "weights": {
-                  "daily": 0.35,
-                  "weekly": 0.4,
-                  "macro": 0.25
-                }
-              },
-              "ma_structure_base_conviction": 3.222,
-              "ma_structure_adjustment": 0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "not_against_aligned_momentum",
-              "contextual_learning_count": 0,
-              "contextual_learning_mean_net_percent": 0.0,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "macro_weekly_blend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 6.097
-            },
-            "weekly_trend": {
-              "direction": "long",
-              "raw_score": 21.0,
-              "conviction": 3.0523,
-              "base_conviction": 3.0523,
-              "macro_alignment_adjustment": -0.4727,
-              "macro_context_score": -2.3636,
-              "ma_structure_base_conviction": 2.6773,
-              "ma_structure_adjustment": 0.375,
-              "ma_structure_score": 0.5,
-              "research_lab_bridge": {
-                "enabled": true,
-                "cap_points": 2.0,
-                "applied": []
-              },
-              "contextual_learning_context": "not_against_aligned_momentum",
-              "contextual_learning_count": 0,
-              "contextual_learning_mean_net_percent": 0.0,
-              "contextual_learning_adjustment": 0.0,
-              "strategy_id": "weekly_trend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 5.5523
-            }
-          },
-          "macro_context": {
-            "enabled": true,
-            "instrument_id": "eurusd",
-            "data_quality": "passed",
+      "pending_entry_decision": null,
+      "entry_quality_status": "v4_mandatory_monday",
+      "forecast_direction": "long",
+      "forecast_score": 39,
+      "continuous_entry_decision": {
+        "direction": "short",
+        "raw_score": -43.0,
+        "conviction": 6.5477,
+        "base_conviction": 6.5477,
+        "macro_alignment_adjustment": 0.4727,
+        "macro_context_score": -2.3636,
+        "ma_structure_base_conviction": 6.9227,
+        "ma_structure_adjustment": -0.375,
+        "ma_structure_score": 0.5,
+        "research_lab_bridge": {
+          "enabled": true,
+          "cap_points": 2.0,
+          "applied": []
+        },
+        "contextual_learning_context": "against_aligned_up_momentum",
+        "contextual_learning_count": 0,
+        "contextual_learning_mean_net_percent": 0.0,
+        "contextual_learning_adjustment": 0.0,
+        "strategy_id": "inverse_v2",
+        "learning_count": 0,
+        "learning_adjustment": 0.0,
+        "exploration_bonus": 2.5,
+        "utility": 9.0477,
+        "candidates": {
+          "inverse_v2": {
             "direction": "short",
-            "score": -2.3636,
-            "score_cap": 30.0,
-            "components": {
-              "oil_1w": 0.5479,
-              "oil_4w": 0.4385,
-              "us10y_1w": -1.8,
-              "us10y_4w": -1.55
-            },
-            "observations": {
-              "oil_1w_percent": -0.4383,
-              "oil_4w_percent": -1.7542,
-              "us10y_1w_bps": 3.6,
-              "us10y_4w_bps": 15.5
-            },
-            "sources": {
-              "oil": {
-                "symbol": "CL=F",
-                "as_of": "2026-08-17T00:00:00",
-                "error": null
-              },
-              "us10y": {
-                "symbol": "^TNX",
-                "as_of": "2026-08-14T00:00:00",
-                "error": null
-              }
-            },
-            "as_of": "2026-08-17T00:00:00",
-            "evaluated_at": "2026-08-17T09:00:12+02:00",
-            "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
-            "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
-            "ma_structure": {
+            "raw_score": -43.0,
+            "conviction": 6.5477,
+            "base_conviction": 6.5477,
+            "macro_alignment_adjustment": 0.4727,
+            "macro_context_score": -2.3636,
+            "ma_structure_base_conviction": 6.9227,
+            "ma_structure_adjustment": -0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
               "enabled": true,
-              "instrument_id": "eurusd",
-              "data_quality": "passed",
-              "score": 0.5,
-              "score_cap": 4.0,
-              "direction": "long",
-              "components": {
-                "W1": {
-                  "bar_at": "2026-08-14T00:00:00+02:00",
-                  "close": 1.153536,
-                  "ma30": 1.161825,
-                  "ma60": 1.163976,
-                  "ma100": 1.132175,
-                  "ma200": 1.104955,
-                  "slow_trend": 1,
-                  "price_vs_all": 0,
-                  "nearest_ma": "ma30",
-                  "nearest_ma_distance_atr": 0.7037,
-                  "support_hold_long": false,
-                  "resistance_hold_short": false
-                },
-                "D1": {
-                  "bar_at": "2026-08-17T02:00:00+02:00",
-                  "close": 1.159958,
-                  "ma30": 1.146622,
-                  "ma60": 1.149293,
-                  "ma100": 1.156929,
-                  "ma200": 1.162836,
-                  "slow_trend": -1,
-                  "price_vs_all": 0,
-                  "nearest_ma": "ma200",
-                  "nearest_ma_distance_atr": 0.5379,
-                  "support_hold_long": false,
-                  "resistance_hold_short": false
-                },
-                "H1": {
-                  "bar_at": "2026-08-17T08:00:00+02:00",
-                  "close": 1.159958,
-                  "ma30": 1.156763,
-                  "ma60": 1.154977,
-                  "ma100": 1.154689,
-                  "ma200": 1.15466,
-                  "slow_trend": 1,
-                  "price_vs_all": 1,
-                  "nearest_ma": "ma30",
-                  "nearest_ma_distance_atr": 5.2109,
-                  "support_hold_long": false,
-                  "resistance_hold_short": false
-                }
-              },
-              "reasons": [
-                "h1_above_all_ma_timing"
-              ],
-              "evaluated_at": "2026-08-17T09:00:12+02:00",
-              "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
-            }
-          },
-          "contextual_learning": {
-            "enabled": true,
-            "instrument_id": "eurusd",
-            "methods": {
-              "base_v2": {
-                "context": "not_against_aligned_momentum",
-                "count": 1,
-                "mean_net_percent": 0.11432,
-                "shrunk_mean_percent": 0.019053,
-                "adjustment": 0.0
-              },
-              "inverse_v2": {
-                "context": "against_aligned_up_momentum",
-                "count": 0,
-                "mean_net_percent": 0.0,
-                "shrunk_mean_percent": 0.0,
-                "adjustment": 0.0
-              },
-              "weekly_trend": {
-                "context": "not_against_aligned_momentum",
-                "count": 0,
-                "mean_net_percent": 0.0,
-                "shrunk_mean_percent": 0.0,
-                "adjustment": 0.0
-              },
-              "daily_weekly_blend": {
-                "context": "not_against_aligned_momentum",
-                "count": 0,
-                "mean_net_percent": 0.0,
-                "shrunk_mean_percent": 0.0,
-                "adjustment": 0.0
-              },
-              "ema_mean_reversion": {
-                "context": "against_aligned_up_momentum",
-                "count": 1,
-                "mean_net_percent": -0.325211,
-                "shrunk_mean_percent": -0.054202,
-                "adjustment": 0.0
-              },
-              "macro_weekly_blend": {
-                "context": "not_against_aligned_momentum",
-                "count": 0,
-                "mean_net_percent": 0.0,
-                "shrunk_mean_percent": 0.0,
-                "adjustment": 0.0
-              }
-            }
-          },
-          "decided_at": "2026-08-17T09:00:12+02:00",
-          "validation_gate": "enabled_for_paper_trading"
-        },
-        "fresh_signal": {
-          "direction": "long",
-          "score": 43,
-          "signal_strength": 0.43,
-          "confidence": 0.43,
-          "confidence_type": "heuristic_signal_strength_not_probability",
-          "data_quality": "passed",
-          "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
-          "signals": {
-            "last_close": 1.15995824,
-            "ema20": 1.15084408,
-            "ema50": 1.15036349,
-            "atr14": 0.00535031,
-            "ret5_pct": 0.3735,
-            "ret20_pct": 1.5045,
-            "vol20_annualized_pct": 4.5508,
-            "vol60_annualized_pct": 4.6004,
-            "volatility_regime_ratio": 0.9892,
-            "volatility_score_scale": 1.0,
-            "range55_position": 0.8326,
-            "components": {
-              "trend_ema": 1.2,
-              "trend_price": 10.0,
-              "momentum5": 5.83,
-              "momentum20": 15.65,
-              "breakout": 9.98,
-              "macro_bias": 0.0,
-              "event_risk_penalty": 0.0
+              "cap_points": 2.0,
+              "applied": []
             },
-            "agreement": {
-              "positive_groups": 3,
-              "negative_groups": 0,
-              "required": 2
-            }
+            "contextual_learning_context": "against_aligned_up_momentum",
+            "contextual_learning_count": 0,
+            "contextual_learning_mean_net_percent": 0.0,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "inverse_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 9.0477
           },
-          "risk_distance": {
-            "source": "ATR14_sqrt5_frozen_at_forecast",
-            "stop_price_distance": 0.00658001,
-            "take_price_distance": 0.01076729,
-            "stop_units": 65.8001,
-            "take_units": 107.6729,
-            "reward_to_risk": 1.6364
-          }
-        },
-        "weekly_signal": {
-          "data_quality": "passed",
-          "score": 21,
-          "regime": "trend_down:vol_normal",
-          "last_week_close": 1.15995824,
-          "ema_fast": 1.15210573,
-          "ema_slow": 1.15650668,
-          "weekly_atr13": 0.01121048,
-          "return_4w_percent": 1.958,
-          "return_13w_percent": -0.1856,
-          "volatility_ratio_13w_52w": 0.8066,
-          "range_26w_position": 0.539,
-          "components": {
-            "trend": -9.16,
-            "momentum_fast": 25.0,
-            "momentum_slow": -1.1,
-            "breakout": 1.17,
-            "last_candle": 4.79,
-            "volatility_scale": 1.0
+          "base_v2": {
+            "direction": "long",
+            "raw_score": 43.0,
+            "conviction": 6.3523,
+            "base_conviction": 6.3523,
+            "macro_alignment_adjustment": -0.4727,
+            "macro_context_score": -2.3636,
+            "ma_structure_base_conviction": 5.9773,
+            "ma_structure_adjustment": 0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
+              "enabled": true,
+              "cap_points": 2.0,
+              "applied": []
+            },
+            "contextual_learning_context": "not_against_aligned_momentum",
+            "contextual_learning_count": 1,
+            "contextual_learning_mean_net_percent": 0.11432,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "base_v2",
+            "learning_count": 1,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.7678,
+            "utility": 8.1201
+          },
+          "ema_mean_reversion": {
+            "direction": "short",
+            "raw_score": -40.0,
+            "conviction": 6.0977,
+            "base_conviction": 6.0977,
+            "macro_alignment_adjustment": 0.4727,
+            "macro_context_score": -2.3636,
+            "ma_structure_base_conviction": 6.4727,
+            "ma_structure_adjustment": -0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
+              "enabled": true,
+              "cap_points": 2.0,
+              "applied": []
+            },
+            "contextual_learning_context": "against_aligned_up_momentum",
+            "contextual_learning_count": 1,
+            "contextual_learning_mean_net_percent": -0.325211,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 1,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.7678,
+            "utility": 7.8655
+          },
+          "daily_weekly_blend": {
+            "direction": "long",
+            "raw_score": 34.2,
+            "conviction": 5.0323,
+            "base_conviction": 5.0323,
+            "macro_alignment_adjustment": -0.4727,
+            "macro_context_score": -2.3636,
+            "ma_structure_base_conviction": 4.6573,
+            "ma_structure_adjustment": 0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
+              "enabled": true,
+              "cap_points": 2.0,
+              "applied": []
+            },
+            "contextual_learning_context": "not_against_aligned_momentum",
+            "contextual_learning_count": 0,
+            "contextual_learning_mean_net_percent": 0.0,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "daily_weekly_blend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 7.5323
+          },
+          "macro_weekly_blend": {
+            "direction": "long",
+            "raw_score": 21.4803,
+            "conviction": 3.597,
+            "base_conviction": 3.597,
+            "macro_alignment_adjustment": 0.0,
+            "macro_context_score": -2.3636,
+            "inputs": {
+              "daily_score": 43.0,
+              "weekly_score": 21.0,
+              "macro_score_normalized": -7.8787,
+              "weights": {
+                "daily": 0.35,
+                "weekly": 0.4,
+                "macro": 0.25
+              }
+            },
+            "ma_structure_base_conviction": 3.222,
+            "ma_structure_adjustment": 0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
+              "enabled": true,
+              "cap_points": 2.0,
+              "applied": []
+            },
+            "contextual_learning_context": "not_against_aligned_momentum",
+            "contextual_learning_count": 0,
+            "contextual_learning_mean_net_percent": 0.0,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "macro_weekly_blend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 6.097
+          },
+          "weekly_trend": {
+            "direction": "long",
+            "raw_score": 21.0,
+            "conviction": 3.0523,
+            "base_conviction": 3.0523,
+            "macro_alignment_adjustment": -0.4727,
+            "macro_context_score": -2.3636,
+            "ma_structure_base_conviction": 2.6773,
+            "ma_structure_adjustment": 0.375,
+            "ma_structure_score": 0.5,
+            "research_lab_bridge": {
+              "enabled": true,
+              "cap_points": 2.0,
+              "applied": []
+            },
+            "contextual_learning_context": "not_against_aligned_momentum",
+            "contextual_learning_count": 0,
+            "contextual_learning_mean_net_percent": 0.0,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "weekly_trend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 5.5523
           }
         },
         "macro_context": {
@@ -636,9 +439,226 @@
             "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
           }
         },
-        "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
+        "contextual_learning": {
+          "enabled": true,
+          "instrument_id": "eurusd",
+          "methods": {
+            "base_v2": {
+              "context": "not_against_aligned_momentum",
+              "count": 1,
+              "mean_net_percent": 0.11432,
+              "shrunk_mean_percent": 0.019053,
+              "adjustment": 0.0
+            },
+            "inverse_v2": {
+              "context": "against_aligned_up_momentum",
+              "count": 0,
+              "mean_net_percent": 0.0,
+              "shrunk_mean_percent": 0.0,
+              "adjustment": 0.0
+            },
+            "weekly_trend": {
+              "context": "not_against_aligned_momentum",
+              "count": 0,
+              "mean_net_percent": 0.0,
+              "shrunk_mean_percent": 0.0,
+              "adjustment": 0.0
+            },
+            "daily_weekly_blend": {
+              "context": "not_against_aligned_momentum",
+              "count": 0,
+              "mean_net_percent": 0.0,
+              "shrunk_mean_percent": 0.0,
+              "adjustment": 0.0
+            },
+            "ema_mean_reversion": {
+              "context": "against_aligned_up_momentum",
+              "count": 1,
+              "mean_net_percent": -0.325211,
+              "shrunk_mean_percent": -0.054202,
+              "adjustment": 0.0
+            },
+            "macro_weekly_blend": {
+              "context": "not_against_aligned_momentum",
+              "count": 0,
+              "mean_net_percent": 0.0,
+              "shrunk_mean_percent": 0.0,
+              "adjustment": 0.0
+            }
+          }
+        },
+        "decided_at": "2026-08-17T09:00:12+02:00",
+        "validation_gate": "enabled_for_paper_trading",
+        "regime": "trend_down:vol_normal",
+        "weekly_features": {
+          "data_quality": "passed",
+          "score": 21,
+          "regime": "trend_down:vol_normal",
+          "last_week_close": 1.15995824,
+          "ema_fast": 1.15210573,
+          "ema_slow": 1.15650668,
+          "weekly_atr13": 0.01121048,
+          "return_4w_percent": 1.958,
+          "return_13w_percent": -0.1856,
+          "volatility_ratio_13w_52w": 0.8066,
+          "range_26w_position": 0.539,
+          "components": {
+            "trend": -9.16,
+            "momentum_fast": 25.0,
+            "momentum_slow": -1.1,
+            "breakout": 1.17,
+            "last_candle": 4.79,
+            "volatility_scale": 1.0
+          }
+        },
+        "fresh_v2_signal": {
+          "direction": "long",
+          "score": 43,
+          "signal_strength": 0.43,
+          "confidence": 0.43,
+          "confidence_type": "heuristic_signal_strength_not_probability",
+          "data_quality": "passed",
+          "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+          "signals": {
+            "last_close": 1.15995824,
+            "ema20": 1.15084408,
+            "ema50": 1.15036349,
+            "atr14": 0.00535031,
+            "ret5_pct": 0.3735,
+            "ret20_pct": 1.5045,
+            "vol20_annualized_pct": 4.5508,
+            "vol60_annualized_pct": 4.6004,
+            "volatility_regime_ratio": 0.9892,
+            "volatility_score_scale": 1.0,
+            "range55_position": 0.8326,
+            "components": {
+              "trend_ema": 1.2,
+              "trend_price": 10.0,
+              "momentum5": 5.83,
+              "momentum20": 15.65,
+              "breakout": 9.98,
+              "macro_bias": 0.0,
+              "event_risk_penalty": 0.0
+            },
+            "agreement": {
+              "positive_groups": 3,
+              "negative_groups": 0,
+              "required": 2
+            }
+          },
+          "risk_distance": {
+            "source": "ATR14_sqrt5_frozen_at_forecast",
+            "stop_price_distance": 0.00658001,
+            "take_price_distance": 0.01076729,
+            "stop_units": 65.8001,
+            "take_units": 107.6729,
+            "reward_to_risk": 1.6364
+          }
+        }
       },
-      "entry_quality_status": "waiting_for_first_completed_5m_bar_after_decision"
+      "continuous_entry_regime": "trend_down:vol_normal",
+      "risk_status": "open_multi_instrument_continuous_exposure",
+      "continuous_exposure_active": true,
+      "continuous_exposure_status": "open",
+      "continuous_exposure_policy_version": "4.0.0",
+      "continuous_reentry_count": 0,
+      "last_risk_review_at": "2026-08-17T09:05:00+02:00",
+      "entry_decision_at": "2026-08-17T09:00:12+02:00",
+      "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
+      "entry_macro_context": {
+        "enabled": true,
+        "instrument_id": "eurusd",
+        "data_quality": "passed",
+        "direction": "short",
+        "score": -2.3636,
+        "score_cap": 30.0,
+        "components": {
+          "oil_1w": 0.5479,
+          "oil_4w": 0.4385,
+          "us10y_1w": -1.8,
+          "us10y_4w": -1.55
+        },
+        "observations": {
+          "oil_1w_percent": -0.4383,
+          "oil_4w_percent": -1.7542,
+          "us10y_1w_bps": 3.6,
+          "us10y_4w_bps": 15.5
+        },
+        "sources": {
+          "oil": {
+            "symbol": "CL=F",
+            "as_of": "2026-08-17T00:00:00",
+            "error": null
+          },
+          "us10y": {
+            "symbol": "^TNX",
+            "as_of": "2026-08-14T00:00:00",
+            "error": null
+          }
+        },
+        "as_of": "2026-08-17T00:00:00",
+        "evaluated_at": "2026-08-17T09:00:12+02:00",
+        "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
+        "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
+        "ma_structure": {
+          "enabled": true,
+          "instrument_id": "eurusd",
+          "data_quality": "passed",
+          "score": 0.5,
+          "score_cap": 4.0,
+          "direction": "long",
+          "components": {
+            "W1": {
+              "bar_at": "2026-08-14T00:00:00+02:00",
+              "close": 1.153536,
+              "ma30": 1.161825,
+              "ma60": 1.163976,
+              "ma100": 1.132175,
+              "ma200": 1.104955,
+              "slow_trend": 1,
+              "price_vs_all": 0,
+              "nearest_ma": "ma30",
+              "nearest_ma_distance_atr": 0.7037,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            },
+            "D1": {
+              "bar_at": "2026-08-17T02:00:00+02:00",
+              "close": 1.159958,
+              "ma30": 1.146622,
+              "ma60": 1.149293,
+              "ma100": 1.156929,
+              "ma200": 1.162836,
+              "slow_trend": -1,
+              "price_vs_all": 0,
+              "nearest_ma": "ma200",
+              "nearest_ma_distance_atr": 0.5379,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            },
+            "H1": {
+              "bar_at": "2026-08-17T08:00:00+02:00",
+              "close": 1.159958,
+              "ma30": 1.156763,
+              "ma60": 1.154977,
+              "ma100": 1.154689,
+              "ma200": 1.15466,
+              "slow_trend": 1,
+              "price_vs_all": 1,
+              "nearest_ma": "ma30",
+              "nearest_ma_distance_atr": 5.2109,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            }
+          },
+          "reasons": [
+            "h1_above_all_ma_timing"
+          ],
+          "evaluated_at": "2026-08-17T09:00:12+02:00",
+          "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
+        }
+      },
+      "next_entry_status": "open"
     },
     {
       "instrument_id": "sp500_futures",
@@ -646,7 +666,7 @@
       "label_pl": "S&P 500 futures",
       "label_en": "S&P 500 futures",
       "direction": "long",
-      "score": 61,
+      "score": 88.0,
       "signal_strength": 0.61,
       "confidence": 0.61,
       "confidence_type": "heuristic_signal_strength_not_probability",
@@ -681,110 +701,143 @@
       },
       "risk_distance": {
         "source": "ATR14_sqrt5_frozen_at_forecast",
-        "stop_price_distance": 103.21849503,
-        "take_price_distance": 168.90299187,
-        "stop_units": 103.2185,
-        "take_units": 168.903,
+        "stop_price_distance": 103.7455682,
+        "take_price_distance": 169.76547523,
+        "stop_units": 103.7456,
+        "take_units": 169.7655,
         "reward_to_risk": 1.6364
       },
-      "entry_price": null,
-      "entry_captured_at": null,
-      "entry_source": null,
+      "entry_price": 7819.75,
+      "entry_captured_at": "2026-08-17T09:05:00+02:00",
+      "entry_source": "Yahoo Finance:ES=F:5m:first_bar_at_or_after_target",
       "exit_price": null,
       "exit_captured_at": null,
       "exit_source": null,
       "exit_reason": null,
-      "risk_plan": null,
-      "trade_status": "planned",
+      "risk_plan": {
+        "model_version": "2.0.0",
+        "created_from_frozen_forecast": true,
+        "generated_at": "2026-08-17T09:57:51+02:00",
+        "direction": "long",
+        "stop_loss_price": 7716.0044318,
+        "take_profit_price": 7989.51547523,
+        "stop_loss_distance": 103.7455682,
+        "take_profit_distance": 169.76547523,
+        "reward_to_risk": 1.6364,
+        "same_bar_rule": "stop_loss_first_conservative"
+      },
+      "trade_status": "open",
       "result": null,
       "result_value": null,
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
-      "pending_entry_decision": {
-        "decided_at": "2026-08-17T09:00:12+02:00",
-        "entry_not_before": "2026-08-17T09:00:12+02:00",
-        "decision": {
-          "direction": "long",
-          "raw_score": 88.0,
-          "conviction": 13.2,
-          "strategy_id": "weekly_trend",
-          "learning_count": 2,
-          "learning_adjustment": 0.0,
-          "exploration_bonus": 1.4434,
-          "utility": 14.6434,
-          "candidates": {
-            "weekly_trend": {
-              "direction": "long",
-              "raw_score": 88.0,
-              "conviction": 13.2,
-              "strategy_id": "weekly_trend",
-              "learning_count": 2,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 1.4434,
-              "utility": 14.6434
-            },
-            "daily_weekly_blend": {
-              "direction": "long",
-              "raw_score": 73.0,
-              "conviction": 10.95,
-              "strategy_id": "daily_weekly_blend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 13.45
-            },
-            "inverse_v2": {
-              "direction": "short",
-              "raw_score": -63.0,
-              "conviction": 9.45,
-              "strategy_id": "inverse_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 11.95
-            },
-            "base_v2": {
-              "direction": "long",
-              "raw_score": 63.0,
-              "conviction": 9.45,
-              "strategy_id": "base_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 11.95
-            },
-            "ema_mean_reversion": {
-              "direction": "short",
-              "raw_score": -40.0,
-              "conviction": 6.0,
-              "strategy_id": "ema_mean_reversion",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 8.5
-            }
+      "pending_entry_decision": null,
+      "entry_quality_status": "v4_mandatory_monday",
+      "forecast_direction": "long",
+      "forecast_score": 61,
+      "continuous_entry_decision": {
+        "direction": "long",
+        "raw_score": 88.0,
+        "conviction": 13.2,
+        "strategy_id": "weekly_trend",
+        "learning_count": 2,
+        "learning_adjustment": 0.0,
+        "exploration_bonus": 1.4434,
+        "utility": 14.6434,
+        "candidates": {
+          "weekly_trend": {
+            "direction": "long",
+            "raw_score": 88.0,
+            "conviction": 13.2,
+            "strategy_id": "weekly_trend",
+            "learning_count": 2,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.4434,
+            "utility": 14.6434
           },
-          "macro_context": {
+          "daily_weekly_blend": {
+            "direction": "long",
+            "raw_score": 73.0,
+            "conviction": 10.95,
+            "strategy_id": "daily_weekly_blend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 13.45
+          },
+          "inverse_v2": {
+            "direction": "short",
+            "raw_score": -63.0,
+            "conviction": 9.45,
+            "strategy_id": "inverse_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 11.95
+          },
+          "base_v2": {
+            "direction": "long",
+            "raw_score": 63.0,
+            "conviction": 9.45,
+            "strategy_id": "base_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 11.95
+          },
+          "ema_mean_reversion": {
+            "direction": "short",
+            "raw_score": -40.0,
+            "conviction": 6.0,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 8.5
+          }
+        },
+        "macro_context": {
+          "enabled": false,
+          "instrument_id": "sp500_futures",
+          "data_quality": "not_applicable",
+          "score": 0.0,
+          "ma_structure": {
             "enabled": false,
             "instrument_id": "sp500_futures",
             "data_quality": "not_applicable",
-            "score": 0.0,
-            "ma_structure": {
-              "enabled": false,
-              "instrument_id": "sp500_futures",
-              "data_quality": "not_applicable",
-              "score": 0.0
-            }
-          },
-          "contextual_learning": {
-            "enabled": true,
-            "instrument_id": "sp500_futures",
-            "methods": {}
-          },
-          "decided_at": "2026-08-17T09:00:12+02:00",
-          "validation_gate": "enabled_for_paper_trading"
+            "score": 0.0
+          }
         },
-        "fresh_signal": {
+        "contextual_learning": {
+          "enabled": true,
+          "instrument_id": "sp500_futures",
+          "methods": {}
+        },
+        "decided_at": "2026-08-17T09:00:12+02:00",
+        "validation_gate": "enabled_for_paper_trading",
+        "regime": "trend_up:vol_normal",
+        "weekly_features": {
+          "data_quality": "passed",
+          "score": 88,
+          "regime": "trend_up:vol_normal",
+          "last_week_close": 7819.75,
+          "ema_fast": 7613.64739293,
+          "ema_slow": 7305.23679057,
+          "weekly_atr13": 182.71153846,
+          "return_4w_percent": 4.9983,
+          "return_13w_percent": 4.3886,
+          "volatility_ratio_13w_52w": 0.959,
+          "range_26w_position": 1.0,
+          "components": {
+            "trend": 35.0,
+            "momentum_fast": 25.0,
+            "momentum_slow": 10.16,
+            "breakout": 15.0,
+            "last_candle": 3.28,
+            "volatility_scale": 1.0
+          }
+        },
+        "fresh_v2_signal": {
           "direction": "long",
           "score": 63,
           "signal_strength": 0.63,
@@ -827,51 +880,38 @@
             "take_units": 169.7655,
             "reward_to_risk": 1.6364
           }
-        },
-        "weekly_signal": {
-          "data_quality": "passed",
-          "score": 88,
-          "regime": "trend_up:vol_normal",
-          "last_week_close": 7819.75,
-          "ema_fast": 7613.64739293,
-          "ema_slow": 7305.23679057,
-          "weekly_atr13": 182.71153846,
-          "return_4w_percent": 4.9983,
-          "return_13w_percent": 4.3886,
-          "volatility_ratio_13w_52w": 0.959,
-          "range_26w_position": 1.0,
-          "components": {
-            "trend": 35.0,
-            "momentum_fast": 25.0,
-            "momentum_slow": 10.16,
-            "breakout": 15.0,
-            "last_candle": 3.28,
-            "volatility_scale": 1.0
-          }
-        },
-        "macro_context": {
+        }
+      },
+      "continuous_entry_regime": "trend_up:vol_normal",
+      "risk_status": "open_multi_instrument_continuous_exposure",
+      "continuous_exposure_active": true,
+      "continuous_exposure_status": "open",
+      "continuous_exposure_policy_version": "4.0.0",
+      "continuous_reentry_count": 0,
+      "last_risk_review_at": "2026-08-17T09:05:00+02:00",
+      "entry_decision_at": "2026-08-17T09:00:12+02:00",
+      "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
+      "entry_macro_context": {
+        "enabled": false,
+        "instrument_id": "sp500_futures",
+        "data_quality": "not_applicable",
+        "score": 0.0,
+        "ma_structure": {
           "enabled": false,
           "instrument_id": "sp500_futures",
           "data_quality": "not_applicable",
-          "score": 0.0,
-          "ma_structure": {
-            "enabled": false,
-            "instrument_id": "sp500_futures",
-            "data_quality": "not_applicable",
-            "score": 0.0
-          }
-        },
-        "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
+          "score": 0.0
+        }
       },
-      "entry_quality_status": "waiting_for_first_completed_5m_bar_after_decision"
+      "next_entry_status": "open"
     },
     {
       "instrument_id": "btcusd",
       "symbol": "BTC-USD",
       "label_pl": "BTC/USD",
       "label_en": "BTC/USD",
-      "direction": "neutral",
-      "score": -19,
+      "direction": "short",
+      "score": -49.0,
       "signal_strength": 0.19,
       "confidence": 0.19,
       "confidence_type": "heuristic_signal_strength_not_probability",
@@ -906,110 +946,143 @@
       },
       "risk_distance": {
         "source": "ATR14_sqrt5_frozen_at_forecast",
-        "stop_price_distance": 2207.01208984,
-        "take_price_distance": 3468.16185547,
+        "stop_price_distance": 2226.20958984,
+        "take_price_distance": 3498.32935547,
         "stop_units": 3.5,
         "take_units": 5.5,
         "reward_to_risk": 1.5714
       },
-      "entry_price": null,
-      "entry_captured_at": null,
-      "entry_source": null,
+      "entry_price": 63519.94921875,
+      "entry_captured_at": "2026-08-17T09:05:00+02:00",
+      "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
       "exit_price": null,
       "exit_captured_at": null,
       "exit_source": null,
       "exit_reason": null,
-      "risk_plan": null,
-      "trade_status": "planned",
+      "risk_plan": {
+        "model_version": "2.0.0",
+        "created_from_frozen_forecast": true,
+        "generated_at": "2026-08-17T09:57:51+02:00",
+        "direction": "short",
+        "stop_loss_price": 65746.15880859,
+        "take_profit_price": 60021.61986328,
+        "stop_loss_distance": 2226.20958984,
+        "take_profit_distance": 3498.32935547,
+        "reward_to_risk": 1.5714,
+        "same_bar_rule": "stop_loss_first_conservative"
+      },
+      "trade_status": "open",
       "result": null,
       "result_value": null,
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
-      "pending_entry_decision": {
-        "decided_at": "2026-08-17T09:00:12+02:00",
-        "entry_not_before": "2026-08-17T09:00:12+02:00",
-        "decision": {
-          "direction": "short",
-          "raw_score": -49.0,
-          "conviction": 7.35,
-          "strategy_id": "weekly_trend",
-          "learning_count": 3,
-          "learning_adjustment": 0.0,
-          "exploration_bonus": 1.25,
-          "utility": 8.6,
-          "candidates": {
-            "weekly_trend": {
-              "direction": "short",
-              "raw_score": -49.0,
-              "conviction": 7.35,
-              "strategy_id": "weekly_trend",
-              "learning_count": 3,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 1.25,
-              "utility": 8.6
-            },
-            "daily_weekly_blend": {
-              "direction": "short",
-              "raw_score": -22.6,
-              "conviction": 3.39,
-              "strategy_id": "daily_weekly_blend",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 5.89
-            },
-            "ema_mean_reversion": {
-              "direction": "long",
-              "raw_score": 7.737352431488991,
-              "conviction": 1.1606,
-              "strategy_id": "ema_mean_reversion",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 3.6606
-            },
-            "inverse_v2": {
-              "direction": "long",
-              "raw_score": 5.0,
-              "conviction": 0.75,
-              "strategy_id": "inverse_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 3.25
-            },
-            "base_v2": {
-              "direction": "short",
-              "raw_score": -5.0,
-              "conviction": 0.75,
-              "strategy_id": "base_v2",
-              "learning_count": 0,
-              "learning_adjustment": 0.0,
-              "exploration_bonus": 2.5,
-              "utility": 3.25
-            }
+      "pending_entry_decision": null,
+      "entry_quality_status": "v4_mandatory_monday",
+      "forecast_direction": "neutral",
+      "forecast_score": -19,
+      "continuous_entry_decision": {
+        "direction": "short",
+        "raw_score": -49.0,
+        "conviction": 7.35,
+        "strategy_id": "weekly_trend",
+        "learning_count": 3,
+        "learning_adjustment": 0.0,
+        "exploration_bonus": 1.25,
+        "utility": 8.6,
+        "candidates": {
+          "weekly_trend": {
+            "direction": "short",
+            "raw_score": -49.0,
+            "conviction": 7.35,
+            "strategy_id": "weekly_trend",
+            "learning_count": 3,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.25,
+            "utility": 8.6
           },
-          "macro_context": {
+          "daily_weekly_blend": {
+            "direction": "short",
+            "raw_score": -22.6,
+            "conviction": 3.39,
+            "strategy_id": "daily_weekly_blend",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 5.89
+          },
+          "ema_mean_reversion": {
+            "direction": "long",
+            "raw_score": 7.737352431488991,
+            "conviction": 1.1606,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 3.6606
+          },
+          "inverse_v2": {
+            "direction": "long",
+            "raw_score": 5.0,
+            "conviction": 0.75,
+            "strategy_id": "inverse_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 3.25
+          },
+          "base_v2": {
+            "direction": "short",
+            "raw_score": -5.0,
+            "conviction": 0.75,
+            "strategy_id": "base_v2",
+            "learning_count": 0,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 2.5,
+            "utility": 3.25
+          }
+        },
+        "macro_context": {
+          "enabled": false,
+          "instrument_id": "btcusd",
+          "data_quality": "not_applicable",
+          "score": 0.0,
+          "ma_structure": {
             "enabled": false,
             "instrument_id": "btcusd",
             "data_quality": "not_applicable",
-            "score": 0.0,
-            "ma_structure": {
-              "enabled": false,
-              "instrument_id": "btcusd",
-              "data_quality": "not_applicable",
-              "score": 0.0
-            }
-          },
-          "contextual_learning": {
-            "enabled": true,
-            "instrument_id": "btcusd",
-            "methods": {}
-          },
-          "decided_at": "2026-08-17T09:00:12+02:00",
-          "validation_gate": "enabled_for_paper_trading"
+            "score": 0.0
+          }
         },
-        "fresh_signal": {
+        "contextual_learning": {
+          "enabled": true,
+          "instrument_id": "btcusd",
+          "methods": {}
+        },
+        "decided_at": "2026-08-17T09:00:12+02:00",
+        "validation_gate": "enabled_for_paper_trading",
+        "regime": "trend_down:vol_normal",
+        "weekly_features": {
+          "data_quality": "passed",
+          "score": -49,
+          "regime": "trend_down:vol_normal",
+          "last_week_close": 63605.98828125,
+          "ema_fast": 64522.64815026,
+          "ema_slow": 71286.65966335,
+          "weekly_atr13": 4892.09705529,
+          "return_4w_percent": -0.7684,
+          "return_13w_percent": -15.7405,
+          "volatility_ratio_13w_52w": 1.0505,
+          "range_26w_position": 0.178,
+          "components": {
+            "trend": -32.26,
+            "momentum_fast": -1.07,
+            "momentum_slow": -9.73,
+            "breakout": -9.66,
+            "last_candle": 3.5,
+            "volatility_scale": 1.0
+          }
+        },
+        "fresh_v2_signal": {
           "direction": "neutral",
           "score": -5,
           "signal_strength": 0.05,
@@ -1052,43 +1125,30 @@
             "take_units": 5.5,
             "reward_to_risk": 1.5714
           }
-        },
-        "weekly_signal": {
-          "data_quality": "passed",
-          "score": -49,
-          "regime": "trend_down:vol_normal",
-          "last_week_close": 63605.98828125,
-          "ema_fast": 64522.64815026,
-          "ema_slow": 71286.65966335,
-          "weekly_atr13": 4892.09705529,
-          "return_4w_percent": -0.7684,
-          "return_13w_percent": -15.7405,
-          "volatility_ratio_13w_52w": 1.0505,
-          "range_26w_position": 0.178,
-          "components": {
-            "trend": -32.26,
-            "momentum_fast": -1.07,
-            "momentum_slow": -9.73,
-            "breakout": -9.66,
-            "last_candle": 3.5,
-            "volatility_scale": 1.0
-          }
-        },
-        "macro_context": {
+        }
+      },
+      "continuous_entry_regime": "trend_down:vol_normal",
+      "risk_status": "open_multi_instrument_continuous_exposure",
+      "continuous_exposure_active": true,
+      "continuous_exposure_status": "open",
+      "continuous_exposure_policy_version": "4.0.0",
+      "continuous_reentry_count": 0,
+      "last_risk_review_at": "2026-08-17T09:05:00+02:00",
+      "entry_decision_at": "2026-08-17T09:00:12+02:00",
+      "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
+      "entry_macro_context": {
+        "enabled": false,
+        "instrument_id": "btcusd",
+        "data_quality": "not_applicable",
+        "score": 0.0,
+        "ma_structure": {
           "enabled": false,
           "instrument_id": "btcusd",
           "data_quality": "not_applicable",
-          "score": 0.0,
-          "ma_structure": {
-            "enabled": false,
-            "instrument_id": "btcusd",
-            "data_quality": "not_applicable",
-            "score": 0.0
-          }
-        },
-        "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
+          "score": 0.0
+        }
       },
-      "entry_quality_status": "waiting_for_first_completed_5m_bar_after_decision"
+      "next_entry_status": "open"
     }
   ],
   "forecast_timing_warning": "Created after the weekly window began; not treated as a pre-week frozen forecast.",
@@ -1107,6 +1167,6 @@
     "contextual_momentum_learning": true,
     "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-17T09:00:12+02:00"
+    "last_checked_at": "2026-08-17T09:57:49+02:00"
   }
 }
