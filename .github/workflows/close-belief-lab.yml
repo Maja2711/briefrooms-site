@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  close:
+  close-belief-lab:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,21 +21,14 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           path = Path('pl/inwestycje.html')
           source = path.read_text(encoding='utf-8')
-          block = '''  <a class="belief-lab-entry" href="/pl/belief-lab.html" aria-label="Otwórz Belief Lab">
-    <span class="belief-lab-copy">
-      <span class="belief-lab-kicker">Laboratorium AI · Shadow mode</span>
-      <h2>Belief Lab — Belief Core</h2>
-      <p>World State, probability vs confidence, evidence, provenance, sprzeczności, audit i kalibracja. Laboratorium obserwuje — nie steruje jeszcze strategiami.</p>
-    </span>
-    <b>Otwórz Belief Lab →</b>
-  </a>
-
-'''
-          if block not in source:
-              raise SystemExit('Belief Lab public entry block not found; refusing broad edit')
-          path.write_text(source.replace(block, '', 1), encoding='utf-8')
+          pattern = r'\n  <a class="belief-lab-entry" href="/pl/belief-lab\.html" aria-label="Otwórz Belief Lab">.*?</a>\n'
+          updated, count = re.subn(pattern, '\n', source, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one Belief Lab public entry, found {count}')
+          path.write_text(updated, encoding='utf-8')
           PY
           if grep -Fq '/pl/belief-lab.html' pl/inwestycje.html; then
             echo 'Belief Lab link still present' >&2
