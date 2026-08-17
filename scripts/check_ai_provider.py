@@ -66,18 +66,15 @@ def diagnostic(runtime: AiRuntime, **values) -> dict:
 
 
 def _gemini_request(runtime: AiRuntime, post):
-    """Use a tiny, low-thinking probe that still leaves room for visible output.
+    """Use a tiny text probe to verify model availability and credentials.
 
-    Gemini 3.5 Flash reasons by default. A 32-token preflight can therefore end
-    with HTTP 200 but no visible ``content.parts``. The probe explicitly uses
-    minimal thinking for Gemini 3.x and reserves enough output for the requested
-    JSON object. Sampling parameters are intentionally omitted for Gemini 3.x.
+    This function intentionally does *not* test the AI Outlook JSON contract.
+    The publisher tests structured output separately with its real prompt. A
+    health probe should answer only one question: can this configured model
+    produce visible output with the configured key?
     """
     url = f"{runtime.endpoint.rstrip('/')}/{runtime.generation_model}:generateContent"
-    generation_config = {
-        "maxOutputTokens": 256,
-        "responseMimeType": "application/json",
-    }
+    generation_config = {"maxOutputTokens": 128}
     if str(runtime.generation_model).startswith("gemini-3"):
         generation_config["thinkingConfig"] = {"thinkingLevel": "minimal"}
 
@@ -92,12 +89,12 @@ def _gemini_request(runtime: AiRuntime, post):
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": 'Return only this JSON object: {"ok":true}'}],
+                    "parts": [{"text": "Reply with the single word OK."}],
                 }
             ],
             "generationConfig": generation_config,
         },
-        timeout=20,
+        timeout=45,
     )
     return response, url
 
@@ -125,7 +122,9 @@ def _openai_compatible_request(runtime: AiRuntime, post):
 
 def _gemini_visible_text(payload: dict) -> tuple[str, str]:
     """Return visible text plus finish reason without assuming ``parts`` exists."""
-    candidates = payload.get("candidates") or [] if isinstance(payload, dict) else []
+    if not isinstance(payload, dict):
+        return "", ""
+    candidates = payload.get("candidates") or []
     if not candidates or not isinstance(candidates[0], dict):
         return "", ""
     candidate = candidates[0]
@@ -196,9 +195,6 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
         if runtime.provider == "gemini":
             content, finish_reason = _gemini_visible_text(payload)
             if not content:
-                # HTTP 200 with an output-budget finish is a request-shape issue,
-                # not broken credentials. Keep the classification transient so a
-                # temporary empty model response never permanently poisons health.
                 error_class = (
                     "provider_output_budget_exhausted"
                     if finish_reason.upper() == "MAX_TOKENS"
@@ -235,30 +231,6 @@ def check_provider(*, runtime: AiRuntime | None = None, post=None) -> dict:
             "empty_provider_response",
             False if runtime.provider == "gemini" else True,
         )
-
-    # A JSON preflight should prove structured output works, not merely that the
-    # endpoint returned arbitrary text.
-    if runtime.provider == "gemini":
-        try:
-            parsed = json.loads(str(content))
-        except (TypeError, ValueError) as exc:
-            raise PreflightError(
-                runtime.provider,
-                safe_endpoint(request_endpoint),
-                runtime.generation_model,
-                status,
-                "invalid_json_provider_response",
-                False,
-            ) from exc
-        if not isinstance(parsed, dict) or parsed.get("ok") is not True:
-            raise PreflightError(
-                runtime.provider,
-                safe_endpoint(request_endpoint),
-                runtime.generation_model,
-                status,
-                "unexpected_json_provider_response",
-                False,
-            )
 
     return diagnostic(runtime, status="healthy", status_code=status)
 
