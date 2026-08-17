@@ -33,15 +33,12 @@ jobs:
           python -m py_compile scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py
           python -m unittest discover -s tests -p 'test_belief_core.py' -v
 
-      - name: Commit validated v2
+      - name: Commit validated engine files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f .github/workflows/install-belief-core-v2.yml
-          git rm -f .belief-v2-payload/part-*.txt
-          git rm -f .belief-v2-final/final-*.txt
-          git add scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py tests/test_belief_core.py docs/BELIEF_CORE.md .github/workflows/belief-core-tests.yml
+          git add scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py tests/test_belief_core.py docs/BELIEF_CORE.md
           git commit -m "Build Belief Core v2 calibration engine"
           git push origin HEAD:agent/belief-core-v2
 
-# trigger-all-git-shas-exact
+# trigger-code-only-push
