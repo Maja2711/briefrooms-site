@@ -1,6 +1,6 @@
 {
   "week_id": "2026-W34",
-  "method_version": "5.0.0-experimental",
+  "method_version": "5.6.0-experimental",
   "model_status": "experimental_governed_execution_parity_paper_only",
   "forecast_created_at": "2026-08-17T03:24:18+02:00",
   "forecast_locked_at": "2026-08-17T03:24:18+02:00",
@@ -100,15 +100,15 @@
       "latest_macro_context": {
         "as_of": "2026-08-17T00:00:00",
         "data_quality": "passed",
-        "macro_score": -5.5372,
+        "macro_score": -5.759,
         "macro_direction": "short",
         "position_direction": "short",
         "aligned": true,
         "observations": {
-          "oil_1w_percent": 2.4839,
-          "oil_4w_percent": 1.1294,
-          "us10y_1w_bps": 1.9,
-          "us10y_4w_bps": 12.0
+          "oil_1w_percent": 2.4717,
+          "oil_4w_percent": 1.1174,
+          "us10y_1w_bps": 2.3,
+          "us10y_4w_bps": 12.4
         },
         "ma_structure": {
           "enabled": true,
@@ -162,7 +162,7 @@
             }
           },
           "reasons": [],
-          "evaluated_at": "2026-08-17T19:43:02+02:00",
+          "evaluated_at": "2026-08-17T19:57:52+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -573,7 +573,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-08-17T19:42:57+02:00",
+      "last_risk_review_at": "2026-08-17T19:57:51+02:00",
       "entry_decision_at": "2026-08-17T09:00:12+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -915,7 +915,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-08-17T19:42:57+02:00",
+      "last_risk_review_at": "2026-08-17T19:57:51+02:00",
       "entry_decision_at": "2026-08-17T09:00:12+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -1176,7 +1176,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-08-17T19:42:57+02:00",
+      "last_risk_review_at": "2026-08-17T19:57:51+02:00",
       "entry_decision_at": "2026-08-17T09:00:12+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -1203,13 +1203,20 @@
   "base_forecast_hash": "0d2a138cc2e4b2abf02704109f6a66b36aceb07338dac5cc4e7238c63cd9f4f4",
   "multi_instrument_exposure_layer": {
     "enabled": true,
-    "version": "5.0.0-experimental",
+    "version": "5.6.0-experimental",
     "common_validation_gate": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-17T19:43:05+02:00"
+    "last_checked_at": "2026-08-17T19:57:52+02:00"
   },
   "common_validation_gate": {
     "version": "5.0.1",
