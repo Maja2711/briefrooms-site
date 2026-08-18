@@ -8,7 +8,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -27,6 +27,7 @@ from belief_core_live import (
 )
 from belief_llm_interpreter import GeminiEvidenceInterpreter
 from belief_macro_calendar_adapter import MacroEventCalendarAdapter
+from belief_macro_data_adapter import MacroDataAdapter
 from belief_news_event_adapter import NewsEventAdapter
 
 EVENT_SEEN_LIMIT = 4000
@@ -46,6 +47,7 @@ def run_external_cycle(
     *,
     news_adapter: NewsEventAdapter,
     macro_adapter: MacroEventCalendarAdapter,
+    macro_data_adapter: Optional[MacroDataAdapter] = None,
 ) -> Dict[str, Any]:
     if TRADE_EXECUTION_ENABLED or POLICY_OUTPUT_ENABLED or AUTOMATIC_TUNING_ENABLED or MODE != "shadow":
         raise RuntimeError("Belief Core external adapter safety invariant violated")
@@ -60,9 +62,17 @@ def run_external_cycle(
 
     news_result = news_adapter.run(now, seen_primary_observation_ids=tuple(seen_set))
     macro_result = macro_adapter.run(now)
+    macro_data_result = (
+        macro_data_adapter.run(now)
+        if macro_data_adapter is not None
+        else None
+    )
 
     all_observations = list(news_result.observations) + list(macro_result.observations)
     all_evidence = list(news_result.evidence) + list(macro_result.evidence)
+    if macro_data_result is not None:
+        all_observations.extend(macro_data_result.observations)
+        all_evidence.extend(macro_data_result.evidence)
 
     written = append_observations(state_dir, all_observations)
     if all_evidence:
@@ -90,6 +100,8 @@ def run_external_cycle(
         "news_evidence": len(news_result.evidence),
         "macro_observations": len(macro_result.observations),
         "macro_evidence": len(macro_result.evidence),
+        "macro_data_observations": len(macro_data_result.observations) if macro_data_result else 0,
+        "macro_data_evidence": len(macro_data_result.evidence) if macro_data_result else 0,
         "observations_written": written,
         "evidence_ingested": len(all_evidence),
         "llm_available": bool(interpreter and interpreter.available),
@@ -105,7 +117,7 @@ def run_external_cycle(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run News/Event + Macro Calendar Belief Core shadow adapters"
+        description="Run News/Event + Macro Calendar + Primary Macro Data Belief Core shadow adapters"
     )
     parser.add_argument(
         "--state-dir",
@@ -122,11 +134,13 @@ def main() -> int:
         enable_sec=False if args.disable_sec else None,
     )
     macro = MacroEventCalendarAdapter()
+    macro_data = MacroDataAdapter()
     status = run_external_cycle(
         Path(args.state_dir),
         now,
         news_adapter=news,
         macro_adapter=macro,
+        macro_data_adapter=macro_data,
     )
     print(json.dumps(status, indent=2, sort_keys=True))
     return 0
