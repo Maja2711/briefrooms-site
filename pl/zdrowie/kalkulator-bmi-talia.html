@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kalkulator BMI i talia/wzrost — interpretacja | BriefRooms</title>
+  <meta name="description" content="Oblicz BMI i stosunek obwodu talii do wzrostu (WHtR). Otrzymaj komentarz BriefRooms i ogólne zalecenia oparte na WHO i NICE." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="canonical" href="https://briefrooms.com/pl/zdrowie/kalkulator-bmi-talia.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/kalkulator-bmi-talia.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/bmi-waist-calculator.html" />
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
+  <meta name="robots" content="index,follow,max-snippet:-1" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="BriefRooms" />
+  <meta property="og:title" content="Kalkulator BMI i talia/wzrost | BriefRooms" />
+  <meta property="og:description" content="BMI + WHtR w jednym wyniku, z komentarzem i ogólnymi zaleceniami." />
+  <meta property="og:url" content="https://briefrooms.com/pl/zdrowie/kalkulator-bmi-talia.html" />
+  <meta property="og:locale" content="pl_PL" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"Kalkulator BMI i talia/wzrost","url":"https://briefrooms.com/pl/zdrowie/kalkulator-bmi-talia.html","applicationCategory":"HealthApplication","operatingSystem":"Web","inLanguage":"pl-PL","description":"Kalkulator BMI i stosunku talii do wzrostu z interpretacją edukacyjną."}
+  </script>
+  <link rel="stylesheet" href="/assets/bmi-whtr-calculator.css?v=1" />
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260719-1" defer></script>
+</head>
+<body class="bmi-whtr-page">
+<header id="site-header"></header>
+<header>
+  <h1>BMI + talia/wzrost</h1>
+  <p class="lead">Dwa proste wskaźniki zamiast samego BMI. Kalkulator pokazuje BMI, stosunek talii do wzrostu (WHtR), komentarz BriefRooms oraz ogólne zalecenia. Dla dorosłych.</p>
+</header>
+
+<main>
+  <div class="bmi-shell">
+    <section class="bmi-card" aria-labelledby="bmi-form-title">
+      <h2 id="bmi-form-title">Wpisz trzy wartości</h2>
+      <p class="intro">Nie pytamy o płeć — progi WHtR użyte tutaj są takie same dla kobiet i mężczyzn.</p>
+      <form id="bmi-whtr-form" novalidate>
+        <div class="bmi-fields">
+          <div class="bmi-field">
+            <label for="weight">Masa ciała</label>
+            <input id="weight" name="weight" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 82" />
+            <small>kilogramy</small>
+          </div>
+          <div class="bmi-field">
+            <label for="height">Wzrost</label>
+            <input id="height" name="height" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 175" />
+            <small>centymetry</small>
+          </div>
+          <div class="bmi-field bmi-field--wide">
+            <label for="waist">Obwód talii</label>
+            <input id="waist" name="waist" type="text" inputmode="decimal" autocomplete="off" placeholder="np. 94" />
+            <small>centymetry; bez wciągania brzucha</small>
+          </div>
+        </div>
+        <p class="bmi-measure-tip"><strong>Jak zmierzyć talię:</strong> znajdź dolny brzeg żeber i górny brzeg bioder, zmierz obwód w połowie odległości między nimi po spokojnym wydechu. Ta metoda odpowiada instrukcji NICE.</p>
+        <div class="bmi-actions">
+          <button class="bmi-button" type="submit">Oblicz i skomentuj</button>
+          <button class="bmi-button secondary" type="reset">Wyczyść</button>
+        </div>
+        <div id="bmi-whtr-error" class="bmi-error" role="alert" hidden></div>
+      </form>
+      <p class="bmi-privacy">Obliczenia odbywają się wyłącznie w przeglądarce. Wpisane dane nie są wysyłane na serwer.</p>
+    </section>
+
+    <section id="bmi-whtr-results" class="bmi-card bmi-results" aria-live="polite" hidden>
+      <h2>Twój wynik</h2>
+      <div class="bmi-result-grid">
+        <div class="bmi-result"><span>BMI</span><strong id="bmi-value"></strong><b id="bmi-category"></b></div>
+        <div class="bmi-result"><span>Talia / wzrost</span><strong id="whtr-value"></strong><b id="whtr-category"></b></div>
+      </div>
+      <p id="half-height-note" class="bmi-half-height"></p>
+      <div class="bmi-comment">
+        <h3>Komentarz BriefRooms</h3>
+        <p id="bmi-comment-text"></p>
+      </div>
+      <div class="bmi-recommendations">
+        <h3>Ogólne zalecenia</h3>
+        <ul id="bmi-recommendation-list"></ul>
+      </div>
+      <p id="bmi-caution" class="bmi-caution"></p>
+    </section>
+  </div>
+
+  <div class="bmi-info">
+    <section>
+      <h2>Jak interpretujemy BMI?</h2>
+      <p>Dla większości dorosłych WHO definiuje nadwagę od BMI 25 kg/m², a otyłość od 30 kg/m². BMI jest wskaźnikiem przesiewowym, a nie bezpośrednim pomiarem tkanki tłuszczowej.</p>
+      <ul>
+        <li>&lt;18,5 — niedowaga</li>
+        <li>18,5–24,9 — zakres prawidłowy</li>
+        <li>25,0–29,9 — nadwaga</li>
+        <li>30,0–34,9 — otyłość I stopnia</li>
+        <li>35,0–39,9 — otyłość II stopnia</li>
+        <li>≥40 — otyłość III stopnia</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Dlaczego talia/wzrost?</h2>
+      <p>NICE zaleca u dorosłych z BMI poniżej 35 kg/m² używać WHtR razem z BMI jako praktycznego wskaźnika otyłości centralnej.</p>
+      <ul>
+        <li>0,40–0,49 — zdrowa otyłość centralna</li>
+        <li>0,50–0,59 — zwiększona otyłość centralna</li>
+        <li>≥0,60 — wysoka otyłość centralna</li>
+      </ul>
+      <p>Najprostsza zasada: <strong>talia poniżej połowy wzrostu</strong>.</p>
+    </section>
+    <section>
+      <h2>Ważne ograniczenia</h2>
+      <p>WHtR wnosi mniej informacji przy BMI ≥35 kg/m². BMI wymaga ostrożnej interpretacji przy dużej masie mięśniowej, u osób starszych i w niektórych grupach etnicznych, gdzie ryzyko metaboliczne może pojawiać się przy niższym BMI.</p>
+      <p>Narzędzie nie jest przeznaczone dla kobiet w ciąży, dzieci ani młodzieży.</p>
+    </section>
+    <section>
+      <h2>Źródła metody</h2>
+      <ul>
+        <li><a href="https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight" target="_blank" rel="noopener noreferrer external">WHO — Obesity and overweight</a></li>
+        <li><a href="https://www.nice.org.uk/guidance/ng246/chapter/Identifying-and-assessing-overweight-obesity-and-central-adiposity" target="_blank" rel="noopener noreferrer external">NICE NG246 — BMI i waist-to-height ratio</a></li>
+      </ul>
+      <p>Progi WHtR i zasada „talia poniżej połowy wzrostu” są zgodne z NICE NG246.</p>
+    </section>
+  </div>
+
+  <p class="bmi-back">← <a href="/pl/zdrowie.html">Wróć do Zdrowia</a></p>
+</main>
+
+<footer></footer>
+<script src="/scripts/bmi-whtr-calculator.js?v=1"></script>
+<script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
+</body>
+</html>
