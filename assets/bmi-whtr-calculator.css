@@ -1,0 +1,105 @@
+/* BriefRooms BMI + waist-to-height ratio calculator — PL/EN */
+:root{
+  --bmi-bg:#071522;
+  --bmi-panel:#0d2232;
+  --bmi-panel-2:#102b3d;
+  --bmi-line:rgba(166,226,223,.18);
+  --bmi-text:#edf9ff;
+  --bmi-muted:#a9bdcb;
+  --bmi-teal:#66dfca;
+  --bmi-blue:#8fc9ff;
+  --bmi-warn:#ffd38a;
+}
+*{box-sizing:border-box}
+html{background:var(--bmi-bg)}
+body.bmi-whtr-page{
+  margin:0;min-height:100vh;color:var(--bmi-text);
+  font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:
+    radial-gradient(760px 360px at 50% -80px,rgba(54,216,194,.13),transparent 64%),
+    linear-gradient(180deg,#081725 0%,#07131f 100%);
+}
+body.bmi-whtr-page>header:not(#site-header),
+body.bmi-whtr-page>main,
+body.bmi-whtr-page>footer{width:100%;max-width:980px;margin-left:auto;margin-right:auto;padding-left:16px;padding-right:16px}
+body.bmi-whtr-page>header:not(#site-header){padding-top:40px;padding-bottom:18px;text-align:center}
+body.bmi-whtr-page h1{margin:0 0 10px;font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.04em}
+body.bmi-whtr-page .lead{max-width:780px;margin:0 auto;color:#b7cbd6;font-size:15px}
+body.bmi-whtr-page main{padding-bottom:48px}
+
+.bmi-shell{
+  display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:18px;align-items:start;
+}
+.bmi-card{
+  border:1px solid var(--bmi-line);border-radius:22px;padding:22px;
+  background:linear-gradient(155deg,rgba(18,54,70,.88),rgba(7,29,43,.94));
+  box-shadow:0 24px 54px rgba(0,0,0,.27),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.bmi-card h2{margin:0 0 7px;font-size:clamp(21px,3vw,28px);letter-spacing:-.025em}
+.bmi-card .intro{margin:0 0 18px;color:var(--bmi-muted);font-size:13px}
+.bmi-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.bmi-field{display:flex;flex-direction:column;gap:6px}
+.bmi-field--wide{grid-column:1/-1}
+.bmi-field label{font-size:13px;font-weight:850;color:#e6f7ff}
+.bmi-field input{
+  width:100%;min-height:48px;padding:11px 13px;border:1px solid rgba(166,212,232,.27);border-radius:13px;
+  background:rgba(4,21,34,.72);color:#f5fbff;font:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
+}
+.bmi-field input:focus{outline:3px solid rgba(102,223,202,.18);border-color:rgba(102,223,202,.72)}
+.bmi-field small{color:#829eae;font-size:11px;line-height:1.35}
+.bmi-measure-tip{
+  margin-top:14px;padding:12px 13px;border:1px solid rgba(143,201,255,.14);border-radius:13px;
+  background:rgba(83,150,202,.055);color:#a9c4d5;font-size:12px;line-height:1.5
+}
+.bmi-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+.bmi-button{
+  appearance:none;border:0;border-radius:13px;min-height:44px;padding:0 17px;cursor:pointer;
+  background:linear-gradient(135deg,#69e2cc,#56b9cf);color:#06202a;font:inherit;font-weight:900;
+  box-shadow:0 10px 22px rgba(0,0,0,.22)
+}
+.bmi-button:hover{filter:brightness(1.05)}
+.bmi-button.secondary{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);color:#dbeaf2;box-shadow:none}
+.bmi-error{margin-top:14px;padding:11px 13px;border:1px solid rgba(255,150,150,.24);border-radius:12px;background:rgba(146,38,49,.20);color:#ffd7dc;font-weight:750;font-size:13px}
+.bmi-privacy{margin:14px 0 0;color:#7795a6;font-size:11px}
+
+.bmi-results[hidden]{display:none!important}
+.bmi-results{display:flex;flex-direction:column;gap:14px}
+.bmi-result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bmi-result{
+  padding:17px;border:1px solid rgba(143,201,255,.17);border-radius:17px;
+  background:linear-gradient(155deg,rgba(255,255,255,.07),rgba(255,255,255,.025));
+}
+.bmi-result span{display:block;color:#8faabb;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.bmi-result strong{display:block;margin:5px 0 2px;color:#f3fbff;font-size:clamp(27px,4vw,38px);line-height:1}
+.bmi-result b{display:block;color:#b6d8e5;font-size:12px;line-height:1.35}
+.bmi-half-height{margin:0;padding:12px 14px;border-left:3px solid var(--bmi-teal);border-radius:10px;background:rgba(54,173,151,.08);color:#c9e8df;font-size:13px}
+.bmi-comment{
+  padding:17px;border:1px solid rgba(102,223,202,.18);border-radius:17px;background:rgba(53,157,140,.07)
+}
+.bmi-comment h3,.bmi-recommendations h3{margin:0 0 8px;font-size:17px;color:#effffb}
+.bmi-comment p{margin:0;color:#bbd3d5;font-size:13px;line-height:1.58}
+.bmi-recommendations{padding:17px;border:1px solid rgba(255,211,138,.13);border-radius:17px;background:rgba(161,114,45,.055)}
+.bmi-recommendations ul{margin:8px 0 0;padding-left:20px;color:#c7d4d8;font-size:13px}
+.bmi-recommendations li{margin:7px 0}
+.bmi-caution{margin:0;padding:12px 13px;border-radius:13px;background:rgba(143,201,255,.06);color:#91adbd;font-size:11px;line-height:1.5}
+
+.bmi-info{margin-top:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.bmi-info section{padding:18px;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:rgba(255,255,255,.035)}
+.bmi-info h2{margin:0 0 8px;font-size:18px;color:#edf8ff}
+.bmi-info p,.bmi-info li{color:#a7bdca;font-size:12px;line-height:1.55}
+.bmi-info ul{margin:8px 0 0;padding-left:19px}
+.bmi-info a{color:#8fdad1}
+.bmi-back{margin:22px 0 0;color:#91a9b8;font-size:13px}
+.bmi-back a{color:#9fd6ff}
+body.bmi-whtr-page>footer{padding-top:12px;padding-bottom:28px}
+
+@media(max-width:780px){
+  .bmi-shell{grid-template-columns:1fr}
+  .bmi-info{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+  body.bmi-whtr-page>header:not(#site-header){padding-top:28px}
+  .bmi-card{padding:18px 15px}
+  .bmi-fields,.bmi-result-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.bmi-button{transition:none}}
