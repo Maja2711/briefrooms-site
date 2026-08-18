@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Protocol, Sequence, Tuple
 
-from belief_core import Evidence, iso_z, parse_time
+from belief_core import Evidence, parse_time
 
 
 def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -117,7 +117,12 @@ class EvidenceAssessment:
 
 
 def observation_to_evidence(observation: Observation, assessment: EvidenceAssessment) -> Evidence:
-    """Single canonical Observation -> Evidence boundary used by all adapters."""
+    """Single canonical Observation -> Evidence boundary used by all adapters.
+
+    Derived Evidence records its originating Observation as the immediate lineage
+    node. This keeps the provenance graph explicit even when raw observations are
+    intentionally not promoted into belief-weighting Evidence of their own.
+    """
     if observation.status != "ok":
         raise ValueError(f"observation {observation.observation_id} is not evidence-eligible: {observation.status}")
     cluster = assessment.independence_cluster or observation.independence_cluster
@@ -135,6 +140,7 @@ def observation_to_evidence(observation: Observation, assessment: EvidenceAssess
         "observation_metric": observation.metric,
         "observation_value": observation.value,
         "observation_unit": observation.unit,
+        "lineage_node_type": "observation" if observation.source_type == "derived" else "source",
         **dict(observation.metadata),
         **dict(assessment.metadata),
     }
@@ -149,6 +155,7 @@ def observation_to_evidence(observation: Observation, assessment: EvidenceAssess
         independence_cluster=cluster,
         source_type=observation.source_type,
         source_ref=observation.source_ref,
+        derived_from=(observation.observation_id,) if observation.source_type == "derived" else (),
         evidence_type=assessment.evidence_type,
         note=assessment.note,
         metadata=metadata,
