@@ -1894,10 +1894,10 @@
       "entry_price": 63519.94921875,
       "entry_captured_at": "2026-08-17T09:05:00+02:00",
       "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
-      "exit_price": null,
-      "exit_captured_at": null,
-      "exit_source": null,
-      "exit_reason": null,
+      "exit_price": 64538.48046875,
+      "exit_captured_at": "2026-08-18T22:55:00+02:00",
+      "exit_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_position_review",
+      "exit_reason": "daily_model_directional_invalidation",
       "risk_plan": {
         "model_version": "WES-1.0.0",
         "generated_at": "2026-08-17T18:49:56+02:00",
@@ -1923,10 +1923,10 @@
         },
         "friday_tactical_low_tp": false
       },
-      "trade_status": "open",
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "trade_status": "closed",
+      "result": "loss",
+      "result_value": -160.34824689,
+      "result_percent": -1.6035,
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
       "entry_quality_status": "wes_monday_weekly",
@@ -2080,7 +2080,7 @@
         }
       },
       "continuous_entry_regime": "trend_down:vol_normal",
-      "risk_status": "open_multi_instrument_continuous_exposure",
+      "risk_status": "closed_by_daily_model_review",
       "continuous_exposure_active": true,
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
@@ -2100,7 +2100,7 @@
           "score": 0.0
         }
       },
-      "next_entry_status": "open",
+      "next_entry_status": "blocked_after_thesis_invalidation",
       "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit",
       "wes_status": "open_wes_governed_position",
       "wes_methodology": "WES-1.0.0",
@@ -2133,11 +2133,43 @@
           "data_quality": "passed",
           "decision": "keep",
           "reason": "keep_original_thesis_not_invalidated"
+        },
+        {
+          "review_date": "2026-08-18",
+          "reviewed_at": "2026-08-18T23:01:36+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "original_direction": "short",
+          "fresh_direction": "neutral",
+          "fresh_score": 18,
+          "fresh_signal_strength": 0.18,
+          "weekly_score": -44,
+          "weekly_regime": "trend_down:vol_normal",
+          "macro_context": {
+            "enabled": false,
+            "instrument_id": "btcusd",
+            "data_quality": "not_applicable",
+            "score": 0.0,
+            "ma_structure": {
+              "enabled": false,
+              "instrument_id": "btcusd",
+              "data_quality": "not_applicable",
+              "score": 0.0
+            }
+          },
+          "combined_review_score": -6.4,
+          "positive_groups": 2,
+          "negative_groups": 0,
+          "data_quality": "passed",
+          "decision": "close",
+          "reason": "directional_invalidation",
+          "exit_price": 64538.48046875,
+          "exit_captured_at": "2026-08-18T22:55:00+02:00",
+          "exit_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_position_review"
         }
       ],
-      "last_daily_review_at": "2026-08-17T23:34:15+02:00",
-      "last_daily_review_decision": "keep",
-      "last_daily_review_reason": "keep_original_thesis_not_invalidated",
+      "last_daily_review_at": "2026-08-18T23:01:36+02:00",
+      "last_daily_review_decision": "close",
+      "last_daily_review_reason": "directional_invalidation",
       "latest_macro_context": {
         "as_of": null,
         "data_quality": "not_applicable",
@@ -2153,6 +2185,249 @@
           "score": 0.0
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
+      },
+      "exit_execution_model": "last_completed_5m_bar_at_review",
+      "result_units": -1.60348247,
+      "result_currency": "USD",
+      "position_legs": [
+        {
+          "leg_id": "4d5b878689593213",
+          "instrument_id": "btcusd",
+          "symbol": "BTC-USD",
+          "direction": "short",
+          "strategy_id": "weekly_trend",
+          "entry_regime": "trend_down:vol_normal",
+          "entry_decision": {
+            "direction": "short",
+            "raw_score": -49.0,
+            "conviction": 7.35,
+            "strategy_id": "weekly_trend",
+            "learning_count": 3,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.25,
+            "utility": 8.6,
+            "candidates": {
+              "weekly_trend": {
+                "direction": "short",
+                "raw_score": -49.0,
+                "conviction": 7.35,
+                "strategy_id": "weekly_trend",
+                "learning_count": 3,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 1.25,
+                "utility": 8.6
+              },
+              "daily_weekly_blend": {
+                "direction": "short",
+                "raw_score": -22.6,
+                "conviction": 3.39,
+                "strategy_id": "daily_weekly_blend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 5.89
+              },
+              "ema_mean_reversion": {
+                "direction": "long",
+                "raw_score": 7.737352431488991,
+                "conviction": 1.1606,
+                "strategy_id": "ema_mean_reversion",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 3.6606
+              },
+              "inverse_v2": {
+                "direction": "long",
+                "raw_score": 5.0,
+                "conviction": 0.75,
+                "strategy_id": "inverse_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 3.25
+              },
+              "base_v2": {
+                "direction": "short",
+                "raw_score": -5.0,
+                "conviction": 0.75,
+                "strategy_id": "base_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 3.25
+              }
+            },
+            "macro_context": {
+              "enabled": false,
+              "instrument_id": "btcusd",
+              "data_quality": "not_applicable",
+              "score": 0.0,
+              "ma_structure": {
+                "enabled": false,
+                "instrument_id": "btcusd",
+                "data_quality": "not_applicable",
+                "score": 0.0
+              }
+            },
+            "contextual_learning": {
+              "enabled": true,
+              "instrument_id": "btcusd",
+              "methods": {}
+            },
+            "decided_at": "2026-08-17T09:00:12+02:00",
+            "validation_gate": "enabled_for_paper_trading",
+            "regime": "trend_down:vol_normal",
+            "weekly_features": {
+              "data_quality": "passed",
+              "score": -49,
+              "regime": "trend_down:vol_normal",
+              "last_week_close": 63605.98828125,
+              "ema_fast": 64522.64815026,
+              "ema_slow": 71286.65966335,
+              "weekly_atr13": 4892.09705529,
+              "return_4w_percent": -0.7684,
+              "return_13w_percent": -15.7405,
+              "volatility_ratio_13w_52w": 1.0505,
+              "range_26w_position": 0.178,
+              "components": {
+                "trend": -32.26,
+                "momentum_fast": -1.07,
+                "momentum_slow": -9.73,
+                "breakout": -9.66,
+                "last_candle": 3.5,
+                "volatility_scale": 1.0
+              }
+            },
+            "fresh_v2_signal": {
+              "direction": "neutral",
+              "score": -5,
+              "signal_strength": 0.05,
+              "confidence": 0.05,
+              "confidence_type": "heuristic_signal_strength_not_probability",
+              "data_quality": "passed",
+              "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+              "signals": {
+                "last_close": 63605.98828125,
+                "ema20": 63806.8478131,
+                "ema50": 64326.95053252,
+                "atr14": 1038.38895089,
+                "ret5_pct": 0.0851,
+                "ret20_pct": -0.1866,
+                "vol20_annualized_pct": 15.6729,
+                "vol60_annualized_pct": 23.2707,
+                "volatility_regime_ratio": 0.6735,
+                "volatility_score_scale": 1.0,
+                "range55_position": 0.6352,
+                "components": {
+                  "trend_ema": -6.68,
+                  "trend_price": -1.93,
+                  "momentum5": 0.39,
+                  "momentum20": -0.56,
+                  "breakout": 4.05,
+                  "macro_bias": 0.0,
+                  "event_risk_penalty": 0.0
+                },
+                "agreement": {
+                  "positive_groups": 1,
+                  "negative_groups": 1,
+                  "required": 2
+                }
+              },
+              "risk_distance": {
+                "source": "ATR14_sqrt5_frozen_at_forecast",
+                "stop_price_distance": 2226.20958984,
+                "take_price_distance": 3498.32935547,
+                "stop_units": 3.5,
+                "take_units": 5.5,
+                "reward_to_risk": 1.5714
+              }
+            }
+          },
+          "entry_price": 63519.94921875,
+          "entry_captured_at": "2026-08-17T09:05:00+02:00",
+          "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
+          "exit_price": 64538.48046875,
+          "exit_captured_at": "2026-08-18T22:55:00+02:00",
+          "exit_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_position_review",
+          "exit_reason": "daily_model_directional_invalidation",
+          "gross_result_percent": -1.6035,
+          "estimated_round_trip_cost_percent": 0.2,
+          "net_result_percent": -1.8035,
+          "risk_plan": {
+            "model_version": "WES-1.0.0",
+            "generated_at": "2026-08-17T18:49:56+02:00",
+            "direction": "short",
+            "stop_loss_price": 65389.25639174,
+            "take_profit_price": 59450.17461678,
+            "stop_loss_distance": 1869.30717299,
+            "take_profit_distance": 4069.77460197,
+            "reward_to_risk": 2.1772,
+            "same_bar_rule": "stop_loss_first_conservative",
+            "wes_entry_class": "monday_weekly",
+            "objective": "maximize_net_expectancy_not_trade_frequency",
+            "scheduled_exit": "2026-08-21T22:00:00+02:00",
+            "adaptive_inputs": {
+              "time_factor": 0.9495,
+              "conviction_factor": 0.49,
+              "tp_multiplier": 1.1633,
+              "sl_multiplier": 0.8397,
+              "target_min_rr": 1.2,
+              "learning_count": 0,
+              "learning_mean_net_percent": null,
+              "learning_win_rate": null
+            },
+            "friday_tactical_low_tp": false
+          },
+          "archived_at": "2026-08-18T23:01:38+02:00",
+          "candidate_outcomes": {
+            "weekly_trend": {
+              "direction": "short",
+              "gross_result_percent": -1.603482,
+              "estimated_round_trip_cost_percent": 0.2,
+              "net_result_percent": -1.803482,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "daily_weekly_blend": {
+              "direction": "short",
+              "gross_result_percent": -1.603482,
+              "estimated_round_trip_cost_percent": 0.2,
+              "net_result_percent": -1.803482,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "ema_mean_reversion": {
+              "direction": "long",
+              "gross_result_percent": 1.603482,
+              "estimated_round_trip_cost_percent": 0.2,
+              "net_result_percent": 1.403482,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "inverse_v2": {
+              "direction": "long",
+              "gross_result_percent": 1.603482,
+              "estimated_round_trip_cost_percent": 0.2,
+              "net_result_percent": 1.403482,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "base_v2": {
+              "direction": "short",
+              "gross_result_percent": -1.603482,
+              "estimated_round_trip_cost_percent": 0.2,
+              "net_result_percent": -1.803482,
+              "source": "same_entry_exit_counterfactual_candidate"
+            }
+          },
+          "contextual_learning_schema": "2.0"
+        }
+      ],
+      "continuous_last_exit_at": "2026-08-18T22:55:00+02:00",
+      "continuous_last_closed_leg_id": "4d5b878689593213",
+      "reentry_lock": {
+        "active": true,
+        "scope": "same_week",
+        "until": "2026-08-21T22:00:00+02:00",
+        "reason": "daily_model_directional_invalidation",
+        "policy": "thesis_or_material_event_exit_blocks_same_week_reentry"
       }
     }
   ],
@@ -2168,7 +2443,7 @@
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-18T22:39:06+02:00"
+    "last_checked_at": "2026-08-18T23:01:38+02:00"
   },
   "common_validation_gate": {
     "version": "5.0.1",
@@ -2185,8 +2460,8 @@
   },
   "daily_position_review": {
     "enabled": true,
-    "last_review_date": "2026-08-17",
-    "last_reviewed_at": "2026-08-17T23:34:15+02:00",
+    "last_review_date": "2026-08-18",
+    "last_reviewed_at": "2026-08-18T23:01:36+02:00",
     "local_time": "23:00 Europe/Warsaw",
     "exit_rules": {
       "confirmed_opposite_signal": true,
