@@ -133,7 +133,16 @@ jobs:
           python-version: "3.11"
 
       - name: Render crawlable PL and EN snapshots from committed core data
-        run: python scripts/render_portfolio_10k_static.py
+        run: |
+          python scripts/render_portfolio_10k_static.py
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          for path in (Path('pl/inwestycje/portfel-10k.html'), Path('en/investing/portfolio-10k.html')):
+              text = path.read_text(encoding='utf-8')
+              text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=4', text)
+              path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Validate semantic UI contract without pinning asset versions
         run: |
@@ -156,6 +165,8 @@ jobs:
           assert 'data-tab="projections"' not in pl and 'data-tab="projections"' not in en
           for asset in ('portfolio-10k-control-public.js','portfolio-10k-execution-finalizer.js','portfolio-10k-navigation-guard.js'):
               assert asset in pl and asset in en
+          assert '/scripts/portfolio-10k-control-public.js?v=4' in pl
+          assert '/scripts/portfolio-10k-control-public.js?v=4' in en
           PY
 
       - name: Publish static snapshots
@@ -179,4 +190,4 @@ jobs:
           done
           exit 1
 
-# trigger: hardened clean-worktree publication 2026-08-12
+# trigger: force BRACE control frontend cache refresh 2026-08-18
