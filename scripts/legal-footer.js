@@ -3,6 +3,14 @@
   if(window.__BR_LEGAL_FOOTER__) return;
   window.__BR_LEGAL_FOOTER__ = true;
   function isEn(){return (document.documentElement.lang||'').toLowerCase().indexOf('en')===0 || location.pathname.indexOf('/en/')===0;}
+  function loadYouTubeThumbnails(){
+    if(document.querySelector('script[data-br-youtube-thumbnail-runtime]')) return;
+    var s=document.createElement('script');
+    s.src='/scripts/youtube-thumbnail-runtime.js?v=1';
+    s.defer=true;
+    s.setAttribute('data-br-youtube-thumbnail-runtime','1');
+    document.head.appendChild(s);
+  }
   function readingTheme(){
     if(location.pathname!=='/pl/nauka/ciemny-tlen.html' || document.getElementById('br-cream-reading-theme')) return;
     var s=document.createElement('style');
@@ -21,6 +29,7 @@
   function render(){
     style();
     readingTheme();
+    loadYouTubeThumbnails();
     var en=isEn();
     var html;
     if(en){
