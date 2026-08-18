@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import math
 from statistics import median
 from typing import List, Sequence
 from zoneinfo import ZoneInfo
 
-from belief_adapter_contract import AdapterResult, EvidenceAssessment, Observation, observation_to_evidence, strength_from_return
+from belief_adapter_contract import AdapterResult, EvidenceAssessment, Observation, clamp, observation_to_evidence, strength_from_return
 from belief_core import iso_z
 from belief_market_data_adapter import Bar, MarketSnapshot
 
@@ -26,15 +27,23 @@ class LiquidityEvidenceAdapter:
             obs.append(row); return row
 
         spy_rows = snapshot.bars["SPY"]
+        session = snapshot.session_bars("SPY")
         rvol = self._relative_session_volume(spy_rows, snapshot)
         abnormal = max(0.0, rvol - 1.0)
-        session = snapshot.session_bars("SPY")
         dollar_turnover = sum(x.close * float(x.volume or 0.0) for x in session) if any(x.volume is not None for x in session) else 0.0
         amihud = self._amihud_proxy(session)
-        add("relative_volume", "SPY", rvol, "ratio", "derived:SPY:liquidity", f"derived:yahoo:SPY:{observed_at}:rvol")
+        turnover_score = clamp((math.log10(max(dollar_turnover, 1.0)) - 6.0) / 4.0)
+        rvol_score = clamp(rvol / 1.5)
+        tradability = .55 * rvol_score + .45 * turnover_score
+        add("relative_volume", "SPY", rvol, "ratio", "derived:SPY:liquidity", f"derived:yahoo:SPY:{observed_at}:rvol", {"time_of_day_adjusted": True})
         add("abnormal_volume", "SPY", abnormal, "ratio", "derived:SPY:liquidity", f"derived:yahoo:SPY:{observed_at}:abnormal-volume")
         add("dollar_turnover", "SPY", dollar_turnover, "currency_notional", "market:SPY:volume", f"derived:yahoo:SPY:{observed_at}:turnover")
         add("amihud_proxy", "SPY", amihud, "return_per_notional", "derived:SPY:liquidity", f"derived:yahoo:SPY:{observed_at}:amihud", {"lower_is_more_liquid": True})
+        add("tradability_score", "SPY", tradability, "score", "derived:SPY:liquidity", f"derived:yahoo:SPY:{observed_at}:tradability", {
+            "proxy_only": True,
+            "components": {"relative_volume": rvol_score, "dollar_turnover": turnover_score},
+            "limitation": "No executable bid/ask spread or order-book depth in Yahoo chart data",
+        })
 
         credit_rel = snapshot.ratio_return("HYG", "LQD", 13)
         hyg_1d = snapshot.return_over_bars("HYG", 13)
@@ -52,14 +61,22 @@ class LiquidityEvidenceAdapter:
     @staticmethod
     def _relative_session_volume(rows: Sequence[Bar], snapshot: MarketSnapshot) -> float:
         current_date = snapshot.observed_at("SPY").astimezone(NY).date()
-        by_day = {}
+        grouped = {}
         for row in rows:
             day = row.timestamp.astimezone(NY).date()
-            by_day.setdefault(day, 0.0)
-            by_day[day] += float(row.volume or 0.0)
-        current = by_day.get(current_date, 0.0)
-        history = [value for day, value in sorted(by_day.items()) if day < current_date and value > 0]
-        baseline = median(history[-5:]) if history else 0.0
+            grouped.setdefault(day, []).append(row)
+        current_rows = grouped.get(current_date, [])
+        bars_elapsed = max(1, len(current_rows))
+        current = sum(float(x.volume or 0.0) for x in current_rows[:bars_elapsed])
+        historical = []
+        for day in sorted(grouped):
+            if day >= current_date:
+                continue
+            comparable = grouped[day][:bars_elapsed]
+            value = sum(float(x.volume or 0.0) for x in comparable)
+            if value > 0:
+                historical.append(value)
+        baseline = median(historical[-5:]) if historical else 0.0
         return 1.0 if baseline <= 0 else current / baseline
 
     @staticmethod
