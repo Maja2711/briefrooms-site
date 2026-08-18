@@ -77,10 +77,20 @@
     Array.prototype.forEach.call(scope.querySelectorAll('img[data-br-external-media="source-linked"]'),guard);
   }
 
+  function loadYouTubeThumbnails(){
+    if(!root.document||root.document.querySelector('script[data-br-youtube-thumbnail-runtime]')) return;
+    var script=root.document.createElement('script');
+    script.src='/scripts/youtube-thumbnail-runtime.js?v=1';
+    script.defer=true;
+    script.setAttribute('data-br-youtube-thumbnail-runtime','1');
+    root.document.head.appendChild(script);
+  }
+
   root.BriefRoomsMediaPolicy={safeImageUrl:safeImageUrl,guard:guard,scan:scan};
   if(root.document){
     var start=function(){
       scan(document);
+      loadYouTubeThumbnails();
       if(typeof MutationObserver==='function'){
         new MutationObserver(function(records){
           records.forEach(function(record){
