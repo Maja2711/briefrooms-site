@@ -80,7 +80,9 @@ class AdapterSuiteTest(unittest.TestCase):
     def test_liquidity_adapter_produces_tradability_observations_and_credit_evidence(self) -> None:
         result = LiquidityEvidenceAdapter().run(self.snapshot)
         metrics = {x.metric for x in result.observations}
-        self.assertTrue({"relative_volume","abnormal_volume","dollar_turnover","amihud_proxy"} <= metrics)
+        self.assertTrue({"relative_volume","abnormal_volume","dollar_turnover","amihud_proxy","tradability_score"} <= metrics)
+        rvol = [x for x in result.observations if x.metric == "relative_volume"][0]
+        self.assertTrue(rvol.metadata["time_of_day_adjusted"])
         self.assertEqual(len(result.evidence), 2)
         self.assertEqual({x.belief_id for x in result.evidence}, {"spx.liquidity.supportive"})
 
@@ -93,8 +95,9 @@ class AdapterSuiteTest(unittest.TestCase):
     def test_full_pipeline_preserves_nine_evidence_but_adds_observation_layer(self) -> None:
         payload = build_adapter_payload(self.snapshot)
         self.assertEqual(len(payload["evidence"]), 9)
-        self.assertEqual(len(payload["observations"]), 107)
+        self.assertEqual(len(payload["observations"]), 108)
         self.assertEqual(payload["adapter_counts"]["market_data"], {"observations":80,"evidence":0})
+        self.assertEqual(payload["adapter_counts"]["liquidity_evidence"], {"observations":7,"evidence":2})
         self.assertEqual(payload["regime"], "risk_on")
 
 
