@@ -9,10 +9,12 @@ try:
     from scripts import gpw_daily_control_loop as loop
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_event_layer as events
+    from scripts import gpw_market_data as market
 except ModuleNotFoundError:
     import gpw_daily_control_loop as loop
     import gpw_daily_pick as gpw
     import gpw_event_layer as events
+    import gpw_market_data as market
 
 _ORIGINAL_GENERATE = gpw.generate
 _ORIGINAL_GEMINI_ANALYSIS = gpw.gemini_analysis
@@ -46,7 +48,11 @@ def _event_aware_analysis(candidates: list[dict[str, Any]]) -> dict[str, dict[st
 def _event_generate(**kwargs):
     forwarded = dict(kwargs)
     forwarded["news_fetcher"] = events.combined_news_items
-    return _ORIGINAL_GENERATE(**forwarded)
+    payload = _ORIGINAL_GENERATE(**forwarded)
+    now = forwarded.get("now") or gpw.now_warsaw()
+    if payload.get("decision") == "TRANSAKCJA":
+        payload = market.reprice_transaction(payload, now=now)
+    return payload
 
 
 def _build_learning_snapshot(history, config, *, now):
@@ -113,6 +119,13 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
         "event_learning": "bayesian shrinkage po typie zdarzenia",
         "weights_frozen": True,
     }
+    enriched["methodology"]["market_data"] = {
+        "historical_provider_order": ["Yahoo", "Stooq"],
+        "opening_quote_providers": ["Yahoo", "Stooq"],
+        "opening_quote_not_before": "09:05 Europe/Warsaw",
+        "publication_cutoff": "09:10 Europe/Warsaw",
+        "crosscheck_max_deviation": market.MAX_OPENING_CROSSCHECK_DEVIATION,
+    }
     enriched.setdefault("learning", {})["event_expectancy"] = copy.deepcopy(snapshot.get("event_expectancy") or [])
     selection = enriched.get("selection")
     if isinstance(selection, dict):
@@ -132,11 +145,12 @@ def install() -> None:
     global _INSTALLED
     if _INSTALLED:
         return
-    # GitHub Actions cron can be delayed substantially. Insurance schedules may
-    # arrive early, but the actual daily research must remain close enough to the
-    # session to use fresh overnight evidence. 07:15 Warsaw leaves a 75-minute
-    # SLA buffer before the immutable 08:30 publication cutoff.
-    loop.EARLIEST_GENERATION = clock_time(7, 15)
+    # Research/ranking starts only after the continuous session is open long
+    # enough to obtain a first executable market snapshot.  The 09:10 cutoff
+    # keeps the decision short-horizon while avoiding a stale previous-close
+    # entry zone.
+    loop.EARLIEST_GENERATION = clock_time(9, 5)
+    gpw.fetch_yahoo_bars = market.fetch_resilient_bars
     gpw.generate = _event_generate
     gpw.gemini_analysis = _event_aware_analysis
     loop.build_learning_snapshot = _build_learning_snapshot
