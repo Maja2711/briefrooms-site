@@ -9,7 +9,10 @@ on:
       - "scripts/belief_external_live.py"
       - "scripts/belief_news_event_adapter.py"
       - "scripts/belief_macro_calendar_adapter.py"
+      - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_llm_interpreter.py"
+      - "tests/test_belief_core_news_macro.py"
+      - "tests/test_belief_macro_data_adapter.py"
   schedule:
     # 30-minute primary-source/event scan from US pre-market through early evening.
     # Wide UTC coverage handles both EDT and EST; source timestamps remain explicit.
@@ -104,8 +107,11 @@ jobs:
             scripts/belief_llm_interpreter.py \
             scripts/belief_news_event_adapter.py \
             scripts/belief_macro_calendar_adapter.py \
+            scripts/belief_macro_data_adapter.py \
             scripts/belief_external_live.py
-          python -m unittest tests.test_belief_core_news_macro -v
+          python -m unittest \
+            tests.test_belief_core_news_macro \
+            tests.test_belief_macro_data_adapter -v
           python - <<'PY'
           import belief_core_live as live
           assert live.MODE == 'shadow'
@@ -115,7 +121,7 @@ jobs:
           print('Belief Core event adapter safety invariants: PASS')
           PY
 
-      - name: Run News Event and Macro Calendar shadow cycle
+      - name: Run News Event Macro Calendar and Macro Data shadow cycle
         run: python scripts/belief_external_live.py --state-dir "$STATE_DIR"
 
       - name: Validate persisted shadow state
@@ -135,6 +141,8 @@ jobs:
           assert controls['policy_output_enabled'] is False
           assert controls['automatic_tuning_enabled'] is False
           assert scheduler['last_external_status']['mode'] == 'shadow'
+          assert 'macro_data_observations' in scheduler['last_external_status']
+          assert 'macro_data_evidence' in scheduler['last_external_status']
           print('Belief Core external state validation: PASS')
           print('Last external status:', scheduler['last_external_status'])
           PY
