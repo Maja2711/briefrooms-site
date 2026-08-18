@@ -1,8 +1,8 @@
 {
   "schema_version": "gpw-daily-pick-config-v1",
-  "policy_version": "gpw-short-horizon-pl-v1.2-event-driven",
+  "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
   "timezone": "Europe/Warsaw",
-  "publication_cutoff": "08:30",
+  "publication_cutoff": "09:10",
   "minimum_data_completeness": 0.8,
   "minimum_median_turnover_pln": 1000000,
   "minimum_composite_score": 72,
@@ -38,6 +38,13 @@
     "market_reaction_measurement": "latest_completed_session",
     "automatic_weight_changes": false,
     "single_event_weight_mutation": false
+  },
+  "market_data": {
+    "historical_provider_order": ["Yahoo", "Stooq"],
+    "opening_quote_providers": ["Yahoo", "Stooq"],
+    "opening_quote_not_before": "09:05",
+    "maximum_crosscheck_deviation": 0.02,
+    "require_current_session_quote_for_trade": true
   },
   "non_session_dates": [
     "2026-01-01",
