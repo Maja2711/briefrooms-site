@@ -208,11 +208,28 @@ def save_scheduler(state_dir: Path, payload: Mapping[str, Any]) -> None:
     os.replace(tmp, path)
 
 
-def append_observations(state_dir: Path, observations) -> None:
-    """Private runtime telemetry only; this path is stored in the workflow artifact."""
+def append_observations(state_dir: Path, observations) -> int:
+    """Append only unseen Observation IDs to private runtime telemetry.
+
+    Stable Observation IDs make workflow retries idempotent rather than silently
+    multiplying the empirical sample in `observations.jsonl`.
+    """
     path = state_dir / "observations.jsonl"
+    existing = set()
+    if path.exists():
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            oid = payload.get("observation_id")
+            if not oid:
+                raise ValueError(f"observations.jsonl line {line_no} has no observation_id")
+            existing.add(str(oid))
+    written = 0
     with path.open("a", encoding="utf-8") as handle:
         for row in observations:
+            if row.observation_id in existing:
+                continue
             payload = {
                 "observation_id": row.observation_id,
                 "adapter": row.adapter,
@@ -231,6 +248,9 @@ def append_observations(state_dir: Path, observations) -> None:
                 "metadata": dict(row.metadata),
             }
             handle.write(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+            existing.add(row.observation_id)
+            written += 1
+    return written
 
 
 def append_world_state(state_dir: Path, core: BeliefCore, when: datetime, regime: str) -> None:
@@ -309,10 +329,9 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             payload = build_adapter_payload(snapshot)
             observations = payload["observations"]
             evidence = payload["evidence"]
-            append_observations(state_dir, observations)
+            observation_count = append_observations(state_dir, observations)
             core.ingest(evidence)
             core.save()
-            observation_count = len(observations)
             evidence_count = len(evidence)
             adapter_counts = payload["adapter_counts"]
             regime = payload["regime"]
