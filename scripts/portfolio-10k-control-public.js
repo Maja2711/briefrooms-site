@@ -12,7 +12,8 @@
     noRecommendations:'Brak ocen pozycji.', noHistory:'Brak wcześniejszych zmian kontrolera.', loadError:'Nie udało się pobrać publicznego statusu BRACE.',
     fallback:'Powód trybu bezpiecznego', safe:'Tryb bezpieczny', monitored:'Limity monitorowane',
     confidence:'Pewność', paperOnly:'Wyłącznie oddzielny portfel modelowy. Brak połączenia z rachunkiem brokerskim.',
-    learning:'Pętla uczenia', lastLearning:'Ostatnie uczenie', nextAnalysis:'Następna analiza', material:'Raporty istotne', score:'Ocena', reports:'raportów'
+    learning:'Pętla uczenia', lastLearning:'Ostatni przegląd uczenia', nextAnalysis:'Następny planowy przegląd', material:'Raporty istotne', score:'Ocena', reports:'raportów',
+    learningOnTime:'Harmonogram aktualny · niedziela 08:40 UTC', learningOverdue:'Pętla uczenia jest opóźniona', missed:'pominięte planowe przeglądy', expected:'ostatni wymagany termin'
   } : {
     status:'Control state', champion:'Controlling methodology', challenger:'BRACE engine',
     risk:'Risk', target:'10% annual target', remaining:'Gates still monitored', candidates:'Top-ranked candidates',
@@ -20,8 +21,8 @@
     history:'Control history', noCandidates:'Candidates will appear after the full analysis cycle.', noDecisions:'No change currently passes all execution limits.',
     noRecommendations:'No position assessments are available.', noHistory:'No previous controller changes.', loadError:'The public BRACE status could not be loaded.',
     fallback:'Safe-mode reason', safe:'Safe mode', monitored:'Limits monitored', confidence:'Confidence',
-    paperOnly:'Separate model portfolio only. No brokerage-account connection.', learning:'Learning loop', lastLearning:'Last learning run', nextAnalysis:'Next analysis',
-    material:'Material reports', score:'Score', reports:'reports'
+    paperOnly:'Separate model portfolio only. No brokerage-account connection.', learning:'Learning loop', lastLearning:'Last learning review', nextAnalysis:'Next scheduled review',
+    material:'Material reports', score:'Score', reports:'reports', learningOnTime:'Schedule current · Sunday 08:40 UTC', learningOverdue:'Learning loop is overdue', missed:'missed scheduled reviews', expected:'latest required slot'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
@@ -37,6 +38,28 @@
   const gateLabel = value => lang!=='pl'?human(value):({out_of_sample_beats_baseline:'wynik poza próbą lepszy od baseline',parameter_neighborhood_stable:'stabilne sąsiedztwo parametrów',expected_shortfall_within_limit:'expected shortfall w limicie',minimum_calendar_days:'minimalny okres kalendarzowy',minimum_decisions:'minimalna liczba decyzji',minimum_completed_trades:'minimalna liczba zakończonych transakcji paper',risk_adjusted_advantage:'przewaga po uwzględnieniu ryzyka',confidence_interval_positive:'dodatni przedział ufności przewagi'}[value]||human(value));
   const tone = status => /FALLBACK|SAFE|DEGRADED|SUSPENDED/.test(status)?'danger':/ACTIVE_PAPER|PROBATIONARY|BRACE_PROBATIONARY/.test(status)?'active':'shadow';
   const metric = (label,value,sub='') => `<article class="control-metric"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(sub)}</span></article>`;
+
+  function weeklyLearningSchedule(loop={}){
+    const now=new Date();
+    const previous=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate(),8,40,0));
+    const daysSinceSunday=(now.getUTCDay()+7)%7;
+    previous.setUTCDate(previous.getUTCDate()-daysSinceSunday);
+    if(previous>now) previous.setUTCDate(previous.getUTCDate()-7);
+    const next=new Date(previous.getTime()+7*24*60*60*1000);
+    const last=new Date(loop.last_review_at||'');
+    const validLast=!Number.isNaN(last.valueOf());
+    const overdue=!validLast||last<previous;
+    let missed=0;
+    if(overdue){
+      let cursor=new Date(previous);
+      while(!validLast||cursor>last){
+        missed+=1;
+        cursor=new Date(cursor.getTime()-7*24*60*60*1000);
+        if(missed>=52) break;
+      }
+    }
+    return {previous,next,overdue,missed};
+  }
 
   function candidates(items){
     if(!items?.length)return `<p class="brace-empty">${esc(T.noCandidates)}</p>`;
@@ -57,11 +80,20 @@
   function render(data){
     const progress=data.promotion_progress||{}, risk=data.risk||{}, target=data.target||{}, remaining=(progress.remaining||[]).slice(0,10);
     const summary=lang==='pl'?data.control_summary_pl:data.control_summary_en;
+    const loop=data.learning_loop||{};
+    const schedule=weeklyLearningSchedule(loop);
+    const lastLearning=loop.last_review_at||data.last_research_run||data.last_incremental_learning;
+    const nextLearning=loop.next_scheduled_review_at||schedule.next.toISOString();
+    const missed=Number.isFinite(Number(loop.missed_scheduled_reviews))?Number(loop.missed_scheduled_reviews):schedule.missed;
+    const overdue=typeof loop.overdue==='boolean'?loop.overdue:schedule.overdue;
+    const learningSub=overdue?`${T.learningOverdue} · ${T.missed}: ${missed}`:T.learningOnTime;
+    const overdueAlert=overdue?`<div class="control-alert"><b>${esc(T.learningOverdue)}</b><span>${esc(`${T.expected}: ${dateTime(loop.previous_scheduled_review_at||schedule.previous.toISOString())} · ${T.missed}: ${missed}`)}</span></div>`:'';
     document.getElementById('brace-control-updated').textContent=dateTime(data.generated_at);
     root.innerHTML=`<div class="control-status ${tone(data.controller_status)}"><span>${esc(T.status)}</span><strong>${esc(data.display_status||data.controller_status)}</strong><small>${esc(T.paperOnly)}</small></div>
       ${summary?`<p class="control-summary">${esc(summary)}</p>`:''}
       <div class="control-metrics">${metric(T.champion,`${data.champion?.methodology_id||'—'} ${data.champion?.version||''}`,data.champion?.status||'')}${metric(T.challenger,`${data.challenger?.methodology_id||'—'} ${data.challenger?.version||''}`,data.challenger?.status||'')}${metric(T.risk,risk.safe_mode?T.safe:T.monitored,risk.status||'')}${metric(T.target,targetLabel(target.status),`P: ${pct(target.probability_of_reaching_target)}`)}</div>
-      <section class="control-learning"><h3>${esc(T.learning)}</h3><div>${metric(T.lastLearning,dateTime(data.last_incremental_learning),'')}${metric(T.nextAnalysis,dateTime(data.next_scheduled_analysis),'')}</div></section>
+      <section class="control-learning"><h3>${esc(T.learning)}</h3><div>${metric(T.lastLearning,dateTime(lastLearning),learningSub)}${metric(T.nextAnalysis,dateTime(nextLearning),'niedziela / Sunday · 08:40 UTC')}</div></section>
+      ${overdueAlert}
       ${data.fallback_reason?`<div class="control-alert"><b>${esc(T.fallback)}</b><span>${esc(data.fallback_reason)}</span></div>`:''}
       <section class="control-recommendations-wrap"><h3>${esc(T.recommendations)}</h3>${recommendations(data.position_recommendations)}</section>
       <div class="control-columns"><section><h3>${esc(T.remaining)}</h3>${remaining.length?`<ul>${remaining.map(item=>`<li>${esc(gateLabel(item))}</li>`).join('')}</ul>`:'<p>—</p>'}</section><section><h3>${esc(T.candidates)}</h3>${candidates(data.candidates)}</section><section><h3>${esc(T.pending)}</h3>${decisions(data.pending_decisions)}</section></div>
