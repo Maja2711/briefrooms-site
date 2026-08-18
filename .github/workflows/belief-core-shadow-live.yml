@@ -78,13 +78,21 @@ jobs:
           test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$STATE_DIR"
 
-      - name: Validate Belief Core before collection
+      - name: Validate Belief Core and adapters before collection
         run: |
           python -m py_compile \
             scripts/belief_core.py \
             scripts/belief_calibration.py \
+            scripts/belief_adapter_contract.py \
+            scripts/belief_market_data_adapter.py \
+            scripts/belief_technical_adapter.py \
+            scripts/belief_liquidity_adapter.py \
+            scripts/belief_regime_adapter.py \
             scripts/belief_core_live.py
-          python -m unittest tests/test_belief_core.py tests/test_belief_core_live.py -v
+          python -m unittest \
+            tests/test_belief_core.py \
+            tests/test_belief_core_adapters.py \
+            tests/test_belief_core_live.py -v
           python - <<'PY'
           import sys
           sys.path.insert(0, 'scripts')
