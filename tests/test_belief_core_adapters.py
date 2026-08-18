@@ -44,14 +44,16 @@ class BeliefAdapterContractTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             observation_to_evidence(obs, EvidenceAssessment("spx.trend.bullish", 1, .5, "test", "test"))
 
-    def test_evidence_keeps_observation_provenance(self) -> None:
+    def test_evidence_keeps_observation_provenance_and_derived_lineage(self) -> None:
         obs = Observation.make(adapter="x", metric="momentum", entity="SPY", observed_at="2026-08-18T14:00:00Z",
             value=.01, unit="return", source="test", source_type="derived", source_ref="x", reliability=.7,
             independence_cluster="derived:SPY:test")
         ev = observation_to_evidence(obs, EvidenceAssessment("spx.trend.bullish", 1, .6, "technical", "ok"))
         self.assertEqual(ev.metadata["observation_id"], obs.observation_id)
         self.assertEqual(ev.metadata["adapter"], "x")
+        self.assertEqual(ev.metadata["lineage_node_type"], "observation")
         self.assertEqual(ev.source_type, "derived")
+        self.assertEqual(ev.derived_from, (obs.observation_id,))
 
 
 class AdapterSuiteTest(unittest.TestCase):
@@ -76,6 +78,7 @@ class AdapterSuiteTest(unittest.TestCase):
         self.assertEqual(len(result.evidence), 1)
         self.assertEqual(result.evidence[0].belief_id, "spx.trend.bullish")
         self.assertEqual(result.evidence[0].metadata["adapter"], "technical_evidence")
+        self.assertTrue(result.evidence[0].derived_from)
 
     def test_liquidity_adapter_produces_tradability_observations_and_credit_evidence(self) -> None:
         result = LiquidityEvidenceAdapter().run(self.snapshot)
@@ -85,12 +88,14 @@ class AdapterSuiteTest(unittest.TestCase):
         self.assertTrue(rvol.metadata["time_of_day_adjusted"])
         self.assertEqual(len(result.evidence), 2)
         self.assertEqual({x.belief_id for x in result.evidence}, {"spx.liquidity.supportive"})
+        self.assertTrue(all(x.derived_from for x in result.evidence))
 
     def test_regime_adapter_produces_cross_asset_evidence(self) -> None:
         result = RegimeCrossAssetAdapter().run(self.snapshot)
         self.assertEqual(RegimeCrossAssetAdapter.classify(self.snapshot), "risk_on")
         self.assertEqual(len(result.evidence), 6)
         self.assertTrue({"spx.breadth.healthy","spx.volatility.benign","spx.financial_conditions.supportive"} <= {x.belief_id for x in result.evidence})
+        self.assertTrue(all(x.derived_from for x in result.evidence))
 
     def test_full_pipeline_preserves_nine_evidence_but_adds_observation_layer(self) -> None:
         payload = build_adapter_payload(self.snapshot)
