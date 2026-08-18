@@ -1,0 +1,108 @@
+/* BriefRooms Health Room 2.0 — shared PL/EN hub styles */
+body.health-hub{
+  --health-accent:#62e0c8;
+  --health-blue:#8fc9ff;
+  --health-panel:rgba(10,31,45,.88);
+  --health-line:rgba(177,239,231,.18);
+}
+body.health-hub > header:not(#site-header),
+body.health-hub > main{max-width:1120px}
+body.health-hub > header:not(#site-header){padding-top:46px;padding-bottom:12px}
+body.health-hub > header:not(#site-header) h1{margin-bottom:10px}
+body.health-hub > header:not(#site-header) .sub{max-width:760px;margin-left:auto;margin-right:auto}
+
+.health-trust-strip{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px 10px;
+  max-width:760px;margin:18px auto 0;padding:0 12px;
+}
+.health-trust-strip span{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 10px;
+  border:1px solid rgba(145,236,217,.18);border-radius:999px;
+  background:rgba(36,142,126,.08);color:#bceade;font-size:11px;font-weight:800;
+  letter-spacing:.02em;
+}
+.health-trust-strip span::before{content:"✓";color:#7cf1d1;font-weight:950}
+
+.health-quickstart{
+  margin:26px 0 34px;padding:20px;border:1px solid var(--health-line);border-radius:22px;
+  background:linear-gradient(145deg,rgba(17,52,66,.76),rgba(7,25,38,.88));
+  box-shadow:0 18px 42px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.health-quickstart__head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}
+.health-quickstart h2,.health-section h2,.health-method h2{margin:0;color:#effff9;letter-spacing:-.025em}
+.health-quickstart p,.health-section__intro,.health-method__lead{margin:5px 0 0;color:#a9c3cc;font-size:13px;line-height:1.5}
+.health-quickstart__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.health-quicklink{
+  min-height:88px;display:flex;flex-direction:column;justify-content:center;gap:5px;
+  padding:13px 14px;border:1px solid rgba(157,211,255,.15);border-radius:15px;
+  background:linear-gradient(155deg,rgba(255,255,255,.07),rgba(255,255,255,.025));
+  color:#edf9ff;text-decoration:none;transition:transform .18s ease,border-color .18s ease,background .18s ease;
+}
+.health-quicklink:hover,.health-quicklink:focus-visible{transform:translateY(-2px);border-color:rgba(104,226,201,.42);background:rgba(58,168,150,.11);text-decoration:none}
+.health-quicklink strong{font-size:13px;line-height:1.25}
+.health-quicklink span{color:#87e5d0;font-size:11px;font-weight:800}
+
+.health-section{margin:34px 0}
+.health-section__head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 2px 14px}
+.health-section__head h2{font-size:clamp(23px,3vw,30px)}
+.health-section .tiles{max-width:none;margin:0;padding:0}
+.health-guides .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.health-tools .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+body.health-hub .health-tools .tile-calculator{grid-column:auto!important;min-height:222px;
+  border-color:rgba(142,201,255,.34);
+  background:linear-gradient(145deg,rgba(27,72,111,.90),rgba(11,39,69,.95));
+  box-shadow:0 24px 48px rgba(1,18,37,.38),inset 0 0 0 5px rgba(5,27,49,.34),inset 0 0 0 6px rgba(190,225,255,.10),inset 0 1px 0 rgba(255,255,255,.24)
+}
+body.health-hub .health-tools .tile-calculator:before{background:linear-gradient(180deg,#d9efff,#86c8ff 42%,#4b91d8 78%,rgba(29,71,118,.25));box-shadow:0 0 14px rgba(104,181,255,.38)}
+body.health-hub .health-tools .tile-calculator:hover{border-color:rgba(172,219,255,.58);background:linear-gradient(145deg,rgba(33,84,126,.95),rgba(12,45,78,.97));box-shadow:0 30px 58px rgba(1,18,37,.44),0 0 24px rgba(91,169,242,.12),inset 0 0 0 5px rgba(5,27,49,.30),inset 0 0 0 6px rgba(204,232,255,.14)}
+body.health-hub .health-tools .tile-calculator .tile-kicker,
+body.health-hub .health-tools .tile-calculator .tile-action{color:#b8ddff}
+
+/* Shared recommendation block */
+.health-youtube-picks,.br-yt{
+  margin:40px 0 12px!important;padding:27px!important;max-width:none!important;
+  border:1px solid rgba(157,255,220,.22);border-radius:24px;
+  background:radial-gradient(520px 220px at 10% 0%,rgba(93,255,205,.12),transparent 66%),linear-gradient(145deg,rgba(13,55,54,.94),rgba(6,31,37,.97));
+  box-shadow:0 24px 56px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.07);color:#ecfff8;
+}
+.health-youtube-picks__head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.health-youtube-picks__icon{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border:1px solid rgba(153,255,218,.34);border-radius:14px;color:#092a2d;background:linear-gradient(145deg,#85f2c9,#42c7b5);box-shadow:0 10px 24px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.55)}
+.health-youtube-picks h2,.br-yt h2{margin:0 0 4px;color:#effff9;font-size:clamp(1.48rem,3vw,1.9rem);line-height:1.15}
+.health-youtube-picks__head p,.br-yt>p{margin:0 0 18px;color:#bcded4!important;line-height:1.5}
+.health-youtube-picks__grid,.br-yt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.health-youtube-pick,.br-yt-card{display:flex;min-height:220px;flex-direction:column;padding:19px!important;border:1px solid rgba(203,255,239,.16)!important;border-radius:18px!important;color:#effff9!important;text-decoration:none!important;background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03))!important;box-shadow:0 15px 32px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.06)!important;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.health-youtube-pick:hover,.health-youtube-pick:focus-visible,.br-yt-card:hover,.br-yt-card:focus-visible{transform:translateY(-4px);border-color:rgba(110,240,201,.52)!important;background:linear-gradient(160deg,rgba(72,202,171,.20),rgba(255,255,255,.04))!important;outline:none}
+.health-youtube-pick__label,.br-yt-tag{display:inline-flex;align-self:flex-start;width:max-content;margin-bottom:12px!important;padding:5px 9px!important;border:1px solid rgba(142,255,219,.26);border-radius:999px!important;color:#a9ffe0!important;background:rgba(29,103,91,.36)!important;font-size:.68rem!important;font-weight:900!important;letter-spacing:.07em;text-transform:uppercase}
+.health-youtube-pick__identity{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.health-youtube-pick__avatar{width:62px;height:62px;flex:0 0 62px;border:2px solid rgba(214,255,244,.68);border-radius:50%;background:#fff;object-fit:cover;box-shadow:0 8px 20px rgba(0,0,0,.26)}
+.health-youtube-pick strong,.br-yt-card h3{margin:0 0 9px;color:#f4fff9;font-size:1.08rem;line-height:1.3}
+.health-youtube-pick__description,.br-yt-card p{margin:0;color:#bfddd5!important;font-size:.88rem!important;line-height:1.52!important}
+.health-youtube-pick b,.br-yt-cta{margin-top:auto;padding-top:15px;color:#8af1ca!important;font-size:.84rem!important;font-weight:900!important}
+.health-youtube-picks__note{margin:15px 2px 0;color:#83a79d;font-size:.73rem;line-height:1.45}
+
+.health-method{
+  margin:34px 0 10px;padding:24px;border:1px solid rgba(145,188,212,.16);border-radius:22px;
+  background:linear-gradient(150deg,rgba(18,42,60,.78),rgba(8,24,38,.88));
+}
+.health-method__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:17px}
+.health-method__item{padding:15px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.035)}
+.health-method__item strong{display:block;margin-bottom:6px;color:#e9f7ff;font-size:13px}
+.health-method__item p{margin:0;color:#a9bdcb;font-size:12px;line-height:1.55}
+.health-method__updated{margin:15px 0 0;color:#78a3b5;font-size:11px}
+
+@media(max-width:900px){
+  .health-quickstart__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .health-tools .tiles{grid-template-columns:1fr}
+  .health-method__grid{grid-template-columns:1fr}
+}
+@media(max-width:759px){
+  .health-guides .tiles{grid-template-columns:1fr}
+  .health-section__head,.health-quickstart__head{display:block}
+}
+@media(max-width:560px){
+  .health-quickstart{padding:17px 14px}.health-quickstart__grid{grid-template-columns:1fr}
+  .health-youtube-picks,.br-yt{padding:21px 15px!important}
+  .health-youtube-picks__head{align-items:flex-start}.health-youtube-pick__avatar{width:54px;height:54px;flex-basis:54px}
+  .health-method{padding:19px 15px}
+}
+@media(prefers-reduced-motion:reduce){.health-quicklink,.health-youtube-pick,.br-yt-card{transition:none}.health-quicklink:hover,.health-youtube-pick:hover,.br-yt-card:hover{transform:none}}
