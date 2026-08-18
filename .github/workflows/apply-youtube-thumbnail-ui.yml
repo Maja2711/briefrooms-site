@@ -2,6 +2,8 @@ name: Apply YouTube Thumbnail UI
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   push:
     branches: [main]
     paths:
@@ -19,6 +21,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event_name != 'issues' || github.event.issue.title == 'Apply YouTube thumbnail UI'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
