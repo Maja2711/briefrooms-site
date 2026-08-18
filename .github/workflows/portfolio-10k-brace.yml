@@ -69,7 +69,7 @@ jobs:
       - name: Compile and test deterministic engine
         run: |
           python -m compileall -q scripts
-          python -m pytest -q tests/test_brace_portfolio_engine.py tests/test_brace_portfolio_self_learning.py tests/test_brace_learning_schedule.py
+          python -m pytest -q tests/test_brace_portfolio*.py tests/test_brace_learning_schedule.py
           node --check scripts/portfolio-10k-public.js
           node --check scripts/portfolio-10k-control-public.js
       - name: Build current BRACE decisions
