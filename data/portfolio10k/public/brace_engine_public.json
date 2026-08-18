@@ -1,138 +1,37 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-18T20:52:53+00:00",
+  "generated_at": "2026-08-18T21:50:11+00:00",
   "methodology_version": "3.0.0",
-  "data_freshness": "current",
+  "data_freshness": "unsafe",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "paper_only": true,
     "real_broker_connected": false
   },
-  "controller_status": "PROBATIONARY_CONTROL",
-  "display_status": "PROBATIONARY_CONTROL",
-  "portfolio_data_path": "/data/portfolio10k/paper_portfolio.json",
+  "controller_status": "FALLBACK_BASELINE",
+  "display_status": "FALLBACK_BASELINE",
+  "portfolio_data_path": "/data/investments/portfolio_10k.json",
   "champion": {
-    "methodology_id": "brace-portfolio-engine",
-    "version": "3.0.0",
-    "status": "PROBATIONARY_CONTROL"
+    "methodology_id": "portfolio-10k-baseline",
+    "version": "1.0.0",
+    "status": "ACTIVE_BASELINE"
   },
   "baseline": {
     "methodology_id": "portfolio-10k-baseline",
     "version": "1.0.0",
-    "status": "FALLBACK_BASELINE"
+    "status": "ACTIVE_BASELINE"
   },
   "challenger": {
     "methodology_id": "brace-portfolio-engine",
     "version": "3.0.0",
-    "status": "PROBATIONARY_CONTROL"
+    "status": "FALLBACK_BASELINE"
   },
   "promotion_progress": {
-    "passed": 9,
-    "total": 18,
-    "percentage": 50.0,
-    "conditions": [
-      {
-        "group": "probation",
-        "condition": "minimum_calendar_days",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "daily_rotation_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "weekly_change_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "weekly_turnover_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "new_position_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "minimum_confidence",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "no_full_portfolio_replacement",
-        "passed": true
-      },
-      {
-        "group": "probation",
-        "condition": "transaction_cost_buffer_applied",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "cooldown_applied",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "material_advantage_required",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "no_fallback_trigger",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "no_critical_data_errors",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "decisions_reproducible",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "entry_history_unchanged",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "timestamps_complete",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "workflow_stable",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "public_internal_consistent",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "integrity_tests_pass",
-        "passed": true
-      }
-    ],
-    "remaining": [
-      "minimum_calendar_days",
-      "daily_rotation_limit",
-      "weekly_change_limit",
-      "weekly_turnover_limit",
-      "new_position_limit",
-      "minimum_confidence",
-      "transaction_cost_buffer_applied",
-      "cooldown_applied",
-      "material_advantage_required"
-    ],
+    "passed": 0,
+    "total": 0,
+    "percentage": 0.0,
+    "conditions": [],
+    "remaining": [],
     "reason": "No status change; promotion gates remain incomplete."
   },
   "shadow": {
@@ -149,8 +48,11 @@
     "expected_drawdown": 0.206512,
     "current_drawdown": null,
     "annual_turnover": 0.513356,
-    "safe_mode": false,
-    "safe_mode_reasons": []
+    "safe_mode": true,
+    "safe_mode_reasons": [
+      "STALE_MARKET_DATA",
+      "TOO_MANY_INVALID_INSTRUMENTS"
+    ]
   },
   "target": {
     "target_annual_return": 0.1,
@@ -165,16 +67,8 @@
   "last_incremental_learning": "2026-07-31T23:28:25+00:00",
   "last_research_run": "2026-08-18T17:19:31+00:00",
   "next_scheduled_analysis": "2026-08-25T17:19:31+00:00",
-  "fallback_reason": null,
+  "fallback_reason": "No status change; promotion gates remain incomplete.",
   "promotion_history": [
-    {
-      "promotion_id": "promotion-37f94fd1c7c6001f",
-      "previous_status": "PROBATIONARY_CONTROL",
-      "new_status": "FALLBACK_BASELINE",
-      "evaluated_at": "2026-08-17T21:52:41+00:00",
-      "all_conditions_passed": true,
-      "reason": "Automatic fallback: STALE_DATA"
-    },
     {
       "promotion_id": "promotion-cffb75f7d7deb5df",
       "previous_status": "PROBATIONARY_CONTROL",
@@ -260,6 +154,14 @@
       "previous_status": "PROBATIONARY_CONTROL",
       "new_status": "FALLBACK_BASELINE",
       "evaluated_at": "2026-08-18T16:59:34+00:00",
+      "all_conditions_passed": true,
+      "reason": "Automatic fallback: STALE_DATA"
+    },
+    {
+      "promotion_id": "promotion-cd7669730f2158ff",
+      "previous_status": "PROBATIONARY_CONTROL",
+      "new_status": "FALLBACK_BASELINE",
+      "evaluated_at": "2026-08-18T21:50:11+00:00",
       "all_conditions_passed": true,
       "reason": "Automatic fallback: STALE_DATA"
     }
@@ -423,5 +325,5 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "c17b251130096f5506e6aa5b21d77aa8c65479d1e33d3a0d39de3db8d2196e42"
+  "content_sha256": "0e4d33aab8feadfef87edd33e86a8d5674d5cd38207b8bea36c7480b5862c972"
 }
