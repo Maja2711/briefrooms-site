@@ -8,10 +8,12 @@ on:
       - "scripts/belief_core_shadow.py"
       - "scripts/belief_core_verify.py"
       - "scripts/belief_core_live.py"
-      - "tests/test_belief_core.py"
-      - "tests/test_belief_core_live.py"
+      - "scripts/belief_adapter_contract.py"
+      - "scripts/belief_*_adapter.py"
+      - "tests/test_belief_core*.py"
       - "docs/BELIEF_CORE.md"
       - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
+      - "docs/BELIEF_EVIDENCE_ADAPTERS.md"
       - ".github/workflows/belief-core-tests.yml"
       - ".github/workflows/belief-core-shadow-live.yml"
   workflow_dispatch:
@@ -30,7 +32,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compile Belief Core
-        run: python -m py_compile scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py scripts/belief_core_live.py
+      - name: Compile Belief Core and adapters
+        run: |
+          python -m py_compile \
+            scripts/belief_core.py \
+            scripts/belief_calibration.py \
+            scripts/belief_core_shadow.py \
+            scripts/belief_core_verify.py \
+            scripts/belief_adapter_contract.py \
+            scripts/belief_market_data_adapter.py \
+            scripts/belief_technical_adapter.py \
+            scripts/belief_liquidity_adapter.py \
+            scripts/belief_regime_adapter.py \
+            scripts/belief_core_live.py
       - name: Run Belief Core unit tests
         run: python -m unittest discover -s tests -p 'test_belief_core*.py' -v
