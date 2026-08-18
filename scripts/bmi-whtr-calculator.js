@@ -8,13 +8,13 @@
     required:'Wpisz prawidłowe dodatnie wartości masy ciała, wzrostu i obwodu talii.',
     range:'Sprawdź dane. Kalkulator obsługuje typowe zakresy dla dorosłych: 30–300 kg, 120–230 cm wzrostu i 35–220 cm talii.',
     bmiLabel:{under:'Niedowaga',healthy:'Zakres prawidłowy',over:'Nadwaga',ob1:'Otyłość I stopnia',ob2:'Otyłość II stopnia',ob3:'Otyłość III stopnia'},
-    whtrLabel:{low:'Poniżej typowego zakresu',healthy:'Zdrowa otyłość centralna',increased:'Zwiększona otyłość centralna',high:'Wysoka otyłość centralna'},
+    whtrLabel:{low:'Poniżej typowego zakresu',healthy:'Prawidłowy zakres talii/wzrost',increased:'Podwyższony stosunek talii do wzrostu',high:'Wysoki stosunek talii do wzrostu'},
     half:h=>'Dla wzrostu '+fmt(h,0)+' cm połowa wzrostu to '+fmt(h/2,1)+' cm. Prosta zasada NICE: staraj się utrzymywać talię poniżej połowy wzrostu.',
     comments:{
       under:'BMI jest poniżej typowego zakresu dla dorosłych. Ten wynik nie jest sygnałem do dalszego odchudzania. Jeśli niska masa ciała nie jest zamierzona, spada lub towarzyszą jej osłabienie, utrata apetytu albo inne objawy, warto omówić to z lekarzem.',
       healthyHealthy:'BMI i stosunek talii do wzrostu są w typowych zakresach przesiewowych. To korzystny sygnał, ale nie jest pełną oceną zdrowia — znaczenie nadal mają m.in. ciśnienie, lipidy, glikemia, aktywność, palenie i wywiad rodzinny.',
-      healthyCentral:'BMI jest w typowym zakresie, ale talia w stosunku do wzrostu wskazuje na zwiększoną otyłość centralną. To dobry przykład, dlaczego sam BMI może nie wystarczać do oceny ryzyka metabolicznego.',
-      overHealthy:'BMI jest powyżej typowego zakresu, natomiast talia względem wzrostu nie wskazuje na zwiększoną otyłość centralną. BMI bywa zawyżone u osób z dużą masą mięśniową, dlatego warto patrzeć także na obwód talii, trend masy ciała i inne czynniki ryzyka.',
+      healthyCentral:'BMI jest w typowym zakresie, ale talia w stosunku do wzrostu wskazuje na zwiększone otłuszczenie centralne. To dobry przykład, dlaczego sam BMI może nie wystarczać do oceny ryzyka metabolicznego.',
+      overHealthy:'BMI jest powyżej typowego zakresu, natomiast talia względem wzrostu nie wskazuje na zwiększone otłuszczenie centralne. BMI bywa zawyżone u osób z dużą masą mięśniową, dlatego warto patrzeć także na obwód talii, trend masy ciała i inne czynniki ryzyka.',
       overCentral:'BMI i talia względem wzrostu wskazują na podwyższone ryzyko kardiometaboliczne. Najbardziej praktycznym celem jest stopniowe zmniejszanie obwodu talii i poprawa czynników ryzyka, a nie gonienie za jedną „idealną” liczbą na wadze.',
       obesity:'BMI mieści się w zakresie otyłości. Warto potraktować wynik jako sygnał do pełniejszej oceny zdrowia i ryzyka kardiometabolicznego. Trwałe, stopniowe zmiany zwykle są bardziej użyteczne niż krótkie, restrykcyjne diety.',
       severe:'BMI wynosi co najmniej 35 kg/m². Przy takim BMI wskaźnik talia/wzrost wnosi mniej do przewidywania ryzyka, dlatego większe znaczenie ma całościowa ocena kliniczna, ciśnienie, glikemia, lipidy, choroby współistniejące i codzienne funkcjonowanie.'
@@ -22,7 +22,7 @@
     rec:{
       maintain:'Utrzymuj regularny ruch, dietę opartą głównie na mało przetworzonych produktach, odpowiednią ilość snu i obserwuj trend talii oraz masy ciała zamiast pojedynczego pomiaru.',
       waist:'Jeśli talia wynosi co najmniej połowę wzrostu, sensownym długoterminowym celem jest jej stopniowe zmniejszanie. Unikaj gwałtownych diet i skup się na zmianach, które da się utrzymać.',
-      cardio:'Przy zwiększonej otyłości centralnej warto znać swoje ciśnienie tętnicze oraz omówić z lekarzem ocenę glikemii/HbA1c i lipidogramu, szczególnie przy obciążonym wywiadzie rodzinnym lub innych czynnikach ryzyka.',
+      cardio:'Przy zwiększonym otłuszczeniu centralnym warto znać swoje ciśnienie tętnicze oraz omówić z lekarzem ocenę glikemii/HbA1c i lipidogramu, szczególnie przy obciążonym wywiadzie rodzinnym lub innych czynnikach ryzyka.',
       under:'Nie stosuj deficytu kalorycznego tylko po to, by obniżyć BMI. Przy niedowadze ważniejsze są adekwatna podaż energii i białka, siła mięśniowa oraz wyjaśnienie niezamierzonego spadku masy ciała.',
       obesity:'Jeśli BMI wskazuje otyłość, rozważ rozmowę z lekarzem lub dietetykiem o realistycznym planie poprawy zdrowia. Warto oceniać także ciśnienie, glikemię i lipidy, a nie tylko masę ciała.',
       repeat:'Powtarzaj pomiary w podobnych warunkach. Talię mierz w połowie odległości między dolnym brzegiem żeber a górnym brzegiem bioder, po spokojnym wydechu.'
