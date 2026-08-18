@@ -7,9 +7,13 @@ on:
       - "scripts/belief_calibration.py"
       - "scripts/belief_core_shadow.py"
       - "scripts/belief_core_verify.py"
+      - "scripts/belief_core_live.py"
       - "tests/test_belief_core.py"
+      - "tests/test_belief_core_live.py"
       - "docs/BELIEF_CORE.md"
+      - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
       - ".github/workflows/belief-core-tests.yml"
+      - ".github/workflows/belief-core-shadow-live.yml"
   workflow_dispatch:
 
 permissions:
@@ -27,6 +31,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile Belief Core
-        run: python -m py_compile scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py
+        run: python -m py_compile scripts/belief_core.py scripts/belief_calibration.py scripts/belief_core_shadow.py scripts/belief_core_verify.py scripts/belief_core_live.py
       - name: Run Belief Core unit tests
-        run: python -m unittest discover -s tests -p 'test_belief_core.py' -v
+        run: python -m unittest discover -s tests -p 'test_belief_core*.py' -v
