@@ -14,9 +14,9 @@ HOME='''<section class="br-yt" aria-labelledby="br-yt-home"><h2 id="br-yt-home">
 <a class="br-yt-card" href="https://music.youtube.com/podcast/sMSqb2_Ki2c" target="_blank" rel="noopener noreferrer"><span class="br-yt-tag">GEOPOLITICS</span><h3>Europe, Russia and preparedness for a wider conflict</h3><p>A discussion of European security, NATO resilience and the strategic risks posed by Russia.</p><span class="br-yt-cta">Watch on YouTube →</span></a>
 </div></section>'''
 
-HEALTH='''<section class="br-yt" aria-labelledby="br-yt-health"><h2 id="br-yt-health">Recommended on YouTube</h2><p>Evidence-based health and nutrition from recognised medical experts.</p><div class="br-yt-grid">
-<a class="br-yt-card" href="https://music.youtube.com/podcast/0rxsjNSHD_M" target="_blank" rel="noopener noreferrer"><span class="br-yt-tag">MAYO CLINIC</span><h3>DASH diet guide for high blood pressure</h3><p>How sodium, potassium, fibre and food choices affect hypertension risk.</p><span class="br-yt-cta">Watch →</span></a>
-<a class="br-yt-card" href="https://music.youtube.com/podcast/VKXQcNHYS1w" target="_blank" rel="noopener noreferrer"><span class="br-yt-tag">CARDIOMETABOLIC HEALTH</span><h3>Dietary Guidelines: what changed and why it matters</h3><p>Dariush Mozaffarian and Mayo Clinic discuss the evidence and practical cardiometabolic implications.</p><span class="br-yt-cta">Watch →</span></a>
+HEALTH='''<section class="br-yt" aria-labelledby="br-yt-health"><h2 id="br-yt-health">Recommended materials</h2><p>Selected health and nutrition discussions from recognised medical experts.</p><div class="br-yt-grid">
+<a class="br-yt-card" href="https://music.youtube.com/podcast/0rxsjNSHD_M" target="_blank" rel="noopener noreferrer external"><span class="br-yt-tag">MAYO CLINIC</span><h3>DASH diet guide for high blood pressure</h3><p>How sodium, potassium, fibre and food choices affect hypertension risk.</p><span class="br-yt-cta">Watch →</span></a>
+<a class="br-yt-card" href="https://music.youtube.com/podcast/VKXQcNHYS1w" target="_blank" rel="noopener noreferrer external"><span class="br-yt-tag">CARDIOMETABOLIC HEALTH</span><h3>Dietary Guidelines: what changed and why it matters</h3><p>Dariush Mozaffarian and Mayo Clinic discuss the evidence and practical cardiometabolic implications.</p><span class="br-yt-cta">Watch →</span></a>
 </div></section>'''
 
 SCIENCE='''<section class="br-yt" aria-labelledby="br-yt-science"><h2 id="br-yt-science">Recommended on YouTube</h2><p>AI research, model development and the science behind modern systems.</p><div class="br-yt-grid">
@@ -31,18 +31,19 @@ GEO='''<section class="br-yt" aria-labelledby="br-yt-geo"><h2 id="br-yt-geo">Rec
 </div></section>'''
 
 
-def patch(path: str, block: str):
+def patch(path: str, block: str, include_style: bool = True):
     p=Path(path)
     text=p.read_text(encoding='utf-8')
     text=re.sub(re.escape(START)+r'.*?'+re.escape(END), '', text, flags=re.S)
-    payload=f'\n{START}\n{STYLE}\n{block}\n{END}\n'
+    style=(STYLE+'\n') if include_style else ''
+    payload=f'\n{START}\n{style}{block}\n{END}\n'
     anchor='</main>'
     if anchor not in text:
         raise RuntimeError(f'Missing </main> in {path}')
     text=text.replace(anchor,payload+anchor,1)
     p.write_text(text,encoding='utf-8')
 
-patch('en/health.html',HEALTH)
+patch('en/health.html',HEALTH,include_style=False)
 patch('en/science.html',SCIENCE)
 patch('en/geopolitics.html',GEO)
 print('Patched EN YouTube recommendations')
