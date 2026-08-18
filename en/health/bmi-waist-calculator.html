@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BMI and waist-to-height calculator — interpretation | BriefRooms</title>
+  <meta name="description" content="Calculate BMI and waist-to-height ratio (WHtR), then get a BriefRooms comment and general guidance based on WHO and NICE." />
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="canonical" href="https://briefrooms.com/en/health/bmi-waist-calculator.html" />
+  <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/health/bmi-waist-calculator.html" />
+  <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/zdrowie/kalkulator-bmi-talia.html" />
+  <link rel="alternate" hreflang="x-default" href="https://briefrooms.com/" />
+  <meta name="robots" content="index,follow,max-snippet:-1" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="BriefRooms" />
+  <meta property="og:title" content="BMI and waist-to-height calculator | BriefRooms" />
+  <meta property="og:description" content="BMI + WHtR in one result, with a BriefRooms comment and general guidance." />
+  <meta property="og:url" content="https://briefrooms.com/en/health/bmi-waist-calculator.html" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"BMI and waist-to-height calculator","url":"https://briefrooms.com/en/health/bmi-waist-calculator.html","applicationCategory":"HealthApplication","operatingSystem":"Web","inLanguage":"en","description":"BMI and waist-to-height ratio calculator with educational interpretation."}
+  </script>
+  <link rel="stylesheet" href="/assets/bmi-whtr-calculator.css?v=1" />
+  <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
+  <script src="/scripts/site-header.js?v=20260719-1" defer></script>
+</head>
+<body class="bmi-whtr-page">
+<header id="site-header"></header>
+<header>
+  <h1>BMI + waist-to-height ratio</h1>
+  <p class="lead">Two simple screening measures instead of BMI alone. The calculator shows BMI, waist-to-height ratio (WHtR), a BriefRooms comment and general guidance. For adults.</p>
+</header>
+
+<main>
+  <div class="bmi-shell">
+    <section class="bmi-card" aria-labelledby="bmi-form-title">
+      <h2 id="bmi-form-title">Enter three values</h2>
+      <p class="intro">No sex field is needed — the WHtR thresholds used here are the same for women and men.</p>
+      <form id="bmi-whtr-form" novalidate>
+        <div class="bmi-fields">
+          <div class="bmi-field">
+            <label for="weight">Body weight</label>
+            <input id="weight" name="weight" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 82" />
+            <small>kilograms</small>
+          </div>
+          <div class="bmi-field">
+            <label for="height">Height</label>
+            <input id="height" name="height" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 175" />
+            <small>centimetres</small>
+          </div>
+          <div class="bmi-field bmi-field--wide">
+            <label for="waist">Waist circumference</label>
+            <input id="waist" name="waist" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 94" />
+            <small>centimetres; do not pull the abdomen in</small>
+          </div>
+        </div>
+        <p class="bmi-measure-tip"><strong>How to measure your waist:</strong> find the bottom of the ribs and the top of the hips, then measure midway between these points after a relaxed breath out. This follows the NICE method.</p>
+        <div class="bmi-actions">
+          <button class="bmi-button" type="submit">Calculate and comment</button>
+          <button class="bmi-button secondary" type="reset">Clear</button>
+        </div>
+        <div id="bmi-whtr-error" class="bmi-error" role="alert" hidden></div>
+      </form>
+      <p class="bmi-privacy">Calculations run only in your browser. The values you enter are not sent to the server.</p>
+    </section>
+
+    <section id="bmi-whtr-results" class="bmi-card bmi-results" aria-live="polite" hidden>
+      <h2>Your result</h2>
+      <div class="bmi-result-grid">
+        <div class="bmi-result"><span>BMI</span><strong id="bmi-value"></strong><b id="bmi-category"></b></div>
+        <div class="bmi-result"><span>Waist / height</span><strong id="whtr-value"></strong><b id="whtr-category"></b></div>
+      </div>
+      <p id="half-height-note" class="bmi-half-height"></p>
+      <div class="bmi-comment">
+        <h3>BriefRooms comment</h3>
+        <p id="bmi-comment-text"></p>
+      </div>
+      <div class="bmi-recommendations">
+        <h3>General guidance</h3>
+        <ul id="bmi-recommendation-list"></ul>
+      </div>
+      <p id="bmi-caution" class="bmi-caution"></p>
+    </section>
+  </div>
+
+  <div class="bmi-info">
+    <section>
+      <h2>How is BMI interpreted?</h2>
+      <p>For most adults, WHO defines overweight from BMI 25 kg/m² and obesity from 30 kg/m². BMI is a screening measure, not a direct measurement of body fat.</p>
+      <ul>
+        <li>&lt;18.5 — underweight</li>
+        <li>18.5–24.9 — healthy range</li>
+        <li>25.0–29.9 — overweight</li>
+        <li>30.0–34.9 — obesity class I</li>
+        <li>35.0–39.9 — obesity class II</li>
+        <li>≥40 — obesity class III</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Why waist-to-height ratio?</h2>
+      <p>NICE recommends using WHtR alongside BMI in adults with BMI below 35 kg/m² as a practical estimate of central adiposity.</p>
+      <ul>
+        <li>0.40–0.49 — healthy central adiposity</li>
+        <li>0.50–0.59 — increased central adiposity</li>
+        <li>≥0.60 — high central adiposity</li>
+      </ul>
+      <p>The simplest message is: <strong>keep your waist below half your height</strong>.</p>
+    </section>
+    <section>
+      <h2>Important limitations</h2>
+      <p>WHtR adds less information when BMI is ≥35 kg/m². BMI should be interpreted cautiously in people with high muscle mass, in older adults and in some ethnic groups where cardiometabolic risk can occur at lower BMI levels.</p>
+      <p>This tool is not intended for pregnancy, children or adolescents.</p>
+    </section>
+    <section>
+      <h2>Method sources</h2>
+      <ul>
+        <li><a href="https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight" target="_blank" rel="noopener noreferrer external">WHO — Obesity and overweight</a></li>
+        <li><a href="https://www.nice.org.uk/guidance/ng246/chapter/Identifying-and-assessing-overweight-obesity-and-central-adiposity" target="_blank" rel="noopener noreferrer external">NICE NG246 — BMI and waist-to-height ratio</a></li>
+      </ul>
+      <p>The WHtR thresholds and the “waist below half your height” message follow NICE NG246.</p>
+    </section>
+  </div>
+
+  <p class="bmi-back">← <a href="/en/health.html">Back to Health</a></p>
+</main>
+
+<footer></footer>
+<script src="/scripts/bmi-whtr-calculator.js?v=1"></script>
+<script src="/scripts/legal-footer.js?v=sticky-footer-2" defer></script>
+</body>
+</html>
