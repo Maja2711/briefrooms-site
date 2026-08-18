@@ -52,6 +52,8 @@ def _event_generate(**kwargs):
     now = forwarded.get("now") or gpw.now_warsaw()
     if payload.get("decision") == "TRANSAKCJA":
         payload = market.reprice_transaction(payload, now=now)
+    if payload.get("decision") == "AWARIA_DANYCH" and "08:30" in str(payload.get("reason") or ""):
+        payload["reason"] = str(payload["reason"]).replace("08:30", "09:10")
     return payload
 
 
@@ -141,6 +143,17 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
     return enriched
 
 
+def _publish_current_failure(now, config, snapshot, stage):
+    payload = gpw.failure_payload(now, config, "Brak dzisiaj wyboru.", stage)
+    payload["reason"] = (
+        f"Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed {config['publication_cutoff']}."
+    )
+    payload["locked"] = True
+    payload = loop._enrich_payload(payload, snapshot, attempts=0)
+    gpw.publish(payload)
+    return payload
+
+
 def install() -> None:
     global _INSTALLED
     if _INSTALLED:
@@ -156,6 +169,7 @@ def install() -> None:
     loop.build_learning_snapshot = _build_learning_snapshot
     loop._public_learning = _public_learning
     loop._enrich_payload = _enrich_payload
+    loop._publish_current_failure = _publish_current_failure
     _INSTALLED = True
 
 
