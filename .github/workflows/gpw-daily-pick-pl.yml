@@ -20,30 +20,30 @@ on:
       - "scripts/gpw_daily_control_loop.py"
       - "scripts/gpw_event_layer.py"
       - "scripts/gpw_event_driven_loop.py"
+      - "scripts/gpw_market_data.py"
       - "scripts/gpw-daily-pick-public.js"
       - "assets/gpw-daily-pick.css"
       - "data/investments/gpw_daily_pick_config.json"
       - "tests/test_gpw_daily_pick.py"
       - "tests/test_gpw_daily_control_loop.py"
       - "tests/test_gpw_event_layer.py"
+      - "tests/test_gpw_market_data.py"
       - "tests/test_gpw_daily_pick_ui.py"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
-    # Insurance attempts start early because GitHub scheduled workflows may be
-    # delayed. The event-driven wrapper will not perform the actual research
-    # before 07:15 Europe/Warsaw, so early arrivals are harmless no-ops while
-    # delayed arrivals can still rescue the immutable 08:30 publication SLA.
-    # Together these cover both CET and CEST without relying on one cron firing
-    # at the exact requested minute.
-    - cron: "45 4 * * 1-5"
-    - cron: "0 5 * * 1-5"
-    - cron: "15 5 * * 1-5"
-    - cron: "30 5 * * 1-5"
+    # Insurance attempts cover both CET and CEST. The event-driven wrapper is a
+    # no-op before 09:05 Europe/Warsaw and publishes only until the 09:10 cutoff.
+    # Early schedules absorb GitHub cron delay; 09:05/09:10 pairs target the
+    # first executable post-open market snapshot.
     - cron: "45 5 * * 1-5"
     - cron: "0 6 * * 1-5"
-    - cron: "15 6 * * 1-5"
     - cron: "30 6 * * 1-5"
     - cron: "45 6 * * 1-5"
+    - cron: "5 7 * * 1-5"
+    - cron: "10 7 * * 1-5"
+    - cron: "45 7 * * 1-5"
+    - cron: "5 8 * * 1-5"
+    - cron: "10 8 * * 1-5"
     # End-of-day settlement / learning refresh, paired for CET/CEST.
     - cron: "40 16 * * 1-5"
     - cron: "40 17 * * 1-5"
@@ -63,6 +63,7 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
       GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
       GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
       GEMINI_MIN_INTERVAL_SECONDS: "8"
@@ -109,12 +110,14 @@ jobs:
             tests.test_gpw_daily_pick \
             tests.test_gpw_daily_control_loop \
             tests.test_gpw_event_layer \
+            tests.test_gpw_market_data \
             tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
             scripts/gpw_daily_pick.py \
             scripts/gpw_daily_control_loop.py \
             scripts/gpw_event_layer.py \
-            scripts/gpw_event_driven_loop.py
+            scripts/gpw_event_driven_loop.py \
+            scripts/gpw_market_data.py
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/gpw_daily_pick.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
@@ -150,7 +153,7 @@ jobs:
               import subprocess
               subprocess.run(['python', 'scripts/gpw_event_driven_loop.py', '--mode', 'validate'], check=True)
           else:
-              print('Pre-open event control run finished before publication window; no validation required yet.')
+              print('Post-open control run finished before publication window; no validation required yet.')
           PY
           fi
 
@@ -234,7 +237,7 @@ jobs:
           from zoneinfo import ZoneInfo
 
           today = datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat()
-          headers = {"User-Agent": "BriefRooms-GPW-production-verifier/3.0", "Cache-Control": "no-cache"}
+          headers = {"User-Agent": "BriefRooms-GPW-production-verifier/4.0", "Cache-Control": "no-cache"}
           for attempt in range(1, 37):
               url = f"https://briefrooms.com/data/investments/gpw_daily_pick.json?v={int(time.time())}-{attempt}"
               try:
@@ -250,7 +253,7 @@ jobs:
           raise SystemExit("Production did not expose today's GPW event-driven control state in time.")
           PY
 
-      - name: Enforce scheduled pre-open SLA
+      - name: Enforce scheduled post-open SLA
         if: always() && github.event_name == 'schedule' && steps.run.outputs.mode == 'auto'
         run: |
           python - <<'PY'
@@ -260,8 +263,8 @@ jobs:
           from zoneinfo import ZoneInfo
 
           now = datetime.now(ZoneInfo("Europe/Warsaw"))
-          if now.time() < clock_time(8, 30):
-              print(f"Pre-open insurance run completed at {now:%H:%M}; SLA audit waits until cutoff.")
+          if now.time() < clock_time(9, 10):
+              print(f"Post-open insurance run completed at {now:%H:%M}; SLA audit waits until cutoff.")
               raise SystemExit(0)
 
           payload = json.loads(Path("data/investments/gpw_daily_pick.json").read_text(encoding="utf-8"))
@@ -270,16 +273,16 @@ jobs:
           failed_stage = str(quality.get("failed_stage") or "")
           operational_failure = payload.get("decision") == "AWARIA_DANYCH" and (
               attempts == 0
-              or failed_stage in {"missed_cutoff_guardian", "cutoff_after_retries", "cutoff_after_review"}
+              or failed_stage in {"missed_cutoff_guardian", "cutoff_after_retries", "cutoff_after_review", "opening_quote"}
           )
           if operational_failure:
               print(
-                  f"::error title=GPW pre-open SLA missed::No valid pre-open analysis was completed before 08:30. "
+                  f"::error title=GPW post-open SLA missed::No valid post-open analysis was completed before 09:10. "
                   f"stage={failed_stage or 'unknown'} attempts={attempts} generated_at={payload.get('generated_at')}"
               )
               raise SystemExit(1)
           print(
-              f"GPW pre-open SLA healthy: decision={payload.get('decision')} attempts={attempts} "
+              f"GPW post-open SLA healthy: decision={payload.get('decision')} attempts={attempts} "
               f"generated_at={payload.get('generated_at')}"
           )
           PY
