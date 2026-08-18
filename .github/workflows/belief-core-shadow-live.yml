@@ -2,6 +2,10 @@ name: Belief Core Live Shadow Collection
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/belief-core-shadow-live.yml"
   schedule:
     # Covers 09:30-16:20 America/New_York across EDT and EST.
     # The Python scheduler decides whether a run is inside the market window.
