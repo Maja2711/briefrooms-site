@@ -1545,7 +1545,7 @@
           "score": 0.0
         }
       },
-      "next_entry_status": "open",
+      "next_entry_status": "blocked_after_risk_exit",
       "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit",
       "wes_status": "open_wes_governed_position",
       "wes_methodology": "WES-1.0.0",
@@ -1601,7 +1601,248 @@
       },
       "exit_execution_model": "frozen_planned_level_first_intraday_bar_conservative",
       "result_units": -83.06716487,
-      "result_currency": "USD"
+      "result_currency": "USD",
+      "reentry_lock": {
+        "active": true,
+        "scope": "same_week",
+        "until": "2026-08-21T22:00:00+02:00",
+        "reason": "stop_loss",
+        "policy": "sl_tp_exit_blocks_same_week_reentry",
+        "created_from_exit_at": "2026-08-18T05:35:00+00:00"
+      },
+      "position_legs": [
+        {
+          "leg_id": "1b64ca79385af1e1",
+          "instrument_id": "sp500_futures",
+          "symbol": "ES=F",
+          "direction": "long",
+          "strategy_id": "weekly_trend",
+          "entry_regime": "trend_up:vol_normal",
+          "entry_decision": {
+            "direction": "long",
+            "raw_score": 88.0,
+            "conviction": 13.2,
+            "strategy_id": "weekly_trend",
+            "learning_count": 2,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 1.4434,
+            "utility": 14.6434,
+            "candidates": {
+              "weekly_trend": {
+                "direction": "long",
+                "raw_score": 88.0,
+                "conviction": 13.2,
+                "strategy_id": "weekly_trend",
+                "learning_count": 2,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 1.4434,
+                "utility": 14.6434
+              },
+              "daily_weekly_blend": {
+                "direction": "long",
+                "raw_score": 73.0,
+                "conviction": 10.95,
+                "strategy_id": "daily_weekly_blend",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 13.45
+              },
+              "inverse_v2": {
+                "direction": "short",
+                "raw_score": -63.0,
+                "conviction": 9.45,
+                "strategy_id": "inverse_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 11.95
+              },
+              "base_v2": {
+                "direction": "long",
+                "raw_score": 63.0,
+                "conviction": 9.45,
+                "strategy_id": "base_v2",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 11.95
+              },
+              "ema_mean_reversion": {
+                "direction": "short",
+                "raw_score": -40.0,
+                "conviction": 6.0,
+                "strategy_id": "ema_mean_reversion",
+                "learning_count": 0,
+                "learning_adjustment": 0.0,
+                "exploration_bonus": 2.5,
+                "utility": 8.5
+              }
+            },
+            "macro_context": {
+              "enabled": false,
+              "instrument_id": "sp500_futures",
+              "data_quality": "not_applicable",
+              "score": 0.0,
+              "ma_structure": {
+                "enabled": false,
+                "instrument_id": "sp500_futures",
+                "data_quality": "not_applicable",
+                "score": 0.0
+              }
+            },
+            "contextual_learning": {
+              "enabled": true,
+              "instrument_id": "sp500_futures",
+              "methods": {}
+            },
+            "decided_at": "2026-08-17T09:00:12+02:00",
+            "validation_gate": "enabled_for_paper_trading",
+            "regime": "trend_up:vol_normal",
+            "weekly_features": {
+              "data_quality": "passed",
+              "score": 88,
+              "regime": "trend_up:vol_normal",
+              "last_week_close": 7819.75,
+              "ema_fast": 7613.64739293,
+              "ema_slow": 7305.23679057,
+              "weekly_atr13": 182.71153846,
+              "return_4w_percent": 4.9983,
+              "return_13w_percent": 4.3886,
+              "volatility_ratio_13w_52w": 0.959,
+              "range_26w_position": 1.0,
+              "components": {
+                "trend": 35.0,
+                "momentum_fast": 25.0,
+                "momentum_slow": 10.16,
+                "breakout": 15.0,
+                "last_candle": 3.28,
+                "volatility_scale": 1.0
+              }
+            },
+            "fresh_v2_signal": {
+              "direction": "long",
+              "score": 63,
+              "signal_strength": 0.63,
+              "confidence": 0.63,
+              "confidence_type": "heuristic_signal_strength_not_probability",
+              "data_quality": "passed",
+              "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+              "signals": {
+                "last_close": 7819.75,
+                "ema20": 7681.49037823,
+                "ema50": 7562.98708391,
+                "atr14": 84.35714286,
+                "ret5_pct": 0.5529,
+                "ret20_pct": 4.4827,
+                "vol20_annualized_pct": 13.254,
+                "vol60_annualized_pct": 13.4598,
+                "volatility_regime_ratio": 0.9847,
+                "volatility_score_scale": 1.0,
+                "range55_position": 0.9949,
+                "components": {
+                  "trend_ema": 18.73,
+                  "trend_price": 10.0,
+                  "momentum5": 2.96,
+                  "momentum20": 16.01,
+                  "breakout": 14.85,
+                  "macro_bias": 0.0,
+                  "event_risk_penalty": 0.0
+                },
+                "agreement": {
+                  "positive_groups": 3,
+                  "negative_groups": 0,
+                  "required": 2
+                }
+              },
+              "risk_distance": {
+                "source": "ATR14_sqrt5_frozen_at_forecast",
+                "stop_price_distance": 103.7455682,
+                "take_price_distance": 169.76547523,
+                "stop_units": 103.7456,
+                "take_units": 169.7655,
+                "reward_to_risk": 1.6364
+              }
+            }
+          },
+          "entry_price": 7819.75,
+          "entry_captured_at": "2026-08-17T09:05:00+02:00",
+          "entry_source": "Yahoo Finance:ES=F:5m:first_bar_at_or_after_target",
+          "exit_price": 7736.68283513,
+          "exit_captured_at": "2026-08-18T05:35:00+00:00",
+          "exit_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit",
+          "exit_reason": "stop_loss",
+          "gross_result_percent": -1.0623,
+          "estimated_round_trip_cost_percent": 0.012788,
+          "net_result_percent": -1.075088,
+          "risk_plan": {
+            "model_version": "WES-1.0.0",
+            "generated_at": "2026-08-17T18:49:56+02:00",
+            "direction": "long",
+            "stop_loss_price": 7736.68283513,
+            "take_profit_price": 8031.81221079,
+            "stop_loss_distance": 83.06716487,
+            "take_profit_distance": 212.06221079,
+            "reward_to_risk": 2.5529,
+            "same_bar_rule": "stop_loss_first_conservative",
+            "wes_entry_class": "monday_weekly",
+            "objective": "maximize_net_expectancy_not_trade_frequency",
+            "scheduled_exit": "2026-08-21T22:00:00+02:00",
+            "adaptive_inputs": {
+              "time_factor": 0.9495,
+              "conviction_factor": 0.88,
+              "tp_multiplier": 1.2491,
+              "sl_multiplier": 0.8007,
+              "target_min_rr": 1.2,
+              "learning_count": 0,
+              "learning_mean_net_percent": null,
+              "learning_win_rate": null
+            },
+            "friday_tactical_low_tp": false
+          },
+          "archived_at": "2026-08-18T07:45:52+02:00",
+          "candidate_outcomes": {
+            "weekly_trend": {
+              "direction": "long",
+              "gross_result_percent": -1.062274,
+              "estimated_round_trip_cost_percent": 0.012788,
+              "net_result_percent": -1.075062,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "daily_weekly_blend": {
+              "direction": "long",
+              "gross_result_percent": -1.062274,
+              "estimated_round_trip_cost_percent": 0.012788,
+              "net_result_percent": -1.075062,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "inverse_v2": {
+              "direction": "short",
+              "gross_result_percent": 1.062274,
+              "estimated_round_trip_cost_percent": 0.012788,
+              "net_result_percent": 1.049486,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "base_v2": {
+              "direction": "long",
+              "gross_result_percent": -1.062274,
+              "estimated_round_trip_cost_percent": 0.012788,
+              "net_result_percent": -1.075062,
+              "source": "same_entry_exit_counterfactual_candidate"
+            },
+            "ema_mean_reversion": {
+              "direction": "short",
+              "gross_result_percent": 1.062274,
+              "estimated_round_trip_cost_percent": 0.012788,
+              "net_result_percent": 1.049486,
+              "source": "same_entry_exit_counterfactual_candidate"
+            }
+          },
+          "contextual_learning_schema": "2.0"
+        }
+      ],
+      "continuous_last_exit_at": "2026-08-18T05:35:00+00:00",
+      "continuous_last_closed_leg_id": "1b64ca79385af1e1"
     },
     {
       "instrument_id": "btcusd",
@@ -1927,7 +2168,7 @@
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-18T07:44:04+02:00"
+    "last_checked_at": "2026-08-18T07:45:54+02:00"
   },
   "common_validation_gate": {
     "version": "5.0.1",
