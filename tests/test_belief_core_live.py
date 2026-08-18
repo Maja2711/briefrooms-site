@@ -98,11 +98,12 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertTrue(evaluate_spec(spec,{"TLT":101.0,"HYG":81.0,"UUP":26.0}))
         self.assertFalse(evaluate_spec(spec,{"TLT":99.0,"HYG":79.0,"UUP":24.0}))
 
-    def test_end_to_end_1007_shadow_cycle(self) -> None:
+    def test_end_to_end_1007_shadow_cycle_is_retry_idempotent(self) -> None:
         now=datetime(2026,8,18,10,7,tzinfo=NY)
         with tempfile.TemporaryDirectory() as tmp:
             state_dir=Path(tmp)/"core"
-            status=run_cycle(state_dir,now,FakeChartClient(now))
+            client=FakeChartClient(now)
+            status=run_cycle(state_dir,now,client)
             self.assertEqual(status["mode"],"shadow")
             self.assertEqual(status["observations_collected"],108)
             self.assertEqual(status["evidence_ingested"],9)
@@ -110,7 +111,16 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertEqual(status["shared_forecasts_frozen"],5)
             self.assertEqual(status["wes_forecasts_frozen"],0)
             self.assertEqual(status["forecasts_verified"],0)
-            self.assertTrue((state_dir/"observations.jsonl").exists())
+            observations_path=state_dir/"observations.jsonl"
+            self.assertTrue(observations_path.exists())
+            self.assertEqual(len(observations_path.read_text().splitlines()),108)
+
+            retry=run_cycle(state_dir,now,client)
+            self.assertEqual(retry["observations_collected"],0)
+            self.assertEqual(retry["world_state_snapshots"],0)
+            self.assertEqual(retry["shared_forecasts_frozen"],0)
+            self.assertEqual(len(observations_path.read_text().splitlines()),108)
+
             core=BeliefCore(state_dir)
             self.assertEqual(len(core.forecasts),5)
             self.assertEqual(len(core.evidence),9)
