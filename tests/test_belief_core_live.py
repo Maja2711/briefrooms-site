@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -10,19 +11,57 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+from belief_core import BeliefCore  # noqa: E402
 from belief_core_live import (  # noqa: E402
     AUTOMATIC_TUNING_ENABLED,
     POLICY_OUTPUT_ENABLED,
     TRADE_EXECUTION_ENABLED,
+    Bar,
     due_planned_slot,
     evaluate_spec,
     floor_half_hour,
     next_weekday_close,
+    run_cycle,
     strength_from_return,
     weekly_target,
 )
 
 NY = ZoneInfo("America/New_York")
+
+
+class FakeChartClient:
+    def __init__(self, now: datetime) -> None:
+        end = now.astimezone(NY).replace(minute=0, second=0, microsecond=0)
+        starts = {
+            "SPY": 100.0,
+            "RSP": 50.0,
+            "IWM": 200.0,
+            "^VIX": 18.0,
+            "HYG": 80.0,
+            "LQD": 100.0,
+            "TLT": 90.0,
+            "UUP": 25.0,
+        }
+        steps = {
+            "SPY": .10,
+            "RSP": .06,
+            "IWM": .25,
+            "^VIX": -.01,
+            "HYG": .02,
+            "LQD": .005,
+            "TLT": .01,
+            "UUP": -.001,
+        }
+        self.rows = {}
+        for symbol, start in starts.items():
+            bars = []
+            for i in range(80):
+                timestamp = end - timedelta(minutes=30 * (79 - i))
+                bars.append(Bar(timestamp=timestamp.astimezone(ZoneInfo("UTC")), close=start + steps[symbol] * i))
+            self.rows[symbol] = bars
+
+    def bars(self, symbol: str, range_: str = "10d", interval: str = "30m"):
+        return list(self.rows[symbol])
 
 
 class BeliefCoreLiveTest(unittest.TestCase):
@@ -83,6 +122,25 @@ class BeliefCoreLiveTest(unittest.TestCase):
         }
         self.assertTrue(evaluate_spec(spec, {"TLT": 101.0, "HYG": 81.0, "UUP": 26.0}))
         self.assertFalse(evaluate_spec(spec, {"TLT": 99.0, "HYG": 79.0, "UUP": 24.0}))
+
+    def test_end_to_end_1007_shadow_cycle(self) -> None:
+        now = datetime(2026, 8, 18, 10, 7, tzinfo=NY)
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            status = run_cycle(state_dir, now, FakeChartClient(now))
+            self.assertEqual(status["mode"], "shadow")
+            self.assertEqual(status["evidence_ingested"], 9)
+            self.assertEqual(status["world_state_snapshots"], 1)
+            self.assertEqual(status["shared_forecasts_frozen"], 5)
+            self.assertEqual(status["wes_forecasts_frozen"], 0)
+            self.assertEqual(status["forecasts_verified"], 0)
+            core = BeliefCore(state_dir)
+            self.assertEqual(len(core.forecasts), 5)
+            self.assertEqual(len(core.evidence), 9)
+            self.assertTrue(core.verify_ledger_integrity()["valid"])
+            dashboard = core.dashboard_snapshot(now)
+            self.assertFalse(dashboard["controls"]["trade_execution_enabled"])
+            self.assertFalse(dashboard["controls"]["policy_output_enabled"])
 
 
 if __name__ == "__main__":
