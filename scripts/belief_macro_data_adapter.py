@@ -96,7 +96,7 @@ def parse_bls_series(payload: Mapping[str, object]) -> Dict[str, Tuple[SeriesPoi
 
 
 def _period_age_days(point: SeriesPoint, now: datetime) -> int:
-    # Monthly BLS observations describe the named month; use month-end-ish anchor
+    # Monthly BLS observations describe the named month; use a month-end-ish anchor
     # only for stale-data gating, never as a sourced release timestamp.
     anchor = datetime(point.year, point.month, 28, tzinfo=timezone.utc)
     return max(0, (now.astimezone(timezone.utc) - anchor).days)
@@ -256,7 +256,10 @@ def _labor_result(payroll: Sequence[SeriesPoint], unemployment: Sequence[SeriesP
     if p_latest.period != u_latest.period:
         return (), ()
 
-    payroll_changes = [payroll[i].value - payroll[i - 1].value for i in range(len(payroll) - 2, len(payroll) + 1)]
+    payroll_changes = [
+        payroll[i].value - payroll[i - 1].value
+        for i in range(len(payroll) - 3, len(payroll))
+    ]
     payroll_3m_avg = sum(payroll_changes) / len(payroll_changes)
     unemployment_3m_change = u_latest.value - unemployment[-4].value
     cluster = f"bls:labor:{p_latest.period}"
