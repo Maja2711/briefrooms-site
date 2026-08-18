@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-18T16:44:21+00:00",
+  "generated_at": "2026-08-18T16:53:17+00:00",
   "methodology_version": "3.0.0",
   "data_freshness": "unsafe",
   "source_metadata": {
@@ -338,7 +338,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "4d97d206d1fb9aade72f3b6ad7c6c557a441bfef6b391c4ecd1147fd2e9625b9",
+  "content_sha256": "4e248bb31d4f97560bf7572a5fa1cb78917505af225d248f5ea14897d0f67b46",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,
@@ -566,10 +566,17 @@
     "candidate_overrides": {},
     "reason": "WARMUP_INSUFFICIENT_MATURE_ACTIONABLE_OUTCOMES",
     "last_review_at": "2026-08-02T22:37:00+02:00",
+    "cadence": "weekly",
+    "cron_utc": "40 8 * * 0",
+    "timezone": "UTC",
+    "previous_scheduled_review_at": "2026-08-16T08:40:00+00:00",
+    "next_scheduled_review_at": "2026-08-23T08:40:00+00:00",
+    "overdue": true,
+    "missed_scheduled_reviews": 2,
     "next_changes_apply_weekly": true,
     "real_broker_prohibited": true,
-    "explanation_pl": "Pętla uczenia jest uruchamiana cotygodniowo, ale parametry nie są jeszcze zmieniane: stan WARMUP, dojrzałe próbki 0/12. Zmiany mogą zostać aktywowane dopiero po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej.",
-    "explanation_en": "The learning loop runs weekly, but parameters are not being changed yet: status WARMUP, mature effective samples 0/12. Changes may activate only after the sample requirement, two consecutive confirmations and the research gate are satisfied."
+    "explanation_pl": "Pętla uczenia jest zaplanowana cotygodniowo w niedzielę o 08:40 UTC. Stan WARMUP, dojrzałe próbki 0/12. Wykryto opóźnienie: pominięte planowe przeglądy: 2. Zmiany parametrów mogą zostać aktywowane dopiero po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej.",
+    "explanation_en": "The learning loop is scheduled weekly on Sunday at 08:40 UTC. Status WARMUP, mature effective samples 0/12. A delay is detected: missed scheduled reviews: 2. Parameter changes may activate only after the sample requirement, two consecutive confirmations and the research gate are satisfied."
   },
   "control_summary_pl": "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, uwzględnia zweryfikowane raporty istotne, ocenia pozycje i może wykonywać wyłącznie transakcje paper. Limity ryzyka oraz automatyczny powrót do baseline pozostają aktywne.",
   "control_summary_en": "BRACE controls a separate model portfolio in probationary mode. Each week it refreshes data, incorporates verified material reports, assesses every position and may execute paper trades only. Risk limits and automatic baseline fallback remain active."
