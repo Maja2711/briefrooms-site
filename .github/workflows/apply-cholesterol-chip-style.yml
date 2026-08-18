@@ -1,0 +1,51 @@
+name: Apply cholesterol chip styling
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-cholesterol-chip-style.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Link shared chip stylesheet
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('pl/zdrowie/cholesterol.html'),
+              Path('en/health/cholesterol.html'),
+          ]
+          needle = '<link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />'
+          link = '<link rel="stylesheet" href="/assets/cholesterol-chips.css?v=20260818-1" />'
+
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              if link in text:
+                  print(f'{path}: already linked')
+                  continue
+              if needle not in text:
+                  raise SystemExit(f'{path}: site-header stylesheet anchor not found')
+              text = text.replace(needle, needle + '\n' + link, 1)
+              path.write_text(text, encoding='utf-8')
+              print(f'{path}: linked')
+          PY
+
+      - name: Commit page links and remove one-shot workflow
+        run: |
+          git config user.name "BriefRooms automation"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/apply-cholesterol-chip-style.yml
+          git add pl/zdrowie/cholesterol.html en/health/cholesterol.html
+          git commit -m "Use glass 3D cholesterol chips on PL and EN"
+          git pull --rebase origin main
+          git push origin HEAD:main
