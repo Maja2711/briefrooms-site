@@ -16,7 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  STATE_DIR: ${{ runner.temp }}/belief_core_state
   ARTIFACT_NAME: belief-core-shadow-state
 
 jobs:
@@ -34,31 +33,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Prepare runtime state path
+        run: |
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_core_state"
+
       - name: Restore latest shadow state artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p "$STATE_DIR"
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ARTIFACT_NAME}&per_page=100"
           curl -fsSL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "$api" > "$RUNNER_TEMP/artifacts.json"
-          artifact_id=$(python - <<'PY'
-          import json
-          from pathlib import Path
-          payload=json.loads(Path("/home/runner/work/_temp/artifacts.json").read_text()) if Path("/home/runner/work/_temp/artifacts.json").exists() else {}
-          rows=[x for x in payload.get("artifacts", []) if not x.get("expired")]
-          rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-          print(rows[0]["id"] if rows else "")
-          PY
-          )
-          # RUNNER_TEMP is not guaranteed to be /home/runner/work/_temp on every runner;
-          # if the helper above could not see it, resolve using the actual path.
-          if [ -z "$artifact_id" ]; then
-            artifact_id=$(python - "$RUNNER_TEMP/artifacts.json" <<'PY'
+          artifact_id=$(python - "$RUNNER_TEMP/artifacts.json" <<'PY'
           import json, sys
           from pathlib import Path
           payload=json.loads(Path(sys.argv[1]).read_text())
@@ -66,8 +57,7 @@ jobs:
           rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
           print(rows[0]["id"] if rows else "")
           PY
-            )
-          fi
+          )
           if [ -z "$artifact_id" ]; then
             echo "No previous Belief Core state artifact; starting a new shadow ledger."
             exit 0
@@ -79,7 +69,9 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
             -o "$RUNNER_TEMP/belief-state.zip"
+          mkdir -p "$RUNNER_TEMP/belief-state-artifact"
           unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+          test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$STATE_DIR"
 
       - name: Validate Belief Core before collection
