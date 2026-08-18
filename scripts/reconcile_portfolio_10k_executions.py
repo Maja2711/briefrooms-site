@@ -3,9 +3,10 @@
 
 The public portfolio mirrors authorised PAPER_EXECUTED allocation changes. EXIT
 removes a holding, REDUCE synchronises the reduced quantity, ADD synchronises or
-creates the bought holding, and REPLACE applies both legs. Only instruments
-actually touched by executed orders are copied from the paper ledger, so stale
-paper quotes cannot overwrite unrelated current holdings.
+creates the bought holding, and REPLACE applies both legs. Reconciliation is
+idempotent: an already-applied paper order is never re-applied. Market-data
+fields for existing holdings are owned by the hourly mark-to-market process and
+must never be overwritten by older execution snapshots.
 
 Original entry audit fields remain immutable. For a partial REDUCE we additionally
 store a proportional remaining cost basis, which is the denominator for the
@@ -62,7 +63,13 @@ def sync_active_position(
     paper_active: dict[str, dict[str, Any]],
     position_id: str,
 ) -> bool:
-    """Synchronise execution-sensitive fields for one active paper holding."""
+    """Synchronise execution state without regressing fresh market observations.
+
+    For an existing holding, quote/FX/value/timestamp fields are deliberately not
+    copied from the paper ledger because those values are execution snapshots and
+    can be older than the live hourly valuation. A genuinely new ADD can still
+    bootstrap from the paper position; the next mark-to-market refreshes it.
+    """
     paper_source = paper_active.get(position_id)
     if paper_source is None:
         raise ValueError(f"Executed paper order references missing active position: {position_id}")
@@ -85,11 +92,6 @@ def sync_active_position(
         "entry_notional_pln",
         "entry_fee_pln",
         "entry_value_pln",
-        "current_price",
-        "current_fx_to_pln",
-        "current_value_pln",
-        "current_price_updated_at",
-        "current_fx_updated_at",
         "review_flag",
     )
     for key in execution_fields:
@@ -105,12 +107,7 @@ def sync_active_position(
 
 
 def apply_remaining_cost_basis(position: dict[str, Any]) -> bool:
-    """Attach a proportional cost basis for the surviving lot after REDUCE.
-
-    Entry price/notional/fee remain the immutable audit of the original staged
-    purchase. The new fields are cumulative and can survive multiple reductions
-    because the current quantity is always compared with the original quantity.
-    """
+    """Attach a proportional cost basis for the surviving lot after REDUCE."""
     quantity = finite(position.get("quantity"))
     entry_price = finite(position.get("entry_price"))
     entry_fx = finite(position.get("entry_fx_to_pln"))
@@ -206,9 +203,15 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
 
     state = dict(public.get("execution_reconciliation") or {})
     applied = set(str(value) for value in state.get("applied_order_ids", []))
+    newly_applied = 0
 
     for order in executed:
         order_id = str(order.get("order_id") or "")
+        if order_id and order_id in applied:
+            # Critical idempotency guarantee: never let an old execution snapshot
+            # overwrite current quotes/timestamps on subsequent hourly runs.
+            continue
+
         action = str(order.get("action") or "")
         sell_id = str(order.get("sell_instrument") or "").strip().lower()
         buy_id = str(order.get("buy_instrument") or "").strip().lower()
@@ -232,8 +235,9 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
             changed = sync_active_position(active_positions, paper_active, buy_id) or changed
             affected.add(buy_id)
 
-        if order_id and order_id not in applied:
+        if order_id:
             applied.add(order_id)
+            newly_applied += 1
             changed = True
 
     public["positions"] = active_positions
@@ -268,7 +272,7 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
 
     now = datetime.now(timezone.utc).astimezone(WARSAW).isoformat(timespec="seconds")
     public["execution_reconciliation"] = {
-        "version": "2.1.0-cost-basis",
+        "version": "2.2.0-idempotent-freshness-safe",
         "checked_at": now,
         "source_orders": "/data/portfolio10k/paper_orders.json",
         "source_paper_portfolio": "/data/portfolio10k/paper_portfolio.json",
@@ -280,6 +284,8 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
             for o in executed
             if str(o.get("action")) in {"EXIT", "REPLACE"} and o.get("sell_instrument")
         }),
+        "newly_applied_orders": newly_applied,
+        "market_data_authority": "portfolio_10k_hourly_prices.py",
     }
     if changed:
         public["last_updated_at"] = now
@@ -287,6 +293,7 @@ def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, A
     return {
         "changed": changed,
         "executed_orders": len(executed),
+        "newly_applied_orders": newly_applied,
         "affected": sorted(affected),
         "removed": removed,
         "cash_pln": public.get("cash_pln"),
