@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
 from brace_portfolio_config import load_config
@@ -26,6 +26,9 @@ HISTORY = ENGINE_DATA_ROOT / "promotion_history.json"
 OPERATIONAL = ENGINE_DATA_ROOT / "operational_state.json"
 ADAPTIVE = ENGINE_DATA_ROOT / "adaptive_policy.json"
 LEARNING = ENGINE_DATA_ROOT / "learning_state.json"
+LEARNING_WEEKDAY_UTC = 6  # Sunday
+LEARNING_HOUR_UTC = 8
+LEARNING_MINUTE_UTC = 40
 
 
 def methodology(registry: Mapping[str, Any], methodology_id: str) -> dict[str, Any]:
@@ -44,7 +47,54 @@ def validate(auth: Mapping[str, Any]) -> None:
         raise ValueError("Only probationary paper control can be explicitly authorized")
 
 
-def learning_public_state() -> dict[str, Any]:
+def _parse_utc(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def weekly_learning_schedule(now: datetime, last_review_at: Any) -> dict[str, Any]:
+    """Return the actual workflow cadence and whether scheduled reviews were missed."""
+    now = now.astimezone(timezone.utc)
+    days_since_sunday = (now.weekday() - LEARNING_WEEKDAY_UTC) % 7
+    previous = (now - timedelta(days=days_since_sunday)).replace(
+        hour=LEARNING_HOUR_UTC,
+        minute=LEARNING_MINUTE_UTC,
+        second=0,
+        microsecond=0,
+    )
+    if previous > now:
+        previous -= timedelta(days=7)
+    next_review = previous + timedelta(days=7)
+    last_review = _parse_utc(last_review_at)
+    overdue = last_review is None or last_review < previous
+    missed = 0
+    if overdue:
+        cursor = previous
+        while cursor > (last_review or datetime.min.replace(tzinfo=timezone.utc)):
+            missed += 1
+            cursor -= timedelta(days=7)
+            if missed >= 52:
+                break
+    return {
+        "cadence": "weekly",
+        "cron_utc": "40 8 * * 0",
+        "timezone": "UTC",
+        "previous_scheduled_review_at": previous.isoformat(timespec="seconds"),
+        "next_scheduled_review_at": next_review.isoformat(timespec="seconds"),
+        "overdue": overdue,
+        "missed_scheduled_reviews": missed,
+    }
+
+
+def learning_public_state(now: datetime | None = None) -> dict[str, Any]:
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     policy = read_json(ADAPTIVE)
     state = read_json(LEARNING)
     statistics = policy.get("statistics") or {}
@@ -53,6 +103,8 @@ def learning_public_state() -> dict[str, Any]:
     effective = float(statistics.get("effective_samples") or 0.0)
     minimum = float(policy.get("minimum_effective_samples") or 12.0)
     active_now = bool(policy.get("apply_to_shadow_decisions") and active)
+    last_review_at = policy.get("generated_at") or state.get("generated_at")
+    schedule = weekly_learning_schedule(now, last_review_at)
     return {
         "status": status,
         "active_parameters": active_now,
@@ -63,18 +115,31 @@ def learning_public_state() -> dict[str, Any]:
         "active_overrides": deepcopy(active),
         "candidate_overrides": deepcopy(policy.get("candidate_overrides") or {}),
         "reason": policy.get("learning_reason"),
-        "last_review_at": policy.get("generated_at") or state.get("generated_at"),
+        "last_review_at": last_review_at,
+        **schedule,
         "next_changes_apply_weekly": True,
         "real_broker_prohibited": True,
         "explanation_pl": (
-            "Pętla uczenia jest uruchamiana cotygodniowo, ale parametry nie są jeszcze zmieniane: "
-            f"stan {status}, dojrzałe próbki {effective:g}/{minimum:g}. Zmiany mogą zostać aktywowane dopiero "
-            "po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej."
+            "Pętla uczenia jest zaplanowana cotygodniowo w niedzielę o 08:40 UTC. "
+            f"Stan {status}, dojrzałe próbki {effective:g}/{minimum:g}. "
+            + (
+                f"Wykryto opóźnienie: pominięte planowe przeglądy: {schedule['missed_scheduled_reviews']}. "
+                if schedule["overdue"]
+                else "Ostatni planowy przegląd został zarejestrowany. "
+            )
+            + "Zmiany parametrów mogą zostać aktywowane dopiero po zebraniu wymaganych wyników, "
+            "dwukrotnym potwierdzeniu i przejściu bramki badawczej."
         ),
         "explanation_en": (
-            "The learning loop runs weekly, but parameters are not being changed yet: "
-            f"status {status}, mature effective samples {effective:g}/{minimum:g}. Changes may activate only "
-            "after the sample requirement, two consecutive confirmations and the research gate are satisfied."
+            "The learning loop is scheduled weekly on Sunday at 08:40 UTC. "
+            f"Status {status}, mature effective samples {effective:g}/{minimum:g}. "
+            + (
+                f"A delay is detected: missed scheduled reviews: {schedule['missed_scheduled_reviews']}. "
+                if schedule["overdue"]
+                else "The latest scheduled review is recorded. "
+            )
+            + "Parameter changes may activate only after the sample requirement, two consecutive confirmations "
+            "and the research gate are satisfied."
         ),
     }
 
@@ -88,7 +153,7 @@ def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: d
     )
     snapshot["control_authorization"] = deepcopy(dict(auth))
     snapshot["position_recommendations"] = deepcopy((pending.get("recommendations") or [])[:20])
-    snapshot["learning_loop"] = learning_public_state()
+    snapshot["learning_loop"] = learning_public_state(now)
     snapshot["display_status"] = "BRACE_PROBATIONARY_PAPER_CONTROL"
     snapshot["control_summary_pl"] = (
         "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, "
