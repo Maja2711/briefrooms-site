@@ -1,0 +1,176 @@
+name: One-shot AI Outlook zero-cost patch
+
+on:
+  push:
+    branches: [fix/ai-outlook-zero-cost-v8]
+    paths:
+      - ".github/workflows/one-shot-ai-outlook-zero-cost.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ai-outlook-zero-cost-v8
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Apply bounded zero-cost fallback and JSON resilience
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected patch anchor missing in {path}: {old[:90]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+          path = "scripts/publish_ai_outlook_gemini.py"
+          replace_once(
+              path,
+              "import update_ai_outlook as legacy  # noqa: E402\nimport update_ai_outlook_v3 as v3  # noqa: E402\nfrom ai_outlook_pl_methodology import generate_pl_edition  # noqa: E402\n",
+              "import update_ai_outlook as legacy  # noqa: E402\nimport update_ai_outlook_v3 as v3  # noqa: E402\nimport ai_outlook_pl_methodology as pl_methodology  # noqa: E402\nfrom ai_outlook_pl_methodology import generate_pl_edition  # noqa: E402\n",
+          )
+          replace_once(
+              path,
+              'REQUIRED_PROVIDER = "gemini"\n',
+              'REQUIRED_PROVIDER = "gemini"\nPRIMARY_MODEL = "gemini-3.5-flash"\nFALLBACK_MODEL = "gemini-3.5-flash-lite"\nAPPROVED_BUDGET_MODELS = frozenset({PRIMARY_MODEL, FALLBACK_MODEL})\nFINAL_OUTPUT_TOKEN_FLOOR = 8192\n',
+          )
+          replace_once(
+              path,
+              '    if not runtime.generation_model or not runtime.review_model:\n        raise RuntimeError("Gemini generation and review models must be configured")\n',
+              '    if not runtime.generation_model or not runtime.review_model:\n        raise RuntimeError("Gemini generation and review models must be configured")\n    configured = {runtime.generation_model, runtime.review_model}\n    if not configured.issubset(APPROVED_BUDGET_MODELS):\n        raise RuntimeError(\n            "AI Outlook budget policy allows only "\n            f"{sorted(APPROVED_BUDGET_MODELS)}; got {sorted(configured)}"\n        )\n',
+          )
+          replace_once(
+              path,
+              '    if not str(payload.get("ai_model") or "").startswith("gemini-"):\n        raise RuntimeError("AI Outlook payload has an invalid Gemini model")\n',
+              '    if not str(payload.get("ai_model") or "").startswith("gemini-"):\n        raise RuntimeError("AI Outlook payload has an invalid Gemini model")\n    if payload.get("ai_model") not in APPROVED_BUDGET_MODELS:\n        raise RuntimeError("AI Outlook payload uses a model outside the budget allowlist")\n',
+          )
+
+          p = Path(path)
+          text = p.read_text(encoding="utf-8")
+          text, n = re.subn(
+              r'def build_daily_status\(payload: dict\[str, Any\], runtime: AiRuntime\) -> dict\[str, Any\]:.*?\n\ndef build_provider_status',
+              '''def build_daily_status(\n    payload: dict[str, Any],\n    runtime: AiRuntime,\n    *,\n    model_role: str = "primary",\n    primary_error: str = "",\n) -> dict[str, Any]:\n    return {\n        "schema_version": STATUS_SCHEMA,\n        "status": "fresh",\n        "date": payload["date"],\n        "generated_at": payload["generated_at"],\n        "timezone": "Europe/Warsaw",\n        "mode": "ai_primary",\n        "provider": REQUIRED_PROVIDER,\n        "generation_model": runtime.generation_model,\n        "review_model": runtime.review_model,\n        "model_role": model_role,\n        "fallback_used": model_role == "fallback",\n        "primary_error": primary_error,\n        "pl_forecast_id": payload["pl"]["forecast_id"],\n        "en_forecast_id": payload["en"]["forecast_id"],\n        "freshness_policy": (\n            "payload date must equal the current Europe/Warsaw calendar date"\n        ),\n        "budget_policy": "approved free-tier-capable Gemini models only; no paid-provider fallback",\n    }\n\n\ndef build_provider_status''',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("could not replace build_daily_status")
+          text, n = re.subn(
+              r'def build_provider_status\(\n    payload: dict\[str, Any\], runtime: AiRuntime, health: dict\[str, Any\]\n\) -> dict\[str, Any\]:.*?\n\ndef current_is_valid',
+              '''def build_provider_status(\n    payload: dict[str, Any],\n    runtime: AiRuntime,\n    health: dict[str, Any],\n    *,\n    model_role: str = "primary",\n    primary_error: str = "",\n) -> dict[str, Any]:\n    return {\n        "schema_version": PROVIDER_STATUS_SCHEMA,\n        "status": "healthy",\n        "date": payload["date"],\n        "checked_at": payload["generated_at"],\n        "provider": REQUIRED_PROVIDER,\n        "endpoint": health.get("endpoint"),\n        "generation_model": runtime.generation_model,\n        "review_model": runtime.review_model,\n        "model_role": model_role,\n        "fallback_used": model_role == "fallback",\n        "primary_error": primary_error,\n        "preflight_status_code": health.get("status_code"),\n        "publication_mode": "ai_primary",\n        "budget_policy": "no paid-provider fallback",\n    }\n\n\ndef current_is_valid''',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("could not replace build_provider_status")
+
+          helper = '''\n\ndef _runtime_for_model(base: AiRuntime, model: str) -> AiRuntime:\n    if model not in APPROVED_BUDGET_MODELS:\n        raise RuntimeError(f"model {model!r} is outside the AI Outlook budget allowlist")\n    return AiRuntime(\n        provider=REQUIRED_PROVIDER,\n        api_key=base.api_key,\n        endpoint=base.endpoint,\n        generation_model=model,\n        review_model=model,\n    )\n\n\ndef _inflate_final_json_budget(original):\n    def wrapped(**kwargs):\n        requested = int(kwargs.get("max_tokens") or 0)\n        if 0 < requested <= 2800:\n            kwargs = dict(kwargs)\n            kwargs["max_tokens"] = max(requested, FINAL_OUTPUT_TOKEN_FLOOR)\n        return original(**kwargs)\n\n    return wrapped\n\n\ndef _generate_verified_payload_with_budget(\n    moment: datetime, runtime: AiRuntime\n) -> tuple[dict[str, Any], dict[str, Any]]:\n    # Candidate reasoning keeps its existing budget. Only the final structured\n    # copy gets extra room, preventing hidden-thinking tokens from truncating JSON.\n    original_pl = pl_methodology.request_json_completion\n    original_en = v3.request_json_completion\n    pl_methodology.request_json_completion = _inflate_final_json_budget(original_pl)\n    v3.request_json_completion = _inflate_final_json_budget(original_en)\n    try:\n        return generate_verified_payload(moment, runtime)\n    finally:\n        pl_methodology.request_json_completion = original_pl\n        v3.request_json_completion = original_en\n'''
+          marker = "\ndef generate_verified_payload(\n"
+          if marker not in text:
+              raise SystemExit("generate_verified_payload anchor missing")
+          text = text.replace(marker, helper + marker, 1)
+
+          new_publish = '''def publish(*, force: bool) -> dict[str, Any]:\n    moment = datetime.now(legacy.WARSAW)\n    today = moment.date().isoformat()\n    if not force and current_is_valid(today):\n        payload = v3.load_json(v3.OUT, {})\n        print(f"Gemini AI Outlook already published and verified for {today}")\n        return payload\n\n    base_runtime = get_ai_runtime()\n    require_gemini(base_runtime)\n\n    attempts: list[dict[str, str]] = []\n    primary_error = ""\n    for model_role, model in (("primary", PRIMARY_MODEL), ("fallback", FALLBACK_MODEL)):\n        runtime = _runtime_for_model(base_runtime, model)\n        try:\n            health = check_provider(runtime=runtime)\n            if health.get("status") != "healthy":\n                raise RuntimeError(f"Gemini preflight did not pass: {health}")\n\n            payload, audit = _generate_verified_payload_with_budget(moment, runtime)\n            payload.update(\n                {\n                    "generation_mode": "ai_primary",\n                    "ai_provider": REQUIRED_PROVIDER,\n                    "ai_model": runtime.generation_model,\n                    "ai_model_role": model_role,\n                }\n            )\n            success_attempt = {\n                "model": model,\n                "role": model_role,\n                "status": "passed",\n            }\n            audit.update(\n                {\n                    "generation_mode": "ai_primary",\n                    "ai_provider": REQUIRED_PROVIDER,\n                    "generation_model": runtime.generation_model,\n                    "review_model": runtime.review_model,\n                    "model_role": model_role,\n                    "fallback_used": model_role == "fallback",\n                    "primary_error": primary_error,\n                    "model_attempts": [*attempts, success_attempt],\n                    "provider_preflight": health,\n                    "budget_policy": "full Flash first, Flash-Lite only after failure; no paid-provider fallback",\n                }\n            )\n            validate_payload(payload, today=today)\n\n            daily_status = build_daily_status(\n                payload,\n                runtime,\n                model_role=model_role,\n                primary_error=primary_error,\n            )\n            provider_status = build_provider_status(\n                payload,\n                runtime,\n                health,\n                model_role=model_role,\n                primary_error=primary_error,\n            )\n            validate_status(daily_status, provider_status, today=today)\n\n            # Nothing is written before every structural and semantic gate passes.\n            v3.publish(payload, audit)\n            write_json(STATUS_PATH, daily_status)\n            write_json(PROVIDER_STATUS_PATH, provider_status)\n            return payload\n        except Exception as exc:\n            error = f"{type(exc).__name__}: {exc}"[:500]\n            attempts.append(\n                {\n                    "model": model,\n                    "role": model_role,\n                    "status": "failed",\n                    "error": error,\n                }\n            )\n            if model_role == "primary":\n                primary_error = error\n            print(\n                f"AI Outlook {model_role} model {model} failed closed: {error}",\n                file=sys.stderr,\n            )\n\n    details = "; ".join(\n        f"{row['model']}: {row.get('error', 'failed')}" for row in attempts\n    )\n    raise RuntimeError(\n        "AI Outlook not published: neither approved budget Gemini model passed "\n        f"all quality gates. {details}"\n    )\n'''
+          text, n = re.subn(
+              r'def publish\(\*, force: bool\) -> dict\[str, Any\]:.*?\n\ndef validate_current',
+              new_publish + "\n\ndef validate_current",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("could not replace publish")
+          p.write_text(text, encoding="utf-8", newline="\n")
+
+          # If full Flash returns truncated JSON, keep the first attempt at normal\n          # medium reasoning; only the retry lowers thinking and expands output room.\n          path = "scripts/sitecustomize.py"
+          replace_once(
+              path,
+              '''            except Exception as exc:\n                last_error = exc\n                permanent = status in _quality.PERMANENT_HTTP_STATUSES\n                is_timeout = "timeout" in type(exc).__name__.lower()\n                if permanent or attempt >= 2 or (is_timeout and attempt >= 1):\n                    break\n''',
+              '''            except Exception as exc:\n                last_error = exc\n                if isinstance(exc, json.JSONDecodeError) and attempt < 2:\n                    config = body.setdefault("generationConfig", {})\n                    config["maxOutputTokens"] = max(\n                        int(config.get("maxOutputTokens") or 0), 8192\n                    )\n                    if str(model).startswith("gemini-3"):\n                        config["thinkingConfig"] = {"thinkingLevel": "low"}\n                    time.sleep(2.0)\n                    continue\n                permanent = status in _quality.PERMANENT_HTTP_STATUSES\n                is_timeout = "timeout" in type(exc).__name__.lower()\n                if permanent or attempt >= 2 or (is_timeout and attempt >= 1):\n                    break\n''',
+          )
+
+          # Workflow: primary preflight is informative, publisher owns fallback.\n          path = ".github/workflows/ai-outlook-gemini.yml"
+          replace_once(
+              path,
+              '      GEMINI_REVIEW_MODEL: gemini-3.5-flash\n      GEMINI_MIN_INTERVAL_SECONDS: "8"\n',
+              '      GEMINI_REVIEW_MODEL: gemini-3.5-flash\n      GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite\n      GEMINI_MIN_INTERVAL_SECONDS: "8"\n',
+          )
+          replace_once(
+              path,
+              '          python scripts/check_ai_provider.py\n          sleep 8\n',
+              '          python scripts/check_ai_provider.py || echo "Primary model preflight failed; governed publisher will try Flash-Lite fallback."\n          sleep 8\n',
+          )
+          replace_once(
+              path,
+              "          assert payload['ai_model'] == 'gemini-3.5-flash'\n",
+              "          assert payload['ai_model'] in {'gemini-3.5-flash', 'gemini-3.5-flash-lite'}\n          assert payload.get('ai_model_role') in {'primary', 'fallback'}\n",
+          )
+          replace_once(
+              path,
+              "          required_model = 'gemini-3.5-flash'\n",
+              "          allowed_models = {'gemini-3.5-flash', 'gemini-3.5-flash-lite'}\n",
+          )
+          replace_once(
+              path,
+              "                  if payload.get('ai_model') != required_model:\n                      current_errors.append('payload is not generated by required Gemini model')\n",
+              "                  if payload.get('ai_model') not in allowed_models:\n                      current_errors.append('payload is not generated by an approved budget Gemini model')\n",
+          )
+          replace_once(
+              path,
+              "              'required_model': required_model,\n",
+              "              'allowed_models': sorted(allowed_models),\n",
+          )
+
+          # Tests for allowlist, fallback and fail-closed behavior.
+          path = "tests/test_publish_ai_outlook_gemini.py"
+          replace_once(
+              path,
+              '    def runtime(self, provider: str = "gemini", key: str = "secret") -> AiRuntime:\n        return AiRuntime(\n            provider=provider,\n            api_key=key,\n            endpoint="https://generativelanguage.googleapis.com/v1beta/models",\n            generation_model="gemini-3.5-flash-lite",\n            review_model="gemini-3.5-flash-lite",\n        )\n',
+              '    def runtime(\n        self,\n        provider: str = "gemini",\n        key: str = "secret",\n        model: str = "gemini-3.5-flash-lite",\n    ) -> AiRuntime:\n        return AiRuntime(\n            provider=provider,\n            api_key=key,\n            endpoint="https://generativelanguage.googleapis.com/v1beta/models",\n            generation_model=model,\n            review_model=model,\n        )\n',
+          )
+          insert = '''\n    def test_budget_policy_rejects_unapproved_model(self) -> None:\n        with self.assertRaisesRegex(RuntimeError, "budget policy"):\n            publisher.require_gemini(self.runtime(model="gemini-3.1-pro"))\n\n    def test_status_marks_lite_as_governed_fallback(self) -> None:\n        payload = self.payload()\n        runtime = self.runtime(model=publisher.FALLBACK_MODEL)\n        daily = publisher.build_daily_status(\n            payload, runtime, model_role="fallback", primary_error="primary failed"\n        )\n        provider = publisher.build_provider_status(\n            payload,\n            runtime,\n            {"status": "healthy", "endpoint": runtime.endpoint, "status_code": 200},\n            model_role="fallback",\n            primary_error="primary failed",\n        )\n        self.assertTrue(daily["fallback_used"])\n        self.assertTrue(provider["fallback_used"])\n        self.assertEqual(daily["primary_error"], "primary failed")\n\n    def test_publish_falls_back_to_lite_and_publishes_only_valid_result(self) -> None:\n        base = self.runtime(model=publisher.PRIMARY_MODEL)\n        payload = self.payload()\n        audit = {}\n        healthy = {"status": "healthy", "endpoint": base.endpoint, "status_code": 200}\n        with (\n            mock.patch.object(publisher, "current_is_valid", return_value=False),\n            mock.patch.object(publisher, "get_ai_runtime", return_value=base),\n            mock.patch.object(\n                publisher,\n                "check_provider",\n                side_effect=[RuntimeError("primary unavailable"), healthy],\n            ) as health_check,\n            mock.patch.object(\n                publisher,\n                "_generate_verified_payload_with_budget",\n                return_value=(payload, audit),\n            ),\n            mock.patch.object(publisher, "validate_payload", return_value=None),\n            mock.patch.object(publisher, "validate_status", return_value=None),\n            mock.patch.object(publisher.v3, "publish") as publish_write,\n            mock.patch.object(publisher, "write_json"),\n        ):\n            result = publisher.publish(force=True)\n\n        checked_models = [\n            call.kwargs["runtime"].generation_model for call in health_check.call_args_list\n        ]\n        self.assertEqual(checked_models, [publisher.PRIMARY_MODEL, publisher.FALLBACK_MODEL])\n        self.assertEqual(result["ai_model"], publisher.FALLBACK_MODEL)\n        self.assertEqual(result["ai_model_role"], "fallback")\n        publish_write.assert_called_once()\n\n    def test_publish_writes_nothing_when_both_budget_models_fail(self) -> None:\n        base = self.runtime(model=publisher.PRIMARY_MODEL)\n        with (\n            mock.patch.object(publisher, "current_is_valid", return_value=False),\n            mock.patch.object(publisher, "get_ai_runtime", return_value=base),\n            mock.patch.object(\n                publisher,\n                "check_provider",\n                side_effect=[RuntimeError("full failed"), RuntimeError("lite failed")],\n            ),\n            mock.patch.object(publisher.v3, "publish") as publish_write,\n            mock.patch.object(publisher, "write_json") as status_write,\n        ):\n            with self.assertRaisesRegex(RuntimeError, "neither approved budget Gemini model"):\n                publisher.publish(force=True)\n        publish_write.assert_not_called()\n        status_write.assert_not_called()\n\n'''
+          marker = "    def test_probability_event_fallback_for_binary_resolution(self) -> None:\n"
+          p = Path(path)
+          text = p.read_text(encoding="utf-8")
+          if marker not in text:
+              raise SystemExit("test insertion anchor missing")
+          p.write_text(text.replace(marker, insert + marker, 1), encoding="utf-8", newline="\n")
+          PY
+
+      - name: Run focused regression suite
+        run: |
+          python -m unittest \
+            tests.test_publish_ai_outlook_gemini \
+            tests.test_ai_outlook_pl_quality \
+            tests.test_ai_provider_preflight -v
+          python -m py_compile \
+            scripts/publish_ai_outlook_gemini.py \
+            scripts/sitecustomize.py
+
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-ai-outlook-zero-cost.yml
+          git add \
+            scripts/publish_ai_outlook_gemini.py \
+            scripts/sitecustomize.py \
+            .github/workflows/ai-outlook-gemini.yml \
+            tests/test_publish_ai_outlook_gemini.py
+          git commit -m "Add zero-cost governed AI Outlook fallback"
+          git push origin HEAD:fix/ai-outlook-zero-cost-v8
