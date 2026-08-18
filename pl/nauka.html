@@ -72,8 +72,146 @@
       box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
     }
     .tile-meta svg{ width:15px; height:15px; color:#83b9ff; flex:none }
+
+    .science-youtube{
+      max-width:980px;
+      margin:34px auto 28px;
+      padding:26px;
+      border:1px solid rgba(127,200,255,.24);
+      border-radius:24px;
+      background:
+        radial-gradient(circle at 8% 0,rgba(88,177,255,.13),transparent 32%),
+        linear-gradient(145deg,rgba(15,37,62,.95),rgba(8,22,38,.98));
+      box-shadow:0 22px 52px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .science-youtube__head{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:20px;
+    }
+    .science-youtube__icon{
+      display:grid;
+      place-items:center;
+      width:48px;
+      height:48px;
+      flex:0 0 48px;
+      border:1px solid rgba(127,200,255,.36);
+      border-radius:14px;
+      color:#dff5ff;
+      background:linear-gradient(145deg,#2f79bd,#174f86);
+      box-shadow:0 10px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .science-youtube h2{
+      margin:0 0 4px;
+      color:#edf7ff;
+      font-size:clamp(1.55rem,3vw,2rem);
+      letter-spacing:-.025em;
+    }
+    .science-youtube__head p{
+      margin:0;
+      color:#abc0d7;
+      line-height:1.5;
+    }
+    .science-youtube__grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+    }
+    .science-youtube__card{
+      display:flex;
+      min-height:242px;
+      flex-direction:column;
+      padding:18px;
+      border:1px solid rgba(160,207,255,.17);
+      border-radius:18px;
+      color:#eff8ff;
+      text-decoration:none;
+      background:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.025));
+      box-shadow:0 14px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06);
+      transition:transform .18s ease,border-color .18s ease,background .18s ease;
+    }
+    .science-youtube__card:hover,
+    .science-youtube__card:focus-visible{
+      transform:translateY(-4px);
+      border-color:rgba(107,189,255,.52);
+      background:linear-gradient(160deg,rgba(66,139,202,.19),rgba(255,255,255,.035));
+      outline:none;
+    }
+    .science-youtube__top{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .science-youtube__thumb{
+      width:58px;
+      height:58px;
+      flex:0 0 58px;
+      border:2px solid rgba(223,245,255,.64);
+      border-radius:50%;
+      background:#fff;
+      object-fit:cover;
+      box-shadow:0 8px 20px rgba(0,0,0,.28);
+    }
+    .science-youtube__label{
+      display:inline-flex;
+      width:max-content;
+      max-width:100%;
+      padding:5px 9px;
+      border:1px solid rgba(127,200,255,.28);
+      border-radius:999px;
+      color:#9fd4ff;
+      background:rgba(37,94,143,.34);
+      font-size:.68rem;
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    .science-youtube__source{
+      display:block;
+      margin-top:6px;
+      color:#8ea7bf;
+      font-size:.72rem;
+      font-weight:700;
+    }
+    .science-youtube__card h3{
+      margin:0 0 10px;
+      color:#f4f9ff;
+      font-size:1.08rem;
+      line-height:1.28;
+    }
+    .science-youtube__card p{
+      margin:0;
+      color:#b8cadb;
+      font-size:.9rem;
+      line-height:1.5;
+    }
+    .science-youtube__cta{
+      margin-top:auto;
+      padding-top:16px;
+      color:#77c8ff;
+      font-size:.86rem;
+      font-weight:900;
+    }
+    .science-youtube__note{
+      margin:16px 2px 0;
+      color:#7f96aa;
+      font-size:.74rem;
+      line-height:1.45;
+    }
+
     footer{ margin-top:auto }
-    @media (prefers-reduced-motion:reduce){ .tile{ transition:none } .tile:hover{ transform:none } }
+    @media (max-width:900px){ .science-youtube__grid{grid-template-columns:1fr} }
+    @media (max-width:520px){
+      .science-youtube{margin-left:16px;margin-right:16px;padding:21px 16px}
+      .science-youtube__head{align-items:flex-start}
+      .science-youtube__thumb{width:52px;height:52px;flex-basis:52px}
+    }
+    @media (prefers-reduced-motion:reduce){
+      .tile,.science-youtube__card{ transition:none }
+      .tile:hover,.science-youtube__card:hover,.science-youtube__card:focus-visible{ transform:none }
+    }
   </style>
 <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1" />
 <script src="/scripts/site-header.js?v=20260719-1" defer></script>
@@ -120,6 +258,58 @@
       </li>
     </ul>
 
+    <section class="science-youtube" aria-labelledby="science-youtube-title">
+      <div class="science-youtube__head">
+        <span class="science-youtube__icon" aria-hidden="true">▶</span>
+        <div>
+          <h2 id="science-youtube-title">Polecane filmy i podcasty</h2>
+          <p>Trzy polskie materiały, które łączą rzetelną naukę, dobrych ekspertów i przystępne wyjaśnienia.</p>
+        </div>
+      </div>
+
+      <div class="science-youtube__grid">
+        <a class="science-youtube__card" href="https://naukatolubie.org/podcast/czego-najbardziej-nie-wiemy-o-wszechswiecie-debata/" target="_blank" rel="noopener noreferrer external">
+          <div class="science-youtube__top">
+            <img class="science-youtube__thumb" src="https://unavatar.io/naukatolubie.org" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            <div>
+              <span class="science-youtube__label">Kosmologia</span>
+              <span class="science-youtube__source">Nauka. To Lubię • 26.05.2026</span>
+            </div>
+          </div>
+          <h3>95% Wszechświata nadal pozostaje zagadką</h3>
+          <p>Debata o ciemnej materii i energii, granicach współczesnej kosmologii, programie Artemis i roli AI w astronomii.</p>
+          <span class="science-youtube__cta">Otwórz materiał →</span>
+        </a>
+
+        <a class="science-youtube__card" href="https://radionaukowe.pl/podcast/prof-anna-karnkowska/" target="_blank" rel="noopener noreferrer external">
+          <div class="science-youtube__top">
+            <img class="science-youtube__thumb" src="https://unavatar.io/radionaukowe.pl" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            <div>
+              <span class="science-youtube__label">Biologia</span>
+              <span class="science-youtube__source">Radio Naukowe • 30.07.2026</span>
+            </div>
+          </div>
+          <h3>Jedna komórka, zaskakująco skomplikowane życie</h3>
+          <p>Prof. Anna Karnkowska pokazuje świat protistów, endosymbiozy i mikroorganizmów, które są znacznie ciekawsze niż szkolny „pantofelek”.</p>
+          <span class="science-youtube__cta">Otwórz materiał →</span>
+        </a>
+
+        <a class="science-youtube__card" href="https://naukatolubie.org/podcast/czym-naprawde-oddychasz-rozbijamy-smog-na-czynniki-pierwsze/" target="_blank" rel="noopener noreferrer external">
+          <div class="science-youtube__top">
+            <img class="science-youtube__thumb" src="https://unavatar.io/naukatolubie.org" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            <div>
+              <span class="science-youtube__label">Środowisko</span>
+              <span class="science-youtube__source">Nauka. To Lubię • 02.07.2026</span>
+            </div>
+          </div>
+          <h3>Co naprawdę znajduje się w powietrzu, którym oddychamy?</h3>
+          <p>Krótki materiał o PM10, PM2.5, benzo(a)pirenie, źródłach smogu i tym, jak zanieczyszczenia wpływają na organizm.</p>
+          <span class="science-youtube__cta">Otwórz materiał →</span>
+        </a>
+      </div>
+
+      <p class="science-youtube__note">Polecenia redakcyjne BriefRooms. Brak współpracy komercyjnej z polecanymi twórcami. Materiały Nauka. To Lubię są oznaczone u źródła jako współpraca płatna.</p>
+    </section>
   </main>
 
   <footer>© BriefRooms</footer>
