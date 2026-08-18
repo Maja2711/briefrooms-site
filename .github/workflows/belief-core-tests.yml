@@ -8,14 +8,18 @@ on:
       - "scripts/belief_core_shadow.py"
       - "scripts/belief_core_verify.py"
       - "scripts/belief_core_live.py"
+      - "scripts/belief_external_live.py"
+      - "scripts/belief_llm_interpreter.py"
       - "scripts/belief_adapter_contract.py"
       - "scripts/belief_*_adapter.py"
       - "tests/test_belief_core*.py"
       - "docs/BELIEF_CORE.md"
       - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
       - "docs/BELIEF_EVIDENCE_ADAPTERS.md"
+      - "docs/BELIEF_NEWS_MACRO_ADAPTERS.md"
       - ".github/workflows/belief-core-tests.yml"
       - ".github/workflows/belief-core-shadow-live.yml"
+      - ".github/workflows/belief-core-events-live.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +28,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +48,10 @@ jobs:
             scripts/belief_technical_adapter.py \
             scripts/belief_liquidity_adapter.py \
             scripts/belief_regime_adapter.py \
+            scripts/belief_llm_interpreter.py \
+            scripts/belief_news_event_adapter.py \
+            scripts/belief_macro_calendar_adapter.py \
+            scripts/belief_external_live.py \
             scripts/belief_core_live.py
       - name: Run Belief Core unit tests
         run: python -m unittest discover -s tests -p 'test_belief_core*.py' -v
