@@ -21,6 +21,15 @@ from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot, YahooChartClient
 from belief_regime_adapter import RegimeCrossAssetAdapter
 from belief_technical_adapter import TechnicalEvidenceAdapter
+from belief_wes_assets_adapter import (
+    WES_ASSET_BELIEFS,
+    WESAssetEvidenceAdapter,
+    belief_market_symbol,
+    coverage_report as wes_asset_coverage_report,
+    evaluate_spec as evaluate_wes_asset_spec,
+    outcome_spec as wes_asset_outcome_spec,
+    required_symbols as required_wes_asset_symbols,
+)
 
 NY = ZoneInfo("America/New_York")
 MODE = "shadow"
@@ -33,7 +42,7 @@ MARKET_CLOSE = time(16, 20)
 FORECAST_SLOTS = (time(10, 0), time(13, 0), time(16, 0))
 SLOT_GRACE_MINUTES = 45
 
-BELIEFS: Tuple[BeliefDefinition, ...] = (
+SPX_BELIEFS: Tuple[BeliefDefinition, ...] = (
     BeliefDefinition(
         "spx.trend.bullish", "SPX/US equity trend is bullish into the target horizon",
         prior_probability=.50, half_life_hours=18, entity="SPX", domain="trend",
@@ -65,6 +74,7 @@ BELIEFS: Tuple[BeliefDefinition, ...] = (
         outcome_rule="financial_conditions_majority_supportive",
     ),
 )
+BELIEFS: Tuple[BeliefDefinition, ...] = SPX_BELIEFS + WES_ASSET_BELIEFS
 
 
 def floor_half_hour(dt: datetime) -> datetime:
@@ -103,6 +113,7 @@ def build_adapter_payload(snapshot: MarketSnapshot) -> Dict[str, Any]:
         TechnicalEvidenceAdapter(),
         LiquidityEvidenceAdapter(),
         RegimeCrossAssetAdapter(),
+        WESAssetEvidenceAdapter(),
     )
     observations = []
     evidence = []
@@ -117,6 +128,7 @@ def build_adapter_payload(snapshot: MarketSnapshot) -> Dict[str, Any]:
         "evidence": evidence,
         "adapter_counts": counts,
         "regime": RegimeCrossAssetAdapter.classify(snapshot),
+        "wes_asset_coverage": wes_asset_coverage_report(),
     }
 
 
@@ -142,6 +154,8 @@ def outcome_spec(belief_id: str, snapshot: MarketSnapshot) -> Dict[str, Any]:
     if belief_id == "spx.financial_conditions.supportive":
         return {"kind": "majority_supportive", "reference": {
             "TLT": snapshot.latest("TLT"), "HYG": snapshot.latest("HYG"), "UUP": snapshot.latest("UUP")}}
+    if belief_id.startswith("eurusd.") or belief_id.startswith("btc."):
+        return wes_asset_outcome_spec(belief_id, snapshot)
     raise KeyError(belief_id)
 
 
@@ -162,6 +176,8 @@ def evaluate_spec(spec: Mapping[str, Any], values: Mapping[str, float]) -> bool:
             float(values["UUP"]) <= float(reference["UUP"]),
         ]
         return sum(bool(value) for value in votes) >= 2
+    if kind in {"value_above", "absolute_return_below", "credit_duration_supportive"}:
+        return evaluate_wes_asset_spec(spec, values)
     raise ValueError(f"unknown outcome spec: {kind}")
 
 
@@ -173,6 +189,8 @@ def required_symbols(spec: Mapping[str, Any]) -> List[str]:
         return [str(spec["numerator"]), str(spec["denominator"])]
     if kind == "majority_supportive":
         return ["TLT", "HYG", "UUP"]
+    if kind in {"value_above", "absolute_return_below", "credit_duration_supportive"}:
+        return required_wes_asset_symbols(spec)
     raise ValueError(str(kind))
 
 
@@ -181,11 +199,19 @@ def target_values(client: YahooChartClient, spec: Mapping[str, Any], target_at: 
     target_local = target_at.astimezone(NY)
     now_local = now.astimezone(NY)
     symbols = required_symbols(spec)
-    if live_snapshot is not None and target_local.date() == now_local.date() and live_snapshot.is_current_session(now):
+    if (
+        live_snapshot is not None
+        and target_local.date() == now_local.date()
+        and live_snapshot.is_current_session(now)
+        and all(symbol in live_snapshot.bars for symbol in symbols)
+    ):
         return {symbol: live_snapshot.latest(symbol) for symbol in symbols}
     values: Dict[str, float] = {}
     for symbol in symbols:
-        rows = client.bars(symbol, "3mo", "1d")
+        try:
+            rows = client.bars(symbol, "3mo", "1d")
+        except Exception:
+            return None
         candidates = [bar for bar in rows if bar.timestamp.astimezone(NY).date() >= target_local.date()]
         if not candidates:
             return None
@@ -265,18 +291,39 @@ def append_world_state(state_dir: Path, core: BeliefCore, when: datetime, regime
         handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
 
 
+def _belief_ids_for_consumer(core: BeliefCore, consumer: str) -> List[str]:
+    if consumer == "WES":
+        return sorted(belief_id for belief_id, definition in core.definitions.items() if "WES" in definition.tags)
+    if consumer == "BRACE+BRACE-SPX":
+        return sorted(
+            belief_id for belief_id, definition in core.definitions.items()
+            if "BRACE" in definition.tags or "BRACE-SPX" in definition.tags
+        )
+    return []
+
+
 def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, target: datetime,
                consumer: str, slot_key: str, regime: str) -> int:
     count = 0
-    for belief_id in sorted(core.beliefs):
+    for belief_id in _belief_ids_for_consumer(core, consumer):
+        market_symbol = belief_market_symbol(belief_id)
+        if market_symbol not in snapshot.bars:
+            continue
         forecast_id = stable_id("forecast", consumer, slot_key, belief_id)
         if forecast_id in core.forecasts:
+            continue
+        try:
+            spec = outcome_spec(belief_id, snapshot)
+        except (KeyError, ValueError, ZeroDivisionError):
+            continue
+        if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
             continue
         metadata = {
             "consumer": consumer,
             "slot_key": slot_key,
-            "market_observed_at": iso_z(snapshot.observed_at("SPY")),
-            "outcome_spec": outcome_spec(belief_id, snapshot),
+            "market_symbol": market_symbol,
+            "market_observed_at": iso_z(snapshot.observed_at(market_symbol)),
+            "outcome_spec": spec,
             "adapter_contract": "Observation->Evidence/v1",
             "shadow_only": True,
             "trade_execution_enabled": False,
@@ -371,6 +418,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "shared_forecasts_frozen": forecast_count,
         "wes_forecasts_frozen": wes_count,
         "forecasts_verified": verified,
+        "wes_asset_coverage": wes_asset_coverage_report(),
         "mode": MODE,
     }
     scheduler["gaps"] = scheduler.get("gaps", [])[-100:]
