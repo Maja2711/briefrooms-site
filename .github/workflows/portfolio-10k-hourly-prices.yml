@@ -10,6 +10,7 @@ on:
       - "scripts/portfolio_10k_hourly_prices.py"
       - "scripts/portfolio_10k_cash_yield.py"
       - "scripts/portfolio_10k_cash_yield_backfill.py"
+      - "scripts/repair_portfolio_10k_usd_cash_yield_receipt.py"
       - "scripts/portfolio_10k_guardian.py"
       - "scripts/portfolio_10k_hard_gate.py"
       - "scripts/portfolio_10k_ledger_parity_gate.py"
@@ -70,6 +71,7 @@ jobs:
       - name: Build independent USD portfolio
         run: |
           python scripts/build_portfolio_10k_usd.py
+          python scripts/repair_portfolio_10k_usd_cash_yield_receipt.py
           python scripts/fix_portfolio_10k_usd_reviews.py
 
       - name: Run portfolio guardian and cash-deployment gate
@@ -89,6 +91,7 @@ jobs:
           python scripts/sync_portfolio_10k_from_transaction_ledger.py
           python scripts/reconcile_portfolio_10k_executions.py
           python scripts/build_portfolio_10k_usd.py
+          python scripts/repair_portfolio_10k_usd_cash_yield_receipt.py
           python scripts/fix_portfolio_10k_usd_reviews.py
           python scripts/portfolio_10k_guardian.py
 
@@ -98,6 +101,7 @@ jobs:
             scripts/portfolio_10k_hourly_prices.py \
             scripts/portfolio_10k_cash_yield.py \
             scripts/portfolio_10k_cash_yield_backfill.py \
+            scripts/repair_portfolio_10k_usd_cash_yield_receipt.py \
             scripts/portfolio_10k_guardian.py \
             scripts/portfolio_10k_hard_gate.py \
             scripts/portfolio_10k_ledger_parity_gate.py \
@@ -236,4 +240,4 @@ jobs:
           done
           exit 1
 
-# trigger: harden MTM sizing, cash yield backfill and ledger parity 2026-08-19
+# trigger: preserve independent USD cash-yield correction receipt 2026-08-19
