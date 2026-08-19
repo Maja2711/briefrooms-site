@@ -22,6 +22,25 @@ function open(id, direction, conviction, entry, tp, sl, score) {
   };
 }
 
+function daily(decision, outcomeStatus = 'PENDING') {
+  return {
+    date: '2026-08-19',
+    decision,
+    selection: {
+      symbol: decision === 'TRADE' ? 'MRK' : 'PKO.WA',
+      ticker: decision === 'TRADE' ? 'MRK' : 'PKO',
+      name: decision === 'TRADE' ? 'Merck' : 'PKO BP',
+      score: 80.14,
+      reference_price: 151.3,
+      entry_zone: [150.85, 152.21],
+      stop: 147.48,
+      target: 158.17,
+      valid_until: '2026-08-21'
+    },
+    outcome: { status: outcomeStatus }
+  };
+}
+
 test('Warsaw ISO week resolves W33 on 10 August 2026', () => {
   assert.equal(widget.isoWeekId(new Date('2026-08-10T09:00:00Z')), '2026-W33');
 });
@@ -47,4 +66,29 @@ test('EURUSD keeps five decimals while index and crypto keep two', () => {
   const spx = open('sp500_futures', 'long', 12, 7787, 7986.125846, 7665.311982, 83);
   assert.equal(widget.formatPrice(eur.entry_price, eur, 'en'), '1.15567');
   assert.equal(widget.formatPrice(spx.entry_price, spx, 'en'), '7,787.00');
+});
+
+test('weekly signal always has priority over a daily recommendation', () => {
+  const weekly = open('sp500_futures', 'long', 12.45, 7787, 7986.13, 7665.31, 83);
+  const selected = widget.chooseSignal([weekly], daily('TRADE'), 'en');
+  assert.equal(selected.kind, 'weekly');
+  assert.equal(selected.instrument_id, 'sp500_futures');
+});
+
+test('English homepage falls back to active US Daily Stock when no weekly position is open', () => {
+  const selected = widget.chooseSignal([], daily('TRADE'), 'en');
+  assert.equal(selected.kind, 'daily');
+  assert.equal(selected.ticker, 'MRK');
+  assert.deepEqual(selected.entry_zone, [150.85, 152.21]);
+});
+
+test('Polish homepage accepts GPW daily trade but never promotes a resolved trade', () => {
+  const active = widget.dailySignal(daily('TRANSAKCJA'), 'pl');
+  assert.equal(active.ticker, 'PKO');
+  assert.equal(widget.dailySignal(daily('TRANSAKCJA', 'RESOLVED'), 'pl'), null);
+});
+
+test('wrong-market daily decision is not promoted on the other language homepage', () => {
+  assert.equal(widget.dailySignal(daily('TRADE'), 'pl'), null);
+  assert.equal(widget.dailySignal(daily('TRANSAKCJA'), 'en'), null);
 });
