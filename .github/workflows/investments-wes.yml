@@ -9,11 +9,14 @@ on:
       - "scripts/investments_wes_runner.py"
       - "scripts/investments_wes_memory.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
+      - "scripts/investments_wes_counterfactual.py"
       - "scripts/investments-wes-public.js"
       - "scripts/render_weekly_public_pages.py"
       - "tests/test_investments_wes.py"
       - "tests/test_investments_wes_memory.py"
       - "tests/test_investments_wes_spx_brace_bridge.py"
+      - "tests/test_investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_counterfactual_deadline.py"
       - "data/investments/wes_methodology.json"
       - ".github/workflows/investments-wes.yml"
   workflow_run:
@@ -48,12 +51,15 @@ jobs:
             scripts/investments_wes.py \
             scripts/investments_wes_runner.py \
             scripts/investments_wes_memory.py \
-            scripts/investments_wes_spx_brace_bridge.py
+            scripts/investments_wes_spx_brace_bridge.py \
+            scripts/investments_wes_counterfactual.py
           node --check scripts/investments-wes-public.js
           python -m unittest \
             tests/test_investments_wes.py \
             tests/test_investments_wes_memory.py \
-            tests/test_investments_wes_spx_brace_bridge.py
+            tests/test_investments_wes_spx_brace_bridge.py \
+            tests/test_investments_wes_counterfactual.py \
+            tests/test_investments_wes_counterfactual_deadline.py
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
@@ -72,6 +78,8 @@ jobs:
           python scripts/investments_wes_spx_brace_bridge.py \
             --stage pre-wes \
             --brace-shadow /tmp/brace_spx_generation6_shadow.json
+      - name: Freeze self-contained V5 replay contract
+        run: python scripts/investments_wes_counterfactual.py --stage freeze
       - name: Freeze WES adaptive TP and SL after any new entry
         run: python scripts/investments_wes_runner.py --mode postflight
       - name: Freeze actual WES plan without BRACE-SPX influence
@@ -79,6 +87,8 @@ jobs:
           python scripts/investments_wes_spx_brace_bridge.py \
             --stage post-wes \
             --brace-shadow /tmp/brace_spx_generation6_shadow.json
+      - name: Replay frozen V5 baseline and measure incremental alpha
+        run: python scripts/investments_wes_counterfactual.py --stage evaluate
       - name: Refresh derived WES historical memory
         run: |
           python scripts/investments_wes_memory.py --write
@@ -100,6 +110,7 @@ jobs:
                   data/investments/wes_memory_report.json \
                   data/investments/wes_spx_brace_bridge.json \
                   data/investments/wes_spx_brace_alpha_report.json \
+                  data/investments/wes_incremental_alpha_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   pl/inwestycje/pozycje-tygodniowe.html \
