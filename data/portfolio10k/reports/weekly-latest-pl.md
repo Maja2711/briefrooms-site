@@ -7,6 +7,6 @@
 - **Warunki pozostale do awansu:** none
 - **Stan ryzyka:** WITHIN_LIMITS / safe mode: False
 - **Cel 10% rocznie:** TARGET_NOT_CURRENTLY_JUSTIFIED
-- **Decyzje oczekujace:** 1
+- **Decyzje oczekujace:** 2
 
 **Uwaga:** BRACE dziala wylacznie na portfelu modelowym; nie laczy sie z brokerem.

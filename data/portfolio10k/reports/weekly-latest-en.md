@@ -7,6 +7,6 @@
 - **Remaining promotion gates:** none
 - **Risk state:** WITHIN_LIMITS / safe mode: False
 - **10% annual target:** TARGET_NOT_CURRENTLY_JUSTIFIED
-- **Pending decisions:** 1
+- **Pending decisions:** 2
 
 **Note:** BRACE operates only on a model portfolio and does not connect to a broker.
