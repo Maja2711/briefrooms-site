@@ -1,0 +1,78 @@
+name: One-shot wire GPW reviewer v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-wire-gpw-reviewer-v2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Patch canonical GPW runtime and workflow contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path=Path('scripts/gpw_event_driven_loop.py')
+          text=path.read_text(encoding='utf-8')
+          if 'gpw_reviewer_v2 as reviewer' not in text:
+              text=text.replace(
+                  '    from scripts import gpw_provider_v2 as provider\n',
+                  '    from scripts import gpw_provider_v2 as provider\n    from scripts import gpw_reviewer_v2 as reviewer\n',
+              )
+              text=text.replace(
+                  '    import gpw_provider_v2 as provider\n',
+                  '    import gpw_provider_v2 as provider\n    import gpw_reviewer_v2 as reviewer\n',
+              )
+          marker='    gpw.gemini_analysis = _event_aware_analysis\n'
+          if 'gpw.gemini_review = reviewer.review' not in text:
+              if marker not in text:
+                  raise SystemExit('gemini analysis install marker missing')
+              text=text.replace(marker, marker + '    gpw.gemini_review = reviewer.review\n')
+          path.write_text(text,encoding='utf-8')
+
+          wf=Path('.github/workflows/gpw-daily-pick-pl.yml')
+          w=wf.read_text(encoding='utf-8')
+          if 'scripts/gpw_reviewer_v2.py' not in w:
+              w=w.replace(
+                  '      - "scripts/gpw_event_driven_loop.py"\n',
+                  '      - "scripts/gpw_event_driven_loop.py"\n      - "scripts/gpw_pipeline_v2.py"\n      - "scripts/gpw_provider_v2.py"\n      - "scripts/gpw_reviewer_v2.py"\n',
+              )
+              w=w.replace(
+                  '            scripts/gpw_event_driven_loop.py \\\n',
+                  '            scripts/gpw_event_driven_loop.py \\\n            scripts/gpw_pipeline_v2.py \\\n            scripts/gpw_provider_v2.py \\\n            scripts/gpw_reviewer_v2.py \\\n',
+              )
+          if 'tests.test_gpw_pipeline_v2' not in w:
+              w=w.replace(
+                  '            tests.test_gpw_market_data \\\n',
+                  '            tests.test_gpw_market_data \\\n            tests.test_gpw_pipeline_v2 \\\n',
+              )
+          wf.write_text(w,encoding='utf-8')
+          PY
+          python -m py_compile scripts/gpw_event_driven_loop.py scripts/gpw_reviewer_v2.py scripts/gpw_pipeline_v2.py scripts/gpw_provider_v2.py
+      - name: Commit and self-remove
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-wire-gpw-reviewer-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/gpw_event_driven_loop.py scripts/gpw_reviewer_v2.py .github/workflows/gpw-daily-pick-pl.yml .github/workflows/one-shot-wire-gpw-reviewer-v2.yml
+          git commit -m "Use integrity-scoped reviewer for GPW Daily"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
