@@ -18,6 +18,7 @@ The bridge must preserve all of these invariants:
 - only point-in-time BRACE-SPX states may become alpha-eligible
 - BRACE-SPX warm-up produces `UNAVAILABLE`, never an inferred directional opinion
 - retrospective BRACE-SPX states created after the WES decision are excluded from alpha
+- V5 counterfactual baselines are captured prospectively only; old states are never reconstructed as if they had been frozen earlier
 
 ## Two-stage freeze
 
@@ -35,6 +36,16 @@ Runs after the governed V5 decision/admission step and before WES postflight. It
 - contemporaneous BRACE-SPX G6 shadow state
 
 This is the future V5 counterfactual baseline. The outcome is not fabricated at capture time.
+
+A V5 baseline may be frozen only when the bridge runs within **30 minutes** of the actual decision timestamp (with a small clock-skew tolerance). This makes the baseline prospective rather than reconstructed. If the bridge is first deployed after an older SPX decision already exists, the ledger records:
+
+`v5_counterfactual_capture.status = missed_not_reconstructed`
+
+and keeps:
+
+`v5_counterfactual = null`
+
+The bridge therefore never relabels an old WES/V5 plan as a point-in-time pre-WES baseline.
 
 ### 2. `post-wes`
 
@@ -105,7 +116,9 @@ The ledger keeps three logically separate states:
 
 The bridge intentionally does **not** invent the V5 counterfactual result. It freezes the V5 plan so a later evaluator can replay it against point-in-time market data using the original execution rules.
 
-Until that evaluator resolves both legs:
+If the pre-WES capture window was missed, no V5 baseline is reconstructed. That observation can still preserve the actual WES outcome and the provenance status, but it cannot become a resolved WES-vs-V5 pair.
+
+Until the evaluator resolves both valid frozen legs:
 
 `incremental_wes_vs_v5_percent = null`
 
