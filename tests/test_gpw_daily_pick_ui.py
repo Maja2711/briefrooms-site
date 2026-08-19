@@ -16,7 +16,7 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertEqual(english.count('id="us-daily-stock-root"'), 1)
         self.assertIn("/scripts/us-daily-stock-public.js", english)
 
-    def test_legacy_market_clients_boot_shared_dual_market_renderer(self):
+    def test_legacy_market_clients_boot_shared_renderer(self):
         gpw = (ROOT / "scripts/gpw-daily-pick-public.js").read_text(encoding="utf-8")
         us = (ROOT / "scripts/us-daily-stock-public.js").read_text(encoding="utf-8")
         for script in (gpw, us):
@@ -24,16 +24,17 @@ class GpwDailyPickUiTests(unittest.TestCase):
             self.assertIn("daily-stock-markets.css", script)
             self.assertIn("__BR_DAILY_STOCK_MARKETS_BOOTSTRAP__", script)
 
-    def test_shared_client_loads_both_markets_and_one_combined_history_view(self):
+    def test_shared_client_loads_both_feeds_and_localizes_market_visibility(self):
         script = (ROOT / "scripts/daily-stock-markets-public.js").read_text(encoding="utf-8")
         self.assertIn("/data/investments/gpw_daily_pick.json", script)
         self.assertIn("/data/investments/us_daily_stock.json", script)
         self.assertIn("/data/investments/gpw_daily_pick_history_index.json", script)
         self.assertIn("/data/investments/us_daily_stock_history/index.json", script)
         self.assertIn("DAILY TRADE — GPW + USA", script)
-        self.assertIn("DAILY TRADE — GPW + US", script)
+        self.assertIn('title: "US DAILY STOCK"', script)
         self.assertIn("Rynek polski (GPW)", script)
         self.assertIn("US market", script)
+        self.assertIn('if (lang === "en")', script)
         self.assertIn('cache: "no-store"', script)
 
     def test_shared_client_keeps_market_specific_currency_and_session_context(self):
@@ -43,6 +44,21 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn("09:35 ET", script)
         self.assertIn("ESPI/EBI", script)
         self.assertIn("SEC/company releases", script)
+
+    def test_polish_view_prefers_localized_us_thesis_and_news_summaries(self):
+        script = (ROOT / "scripts/daily-stock-markets-public.js").read_text(encoding="utf-8")
+        self.assertIn('lang === "pl" && market === "us"', script)
+        self.assertIn("selection?.localized?.pl", script)
+        self.assertIn("localization?.thesis", script)
+        self.assertIn("localization?.why_now", script)
+        self.assertIn("localization?.activation", script)
+        self.assertIn("localization?.source_summaries", script)
+
+        adapter = (ROOT / "scripts/daily_stock_us_adapter.py").read_text(encoding="utf-8")
+        self.assertIn("_polish_localization", adapter)
+        self.assertIn("source_summaries", adapter)
+        self.assertIn("financial translator", adapter)
+        self.assertIn("us.publish = _publish", adapter)
 
     def test_gpw_runtime_installs_shared_core_before_preserved_event_layers(self):
         workflow = (ROOT / ".github/workflows/gpw-daily-pick-pl.yml").read_text(encoding="utf-8")
