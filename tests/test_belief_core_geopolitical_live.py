@@ -53,6 +53,20 @@ def prepare_gse(root: Path) -> None:
         "by_horizon_hours": {"24": metric},
         "automatic_tuning_enabled": False,
     })
+    write_jsonl(root / "gse_verifications.jsonl", [
+        {
+            "verification_id": f"historic-{i}",
+            "forecast_id": f"historic-f-{i}",
+            "asset": "SPX",
+            "horizon_hours": 24,
+            "predicted_probability": 0.60,
+            "outcome": i < 21,
+            "brier_score": (0.60 - (1.0 if i < 21 else 0.0)) ** 2,
+            "log_loss": 0.6,
+            "calibration_eligible": True,
+        }
+        for i in range(35)
+    ])
     write_jsonl(root / "gse_forecasts.jsonl", [{
         "forecast_id": "gf1",
         "batch_id": "gb1",
@@ -95,6 +109,7 @@ class GeopoliticalLiveIntegrationTests(unittest.TestCase):
             self.assertEqual(evidence[0]["source"], "BriefRooms GSE")
             self.assertEqual(evidence[0]["source_type"], "derived")
             self.assertTrue(evidence[0]["derived_from"])
+            self.assertEqual(evidence[0]["independence_cluster"], "gse:serial_forecast:SPX:24")
 
     def test_retry_is_observation_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
