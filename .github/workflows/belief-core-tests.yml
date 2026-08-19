@@ -11,15 +11,18 @@ on:
       - "scripts/belief_core_verify.py"
       - "scripts/belief_core_live.py"
       - "scripts/belief_external_live.py"
+      - "scripts/belief_geopolitical_live.py"
       - "scripts/belief_llm_interpreter.py"
       - "scripts/belief_adapter_contract.py"
       - "scripts/belief_*_adapter.py"
       - "tests/test_belief_core*.py"
+      - "tests/test_belief_geopolitical_forecast_adapter.py"
       - "docs/BELIEF_CORE.md"
       - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
       - "docs/BELIEF_EVIDENCE_ADAPTERS.md"
       - "docs/BELIEF_NEWS_MACRO_ADAPTERS.md"
       - "docs/BELIEF_CALIBRATION_FOUNDATION.md"
+      - "docs/BELIEF_GSE_GEOPOLITICAL_ADAPTER.md"
       - ".github/workflows/belief-core-tests.yml"
       - ".github/workflows/belief-core-shadow-live.yml"
       - ".github/workflows/belief-core-events-live.yml"
@@ -57,7 +60,11 @@ jobs:
             scripts/belief_llm_interpreter.py \
             scripts/belief_news_event_adapter.py \
             scripts/belief_macro_calendar_adapter.py \
+            scripts/belief_geopolitical_forecast_adapter.py \
+            scripts/belief_geopolitical_live.py \
             scripts/belief_external_live.py \
             scripts/belief_core_live.py
       - name: Run Belief Core unit tests
-        run: python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+          python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
