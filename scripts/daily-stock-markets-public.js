@@ -10,7 +10,9 @@
   const URLS = {
     gpw: "/data/investments/gpw_daily_pick.json",
     us: "/data/investments/us_daily_stock.json",
-    history: "/data/investments/daily_stock_history_index.json"
+    gpwHistory: "/data/investments/gpw_daily_pick_history_index.json",
+    usHistory: "/data/investments/us_daily_stock_history/index.json",
+    historyFallback: "/data/investments/daily_stock_history_index.json"
   };
 
   const T = lang === "pl" ? {
@@ -37,7 +39,6 @@
     stop: "Stop",
     target: "Cel",
     valid: "Ważność planu",
-    sources: "Źródła i dowody",
     details: "Metoda, ocena i wyniki",
     scoreBreakdown: "Skład oceny",
     metrics: "Wyniki zakończonych transakcji",
@@ -94,7 +95,6 @@
     stop: "Stop",
     target: "Target",
     valid: "Plan valid through",
-    sources: "Sources and evidence",
     details: "Method, score and track record",
     scoreBreakdown: "Score breakdown",
     metrics: "Resolved paper trades",
@@ -311,6 +311,14 @@
 
   const renderHistory = (history) => `<details class="dsm-history"><summary>${escapeHtml(T.history)}</summary><div class="dsm-history-body">${historyMarket(history, "gpw")}${historyMarket(history, "us")}</div></details>`;
 
+  const mergeHistory = (gpwIndex, usIndex, fallback) => ({
+    schema_version: "daily-stock-history-ui-v1",
+    markets: {
+      gpw: gpwIndex || fallback?.markets?.gpw || { selected_trades: 0, resolved_trades: 0, trades: [] },
+      us: usIndex || fallback?.markets?.us || { selected_trades: 0, resolved_trades: 0, trades: [] }
+    }
+  });
+
   const shell = () => {
     root.className = "dash-card page-card dsm-root";
     root.removeAttribute("aria-labelledby");
@@ -331,13 +339,16 @@
   const load = async () => {
     shell();
     try {
-      const [gpw, us, history] = await Promise.all([
+      const [gpw, us, gpwIndex, usIndex, fallback] = await Promise.all([
         fetchJson(URLS.gpw),
         fetchJson(URLS.us),
-        fetchJson(URLS.history, false)
+        fetchJson(URLS.gpwHistory, false),
+        fetchJson(URLS.usHistory, false),
+        fetchJson(URLS.historyFallback, false)
       ]);
       root.querySelector(".dsm-market-grid").innerHTML = `${renderMarket(gpw, "gpw")}${renderMarket(us, "us")}`;
-      if (history) root.querySelector("[data-dsm-history]").innerHTML = renderHistory(history);
+      const history = mergeHistory(gpwIndex, usIndex, fallback);
+      root.querySelector("[data-dsm-history]").innerHTML = renderHistory(history);
     } catch (error) {
       root.querySelector(".dsm-market-grid").innerHTML = `<div class="dsm-error">${escapeHtml(lang === "pl" ? "Nie udało się załadować obu rynków. Bieżące dane są ponownie pobierane." : "Both market feeds could not be loaded. Current data will be retried automatically.")}</div>`;
     }
