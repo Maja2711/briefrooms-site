@@ -7,8 +7,10 @@ on:
     paths:
       - ".github/workflows/gpw-daily-outcome-monitor.yml"
       - "scripts/gpw_daily_outcome_monitor.py"
+      - "scripts/gpw_daily_apply_manual_evidence.py"
       - "tests/test_gpw_daily_outcome_monitor.py"
       - "scripts/gpw-daily-pick-public.js"
+      - "data/internal/gpw_daily_pick_evidence/**"
       - "data/investments/gpw_daily_pick_history/**"
   schedule:
     - cron: "*/10 7-16 * * 1-5"
@@ -39,11 +41,30 @@ jobs:
 
       - name: Validate outcome monitor contract
         run: |
-          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_pick.py
+          python -m py_compile \
+            scripts/gpw_daily_outcome_monitor.py \
+            scripts/gpw_daily_apply_manual_evidence.py \
+            scripts/gpw_daily_pick.py
           python -m unittest tests.test_gpw_daily_outcome_monitor -v
+          node --check scripts/gpw-daily-pick-public.js
+
+      - name: Apply explicit broker evidence receipts
+        run: python scripts/gpw_daily_apply_manual_evidence.py
 
       - name: Resolve pending GPW trades and rebuild durable history
         run: python scripts/gpw_daily_outcome_monitor.py
+
+      - name: Cache-bust GPW history-enabled client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('pl/inwestycje/portfel-10k.html')
+          text=path.read_text(encoding='utf-8')
+          import re
+          updated=re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=4', text)
+          if updated != text:
+              path.write_text(updated, encoding='utf-8')
+          PY
 
       - name: Commit outcomes, metrics and history index
         id: commit
@@ -53,7 +74,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/gpw_daily_pick.json \
                   data/investments/gpw_daily_pick_metrics.json \
-                  data/investments/gpw_daily_pick_history_index.json 2>/dev/null || true
+                  data/investments/gpw_daily_pick_history_index.json \
+                  pl/inwestycje/portfel-10k.html 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
