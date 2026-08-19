@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """One-time, ledger-derived correction for cash yield before the accrual engine launch.
 
-The cash-yield engine intentionally started without retroactive guessing.  We now
+The cash-yield engine intentionally started without retroactive guessing. We now
 have an append-only execution ledger, so the missing interval can be reconstructed
-exactly from executed cash flows.  This script is idempotent and records a durable
-correction receipt.  It never estimates a trade that is absent from the ledger.
+exactly from executed cash flows. This script is idempotent and records a durable
+correction receipt. It never estimates a trade that is absent from the ledger.
 """
 from __future__ import annotations
 
@@ -12,11 +12,14 @@ import json
 import math
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from portfolio_10k_cash_yield import interval_interest, load_policy, parse_timestamp
+try:
+    from portfolio_10k_cash_yield import interval_interest, load_policy, parse_timestamp
+except ModuleNotFoundError:  # unittest imports modules as scripts.* from repo root
+    from scripts.portfolio_10k_cash_yield import interval_interest, load_policy, parse_timestamp
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_PATH = ROOT / "data/investments/portfolio_10k.json"
@@ -128,7 +131,10 @@ def add_pln_correction(payload: dict[str, Any], amount: float, receipt: dict[str
     if "cash_balance_pln" in payload:
         payload["cash_balance_pln"] = round(finite(payload.get("cash_balance_pln")) + amount, 8)
     if not paper:
-        payload["base_cash_pln"] = round(finite(payload.get("base_cash_pln"), finite(payload.get("cash_pln")) - amount) + amount, 8)
+        payload["base_cash_pln"] = round(
+            finite(payload.get("base_cash_pln"), finite(payload.get("cash_pln")) - amount) + amount,
+            8,
+        )
     if payload.get("total_value_pln") is not None:
         payload["total_value_pln"] = round(finite(payload.get("total_value_pln")) + amount, 8)
     if payload.get("total_return_pln") is not None:
@@ -175,8 +181,12 @@ def main() -> None:
     policy = load_policy()
     pln_rate = finite((policy.get("pln") or {}).get("annual_rate"))
     usd_rate = finite((policy.get("usd") or {}).get("annual_rate"))
-    pln_amount, events, initial_cash = correction_from_ledger(public, paper, activation=activation, annual_rate=pln_rate)
-    usd_amount, _, _ = correction_from_ledger(public, paper, activation=activation, annual_rate=usd_rate)
+    pln_amount, events, initial_cash = correction_from_ledger(
+        public, paper, activation=activation, annual_rate=pln_rate
+    )
+    usd_amount, _, _ = correction_from_ledger(
+        public, paper, activation=activation, annual_rate=usd_rate
+    )
 
     common = {
         "correction_id": CORRECTION_ID,
@@ -187,8 +197,18 @@ def main() -> None:
         "retroactive_estimation": False,
         "idempotent": True,
     }
-    pln_receipt = {**common, "currency": "PLN", "annual_rate": pln_rate, "amount": round(pln_amount, 8)}
-    usd_receipt = {**common, "currency": "USD", "annual_rate": usd_rate, "amount": round(usd_amount, 8)}
+    pln_receipt = {
+        **common,
+        "currency": "PLN",
+        "annual_rate": pln_rate,
+        "amount": round(pln_amount, 8),
+    }
+    usd_receipt = {
+        **common,
+        "currency": "USD",
+        "annual_rate": usd_rate,
+        "amount": round(usd_amount, 8),
+    }
 
     add_pln_correction(public, pln_amount, pln_receipt, paper=False)
     add_pln_correction(paper, pln_amount, pln_receipt, paper=True)
@@ -196,7 +216,17 @@ def main() -> None:
     write_atomic(PUBLIC_PATH, public)
     write_atomic(PAPER_PATH, paper)
     write_atomic(USD_PATH, usd)
-    print(json.dumps({"status": "APPLIED", "pln": round(pln_amount, 8), "usd": round(usd_amount, 8), "events": len(events)}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "status": "APPLIED",
+                "pln": round(pln_amount, 8),
+                "usd": round(usd_amount, 8),
+                "events": len(events),
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":
