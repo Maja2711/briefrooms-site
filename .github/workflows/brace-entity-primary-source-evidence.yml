@@ -79,12 +79,12 @@ jobs:
 
       - name: Validate PR13 code
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/brace_entity_primary_source_evidence.py
-          PYTHONPATH=. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence -v
 
       - name: Collect prospective issuer primary-source observations
         run: |
-          PYTHONPATH=scripts python scripts/brace_entity_primary_source_evidence.py --state-dir "$STATE_DIR"
+          PYTHONPATH=scripts:. python scripts/brace_entity_primary_source_evidence.py --state-dir "$STATE_DIR"
 
       - name: Assert anti-hindsight and zero-influence boundary
         run: |
