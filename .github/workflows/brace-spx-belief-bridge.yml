@@ -1,0 +1,167 @@
+name: BRACE-SPX Belief Read-Only Bridge
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "BRACE-SPX Generation 6"
+      - "Belief Core Live Shadow Collection"
+      - "Belief Core News Macro Shadow Collection"
+      - "Belief Calibration Foundation"
+    types: [completed]
+  schedule:
+    - cron: "10 22 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-spx-belief-readonly-bridge
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  BRIDGE_ARTIFACT_NAME: brace-spx-belief-bridge-state
+
+jobs:
+  bridge:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout current production code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare isolated runtime directories
+        run: |
+          set -euo pipefail
+          echo "BELIEF_DIR=$RUNNER_TEMP/belief_state" >> "$GITHUB_ENV"
+          echo "BRIDGE_DIR=$RUNNER_TEMP/brace_spx_belief_bridge" >> "$GITHUB_ENV"
+          echo "BRACE_PATH=$RUNNER_TEMP/brace_spx_generation6_shadow.json" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_state" "$RUNNER_TEMP/brace_spx_belief_bridge"
+
+      - name: Restore latest cumulative Belief Core state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No Belief Core artifact available."
+            printf '{}\n' > "$BELIEF_DIR/state.json"
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief.zip"
+          mkdir -p "$RUNNER_TEMP/belief-zip"
+          unzip -q "$RUNNER_TEMP/belief.zip" -d "$RUNNER_TEMP/belief-zip"
+          test -f "$RUNNER_TEMP/belief-zip/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-zip/belief-core-state.tgz" -C "$BELIEF_DIR"
+          test -f "$BELIEF_DIR/state.json"
+
+      - name: Restore prior bridge ledger read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BRIDGE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/bridge-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/bridge-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No prior bridge artifact; this run will only establish prospective activation."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/bridge.zip"
+          mkdir -p "$RUNNER_TEMP/bridge-zip"
+          unzip -q "$RUNNER_TEMP/bridge.zip" -d "$RUNNER_TEMP/bridge-zip"
+          test -f "$RUNNER_TEMP/bridge-zip/brace-spx-belief-bridge-state.tgz"
+          tar -xzf "$RUNNER_TEMP/bridge-zip/brace-spx-belief-bridge-state.tgz" -C "$BRIDGE_DIR"
+
+      - name: Read BRACE-SPX Generation 6 shadow state without modifying research branch
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin brace-spx-research
+          if git show origin/brace-spx-research:data/shadow/brace_spx_generation6_shadow.json > "$BRACE_PATH"; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          row=json.loads(Path(os.environ['BRACE_PATH']).read_text())
+          print('BRACE-SPX source:', row.get('status'), row.get('observations_collected'), '/', row.get('warmup_required'), 'updated_at=', row.get('updated_at'))
+          PY
+          else
+            printf '{}\n' > "$BRACE_PATH"
+            echo "BRACE-SPX shadow source unavailable."
+          fi
+
+      - name: Validate bridge code
+        run: |
+          python -m py_compile scripts/brace_spx_belief_bridge.py
+          python -m unittest tests.test_brace_spx_belief_bridge -v
+
+      - name: Freeze prospective Engine-Belief observation
+        run: |
+          python scripts/brace_spx_belief_bridge.py \
+            --bridge-dir "$BRIDGE_DIR" \
+            --belief-state "$BELIEF_DIR/state.json" \
+            --brace-shadow "$BRACE_PATH"
+
+      - name: Assert zero decision influence
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['BRIDGE_DIR'])
+          state=json.loads((root/'bridge_state.json').read_text())
+          report=json.loads((root/'BRACE_SPX_BELIEF_BRIDGE_REPORT.json').read_text())
+          assert state['mode'] == 'shadow'
+          assert report['mode'] == 'shadow'
+          assert state['controls'] and all(value is False for value in state['controls'].values())
+          assert report['controls'] and all(value is False for value in report['controls'].values())
+          assert report['activation']['historical_backfill_allowed'] is False
+          assert report['activation']['prospective_only'] is True
+          assert report['with_without_belief']['enabled'] is False
+          assert report['decision_influence'] is False
+          assert report['bounded_modifier'] is False
+          print('BRACE-SPX / Belief bridge shadow-only contract: PASS')
+          print('Bridge sample:', report['sample'])
+          PY
+
+      - name: Pack cumulative bridge state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/brace-spx-belief-bridge-state.tgz" -C "$BRIDGE_DIR" .
+
+      - name: Store private cumulative bridge ledger
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-belief-bridge-state
+          path: ${{ runner.temp }}/brace-spx-belief-bridge-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
