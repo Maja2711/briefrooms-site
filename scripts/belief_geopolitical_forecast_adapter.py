@@ -14,6 +14,7 @@ import json
 import math
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from belief_adapter_contract import (
@@ -92,17 +93,68 @@ def _metric(row: Mapping[str, Any], key: str) -> Optional[float]:
     return out if math.isfinite(out) else None
 
 
+def _joint_metrics(
+    verifications: Sequence[Mapping[str, Any]], asset: str, horizon_hours: int
+) -> Dict[str, Any]:
+    rows = [
+        row
+        for row in verifications
+        if bool(row.get("calibration_eligible", True))
+        and str(row.get("asset") or "") == asset
+        and int(row.get("horizon_hours") or 0) == int(horizon_hours)
+    ]
+    if not rows:
+        return {"count": 0, "mean_brier": None, "bias": None}
+    briers: List[float] = []
+    predicted: List[float] = []
+    outcomes: List[float] = []
+    for row in rows:
+        p = _metric(row, "predicted_probability")
+        brier = _metric(row, "brier_score")
+        if p is None or brier is None or row.get("outcome") is None:
+            continue
+        predicted.append(p)
+        outcomes.append(1.0 if bool(row.get("outcome")) else 0.0)
+        briers.append(brier)
+    if not briers:
+        return {"count": 0, "mean_brier": None, "bias": None}
+    return {
+        "count": len(briers),
+        "mean_brier": round(mean(briers), 6),
+        "bias": round(mean(predicted) - mean(outcomes), 6),
+    }
+
+
 def _calibration_qualification(
     calibration: Mapping[str, Any],
+    verifications: Sequence[Mapping[str, Any]],
     asset: str,
     horizon_hours: int,
 ) -> Dict[str, Any]:
     asset_slice = ((calibration.get("by_asset") or {}).get(asset) or {})
     horizon_slice = ((calibration.get("by_horizon_hours") or {}).get(str(horizon_hours)) or {})
+    joint_slice = _joint_metrics(verifications, asset, horizon_hours)
     n_asset = int(asset_slice.get("count") or 0)
     n_horizon = int(horizon_slice.get("count") or 0)
-    briers = [x for x in (_metric(asset_slice, "mean_brier"), _metric(horizon_slice, "mean_brier")) if x is not None]
-    biases = [abs(x) for x in (_metric(asset_slice, "bias"), _metric(horizon_slice, "bias")) if x is not None]
+    n_joint = int(joint_slice.get("count") or 0)
+    briers = [
+        x
+        for x in (
+            _metric(asset_slice, "mean_brier"),
+            _metric(horizon_slice, "mean_brier"),
+            _metric(joint_slice, "mean_brier"),
+        )
+        if x is not None
+    ]
+    biases = [
+        abs(x)
+        for x in (
+            _metric(asset_slice, "bias"),
+            _metric(horizon_slice, "bias"),
+            _metric(joint_slice, "bias"),
+        )
+        if x is not None
+    ]
     worst_brier = max(briers) if briers else None
     worst_abs_bias = max(biases) if biases else None
     reasons: List[str] = []
@@ -110,6 +162,8 @@ def _calibration_qualification(
         reasons.append(f"asset_calibration_n_below_{MIN_CALIBRATION_N}")
     if n_horizon < MIN_CALIBRATION_N:
         reasons.append(f"horizon_calibration_n_below_{MIN_CALIBRATION_N}")
+    if n_joint < MIN_CALIBRATION_N:
+        reasons.append(f"asset_horizon_joint_n_below_{MIN_CALIBRATION_N}")
     if worst_brier is None:
         reasons.append("brier_unavailable")
     elif worst_brier > MAX_BRIER_FOR_EVIDENCE:
@@ -127,11 +181,14 @@ def _calibration_qualification(
         "reasons": reasons,
         "asset_count": n_asset,
         "horizon_count": n_horizon,
+        "asset_horizon_joint_count": n_joint,
+        "joint_mean_brier": joint_slice.get("mean_brier"),
+        "joint_bias": joint_slice.get("bias"),
         "worst_mean_brier": None if worst_brier is None else round(worst_brier, 6),
         "worst_abs_bias": None if worst_abs_bias is None else round(worst_abs_bias, 6),
         "derived_source_reliability": round(reliability, 6),
         "thresholds": {
-            "minimum_count": MIN_CALIBRATION_N,
+            "minimum_count_each_marginal_and_joint": MIN_CALIBRATION_N,
             "maximum_mean_brier": MAX_BRIER_FOR_EVIDENCE,
             "maximum_absolute_bias": MAX_ABS_BIAS_FOR_EVIDENCE,
         },
@@ -216,6 +273,7 @@ class GeopoliticalForecastAdapter:
         state = _read_json(gse_state_dir / "gse_state.json", {})
         calibration = _read_json(gse_state_dir / "gse_calibration.json", {})
         forecasts = _read_jsonl(gse_state_dir / "gse_forecasts.jsonl")
+        verifications = _read_jsonl(gse_state_dir / "gse_verifications.jsonl")
         v2_by_baseline = _v2_index(gse_state_dir)
         safe, safety_reasons = _safe_controls(state)
 
@@ -265,7 +323,7 @@ class GeopoliticalForecastAdapter:
             forecast_id = str(forecast["forecast_id"])
             probability = float(forecast["predicted_probability"])
             direction = int(forecast["direction"])
-            qualification = _calibration_qualification(calibration, asset, horizon)
+            qualification = _calibration_qualification(calibration, verifications, asset, horizon)
             scenario_ids, gse_evidence_ids = _scenario_lineage(forecast)
             v2_candidate = v2_by_baseline.get(forecast_id)
             serial_cluster = _serial_cluster(asset, horizon)
