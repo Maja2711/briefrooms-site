@@ -273,13 +273,16 @@ class DataQualityAdapter:
         observations_report = observation_quality(observations, now)
         coverage = forecast_quality(forecasts, verifications, now)
         stale_invalid = observations_report.get("stale_invalid_rate")
-        health = "healthy"
         if ledger_integrity and ledger_integrity.get("valid") is False:
             health = "critical"
+        elif not observations:
+            health = "awaiting_observations"
         elif observation_parse_errors or recent_gaps >= 3 or (stale_invalid is not None and stale_invalid > 0.10):
             health = "degraded"
         elif recent_gaps or (stale_invalid is not None and stale_invalid > 0.02):
             health = "watch"
+        else:
+            health = "healthy"
         return {
             "schema_version": SCHEMA_VERSION,
             "generated_at": iso_z(now),
