@@ -6,6 +6,11 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/belief-core-shadow-live.yml"
+      - "scripts/belief_core_live.py"
+      - "scripts/belief_market_data_adapter.py"
+      - "scripts/belief_wes_assets_adapter.py"
+      - "tests/test_belief_wes_assets.py"
+      - "docs/BELIEF_WES_ASSET_COVERAGE.md"
       - "scripts/belief_geopolitical_forecast_adapter.py"
       - "scripts/belief_geopolitical_live.py"
       - "tests/test_belief_geopolitical_forecast_adapter.py"
@@ -131,6 +136,7 @@ jobs:
             scripts/belief_technical_adapter.py \
             scripts/belief_liquidity_adapter.py \
             scripts/belief_regime_adapter.py \
+            scripts/belief_wes_assets_adapter.py \
             scripts/belief_geopolitical_forecast_adapter.py \
             scripts/belief_geopolitical_live.py \
             scripts/belief_core_live.py
@@ -138,6 +144,7 @@ jobs:
             tests/test_belief_core.py \
             tests/test_belief_core_adapters.py \
             tests/test_belief_core_live.py \
+            tests/test_belief_wes_assets.py \
             tests/test_belief_core_geopolitical_live.py \
             tests/test_belief_geopolitical_forecast_adapter.py -v
           python - <<'PY'
@@ -146,6 +153,7 @@ jobs:
           import belief_core_live as live
           import belief_geopolitical_live as geo_live
           import belief_geopolitical_forecast_adapter as geo_adapter
+          import belief_wes_assets_adapter as wes_assets
           assert live.MODE == 'shadow'
           assert live.TRADE_EXECUTION_ENABLED is False
           assert live.POLICY_OUTPUT_ENABLED is False
@@ -155,7 +163,11 @@ jobs:
           assert geo_live.POLICY_OUTPUT_ENABLED is False
           assert geo_live.DECISION_ENGINE_CONNECTED is False
           assert geo_adapter.GeopoliticalForecastAdapter.v2_evidence_enabled is False
-          print('Belief Core + GSE adapter safety invariants: PASS')
+          coverage=wes_assets.coverage_report()
+          assert coverage['decision_influence'] is False
+          assert coverage['eurusd']['rate_differential_claimed'] is False
+          assert coverage['btc']['on_chain_claimed'] is False
+          print('Belief Core + GSE + WES asset adapter safety invariants: PASS')
           PY
 
       - name: Ingest qualified frozen GSE forecasts into Belief shadow state
@@ -177,13 +189,16 @@ jobs:
           dashboard=json.loads((root/'dashboard.json').read_text())
           scheduler=json.loads((root/'scheduler.json').read_text())
           assert state['schema_version'] == 2
-          assert dashboard['mode'] == 'shadow'
           controls=dashboard['controls']
           assert controls['decision_engine_connected'] is False
           assert controls['trade_execution_enabled'] is False
           assert controls['policy_output_enabled'] is False
           assert controls['automatic_tuning_enabled'] is False
           assert scheduler['last_status']['mode'] == 'shadow'
+          coverage=scheduler['last_status']['wes_asset_coverage']
+          assert coverage['decision_influence'] is False
+          assert coverage['eurusd']['rate_differential_claimed'] is False
+          assert coverage['btc']['on_chain_claimed'] is False
           geo=scheduler['last_geopolitical_status']
           assert geo['mode'] == 'shadow'
           assert geo['decision_engine_connected'] is False
