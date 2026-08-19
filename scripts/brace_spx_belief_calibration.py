@@ -3,9 +3,14 @@
 
 PR #7 is analytical only. It consumes immutable Engine-Belief observations from
 PR #6, freezes a separate counterfactual contract before outcomes are known,
-and later settles the original BRACE-SPX G6 parallel-candidate consensus versus
-a small predeclared hypothetical Belief overlay on the same next-session SPX
+and later settles the original BRACE-SPX G6 parallel-candidate book versus a
+small predeclared hypothetical Belief overlay on the same next-session SPX
 return.
+
+The economic baseline is the equal-weight mean of the eight candidate-level G6
+returns, not a synthetic portfolio built from mean exposure. That distinction
+matters because turnover cost, cash weight and short-borrow cost are nonlinear
+in exposure.
 
 Nothing in this module can modify BRACE-SPX, Belief Core, candidate ranking,
 engine scores, sizing, target exposure, orders, vetoes or production policy.
@@ -16,7 +21,7 @@ import argparse
 import csv
 import json
 import math
-from collections import Counter, defaultdict
+from collections import defaultdict
 from copy import deepcopy
 from datetime import date, datetime, time, timezone
 from pathlib import Path
@@ -68,6 +73,8 @@ def evaluation_policy() -> Dict[str, Any]:
         "overlay_policy_version": OVERLAY_POLICY_VERSION,
         "max_hypothetical_exposure_tilt": MAX_HYPOTHETICAL_EXPOSURE_TILT,
         "overlay_scaled_by_frozen_belief_confidence": True,
+        "overlay_applied_to_each_frozen_g6_candidate": True,
+        "candidate_returns_aggregated_equal_weight": True,
         "overlay_clipped_to_g6_exposure_mandate": [-1.0, 1.0],
         "primary_outcome_horizon": "next_trading_session_close_to_close",
         "g6_cost_per_unit_turnover": COST_PER_UNIT_TURNOVER,
@@ -180,26 +187,25 @@ def _relationship_signed(row: Mapping[str, Any]) -> float:
     return 0.0
 
 
-def _belief_overlay(record: Mapping[str, Any], baseline_target: float) -> Dict[str, Any]:
+def _belief_tilt(record: Mapping[str, Any]) -> Dict[str, Any]:
     belief = record.get("belief_state") or {}
     stance = str(belief.get("stance") or "unavailable")
     confidence = _finite(belief.get("confidence"))
-    if confidence is None:
-        confidence = 0.0
+    confidence = max(0.0, min(1.0, confidence if confidence is not None else 0.0))
     direction = 1.0 if stance == "risk_on" else -1.0 if stance == "defensive" else 0.0
-    requested_tilt = direction * MAX_HYPOTHETICAL_EXPOSURE_TILT * max(0.0, min(1.0, confidence))
-    adjusted = _clip(baseline_target + requested_tilt)
-    applied_tilt = adjusted - baseline_target
+    requested_tilt = direction * MAX_HYPOTHETICAL_EXPOSURE_TILT * confidence
     return {
         "policy_version": OVERLAY_POLICY_VERSION,
         "belief_stance": stance,
         "frozen_belief_confidence": round(confidence, 8),
         "max_absolute_tilt": MAX_HYPOTHETICAL_EXPOSURE_TILT,
         "requested_tilt": round(requested_tilt, 8),
-        "applied_tilt_after_clipping": round(applied_tilt, 8),
-        "hypothetical_target_exposure": round(adjusted, 8),
         "production_proposal": False,
     }
+
+
+def _apply_tilt(target: float, requested_tilt: float) -> float:
+    return _clip(float(target) + float(requested_tilt))
 
 
 def _capture_window(brace_at: datetime, now: datetime) -> Dict[str, Any]:
@@ -226,7 +232,7 @@ def _raw_shadow_matches(record: Mapping[str, Any], raw_shadow: Mapping[str, Any]
 
 
 def build_counterfactual_contract(record: Mapping[str, Any], raw_shadow: Mapping[str, Any], now: datetime) -> Tuple[Optional[Dict[str, Any]], str]:
-    """Freeze next-session WITH/WITHOUT inputs before outcomes are available."""
+    """Freeze candidate-level next-session WITH/WITHOUT inputs before outcome."""
     if not bool(record.get("engine_belief_calibration_eligible")):
         return None, "bridge_record_not_calibration_eligible"
     brace_at = _dt(((record.get("brace_spx") or {}).get("source") or {}).get("updated_at"))
@@ -238,19 +244,47 @@ def build_counterfactual_contract(record: Mapping[str, Any], raw_shadow: Mapping
     matches, reason = _raw_shadow_matches(record, raw_shadow)
     if not matches:
         return None, reason
+
     snapshots = [row for row in (raw_shadow.get("candidate_snapshots") or []) if isinstance(row, dict)]
     if len(snapshots) != 8:
         return None, "g6_candidate_snapshot_count_not_eight"
-    targets = [_finite(row.get("target_exposure_next_session")) for row in snapshots]
-    applied = [_finite(row.get("applied_exposure_latest_session")) for row in snapshots]
-    if any(value is None for value in targets) or any(value is None for value in applied):
-        return None, "g6_candidate_exposure_prerequisite_missing"
     frozen_hash = str(((record.get("brace_spx") or {}).get("candidate_consensus") or {}).get("candidate_snapshots_sha256") or "")
     if frozen_hash and bridge.canonical_sha256(snapshots) != frozen_hash:
         return None, "g6_candidate_snapshot_hash_mismatch"
-    baseline_target = float(_mean(float(value) for value in targets if value is not None) or 0.0)
-    previous_applied = float(_mean(float(value) for value in applied if value is not None) or 0.0)
-    overlay = _belief_overlay(record, baseline_target)
+
+    candidate_contracts: list[dict[str, Any]] = []
+    for row in snapshots:
+        target = _finite(row.get("target_exposure_next_session"))
+        previous = _finite(row.get("applied_exposure_latest_session"))
+        name = str(row.get("candidate_name") or "")
+        if not name or target is None or previous is None:
+            return None, "g6_candidate_exposure_prerequisite_missing"
+        candidate_contracts.append({
+            "candidate_name": name,
+            "target_exposure_next_session": round(_clip(target), 8),
+            "previous_applied_exposure": round(_clip(previous), 8),
+        })
+    candidate_contracts.sort(key=lambda row: row["candidate_name"])
+
+    tilt = _belief_tilt(record)
+    requested_tilt = float(tilt["requested_tilt"])
+    with_candidates = [
+        {
+            "candidate_name": row["candidate_name"],
+            "target_exposure_next_session": round(_apply_tilt(row["target_exposure_next_session"], requested_tilt), 8),
+            "previous_applied_exposure": row["previous_applied_exposure"],
+        }
+        for row in candidate_contracts
+    ]
+    baseline_target = float(_mean(row["target_exposure_next_session"] for row in candidate_contracts) or 0.0)
+    previous_applied = float(_mean(row["previous_applied_exposure"] for row in candidate_contracts) or 0.0)
+    with_target = float(_mean(row["target_exposure_next_session"] for row in with_candidates) or 0.0)
+    tilt.update({
+        "mean_hypothetical_target_exposure": round(with_target, 8),
+        "mean_applied_tilt_after_candidate_clipping": round(with_target - baseline_target, 8),
+        "candidate_level_clipping": True,
+    })
+
     source = (record.get("brace_spx") or {}).get("source") or {}
     market_date = str(source.get("latest_market_date") or raw_shadow.get("latest_market_date") or "")
     if not market_date:
@@ -286,12 +320,17 @@ def build_counterfactual_contract(record: Mapping[str, Any], raw_shadow: Mapping
             "snapshot_sha256": (record.get("belief_state") or {}).get("snapshot_sha256"),
         },
         "without_belief": {
-            "decision_type": "g6_parallel_candidate_consensus",
-            "target_exposure_next_session": round(baseline_target, 8),
-            "previous_applied_exposure": round(previous_applied, 8),
+            "decision_type": "g6_parallel_candidate_book_equal_weight",
+            "mean_target_exposure_next_session": round(baseline_target, 8),
+            "mean_previous_applied_exposure": round(previous_applied, 8),
             "candidate_count": 8,
+            "candidates": candidate_contracts,
         },
-        "with_belief_hypothetical": overlay,
+        "with_belief_hypothetical": {
+            **tilt,
+            "candidate_count": 8,
+            "candidates": with_candidates,
+        },
         "accounting_contract": {
             "asset": "SPY",
             "risk_free_symbol": "^IRX",
@@ -299,12 +338,14 @@ def build_counterfactual_contract(record: Mapping[str, Any], raw_shadow: Mapping
             "turnover_cost_per_unit": COST_PER_UNIT_TURNOVER,
             "short_borrow_annual": SHORT_BORROW_ANNUAL,
             "cash_weight_rule": "1-abs(exposure)",
-            "same_previous_applied_exposure_for_both_variants": True,
+            "same_candidate_previous_applied_exposure_for_both_variants": True,
+            "aggregation": "equal_weight_mean_of_eight_candidate_level_returns",
         },
         "source_provenance": {
             "bridge_record_sha256": bridge.canonical_sha256(record),
             "g6_raw_shadow_sha256": bridge.canonical_sha256(raw_shadow),
             "candidate_snapshots_sha256": bridge.canonical_sha256(snapshots),
+            "candidate_contracts_sha256": bridge.canonical_sha256(candidate_contracts),
         },
         "controls": safety_controls(),
         "decision_influence": False,
@@ -373,6 +414,50 @@ def one_session_portfolio_return(exposure: float, previous_exposure: float, asse
     }
 
 
+def _candidate_book_returns(
+    without_rows: Sequence[Mapping[str, Any]],
+    with_rows: Sequence[Mapping[str, Any]],
+    asset_return: float,
+    annual_rf: float,
+) -> Tuple[Dict[str, float], Dict[str, float], list[dict[str, Any]]]:
+    if len(without_rows) != 8 or len(with_rows) != 8:
+        raise ValueError("candidate book must contain exactly eight rows")
+    without_by_name = {str(row.get("candidate_name")): row for row in without_rows}
+    with_by_name = {str(row.get("candidate_name")): row for row in with_rows}
+    if set(without_by_name) != set(with_by_name) or len(without_by_name) != 8:
+        raise ValueError("WITH/WITHOUT candidate identity mismatch")
+    components = ("net_return", "asset_component", "cash_component", "short_borrow_cost", "turnover", "turnover_cost", "risk_free_daily_return")
+    without_results: list[Dict[str, float]] = []
+    with_results: list[Dict[str, float]] = []
+    candidate_results: list[dict[str, Any]] = []
+    for name in sorted(without_by_name):
+        base = without_by_name[name]
+        hyp = with_by_name[name]
+        previous = float(base.get("previous_applied_exposure") or 0.0)
+        if abs(float(hyp.get("previous_applied_exposure") or 0.0) - previous) > 1e-12:
+            raise ValueError("candidate previous exposure changed between variants")
+        base_target = float(base.get("target_exposure_next_session") or 0.0)
+        hyp_target = float(hyp.get("target_exposure_next_session") or 0.0)
+        base_result = one_session_portfolio_return(base_target, previous, asset_return, annual_rf)
+        hyp_result = one_session_portfolio_return(hyp_target, previous, asset_return, annual_rf)
+        without_results.append(base_result)
+        with_results.append(hyp_result)
+        candidate_results.append({
+            "candidate_name": name,
+            "without_target_exposure": base_target,
+            "with_target_exposure": hyp_target,
+            "previous_applied_exposure": previous,
+            "without_net_return": base_result["net_return"],
+            "with_net_return": hyp_result["net_return"],
+            "delta_pnl": hyp_result["net_return"] - base_result["net_return"],
+        })
+    aggregate_without = {key: float(_mean(row[key] for row in without_results) or 0.0) for key in components}
+    aggregate_with = {key: float(_mean(row[key] for row in with_results) or 0.0) for key in components}
+    aggregate_without["mean_target_exposure"] = float(_mean(float(row.get("target_exposure_next_session") or 0.0) for row in without_rows) or 0.0)
+    aggregate_with["mean_target_exposure"] = float(_mean(float(row.get("target_exposure_next_session") or 0.0) for row in with_rows) or 0.0)
+    return aggregate_without, aggregate_with, candidate_results
+
+
 def settle_contract(contract: Mapping[str, Any], market_rows: Sequence[Mapping[str, Any]], now: datetime) -> Tuple[Optional[Dict[str, Any]], str]:
     try:
         base_date = date.fromisoformat(str(contract.get("decision_market_date") or ""))
@@ -393,12 +478,17 @@ def settle_contract(contract: Mapping[str, Any], market_rows: Sequence[Mapping[s
     if base_close is None or next_close is None or base_close <= 0 or annual_rf is None:
         return None, "market_settlement_prerequisite_missing"
     asset_return = next_close / base_close - 1.0
-    without_target = float((contract.get("without_belief") or {}).get("target_exposure_next_session") or 0.0)
-    previous = float((contract.get("without_belief") or {}).get("previous_applied_exposure") or 0.0)
-    with_target = float((contract.get("with_belief_hypothetical") or {}).get("hypothetical_target_exposure") or without_target)
-    without = one_session_portfolio_return(without_target, previous, asset_return, annual_rf)
-    with_belief = one_session_portfolio_return(with_target, previous, asset_return, annual_rf)
+
+    without_candidates = list((contract.get("without_belief") or {}).get("candidates") or [])
+    with_candidates = list((contract.get("with_belief_hypothetical") or {}).get("candidates") or [])
+    try:
+        without, with_belief, candidate_results = _candidate_book_returns(without_candidates, with_candidates, asset_return, annual_rf)
+    except (TypeError, ValueError):
+        return None, "candidate_level_accounting_contract_invalid"
+
     delta = with_belief["net_return"] - without["net_return"]
+    without_target = without["mean_target_exposure"]
+    with_target = with_belief["mean_target_exposure"]
     relationship_class = str((contract.get("relationship") or {}).get("class") or "UNAVAILABLE")
     belief_stance = str((contract.get("belief") or {}).get("stance") or "unavailable")
     belief_direction = 1.0 if belief_stance == "risk_on" else -1.0 if belief_stance == "defensive" else 0.0
@@ -420,15 +510,16 @@ def settle_contract(contract: Mapping[str, Any], market_rows: Sequence[Mapping[s
         "annual_rf_yield_used": annual_rf,
         "relationship": deepcopy(contract.get("relationship") or {}),
         "without_belief": {
-            "target_exposure": without_target,
             **without,
             "directional_hit": without_hit,
+            "aggregation": "equal_weight_mean_of_eight_candidate_level_returns",
         },
         "with_belief_hypothetical": {
-            "target_exposure": with_target,
             **with_belief,
             "directional_hit": None if abs(with_target) < 1e-12 else bool(with_target * asset_return > 0.0),
+            "aggregation": "equal_weight_mean_of_eight_candidate_level_returns",
         },
+        "candidate_results": candidate_results,
         "belief_directional_hit": belief_hit,
         "conflict_warning_hit": conflict_warning_hit,
         "agreement_confirmation_hit": agreement_confirmation_hit,
@@ -472,8 +563,7 @@ def _max_drawdown(returns: Sequence[float]) -> float:
     for value in returns:
         equity *= 1.0 + float(value)
         peak = max(peak, equity)
-        drawdown = equity / peak - 1.0
-        worst = min(worst, drawdown)
+        worst = min(worst, equity / peak - 1.0)
     return worst
 
 
@@ -521,7 +611,7 @@ def _incremental_information(settlements: Sequence[Mapping[str, Any]], contracts
             continue
         family = contract.get("family_scores") or {}
         baseline_features = [
-            _finite((contract.get("without_belief") or {}).get("target_exposure_next_session")),
+            _finite((contract.get("without_belief") or {}).get("mean_target_exposure_next_session")),
             *[_finite(family.get(key)) for key in FAMILY_KEYS],
         ]
         belief = contract.get("belief") or {}
@@ -624,7 +714,9 @@ def build_report(
         status = "descriptive_calibration_available_collecting_incremental_model_sample"
     else:
         status = "engine_belief_calibration_measured_research_only"
-    report = {
+    without_sharpe = _sharpe(without_returns)
+    with_sharpe = _sharpe(with_returns)
+    return {
         "schema_version": REPORT_VERSION,
         "report_name": "BRACE_SPX_ENGINE_BELIEF_CALIBRATION_REPORT",
         "generated_at": _iso_z(now),
@@ -645,26 +737,28 @@ def build_report(
             "missed_contracts_not_reconstructed": len(misses),
             "effective_n": settled_n,
             "one_record_per_market_date_cap": True,
+            "eight_candidate_equal_weight_accounting": True,
             "minimum_descriptive_n": MIN_DESCRIPTIVE_N,
             "minimum_incremental_model_n": MIN_INCREMENTAL_MODEL_N,
         },
         "engine_belief_relationship_calibration": {
             "by_relationship_class": {key: _relationship_slice(rows) for key, rows in sorted(by_class.items())},
             "by_relationship_group": {key: _relationship_slice(rows) for key, rows in sorted(by_group.items())},
-            "conflict_warning_question": "Does BRACE-SPX/Belief conflict precede negative original G6 consensus return?",
-            "agreement_confirmation_question": "Does agreement coincide with positive original G6 consensus return?",
+            "conflict_warning_question": "Does BRACE-SPX/Belief conflict precede negative original G6 equal-weight candidate-book return?",
+            "agreement_confirmation_question": "Does agreement coincide with positive original G6 equal-weight candidate-book return?",
         },
         "with_vs_without_belief": {
             "resolved_pairs": settled_n,
+            "accounting_unit": "equal_weight_mean_of_eight_candidate_level_returns",
             "without_belief_cumulative_return": _cumulative_return(without_returns),
             "with_belief_hypothetical_cumulative_return": _cumulative_return(with_returns),
             "delta_cumulative_return": _cumulative_return(with_returns) - _cumulative_return(without_returns),
             "without_belief_max_drawdown": without_dd,
             "with_belief_hypothetical_max_drawdown": with_dd,
             "delta_drawdown": with_dd - without_dd,
-            "without_belief_annualized_sharpe": _sharpe(without_returns),
-            "with_belief_hypothetical_annualized_sharpe": _sharpe(with_returns),
-            "delta_sharpe": None if _sharpe(without_returns) is None or _sharpe(with_returns) is None else _sharpe(with_returns) - _sharpe(without_returns),
+            "without_belief_annualized_sharpe": without_sharpe,
+            "with_belief_hypothetical_annualized_sharpe": with_sharpe,
+            "delta_sharpe": None if without_sharpe is None or with_sharpe is None else with_sharpe - without_sharpe,
             "mean_delta_pnl": _mean(deltas),
             "median_delta_pnl": median(deltas) if deltas else None,
             "worst_delta_pnl": min(deltas) if deltas else None,
@@ -682,7 +776,6 @@ def build_report(
         "bounded_modifier": False,
         "status": status,
     }
-    return report
 
 
 def run_calibration(
@@ -766,7 +859,7 @@ def run_calibration(
     market_rows = load_market_csv(market_csv_path)
     settled_contract_ids = {str(row.get("contract_id")) for row in settlements}
     new_settlements: list[Mapping[str, Any]] = []
-    pending_reasons: Counter[str] = Counter()
+    pending_reasons: Dict[str, int] = defaultdict(int)
     for contract in contracts:
         contract_id = str(contract.get("contract_id") or "")
         if not contract_id or contract_id in settled_contract_ids:
