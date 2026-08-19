@@ -1,0 +1,58 @@
+name: BRACE Company-Entity Framework Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-company-entity-framework.yml"
+      - ".github/workflows/brace-company-entity-framework-validation.yml"
+      - "scripts/brace_company_entity_framework.py"
+      - "tests/test_brace_company_entity_framework.py"
+      - "docs/BRACE_COMPANY_ENTITY_FRAMEWORK.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR12 company-entity framework
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_company_entity_framework.py
+          PYTHONPATH=. python -m unittest tests.test_brace_company_entity_framework -v
+
+      - name: Run framework against current repository state
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/pr12-state"
+          mkdir -p "$state"
+          PYTHONPATH=scripts python scripts/brace_company_entity_framework.py --state-dir "$state"
+          python - "$state" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report=json.loads((Path(sys.argv[1])/'BRACE_COMPANY_ENTITY_FRAMEWORK_REPORT.json').read_text())
+          assert report['activation_policy']['current_portfolio'] == 'always_on'
+          assert report['activation_policy']['portfolio_entry_not_required'] is True
+          assert report['activation_policy']['additional_hidden_candidate_threshold'] is False
+          assert report['activation_policy']['non_candidate_universe'] == 'inactive'
+          assert report['anti_hindsight']['historical_backfill'] is False
+          assert report['capabilities']['entity_forecast_capture_enabled'] is False
+          assert report['capabilities']['entity_evidence_ingestion_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert all(v is False for v in report['safety_controls'].values())
+          for row in report['entities']['active']:
+              assert str(row.get('asset_type','')).lower() in {'stock','equity','common_stock','common stock'}
+              for definition in row.get('definitions', []):
+                  assert definition['forecast_capture_enabled'] is False
+                  assert definition['engine_influence_enabled'] is False
+                  assert definition['reporting_regime'] == 'unresolved_requires_primary_source_adapter'
+          print('PR12 current-state integration contract: PASS')
+          print('Sample:', report['sample'])
+          PY

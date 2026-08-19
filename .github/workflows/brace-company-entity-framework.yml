@@ -1,0 +1,138 @@
+name: BRACE Company-Entity Framework Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-company-entity-framework.yml"
+      - "scripts/brace_company_entity_framework.py"
+      - "tests/test_brace_company_entity_framework.py"
+      - "docs/BRACE_COMPANY_ENTITY_FRAMEWORK.md"
+  workflow_run:
+    workflows:
+      - "BRACE Sector-Factor Belief Shadow"
+    types: [completed]
+  schedule:
+    - cron: "5 22 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-company-entity-framework-shadow
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT_NAME: brace-company-entity-framework-state
+
+jobs:
+  collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Assert Sector-Factor prerequisite state exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=brace-sector-factor-belief-state&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/sector-factor-artifacts.json"
+          python - "$RUNNER_TEMP/sector-factor-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          if not rows:
+              raise SystemExit('PR12 blocked: Sector/Factor shadow state has not been established yet')
+          print('Sector/Factor prerequisite artifact: PASS')
+          PY
+
+      - name: Prepare private PR12 state directory
+        run: |
+          set -euo pipefail
+          echo "STATE_DIR=$RUNNER_TEMP/brace_company_entity_framework" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/brace_company_entity_framework"
+
+      - name: Restore prior cumulative PR12 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/state.zip"
+            mkdir -p "$RUNNER_TEMP/state-zip"
+            unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/state-zip"
+            test -f "$RUNNER_TEMP/state-zip/brace-company-entity-framework-state.tgz"
+            tar -xzf "$RUNNER_TEMP/state-zip/brace-company-entity-framework-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR12 state; current holdings/candidates will establish the real activation boundary now."
+          fi
+
+      - name: Validate PR12 framework
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_company_entity_framework.py
+          PYTHONPATH=. python -m unittest tests.test_brace_company_entity_framework -v
+
+      - name: Materialize current entity activation framework
+        run: |
+          PYTHONPATH=scripts python scripts/brace_company_entity_framework.py --state-dir "$STATE_DIR"
+
+      - name: Assert activation policy and zero influence
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['STATE_DIR'])/'BRACE_COMPANY_ENTITY_FRAMEWORK_REPORT.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['activation_policy']['current_portfolio'] == 'always_on'
+          assert report['activation_policy']['portfolio_entry_not_required'] is True
+          assert report['activation_policy']['additional_hidden_candidate_threshold'] is False
+          assert report['activation_policy']['new_company'] == 'activate_when_present_in_canonical_BRACE_analysis_candidates'
+          assert report['anti_hindsight']['historical_backfill'] is False
+          assert report['capabilities']['entity_evidence_ingestion_enabled'] is False
+          assert report['capabilities']['entity_forecast_capture_enabled'] is False
+          assert report['capabilities']['with_without_bridge_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          for row in report['entities']['active']:
+              assert str(row.get('asset_type','')).lower() in {'stock','equity','common_stock','common stock'}
+          print('PR12 activation + zero-influence governance: PASS')
+          print('Sample:', report['sample'])
+          PY
+
+      - name: Pack cumulative private state
+        run: tar -czf "$RUNNER_TEMP/brace-company-entity-framework-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR12 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-company-entity-framework-state
+          path: ${{ runner.temp }}/brace-company-entity-framework-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
