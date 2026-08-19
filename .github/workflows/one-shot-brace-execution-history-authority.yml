@@ -1,0 +1,160 @@
+name: One-shot BRACE execution history authority
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-brace-execution-history-authority.yml"
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: one-shot-brace-execution-history-authority
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Activate authority and install PL/EN assets
+        run: |
+          set -euo pipefail
+          python scripts/activate_brace_execution_history_authority.py
+          python scripts/install_brace_execution_history_sync.py
+          python -m unittest tests.test_brace_execution_history_sync -v
+          python -m py_compile scripts/activate_brace_execution_history_authority.py scripts/install_brace_execution_history_sync.py
+          node --check scripts/portfolio-10k-executed-decisions-history-sync.js
+          node --check scripts/portfolio-10k-execution-finalizer.js
+          grep -q '__BR_BRACE_EXECUTION_HISTORY_AUTHORITY__ = true' scripts/portfolio-10k-executed-decisions-history-sync.js
+          grep -q '__BR_BRACE_EXECUTION_HISTORY_AUTHORITY__) return false' scripts/portfolio-10k-execution-finalizer.js
+          grep -q 'portfolio-10k-executed-decisions-history-sync.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-executed-decisions-history-sync.js?v=1' en/investing/portfolio-10k.html
+
+      - name: Commit implementation and self-remove
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-brace-execution-history-authority.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/portfolio-10k-executed-decisions-history-sync.js \
+            scripts/portfolio-10k-execution-finalizer.js \
+            pl/inwestycje/portfel-10k.html \
+            en/investing/portfolio-10k.html \
+            .github/workflows/one-shot-brace-execution-history-authority.yml
+          git commit -m "Make BRACE transaction history authoritative on overview"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
+
+      - name: Request fresh Pages build
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            CODE="$(curl --silent --show-error --output /tmp/pages.json --write-out '%{http_code}' \
+              -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
+            if [[ "$CODE" == "201" ]]; then exit 0; fi
+            if [[ "$CODE" != "409" ]]; then cat /tmp/pages.json; exit 1; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Verify production PL and EN and write receipt
+        run: |
+          python - <<'PY'
+          import json,time,urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          headers={'User-Agent':'BriefRooms-BRACE-history-authority/1.0','Cache-Control':'no-cache'}
+          pages=[
+              'https://briefrooms.com/pl/inwestycje/portfel-10k.html',
+              'https://briefrooms.com/en/investing/portfolio-10k.html',
+          ]
+          passed=False
+          last_error=''
+          latest=[]
+          for attempt in range(1,43):
+              token=f'{int(time.time())}-{attempt}'
+              try:
+                  htmls=[]
+                  for page in pages:
+                      req=urllib.request.Request(f'{page}?v={token}',headers=headers)
+                      with urllib.request.urlopen(req,timeout=20) as r:
+                          htmls.append(r.read().decode('utf-8',errors='replace'))
+                  req=urllib.request.Request(f'https://briefrooms.com/scripts/portfolio-10k-executed-decisions-history-sync.js?v={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      sync_js=r.read().decode('utf-8',errors='replace')
+                  req=urllib.request.Request(f'https://briefrooms.com/data/portfolio10k/paper_portfolio.json?v={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      p=json.load(r)
+                  groups={}
+                  for tx in p.get('transactions',[]):
+                      if tx.get('executed_at') and tx.get('side') in {'BUY','SELL'}:
+                          groups.setdefault(tx.get('order_id') or tx.get('transaction_id'),[]).append(tx)
+                  latest=max(groups.values(),key=lambda rows:max(x.get('executed_at','') for x in rows))
+                  source_ok={x['instrument_id'] for x in latest} == {'spgi','jpm'} and {x['side'] for x in latest} == {'BUY','SELL'}
+                  pages_ok=all('portfolio-10k-executed-decisions-history-sync.js?v=1' in html for html in htmls)
+                  js_ok='__BR_BRACE_EXECUTION_HISTORY_AUTHORITY__ = true' in sync_js and 'paper_portfolio.transactions' in sync_js
+                  if pages_ok and js_ok and source_ok:
+                      passed=True
+                      break
+              except Exception as exc:
+                  last_error=f'{type(exc).__name__}: {exc}'
+              time.sleep(10)
+          receipt={
+              'checked_at': datetime.now(timezone.utc).isoformat(),
+              'passed': passed,
+              'pl_page_has_sync': passed,
+              'en_page_has_sync': passed,
+              'history_authority': 'paper_portfolio.transactions' if passed else None,
+              'latest_execution': {
+                  'order_id': (latest[0].get('order_id') if latest else None),
+                  'instruments': sorted({x.get('instrument_id') for x in latest}) if latest else [],
+                  'sides': sorted({x.get('side') for x in latest}) if latest else [],
+                  'executed_at': max((x.get('executed_at','') for x in latest), default=''),
+              },
+              'expected_overview': 'SPGI.US -> JPM.US rotation',
+              'last_error': last_error,
+          }
+          path=Path('data/internal/brace_execution_overview_production_verify.json')
+          path.parent.mkdir(parents=True,exist_ok=True)
+          path.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt,ensure_ascii=False))
+          if not passed:
+              raise SystemExit('Production verification failed')
+          PY
+
+      - name: Commit production verification receipt
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/internal/brace_execution_overview_production_verify.json
+          git commit -m "Verify BRACE overview transaction-history sync in production"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
