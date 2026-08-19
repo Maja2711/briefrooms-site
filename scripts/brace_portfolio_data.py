@@ -126,6 +126,48 @@ def _finite(value: Any) -> Optional[float]:
     return number if math.isfinite(number) else None
 
 
+def _market_identity(item: Mapping[str, Any]) -> set[str]:
+    """Return stable market identifiers used only to relate duplicate quote views."""
+    values = set()
+    for field in ("market_symbol", "broker_symbol", "data_symbol"):
+        value = str(item.get(field) or "").strip().upper()
+        if value:
+            values.add(value)
+    return values
+
+
+def _benchmark_freshness_row(
+    benchmark: Mapping[str, Any],
+    positions: Iterable[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    """Build a benchmark row without losing session metadata for a held benchmark.
+
+    Portfolio 10K currently holds FWIA and also uses FWIA as its benchmark. The
+    benchmark snapshot intentionally stores benchmark valuation fields but did
+    not historically duplicate ``market_status`` / ``market_timezone``. Treating
+    that second view as an unknown/open market caused the exact same completed
+    FWIA close to receive a 6h monitoring limit while the held FWIA correctly
+    received the closed-market limit. We inherit session metadata only when the
+    market identity is the same; price, FX and timestamps remain the benchmark's
+    own values and are still validated independently.
+    """
+    row: Dict[str, Any] = {"id": "__benchmark__", **dict(benchmark)}
+    benchmark_identity = _market_identity(benchmark)
+    if not benchmark_identity:
+        return row
+    for position in positions:
+        if not benchmark_identity.intersection(_market_identity(position)):
+            continue
+        for field in ("market_status", "market_timezone"):
+            if not row.get(field) and position.get(field):
+                row[field] = position.get(field)
+        row["freshness_alias_of"] = str(
+            position.get("id") or position.get("broker_symbol") or ""
+        )
+        break
+    return row
+
+
 def data_freshness_report(
     portfolio: Mapping[str, Any],
     config: EngineConfig,
@@ -146,17 +188,19 @@ def data_freshness_report(
         for item in (previous_analysis or {}).get("positions", []) or []
     }
 
-    instruments = list(portfolio.get("positions", []) or [])
+    position_rows = list(portfolio.get("positions", []) or [])
+    instruments = list(position_rows)
     benchmark = portfolio.get("benchmark") or {}
     if benchmark:
-        instruments.append({"id": "__benchmark__", **benchmark})
+        instruments.append(_benchmark_freshness_row(benchmark, position_rows))
     else:
         reasons.append("BENCHMARK_UNAVAILABLE")
 
     for item in instruments:
         instrument_id = str(item.get("id") or item.get("broker_symbol") or "")
+        market_status = str(item.get("market_status") or "").lower()
         item_max_age = max_age
-        if str(item.get("market_status") or "").lower() == "closed":
+        if market_status == "closed":
             # A completed prior-session close remains valid while that market is shut.
             item_max_age = max(item_max_age, config.analysis_max_price_age_hours)
         price = _finite(item.get("current_price"))
@@ -194,9 +238,12 @@ def data_freshness_report(
         rows.append(
             {
                 "instrument_id": instrument_id,
+                "freshness_alias_of": item.get("freshness_alias_of"),
+                "market_status": market_status or None,
                 "price_age_hours": (
                     round(age_hours, 3) if age_hours is not None else None
                 ),
+                "maximum_price_age_hours": item_max_age,
                 "status": "OK" if not item_reasons else "ERROR",
                 "reasons": item_reasons,
             }
@@ -234,6 +281,7 @@ def data_freshness_report(
         "quality_score": round(quality * 100, 2),
         "checked_at": now.isoformat(timespec="seconds"),
         "maximum_age_hours": max_age,
+        "invalid_instruments": missing,
         "instruments": rows,
     }
 
