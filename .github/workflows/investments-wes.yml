@@ -16,6 +16,7 @@ on:
       - "tests/test_investments_wes_memory.py"
       - "tests/test_investments_wes_spx_brace_bridge.py"
       - "tests/test_investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_counterfactual_deadline.py"
       - "data/investments/wes_methodology.json"
       - ".github/workflows/investments-wes.yml"
   workflow_run:
@@ -57,7 +58,8 @@ jobs:
             tests/test_investments_wes.py \
             tests/test_investments_wes_memory.py \
             tests/test_investments_wes_spx_brace_bridge.py \
-            tests/test_investments_wes_counterfactual.py
+            tests/test_investments_wes_counterfactual.py \
+            tests/test_investments_wes_counterfactual_deadline.py
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
