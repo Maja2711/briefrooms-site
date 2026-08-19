@@ -32,6 +32,7 @@ DEFAULT_MARKET_CACHE = ROOT / ".cache" / "brace_portfolio_market.json"
 SCHEMA_VERSION = "brace-portfolio-self-learning-v1"
 POLICY_SCHEMA_VERSION = "brace-adaptive-policy-v1"
 HORIZON_WEIGHTS = {7: 0.35, 30: 1.0, 90: 1.50}
+HORIZON_WEIGHT_TOTAL = sum(HORIZON_WEIGHTS.values())
 ACTION_DIRECTION = {"ADD": 1, "REPLACE": 1, "REDUCE": -1, "EXIT": -1}
 EXCESS_RETURN_DEADBAND = 0.005
 MIN_EFFECTIVE_SAMPLES = 12.0
@@ -128,13 +129,49 @@ def _path_excursions(
     return round(max(returns), 8), round(min(returns), 8)
 
 
+def _legacy_economic_decision_id(
+    decision: Mapping[str, Any],
+    signal_date: date,
+    run_id: str,
+    index: int,
+) -> str:
+    explicit = str(decision.get("economic_decision_id") or "")
+    if explicit:
+        return explicit
+    decision_id = str(decision.get("decision_id") or "")
+    if decision_id:
+        return decision_id
+    payload = {
+        "signal_date": signal_date.isoformat(),
+        "action": str(decision.get("brace_decision") or "").upper(),
+        "instrument": decision.get("instrument"),
+        "replacement_instrument": decision.get("replacement_instrument"),
+    }
+    if not payload["instrument"]:
+        payload["legacy_run_fallback"] = f"{run_id}:{index}"
+    return f"legacy-economic-{canonical_sha256(payload)[:16]}"
+
+
+def _learning_rows(run: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]:
+    economic = run.get("economic_decisions")
+    if isinstance(economic, list) and economic:
+        return [item for item in economic if isinstance(item, Mapping)]
+    return [item for item in (run.get("decisions", []) or []) if isinstance(item, Mapping)]
+
+
 def collect_due_outcomes(
     shadow_log: Mapping[str, Any],
     market: Mapping[str, Any],
     existing_events: Sequence[Mapping[str, Any]],
     as_of: date,
 ) -> list[dict[str, Any]]:
-    """Create append-only horizon outcomes from frozen shadow decisions."""
+    """Create append-only horizon outcomes from frozen shadow economic decisions.
+
+    New-schema runs learn from ``economic_decisions`` rather than recommendation
+    snapshots. Legacy runs fall back to ``decisions``. REPLACE is evaluated as
+    replacement minus incumbent minus the frozen incremental rotation-cost
+    buffer. Missing either leg fails closed and creates no learning event.
+    """
     existing_ids = {str(item.get("outcome_event_id")) for item in existing_events}
     instruments = market.get("instruments") or {}
     histories = {
@@ -151,60 +188,165 @@ def collect_due_outcomes(
         if not run_id or not generated_text:
             continue
         signal_date = _as_date(generated_text)
-        benchmark_start = _price_on_or_before(benchmark_points, signal_date)
-        if benchmark_start is None:
-            continue
-        for index, decision in enumerate(run.get("decisions", []) or []):
+        for index, decision in enumerate(_learning_rows(run)):
             instrument = str(decision.get("instrument") or "")
             action = str(decision.get("brace_decision") or "").upper()
+            direction = ACTION_DIRECTION.get(action)
+            explicitly_eligible = decision.get("learning_eligible")
+            eligible = bool(
+                direction is not None
+                and (explicitly_eligible is not False)
+            )
+            if not eligible:
+                continue
             points = histories.get(instrument) or []
             signal_price = _finite(decision.get("signal_price"))
             if not instrument or not points or signal_price <= 0:
                 continue
-            decision_id = str(decision.get("decision_id") or f"{run_id}:{instrument}:{index}")
+
+            economic_decision_id = _legacy_economic_decision_id(
+                decision, signal_date, run_id, index
+            )
+            decision_id = str(decision.get("decision_id") or economic_decision_id)
+
+            replacement = str(decision.get("replacement_instrument") or "")
+            replacement_points = histories.get(replacement) or []
+            replacement_signal_price = _finite(decision.get("replacement_signal_price"))
+            if action == "REPLACE" and (
+                not replacement
+                or not replacement_points
+                or replacement_signal_price <= 0
+            ):
+                continue
+
+            benchmark_start = _price_on_or_before(benchmark_points, signal_date)
+            if action != "REPLACE" and benchmark_start is None:
+                continue
+
             for horizon, horizon_weight in HORIZON_WEIGHTS.items():
                 target = signal_date + timedelta(days=horizon)
-                event_id = f"{decision_id}:{horizon}d"
+                event_id = f"{economic_decision_id}:{horizon}d"
                 if event_id in existing_ids or as_of < target:
                     continue
+
                 end_point = _price_on_or_after(points, target)
-                benchmark_end = _price_on_or_after(benchmark_points, target)
-                if end_point is None or benchmark_end is None:
+                if end_point is None:
                     continue
-                if latest_benchmark_date is not None and benchmark_end[0] > latest_benchmark_date:
-                    continue
-                instrument_return = end_point[1] / signal_price - 1.0
-                benchmark_return = benchmark_end[1] / benchmark_start[1] - 1.0
-                excess = instrument_return - benchmark_return
-                direction = ACTION_DIRECTION.get(action)
-                eligible = direction is not None
-                signed_excess = excess * direction if direction else 0.0
-                correct = None
-                if eligible:
-                    correct = signed_excess > EXCESS_RETURN_DEADBAND
-                mfe, mae = _path_excursions(points, signal_date, end_point[0], signal_price)
+
+                comparison_basis = "instrument_minus_fwia_signed_by_action"
+                replacement_end = None
+                incremental_cost = 0.0
+                incumbent_return = None
+                replacement_return = None
+                gross_rotation_delta = None
+
+                if action == "REPLACE":
+                    replacement_end = _price_on_or_after(replacement_points, target)
+                    if replacement_end is None:
+                        continue
+                    incumbent_return = end_point[1] / signal_price - 1.0
+                    replacement_return = (
+                        replacement_end[1] / replacement_signal_price - 1.0
+                    )
+                    gross_rotation_delta = replacement_return - incumbent_return
+                    incremental_cost = max(0.0, _finite(decision.get("costs")))
+                    signed_excess = gross_rotation_delta - incremental_cost
+                    excess = gross_rotation_delta
+                    instrument_return = replacement_return
+                    benchmark_return = incumbent_return
+                    benchmark_signal_price = signal_price
+                    benchmark_evaluation_price = end_point[1]
+                    comparison_basis = "replacement_minus_incumbent_after_incremental_cost"
+                    evaluation_date = max(end_point[0], replacement_end[0])
+                    mfe, mae = _path_excursions(
+                        replacement_points,
+                        signal_date,
+                        replacement_end[0],
+                        replacement_signal_price,
+                    )
+                    incumbent_mfe, incumbent_mae = _path_excursions(
+                        points, signal_date, end_point[0], signal_price
+                    )
+                else:
+                    benchmark_end = _price_on_or_after(benchmark_points, target)
+                    if benchmark_end is None:
+                        continue
+                    if (
+                        latest_benchmark_date is not None
+                        and benchmark_end[0] > latest_benchmark_date
+                    ):
+                        continue
+                    instrument_return = end_point[1] / signal_price - 1.0
+                    benchmark_return = benchmark_end[1] / benchmark_start[1] - 1.0
+                    excess = instrument_return - benchmark_return
+                    signed_excess = excess * direction
+                    benchmark_signal_price = benchmark_start[1]
+                    benchmark_evaluation_price = benchmark_end[1]
+                    evaluation_date = end_point[0]
+                    mfe, mae = _path_excursions(
+                        points, signal_date, end_point[0], signal_price
+                    )
+                    incumbent_mfe, incumbent_mae = None, None
+
+                correct = signed_excess > EXCESS_RETURN_DEADBAND
                 event = {
                     "outcome_event_id": event_id,
                     "decision_id": decision_id,
+                    "economic_decision_id": economic_decision_id,
                     "shadow_run_id": run_id,
                     "instrument": instrument,
+                    "replacement_instrument": replacement or None,
                     "action": action,
+                    "comparison_basis": comparison_basis,
                     "signal_date": signal_date.isoformat(),
-                    "evaluation_date": end_point[0].isoformat(),
+                    "evaluation_date": evaluation_date.isoformat(),
                     "horizon_days": horizon,
                     "horizon_weight": horizon_weight,
+                    "normalized_horizon_weight": round(
+                        horizon_weight / HORIZON_WEIGHT_TOTAL, 8
+                    ),
                     "signal_price": round(signal_price, 8),
+                    "replacement_signal_price": (
+                        round(replacement_signal_price, 8)
+                        if action == "REPLACE"
+                        else None
+                    ),
                     "evaluation_price": round(end_point[1], 8),
-                    "benchmark_signal_price": round(benchmark_start[1], 8),
-                    "benchmark_evaluation_price": round(benchmark_end[1], 8),
+                    "replacement_evaluation_price": (
+                        round(replacement_end[1], 8)
+                        if replacement_end is not None
+                        else None
+                    ),
+                    "benchmark_signal_price": round(benchmark_signal_price, 8),
+                    "benchmark_evaluation_price": round(
+                        benchmark_evaluation_price, 8
+                    ),
                     "instrument_return": round(instrument_return, 8),
                     "benchmark_return": round(benchmark_return, 8),
+                    "incumbent_return": (
+                        round(incumbent_return, 8)
+                        if incumbent_return is not None
+                        else None
+                    ),
+                    "replacement_return": (
+                        round(replacement_return, 8)
+                        if replacement_return is not None
+                        else None
+                    ),
+                    "gross_rotation_delta": (
+                        round(gross_rotation_delta, 8)
+                        if gross_rotation_delta is not None
+                        else None
+                    ),
+                    "incremental_cost": round(incremental_cost, 8),
                     "excess_return": round(excess, 8),
                     "signed_excess_return": round(signed_excess, 8),
                     "direction_correct": correct,
-                    "eligible_for_learning": eligible,
+                    "eligible_for_learning": True,
                     "maximum_favorable_excursion": mfe,
                     "maximum_adverse_excursion": mae,
+                    "incumbent_maximum_favorable_excursion": incumbent_mfe,
+                    "incumbent_maximum_adverse_excursion": incumbent_mae,
                     "immutable": True,
                 }
                 event["event_sha256"] = canonical_sha256(event)
@@ -213,33 +355,83 @@ def collect_due_outcomes(
     return created
 
 
+def _normalized_event_weight(item: Mapping[str, Any]) -> float:
+    explicit = item.get("normalized_horizon_weight")
+    if explicit is not None:
+        return max(0.0, min(1.0, _finite(explicit)))
+    horizon = int(_finite(item.get("horizon_days"), -1))
+    raw = max(0.0, _finite(item.get("horizon_weight"), 1.0))
+    if horizon in HORIZON_WEIGHTS:
+        return min(1.0, raw / HORIZON_WEIGHT_TOTAL)
+    return min(1.0, raw)
+
+
+def _dedupe_learning_events(
+    events: Iterable[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    unique: dict[tuple[str, int], Mapping[str, Any]] = {}
+    for item in events:
+        if not item.get("eligible_for_learning"):
+            continue
+        economic_id = str(
+            item.get("economic_decision_id")
+            or item.get("decision_id")
+            or item.get("outcome_event_id")
+            or ""
+        )
+        horizon = int(_finite(item.get("horizon_days"), -1))
+        key = (economic_id, horizon)
+        if key not in unique:
+            unique[key] = item
+    return list(unique.values())
+
+
 def learning_statistics(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     rows = list(events)
-    eligible = [item for item in rows if item.get("eligible_for_learning")]
-    effective = sum(_finite(item.get("horizon_weight"), 1.0) for item in eligible)
+    eligible = _dedupe_learning_events(rows)
+    effective = sum(_normalized_event_weight(item) for item in eligible)
     correct_weight = sum(
-        _finite(item.get("horizon_weight"), 1.0)
+        _normalized_event_weight(item)
         for item in eligible
         if item.get("direction_correct") is True
     )
     signed_excess = sum(
-        _finite(item.get("signed_excess_return")) * _finite(item.get("horizon_weight"), 1.0)
+        _finite(item.get("signed_excess_return")) * _normalized_event_weight(item)
         for item in eligible
     )
+    economic_ids = {
+        str(item.get("economic_decision_id") or item.get("decision_id") or "")
+        for item in eligible
+    }
+    economic_ids.discard("")
     by_action: dict[str, dict[str, Any]] = {}
     for action in sorted(ACTION_DIRECTION):
         action_rows = [item for item in eligible if item.get("action") == action]
-        weight = sum(_finite(item.get("horizon_weight"), 1.0) for item in action_rows)
+        weight = sum(_normalized_event_weight(item) for item in action_rows)
+        action_economic_ids = {
+            str(item.get("economic_decision_id") or item.get("decision_id") or "")
+            for item in action_rows
+        }
+        action_economic_ids.discard("")
         by_action[action] = {
             "events": len(action_rows),
+            "economic_decisions": len(action_economic_ids),
             "effective_samples": round(weight, 6),
             "directional_accuracy": round(
-                sum(_finite(item.get("horizon_weight"), 1.0) for item in action_rows if item.get("direction_correct") is True)
+                sum(
+                    _normalized_event_weight(item)
+                    for item in action_rows
+                    if item.get("direction_correct") is True
+                )
                 / weight,
                 6,
             ) if weight else None,
             "mean_signed_excess_return": round(
-                sum(_finite(item.get("signed_excess_return")) * _finite(item.get("horizon_weight"), 1.0) for item in action_rows)
+                sum(
+                    _finite(item.get("signed_excess_return"))
+                    * _normalized_event_weight(item)
+                    for item in action_rows
+                )
                 / weight,
                 8,
             ) if weight else None,
@@ -247,9 +439,11 @@ def learning_statistics(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     return {
         "outcome_events": len(rows),
         "eligible_events": len(eligible),
+        "economic_decisions": len(economic_ids),
         "effective_samples": round(effective, 6),
         "directional_accuracy": round(correct_weight / effective, 6) if effective else None,
         "mean_signed_excess_return": round(signed_excess / effective, 8) if effective else None,
+        "sample_semantics": "one_economic_decision_max_one_effective_sample_across_7d_30d_90d",
         "by_action": by_action,
     }
 
@@ -486,6 +680,7 @@ def run(
         "event": "weekly_self_learning_review",
         "new_outcomes": len(created),
         "effective_samples": stats.get("effective_samples"),
+        "economic_decisions": stats.get("economic_decisions"),
     })
     learning["audit"] = learning["audit"][-260:]
     learning["content_sha256"] = canonical_sha256({key: value for key, value in learning.items() if key != "content_sha256"})
@@ -504,6 +699,7 @@ def run(
     result = {
         "new_outcomes": len(created),
         "effective_samples": stats.get("effective_samples"),
+        "economic_decisions": stats.get("economic_decisions"),
         "status": adaptive.get("status"),
         "active_overrides": adaptive.get("active_overrides"),
         "candidate_overrides": adaptive.get("candidate_overrides"),

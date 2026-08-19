@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from brace_portfolio_config import EngineConfig
@@ -27,6 +27,7 @@ ACTIONS = {
     "REBALANCE",
     "NO_ACTION",
 }
+LEARNING_ACTIONS = {"ADD", "REDUCE", "EXIT", "REPLACE"}
 
 
 def deterministic_id(prefix: str, payload: Mapping[str, Any]) -> str:
@@ -81,7 +82,8 @@ def _recent_rotation(
     for item in reversed(decision_history):
         if str(item.get("instrument") or "") != instrument_id:
             continue
-        if str(item.get("action") or "") not in {"REPLACE", "EXIT", "ADD"}:
+        action = str(item.get("action") or item.get("brace_decision") or "")
+        if action not in {"REPLACE", "EXIT", "ADD"}:
             continue
         generated = str(item.get("generated_at") or "")[:10]
         if generated and _days_since(generated, today) < cooldown_days:
@@ -121,6 +123,10 @@ def _rationale(
         f"The {action} recommendation follows from the multi-factor assessment "
         f"of {current_symbol}, data quality and current risk limits.",
     )
+
+
+def _economic_id(prefix: str, payload: Mapping[str, Any]) -> str:
+    return deterministic_id(f"economic-{prefix}", payload)
 
 
 def build_pending_decisions(
@@ -165,6 +171,8 @@ def build_pending_decisions(
                 "proposed_weight": float(
                     target_weights.get(item.get("instrument_id"), current_weight)
                 ),
+                "signal_price": item.get("current_price"),
+                "signal_fx_to_pln": item.get("current_fx_to_pln"),
                 "positive_factors": item.get("positive_factors") or [],
                 "negative_factors": item.get("negative_factors") or [],
                 "rationale_pl": rationale_pl,
@@ -253,16 +261,22 @@ def build_pending_decisions(
             "methodology": methodology_version,
         }
         decision_id = deterministic_id("rotation", payload)
+        economic_decision_id = _economic_id("rotation", payload)
         prior = previous_by_id.get(decision_id) or {}
         rotations.append(
             {
                 "decision_id": decision_id,
+                "economic_decision_id": economic_decision_id,
                 "generated_at": generated_at.isoformat(timespec="seconds"),
                 "action": "REPLACE",
                 "instrument": current.get("instrument_id"),
                 "replacement_instrument": candidate.get("instrument_id"),
                 "current_weight": current_weight,
                 "proposed_weight": proposed_weight,
+                "signal_price": current.get("current_price"),
+                "replacement_signal_price": candidate.get("current_price"),
+                "signal_fx_to_pln": current.get("current_fx_to_pln"),
+                "replacement_signal_fx_to_pln": candidate.get("current_fx_to_pln"),
                 "expected_benefit": round(expected_alpha, 6),
                 "expected_risk": candidate.get("expected_drawdown"),
                 "confidence": round(confidence, 4),
@@ -277,6 +291,7 @@ def build_pending_decisions(
                 ),
                 "checks": checks,
                 "transaction_cost_buffer": transaction_cost,
+                "learning_eligible": True,
             }
         )
         break
@@ -312,16 +327,20 @@ def build_pending_decisions(
                 "methodology": methodology_version,
             }
             decision_id = deterministic_id("allocation", payload)
+            economic_decision_id = _economic_id("allocation", payload)
             prior = previous_by_id.get(decision_id) or {}
             rotations.append(
                 {
                     "decision_id": decision_id,
+                    "economic_decision_id": economic_decision_id,
                     "generated_at": generated_at.isoformat(timespec="seconds"),
                     "action": action,
                     "instrument": selected.get("instrument"),
                     "replacement_instrument": None,
                     "current_weight": selected.get("current_weight"),
                     "proposed_weight": proposed_weight,
+                    "signal_price": selected.get("signal_price"),
+                    "signal_fx_to_pln": selected.get("signal_fx_to_pln"),
                     "expected_benefit": 0.0,
                     "expected_risk": None,
                     "confidence": selected.get("confidence"),
@@ -341,6 +360,7 @@ def build_pending_decisions(
                         "transaction_cost_buffer": True,
                     },
                     "transaction_cost_buffer": config.transaction_cost_buffer,
+                    "learning_eligible": True,
                 }
             )
 
@@ -351,6 +371,7 @@ def build_pending_decisions(
             "methodology": methodology_version,
         }
         decision_id = deterministic_id("decision", payload)
+        economic_decision_id = _economic_id("no-action", payload)
         rationale_pl, rationale_en = _rationale(
             "NO_ACTION",
             position_rows[0] if position_rows else {},
@@ -360,12 +381,14 @@ def build_pending_decisions(
         rotations.append(
             {
                 "decision_id": decision_id,
+                "economic_decision_id": economic_decision_id,
                 "generated_at": generated_at.isoformat(timespec="seconds"),
                 "action": "NO_ACTION",
                 "instrument": None,
                 "replacement_instrument": None,
                 "current_weight": None,
                 "proposed_weight": None,
+                "signal_price": None,
                 "expected_benefit": 0.0,
                 "expected_risk": None,
                 "confidence": min(
@@ -385,11 +408,12 @@ def build_pending_decisions(
                     "no_material_post_cost_advantage": True,
                 },
                 "transaction_cost_buffer": config.transaction_cost_buffer,
+                "learning_eligible": False,
             }
         )
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
         "methodology_version": methodology_version,
         "data_freshness": "current" if not safe_mode else "unsafe",
@@ -397,6 +421,7 @@ def build_pending_decisions(
             "decision_engine": "brace_portfolio_decision.py",
             "autonomy_mode": config.autonomy_mode,
             "paper_only": True,
+            "economic_decision_schema": "1.0",
         },
         "safe_mode": safe_mode,
         "recommendations": recommendations,
@@ -413,9 +438,9 @@ def shadow_record(
         str(item.get("id")): str(item.get("review_flag") or "HOLD")
         for item in baseline_positions
     }
-    decisions = []
+    recommendations = []
     for item in pending.get("recommendations", []) or []:
-        decisions.append(
+        recommendations.append(
             {
                 "instrument": item.get("instrument"),
                 "brace_decision": item.get("action"),
@@ -423,8 +448,10 @@ def shadow_record(
                     str(item.get("instrument")),
                     "HOLD",
                 ),
+                "record_type": "recommendation_snapshot",
+                "learning_eligible": False,
                 "hypothetical_execution_status": "NOT_EXECUTED_SHADOW",
-                "signal_price": None,
+                "signal_price": item.get("signal_price"),
                 "execution_price": None,
                 "costs": None,
                 "later_outcome": None,
@@ -433,14 +460,57 @@ def shadow_record(
                 "portfolio_impact": None,
             }
         )
+
+    economic_decisions = []
+    for item in pending.get("decisions", []) or []:
+        action = str(item.get("action") or "").upper()
+        instrument = item.get("instrument")
+        economic_decisions.append(
+            {
+                "decision_id": item.get("decision_id"),
+                "economic_decision_id": item.get("economic_decision_id")
+                or item.get("decision_id"),
+                "instrument": instrument,
+                "replacement_instrument": item.get("replacement_instrument"),
+                "brace_decision": action,
+                "baseline_decision": baseline_by_id.get(str(instrument), "HOLD"),
+                "record_type": "economic_decision",
+                "learning_eligible": bool(
+                    item.get("learning_eligible", action in LEARNING_ACTIONS)
+                    and action in LEARNING_ACTIONS
+                ),
+                "current_weight": item.get("current_weight"),
+                "proposed_weight": item.get("proposed_weight"),
+                "expected_benefit": item.get("expected_benefit"),
+                "expected_risk": item.get("expected_risk"),
+                "confidence": item.get("confidence"),
+                "data_timestamp": item.get("data_timestamp"),
+                "methodology_version": item.get("methodology_version"),
+                "hypothetical_execution_status": "NOT_EXECUTED_SHADOW",
+                "signal_price": item.get("signal_price"),
+                "replacement_signal_price": item.get("replacement_signal_price"),
+                "signal_fx_to_pln": item.get("signal_fx_to_pln"),
+                "replacement_signal_fx_to_pln": item.get("replacement_signal_fx_to_pln"),
+                "execution_price": None,
+                "replacement_execution_price": None,
+                "costs": item.get("transaction_cost_buffer"),
+                "later_outcome": None,
+                "maximum_favorable_excursion": None,
+                "maximum_adverse_excursion": None,
+                "portfolio_impact": None,
+            }
+        )
+
     return {
         "shadow_run_id": deterministic_id(
             "shadow",
             {
                 "generated_at": generated_at.isoformat(timespec="seconds"),
-                "decisions": decisions,
+                "decisions": recommendations,
+                "economic_decisions": economic_decisions,
             },
         ),
         "generated_at": generated_at.isoformat(timespec="seconds"),
-        "decisions": decisions,
+        "decisions": recommendations,
+        "economic_decisions": economic_decisions,
     }

@@ -131,16 +131,17 @@ def passing_probation() -> dict:
     }
 
 
-def test_registry_preserves_authorised_probationary_control_and_fallback():
+def test_registry_preserves_authorised_paper_control_while_fail_safe_is_active():
     registry = load("data/portfolio10k/methodology_registry.json")
-    assert registry["controller_state"] == "PROBATIONARY_CONTROL"
-    assert registry["champion_methodology_id"] == "brace-portfolio-engine"
+    assert registry["controller_state"] == "FALLBACK_BASELINE"
+    assert registry["champion_methodology_id"] == "portfolio-10k-baseline"
     methods = {item["methodology_id"]: item for item in registry["methodologies"]}
-    assert methods["portfolio-10k-baseline"]["status"] == "FALLBACK_BASELINE"
-    assert methods["brace-portfolio-engine"]["status"] == "PROBATIONARY_CONTROL"
+    assert methods["portfolio-10k-baseline"]["status"] == "ACTIVE_BASELINE"
+    assert methods["brace-portfolio-engine"]["status"] == "FALLBACK_BASELINE"
     authorisation = methods["brace-portfolio-engine"]["validation_results"]["user_authorized_paper_control"]
     assert authorisation["paper_only"] is True
     assert authorisation["remaining_automatic_promotion_gates_preserved"] is True
+    assert methods["brace-portfolio-engine"]["parameters"]["real_broker_access"] is False
     for item in methods.values():
         for key in (
             "methodology_id",
