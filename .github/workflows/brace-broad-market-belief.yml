@@ -1,0 +1,116 @@
+name: BRACE Broad-Market Belief Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-broad-market-belief.yml"
+      - "scripts/brace_broad_market_belief.py"
+      - "tests/test_brace_broad_market_belief.py"
+      - "docs/BRACE_BROAD_MARKET_BELIEF.md"
+  workflow_run:
+    workflows:
+      - "Belief Core Live Shadow Collection"
+      - "Belief Core News Macro Shadow Collection"
+      - "Belief Calibration Foundation"
+    types: [completed]
+  schedule:
+    - cron: "25 21 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-broad-market-belief-shadow
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT_NAME: brace-broad-market-belief-state
+
+jobs:
+  collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private state directory
+        run: |
+          set -euo pipefail
+          echo "STATE_DIR=$RUNNER_TEMP/brace_broad_market_belief" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/brace_broad_market_belief"
+
+      - name: Restore prior cumulative state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/state.zip"
+            mkdir -p "$RUNNER_TEMP/state-zip"
+            unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/state-zip"
+            test -f "$RUNNER_TEMP/state-zip/brace-broad-market-belief-state.tgz"
+            tar -xzf "$RUNNER_TEMP/state-zip/brace-broad-market-belief-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior state; first run will establish activation boundary only."
+          fi
+
+      - name: Validate PR10 code
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_broad_market_belief.py
+          PYTHONPATH=scripts python -m unittest tests.test_brace_broad_market_belief -v
+
+      - name: Run prospective broad-market layer
+        run: |
+          PYTHONPATH=scripts python scripts/brace_broad_market_belief.py --state-dir "$STATE_DIR"
+
+      - name: Assert hierarchy and zero-influence safety
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_BROAD_MARKET_BELIEF_REPORT.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          assert report['hierarchy']['active_layer'] == 'broad_market'
+          assert report['hierarchy']['company_entity_beliefs'] == 'deferred_to_later_reviewed_pr'
+          assert report['promotion']['company_entity_activation_authorized'] is False
+          print('BRACE broad-market Belief safety contract: PASS')
+          print('Sample:', report['sample'])
+          PY
+
+      - name: Pack cumulative private state
+        run: tar -czf "$RUNNER_TEMP/brace-broad-market-belief-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-broad-market-belief-state
+          path: ${{ runner.temp }}/brace-broad-market-belief-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
