@@ -39,6 +39,8 @@ SCHEMA_VERSION = "wes-spx-brace-readonly-v1"
 REPORT_VERSION = "wes-spx-brace-alpha-v1"
 SPX_ID = "sp500_futures"
 MAX_BRACE_AGE_HOURS = 36.0
+MAX_PREWES_CAPTURE_DELAY_MINUTES = 30.0
+MAX_CAPTURE_CLOCK_SKEW_MINUTES = 5.0
 STRONG_RELATIONSHIP_CONFIDENCE = 0.65
 
 
@@ -122,7 +124,11 @@ def _decision_from_item_or_report(
         else {}
     )
     action = _report_spx_action(report) or {}
-    candidate = action.get("candidate") if isinstance(action.get("candidate"), dict) else action
+    candidate = (
+        action.get("candidate")
+        if isinstance(action.get("candidate"), dict)
+        else action
+    )
     direction = str(
         continuous.get("direction")
         or candidate.get("direction")
@@ -138,12 +144,7 @@ def _decision_from_item_or_report(
     entry_price = _finite(item.get("entry_price"))
     entry_at = item.get("entry_captured_at")
     report_at = report.get("checked_at") or report.get("generated_at")
-    decision_at = (
-        entry_at
-        or report_at
-        or week.get("forecast_locked_at")
-        or week.get("forecast_created_at")
-    )
+    decision_at = entry_at or report_at or week.get("forecast_locked_at") or week.get("forecast_created_at")
     plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
     entry_class = str(
         plan.get("wes_entry_class")
@@ -190,11 +191,12 @@ def _safe_mean(values: Iterable[float]) -> Optional[float]:
 
 
 def brace_specialist_state(shadow: Mapping[str, Any]) -> dict[str, Any]:
-    """Summarize G6 shadow as a non-trading specialist stance.
+    """Convert BRACE-SPX G6 shadow evidence into a non-trading specialist stance.
 
-    During warm-up there is deliberately no opinion. Once G6 itself emits all
-    eight predeclared candidate snapshots, the bridge summarizes their target
-    exposure as risk_on / neutral / defensive. It never selects a champion.
+    No stance is emitted during warm-up. Once G6 itself starts emitting its
+    eight predeclared candidate snapshots, the bridge summarizes candidate
+    target exposure as risk_on / neutral / defensive. It does not select a
+    champion and does not alter BRACE-SPX.
     """
     source = {
         "generation_id": shadow.get("generation_id"),
@@ -300,7 +302,11 @@ def point_in_time_status(
     decision_dt = _dt(decision_at)
     brace_dt = _dt((brace_state.get("source") or {}).get("updated_at"))
     if decision_dt is None or brace_dt is None:
-        return {"eligible": False, "reason": "missing_decision_or_brace_timestamp", "age_hours": None}
+        return {
+            "eligible": False,
+            "reason": "missing_decision_or_brace_timestamp",
+            "age_hours": None,
+        }
     if brace_dt > decision_dt:
         return {
             "eligible": False,
@@ -367,6 +373,51 @@ def relationship(
     }
 
 
+def pre_wes_capture_status(
+    decision_at: Any,
+    captured_at: datetime,
+    *,
+    max_delay_minutes: float = MAX_PREWES_CAPTURE_DELAY_MINUTES,
+) -> dict[str, Any]:
+    """Allow V5 baseline freeze only immediately after the real decision.
+
+    This prevents first deployment (or a delayed rerun) from relabeling an old
+    WES/V5 plan as a point-in-time pre-WES counterfactual. Missed baselines are
+    recorded explicitly and are never reconstructed from later state.
+    """
+    decision_dt = _dt(decision_at)
+    capture_dt = captured_at.astimezone(timezone.utc)
+    if decision_dt is None:
+        return {
+            "eligible": False,
+            "status": "missed_not_reconstructed",
+            "reason": "decision_timestamp_missing",
+            "decision_to_capture_delay_minutes": None,
+        }
+    delay = (capture_dt - decision_dt).total_seconds() / 60.0
+    rounded = round(delay, 3)
+    if delay < -MAX_CAPTURE_CLOCK_SKEW_MINUTES:
+        return {
+            "eligible": False,
+            "status": "missed_not_reconstructed",
+            "reason": "capture_precedes_decision_beyond_clock_skew",
+            "decision_to_capture_delay_minutes": rounded,
+        }
+    if delay > max_delay_minutes:
+        return {
+            "eligible": False,
+            "status": "missed_not_reconstructed",
+            "reason": "pre_wes_capture_window_missed",
+            "decision_to_capture_delay_minutes": rounded,
+        }
+    return {
+        "eligible": True,
+        "status": "frozen_point_in_time",
+        "reason": "captured_inside_pre_wes_window",
+        "decision_to_capture_delay_minutes": rounded,
+    }
+
+
 def _frozen_counterfactual(decision: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "counterfactual_only": True,
@@ -402,9 +453,13 @@ def _find_closed_leg(item: Mapping[str, Any], entry_captured_at: Any) -> Optiona
     for leg in item.get("position_legs", []) or []:
         if not isinstance(leg, Mapping):
             continue
-        if str(leg.get("entry_captured_at") or "") == str(entry_captured_at) and leg.get("exit_captured_at"):
-            return leg
-    if str(item.get("entry_captured_at") or "") == str(entry_captured_at) and item.get("exit_captured_at"):
+        if str(leg.get("entry_captured_at") or "") == str(entry_captured_at):
+            if leg.get("exit_captured_at"):
+                return leg
+    if (
+        str(item.get("entry_captured_at") or "") == str(entry_captured_at)
+        and item.get("exit_captured_at")
+    ):
         return item
     return None
 
@@ -416,7 +471,9 @@ def _settle_actual(record: dict[str, Any], item: Mapping[str, Any]) -> None:
         record["outcome"] = {
             "status": "pending",
             "wes_net_result_percent": None,
-            "v5_counterfactual_net_result_percent": (record.get("v5_counterfactual") or {}).get("net_result_percent"),
+            "v5_counterfactual_net_result_percent": (
+                (record.get("v5_counterfactual") or {}).get("net_result_percent")
+            ),
         }
         return
     net = _finite(leg.get("net_result_percent"))
@@ -427,7 +484,9 @@ def _settle_actual(record: dict[str, Any], item: Mapping[str, Any]) -> None:
         "closed_at": leg.get("exit_captured_at"),
         "exit_reason": leg.get("exit_reason"),
         "wes_net_result_percent": round(net, 8) if net is not None else None,
-        "v5_counterfactual_net_result_percent": (record.get("v5_counterfactual") or {}).get("net_result_percent"),
+        "v5_counterfactual_net_result_percent": (
+            (record.get("v5_counterfactual") or {}).get("net_result_percent")
+        ),
         "incremental_wes_vs_v5_percent": None,
     }
 
@@ -479,7 +538,11 @@ def capture(
         pit = point_in_time_status(decision.get("decision_at"), brace_state)
         rel = relationship(str(decision.get("direction")), brace_state, pit)
         if decision.get("decision_type") not in {"entered_position", "authorized_trigger"}:
-            rel = {**rel, "alpha_eligible": False, "reason": "non_actionable_monitoring_observation"}
+            rel = {
+                **rel,
+                "alpha_eligible": False,
+                "reason": "non_actionable_monitoring_observation",
+            }
         existing = {
             "decision_id": decision_id,
             "week_id": week.get("week_id"),
@@ -513,8 +576,11 @@ def capture(
         existing["last_updated_at"] = now.isoformat(timespec="seconds")
 
     if stage == "pre-wes" and existing.get("v5_counterfactual") is None:
-        existing["v5_counterfactual"] = _frozen_counterfactual(decision, item)
-        existing["pre_wes_frozen_at"] = now.isoformat(timespec="seconds")
+        capture_status = pre_wes_capture_status(decision.get("decision_at"), now)
+        existing["v5_counterfactual_capture"] = capture_status
+        if capture_status["eligible"]:
+            existing["v5_counterfactual"] = _frozen_counterfactual(decision, item)
+            existing["pre_wes_frozen_at"] = now.isoformat(timespec="seconds")
 
     if stage == "post-wes":
         existing["wes_actual"] = _actual_wes(decision, item)
@@ -531,7 +597,11 @@ def capture(
     )
     out["updated_at"] = now.isoformat(timespec="seconds")
     out["content_sha256"] = canonical_sha256(
-        {"schema_version": out["schema_version"], "governance": out["governance"], "records": out["records"]}
+        {
+            "schema_version": out["schema_version"],
+            "governance": out["governance"],
+            "records": out["records"],
+        }
     )
     return out
 
@@ -540,7 +610,8 @@ def _bucket(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
     values = [
         float(value)
         for value in (
-            _finite((row.get("outcome") or {}).get("wes_net_result_percent")) for row in rows
+            _finite((row.get("outcome") or {}).get("wes_net_result_percent"))
+            for row in rows
         )
         if value is not None
     ]
@@ -554,7 +625,11 @@ def _bucket(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
 
 def build_alpha_report(ledger: Mapping[str, Any]) -> dict[str, Any]:
     records = [x for x in (ledger.get("records") or []) if isinstance(x, Mapping)]
-    eligible = [row for row in records if (row.get("relationship") or {}).get("alpha_eligible") is True]
+    eligible = [
+        row
+        for row in records
+        if (row.get("relationship") or {}).get("alpha_eligible") is True
+    ]
     classes = [
         "STRONG_AGREEMENT",
         "WEAK_AGREEMENT",
@@ -585,7 +660,11 @@ def build_alpha_report(ledger: Mapping[str, Any]) -> dict[str, Any]:
             "v5_baselines_frozen": sum(bool(row.get("v5_counterfactual")) for row in records),
             "wes_actual_plans_frozen": sum(bool(row.get("wes_actual")) for row in records),
             "resolved_wes_vs_v5_pairs": len(counterfactual_ready),
-            "status": "ready_for_incremental_alpha" if counterfactual_ready else "collecting_frozen_baselines_and_outcomes",
+            "status": (
+                "ready_for_incremental_alpha"
+                if counterfactual_ready
+                else "collecting_frozen_baselines_and_outcomes"
+            ),
         },
         "interpretation": {
             "agreement_conflict_alpha": "Use only point-in-time eligible BRACE-SPX states; warm-up and retrospective states are excluded.",
@@ -621,7 +700,13 @@ def main() -> None:
     report = _read(args.wes_report, {})
     brace = _load_brace_shadow(args.brace_shadow)
     ledger = _read(args.ledger, _new_ledger())
-    updated = capture(stage=args.stage, week=week, wes_report=report, brace_shadow=brace, ledger=ledger)
+    updated = capture(
+        stage=args.stage,
+        week=week,
+        wes_report=report,
+        brace_shadow=brace,
+        ledger=ledger,
+    )
     _write(args.ledger, updated)
     _write(args.alpha_report, build_alpha_report(updated))
     latest = updated.get("records", [])[-1] if updated.get("records") else {}
