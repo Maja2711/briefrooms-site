@@ -1,0 +1,65 @@
+name: WES SPX BRACE Read-Only Bridge Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/investments_wes_spx_brace_bridge.py"
+      - "tests/test_investments_wes_spx_brace_bridge.py"
+      - "docs/WES_BRACE_SPX_READ_ONLY_BRIDGE.md"
+      - ".github/workflows/investments-wes.yml"
+      - ".github/workflows/wes-spx-brace-bridge-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-read-only-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile and test bridge
+        run: |
+          python -m py_compile scripts/investments_wes_spx_brace_bridge.py
+          python -m unittest tests/test_investments_wes_spx_brace_bridge.py
+
+      - name: Read current BRACE-SPX G6 shadow without modifying research branch
+        run: |
+          set +e
+          git fetch --no-tags --depth=1 origin brace-spx-research:refs/remotes/origin/brace-spx-research
+          git show refs/remotes/origin/brace-spx-research:data/shadow/brace_spx_generation6_shadow.json > /tmp/brace_spx_generation6_shadow.json
+          set -e
+
+      - name: Exercise bridge on current W34 repository state
+        run: |
+          python scripts/investments_wes_spx_brace_bridge.py \
+            --stage post-wes \
+            --week-id 2026-W34 \
+            --brace-shadow /tmp/brace_spx_generation6_shadow.json \
+            --ledger /tmp/wes_spx_brace_bridge.json \
+            --alpha-report /tmp/wes_spx_brace_alpha_report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          ledger = json.loads(Path('/tmp/wes_spx_brace_bridge.json').read_text())
+          report = json.loads(Path('/tmp/wes_spx_brace_alpha_report.json').read_text())
+          assert ledger['active_decision_influence'] is False
+          assert ledger['governance']['read_only_bridge'] is True
+          assert ledger['governance']['bounded_influence_enabled'] is False
+          assert ledger['governance']['wes_decisions_modified'] is False
+          assert ledger['governance']['brace_spx_research_modified'] is False
+          assert report['active_decision_influence'] is False
+          assert report['bounded_influence_enabled'] is False
+          for row in ledger['records']:
+              assert row['active_decision_influence'] is False
+              assert row['counterfactual_overlay']['bounded_modifier_applied'] is False
+              if row['relationship']['alpha_eligible']:
+                  assert row['point_in_time']['eligible'] is True
+                  assert row['brace_spx']['available'] is True
+          print(json.dumps(report, indent=2))
+          PY
