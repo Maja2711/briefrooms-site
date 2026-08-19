@@ -1,0 +1,82 @@
+name: One-shot verify EN US Daily Stock production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-us-daily-stock-production-verify.yml"
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-us-daily-stock-production-verify
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify public EN page and data feed
+        run: |
+          python - <<'PY'
+          import json,time,urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-production-verify/1.0','Cache-Control':'no-cache'}
+          today=datetime.now(ZoneInfo('America/New_York')).date().isoformat()
+          result={'checked_at':datetime.now(timezone.utc).isoformat(),'today_ny':today,'passed':False}
+          last_error=''
+          for attempt in range(1,61):
+              token=f'{int(time.time())}-{attempt}'
+              try:
+                  page_req=urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers)
+                  with urllib.request.urlopen(page_req,timeout=20) as r:
+                      html=r.read().decode('utf-8',errors='replace')
+                  data_req=urllib.request.Request(f'https://briefrooms.com/data/investments/us_daily_stock.json?v={token}',headers=headers)
+                  with urllib.request.urlopen(data_req,timeout=20) as r:
+                      data=json.load(r)
+                  result.update({
+                      'page_has_root':'id="us-daily-stock-root"' in html,
+                      'page_has_script':'us-daily-stock-public.js' in html,
+                      'page_has_css':'gpw-daily-pick.css' in html,
+                      'feed_date':data.get('date'),
+                      'feed_decision':data.get('decision'),
+                      'feed_selection':(data.get('selection') or {}).get('symbol'),
+                  })
+                  if result['page_has_root'] and result['page_has_script'] and result['page_has_css'] and data.get('date') == today:
+                      result['passed']=True
+                      break
+              except Exception as exc:
+                  last_error=f'{type(exc).__name__}: {exc}'
+              time.sleep(10)
+          result['last_error']=last_error
+          Path('data/internal/us_daily_stock_production_verify.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          if not result['passed']:
+              raise SystemExit('Production verification did not pass')
+          PY
+      - name: Commit verification and self-remove
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-us-daily-stock-production-verify.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/internal/us_daily_stock_production_verify.json .github/workflows/one-shot-us-daily-stock-production-verify.yml
+          git commit -m "Verify EN US Daily Stock production"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
