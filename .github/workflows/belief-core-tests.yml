@@ -5,6 +5,8 @@ on:
     paths:
       - "scripts/belief_core.py"
       - "scripts/belief_calibration.py"
+      - "scripts/belief_calibration_foundation.py"
+      - "scripts/belief_data_quality_adapter.py"
       - "scripts/belief_core_shadow.py"
       - "scripts/belief_core_verify.py"
       - "scripts/belief_core_live.py"
@@ -17,9 +19,11 @@ on:
       - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
       - "docs/BELIEF_EVIDENCE_ADAPTERS.md"
       - "docs/BELIEF_NEWS_MACRO_ADAPTERS.md"
+      - "docs/BELIEF_CALIBRATION_FOUNDATION.md"
       - ".github/workflows/belief-core-tests.yml"
       - ".github/workflows/belief-core-shadow-live.yml"
       - ".github/workflows/belief-core-events-live.yml"
+      - ".github/workflows/belief-calibration-live.yml"
   workflow_dispatch:
 
 permissions:
@@ -41,6 +45,8 @@ jobs:
           python -m py_compile \
             scripts/belief_core.py \
             scripts/belief_calibration.py \
+            scripts/belief_calibration_foundation.py \
+            scripts/belief_data_quality_adapter.py \
             scripts/belief_core_shadow.py \
             scripts/belief_core_verify.py \
             scripts/belief_adapter_contract.py \
