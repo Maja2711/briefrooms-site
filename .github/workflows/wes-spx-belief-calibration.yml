@@ -1,0 +1,150 @@
+name: WES-SPX Engine-Belief Calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wes-spx-belief-calibration.yml"
+      - "scripts/investments_wes_belief_calibration.py"
+      - "tests/test_investments_wes_belief_calibration.py"
+      - "docs/WES_SPX_ENGINE_BELIEF_CALIBRATION.md"
+  workflow_run:
+    workflows:
+      - "WES-SPX Belief Read-Only Bridge"
+      - "Weekly Engine Star"
+    types: [completed]
+  schedule:
+    - cron: "40 22 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: wes-spx-engine-belief-calibration
+  cancel-in-progress: false
+
+env:
+  BRIDGE_ARTIFACT_NAME: wes-spx-belief-bridge-state
+  CALIBRATION_ARTIFACT_NAME: wes-spx-engine-belief-calibration-state
+
+jobs:
+  calibrate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare isolated state directories
+        run: |
+          set -euo pipefail
+          echo "BRIDGE_DIR=$RUNNER_TEMP/wes_spx_belief_bridge" >> "$GITHUB_ENV"
+          echo "CAL_DIR=$RUNNER_TEMP/wes_spx_belief_calibration" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/wes_spx_belief_bridge" "$RUNNER_TEMP/wes_spx_belief_calibration"
+
+      - name: Restore latest PR8 bridge artifact read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BRIDGE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/bridge-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/bridge-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No PR8 bridge artifact; create empty input."
+            : > "$BRIDGE_DIR/engine_belief_observations.jsonl"
+          else
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/bridge.zip"
+            mkdir -p "$RUNNER_TEMP/bridge-zip"
+            unzip -q "$RUNNER_TEMP/bridge.zip" -d "$RUNNER_TEMP/bridge-zip"
+            test -f "$RUNNER_TEMP/bridge-zip/wes-spx-belief-bridge-state.tgz"
+            tar -xzf "$RUNNER_TEMP/bridge-zip/wes-spx-belief-bridge-state.tgz" -C "$BRIDGE_DIR"
+            touch "$BRIDGE_DIR/engine_belief_observations.jsonl"
+          fi
+
+      - name: Restore prior calibration state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${CALIBRATION_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/cal-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/cal-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/cal.zip"
+            mkdir -p "$RUNNER_TEMP/cal-zip"
+            unzip -q "$RUNNER_TEMP/cal.zip" -d "$RUNNER_TEMP/cal-zip"
+            test -f "$RUNNER_TEMP/cal-zip/wes-spx-engine-belief-calibration-state.tgz"
+            tar -xzf "$RUNNER_TEMP/cal-zip/wes-spx-engine-belief-calibration-state.tgz" -C "$CAL_DIR"
+          else
+            echo "No prior calibration artifact; activation-only run expected."
+          fi
+
+      - name: Validate calibration code
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/investments_wes_belief_calibration.py
+          PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_calibration -v
+          PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_bridge -v
+
+      - name: Run prospective calibration
+        run: |
+          PYTHONPATH=scripts python scripts/investments_wes_belief_calibration.py \
+            --calibration-dir "$CAL_DIR" \
+            --bridge-dir "$BRIDGE_DIR" \
+            --wes-source data/investments/wes_spx_brace_bridge.json
+
+      - name: Assert research-only safety
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['CAL_DIR'])
+          state=json.loads((root/'calibration_state.json').read_text())
+          report=json.loads((root/'WES_SPX_ENGINE_BELIEF_CALIBRATION_REPORT.json').read_text())
+          assert state['safety_controls'] and all(v is False for v in state['safety_controls'].values())
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          assert report['evaluation_policy']['production_modifier_proposed'] is False
+          assert report['evaluation_policy']['agreement_can_increase_exposure'] is False
+          assert report['active_decision_influence'] is False
+          assert report['bounded_influence_enabled'] is False
+          print('WES-SPX Engine-Belief research-only contract: PASS')
+          print('Calibration sample:', report['sample'])
+          PY
+
+      - name: Pack cumulative calibration state
+        run: tar -czf "$RUNNER_TEMP/wes-spx-engine-belief-calibration-state.tgz" -C "$CAL_DIR" .
+
+      - name: Store private cumulative calibration state
+        uses: actions/upload-artifact@v4
+        with:
+          name: wes-spx-engine-belief-calibration-state
+          path: ${{ runner.temp }}/wes-spx-engine-belief-calibration-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
