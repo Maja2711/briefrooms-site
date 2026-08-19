@@ -9,8 +9,14 @@ from typing import Any
 
 try:
     from scripts import us_daily_stock as us
+    from scripts import daily_stock_us_adapter as core_adapter
 except ModuleNotFoundError:
     import us_daily_stock as us
+    import daily_stock_us_adapter as core_adapter
+
+# Existing workflow entry points keep working, but the selector now uses the
+# shared Daily Stock Core before any runtime objects capture engine functions.
+core_adapter.install()
 
 LAST_PREFETCH_AUDIT: dict[str, Any] = {}
 _ORIGINAL_FETCH = us.fetch_resilient_bars
@@ -112,6 +118,40 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
     return payload
 
 
+def build_history_index() -> dict[str, Any]:
+    trades = []
+    if us.HISTORY_DIR.exists():
+        for path in sorted(us.HISTORY_DIR.glob("????-??-??.json"), reverse=True):
+            payload = us.load_json(path)
+            if not isinstance(payload, dict) or payload.get("decision") != "TRADE":
+                continue
+            selection = payload.get("selection") or {}
+            trades.append({
+                "market": "us",
+                "date": payload.get("date"),
+                "generated_at": payload.get("generated_at"),
+                "ticker": selection.get("ticker") or selection.get("symbol"),
+                "symbol": selection.get("symbol"),
+                "name": selection.get("name"),
+                "sector": selection.get("sector"),
+                "score": selection.get("score"),
+                "entry_zone": selection.get("entry_zone"),
+                "stop": selection.get("stop"),
+                "target": selection.get("target"),
+                "valid_until": selection.get("valid_until"),
+                "outcome": payload.get("outcome") or {},
+            })
+    index = {
+        "schema_version": "us-daily-stock-history-index-v1",
+        "updated_at": us.now_ny().isoformat(timespec="seconds"),
+        "selected_trades": len(trades),
+        "resolved_trades": sum(1 for row in trades if (row.get("outcome") or {}).get("status") == "RESOLVED"),
+        "trades": trades,
+    }
+    us.atomic_json(us.HISTORY_DIR / "index.json", index)
+    return index
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("auto", "validate"), default="auto")
@@ -131,6 +171,7 @@ def main() -> int:
         }
         print(f"Fail-closed runtime: {exc}")
     us.publish(payload)
+    build_history_index()
     us.validate_payload(us.load_json(us.PUBLIC_PATH), require_today=True, now=now)
     print(f"Published {payload['decision']} for {payload['date']} ({now:%H:%M} ET).")
     return 0
