@@ -1,0 +1,51 @@
+name: WES Historical Memory Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/investments_wes_memory.py"
+      - "tests/test_investments_wes_memory.py"
+      - "docs/WES_HISTORICAL_MEMORY.md"
+      - ".github/workflows/wes-memory-validation.yml"
+      - ".github/workflows/investments-wes.yml"
+      - "data/investments/weekly/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-memory-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile and run unit tests
+        run: |
+          python -m py_compile scripts/investments_wes_memory.py
+          python -m unittest tests/test_investments_wes_memory.py
+      - name: Build real W24-W34 memory in the runner
+        run: |
+          python scripts/investments_wes_memory.py --write
+          python scripts/investments_wes_memory.py --check
+      - name: Validate real migration invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          memory = json.loads(Path('data/investments/wes_historical_memory.json').read_text())
+          report = json.loads(Path('data/investments/wes_memory_report.json').read_text())
+          assert memory['scope'] == {'from_week': '2026-W24', 'through_week': '2026-W34'}
+          assert memory['active_decision_influence'] is False
+          assert report['active_decision_influence'] is False
+          assert len(memory['sources']) == 11
+          ids = [row['record_id'] for row in memory['records']]
+          assert len(ids) == len(set(ids))
+          assert all(row['source']['path'].startswith('data/investments/weekly/') for row in memory['records'])
+          assert all(row['quality_grade'] in {'A', 'B', 'C', 'D'} for row in memory['records'])
+          assert all(not row['strategy_memory_eligible'] or row['strategy_id'] for row in memory['records'])
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
