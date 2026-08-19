@@ -124,6 +124,24 @@
 </section></aside></div><footer><span>© 2026 BriefRooms</span><nav class="foot-links"><a href="/pl/">Start</a><a href="mailto:contact@briefrooms.com">Kontakt</a><a href="/en/">EN</a></nav></footer></div>
 <script src="/scripts/home-briefs.js?v=seo-static-1" defer></script>
 <script src="/scripts/home-weekly-top-position.js?v=3" defer></script>
+<script id="home-market-signal-locale-link">(function(){
+  'use strict';
+  var lang=document.documentElement.lang==='en'?'en':'pl';
+  var target=lang==='en'?'/en/investing/portfolio-10k.html#overview':'/pl/inwestycje/portfel-10k.html#overview';
+  function fixDailyTradeLink(){
+    var link=document.getElementById('home-market-signal');
+    if(!link)return;
+    var kicker=link.querySelector('.home-market-signal__kicker');
+    if(!kicker||!/^Daily Trade/i.test(String(kicker.textContent||'').trim()))return;
+    if(link.getAttribute('href')!==target)link.setAttribute('href',target);
+  }
+  document.addEventListener('click',function(event){
+    var node=event.target&&event.target.closest?event.target.closest('#home-market-signal'):null;
+    if(node)fixDailyTradeLink();
+  },true);
+  if(typeof MutationObserver==='function')new MutationObserver(fixDailyTradeLink).observe(document.documentElement,{childList:true,subtree:true});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fixDailyTradeLink,{once:true});else fixDailyTradeLink();
+})();</script>
 <script src="/scripts/external-media-guard.js?v=3" defer></script>
 
 <script src="/scripts/hot-x-render.js?v=circulating-x-5" defer></script>
