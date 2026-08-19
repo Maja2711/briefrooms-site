@@ -1,0 +1,37 @@
+name: WES-SPX Belief Bridge Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wes-spx-belief-bridge-validation.yml"
+      - ".github/workflows/wes-spx-belief-bridge.yml"
+      - "scripts/investments_wes_belief_bridge.py"
+      - "tests/test_investments_wes_belief_bridge.py"
+      - "docs/WES_SPX_BELIEF_READ_ONLY_BRIDGE.md"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile bridge
+        run: PYTHONPATH=scripts python -m py_compile scripts/investments_wes_belief_bridge.py
+      - name: Run PR8 tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_bridge -v
+      - name: Run point-in-time Belief selector regression
+        run: PYTHONPATH=scripts python -m unittest tests.test_brace_spx_belief_bridge -v
+      - name: Assert zero decision influence
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import investments_wes_belief_bridge as b
+          assert b.controls()
+          assert all(v is False for v in b.controls().values())
+          assert b.MAX_CAPTURE_DELAY_MINUTES == 60.0
+          print("PR #8 zero-influence safety: PASS")
+          PY
