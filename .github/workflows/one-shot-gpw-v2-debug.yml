@@ -1,0 +1,78 @@
+name: One-shot GPW v2 debug
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-gpw-v2-debug.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+      GPW_RECOVERY_DATE: "2026-08-19"
+      GPW_RECOVERY_CUTOFF: "12:30"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Run diagnostics without hiding failure
+        shell: bash
+        run: |
+          set +e
+          python -m unittest tests.test_gpw_pipeline_v2 tests.test_gpw_market_data tests.test_gpw_daily_control_loop tests.test_gpw_event_layer -v > /tmp/tests.log 2>&1
+          TEST_CODE=$?
+          python scripts/gpw_event_driven_loop_v2.py --mode auto > /tmp/run.log 2>&1
+          RUN_CODE=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          def read(path):
+              return Path(path).read_text(encoding='utf-8',errors='replace')[-30000:]
+          payload={}
+          p=Path('data/investments/gpw_daily_pick.json')
+          if p.exists():
+              try: payload=json.loads(p.read_text(encoding='utf-8'))
+              except Exception as exc: payload={'parse_error':str(exc)}
+          out={
+              'captured_at':'2026-08-19-recovery',
+              'payload':payload,
+              'tests_log':read('/tmp/tests.log'),
+              'run_log':read('/tmp/run.log'),
+          }
+          Path('data/internal/gpw_v2_debug_2026-08-19.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+          echo "tests=$TEST_CODE run=$RUN_CODE"
+      - name: Always commit diagnostic and self-remove
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-gpw-v2-debug.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/internal/gpw_v2_debug_2026-08-19.json .github/workflows/one-shot-gpw-v2-debug.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Capture GPW v2 recovery diagnostics"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
