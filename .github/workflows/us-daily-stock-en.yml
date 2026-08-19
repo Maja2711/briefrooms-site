@@ -1,0 +1,160 @@
+name: Publish EN US Daily Stock
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/us-daily-stock-en.yml"
+      - "scripts/us_daily_stock.py"
+      - "scripts/us-daily-stock-public.js"
+      - "scripts/install_us_daily_stock_en.py"
+      - "data/investments/us_daily_stock_config.json"
+      - "tests/test_us_daily_stock.py"
+  schedule:
+    # 09:36/09:42 New York during EDT (13:36/13:42 UTC) and EST (14:36/14:42 UTC).
+    - cron: "36 13 * * 1-5"
+    - cron: "42 13 * * 1-5"
+    - cron: "36 14 * * 1-5"
+    - cron: "42 14 * * 1-5"
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: us-daily-stock-en
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Test US Daily Stock contracts
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_us_daily_stock -v
+          python -m py_compile scripts/us_daily_stock.py scripts/install_us_daily_stock_en.py
+          python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
+          python -m json.tool data/investments/us_daily_stock.json >/dev/null
+          node --check scripts/us-daily-stock-public.js
+
+      - name: Install widget on English 10K page
+        run: python scripts/install_us_daily_stock_en.py
+
+      - name: Generate or refresh US Daily Stock
+        run: |
+          set -euo pipefail
+          python scripts/us_daily_stock.py --mode auto
+          python scripts/us_daily_stock.py --mode validate
+          python - <<'PY'
+          import json
+          from datetime import datetime, time as clock_time
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          p=json.loads(Path('data/investments/us_daily_stock.json').read_text(encoding='utf-8'))
+          now=datetime.now(ZoneInfo('America/New_York'))
+          if now.time() >= clock_time(9,35) and now.time() < clock_time(9,50) and p.get('decision') == 'PENDING':
+              raise SystemExit('US Daily Stock remained PENDING after the post-open analysis window began.')
+          if p.get('decision') == 'TRADE':
+              s=p.get('selection') or {}
+              assert s.get('review',{}).get('approved') is True
+              assert s.get('sources')
+              assert s.get('market_snapshot',{}).get('date') == now.date().isoformat()
+              assert float(s.get('reward_risk') or 0) >= 1.5
+              print('US_DAILY_STOCK',s.get('symbol'),s.get('score'),s.get('reference_price'))
+          else:
+              print('US_DAILY_STOCK_STATE',p.get('decision'),p.get('reason'))
+          PY
+
+      - name: Commit US Daily Stock state and EN frontend
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/us_daily_stock.json \
+            data/investments/us_daily_stock_metrics.json \
+            data/investments/us_daily_stock_history \
+            en/investing/portfolio-10k.html 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Publish EN US Daily Stock state"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $((attempt*4))
+          done
+          exit 1
+
+      - name: Request fresh Pages build
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            CODE="$(curl --silent --show-error --output /tmp/us-pages.json --write-out '%{http_code}' \
+              -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
+            if [[ "$CODE" == "201" ]]; then exit 0; fi
+            if [[ "$CODE" != "409" ]]; then cat /tmp/us-pages.json; exit 1; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Verify EN widget and feed on production
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          python - <<'PY'
+          import json,time,urllib.request
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/1.0','Cache-Control':'no-cache'}
+          today=datetime.now(ZoneInfo('America/New_York')).date().isoformat()
+          last=None
+          for attempt in range(1,43):
+              token=f'{int(time.time())}-{attempt}'
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/data/investments/us_daily_stock.json?v={token}',headers=headers),timeout=20) as r:
+                      data=json.load(r)
+                  last=data
+                  with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers),timeout=20) as r:
+                      html=r.read().decode('utf-8',errors='replace')
+                  if data.get('date') == today and 'us-daily-stock-root' in html and 'us-daily-stock-public.js' in html:
+                      print('PRODUCTION_US_DAILY_STOCK_OK',data.get('decision'),(data.get('selection') or {}).get('symbol'))
+                      raise SystemExit(0)
+              except Exception as exc:
+                  print('attempt',attempt,type(exc).__name__,str(exc)[:150])
+              time.sleep(10)
+          raise SystemExit(f'Production did not expose US Daily Stock in time: {last}')
+          PY
