@@ -193,6 +193,16 @@ def _strength(probability: float) -> float:
     return clamp(0.08 + 1.10 * abs(float(probability) - 0.50), 0.08, MAX_EVIDENCE_STRENGTH)
 
 
+def _serial_cluster(asset: str, horizon_hours: int) -> str:
+    """All serial forecasts from one GSE asset/horizon share one cluster.
+
+    GSE freezes every six hours. Treating each batch as independent evidence
+    would pseudo-replicate one forecasting model and inflate Belief mass. A
+    stable cluster lets Belief Core select the freshest/strongest representative.
+    """
+    return f"gse:serial_forecast:{asset}:{int(horizon_hours)}"
+
+
 class GeopoliticalForecastAdapter:
     name = ADAPTER_NAME
     version = ADAPTER_VERSION
@@ -258,6 +268,7 @@ class GeopoliticalForecastAdapter:
             qualification = _calibration_qualification(calibration, asset, horizon)
             scenario_ids, gse_evidence_ids = _scenario_lineage(forecast)
             v2_candidate = v2_by_baseline.get(forecast_id)
+            serial_cluster = _serial_cluster(asset, horizon)
             metadata = {
                 "gse_forecast_id": forecast_id,
                 "gse_batch_id": forecast.get("batch_id"),
@@ -271,6 +282,8 @@ class GeopoliticalForecastAdapter:
                 "gse_scenario_ids": scenario_ids,
                 "gse_evidence_ids": gse_evidence_ids,
                 "calibration_qualification": qualification,
+                "serial_independence_cluster": serial_cluster,
+                "serial_forecasts_are_not_independent": True,
                 "v2_role": V2_ROLE,
                 "v2_candidate": None if v2_candidate is None else {
                     "candidate_id": v2_candidate.get("candidate_id"),
@@ -297,7 +310,7 @@ class GeopoliticalForecastAdapter:
                 source_type="derived",
                 source_ref=f"gse://forecast/{forecast_id}",
                 reliability=float(qualification["derived_source_reliability"]),
-                independence_cluster=f"gse:{forecast.get('batch_id')}:{asset}:{horizon}",
+                independence_cluster=serial_cluster,
                 status="ok",
                 tags=("geopolitical", "forecast", "frozen", "shadow", asset.lower()),
                 metadata=metadata,
@@ -318,11 +331,12 @@ class GeopoliticalForecastAdapter:
                     f"Frozen GSE v1 geopolitical transmission forecast for SPX {horizon}h; "
                     f"p(direction)={probability:.3f}."
                 ),
-                independence_cluster=f"gse:{forecast.get('batch_id')}:SPX:24",
+                independence_cluster=serial_cluster,
                 metadata={
                     "gse_forecast_id": forecast_id,
                     "gse_variant": "v1",
                     "gse_v2_not_used_for_evidence": True,
+                    "serial_forecasts_are_not_independent": True,
                     "calibration_qualification": qualification,
                     "scenario_ids": scenario_ids,
                     "gse_evidence_ids": gse_evidence_ids,
