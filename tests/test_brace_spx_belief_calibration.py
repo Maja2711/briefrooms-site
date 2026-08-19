@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import math
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -85,7 +84,7 @@ def record_for(shadow, stance="risk_on", confidence=0.8, relationship="STRONG_AG
             },
             "candidate_consensus": {
                 "candidate_count": 8,
-                "mean_target_exposure_next_session": shadow["candidate_snapshots"][0]["target_exposure_next_session"],
+                "mean_target_exposure_next_session": sum(row["target_exposure_next_session"] for row in snapshots) / 8,
                 "candidate_snapshots_sha256": bridge.canonical_sha256(snapshots),
             },
             "family_scores": dict(shadow["family_scores"]),
@@ -134,9 +133,11 @@ def write_market(path: Path, rows):
 class CalibrationContractTests(unittest.TestCase):
     def test_safety_is_hard_off_but_counterfactual_evaluation_is_on(self):
         self.assertTrue(all(value is False for value in cal.safety_controls().values()))
-        self.assertTrue(cal.evaluation_policy()["with_without_evaluation_enabled"])
-        self.assertTrue(cal.evaluation_policy()["hypothetical_overlay_only"])
-        self.assertFalse(cal.evaluation_policy()["production_modifier_proposed"])
+        policy = cal.evaluation_policy()
+        self.assertTrue(policy["with_without_evaluation_enabled"])
+        self.assertTrue(policy["hypothetical_overlay_only"])
+        self.assertTrue(policy["overlay_applied_to_each_frozen_g6_candidate"])
+        self.assertFalse(policy["production_modifier_proposed"])
 
     def test_risk_on_overlay_is_small_predeclared_and_confidence_scaled(self):
         shadow = raw_shadow(target=0.5)
@@ -146,18 +147,21 @@ class CalibrationContractTests(unittest.TestCase):
         )
         self.assertEqual(reason, "contract_frozen")
         self.assertIsNotNone(contract)
-        self.assertAlmostEqual(contract["without_belief"]["target_exposure_next_session"], 0.5)
+        self.assertAlmostEqual(contract["without_belief"]["mean_target_exposure_next_session"], 0.5)
         self.assertAlmostEqual(contract["with_belief_hypothetical"]["requested_tilt"], 0.08)
-        self.assertAlmostEqual(contract["with_belief_hypothetical"]["hypothetical_target_exposure"], 0.58)
+        self.assertAlmostEqual(contract["with_belief_hypothetical"]["mean_hypothetical_target_exposure"], 0.58)
+        self.assertEqual(len(contract["without_belief"]["candidates"]), 8)
+        self.assertEqual(len(contract["with_belief_hypothetical"]["candidates"]), 8)
         self.assertFalse(contract["decision_influence"])
 
-    def test_defensive_overlay_reduces_exposure(self):
+    def test_defensive_overlay_reduces_each_candidate_exposure(self):
         shadow = raw_shadow(target=0.5)
         record = record_for(shadow, stance="defensive", confidence=0.6, relationship="STRONG_CONFLICT")
         contract, _ = cal.build_counterfactual_contract(
             record, shadow, datetime(2026, 8, 20, 21, 45, tzinfo=timezone.utc)
         )
-        self.assertAlmostEqual(contract["with_belief_hypothetical"]["hypothetical_target_exposure"], 0.44)
+        self.assertAlmostEqual(contract["with_belief_hypothetical"]["mean_hypothetical_target_exposure"], 0.44)
+        self.assertTrue(all(row["target_exposure_next_session"] == 0.44 for row in contract["with_belief_hypothetical"]["candidates"]))
 
     def test_overlay_never_breaks_g6_exposure_cap(self):
         shadow = raw_shadow(target=1.0)
@@ -165,8 +169,8 @@ class CalibrationContractTests(unittest.TestCase):
         contract, _ = cal.build_counterfactual_contract(
             record, shadow, datetime(2026, 8, 20, 21, 45, tzinfo=timezone.utc)
         )
-        self.assertEqual(contract["with_belief_hypothetical"]["hypothetical_target_exposure"], 1.0)
-        self.assertEqual(contract["with_belief_hypothetical"]["applied_tilt_after_clipping"], 0.0)
+        self.assertEqual(contract["with_belief_hypothetical"]["mean_hypothetical_target_exposure"], 1.0)
+        self.assertEqual(contract["with_belief_hypothetical"]["mean_applied_tilt_after_candidate_clipping"], 0.0)
 
     def test_raw_g6_hash_mismatch_cannot_create_contract(self):
         shadow = raw_shadow()
@@ -199,6 +203,25 @@ class AccountingTests(unittest.TestCase):
         expected_short = 0.5 * 0.01 + 0.5 * rf - 0.5 * cal.SHORT_BORROW_DAILY - 0.5 * cal.COST_PER_UNIT_TURNOVER
         self.assertAlmostEqual(short["net_return"], expected_short, places=12)
 
+    def test_candidate_book_is_not_replaced_by_synthetic_mean_exposure(self):
+        shadow = raw_shadow(target=0.0, applied=0.0)
+        for i, row in enumerate(shadow["candidate_snapshots"]):
+            row["target_exposure_next_session"] = 1.0 if i < 4 else -1.0
+        record = record_for(shadow, stance="neutral", confidence=0.8, relationship="NEUTRAL")
+        contract, _ = cal.build_counterfactual_contract(
+            record, shadow, datetime(2026, 8, 20, 21, 45, tzinfo=timezone.utc)
+        )
+        market = [
+            {"date": datetime(2026, 8, 20).date(), "spy_close": 100.0, "irx_annual_yield": 5.0},
+            {"date": datetime(2026, 8, 21).date(), "spy_close": 101.0, "irx_annual_yield": 5.0},
+        ]
+        settled, reason = cal.settle_contract(contract, market, datetime(2026, 8, 21, 21, 0, tzinfo=timezone.utc))
+        self.assertEqual(reason, "settled")
+        self.assertAlmostEqual(settled["without_belief"]["mean_target_exposure"], 0.0)
+        synthetic_flat = cal.one_session_portfolio_return(0.0, 0.0, 0.01, 5.0)["net_return"]
+        self.assertNotAlmostEqual(settled["without_belief"]["net_return"], synthetic_flat, places=10)
+        self.assertEqual(len(settled["candidate_results"]), 8)
+
     def test_settlement_waits_until_next_session_is_closed(self):
         shadow = raw_shadow()
         record = record_for(shadow)
@@ -215,7 +238,7 @@ class AccountingTests(unittest.TestCase):
         settled, reason = cal.settle_contract(contract, market, datetime(2026, 8, 21, 21, 0, tzinfo=timezone.utc))
         self.assertEqual(reason, "settled")
         self.assertAlmostEqual(settled["forward_spx_return"], 0.01)
-        self.assertGreater(settled["with_belief_hypothetical"]["target_exposure"], settled["without_belief"]["target_exposure"])
+        self.assertGreater(settled["with_belief_hypothetical"]["mean_target_exposure"], settled["without_belief"]["mean_target_exposure"])
 
 
 class EndToEndTests(unittest.TestCase):
@@ -263,6 +286,7 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(third["resolved_pairs"], 1)
             report = json.loads((calibration / "BRACE_SPX_ENGINE_BELIEF_CALIBRATION_REPORT.json").read_text())
             self.assertEqual(report["sample"]["effective_n"], 1)
+            self.assertTrue(report["sample"]["eight_candidate_equal_weight_accounting"])
             self.assertFalse(report["decision_influence"])
             self.assertFalse(report["promotion_gate"]["eligible"])
 
@@ -324,7 +348,7 @@ class ReportTests(unittest.TestCase):
         contract = {
             "contract_id": "c1",
             "family_scores": {key: 0.1 for key in cal.FAMILY_KEYS},
-            "without_belief": {"target_exposure_next_session": 0.5},
+            "without_belief": {"mean_target_exposure_next_session": 0.5},
             "belief": {"risk_on_probability_mean": 0.3, "confidence": 0.8},
             "relationship": {"class": "STRONG_CONFLICT", "strength": 0.8},
         }
@@ -362,13 +386,13 @@ class ReportTests(unittest.TestCase):
             contracts[cid] = {
                 "contract_id": cid,
                 "family_scores": {key: 0.0 for key in cal.FAMILY_KEYS},
-                "without_belief": {"target_exposure_next_session": 0.0},
+                "without_belief": {"mean_target_exposure_next_session": 0.0},
                 "belief": {"risk_on_probability_mean": p, "confidence": 0.8},
                 "relationship": {"class": "NEUTRAL", "strength": 0.0},
             }
             settlements.append({
                 "contract_id": cid,
-                "decision_market_date": f"2026-09-{(i % 28) + 1:02d}-{i:02d}",
+                "decision_market_date": f"{i:03d}",
                 "forward_spx_return": y,
             })
         result = cal._incremental_information(settlements, contracts)
