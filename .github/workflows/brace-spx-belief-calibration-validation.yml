@@ -1,0 +1,55 @@
+name: BRACE-SPX Engine-Belief Calibration Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/brace_spx_belief_calibration.py"
+      - "tests/test_brace_spx_belief_calibration.py"
+      - "docs/BRACE_SPX_ENGINE_BELIEF_CALIBRATION.md"
+      - ".github/workflows/brace-spx-belief-calibration.yml"
+      - ".github/workflows/brace-spx-belief-calibration-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependency
+        run: python -m pip install --upgrade pip numpy
+      - name: Compile evaluator
+        run: PYTHONPATH=scripts python -m py_compile scripts/brace_spx_belief_calibration.py
+      - name: Run PR7 calibration tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_brace_spx_belief_calibration -v
+      - name: Run PR6 bridge regression tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_brace_spx_belief_bridge -v
+      - name: Run Belief Core regression suite
+        run: |
+          PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+          PYTHONPATH=scripts python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
+      - name: Assert static zero-influence safety
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import brace_spx_belief_calibration as cal
+          assert all(value is False for value in cal.safety_controls().values())
+          policy=cal.evaluation_policy()
+          assert policy['with_without_evaluation_enabled'] is True
+          assert policy['hypothetical_overlay_only'] is True
+          assert policy['production_modifier_proposed'] is False
+          assert policy['max_hypothetical_exposure_tilt'] == 0.10
+          assert cal.MIN_INCREMENTAL_MODEL_N == 40
+          print('PR #7 shadow/research-only invariants: PASS')
+          PY
+      - name: Verify G6 accounting constants remain aligned
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin brace-spx-research
+          git show origin/brace-spx-research:scripts/brace_spx_architecture_v2.py | grep -q '^COST_PER_UNIT_TURNOVER = 0.0005$'
+          git show origin/brace-spx-research:scripts/brace_spx_architecture_v2s.py | grep -q '^SHORT_BORROW_ANNUAL = 0.01$'
+          git show origin/brace-spx-research:scripts/brace_spx_architecture_v2s.py | grep -q 'applied = target.shift(1).fillna(0.0)'
+          echo 'G6 accounting compatibility: PASS'
