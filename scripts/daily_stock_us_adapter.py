@@ -24,6 +24,7 @@ except ModuleNotFoundError:
 _INSTALLED = False
 _ORIGINAL_NEWS_ITEMS = us.news_items
 _ORIGINAL_BASE_PAYLOAD = us.base_payload
+_ORIGINAL_PUBLISH = us.publish
 
 
 def _history() -> list[dict[str, Any]]:
@@ -172,6 +173,131 @@ def _base_payload(now, config, decision, reason):
     return payload
 
 
+def _existing_polish_localization(selection: dict[str, Any]) -> dict[str, Any] | None:
+    localized = (selection.get("localized") or {}).get("pl")
+    if not isinstance(localized, dict):
+        return None
+    if not str(localized.get("thesis") or "").strip() or not str(localized.get("why_now") or "").strip():
+        return None
+    sources = selection.get("sources") or []
+    source_ids = {str(row.get("id") or "") for row in sources if isinstance(row, dict) and row.get("id")}
+    summaries = localized.get("source_summaries") or {}
+    if source_ids and not source_ids.issubset(set(summaries)):
+        return None
+    return localized
+
+
+def _polish_localization(selection: dict[str, Any]) -> dict[str, Any] | None:
+    """Create a display-only Polish translation without changing ranking or trade gates."""
+    existing = _existing_polish_localization(selection)
+    if existing is not None:
+        return existing
+
+    runtime = us.get_ai_runtime()
+    if runtime.provider != "gemini" or not runtime.available:
+        return None
+
+    sources = [row for row in (selection.get("sources") or []) if isinstance(row, dict)][:8]
+    source_payload = [
+        {
+            "id": str(row.get("id") or ""),
+            "publisher": str(row.get("publisher") or ""),
+            "title": str(row.get("title") or ""),
+        }
+        for row in sources
+        if row.get("id") and row.get("title")
+    ]
+    if not source_payload:
+        return None
+
+    prompt = {
+        "task": "Prepare the Polish-language presentation of an already selected US Daily Stock trade for BriefRooms. Translate faithfully; do not change the investment conclusion, score, facts or numbers.",
+        "rules": [
+            "Write natural, concise Polish for a financially literate Polish reader.",
+            "Do not add facts, opinions, forecasts or investment advice that are absent from the supplied English text.",
+            "Keep company names, product names, trial phases, tickers and source publisher names unchanged where appropriate.",
+            "Translate thesis and why_now faithfully, preserving the original meaning.",
+            "Translate the activation instruction into concise Polish.",
+            "For every supplied source id return one short Polish news summary based only on that source title; do not infer beyond the title.",
+            "Each source summary should normally be one sentence and no longer than about 180 characters.",
+        ],
+        "selection": {
+            "symbol": selection.get("symbol"),
+            "name": selection.get("name"),
+            "thesis": selection.get("thesis"),
+            "why_now": selection.get("why_now"),
+            "activation": selection.get("activation"),
+            "sources": source_payload,
+        },
+        "output_schema": {
+            "thesis": "Polish translation",
+            "why_now": "Polish translation",
+            "activation": "Polish translation",
+            "sources": [{"id": "source-id", "summary": "short Polish summary"}],
+        },
+    }
+
+    import requests
+
+    result = us.request_json_completion(
+        post=requests.post,
+        runtime=runtime,
+        messages=[
+            {"role": "system", "content": "You are a precise financial translator. Preserve meaning and never invent facts."},
+            {"role": "user", "content": us.json.dumps(prompt, ensure_ascii=False)},
+        ],
+        max_tokens=1800,
+        temperature=0.1,
+        timeout=45,
+    )
+
+    thesis = str(result.get("thesis") or "").strip()[:700]
+    why_now = str(result.get("why_now") or "").strip()[:500]
+    activation = str(result.get("activation") or "").strip()[:320]
+    if not thesis or not why_now:
+        return None
+
+    allowed_ids = {row["id"] for row in source_payload}
+    summaries: dict[str, str] = {}
+    for row in result.get("sources") or []:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("id") or "")
+        summary = str(row.get("summary") or "").strip()[:320]
+        if source_id in allowed_ids and summary:
+            summaries[source_id] = summary
+
+    if allowed_ids and not allowed_ids.issubset(set(summaries)):
+        return None
+
+    return {
+        "language": "pl",
+        "source_language": "en",
+        "thesis": thesis,
+        "why_now": why_now,
+        "activation": activation,
+        "source_summaries": summaries,
+    }
+
+
+def _publish(payload: dict[str, Any]) -> None:
+    if payload.get("decision") == "TRADE":
+        selection = payload.get("selection") or {}
+        try:
+            localized = _polish_localization(selection)
+        except Exception as exc:
+            localized = None
+            payload.setdefault("data_quality", {})["pl_localization"] = {
+                "status": "unavailable",
+                "error": f"{type(exc).__name__}: {str(exc)[:240]}",
+            }
+        if localized:
+            selection.setdefault("localized", {})["pl"] = localized
+            payload["selection"] = selection
+            payload.setdefault("data_quality", {})["pl_localization"] = {"status": "ready"}
+    _ORIGINAL_PUBLISH(payload)
+
+
 def install() -> None:
     global _INSTALLED
     if _INSTALLED:
@@ -186,6 +312,7 @@ def install() -> None:
     us.composite = core.composite_score
     us.news_items = combined_news_items
     us.base_payload = _base_payload
+    us.publish = _publish
     _INSTALLED = True
 
 
