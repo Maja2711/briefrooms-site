@@ -5,6 +5,9 @@
   if (!root) return;
 
   const DATA_URL = "/data/investments/gpw_daily_pick.json";
+  const HISTORY_URL = "/data/investments/gpw_daily_pick_history_index.json";
+  let historyIndex = { trades: [] };
+
   const labels = {
     TRANSAKCJA: ["TRANSAKCJA", "trade"],
     BRAK_TRANSAKCJI: ["BRAK DZISIAJ WYBORU", "no-trade"],
@@ -86,6 +89,32 @@
     root.querySelector("[data-gpw-generated]").textContent = `Aktualizacja: ${formatTimestamp(payload.generated_at)}`;
   };
 
+  const metricsText = (metrics = {}) => {
+    const count = Number(metrics.resolved_trades || 0);
+    if (!count) return "Historia: brak zakończonych transakcji dziennych";
+    const winRate = metrics.win_rate == null ? "—" : `${Math.round(Number(metrics.win_rate) * 100)}%`;
+    const averageR = metrics.average_r == null ? "—" : `${Number(metrics.average_r).toFixed(2)}R`;
+    return `Historia: ${count} zakończonych · skuteczność ${winRate} · średnio ${averageR}`;
+  };
+
+  const historyResult = (trade) => {
+    const outcome = trade?.outcome || {};
+    if (outcome.status !== "RESOLVED") return outcome.activated ? "AKTYWNA · w toku" : "OCZEKUJE";
+    if (!outcome.activated) return "NIE AKTYWOWANO";
+    const reason = outcome.exit_reason === "target" ? "CEL" : outcome.exit_reason === "stop" ? "STOP" : "KONIEC HORYZONTU";
+    const result = Number(outcome.return_percent || 0);
+    const r = Number(outcome.r_multiple || 0);
+    return `${reason} · ${result >= 0 ? "+" : ""}${result.toFixed(2)}% · ${r.toFixed(2)}R`;
+  };
+
+  const historySection = () => {
+    const trades = Array.isArray(historyIndex?.trades) ? historyIndex.trades.slice(0, 10) : [];
+    if (!trades.length) return "";
+    const rows = trades.map((trade) => `
+      <div><span>${escapeHtml(trade.date)} · ${escapeHtml(trade.ticker || trade.symbol || "—")}</span><b>${escapeHtml(historyResult(trade))}</b></div>`).join("");
+    return `<section><h3>Historia wszystkich wyborów</h3><div class="gpw-pick-detail-grid">${rows}</div></section>`;
+  };
+
   const renderEmpty = (payload, stale = false) => {
     setShell(payload, stale);
     let message = "Brak dzisiaj wyboru";
@@ -97,14 +126,6 @@
       <div class="gpw-pick-empty"><strong>${escapeHtml(message)}</strong></div>`;
     root.querySelector("[data-gpw-metrics]").textContent = metricsText(payload.metrics);
     renderDetails(payload);
-  };
-
-  const metricsText = (metrics = {}) => {
-    const count = Number(metrics.resolved_trades || 0);
-    if (!count) return "Historia: brak zakończonych transakcji dziennych";
-    const winRate = metrics.win_rate == null ? "—" : `${Math.round(Number(metrics.win_rate) * 100)}%`;
-    const averageR = metrics.average_r == null ? "—" : `${Number(metrics.average_r).toFixed(2)}R`;
-    return `Historia: ${count} zakończonych · skuteczność ${winRate} · średnio ${averageR}`;
   };
 
   const renderDetails = (payload) => {
@@ -150,10 +171,15 @@
     const outcome = payload.outcome || {};
     if (outcome.status === "RESOLVED") {
       const result = outcome.activated
-        ? `${Number(outcome.return_percent || 0).toFixed(2)}%`
+        ? `${outcome.exit_reason === "target" ? "Cel osiągnięty" : outcome.exit_reason === "stop" ? "Stop" : "Koniec horyzontu"}: ${Number(outcome.return_percent || 0).toFixed(2)}% (${Number(outcome.r_multiple || 0).toFixed(2)}R)`
         : "Nie aktywowano";
       sections.push(`<section><h3>Rozliczenie ostatniego wyboru</h3><p>${escapeHtml(result)}</p></section>`);
+    } else if (outcome.activated) {
+      sections.push(`<section><h3>Rozliczenie ostatniego wyboru</h3><p>Pozycja aktywna od ${escapeHtml(formatTimestamp(outcome.activated_at))}; monitor TP/SL działa intraday.</p></section>`);
     }
+
+    const history = historySection();
+    if (history) sections.push(history);
 
     details.hidden = sections.length === 0;
     if (!sections.length) {
@@ -206,9 +232,14 @@
 
   const load = async () => {
     try {
-      const response = await fetch(`${DATA_URL}?v=${Date.now()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      render(await response.json());
+      const token = Date.now();
+      const [dataResponse, historyResponse] = await Promise.all([
+        fetch(`${DATA_URL}?v=${token}`, { cache: "no-store" }),
+        fetch(`${HISTORY_URL}?v=${token}`, { cache: "no-store" }).catch(() => null)
+      ]);
+      if (!dataResponse.ok) throw new Error(`HTTP ${dataResponse.status}`);
+      if (historyResponse?.ok) historyIndex = await historyResponse.json();
+      render(await dataResponse.json());
     } catch (error) {
       renderEmpty({
         date: warsawDate(),
