@@ -293,7 +293,7 @@ def replay_from_bars(
             ts_dt = _bar_timestamp(ts)
             if ts_dt is None or ts_dt <= entry_at:
                 continue
-            if ts_dt <= scheduled and ts_dt <= now:
+            if ts_dt < scheduled and ts_dt <= now:
                 threshold_rows.append((ts_dt, row))
             if scheduled_close is None and ts_dt >= scheduled and ts_dt <= now:
                 scheduled_close = (ts_dt, row)
