@@ -1,7 +1,7 @@
 {
   "schema_version": "ai-tournament-v1",
   "engine_version": "ai-tournament-locked-buy-hold-v2",
-  "generated_at": "2026-08-18T13:40:39+00:00",
+  "generated_at": "2026-08-19T13:41:32+00:00",
   "tournament": {
     "id": "briefrooms-ai-tournament-2026-02",
     "title_pl": "AI Tournament — Inwestycje 10K",
@@ -17,7 +17,7 @@
     "rebalancing_allowed": false,
     "paper_trading_only": true
   },
-  "latest_session": "2026-08-18",
+  "latest_session": "2026-08-19",
   "participants": [
     {
       "agent_id": "BRACE",
@@ -87,8 +87,8 @@
   },
   "benchmark": {
     "ticker": "SPY",
-    "return_pct_usd": 0.01114205,
-    "return_pct_pln": 0.01297493
+    "return_pct_usd": 0.01168754,
+    "return_pct_pln": 0.00593046
   },
   "rules": {
     "long_only": true,
@@ -106,67 +106,227 @@
   },
   "leaderboard": [
     {
+      "agent_id": "Gemini",
+      "provider": "manual_chat",
+      "model": "Gemini",
+      "status": "ACTIVE",
+      "error": null,
+      "metrics": {
+        "portfolio_value_pln": 10299.38,
+        "return_pct": 0.02993769,
+        "alpha_pct": 0.02400724,
+        "max_drawdown_pct": -0.02302741,
+        "sharpe": 1.7339,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "metrics_pln": {
+        "portfolio_value_pln": 10299.38,
+        "return_pct": 0.02993769,
+        "alpha_pct": 0.02400724,
+        "max_drawdown_pct": -0.02302741,
+        "sharpe": 1.7339,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "metrics_usd": {
+        "portfolio_value_usd": 10358.32,
+        "return_pct": 0.03583217,
+        "alpha_pct": 0.02414463,
+        "max_drawdown_pct": -0.02320811,
+        "sharpe": 2.5119,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "cash_pln": 497.9,
+      "cash_usd": 500.75,
+      "cash_weight_pln": 0.04834282,
+      "cash_weight_usd": 0.04834282,
+      "cash_weight": 0.04834282,
+      "positions": [
+        {
+          "ticker": "LLY",
+          "weight": 0.27438093
+        },
+        {
+          "ticker": "NVDA",
+          "weight": 0.25007764
+        },
+        {
+          "ticker": "AMZN",
+          "weight": 0.18149955
+        },
+        {
+          "ticker": "PLTR",
+          "weight": 0.17441553
+        },
+        {
+          "ticker": "APP",
+          "weight": 0.07128354
+        }
+      ],
+      "latest_decision": {
+        "schema_version": "ai-tournament-decision-v2",
+        "agent_id": "Gemini",
+        "target_weights": {
+          "AMZN": 0.2,
+          "APP": 0.1,
+          "LLY": 0.25,
+          "NVDA": 0.25,
+          "PLTR": 0.15
+        },
+        "cash_weight": 0.05,
+        "rationale": "Balances mega-cap AI infrastructure leaders (NVDA, AMZN) with high-growth software and ad-tech monetization (PLTR, APP) and defensive healthcare tailwinds (LLY) for optimal risk-adjusted returns over three months.",
+        "confidence": 75,
+        "locked_submission_hash": "936c27c3fb620cf1440765c69cacb9e2a7ff6436af201c05765a9cec95f5bf46",
+        "execution_session": "2026-08-04",
+        "rebalancing_allowed": false
+      },
+      "rank": 1,
+      "rank_change": 1
+    },
+    {
+      "agent_id": "Claude",
+      "provider": "manual_chat",
+      "model": "Claude",
+      "status": "ACTIVE",
+      "error": null,
+      "metrics": {
+        "portfolio_value_pln": 10137.37,
+        "return_pct": 0.013737,
+        "alpha_pct": 0.00780654,
+        "max_drawdown_pct": -0.03236726,
+        "sharpe": 0.6703,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "metrics_pln": {
+        "portfolio_value_pln": 10137.37,
+        "return_pct": 0.013737,
+        "alpha_pct": 0.00780654,
+        "max_drawdown_pct": -0.03236726,
+        "sharpe": 0.6703,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "metrics_usd": {
+        "portfolio_value_usd": 10195.39,
+        "return_pct": 0.01953876,
+        "alpha_pct": 0.00785122,
+        "max_drawdown_pct": -0.02708117,
+        "sharpe": 1.5069,
+        "closed_trades": 0,
+        "positions_count": 5
+      },
+      "cash_pln": 995.8,
+      "cash_usd": 1001.5,
+      "cash_weight_pln": 0.0982308,
+      "cash_weight_usd": 0.0982308,
+      "cash_weight": 0.0982308,
+      "positions": [
+        {
+          "ticker": "NVDA",
+          "weight": 0.25407417
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.19695087
+        },
+        {
+          "ticker": "LLY",
+          "weight": 0.16725951
+        },
+        {
+          "ticker": "COST",
+          "weight": 0.15092499
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.13255966
+        }
+      ],
+      "latest_decision": {
+        "schema_version": "ai-tournament-decision-v2",
+        "agent_id": "Claude",
+        "target_weights": {
+          "AVGO": 0.15,
+          "COST": 0.15,
+          "LLY": 0.15,
+          "MSFT": 0.2,
+          "NVDA": 0.25
+        },
+        "cash_weight": 0.1,
+        "rationale": "Combines concentrated exposure to the AI infrastructure buildout (NVDA, AVGO) with a diversified mega-cap software anchor (MSFT), balanced by non-correlated defensive holdings (LLY, COST) and a cash buffer to dampen volatility over the three-month window.",
+        "confidence": 65,
+        "locked_submission_hash": "30cfbabde3c4ddd162701092952212399b3c7260ea09142ffb7a45024f311cd8",
+        "execution_session": "2026-08-04",
+        "rebalancing_allowed": false
+      },
+      "rank": 2,
+      "rank_change": 1
+    },
+    {
       "agent_id": "BRACE",
       "provider": "brace",
       "model": "BRACE Buy-and-Hold v1",
       "status": "ACTIVE",
       "error": null,
       "metrics": {
-        "portfolio_value_pln": 10346.92,
-        "return_pct": 0.03469216,
-        "alpha_pct": 0.02171724,
+        "portfolio_value_pln": 9993.44,
+        "return_pct": -0.00065563,
+        "alpha_pct": -0.00658609,
         "max_drawdown_pct": -0.05164551,
-        "sharpe": 0.1503,
+        "sharpe": -2.0125,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_pln": {
-        "portfolio_value_pln": 10346.92,
-        "return_pct": 0.03469216,
-        "alpha_pct": 0.02171724,
+        "portfolio_value_pln": 9993.44,
+        "return_pct": -0.00065563,
+        "alpha_pct": -0.00658609,
         "max_drawdown_pct": -0.05164551,
-        "sharpe": 0.1503,
+        "sharpe": -2.0125,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_usd": {
-        "portfolio_value_usd": 10328.2,
-        "return_pct": 0.03281999,
-        "alpha_pct": 0.02167794,
+        "portfolio_value_usd": 10050.64,
+        "return_pct": 0.00506376,
+        "alpha_pct": -0.00662378,
         "max_drawdown_pct": -0.05086261,
-        "sharpe": -0.0387,
+        "sharpe": -1.8636,
         "closed_trades": 0,
         "positions_count": 6
       },
-      "cash_pln": 501.61,
-      "cash_usd": 500.7,
-      "cash_weight_pln": 0.04847897,
-      "cash_weight_usd": 0.04847897,
-      "cash_weight": 0.04847897,
+      "cash_pln": 497.9,
+      "cash_usd": 500.75,
+      "cash_weight_pln": 0.04982276,
+      "cash_weight_usd": 0.04982276,
+      "cash_weight": 0.04982276,
       "positions": [
         {
           "ticker": "SNOW",
-          "weight": 0.26467373
+          "weight": 0.26436103
         },
         {
           "ticker": "DDOG",
-          "weight": 0.17959927
-        },
-        {
-          "ticker": "DELL",
-          "weight": 0.15780263
+          "weight": 0.17825135
         },
         {
           "ticker": "PANW",
-          "weight": 0.15569612
+          "weight": 0.15719645
         },
         {
-          "ticker": "MSFT",
-          "weight": 0.09722722
+          "ticker": "DELL",
+          "weight": 0.14998255
         },
         {
           "ticker": "MA",
-          "weight": 0.09652207
+          "weight": 0.10049216
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.09989369
         }
       ],
       "latest_decision": {
@@ -187,168 +347,8 @@
         "execution_session": "2026-08-04",
         "rebalancing_allowed": false
       },
-      "rank": 1,
-      "rank_change": 0
-    },
-    {
-      "agent_id": "Gemini",
-      "provider": "manual_chat",
-      "model": "Gemini",
-      "status": "ACTIVE",
-      "error": null,
-      "metrics": {
-        "portfolio_value_pln": 10238.32,
-        "return_pct": 0.02383217,
-        "alpha_pct": 0.01085724,
-        "max_drawdown_pct": -0.02302741,
-        "sharpe": 0.9953,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "metrics_pln": {
-        "portfolio_value_pln": 10238.32,
-        "return_pct": 0.02383217,
-        "alpha_pct": 0.01085724,
-        "max_drawdown_pct": -0.02302741,
-        "sharpe": 0.9953,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "metrics_usd": {
-        "portfolio_value_usd": 10219.8,
-        "return_pct": 0.02197965,
-        "alpha_pct": 0.0108376,
-        "max_drawdown_pct": -0.02320811,
-        "sharpe": 0.7168,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "cash_pln": 501.61,
-      "cash_usd": 500.7,
-      "cash_weight_pln": 0.04899319,
-      "cash_weight_usd": 0.04899319,
-      "cash_weight": 0.04899319,
-      "positions": [
-        {
-          "ticker": "LLY",
-          "weight": 0.26330428
-        },
-        {
-          "ticker": "NVDA",
-          "weight": 0.25516786
-        },
-        {
-          "ticker": "AMZN",
-          "weight": 0.18380397
-        },
-        {
-          "ticker": "PLTR",
-          "weight": 0.17593151
-        },
-        {
-          "ticker": "APP",
-          "weight": 0.07279919
-        }
-      ],
-      "latest_decision": {
-        "schema_version": "ai-tournament-decision-v2",
-        "agent_id": "Gemini",
-        "target_weights": {
-          "AMZN": 0.2,
-          "APP": 0.1,
-          "LLY": 0.25,
-          "NVDA": 0.25,
-          "PLTR": 0.15
-        },
-        "cash_weight": 0.05,
-        "rationale": "Balances mega-cap AI infrastructure leaders (NVDA, AMZN) with high-growth software and ad-tech monetization (PLTR, APP) and defensive healthcare tailwinds (LLY) for optimal risk-adjusted returns over three months.",
-        "confidence": 75,
-        "locked_submission_hash": "936c27c3fb620cf1440765c69cacb9e2a7ff6436af201c05765a9cec95f5bf46",
-        "execution_session": "2026-08-04",
-        "rebalancing_allowed": false
-      },
-      "rank": 2,
-      "rank_change": 0
-    },
-    {
-      "agent_id": "Claude",
-      "provider": "manual_chat",
-      "model": "Claude",
-      "status": "ACTIVE",
-      "error": null,
-      "metrics": {
-        "portfolio_value_pln": 10196.0,
-        "return_pct": 0.01960018,
-        "alpha_pct": 0.00662526,
-        "max_drawdown_pct": -0.02677073,
-        "sharpe": 1.5859,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "metrics_pln": {
-        "portfolio_value_pln": 10196.0,
-        "return_pct": 0.01960018,
-        "alpha_pct": 0.00662526,
-        "max_drawdown_pct": -0.02677073,
-        "sharpe": 1.5859,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "metrics_usd": {
-        "portfolio_value_usd": 10177.55,
-        "return_pct": 0.01775532,
-        "alpha_pct": 0.00661327,
-        "max_drawdown_pct": -0.02708117,
-        "sharpe": 1.2975,
-        "closed_trades": 0,
-        "positions_count": 5
-      },
-      "cash_pln": 1003.22,
-      "cash_usd": 1001.4,
-      "cash_weight_pln": 0.09839309,
-      "cash_weight_usd": 0.09839309,
-      "cash_weight": 0.09839309,
-      "positions": [
-        {
-          "ticker": "NVDA",
-          "weight": 0.25622697
-        },
-        {
-          "ticker": "MSFT",
-          "weight": 0.19733273
-        },
-        {
-          "ticker": "LLY",
-          "weight": 0.15863829
-        },
-        {
-          "ticker": "COST",
-          "weight": 0.14917434
-        },
-        {
-          "ticker": "AVGO",
-          "weight": 0.14023458
-        }
-      ],
-      "latest_decision": {
-        "schema_version": "ai-tournament-decision-v2",
-        "agent_id": "Claude",
-        "target_weights": {
-          "AVGO": 0.15,
-          "COST": 0.15,
-          "LLY": 0.15,
-          "MSFT": 0.2,
-          "NVDA": 0.25
-        },
-        "cash_weight": 0.1,
-        "rationale": "Combines concentrated exposure to the AI infrastructure buildout (NVDA, AVGO) with a diversified mega-cap software anchor (MSFT), balanced by non-correlated defensive holdings (LLY, COST) and a cash buffer to dampen volatility over the three-month window.",
-        "confidence": 65,
-        "locked_submission_hash": "30cfbabde3c4ddd162701092952212399b3c7260ea09142ffb7a45024f311cd8",
-        "execution_session": "2026-08-04",
-        "rebalancing_allowed": false
-      },
       "rank": 3,
-      "rank_change": 0
+      "rank_change": -2
     },
     {
       "agent_id": "DeepSeek",
@@ -357,61 +357,61 @@
       "status": "ACTIVE",
       "error": null,
       "metrics": {
-        "portfolio_value_pln": 10107.89,
-        "return_pct": 0.01078895,
-        "alpha_pct": -0.00218597,
-        "max_drawdown_pct": -0.02521909,
-        "sharpe": -0.0142,
+        "portfolio_value_pln": 9946.27,
+        "return_pct": -0.00537324,
+        "alpha_pct": -0.0113037,
+        "max_drawdown_pct": -0.04080552,
+        "sharpe": -2.7863,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_pln": {
-        "portfolio_value_pln": 10107.89,
-        "return_pct": 0.01078895,
-        "alpha_pct": -0.00218597,
-        "max_drawdown_pct": -0.02521909,
-        "sharpe": -0.0142,
+        "portfolio_value_pln": 9946.27,
+        "return_pct": -0.00537324,
+        "alpha_pct": -0.0113037,
+        "max_drawdown_pct": -0.04080552,
+        "sharpe": -2.7863,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_usd": {
-        "portfolio_value_usd": 10089.6,
-        "return_pct": 0.00896003,
-        "alpha_pct": -0.00218202,
-        "max_drawdown_pct": -0.02539938,
-        "sharpe": -0.5731,
+        "portfolio_value_usd": 10003.19,
+        "return_pct": 0.00031915,
+        "alpha_pct": -0.01136839,
+        "max_drawdown_pct": -0.033746,
+        "sharpe": -2.3103,
         "closed_trades": 0,
         "positions_count": 6
       },
-      "cash_pln": 501.61,
-      "cash_usd": 500.7,
-      "cash_weight_pln": 0.0496254,
-      "cash_weight_usd": 0.0496254,
-      "cash_weight": 0.0496254,
+      "cash_pln": 497.9,
+      "cash_usd": 500.75,
+      "cash_weight_pln": 0.05005908,
+      "cash_weight_usd": 0.05005908,
+      "cash_weight": 0.05005908,
       "positions": [
         {
           "ticker": "NVDA",
-          "weight": 0.20676843
+          "weight": 0.20716465
         },
         {
           "ticker": "AMZN",
-          "weight": 0.1675582
-        },
-        {
-          "ticker": "AVGO",
-          "weight": 0.16031797
-        },
-        {
-          "ticker": "UBER",
-          "weight": 0.15884405
+          "weight": 0.16914878
         },
         {
           "ticker": "WMT",
-          "weight": 0.15656946
+          "weight": 0.15951572
+        },
+        {
+          "ticker": "UBER",
+          "weight": 0.15844111
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.15312081
         },
         {
           "ticker": "COST",
-          "weight": 0.10031648
+          "weight": 0.10254985
         }
       ],
       "latest_decision": {
@@ -442,29 +442,29 @@
       "status": "ACTIVE",
       "error": null,
       "metrics": {
-        "portfolio_value_pln": 9686.41,
-        "return_pct": -0.03135887,
-        "alpha_pct": -0.04433379,
-        "max_drawdown_pct": -0.04393378,
-        "sharpe": -5.2316,
+        "portfolio_value_pln": 9416.73,
+        "return_pct": -0.05832726,
+        "alpha_pct": -0.06425772,
+        "max_drawdown_pct": -0.07055207,
+        "sharpe": -7.3217,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_pln": {
-        "portfolio_value_pln": 9686.41,
-        "return_pct": -0.03135887,
-        "alpha_pct": -0.04433379,
-        "max_drawdown_pct": -0.04393378,
-        "sharpe": -5.2316,
+        "portfolio_value_pln": 9416.73,
+        "return_pct": -0.05832726,
+        "alpha_pct": -0.06425772,
+        "max_drawdown_pct": -0.07055207,
+        "sharpe": -7.3217,
         "closed_trades": 0,
         "positions_count": 6
       },
       "metrics_usd": {
-        "portfolio_value_usd": 9668.88,
-        "return_pct": -0.03311153,
-        "alpha_pct": -0.04425358,
-        "max_drawdown_pct": -0.04423875,
-        "sharpe": -5.8491,
+        "portfolio_value_usd": 9470.62,
+        "return_pct": -0.05293793,
+        "alpha_pct": -0.06462547,
+        "max_drawdown_pct": -0.06383698,
+        "sharpe": -7.6537,
         "closed_trades": 0,
         "positions_count": 6
       },
@@ -476,27 +476,27 @@
       "positions": [
         {
           "ticker": "NVDA",
-          "weight": 0.26970676
+          "weight": 0.27351794
         },
         {
           "ticker": "AVGO",
-          "weight": 0.1968162
+          "weight": 0.19027224
         },
         {
           "ticker": "AMZN",
-          "weight": 0.17484905
+          "weight": 0.17866069
         },
         {
           "ticker": "ANET",
-          "weight": 0.16304161
+          "weight": 0.15966807
         },
         {
           "ticker": "TSM",
-          "weight": 0.10324983
+          "weight": 0.10432296
         },
         {
           "ticker": "APP",
-          "weight": 0.09233655
+          "weight": 0.09355811
         }
       ],
       "latest_decision": {
@@ -522,6 +522,46 @@
     }
   ],
   "history": [
+    {
+      "session_date": "2026-08-19",
+      "leaderboard": [
+        {
+          "rank": 1,
+          "agent_id": "Gemini",
+          "return_pct_pln": 0.02993769,
+          "return_pct_usd": 0.03583217,
+          "return_pct": 0.02993769
+        },
+        {
+          "rank": 2,
+          "agent_id": "Claude",
+          "return_pct_pln": 0.013737,
+          "return_pct_usd": 0.01953876,
+          "return_pct": 0.013737
+        },
+        {
+          "rank": 3,
+          "agent_id": "BRACE",
+          "return_pct_pln": -0.00065563,
+          "return_pct_usd": 0.00506376,
+          "return_pct": -0.00065563
+        },
+        {
+          "rank": 4,
+          "agent_id": "DeepSeek",
+          "return_pct_pln": -0.00537324,
+          "return_pct_usd": 0.00031915,
+          "return_pct": -0.00537324
+        },
+        {
+          "rank": 5,
+          "agent_id": "GPT-5.6 Thinking",
+          "return_pct_pln": -0.05832726,
+          "return_pct_usd": -0.05293793,
+          "return_pct": -0.05832726
+        }
+      ]
+    },
     {
       "session_date": "2026-08-18",
       "leaderboard": [
