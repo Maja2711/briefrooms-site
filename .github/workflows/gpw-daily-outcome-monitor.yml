@@ -41,10 +41,7 @@ jobs:
 
       - name: Validate outcome monitor contract
         run: |
-          python -m py_compile \
-            scripts/gpw_daily_outcome_monitor.py \
-            scripts/gpw_daily_apply_manual_evidence.py \
-            scripts/gpw_daily_pick.py
+          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_apply_manual_evidence.py scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py
           python -m unittest tests.test_gpw_daily_outcome_monitor -v
           node --check scripts/gpw-daily-pick-public.js
 
@@ -53,6 +50,36 @@ jobs:
 
       - name: Resolve pending GPW trades and rebuild durable history
         run: python scripts/gpw_daily_outcome_monitor.py
+
+      - name: Refresh bounded learning snapshot from settled history immediately
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from scripts import gpw_daily_pick as gpw
+          from scripts.gpw_daily_control_loop import build_learning_snapshot
+          config=gpw.load_config()
+          history=gpw.all_history()
+          now=datetime.now(ZoneInfo('Europe/Warsaw'))
+          learning=build_learning_snapshot(history,config,now=now)
+          gpw.atomic_json(Path('data/investments/gpw_daily_pick_learning.json'),learning)
+          current=gpw.load_json(gpw.PUBLIC_PATH)
+          current['learning']={
+            'method':learning.get('method'),
+            'resolved_trades':learning.get('resolved_trades',0),
+            'adaptation_active':bool(learning.get('adaptation_active')),
+            'minimum_sample':learning.get('minimum_sample'),
+            'recent_average_r':learning.get('recent_average_r'),
+            'last_lesson':learning.get('last_lesson'),
+            'weights_frozen':True,
+            'event_learning_method':(current.get('learning') or {}).get('event_learning_method','event_family_bayesian_shrinkage_v1'),
+            'event_expectancy':(current.get('learning') or {}).get('event_expectancy',[]),
+          }
+          gpw.atomic_json(gpw.PUBLIC_PATH,current)
+          print(json.dumps(current['learning'],ensure_ascii=False,indent=2))
+          PY
 
       - name: Cache-bust GPW history-enabled client
         run: |
@@ -66,16 +93,13 @@ jobs:
               path.write_text(updated, encoding='utf-8')
           PY
 
-      - name: Commit outcomes, metrics and history index
+      - name: Commit outcomes, metrics, learning and history index
         id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/gpw_daily_pick.json \
-                  data/investments/gpw_daily_pick_metrics.json \
-                  data/investments/gpw_daily_pick_history_index.json \
-                  pl/inwestycje/portfel-10k.html 2>/dev/null || true
+          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/gpw_daily_pick_history_index.json pl/inwestycje/portfel-10k.html 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
