@@ -24,11 +24,12 @@ class GpwDailyPickUiTests(unittest.TestCase):
             self.assertIn("daily-stock-markets.css", script)
             self.assertIn("__BR_DAILY_STOCK_MARKETS_BOOTSTRAP__", script)
 
-    def test_shared_client_loads_both_markets_and_one_combined_history(self):
+    def test_shared_client_loads_both_markets_and_one_combined_history_view(self):
         script = (ROOT / "scripts/daily-stock-markets-public.js").read_text(encoding="utf-8")
         self.assertIn("/data/investments/gpw_daily_pick.json", script)
         self.assertIn("/data/investments/us_daily_stock.json", script)
-        self.assertIn("/data/investments/daily_stock_history_index.json", script)
+        self.assertIn("/data/investments/gpw_daily_pick_history_index.json", script)
+        self.assertIn("/data/investments/us_daily_stock_history/index.json", script)
         self.assertIn("DAILY TRADE — GPW + USA", script)
         self.assertIn("DAILY TRADE — GPW + US", script)
         self.assertIn("Rynek polski (GPW)", script)
@@ -43,23 +44,32 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn("ESPI/EBI", script)
         self.assertIn("SEC/company releases", script)
 
-    def test_gpw_workflow_uses_shared_core_adapter_and_keeps_event_runtime(self):
+    def test_gpw_runtime_installs_shared_core_before_preserved_event_layers(self):
         workflow = (ROOT / ".github/workflows/gpw-daily-pick-pl.yml").read_text(encoding="utf-8")
         self.assertIn('GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}', workflow)
         self.assertNotIn("OPENAI_API_KEY", workflow)
-        self.assertIn("scripts/daily_stock_core.py", workflow)
-        self.assertIn("scripts/daily_stock_gpw_adapter.py", workflow)
         self.assertIn("scripts/gpw_event_driven_loop.py", workflow)
         self.assertIn("data/investments/gpw_daily_pick_learning.json", workflow)
         self.assertIn("data/investments/gpw_daily_pick_history", workflow)
-        self.assertIn("data/investments/daily_stock_history_index.json", workflow)
         self.assertNotIn("git add .", workflow)
+
+        runtime = (ROOT / "scripts/gpw_event_driven_loop.py").read_text(encoding="utf-8")
+        self.assertLess(runtime.index("core_adapter.install()"), runtime.index("_ORIGINAL_BUILD_QUANT_CANDIDATE"))
 
         adapter = (ROOT / "scripts/daily_stock_gpw_adapter.py").read_text(encoding="utf-8")
         self.assertIn("legacy_learning_preserved", adapter)
         self.assertIn("event_learning_preserved", adapter)
         self.assertIn("gpw.history_expectancy_score", adapter)
         self.assertIn("gpw_event_driven_loop", adapter)
+
+    def test_us_runtime_installs_shared_core_and_publishes_history_index(self):
+        runtime = (ROOT / "scripts/us_daily_stock_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("core_adapter.install()", runtime)
+        self.assertIn('us.HISTORY_DIR / "index.json"', runtime)
+        adapter = (ROOT / "scripts/daily_stock_us_adapter.py").read_text(encoding="utf-8")
+        self.assertIn("SEC 8-K", adapter)
+        self.assertIn("company_release", adapter)
+        self.assertIn("core.bayesian_history_expectancy_score", adapter)
 
 
 if __name__ == "__main__":
