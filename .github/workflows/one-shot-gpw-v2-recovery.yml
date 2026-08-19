@@ -1,0 +1,158 @@
+name: One-shot GPW v2 recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-gpw-v2-recovery.yml"
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+      GPW_RECOVERY_DATE: "2026-08-19"
+      GPW_RECOVERY_CUTOFF: "12:30"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+
+      - name: Audit v2 code contracts
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_gpw_pipeline_v2 tests.test_gpw_market_data tests.test_gpw_daily_control_loop tests.test_gpw_event_layer -v
+          python -m py_compile scripts/gpw_pipeline_v2.py scripts/gpw_provider_v2.py scripts/gpw_event_driven_loop_v2.py
+
+      - name: Run full 40-name recovery pipeline
+        id: run
+        shell: bash
+        run: |
+          set +e
+          python scripts/gpw_event_driven_loop_v2.py --mode auto 2>&1 | tee /tmp/gpw-v2.log
+          CODE=${PIPESTATUS[0]}
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts import gpw_provider_v2 as provider
+          public=Path('data/investments/gpw_daily_pick.json')
+          payload=json.loads(public.read_text(encoding='utf-8')) if public.exists() else {}
+          attempt={
+            'date':'2026-08-19',
+            'payload':payload,
+            'provider_audit':provider.LAST_AUDIT,
+            'log_tail':Path('/tmp/gpw-v2.log').read_text(encoding='utf-8',errors='replace')[-12000:],
+          }
+          Path('data/internal/gpw_v2_recovery_attempt_2026-08-19.json').write_text(
+              json.dumps(attempt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(attempt,ensure_ascii=False,indent=2))
+          PY
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Commit recovery diagnostics first
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/internal/gpw_v2_recovery_attempt_2026-08-19.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record GPW v2 recovery audit"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then break; fi
+              if [[ $attempt == 5 ]]; then exit 1; fi
+              sleep $((attempt*3))
+            done
+          fi
+
+      - name: Require complete transaction decision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          assert p.get('date')=='2026-08-19', p.get('date')
+          assert p.get('decision')=='TRANSAKCJA', (p.get('decision'),p.get('reason'),p.get('data_quality'))
+          s=p.get('selection') or {}
+          assert s.get('review',{}).get('approved') is True
+          assert s.get('market_snapshot',{}).get('date')=='2026-08-19'
+          assert s.get('sources')
+          print(f"TODAY_PICK={s['symbol']} score={s['score']} price={s['reference_price']}")
+          PY
+
+      - name: Commit selected stock and permanent v2 runtime
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-gpw-v2-recovery.yml
+          git add \
+            scripts/gpw_pipeline_v2.py \
+            scripts/gpw_provider_v2.py \
+            scripts/gpw_event_driven_loop_v2.py \
+            scripts/gpw_recovery_audit.py \
+            tests/test_gpw_pipeline_v2.py \
+            data/investments/gpw_daily_pick.json \
+            data/investments/gpw_daily_pick_metrics.json \
+            data/investments/gpw_daily_pick_learning.json \
+            data/investments/gpw_daily_pick_history \
+            data/internal/gpw_daily_pick_audit \
+            .github/workflows/one-shot-gpw-v2-recovery.yml
+          git commit -m "Publish audited GPW Daily pick for 2026-08-19"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
+
+      - name: Trigger Pages build
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            CODE="$(curl -sS -o /tmp/pages.json -w '%{http_code}' -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
+            if [[ "$CODE" == 201 ]]; then exit 0; fi
+            if [[ "$CODE" != 409 ]]; then cat /tmp/pages.json; exit 1; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Verify production data and frontend
+        run: |
+          python - <<'PY'
+          import json,time,urllib.request
+          h={'User-Agent':'BriefRooms-GPW-v2-verifier/1.0','Cache-Control':'no-cache'}
+          for i in range(1,49):
+              token=f'{int(time.time())}-{i}'
+              try:
+                  r=urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_pick.json?v={token}',headers=h)
+                  with urllib.request.urlopen(r,timeout=20) as x: p=json.load(x)
+                  if p.get('date')=='2026-08-19' and p.get('decision')=='TRANSAKCJA':
+                      r=urllib.request.Request(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}',headers=h)
+                      with urllib.request.urlopen(r,timeout=20) as x: html=x.read().decode('utf-8',errors='replace')
+                      assert 'gpw-daily-pick-public.js' in html
+                      print('PRODUCTION_VERIFIED',p['selection']['symbol'],p['selection']['reference_price'])
+                      raise SystemExit(0)
+              except Exception as e:
+                  print(i,type(e).__name__,e)
+              time.sleep(10)
+          raise SystemExit('GPW pick not visible on production frontend')
+          PY
