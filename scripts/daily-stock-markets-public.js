@@ -73,8 +73,8 @@
     historical_expectancy: "Historyczna skuteczność"
   } : {
     kicker: "BriefRooms Research · Daily Stock Core",
-    title: "DAILY TRADE — GPW + US",
-    intro: "One shared core for scoring, momentum, risk, R/R and learning. Two market adapters preserve local evidence, currency, calendar and session confirmation.",
+    title: "US DAILY STOCK",
+    intro: "One shared core for scoring, momentum, risk, R/R and learning. The US market adapter preserves local evidence, USD, the NYSE/Nasdaq calendar and session confirmation.",
     core: "SHARED CORE · MARKET MEMORY KEPT SEPARATE",
     gpwMarket: "Polish market",
     usMarket: "US market",
@@ -105,7 +105,7 @@
     learning: "Learning",
     learningActive: "Active",
     collecting: "Building sample",
-    history: "Combined Daily Trade history — GPW and US",
+    history: "US Daily Stock history",
     historyGpw: "Polish market (GPW)",
     historyUs: "US market",
     selected: "selections",
@@ -309,7 +309,7 @@
     }).join("")}</section>`;
   };
 
-  const renderHistory = (history) => `<details class="dsm-history"><summary>${escapeHtml(T.history)}</summary><div class="dsm-history-body">${historyMarket(history, "gpw")}${historyMarket(history, "us")}</div></details>`;
+  const renderHistory = (history) => `<details class="dsm-history"><summary>${escapeHtml(T.history)}</summary><div class="dsm-history-body">${lang === "en" ? historyMarket(history, "us") : `${historyMarket(history, "gpw")}${historyMarket(history, "us")}`}</div></details>`;
 
   const mergeHistory = (gpwIndex, usIndex, fallback) => ({
     schema_version: "daily-stock-history-ui-v1",
@@ -322,7 +322,10 @@
   const shell = () => {
     root.className = "dash-card page-card dsm-root";
     root.removeAttribute("aria-labelledby");
-    root.innerHTML = `<header class="dsm-head"><div><span class="dsm-kicker">${escapeHtml(T.kicker)}</span><h2>${escapeHtml(T.title)}</h2><p>${escapeHtml(T.intro)}</p></div><span class="dsm-common-chip">${escapeHtml(T.core)}</span></header><div class="dsm-market-grid"><article class="dsm-market-card"><div class="dsm-empty">${escapeHtml(T.loading)}</div></article><article class="dsm-market-card"><div class="dsm-empty">${escapeHtml(T.loading)}</div></article></div><div data-dsm-history></div><p class="dsm-legal">${escapeHtml(T.legal)}</p><div class="dsm-footer"><span>${escapeHtml(T.coreFooter)}</span></div>`;
+    const loadingCards = lang === "en"
+      ? `<article class="dsm-market-card"><div class="dsm-empty">${escapeHtml(T.loading)}</div></article>`
+      : `<article class="dsm-market-card"><div class="dsm-empty">${escapeHtml(T.loading)}</div></article><article class="dsm-market-card"><div class="dsm-empty">${escapeHtml(T.loading)}</div></article>`;
+    root.innerHTML = `<header class="dsm-head"><div><span class="dsm-kicker">${escapeHtml(T.kicker)}</span><h2>${escapeHtml(T.title)}</h2><p>${escapeHtml(T.intro)}</p></div><span class="dsm-common-chip">${escapeHtml(T.core)}</span></header><div class="dsm-market-grid"${lang === "en" ? ' style="grid-template-columns:1fr"' : ""}>${loadingCards}</div><div data-dsm-history></div><p class="dsm-legal">${escapeHtml(T.legal)}</p><div class="dsm-footer"><span>${escapeHtml(T.coreFooter)}</span></div>`;
   };
 
   const fetchJson = async (url, required = true) => {
@@ -339,6 +342,18 @@
   const load = async () => {
     shell();
     try {
+      if (lang === "en") {
+        const [us, usIndex, fallback] = await Promise.all([
+          fetchJson(URLS.us),
+          fetchJson(URLS.usHistory, false),
+          fetchJson(URLS.historyFallback, false)
+        ]);
+        root.querySelector(".dsm-market-grid").innerHTML = renderMarket(us, "us");
+        const history = mergeHistory(null, usIndex, fallback);
+        root.querySelector("[data-dsm-history]").innerHTML = renderHistory(history);
+        return;
+      }
+
       const [gpw, us, gpwIndex, usIndex, fallback] = await Promise.all([
         fetchJson(URLS.gpw),
         fetchJson(URLS.us),
@@ -350,7 +365,7 @@
       const history = mergeHistory(gpwIndex, usIndex, fallback);
       root.querySelector("[data-dsm-history]").innerHTML = renderHistory(history);
     } catch (error) {
-      root.querySelector(".dsm-market-grid").innerHTML = `<div class="dsm-error">${escapeHtml(lang === "pl" ? "Nie udało się załadować obu rynków. Bieżące dane są ponownie pobierane." : "Both market feeds could not be loaded. Current data will be retried automatically.")}</div>`;
+      root.querySelector(".dsm-market-grid").innerHTML = `<div class="dsm-error">${escapeHtml(lang === "pl" ? "Nie udało się załadować obu rynków. Bieżące dane są ponownie pobierane." : "The US market feed could not be loaded. Current data will be retried automatically.")}</div>`;
     }
   };
 
