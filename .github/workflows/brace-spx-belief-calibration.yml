@@ -1,0 +1,213 @@
+name: BRACE-SPX Engine-Belief Calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-spx-belief-calibration.yml"
+      - "scripts/brace_spx_belief_calibration.py"
+  workflow_run:
+    workflows:
+      - "BRACE-SPX Belief Read-Only Bridge"
+    types: [completed]
+  schedule:
+    - cron: "45 22 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-spx-engine-belief-calibration
+  cancel-in-progress: false
+
+env:
+  BRIDGE_ARTIFACT_NAME: brace-spx-belief-bridge-state
+  CALIBRATION_ARTIFACT_NAME: brace-spx-engine-belief-calibration-state
+
+jobs:
+  calibrate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout current production code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install read-only evaluation dependencies
+        run: python -m pip install --upgrade pip numpy pandas yfinance
+
+      - name: Prepare isolated runtime directories
+        run: |
+          set -euo pipefail
+          echo "BRIDGE_DIR=$RUNNER_TEMP/brace_spx_belief_bridge" >> "$GITHUB_ENV"
+          echo "CALIBRATION_DIR=$RUNNER_TEMP/brace_spx_belief_calibration" >> "$GITHUB_ENV"
+          echo "BRACE_PATH=$RUNNER_TEMP/brace_spx_generation6_shadow.json" >> "$GITHUB_ENV"
+          echo "MARKET_CSV=$RUNNER_TEMP/brace_spx_belief_market.csv" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/brace_spx_belief_bridge" "$RUNNER_TEMP/brace_spx_belief_calibration"
+
+      - name: Restore latest prospective bridge ledger read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BRIDGE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/bridge-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/bridge-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No bridge artifact yet; calibration will activate with N=0."
+            : > "$BRIDGE_DIR/engine_belief_observations.jsonl"
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/bridge.zip"
+          mkdir -p "$RUNNER_TEMP/bridge-zip"
+          unzip -q "$RUNNER_TEMP/bridge.zip" -d "$RUNNER_TEMP/bridge-zip"
+          test -f "$RUNNER_TEMP/bridge-zip/brace-spx-belief-bridge-state.tgz"
+          tar -xzf "$RUNNER_TEMP/bridge-zip/brace-spx-belief-bridge-state.tgz" -C "$BRIDGE_DIR"
+          touch "$BRIDGE_DIR/engine_belief_observations.jsonl"
+
+      - name: Restore prior calibration state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${CALIBRATION_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/calibration-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/calibration-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No prior calibration artifact; first run will establish prospective activation only."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/calibration.zip"
+          mkdir -p "$RUNNER_TEMP/calibration-zip"
+          unzip -q "$RUNNER_TEMP/calibration.zip" -d "$RUNNER_TEMP/calibration-zip"
+          test -f "$RUNNER_TEMP/calibration-zip/brace-spx-engine-belief-calibration-state.tgz"
+          tar -xzf "$RUNNER_TEMP/calibration-zip/brace-spx-engine-belief-calibration-state.tgz" -C "$CALIBRATION_DIR"
+
+      - name: Read exact current G6 raw state without modifying research branch
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin brace-spx-research
+          if git show origin/brace-spx-research:data/shadow/brace_spx_generation6_shadow.json > "$BRACE_PATH"; then
+            python - <<'PY'
+          import json,os
+          from pathlib import Path
+          row=json.loads(Path(os.environ['BRACE_PATH']).read_text())
+          print('G6 raw source:', row.get('status'), row.get('latest_market_date'), row.get('updated_at'))
+          PY
+          else
+            printf '{}\n' > "$BRACE_PATH"
+            echo "G6 raw state unavailable; no counterfactual contract will be reconstructed."
+          fi
+
+      - name: Download settlement-only SPY and risk-free series
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          import pandas as pd
+          import yfinance as yf
+
+          end=(datetime.now(timezone.utc).date()+timedelta(days=2)).isoformat()
+          data=yf.download(['SPY','^IRX'], start='2026-08-01', end=end, auto_adjust=True, progress=False, group_by='column', threads=True)
+          out=Path(os.environ['MARKET_CSV'])
+          if data.empty:
+              out.write_text('date,spy_close,irx_annual_yield\n')
+              raise SystemExit(0)
+          if isinstance(data.columns,pd.MultiIndex):
+              if 'Close' in data.columns.get_level_values(0):
+                  close=data['Close']
+              else:
+                  close=data.xs('Close', axis=1, level=1)
+          else:
+              close=pd.DataFrame({'SPY': data['Close']})
+          frame=pd.DataFrame(index=pd.to_datetime(close.index).tz_localize(None))
+          frame['spy_close']=pd.to_numeric(close['SPY'], errors='coerce').values
+          frame['irx_annual_yield']=pd.to_numeric(close['^IRX'], errors='coerce').values if '^IRX' in close else float('nan')
+          frame=frame.sort_index()
+          frame['irx_annual_yield']=frame['irx_annual_yield'].ffill()
+          frame=frame.dropna(subset=['spy_close'])
+          frame.insert(0,'date',[idx.date().isoformat() for idx in frame.index])
+          frame[['date','spy_close','irx_annual_yield']].to_csv(out,index=False)
+          print('Settlement market rows:', len(frame), 'through', frame['date'].iloc[-1] if len(frame) else None)
+          PY
+
+      - name: Validate evaluator safety contract
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_spx_belief_calibration.py
+          PYTHONPATH=scripts python - <<'PY'
+          import brace_spx_belief_calibration as cal
+          assert all(value is False for value in cal.safety_controls().values())
+          policy=cal.evaluation_policy()
+          assert policy['with_without_evaluation_enabled'] is True
+          assert policy['hypothetical_overlay_only'] is True
+          assert policy['production_modifier_proposed'] is False
+          assert policy['max_hypothetical_exposure_tilt'] == 0.10
+          print('PR #7 static safety contract: PASS')
+          PY
+
+      - name: Freeze contracts and settle due WITH/WITHOUT pairs
+        run: |
+          PYTHONPATH=scripts python scripts/brace_spx_belief_calibration.py \
+            --calibration-dir "$CALIBRATION_DIR" \
+            --bridge-dir "$BRIDGE_DIR" \
+            --brace-shadow "$BRACE_PATH" \
+            --market-csv "$MARKET_CSV"
+
+      - name: Assert report remains research-only
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['CALIBRATION_DIR'])/'BRACE_SPX_ENGINE_BELIEF_CALIBRATION_REPORT.json').read_text())
+          assert report['mode'] == 'shadow_research'
+          assert all(value is False for value in report['controls'].values())
+          assert report['activation']['prospective_only'] is True
+          assert report['activation']['historical_backfill_allowed'] is False
+          assert report['evaluation_policy']['hypothetical_overlay_only'] is True
+          assert report['promotion_gate']['eligible'] is False
+          assert report['promotion_gate']['bounded_influence_allowed'] is False
+          assert report['decision_influence'] is False
+          assert report['bounded_modifier'] is False
+          print('BRACE-SPX Engine-Belief report:', report['status'], report['sample'])
+          PY
+
+      - name: Pack cumulative calibration state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/brace-spx-engine-belief-calibration-state.tgz" -C "$CALIBRATION_DIR" .
+
+      - name: Store private cumulative calibration ledger
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-spx-engine-belief-calibration-state
+          path: ${{ runner.temp }}/brace-spx-engine-belief-calibration-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
