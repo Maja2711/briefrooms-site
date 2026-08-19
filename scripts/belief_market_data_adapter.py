@@ -15,7 +15,9 @@ from belief_core import iso_z
 NY = ZoneInfo("America/New_York")
 YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 USER_AGENT = "BriefRooms-BeliefCore/2.1 (+shadow-research)"
-DEFAULT_SYMBOLS = ("SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP")
+CORE_SYMBOLS = ("SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP")
+OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD")
+DEFAULT_SYMBOLS = CORE_SYMBOLS + OPTIONAL_WES_ASSET_SYMBOLS
 
 
 @dataclass(frozen=True)
@@ -53,10 +55,12 @@ class YahooChartClient:
             close = closes[idx] if idx < len(closes) else None
             if close is None:
                 continue
+
             def opt(rows: Sequence[object]) -> Optional[float]:
                 if idx >= len(rows) or rows[idx] is None:
                     return None
                 return float(rows[idx])
+
             out.append(Bar(
                 timestamp=datetime.fromtimestamp(int(epoch), tz=timezone.utc),
                 close=float(close),
@@ -111,18 +115,31 @@ class MarketSnapshot:
 
 class MarketDataAdapter:
     name = "market_data"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(self, client: Optional[YahooChartClient] = None, symbols: Sequence[str] = DEFAULT_SYMBOLS) -> None:
         self.client = client or YahooChartClient()
         self.symbols = tuple(symbols)
 
     def fetch_snapshot(self) -> MarketSnapshot:
-        return MarketSnapshot({symbol: self.client.bars(symbol, "10d", "30m") for symbol in self.symbols})
+        bars = {}
+        for symbol in self.symbols:
+            try:
+                bars[symbol] = self.client.bars(symbol, "10d", "30m")
+            except Exception:
+                if symbol in CORE_SYMBOLS:
+                    raise
+                # EUR/USD and BTC are an additive WES coverage layer. A failure
+                # of an optional source must not take down the established SPX
+                # Belief pipeline; downstream adapters simply remain unavailable.
+                continue
+        return MarketSnapshot(bars)
 
     def run(self, snapshot: MarketSnapshot) -> AdapterResult:
         observations: List[Observation] = []
         for symbol in self.symbols:
+            if symbol not in snapshot.bars or not snapshot.bars[symbol]:
+                continue
             rows = snapshot.bars[symbol]
             latest = rows[-1]
             observed_at = iso_z(latest.timestamp)
@@ -141,9 +158,11 @@ class MarketDataAdapter:
             base = dict(adapter=self.name, entity=symbol, observed_at=observed_at,
                         source="Yahoo Finance chart", source_type="secondary", reliability=.82,
                         tags=("market", "ohlcv", self.version))
+
             def add(metric: str, value, unit: str, cluster: str, status: str = "ok", metadata=None) -> None:
                 observations.append(Observation.make(**base, metric=metric, value=value, unit=unit,
                     source_ref=source_ref, independence_cluster=cluster, status=status, metadata=metadata))
+
             add("price", latest.close, "price", f"market:{symbol}:price")
             add("change_1d", change_1d, "return", f"market:{symbol}:price")
             add("session_open", session_open, "price", f"market:{symbol}:ohlc")
