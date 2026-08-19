@@ -9,7 +9,7 @@
     document.head.appendChild(link);
   }
   const script = document.createElement("script");
-  script.src = "/scripts/daily-stock-markets-public.js?v=1";
+  script.src = "/scripts/daily-stock-markets-public.js?v=3";
   script.defer = true;
   document.head.appendChild(script);
 })();
