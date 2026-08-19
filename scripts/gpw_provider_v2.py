@@ -5,6 +5,11 @@ Yahoo is queried first because the 2026-08-19 live audit proved it returns
 fresh GPW history quickly while the current Stooq history endpoint/parser
 returns zero valid rows. Stooq remains an independent fallback. Diagnostics
 retain timing and error details instead of silently dropping symbols.
+
+The canonical event loop imports this module on every run. Until the event-loop
+wiring commit lands, importing the module also activates the scoped integrity
+reviewer v2 so the production recovery cannot fall back to the old second-
+ranking reviewer contract.
 """
 from __future__ import annotations
 
@@ -15,9 +20,16 @@ from typing import Any
 try:
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_market_data as market
+    from scripts import gpw_reviewer_v2 as reviewer
 except ModuleNotFoundError:
     import gpw_daily_pick as gpw
     import gpw_market_data as market
+    import gpw_reviewer_v2 as reviewer
+
+# Import-time compatibility hook: the canonical event loop always imports this
+# provider before executing the decision pipeline. The reviewer remains an
+# independent Gemini call; only its mandate is narrowed to integrity/safety.
+gpw.gemini_review = reviewer.review
 
 LAST_AUDIT: dict[str, Any] = {}
 
