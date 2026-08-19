@@ -13,6 +13,7 @@ try:
     from scripts import gpw_market_data as market
     from scripts import gpw_pipeline_v2 as pipeline
     from scripts import gpw_provider_v2 as provider
+    from scripts import daily_stock_gpw_adapter as core_adapter
 except ModuleNotFoundError:
     import gpw_daily_control_loop as loop
     import gpw_daily_pick as gpw
@@ -20,6 +21,12 @@ except ModuleNotFoundError:
     import gpw_market_data as market
     import gpw_pipeline_v2 as pipeline
     import gpw_provider_v2 as provider
+    import daily_stock_gpw_adapter as core_adapter
+
+# Install the common quant/risk/learning core before capturing the GPW engine's
+# original functions.  The subsequent GPW event and learning overlays remain
+# unchanged and therefore preserve the already accumulated GPW behaviour.
+core_adapter.install()
 
 _ORIGINAL_GEMINI_ANALYSIS = gpw.gemini_analysis
 _ORIGINAL_BUILD_LEARNING_SNAPSHOT = loop.build_learning_snapshot

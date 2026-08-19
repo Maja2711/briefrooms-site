@@ -8,10 +8,13 @@ on:
       - ".github/workflows/gpw-daily-outcome-monitor.yml"
       - "scripts/gpw_daily_outcome_monitor.py"
       - "scripts/gpw_daily_apply_manual_evidence.py"
+      - "scripts/build_daily_stock_history_index.py"
+      - "scripts/daily-stock-markets-public.js"
       - "tests/test_gpw_daily_outcome_monitor.py"
       - "scripts/gpw-daily-pick-public.js"
       - "data/internal/gpw_daily_pick_evidence/**"
       - "data/investments/gpw_daily_pick_history/**"
+      - "data/investments/us_daily_stock_history/**"
   schedule:
     - cron: "*/10 7-16 * * 1-5"
 
@@ -41,9 +44,10 @@ jobs:
 
       - name: Validate outcome monitor contract
         run: |
-          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_apply_manual_evidence.py scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py
+          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_apply_manual_evidence.py scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py scripts/build_daily_stock_history_index.py
           python -m unittest tests.test_gpw_daily_outcome_monitor -v
           node --check scripts/gpw-daily-pick-public.js
+          node --check scripts/daily-stock-markets-public.js
 
       - name: Apply explicit broker evidence receipts
         run: python scripts/gpw_daily_apply_manual_evidence.py
@@ -81,6 +85,9 @@ jobs:
           print(json.dumps(current['learning'],ensure_ascii=False,indent=2))
           PY
 
+      - name: Rebuild shared GPW and US Daily Stock history index
+        run: python scripts/build_daily_stock_history_index.py
+
       - name: Cache-bust GPW history-enabled client
         run: |
           python - <<'PY'
@@ -88,7 +95,7 @@ jobs:
           path=Path('pl/inwestycje/portfel-10k.html')
           text=path.read_text(encoding='utf-8')
           import re
-          updated=re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=4', text)
+          updated=re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=5', text)
           if updated != text:
               path.write_text(updated, encoding='utf-8')
           PY
@@ -99,7 +106,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/gpw_daily_pick_history_index.json pl/inwestycje/portfel-10k.html 2>/dev/null || true
+          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/gpw_daily_pick_history_index.json data/investments/daily_stock_history_index.json pl/inwestycje/portfel-10k.html 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"

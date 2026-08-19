@@ -19,6 +19,30 @@
     "risk_reward": 15,
     "historical_expectancy": 10
   },
+  "learning": {
+    "minimum_resolved_trades_for_adaptation": 8,
+    "recent_window": 20,
+    "prior_strength": 10,
+    "max_historical_score_adjustment": 12,
+    "method": "bayesian_shrinkage_historical_overlay_v1",
+    "automatic_weight_changes": false,
+    "single_trade_weight_mutation": false,
+    "market_memory": "US-only"
+  },
+  "event_layer": {
+    "enabled": true,
+    "official_channels": ["SEC 8-K", "company releases"],
+    "independent_news_channel": true,
+    "official_report_lookback_hours": 120,
+    "general_news_lookback_hours": 84,
+    "automatic_weight_changes": false
+  },
+  "market_adapter": {
+    "currency": "USD",
+    "calendar": "NYSE/Nasdaq",
+    "opening_confirmation": "09:35 ET",
+    "historical_provider_order": ["Yahoo", "Stooq"]
+  },
   "non_session_dates": [],
   "universe": [
     {"symbol": "AAPL", "name": "Apple", "sector": "technology"},

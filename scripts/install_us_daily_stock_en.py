@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Idempotently install the US Daily Stock widget on the English 10K page."""
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "en/investing/portfolio-10k.html"
 CSS = '<link rel="stylesheet" href="/assets/gpw-daily-pick.css?v=1">'
-SCRIPT = '<script src="/scripts/us-daily-stock-public.js?v=1" defer></script>'
+SCRIPT = '<script src="/scripts/us-daily-stock-public.js?v=2" defer></script>'
 START = '<!-- us-daily-stock:start -->'
 END = '<!-- us-daily-stock:end -->'
 
@@ -32,6 +33,11 @@ def install() -> bool:
             raise SystemExit("EN portfolio static snapshot marker not found")
         text = text.replace(marker, WIDGET + marker, 1)
 
+    text = re.sub(
+        r'<script src="/scripts/us-daily-stock-public\.js\?v=\d+" defer></script>',
+        SCRIPT,
+        text,
+    )
     if SCRIPT not in text:
         marker = '</body>'
         if marker not in text:

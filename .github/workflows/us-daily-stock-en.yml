@@ -6,12 +6,19 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/us-daily-stock-en.yml"
+      - "scripts/daily_stock_core.py"
+      - "scripts/daily_stock_us_adapter.py"
+      - "scripts/build_daily_stock_history_index.py"
+      - "scripts/daily-stock-markets-public.js"
       - "scripts/us_daily_stock.py"
       - "scripts/us_daily_stock_runtime.py"
       - "scripts/us-daily-stock-public.js"
       - "scripts/install_us_daily_stock_en.py"
+      - "assets/daily-stock-markets.css"
       - "data/investments/us_daily_stock_config.json"
+      - "tests/test_daily_stock_core.py"
       - "tests/test_us_daily_stock.py"
+      - "tests/test_gpw_daily_pick_ui.py"
   schedule:
     # 09:36/09:42 New York during EDT (13:36/13:42 UTC) and EST (14:36/14:42 UTC).
     - cron: "36 13 * * 1-5"
@@ -53,14 +60,21 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Test US Daily Stock contracts
+      - name: Test shared core and US Daily Stock contracts
         run: |
           set -euo pipefail
-          python -m unittest tests.test_us_daily_stock -v
-          python -m py_compile scripts/us_daily_stock.py scripts/us_daily_stock_runtime.py scripts/install_us_daily_stock_en.py
+          python -m unittest tests.test_daily_stock_core tests.test_us_daily_stock tests.test_gpw_daily_pick_ui -v
+          python -m py_compile \
+            scripts/daily_stock_core.py \
+            scripts/daily_stock_us_adapter.py \
+            scripts/build_daily_stock_history_index.py \
+            scripts/us_daily_stock.py \
+            scripts/us_daily_stock_runtime.py \
+            scripts/install_us_daily_stock_en.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
           python -m json.tool data/investments/us_daily_stock.json >/dev/null
           node --check scripts/us-daily-stock-public.js
+          node --check scripts/daily-stock-markets-public.js
 
       - name: Install widget on English 10K page
         run: python scripts/install_us_daily_stock_en.py
@@ -90,13 +104,16 @@ jobs:
               print('US_DAILY_STOCK_STATE',p.get('decision'),p.get('reason'))
           PY
 
+      - name: Rebuild shared GPW and US Daily Stock history index
+        run: python scripts/build_daily_stock_history_index.py
+
       - name: Commit US Daily Stock state and EN frontend
         id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json en/investing/portfolio-10k.html
+          git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/daily_stock_history_index.json en/investing/portfolio-10k.html
           git add data/investments/us_daily_stock_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -137,7 +154,7 @@ jobs:
           import json,time,urllib.request
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/2.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/3.0','Cache-Control':'no-cache'}
           today=datetime.now(ZoneInfo('America/New_York')).date().isoformat()
           last=None
           for attempt in range(1,43):
@@ -148,7 +165,7 @@ jobs:
                   last=data
                   with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers),timeout=20) as r:
                       html=r.read().decode('utf-8',errors='replace')
-                  if data.get('date') == today and 'us-daily-stock-root' in html and 'us-daily-stock-public.js' in html:
+                  if data.get('date') == today and 'us-daily-stock-root' in html and 'us-daily-stock-public.js?v=2' in html:
                       print('PRODUCTION_US_DAILY_STOCK_OK',data.get('decision'),(data.get('selection') or {}).get('symbol'))
                       raise SystemExit(0)
               except Exception as exc:
