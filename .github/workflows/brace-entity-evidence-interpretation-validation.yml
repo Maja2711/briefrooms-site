@@ -1,0 +1,86 @@
+name: BRACE Entity Evidence Interpretation Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-entity-evidence-interpretation.yml"
+      - ".github/workflows/brace-entity-evidence-interpretation-validation.yml"
+      - "scripts/brace_entity_evidence_interpretation.py"
+      - "tests/test_brace_entity_evidence_interpretation.py"
+      - "docs/BRACE_ENTITY_EVIDENCE_INTERPRETATION.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR14 interpretation layer
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_evidence_interpretation -v
+
+      - name: Assert PR14 governance against current BRACE entity universe
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          import json, tempfile
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from brace_company_entity_framework import DEFAULT_ANALYSIS, DEFAULT_PORTFOLIO, DEFAULT_UNIVERSE, desired_entities
+          from brace_entity_evidence_interpretation import capabilities, promotion_evidence_standard, run, safety_controls
+
+          portfolio=json.loads(DEFAULT_PORTFOLIO.read_text())
+          analysis=json.loads(DEFAULT_ANALYSIS.read_text())
+          universe=json.loads(DEFAULT_UNIVERSE.read_text())
+          active=desired_entities(portfolio, analysis, universe)
+          assert active
+          now=datetime.now(timezone.utc)
+          now_z=now.isoformat().replace('+00:00','Z')
+          primary={
+              'schema_version':'brace-entity-primary-source-evidence-v1',
+              'mode':'research_shadow',
+              'last_updated_at':now_z,
+              'entities':{
+                  entity_id:{
+                      'entity_id':entity_id,
+                      'current_status':'active',
+                      'current_window_opened_at':now_z,
+                      'sector':row.get('sector'),
+                      'reporting_regime':'validation_placeholder',
+                  }
+                  for entity_id,row in active.items()
+              },
+              'observations':[],
+          }
+          with tempfile.TemporaryDirectory() as tmp:
+              root=Path(tmp)
+              source=root/'primary.json'
+              source.write_text(json.dumps(primary))
+              report=run(root/'state', primary_state_path=source, as_of=now)
+              assert report['sample']['activation_only_this_run'] is True
+              assert report['sample']['active_entities'] == len(active)
+              assert report['sample']['new_evidence_this_run'] == 0
+              assert report['interpretation_boundary']['evidence_materialized_but_not_applied_to_belief_core'] is True
+              assert report['interpretation_boundary']['entity_forecasts_created'] is False
+
+          assert all(v is False for v in safety_controls().values())
+          caps=capabilities()
+          assert caps['deterministic_entity_interpretation_enabled'] is True
+          assert caps['support_oppose_neutral_classification_enabled'] is True
+          assert caps['llm_interpretation_enabled'] is False
+          assert caps['belief_core_state_update_enabled'] is False
+          assert caps['entity_forecast_capture_enabled'] is False
+          assert caps['with_without_bridge_enabled'] is False
+          gate=promotion_evidence_standard()
+          assert gate['with_without_required'] is True
+          assert gate['automatic_promotion'] is False
+          print('PR14 governance + current-entity integration contract: PASS')
+          print('Current active entity count:', len(active))
+          PY
