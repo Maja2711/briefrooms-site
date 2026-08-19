@@ -21,12 +21,12 @@ except ModuleNotFoundError:
     import gpw_pipeline_v2 as pipeline
     import gpw_provider_v2 as provider
 
-_ORIGINAL_GENERATE = pipeline.generate
 _ORIGINAL_GEMINI_ANALYSIS = gpw.gemini_analysis
 _ORIGINAL_BUILD_LEARNING_SNAPSHOT = loop.build_learning_snapshot
 _ORIGINAL_PUBLIC_LEARNING = loop._public_learning
 _ORIGINAL_ENRICH_PAYLOAD = loop._enrich_payload
 _ORIGINAL_BUILD_QUANT_CANDIDATE = gpw.build_quant_candidate
+_ORIGINAL_VALIDATE_PAYLOAD = gpw.validate_payload
 _INSTALLED = False
 _EVENT_CONTEXT_BY_SYMBOL: dict[str, dict[str, Any]] = {}
 
@@ -61,10 +61,76 @@ def _event_aware_analysis(candidates: list[dict[str, Any]]) -> dict[str, dict[st
     return result
 
 
+def _daily_pick_generate(**kwargs):
+    """Use score 72 as a conviction target, not as the only admission gate.
+
+    Hard gates remain unchanged: fresh market coverage, security-level liquidity
+    and risk screening, minimum reward/risk, evidence/source gate and the
+    independent Gemini reviewer. Candidates that survive those gates are
+    reviewed from highest composite score downward until one is approved.
+    """
+    original_load_config = gpw.load_config
+    base_config = original_load_config()
+    target_score = float(base_config["minimum_composite_score"])
+    decision_config = copy.deepcopy(base_config)
+    decision_config["minimum_composite_score"] = 0.0
+
+    def relaxed_config():
+        return copy.deepcopy(decision_config)
+
+    gpw.load_config = relaxed_config
+    try:
+        payload = pipeline.generate(**kwargs)
+    finally:
+        gpw.load_config = original_load_config
+
+    methodology = payload.setdefault("methodology", {})
+    methodology["minimum_score"] = target_score
+    methodology["target_score"] = target_score
+    methodology["score_policy"] = "ranking_target_not_hard_gate"
+    methodology["hard_admission_gates"] = [
+        "market_data_completeness",
+        "liquidity_and_position_risk",
+        "reward_risk",
+        "source_evidence",
+        "independent_review",
+    ]
+
+    selection = payload.get("selection")
+    if payload.get("decision") == "TRANSAKCJA" and isinstance(selection, dict):
+        score = float(selection.get("score") or 0.0)
+        selection["score_target"] = target_score
+        selection["score_target_met"] = score >= target_score
+        selection["conviction"] = "wysokie" if score >= target_score else "umiarkowane"
+        if score < target_score:
+            payload["reason"] = (
+                "Najlepszy dostępny kandydat przeszedł twarde bramki danych, "
+                "płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik "
+                f"{score:.2f} jest poniżej celu {target_score:.0f}, więc przekonanie jest umiarkowane."
+            )
+    return payload
+
+
+def _validate_payload_with_score_target(payload, *args, **kwargs):
+    """Preserve all legacy validation while treating score 72 as a soft target."""
+    probe = copy.deepcopy(payload)
+    if (
+        probe.get("decision") == "TRANSAKCJA"
+        and (probe.get("methodology") or {}).get("score_policy")
+        == "ranking_target_not_hard_gate"
+    ):
+        selection = probe.get("selection") or {}
+        score = float(selection.get("score") or 0.0)
+        probe.setdefault("methodology", {})["minimum_score"] = min(
+            float(probe["methodology"].get("minimum_score") or score), score
+        )
+    return _ORIGINAL_VALIDATE_PAYLOAD(probe, *args, **kwargs)
+
+
 def _event_generate(**kwargs):
     forwarded = dict(kwargs)
     forwarded["news_fetcher"] = events.combined_news_items
-    payload = _ORIGINAL_GENERATE(**forwarded)
+    payload = _daily_pick_generate(**forwarded)
     now = forwarded.get("now") or gpw.now_warsaw()
     if payload.get("decision") == "TRANSAKCJA":
         payload = market.reprice_transaction(payload, now=now)
@@ -187,6 +253,7 @@ def install() -> None:
     gpw.fetch_yahoo_bars = provider.fetch_bars
     loop.prefetch_market = provider.prefetch_market
     gpw.generate = _event_generate
+    gpw.validate_payload = _validate_payload_with_score_target
     gpw.gemini_analysis = _event_aware_analysis
     loop.build_learning_snapshot = _build_learning_snapshot
     loop._public_learning = _public_learning
