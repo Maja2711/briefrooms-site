@@ -1,0 +1,37 @@
+name: BRACE-SPX Belief Bridge Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/brace_spx_belief_bridge.py"
+      - "tests/test_brace_spx_belief_bridge.py"
+      - "docs/BRACE_SPX_BELIEF_READ_ONLY_BRIDGE.md"
+      - ".github/workflows/brace-spx-belief-bridge.yml"
+      - ".github/workflows/brace-spx-belief-bridge-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile bridge
+        run: python -m py_compile scripts/brace_spx_belief_bridge.py
+      - name: Run bridge tests
+        run: python -m unittest tests.test_brace_spx_belief_bridge -v
+      - name: Assert static safety invariants
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import brace_spx_belief_bridge as bridge
+          assert bridge.MODE == 'shadow'
+          assert len(bridge.SPX_BELIEF_IDS) == 5
+          assert all(value is False for value in bridge.controls().values())
+          print('Static shadow-only invariants: PASS')
+          PY
