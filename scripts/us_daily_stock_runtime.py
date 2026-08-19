@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, time as clock_time
 from typing import Any
 
 try:
@@ -14,6 +14,7 @@ except ModuleNotFoundError:
 
 LAST_PREFETCH_AUDIT: dict[str, Any] = {}
 _ORIGINAL_FETCH = us.fetch_resilient_bars
+RECOVERY_CUTOFF = clock_time(11, 30)
 
 
 def prefetch(config: dict[str, Any]) -> dict[str, tuple[list[us.Bar], dict[str, Any]]]:
@@ -64,6 +65,38 @@ def install_cache(cache: dict[str, tuple[list[us.Bar], dict[str, Any]]]) -> None
     us.fetch_resilient_bars = cached
 
 
+def _generate_with_recovery(now: datetime, config: dict[str, Any]) -> dict[str, Any]:
+    """Reuse the canonical selector after a missed 09:45 ET run, never after 11:30 ET.
+
+    The only temporary change is the operational publication cutoff. Ranking,
+    source gates, Gemini analysis/review, risk controls and the fresh intraday
+    execution snapshot remain the canonical ``us_daily_stock.generate`` path.
+    """
+    normal_cutoff = us.parse_clock(config["publication_cutoff"])
+    if now.time() < normal_cutoff:
+        return us.generate(now)
+    if now.time() >= RECOVERY_CUTOFF:
+        return us.generate(now)
+
+    effective = dict(config)
+    effective["publication_cutoff"] = RECOVERY_CUTOFF.strftime("%H:%M")
+    original_load_config = us.load_config
+    us.load_config = lambda: effective
+    try:
+        payload = us.generate(now)
+    finally:
+        us.load_config = original_load_config
+
+    quality = payload.setdefault("data_quality", {})
+    quality["late_recovery"] = True
+    quality["normal_publication_cutoff"] = config["publication_cutoff"]
+    quality["recovery_cutoff"] = RECOVERY_CUTOFF.strftime("%H:%M")
+    quality["recovery_policy"] = "same_selector_same_hard_gates_fresh_intraday_snapshot"
+    if payload.get("decision") == "TRADE":
+        payload["reason"] = "Late operational recovery after the normal publication window. " + str(payload.get("reason") or "")
+    return payload
+
+
 def generate(now: datetime | None = None) -> dict[str, Any]:
     now = now or us.now_ny()
     config = us.load_config()
@@ -74,7 +107,7 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
         return current
     cache = prefetch(config)
     install_cache(cache)
-    payload = us.generate(now)
+    payload = _generate_with_recovery(now, config)
     payload.setdefault("data_quality", {})["prefetch"] = LAST_PREFETCH_AUDIT
     return payload
 
@@ -105,5 +138,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-# Manual trigger: current EN US Daily Stock selection 2026-08-19.
