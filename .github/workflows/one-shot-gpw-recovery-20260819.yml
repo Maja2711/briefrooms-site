@@ -1,0 +1,234 @@
+name: One-shot GPW Daily recovery 2026-08-19
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-gpw-recovery-20260819.yml"
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: one-shot-gpw-recovery-20260819
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+      GPW_RECOVERY_DATE: "2026-08-19"
+      GPW_RECOVERY_CUTOFF: "12:30"
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Wire GPW v2 integrity layer into runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/gpw_event_driven_loop.py')
+          text = path.read_text(encoding='utf-8')
+          if 'gpw_pipeline_v2 as pipeline' not in text:
+              text = text.replace(
+                  '    from scripts import gpw_market_data as market\n',
+                  '    from scripts import gpw_market_data as market\n    from scripts import gpw_pipeline_v2 as pipeline\n',
+              )
+              text = text.replace(
+                  '    import gpw_market_data as market\n',
+                  '    import gpw_market_data as market\n    import gpw_pipeline_v2 as pipeline\n',
+              )
+          text = text.replace('_ORIGINAL_GENERATE = gpw.generate', '_ORIGINAL_GENERATE = pipeline.generate')
+          marker = '    loop.EARLIEST_GENERATION = clock_time(9, 5)\n'
+          replacement = (
+              marker
+              + '    gpw.cutoff_for = pipeline.cutoff_for\n'
+              + '    loop.prefetch_market = pipeline.prefetch_market\n'
+          )
+          if 'loop.prefetch_market = pipeline.prefetch_market' not in text:
+              if marker not in text:
+                  raise SystemExit('event loop install marker not found')
+              text = text.replace(marker, replacement)
+          path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/gpw-daily-pick-pl.yml')
+          wf = workflow.read_text(encoding='utf-8')
+          if 'scripts/gpw_pipeline_v2.py' not in wf:
+              wf = wf.replace(
+                  '      - "scripts/gpw_market_data.py"\n',
+                  '      - "scripts/gpw_market_data.py"\n      - "scripts/gpw_pipeline_v2.py"\n',
+              )
+              wf = wf.replace(
+                  '      - "tests/test_gpw_market_data.py"\n',
+                  '      - "tests/test_gpw_market_data.py"\n      - "tests/test_gpw_pipeline_v2.py"\n',
+              )
+              wf = wf.replace(
+                  '            tests.test_gpw_market_data \\\n',
+                  '            tests.test_gpw_market_data \\\n            tests.test_gpw_pipeline_v2 \\\n',
+              )
+              wf = wf.replace(
+                  '            scripts/gpw_market_data.py\n',
+                  '            scripts/gpw_market_data.py \\\n            scripts/gpw_pipeline_v2.py\n',
+              )
+          workflow.write_text(wf, encoding='utf-8')
+          PY
+
+      - name: First post-fix audit and tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_gpw_daily_pick \
+            tests.test_gpw_daily_control_loop \
+            tests.test_gpw_event_layer \
+            tests.test_gpw_market_data \
+            tests.test_gpw_pipeline_v2 \
+            tests.test_gpw_daily_pick_ui -v
+          python -m py_compile \
+            scripts/gpw_daily_pick.py \
+            scripts/gpw_daily_control_loop.py \
+            scripts/gpw_event_layer.py \
+            scripts/gpw_event_driven_loop.py \
+            scripts/gpw_market_data.py \
+            scripts/gpw_pipeline_v2.py
+          python - <<'PY'
+          import json
+          import gpw_event_driven_loop as runtime
+          runtime.install()
+          cfg = runtime.gpw.load_config()
+          cache = runtime.pipeline.prefetch_market(cfg)
+          audit = runtime.pipeline.LAST_PREFETCH_DIAGNOSTICS
+          print(json.dumps(audit, ensure_ascii=False, indent=2))
+          minimum = int(len(cfg['universe']) * float(cfg['minimum_data_completeness']) + 0.9999)
+          if len(cache) < minimum:
+              raise SystemExit(f'Market-data audit failed: received={len(cache)} minimum={minimum}')
+          PY
+
+      - name: Generate today's full GPW decision
+        run: |
+          set -euo pipefail
+          python scripts/gpw_event_driven_loop.py --mode auto
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          assert payload.get('date') == '2026-08-19', payload.get('date')
+          assert payload.get('decision') == 'TRANSAKCJA', (payload.get('decision'), payload.get('reason'), payload.get('data_quality'))
+          selection = payload.get('selection') or {}
+          for key in ('symbol','name','score','reference_price','entry_zone','stop','target','reward_risk','thesis','why_now','sources','review'):
+              assert selection.get(key) is not None, key
+          assert selection.get('review', {}).get('approved') is True
+          print(f"TODAY_PICK={selection['symbol']} score={selection['score']} entry={selection['reference_price']}")
+          PY
+
+      - name: Second audit after generated decision
+        run: |
+          set -euo pipefail
+          python scripts/gpw_event_driven_loop.py --mode validate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          q = p.get('data_quality') or {}
+          assert q.get('status') == 'healthy', q
+          assert float(q.get('complete_ratio') or 0) >= 0.8, q
+          assert p.get('decision') == 'TRANSAKCJA'
+          assert p.get('selection', {}).get('market_snapshot', {}).get('date') == '2026-08-19'
+          assert p.get('selection', {}).get('sources')
+          print('Second audit passed: fresh data, full decision, current-session price, verified sources.')
+          PY
+
+      - name: Remove one-shot workflow and commit recovery
+        id: commit
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-gpw-recovery-20260819.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/gpw_event_driven_loop.py \
+            scripts/gpw_pipeline_v2.py \
+            scripts/gpw_recovery_audit.py \
+            tests/test_gpw_pipeline_v2.py \
+            .github/workflows/gpw-daily-pick-pl.yml \
+            data/investments/gpw_daily_pick.json \
+            data/investments/gpw_daily_pick_metrics.json \
+            data/investments/gpw_daily_pick_learning.json \
+            data/investments/gpw_daily_pick_history \
+            data/internal/gpw_daily_pick_audit \
+            .github/workflows/one-shot-gpw-recovery-20260819.yml
+          git commit -m "Repair GPW Daily pipeline and publish 2026-08-19 pick"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
+
+      - name: Request fresh Pages build
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            CODE="$(curl --silent --show-error --output /tmp/pages.json --write-out '%{http_code}' \
+              -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
+            if [[ "$CODE" == "201" ]]; then exit 0; fi
+            if [[ "$CODE" != "409" ]]; then cat /tmp/pages.json; exit 1; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Verify today's stock on production frontend
+        run: |
+          python - <<'PY'
+          import json, time, urllib.request
+          headers = {'User-Agent': 'BriefRooms-GPW-recovery-verifier/1.0', 'Cache-Control': 'no-cache'}
+          last = None
+          for attempt in range(1, 49):
+              token = f'{int(time.time())}-{attempt}'
+              try:
+                  req = urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_pick.json?v={token}', headers=headers)
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      payload = json.load(r)
+                  last = payload
+                  if payload.get('date') == '2026-08-19' and payload.get('decision') == 'TRANSAKCJA':
+                      symbol = payload.get('selection', {}).get('symbol')
+                      html_req = urllib.request.Request(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}', headers=headers)
+                      with urllib.request.urlopen(html_req, timeout=20) as r:
+                          html = r.read().decode('utf-8', errors='replace')
+                      if 'gpw-daily-pick-public.js' not in html:
+                          raise RuntimeError('GPW frontend widget script missing')
+                      print(f'PRODUCTION_PICK={symbol}; frontend widget present')
+                      raise SystemExit(0)
+              except Exception as exc:
+                  print(f'Attempt {attempt}: {type(exc).__name__}: {exc}')
+              time.sleep(10)
+          raise SystemExit(f'Production did not expose today transaction: {last}')
+          PY
