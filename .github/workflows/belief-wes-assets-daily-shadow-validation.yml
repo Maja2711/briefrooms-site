@@ -1,0 +1,46 @@
+name: Belief WES Asset Daily Shadow Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/belief-wes-assets-daily-shadow-validation.yml"
+      - "scripts/belief_core_live.py"
+      - "tests/test_belief_wes_assets_daily_shadow.py"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile live orchestrator
+        run: PYTHONPATH=scripts python -m py_compile scripts/belief_core_live.py
+      - name: Run daily asset shadow tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_belief_wes_assets_daily_shadow -v
+      - name: Run coverage and Belief Core regressions
+        run: |
+          PYTHONPATH=scripts python -m unittest tests.test_belief_wes_assets -v
+          PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+      - name: Assert consumer isolation
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          import belief_core_live as live
+          from belief_core import BeliefCore
+          with TemporaryDirectory() as tmp:
+              core=BeliefCore(Path(tmp))
+              core.register_beliefs(live.BELIEFS)
+              assert len(live._belief_ids_for_consumer(core, 'BRACE+BRACE-SPX')) == 5
+              assert len(live._belief_ids_for_consumer(core, 'WES-ASSET-SHADOW')) == 7
+              assert len(live._belief_ids_for_consumer(core, 'WES')) == 12
+          assert live.TRADE_EXECUTION_ENABLED is False
+          assert live.POLICY_OUTPUT_ENABLED is False
+          assert live.AUTOMATIC_TUNING_ENABLED is False
+          print('Daily WES asset shadow isolation: PASS')
+          PY
