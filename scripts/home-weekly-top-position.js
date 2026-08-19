@@ -25,20 +25,32 @@
 
   var CONFIG = {
     pl: {
-      href: '/pl/inwestycje/pozycje-tygodniowe.html',
-      kicker: 'POZYCJA TYGODNIA',
+      weeklyHref: '/pl/inwestycje/pozycje-tygodniowe.html',
+      dailyHref: '/pl/inwestycje/portfel-10k.html#overview',
+      dailyUrl: '/data/investments/gpw_daily_pick.json',
+      weeklyKicker: 'Faworyzowana pozycja · WEEKLY',
+      dailyKicker: 'Daily Trade · GPW',
+      openLabel: 'OTWARTA',
+      recommendedLabel: 'RECOMMENDED',
       entry: 'WEJŚCIE',
       tp: 'TP',
       sl: 'SL',
+      more: 'Szczegóły →',
       locale: 'pl-PL'
     },
     en: {
-      href: '/en/investing/open-weekly-positions.html',
-      kicker: 'WEEKLY TOP POSITION',
+      weeklyHref: '/en/investing/open-weekly-positions.html',
+      dailyHref: '/en/investing/portfolio-10k.html#overview',
+      dailyUrl: '/data/investments/us_daily_stock.json',
+      weeklyKicker: 'Favored position · WEEKLY',
+      dailyKicker: 'Daily Trade · US MARKET',
+      openLabel: 'OPEN',
+      recommendedLabel: 'RECOMMENDED',
       entry: 'ENTRY',
       tp: 'TP',
       sl: 'SL',
-      locale: 'en-GB'
+      more: 'Details →',
+      locale: 'en-US'
     }
   };
 
@@ -111,84 +123,170 @@
   function formatPrice(value, item, lang) {
     var n = finiteNumber(value);
     if (n === null) return '—';
-    var decimals = decimalsFor(item);
+    var decimals = item && item.kind === 'daily' ? 2 : decimalsFor(item);
     return new Intl.NumberFormat(configFor(lang).locale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
     }).format(n);
   }
 
+  function formatEntry(signal, lang) {
+    if (signal.kind === 'daily' && Array.isArray(signal.entry_zone) && signal.entry_zone.length >= 2) {
+      return formatPrice(signal.entry_zone[0], signal, lang) + '–' + formatPrice(signal.entry_zone[1], signal, lang);
+    }
+    return formatPrice(signal.entry_price, signal, lang);
+  }
+
+  function dailySignal(payload, lang) {
+    if (!payload || typeof payload !== 'object') return null;
+    var expectedDecision = lang === 'en' ? 'TRADE' : 'TRANSAKCJA';
+    if (payload.decision !== expectedDecision) return null;
+    var outcome = payload.outcome || {};
+    if (String(outcome.status || '').toUpperCase() === 'RESOLVED') return null;
+    var selection = payload.selection || {};
+    var entry = Array.isArray(selection.entry_zone) ? selection.entry_zone : [];
+    var low = finiteNumber(entry[0]);
+    var high = finiteNumber(entry[1]);
+    var stop = finiteNumber(selection.stop);
+    var target = finiteNumber(selection.target);
+    if (!selection.ticker && !selection.symbol) return null;
+    if (low === null || high === null || stop === null || target === null) return null;
+    return {
+      kind: 'daily',
+      source: lang === 'en' ? 'us_daily' : 'gpw_daily',
+      instrument_id: String(selection.ticker || selection.symbol || '').toLowerCase(),
+      label_pl: String(selection.name || selection.ticker || selection.symbol || ''),
+      label_en: String(selection.name || selection.ticker || selection.symbol || ''),
+      ticker: String(selection.ticker || selection.symbol || ''),
+      direction: 'long',
+      entry_zone: [low, high],
+      entry_price: finiteNumber(selection.reference_price),
+      stop_loss_price: stop,
+      take_profit_price: target,
+      score: finiteNumber(selection.score),
+      valid_until: String(selection.valid_until || ''),
+      payload_date: String(payload.date || '')
+    };
+  }
+
+  function weeklySignal(item) {
+    if (!validPosition(item)) return null;
+    return {
+      kind: 'weekly',
+      source: 'weekly',
+      instrument_id: item.instrument_id,
+      label_pl: item.label_pl,
+      label_en: item.label_en,
+      ticker: item.symbol || item.instrument_id,
+      direction: String(item.direction || '').toLowerCase(),
+      entry_price: finiteNumber(item.entry_price),
+      stop_loss_price: finiteNumber(item.risk_plan && item.risk_plan.stop_loss_price),
+      take_profit_price: finiteNumber(item.risk_plan && item.risk_plan.take_profit_price),
+      score: finiteNumber(item.score),
+      conviction: conviction(item)
+    };
+  }
+
+  function chooseSignal(weeklyItems, dailyPayload, lang) {
+    var top = selectTopPosition(weeklyItems);
+    if (top) return weeklySignal(top);
+    return dailySignal(dailyPayload, lang);
+  }
+
   function injectStyle(document) {
-    if (document.getElementById('weekly-top-position-style')) return;
+    if (document.getElementById('home-market-signal-style')) return;
     var style = document.createElement('style');
-    style.id = 'weekly-top-position-style';
+    style.id = 'home-market-signal-style';
     style.textContent = [
-      '.weekly-top-position{width:min(370px,100%);display:block;border:1px solid rgba(225,162,255,.30);border-radius:18px;padding:12px 14px;background:radial-gradient(180px 100px at 8% 0%,rgba(225,162,255,.15),transparent 70%),linear-gradient(145deg,rgba(255,255,255,.09),rgba(8,20,34,.76));box-shadow:0 14px 34px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.10);transition:transform .18s ease,border-color .18s ease}',
-      '.weekly-top-position:hover{transform:translateY(-2px);border-color:rgba(225,162,255,.52)}',
-      '.weekly-top-position__kicker{display:block;margin-bottom:5px;color:#cfa1f5;font-size:9px;font-weight:950;letter-spacing:.10em}',
-      '.weekly-top-position__title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:950;line-height:1.15}',
-      '.weekly-top-position__side{font-size:11px;font-weight:950;border-radius:999px;padding:4px 7px;border:1px solid currentColor}',
-      '.weekly-top-position__side.long{color:#86ffb7;background:rgba(134,255,183,.07)}',
-      '.weekly-top-position__side.short{color:#ff9e9e;background:rgba(255,120,120,.07)}',
-      '.weekly-top-position__levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}',
-      '.weekly-top-position__level{min-width:0;padding-top:8px;border-top:1px solid rgba(255,255,255,.10)}',
-      '.weekly-top-position__level b{display:block;color:#8197aa;font-size:8px;letter-spacing:.08em;margin-bottom:2px}',
-      '.weekly-top-position__level span{display:block;color:#eef7ff;font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '@media(max-width:900px){.main-head .section-head{align-items:flex-start;flex-direction:column}.weekly-top-position{margin-top:8px}}'
+      '.home-market-signal{margin-top:10px;display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:9px 12px;border:1px solid rgba(225,162,255,.30);border-radius:14px;background:linear-gradient(90deg,rgba(225,162,255,.11),rgba(56,214,201,.055));box-shadow:inset 0 1px 0 rgba(255,255,255,.07);transition:border-color .18s ease,background .18s ease}',
+      '.home-market-signal:hover{border-color:rgba(225,162,255,.52);background:linear-gradient(90deg,rgba(225,162,255,.16),rgba(56,214,201,.08))}',
+      '.home-market-signal__kicker{flex:0 0 auto;color:#d9b7f7;font-size:9px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}',
+      '.home-market-signal__main{display:flex;align-items:center;gap:8px;min-width:0;flex:1}',
+      '.home-market-signal__name{font-size:13px;font-weight:950;color:#f2f8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.home-market-signal__side{flex:0 0 auto;font-size:9px;font-weight:950;border-radius:999px;padding:3px 6px;border:1px solid currentColor}',
+      '.home-market-signal__side.long{color:#86ffb7;background:rgba(134,255,183,.07)}',
+      '.home-market-signal__side.short{color:#ff9e9e;background:rgba(255,120,120,.07)}',
+      '.home-market-signal__levels{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#9fb2c8;font-size:10px}',
+      '.home-market-signal__levels b{color:#dfeaf5;font-size:11px}',
+      '.home-market-signal__cta{flex:0 0 auto;color:#75eee5;font-size:10px;font-weight:950}',
+      '@media(max-width:760px){.home-market-signal{align-items:flex-start;flex-wrap:wrap}.home-market-signal__kicker{width:100%}.home-market-signal__main{min-width:170px}.home-market-signal__levels{order:3;width:100%;gap:8px}.home-market-signal__cta{margin-left:auto}}'
     ].join('');
     document.head.appendChild(style);
   }
 
-  function render(document, item, lang) {
-    var head = document.querySelector('.main-head .section-head');
-    if (!head || !item) return false;
-    var existing = document.getElementById('weekly-top-position');
+  function signalName(signal, lang) {
+    var label = lang === 'en' ? (signal.label_en || signal.label_pl) : (signal.label_pl || signal.label_en);
+    var ticker = String(signal.ticker || '').replace(/\.WA$/i, '');
+    if (!label) return ticker || signal.instrument_id || '';
+    if (signal.kind === 'daily' && ticker && label.toUpperCase().indexOf(ticker.toUpperCase()) === -1) {
+      return ticker + ' · ' + label;
+    }
+    return String(label);
+  }
+
+  function render(document, signal, lang) {
+    if (!document || !signal) return false;
+    var share = document.querySelector('.br-share-strip');
+    var host = share && share.parentNode ? share.parentNode : document.querySelector('.main-head');
+    if (!host) return false;
+
+    var oldCard = document.getElementById('weekly-top-position');
+    if (oldCard) oldCard.remove();
+    var existing = document.getElementById('home-market-signal');
     if (existing) existing.remove();
     injectStyle(document);
 
     var cfg = configFor(lang);
     var link = document.createElement('a');
-    link.id = 'weekly-top-position';
-    link.className = 'weekly-top-position';
-    link.href = cfg.href;
-    link.setAttribute('aria-label', cfg.kicker + ': ' + String(item.label_en || item.label_pl || item.instrument_id || ''));
+    link.id = 'home-market-signal';
+    link.className = 'home-market-signal';
+    link.href = signal.kind === 'weekly' ? cfg.weeklyHref : cfg.dailyHref;
+    link.setAttribute('aria-label', (signal.kind === 'weekly' ? cfg.weeklyKicker : cfg.dailyKicker) + ': ' + signalName(signal, lang));
 
     var kicker = document.createElement('span');
-    kicker.className = 'weekly-top-position__kicker';
-    kicker.textContent = cfg.kicker;
+    kicker.className = 'home-market-signal__kicker';
+    kicker.textContent = signal.kind === 'weekly' ? cfg.weeklyKicker : cfg.dailyKicker;
     link.appendChild(kicker);
 
-    var title = document.createElement('div');
-    title.className = 'weekly-top-position__title';
+    var main = document.createElement('span');
+    main.className = 'home-market-signal__main';
     var name = document.createElement('span');
-    name.textContent = String(lang === 'en' ? (item.label_en || item.label_pl) : (item.label_pl || item.label_en) || item.instrument_id || '');
-    title.appendChild(name);
+    name.className = 'home-market-signal__name';
+    name.textContent = signalName(signal, lang);
+    main.appendChild(name);
     var side = document.createElement('span');
-    side.className = 'weekly-top-position__side ' + String(item.direction).toLowerCase();
-    side.textContent = String(item.direction).toUpperCase();
-    title.appendChild(side);
-    link.appendChild(title);
+    side.className = 'home-market-signal__side ' + signal.direction;
+    side.textContent = String(signal.direction || 'long').toUpperCase();
+    main.appendChild(side);
+    link.appendChild(main);
 
-    var levels = document.createElement('div');
-    levels.className = 'weekly-top-position__levels';
-    [
-      [cfg.entry, item.entry_price],
-      [cfg.tp, item.risk_plan.take_profit_price],
-      [cfg.sl, item.risk_plan.stop_loss_price]
-    ].forEach(function (pair) {
-      var level = document.createElement('div');
-      level.className = 'weekly-top-position__level';
-      var label = document.createElement('b');
-      label.textContent = pair[0];
-      var value = document.createElement('span');
-      value.textContent = formatPrice(pair[1], item, lang);
-      level.appendChild(label);
-      level.appendChild(value);
-      levels.appendChild(level);
-    });
+    var levels = document.createElement('span');
+    levels.className = 'home-market-signal__levels';
+    var entry = document.createElement('span');
+    entry.innerHTML = cfg.entry + ' <b>' + formatEntry(signal, lang) + '</b>';
+    var tp = document.createElement('span');
+    tp.innerHTML = cfg.tp + ' <b>' + formatPrice(signal.take_profit_price, signal, lang) + '</b>';
+    var sl = document.createElement('span');
+    sl.innerHTML = cfg.sl + ' <b>' + formatPrice(signal.stop_loss_price, signal, lang) + '</b>';
+    levels.appendChild(entry);
+    levels.appendChild(tp);
+    levels.appendChild(sl);
     link.appendChild(levels);
-    head.appendChild(link);
+
+    var cta = document.createElement('span');
+    cta.className = 'home-market-signal__cta';
+    cta.textContent = cfg.more;
+    link.appendChild(cta);
+
+    if (share && share.nextSibling) host.insertBefore(link, share.nextSibling);
+    else host.appendChild(link);
     return true;
+  }
+
+  async function fetchJson(fetchImpl, url) {
+    var response = await fetchImpl(url + (url.indexOf('?') === -1 ? '?' : '&') + 'v=' + Date.now(), { cache: 'no-store' });
+    if (!response || !response.ok) throw new Error('market signal request failed: ' + url);
+    return response.json();
   }
 
   async function load(options) {
@@ -197,28 +295,42 @@
     var lang = options && options.lang === 'en' ? 'en' : 'pl';
     var logger = options && options.console || { warn: function () {} };
     if (!document || typeof fetchImpl !== 'function') return false;
+    var cfg = configFor(lang);
     var weekId = isoWeekId(options && options.now || new Date());
+
+    var weeklyData = null;
     try {
-      var response = await fetchImpl('/data/investments/weekly/' + weekId + '.json?v=' + Date.now(), { cache: 'no-store' });
-      if (!response || !response.ok) throw new Error('weekly position request failed');
-      var data = await response.json();
-      var top = selectTopPosition(data && data.instruments);
-      if (!top) return false;
-      return render(document, top, lang);
+      weeklyData = await fetchJson(fetchImpl, '/data/investments/weekly/' + weekId + '.json');
     } catch (error) {
-      logger.warn('BriefRooms weekly top-position shortcut unavailable.', error);
+      logger.warn('BriefRooms weekly market signal unavailable.', error);
+    }
+
+    var top = selectTopPosition(weeklyData && weeklyData.instruments);
+    if (top) return render(document, weeklySignal(top), lang);
+
+    try {
+      var dailyData = await fetchJson(fetchImpl, cfg.dailyUrl);
+      var daily = dailySignal(dailyData, lang);
+      if (!daily) return false;
+      return render(document, daily, lang);
+    } catch (error) {
+      logger.warn('BriefRooms daily market signal unavailable.', error);
       return false;
     }
   }
 
   return {
+    chooseSignal: chooseSignal,
     conviction: conviction,
+    dailySignal: dailySignal,
+    formatEntry: formatEntry,
     formatPrice: formatPrice,
     isoWeekId: isoWeekId,
     load: load,
     render: render,
     selectTopPosition: selectTopPosition,
     validPosition: validPosition,
-    warsawDateParts: warsawDateParts
+    warsawDateParts: warsawDateParts,
+    weeklySignal: weeklySignal
   };
 });
