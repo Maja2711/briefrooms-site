@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Fast GPW-native history provider chain for GPW Daily v2.
+"""Fast audited history provider chain for GPW Daily v2.
 
-Stooq is queried first because it is GPW-native. Yahoo remains an independent
-fallback. Diagnostics retain provider, timing and error details instead of
-silently dropping symbols.
+Yahoo is queried first because the 2026-08-19 live audit proved it returns
+fresh GPW history quickly while the current Stooq history endpoint/parser
+returns zero valid rows. Stooq remains an independent fallback. Diagnostics
+retain timing and error details instead of silently dropping symbols.
 """
 from __future__ import annotations
 
@@ -29,19 +30,19 @@ def fetch_bars(symbol: str, *, range_value: str = "6mo") -> list[gpw.Bar]:
     failures: list[str] = []
     started = time.monotonic()
     try:
-        bars = market.fetch_stooq_daily_bars(symbol, range_value=range_value)
-        if bars:
-            return bars
-        failures.append("Stooq:empty")
-    except Exception as exc:
-        failures.append("Stooq:" + _compact(exc))
-    try:
         bars = market._ORIGINAL_YAHOO_FETCHER(symbol, range_value=range_value)
         if bars:
             return bars
         failures.append("Yahoo:empty")
     except Exception as exc:
         failures.append("Yahoo:" + _compact(exc))
+    try:
+        bars = market.fetch_stooq_daily_bars(symbol, range_value=range_value)
+        if bars:
+            return bars
+        failures.append("Stooq:empty")
+    except Exception as exc:
+        failures.append("Stooq:" + _compact(exc))
     elapsed = time.monotonic() - started
     raise gpw.PublicationError(
         f"Brak historii {symbol} po {elapsed:.1f}s ({' | '.join(failures)})"
@@ -85,6 +86,6 @@ def prefetch_market(config: dict[str, Any]) -> dict[str, list[gpw.Bar]]:
         },
         "timing_seconds": timing,
         "failures": failures,
-        "provider_order": ["Stooq", "Yahoo"],
+        "provider_order": ["Yahoo", "Stooq"],
     }
     return result
