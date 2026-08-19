@@ -1,0 +1,100 @@
+name: One-shot GPW v2 market stage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-gpw-v2-market-stage.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Audit all data and quant ranking
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from scripts import gpw_daily_pick as gpw
+          from scripts import gpw_provider_v2 as provider
+
+          now=datetime.now(ZoneInfo('Europe/Warsaw'))
+          cfg=gpw.load_config()
+          expected=gpw.previous_session(now.date(),cfg)
+          cache=provider.prefetch_market(cfg)
+          candidates=[]
+          screened={}
+          stale={}
+          history=gpw.all_history()
+          for company in cfg['universe']:
+              symbol=company['symbol']
+              bars=cache.get(symbol) or []
+              completed=[bar for bar in bars if bar.day <= expected]
+              if not completed or completed[-1].day != expected:
+                  stale[symbol]=completed[-1].day.isoformat() if completed else None
+                  continue
+              candidate=gpw.build_quant_candidate(company,completed,expected,cfg,history)
+              if candidate is None:
+                  screened[symbol]='liquidity_atr_or_risk'
+              else:
+                  candidates.append(candidate)
+          if candidates:
+              gpw.normalize_cross_section(candidates)
+          ranked=sorted(candidates,key=lambda x:x['quant_pre_score'],reverse=True)
+          out={
+              'generated_at':now.isoformat(timespec='seconds'),
+              'expected_completed_session':expected.isoformat(),
+              'universe_size':len(cfg['universe']),
+              'market_data_received':len(cache),
+              'market_complete_ratio':round(len(cache)/len(cfg['universe']),4),
+              'provider_audit':provider.LAST_AUDIT,
+              'stale_or_missing_completed_session':stale,
+              'screened_out':screened,
+              'candidate_count':len(ranked),
+              'top_candidates':[
+                  {
+                      'symbol':r['symbol'],'name':r['name'],'sector':r['sector'],
+                      'quant_pre_score':r['quant_pre_score'],'reference_price_closed_session':r['reference_price'],
+                      'returns':r['returns'],'volume_ratio':r['volume_ratio'],
+                      'reward_risk':r['reward_risk'],'scores':r['scores']
+                  }
+                  for r in ranked[:10]
+              ],
+          }
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          Path('data/internal/gpw_v2_market_audit_2026-08-19.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          assert len(cache) >= 32, out
+          assert len(ranked) >= 1, out
+          PY
+      - name: Commit audit and self-remove
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/one-shot-gpw-v2-market-stage.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/internal/gpw_v2_market_audit_2026-08-19.json .github/workflows/one-shot-gpw-v2-market-stage.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Audit GPW v2 market and quant stage"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
