@@ -1,0 +1,64 @@
+name: WES V5 Counterfactual Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_counterfactual.py"
+      - "scripts/investments_wes_spx_brace_bridge.py"
+      - ".github/workflows/investments-wes.yml"
+      - ".github/workflows/wes-counterfactual-validation.yml"
+      - "docs/WES_COUNTERFACTUAL_INCREMENTAL_ALPHA.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-counterfactual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pandas numpy yfinance
+      - name: Compile and run counterfactual tests
+        run: |
+          python -m py_compile \
+            scripts/investments_wes_counterfactual.py \
+            scripts/investments_wes_spx_brace_bridge.py
+          python -m unittest \
+            tests/test_investments_wes_counterfactual.py \
+            tests/test_investments_wes_spx_brace_bridge.py
+      - name: Exercise prospective-only freeze on current repository ledger
+        run: |
+          cp data/investments/wes_spx_brace_bridge.json /tmp/wes_spx_bridge_before.json
+          python scripts/investments_wes_counterfactual.py --stage freeze
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          before = json.loads(Path('/tmp/wes_spx_bridge_before.json').read_text())
+          after = json.loads(Path('data/investments/wes_spx_brace_bridge.json').read_text())
+          report = json.loads(Path('data/investments/wes_incremental_alpha_report.json').read_text())
+          alpha = json.loads(Path('data/investments/wes_spx_brace_alpha_report.json').read_text())
+
+          assert after['active_decision_influence'] is False
+          assert report['active_decision_influence'] is False
+          assert report['bounded_influence_enabled'] is False
+          assert report['historical_backfill_allowed'] is False
+          assert alpha['active_decision_influence'] is False
+          assert alpha['bounded_influence_enabled'] is False
+
+          before_rows = {r['decision_id']: r for r in before.get('records', [])}
+          after_rows = {r['decision_id']: r for r in after.get('records', [])}
+          for decision_id, old in before_rows.items():
+              if old.get('v5_counterfactual') is None:
+                  assert after_rows[decision_id].get('v5_counterfactual') is None, decision_id
+
+          print('resolved_pairs=', report['overall']['resolved_pairs'])
+          print('sample_status=', report['sample']['status'])
+          print('historical_backfill_allowed=', report['historical_backfill_allowed'])
+          PY
