@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from datetime import time as clock_time
 from typing import Any
 
@@ -10,19 +11,34 @@ try:
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_event_layer as events
     from scripts import gpw_market_data as market
+    from scripts import gpw_pipeline_v2 as pipeline
+    from scripts import gpw_provider_v2 as provider
 except ModuleNotFoundError:
     import gpw_daily_control_loop as loop
     import gpw_daily_pick as gpw
     import gpw_event_layer as events
     import gpw_market_data as market
+    import gpw_pipeline_v2 as pipeline
+    import gpw_provider_v2 as provider
 
-_ORIGINAL_GENERATE = gpw.generate
+_ORIGINAL_GENERATE = pipeline.generate
 _ORIGINAL_GEMINI_ANALYSIS = gpw.gemini_analysis
 _ORIGINAL_BUILD_LEARNING_SNAPSHOT = loop.build_learning_snapshot
 _ORIGINAL_PUBLIC_LEARNING = loop._public_learning
 _ORIGINAL_ENRICH_PAYLOAD = loop._enrich_payload
+_ORIGINAL_BUILD_QUANT_CANDIDATE = gpw.build_quant_candidate
 _INSTALLED = False
 _EVENT_CONTEXT_BY_SYMBOL: dict[str, dict[str, Any]] = {}
+
+
+def _completed_session_candidate(company, bars, expected_day, config, history):
+    """Never rank on today's unfinished Yahoo daily candle."""
+    completed = [bar for bar in (bars or []) if bar.day <= expected_day]
+    if not completed or completed[-1].day != expected_day:
+        return None
+    return _ORIGINAL_BUILD_QUANT_CANDIDATE(
+        company, completed, expected_day, config, history
+    )
 
 
 def _event_aware_analysis(candidates: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -52,8 +68,6 @@ def _event_generate(**kwargs):
     now = forwarded.get("now") or gpw.now_warsaw()
     if payload.get("decision") == "TRANSAKCJA":
         payload = market.reprice_transaction(payload, now=now)
-    if payload.get("decision") == "AWARIA_DANYCH" and "08:30" in str(payload.get("reason") or ""):
-        payload["reason"] = str(payload["reason"]).replace("08:30", "09:10")
     return payload
 
 
@@ -123,9 +137,10 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
     }
     enriched["methodology"]["market_data"] = {
         "historical_provider_order": ["Yahoo", "Stooq"],
+        "historical_ranking_session": "ostatnia zakończona sesja GPW",
         "opening_quote_providers": ["Yahoo", "Stooq"],
         "opening_quote_not_before": "09:05 Europe/Warsaw",
-        "publication_cutoff": "09:10 Europe/Warsaw",
+        "publication_cutoff": f"{enriched.get('publication_cutoff', '09:10')} Europe/Warsaw",
         "crosscheck_max_deviation": market.MAX_OPENING_CROSSCHECK_DEVIATION,
     }
     enriched.setdefault("learning", {})["event_expectancy"] = copy.deepcopy(snapshot.get("event_expectancy") or [])
@@ -144,9 +159,11 @@ def _enrich_payload(payload: dict[str, Any], snapshot: dict[str, Any], *, attemp
 
 
 def _publish_current_failure(now, config, snapshot, stage):
+    cutoff = pipeline.cutoff_for(now.date(), config).strftime("%H:%M")
     payload = gpw.failure_payload(now, config, "Brak dzisiaj wyboru.", stage)
+    payload["publication_cutoff"] = cutoff
     payload["reason"] = (
-        f"Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed {config['publication_cutoff']}."
+        f"Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed {cutoff}."
     )
     payload["locked"] = True
     payload = loop._enrich_payload(payload, snapshot, attempts=0)
@@ -158,12 +175,17 @@ def install() -> None:
     global _INSTALLED
     if _INSTALLED:
         return
-    # Research/ranking starts only after the continuous session is open long
-    # enough to obtain a first executable market snapshot.  The 09:10 cutoff
-    # keeps the decision short-horizon while avoiding a stale previous-close
-    # entry zone.
+    # User-approved recovery window applies only to 2026-08-19. It is inert on
+    # every subsequent date and does not change the normal 09:10 policy.
+    if gpw.now_warsaw().date().isoformat() == "2026-08-19":
+        os.environ.setdefault("GPW_RECOVERY_DATE", "2026-08-19")
+        os.environ.setdefault("GPW_RECOVERY_CUTOFF", "12:30")
+
     loop.EARLIEST_GENERATION = clock_time(9, 5)
-    gpw.fetch_yahoo_bars = market.fetch_resilient_bars
+    gpw.cutoff_for = pipeline.cutoff_for
+    gpw.build_quant_candidate = _completed_session_candidate
+    gpw.fetch_yahoo_bars = provider.fetch_bars
+    loop.prefetch_market = provider.prefetch_market
     gpw.generate = _event_generate
     gpw.gemini_analysis = _event_aware_analysis
     loop.build_learning_snapshot = _build_learning_snapshot
