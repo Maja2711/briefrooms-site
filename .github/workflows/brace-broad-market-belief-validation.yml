@@ -1,0 +1,43 @@
+name: BRACE Broad-Market Belief Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-broad-market-belief.yml"
+      - ".github/workflows/brace-broad-market-belief-validation.yml"
+      - "scripts/brace_broad_market_belief.py"
+      - "tests/test_brace_broad_market_belief.py"
+      - "docs/BRACE_BROAD_MARKET_BELIEF.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test PR10 broad-market layer
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_broad_market_belief.py
+          PYTHONPATH=scripts python -m unittest tests.test_brace_broad_market_belief -v
+      - name: Assert company/entity layer remains disabled
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          from brace_broad_market_belief import BROAD_MARKET_BELIEFS, safety_controls
+          ids=[x.belief_id for x in BROAD_MARKET_BELIEFS]
+          assert ids == [
+              'market.rates.supportive',
+              'market.liquidity.supportive',
+              'market.macro_regime.supportive',
+              'market.risk_regime.supportive',
+          ]
+          controls=safety_controls()
+          assert all(v is False for v in controls.values())
+          assert controls['company_entity_beliefs_enabled'] is False
+          print('PR10 hierarchy + safety contract: PASS')
+          PY
