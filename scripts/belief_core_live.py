@@ -294,6 +294,11 @@ def append_world_state(state_dir: Path, core: BeliefCore, when: datetime, regime
 def _belief_ids_for_consumer(core: BeliefCore, consumer: str) -> List[str]:
     if consumer == "WES":
         return sorted(belief_id for belief_id, definition in core.definitions.items() if "WES" in definition.tags)
+    if consumer == "WES-ASSET-SHADOW":
+        return sorted(
+            belief_id for belief_id, definition in core.definitions.items()
+            if "WES" in definition.tags and (belief_id.startswith("eurusd.") or belief_id.startswith("btc."))
+        )
     if consumer == "BRACE+BRACE-SPX":
         return sorted(
             belief_id for belief_id, definition in core.definitions.items()
@@ -367,7 +372,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     completed = scheduler.setdefault("completed_slots", {})
     local = now.astimezone(NY)
     snapshot: Optional[MarketSnapshot] = None
-    evidence_count = observation_count = world_count = forecast_count = wes_count = 0
+    evidence_count = observation_count = world_count = forecast_count = wes_count = wes_asset_count = 0
     adapter_counts: Dict[str, Dict[str, int]] = {}
 
     if in_market_window(local):
@@ -392,12 +397,18 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 world_count = 1
 
             for planned in FORECAST_SLOTS:
+                target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
                 key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                 if due_planned_slot(local, planned, key in completed):
                     core.recompute(now)
-                    target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
                     forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime)
                     completed[key] = iso_z(now)
+
+                asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
+                if due_planned_slot(local, planned, asset_key in completed):
+                    core.recompute(now)
+                    wes_asset_count += freeze_set(core, snapshot, now, target, "WES-ASSET-SHADOW", asset_key, regime)
+                    completed[asset_key] = iso_z(now)
 
             wes_key = f"wes:{local.date().isoformat()}:1600"
             if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
@@ -416,6 +427,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "adapter_counts": adapter_counts,
         "world_state_snapshots": world_count,
         "shared_forecasts_frozen": forecast_count,
+        "wes_asset_forecasts_frozen": wes_asset_count,
         "wes_forecasts_frozen": wes_count,
         "forecasts_verified": verified,
         "wes_asset_coverage": wes_asset_coverage_report(),
