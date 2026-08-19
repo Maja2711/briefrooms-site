@@ -8,17 +8,23 @@ on:
     branches: [main]
     paths:
       - "scripts/portfolio_10k_hourly_prices.py"
+      - "scripts/portfolio_10k_cash_yield.py"
+      - "scripts/portfolio_10k_cash_yield_backfill.py"
       - "scripts/portfolio_10k_guardian.py"
       - "scripts/portfolio_10k_hard_gate.py"
+      - "scripts/portfolio_10k_ledger_parity_gate.py"
       - "scripts/reconcile_portfolio_10k_executions.py"
       - "scripts/portfolio_10k_execution_ledger.py"
       - "scripts/sync_portfolio_10k_from_transaction_ledger.py"
+      - "scripts/sync_portfolio_10k_paper_mtm.py"
       - "scripts/build_portfolio_10k_usd.py"
       - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/render_portfolio_10k_static.py"
       - "scripts/validate_portfolio_10k_state.py"
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
+      - "tests/test_portfolio_10k_cash_yield.py"
+      - "tests/test_portfolio_10k_accounting_hardening.py"
       - "tests/test_portfolio_10k_guardian.py"
       - "tests/test_portfolio_10k_execution_persistence.py"
       - "tests/test_validate_portfolio_10k_state.py"
@@ -55,7 +61,10 @@ jobs:
           python scripts/sync_portfolio_10k_from_transaction_ledger.py
           python scripts/reconcile_portfolio_10k_executions.py
 
-      - name: Mark portfolio to market
+      - name: Apply audited pre-activation cash-yield correction once
+        run: python scripts/portfolio_10k_cash_yield_backfill.py
+
+      - name: Mark portfolio to market and accrue current cash yield
         run: python scripts/portfolio_10k_hourly_prices.py
 
       - name: Build independent USD portfolio
@@ -65,6 +74,9 @@ jobs:
 
       - name: Run portfolio guardian and cash-deployment gate
         run: python scripts/portfolio_10k_guardian.py
+
+      - name: Sync fresh public MTM into BRACE paper ledger before sizing
+        run: python scripts/sync_portfolio_10k_paper_mtm.py
 
       - name: Attempt only authorised paper orders
         run: |
@@ -84,13 +96,20 @@ jobs:
         run: |
           python -m py_compile \
             scripts/portfolio_10k_hourly_prices.py \
+            scripts/portfolio_10k_cash_yield.py \
+            scripts/portfolio_10k_cash_yield_backfill.py \
             scripts/portfolio_10k_guardian.py \
             scripts/portfolio_10k_hard_gate.py \
+            scripts/portfolio_10k_ledger_parity_gate.py \
             scripts/reconcile_portfolio_10k_executions.py \
             scripts/portfolio_10k_execution_ledger.py \
-            scripts/sync_portfolio_10k_from_transaction_ledger.py
+            scripts/sync_portfolio_10k_from_transaction_ledger.py \
+            scripts/sync_portfolio_10k_paper_mtm.py
+          python -m unittest tests.test_portfolio_10k_cash_yield -v
+          python -m unittest tests.test_portfolio_10k_accounting_hardening -v
           python -m unittest tests.test_portfolio_10k_execution_persistence -v
           python scripts/portfolio_10k_hard_gate.py
+          python scripts/portfolio_10k_ledger_parity_gate.py
 
       - name: Verify public holdings equal durable paper ledger
         run: |
@@ -141,6 +160,7 @@ jobs:
           python -m unittest tests.test_portfolio_10k_guardian -v
           python -m unittest tests.test_brace_portfolio_reconciliation -v
           python -m unittest tests.test_portfolio_10k_execution_persistence -v
+          python -m unittest tests.test_portfolio_10k_accounting_hardening -v
           python scripts/validate_portfolio_10k_state.py
 
   refresh-public-snapshots:
@@ -216,4 +236,4 @@ jobs:
           done
           exit 1
 
-# trigger: durable transaction-ledger portfolio sync 2026-08-19
+# trigger: harden MTM sizing, cash yield backfill and ledger parity 2026-08-19
