@@ -1,0 +1,52 @@
+name: Belief WES Asset Coverage Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/belief-wes-assets-validation.yml"
+      - ".github/workflows/belief-core-shadow-live.yml"
+      - "scripts/belief_core_live.py"
+      - "scripts/belief_market_data_adapter.py"
+      - "scripts/belief_wes_assets_adapter.py"
+      - "tests/test_belief_wes_assets.py"
+      - "docs/BELIEF_WES_ASSET_COVERAGE.md"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile coverage foundation
+        run: |
+          PYTHONPATH=scripts python -m py_compile \
+            scripts/belief_market_data_adapter.py \
+            scripts/belief_wes_assets_adapter.py \
+            scripts/belief_core_live.py
+      - name: Run EURUSD BTC coverage tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_belief_wes_assets -v
+      - name: Run full Belief Core regression suite
+        run: |
+          PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+          PYTHONPATH=scripts python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
+      - name: Assert scope and shadow safety
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import belief_core_live as live
+          import belief_wes_assets_adapter as assets
+          assert live.MODE == 'shadow'
+          assert live.TRADE_EXECUTION_ENABLED is False
+          assert live.POLICY_OUTPUT_ENABLED is False
+          assert live.AUTOMATIC_TUNING_ENABLED is False
+          report=assets.coverage_report()
+          assert report['decision_influence'] is False
+          assert report['eurusd']['rate_differential_claimed'] is False
+          assert report['btc']['on_chain_claimed'] is False
+          assert len(assets.WES_ASSET_BELIEF_IDS) == 7
+          print('EURUSD/BTC coverage scope and shadow safety: PASS')
+          PY
