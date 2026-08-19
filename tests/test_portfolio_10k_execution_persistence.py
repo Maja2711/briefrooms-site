@@ -9,7 +9,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from portfolio_10k_execution_ledger import authoritative_executions
-from reconcile_portfolio_10k_executions import reconcile
+from sync_portfolio_10k_from_transaction_ledger import sync
 
 
 def _spgi() -> dict:
@@ -108,14 +108,19 @@ def _paper() -> dict:
     }
 
 
-def _public() -> dict:
-    return {
+def _public(*, false_applied_marker: bool = False) -> dict:
+    payload = {
         "starting_capital_pln": 10000.0,
         "cash_pln": 1423.91,
         "base_cash_pln": 1423.91,
         "positions": [_spgi()],
         "closed_positions": [],
     }
+    if false_applied_marker:
+        payload["execution_reconciliation"] = {
+            "applied_order_ids": ["paper-order-rotation-spgi-jpm"]
+        }
+    return payload
 
 
 def test_transaction_history_reconstructs_replace_when_mutable_queue_lost_execution():
@@ -138,26 +143,29 @@ def test_transaction_history_reconstructs_replace_when_mutable_queue_lost_execut
     assert rotation["execution_authority"] == "paper_portfolio.transactions"
 
 
-def test_reconciliation_uses_transaction_history_to_replace_public_holding():
+def test_transaction_ledger_sync_replaces_public_holding_without_historical_queue():
     public = _public()
     paper = _paper()
-    queue = {"orders": []}
 
-    result = reconcile(public, paper, queue)
+    result = sync(public, paper)
 
     ids = {position["id"] for position in public["positions"]}
-    assert result["newly_applied_orders"] == 1
     assert ids == {"jpm"}
-    assert "spgi" not in ids
-    assert "jpm" in ids
     assert {position["id"] for position in public["closed_positions"]} == {"spgi"}
     assert "paper-order-rotation-spgi-jpm" in public["execution_reconciliation"]["applied_order_ids"]
+    assert public["execution_reconciliation"]["execution_authority"] == "paper_portfolio.transactions"
+    assert result["authority"] == "paper_portfolio.transactions"
+    jpm = public["positions"][0]
+    assert round(float(jpm["target_weight"]), 6) == 0.072855
 
 
-def test_missing_target_weight_can_be_derived_from_executed_entry_value():
-    from build_portfolio_10k_usd import source_allocation_weight
+def test_false_applied_marker_is_repaired_when_holdings_do_not_match_execution():
+    public = _public(false_applied_marker=True)
+    paper = _paper()
 
-    paper_position = _jpm()
-    assert "target_weight" not in paper_position
-    weight = source_allocation_weight(paper_position, {"starting_capital_pln": 10000.0})
-    assert round(weight, 6) == 0.072855
+    result = sync(public, paper)
+
+    ids = {position["id"] for position in public["positions"]}
+    assert ids == {"jpm"}
+    assert result["false_applied_markers_cleared"] == ["paper-order-rotation-spgi-jpm"]
+    assert public["execution_reconciliation"]["false_applied_markers_cleared"] == ["paper-order-rotation-spgi-jpm"]
