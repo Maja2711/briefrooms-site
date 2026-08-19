@@ -1,0 +1,114 @@
+{
+  "schema_version": "wes-spx-brace-readonly-v1",
+  "active_decision_influence": false,
+  "governance": {
+    "read_only_bridge": true,
+    "wes_decisions_modified": false,
+    "brace_spx_research_modified": false,
+    "bounded_influence_enabled": false,
+    "sealed_holdout_must_remain_unaccessed": true,
+    "point_in_time_required_for_alpha": true
+  },
+  "records": [
+    {
+      "decision_id": "wes-spx-fa799c3f2e804e023a84",
+      "week_id": "2026-W34",
+      "instrument_id": "sp500_futures",
+      "decision_type": "entered_position",
+      "decision_at": "2026-08-17T09:05:00+02:00",
+      "first_captured_at": "2026-08-19T11:47:48+00:00",
+      "last_updated_at": "2026-08-19T11:47:49+00:00",
+      "active_decision_influence": false,
+      "point_in_time": {
+        "eligible": false,
+        "reason": "brace_state_created_after_wes_decision",
+        "age_hours": 38.783
+      },
+      "brace_spx": {
+        "available": false,
+        "stance": "unavailable",
+        "confidence": 0.0,
+        "reason": "brace_spx_warmup_no_opinion",
+        "source": {
+          "generation_id": "spx-orthogonal-core-v6",
+          "candidate_signature": "671ef03a8e1a58ead80388072be6f701177222a96d60db27c7004b6fe7572638",
+          "updated_at": "2026-08-18T21:51:58+00:00",
+          "latest_market_date": "2026-08-18",
+          "status": "warming_up",
+          "observations_collected": 12,
+          "warmup_required": 70,
+          "holdout_accessed": false,
+          "live_orders": false,
+          "autonomous_trading": false
+        },
+        "family_scores": null,
+        "candidate_consensus": null
+      },
+      "relationship": {
+        "class": "UNAVAILABLE",
+        "strength": 0.0,
+        "alpha_eligible": false,
+        "reason": "brace_state_created_after_wes_decision"
+      },
+      "counterfactual_overlay": {
+        "decision_without_brace_spx": "long",
+        "decision_with_brace_spx": "not_computed_until_calibration",
+        "hypothetical_role": "no_opinion",
+        "bounded_modifier_applied": false
+      },
+      "v5_counterfactual": null,
+      "wes_actual": {
+        "active_decision": true,
+        "brace_spx_influence": false,
+        "direction": "long",
+        "strategy_id": "weekly_trend",
+        "raw_score": 88.0,
+        "entry_class": "monday_weekly",
+        "entry_price": 7819.75,
+        "entry_captured_at": "2026-08-17T09:05:00+02:00",
+        "risk_plan": {
+          "model_version": "WES-1.0.0",
+          "generated_at": "2026-08-17T18:49:56+02:00",
+          "direction": "long",
+          "stop_loss_price": 7736.68283513,
+          "take_profit_price": 8031.81221079,
+          "stop_loss_distance": 83.06716487,
+          "take_profit_distance": 212.06221079,
+          "reward_to_risk": 2.5529,
+          "same_bar_rule": "stop_loss_first_conservative",
+          "wes_entry_class": "monday_weekly",
+          "objective": "maximize_net_expectancy_not_trade_frequency",
+          "scheduled_exit": "2026-08-21T22:00:00+02:00",
+          "adaptive_inputs": {
+            "time_factor": 0.9495,
+            "conviction_factor": 0.88,
+            "tp_multiplier": 1.2491,
+            "sl_multiplier": 0.8007,
+            "target_min_rr": 1.2,
+            "learning_count": 0,
+            "learning_mean_net_percent": null,
+            "learning_win_rate": null
+          },
+          "friday_tactical_low_tp": false
+        }
+      },
+      "outcome": {
+        "status": "wes_observed_v5_counterfactual_pending",
+        "closed_at": "2026-08-18T05:35:00+00:00",
+        "exit_reason": "stop_loss",
+        "wes_net_result_percent": -1.075088,
+        "v5_counterfactual_net_result_percent": null,
+        "incremental_wes_vs_v5_percent": null
+      },
+      "v5_counterfactual_capture": {
+        "eligible": false,
+        "status": "missed_not_reconstructed",
+        "reason": "pre_wes_capture_window_missed",
+        "decision_to_capture_delay_minutes": 3162.81
+      },
+      "post_wes_frozen_at": "2026-08-19T11:47:49+00:00"
+    }
+  ],
+  "updated_at": "2026-08-19T11:47:49+00:00",
+  "content_sha256": "7cd8496d0c5efcd20788cb593c22fdba22684d269b1cd6ea113c6e001255e756"
+}
