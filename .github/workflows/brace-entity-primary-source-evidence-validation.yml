@@ -1,0 +1,56 @@
+name: BRACE Entity Primary-Source Evidence Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-entity-primary-source-evidence.yml"
+      - ".github/workflows/brace-entity-primary-source-evidence-validation.yml"
+      - "scripts/brace_entity_primary_source_evidence.py"
+      - "tests/test_brace_entity_primary_source_evidence.py"
+      - "docs/BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR13 primary-source layer
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_entity_primary_source_evidence.py
+          PYTHONPATH=. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+
+      - name: Assert PR13 governance boundary against current repository state
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json
+          from brace_company_entity_framework import DEFAULT_ANALYSIS, DEFAULT_PORTFOLIO, DEFAULT_UNIVERSE, desired_entities
+          from brace_entity_primary_source_evidence import capabilities, safety_controls, promotion_evidence_standard
+
+          portfolio=json.loads(DEFAULT_PORTFOLIO.read_text())
+          analysis=json.loads(DEFAULT_ANALYSIS.read_text())
+          universe=json.loads(DEFAULT_UNIVERSE.read_text())
+          active=desired_entities(portfolio, analysis, universe)
+          assert active
+          assert all(str(row.get('asset_type','')).lower() in {'stock','equity','common_stock','common stock'} for row in active.values())
+          assert all(v is False for v in safety_controls().values())
+          caps=capabilities()
+          assert caps['primary_source_collection_enabled'] is True
+          assert caps['sec_edgar_submissions_enabled'] is True
+          assert caps['sec_xbrl_companyfacts_enabled'] is True
+          assert caps['belief_evidence_interpretation_enabled'] is False
+          assert caps['entity_forecast_capture_enabled'] is False
+          assert caps['with_without_bridge_enabled'] is False
+          gate=promotion_evidence_standard()
+          assert gate['with_without_required'] is True
+          assert gate['automatic_promotion'] is False
+          print('PR13 governance + current-entity integration contract: PASS')
+          print('Current active entity count:', len(active))
+          PY
