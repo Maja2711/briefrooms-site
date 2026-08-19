@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -18,9 +19,13 @@ from scripts.belief_core_live import (
     outcome_spec,
 )
 from scripts.belief_market_data_adapter import (
-    BTC_SYMBOL if False else Bar,  # keep import line explicit without hidden aliases
+    Bar,
+    CORE_SYMBOLS,
+    DEFAULT_SYMBOLS,
+    MarketDataAdapter,
+    MarketSnapshot,
+    OPTIONAL_WES_ASSET_SYMBOLS,
 )
-from scripts.belief_market_data_adapter import CORE_SYMBOLS, DEFAULT_SYMBOLS, MarketDataAdapter, MarketSnapshot, OPTIONAL_WES_ASSET_SYMBOLS
 from scripts.belief_wes_assets_adapter import (
     BTC_SYMBOL,
     EURUSD_SYMBOL,
@@ -165,11 +170,12 @@ class ConsumerIsolationTests(unittest.TestCase):
             core = BeliefCore(Path(tmp))
             core.register_beliefs(BELIEFS)
             core.ingest(WESAssetEvidenceAdapter().run(snapshot).evidence)
-            core.recompute(datetime(2026, 8, 21, 16, 7, tzinfo=NY))
+            when = datetime(2026, 8, 21, 16, 7, tzinfo=NY)
+            core.recompute(when)
             count = freeze_set(
                 core,
                 snapshot,
-                datetime(2026, 8, 21, 16, 7, tzinfo=NY),
+                when,
                 datetime(2026, 8, 28, 16, 0, tzinfo=NY),
                 "WES",
                 "wes:2026-08-21:1600",
@@ -180,7 +186,26 @@ class ConsumerIsolationTests(unittest.TestCase):
             btc = next(x for x in core.forecasts.values() if x.belief_id == "btc.trend.bullish")
             self.assertEqual(eur.metadata["market_symbol"], EURUSD_SYMBOL)
             self.assertEqual(btc.metadata["market_symbol"], BTC_SYMBOL)
-            self.assertEqual(eur.metadata["market_observed_at"], snapshot.observed_at(EURUSD_SYMBOL).astimezone(UTC).isoformat().replace("+00:00", "Z"))
+            expected = snapshot.observed_at(EURUSD_SYMBOL).astimezone(UTC).isoformat().replace("+00:00", "Z")
+            self.assertEqual(eur.metadata["market_observed_at"], expected)
+
+    def test_brace_freeze_remains_exactly_five_spx_forecasts(self):
+        snapshot = make_snapshot(datetime(2026, 8, 20, 10, 7, tzinfo=NY))
+        with tempfile.TemporaryDirectory() as tmp:
+            core = BeliefCore(Path(tmp))
+            core.register_beliefs(BELIEFS)
+            core.recompute(datetime(2026, 8, 20, 10, 7, tzinfo=NY))
+            count = freeze_set(
+                core,
+                snapshot,
+                datetime(2026, 8, 20, 10, 7, tzinfo=NY),
+                datetime(2026, 8, 20, 16, 0, tzinfo=NY),
+                "BRACE+BRACE-SPX",
+                "shared:2026-08-20:1000",
+                "neutral",
+            )
+            self.assertEqual(count, 5)
+            self.assertTrue(all(x.belief_id.startswith("spx.") for x in core.forecasts.values()))
 
     def test_safety_flags_remain_off(self):
         self.assertFalse(TRADE_EXECUTION_ENABLED)
