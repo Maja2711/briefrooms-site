@@ -5,7 +5,7 @@
 - **Challenger:** brace-portfolio-engine 3.0.0 (FALLBACK_BASELINE)
 - **Postep awansu:** 0/0 (0.0%)
 - **Warunki pozostale do awansu:** none
-- **Stan ryzyka:** WITHIN_LIMITS / safe mode: True
+- **Stan ryzyka:** WITHIN_LIMITS / safe mode: False
 - **Cel 10% rocznie:** TARGET_NOT_CURRENTLY_JUSTIFIED
 - **Decyzje oczekujace:** 2
 

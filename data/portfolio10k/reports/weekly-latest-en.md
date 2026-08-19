@@ -5,7 +5,7 @@
 - **Challenger:** brace-portfolio-engine 3.0.0 (FALLBACK_BASELINE)
 - **Promotion progress:** 0/0 (0.0%)
 - **Remaining promotion gates:** none
-- **Risk state:** WITHIN_LIMITS / safe mode: True
+- **Risk state:** WITHIN_LIMITS / safe mode: False
 - **10% annual target:** TARGET_NOT_CURRENTLY_JUSTIFIED
 - **Pending decisions:** 2
 
