@@ -9,9 +9,6 @@ on:
       - "scripts/install_home_market_signal_bar.py"
       - "tests/test_home_weekly_top_position.js"
       - ".github/workflows/home-market-signal-bar.yml"
-      - "data/investments/gpw_daily_pick.json"
-      - "data/investments/us_daily_stock.json"
-      - "data/investments/weekly/**"
 
 permissions:
   contents: write
@@ -89,17 +86,21 @@ jobs:
           done
           exit 1
 
-      - name: Verify production homepages and live signal feeds
+      - name: Verify production homepages, client and live feeds
         run: |
           python - <<'PY'
           import json,time,urllib.request
-          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/1.1','Cache-Control':'no-cache'}
+          from datetime import datetime, timezone
+          from pathlib import Path
+          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/1.2','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
           feeds={
             'gpw':'https://briefrooms.com/data/investments/gpw_daily_pick.json',
             'us':'https://briefrooms.com/data/investments/us_daily_stock.json',
           }
+          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=3'
           last={}
+          success=False
           for attempt in range(1,31):
             ok=True
             token=f'{int(time.time())}-{attempt}'
@@ -114,20 +115,57 @@ jobs:
               except Exception as exc:
                 last[lang]={'error':f'{type(exc).__name__}: {exc}'}
                 ok=False
+            try:
+              req=urllib.request.Request(client+'&verify='+token,headers=headers)
+              with urllib.request.urlopen(req,timeout=20) as r:
+                script=r.read().decode('utf-8',errors='replace')
+              client_ok=('home-market-signal' in script and "['us', 'gpw']" in script and "['gpw', 'us']" in script and "RESOLVED" in script)
+              last['client']={'served':client_ok,'version':3}
+              ok = ok and client_ok
+            except Exception as exc:
+              last['client']={'error':f'{type(exc).__name__}: {exc}'}
+              ok=False
             for market,url in feeds.items():
               try:
                 req=urllib.request.Request(url+f'?v={token}',headers=headers)
                 with urllib.request.urlopen(req,timeout=20) as r:
                   feed=json.load(r)
                 feed_ok=isinstance(feed,dict) and bool(feed.get('decision'))
-                last[market]={'feed':feed_ok,'decision':feed.get('decision'),'date':feed.get('date')}
+                last[market]={'feed':feed_ok,'decision':feed.get('decision'),'date':feed.get('date'),'outcome_status':(feed.get('outcome') or {}).get('status'),'ticker':(feed.get('selection') or {}).get('ticker')}
                 ok = ok and feed_ok
               except Exception as exc:
                 last[market]={'error':f'{type(exc).__name__}: {exc}'}
                 ok=False
             if ok:
-              print('HOME_MARKET_SIGNAL_PRODUCTION_OK',json.dumps(last,ensure_ascii=False))
-              raise SystemExit(0)
+              success=True
+              break
             time.sleep(10)
-          raise SystemExit('Homepage market signal production verification failed: '+json.dumps(last,ensure_ascii=False))
+          receipt={
+            'schema_version':'home-market-signal-production-v1',
+            'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            'status':'passed' if success else 'failed',
+            'asset_version':3,
+            'priority':['open_weekly','locale_daily','other_market_daily'],
+            'resolved_daily_hidden':True,
+            'checks':last,
+          }
+          Path('data/home_market_signal_production_status.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt,ensure_ascii=False,indent=2))
+          if not success:
+            raise SystemExit('Homepage market signal production verification failed')
           PY
+
+      - name: Commit production verification receipt
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/home_market_signal_production_status.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore(home): verify market signal bar production"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
