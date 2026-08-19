@@ -1,0 +1,186 @@
+name: Belief Calibration Foundation
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Belief Core Live Shadow Collection"
+      - "Belief Core News Macro Shadow Collection"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/belief_calibration_foundation.py"
+      - "scripts/belief_data_quality_adapter.py"
+      - "scripts/belief_calibration.py"
+      - "tests/test_belief_core_calibration_foundation.py"
+      - "docs/BELIEF_CALIBRATION_FOUNDATION.md"
+      - ".github/workflows/belief-calibration-live.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+# The report is persisted inside the same cumulative Belief Core artifact, so it
+# must never race a market/news collection job that mutates that artifact.
+concurrency:
+  group: belief-core-live-shadow
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  GSE_ARTIFACT_NAME: gse-shadow-state
+
+jobs:
+  calibration:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout current production code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare runtime paths
+        run: |
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          echo "GSE_STATE_DIR=$RUNNER_TEMP/gse_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_core_state" "$RUNNER_TEMP/gse_state"
+
+      - name: Restore latest cumulative Belief Core state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No Belief Core artifact yet; building an empty foundation report."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief-state.zip"
+          mkdir -p "$RUNNER_TEMP/belief-state-artifact"
+          unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+          test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$STATE_DIR"
+
+      - name: Restore latest GSE shadow state as forecast-source telemetry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${GSE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/gse-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/gse-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No GSE artifact available; report will mark GSE source unavailable."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/gse-state.zip"
+          mkdir -p "$RUNNER_TEMP/gse-state-artifact"
+          unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-state-artifact"
+          test -f "$RUNNER_TEMP/gse-state-artifact/gse-state.tgz"
+          tar -xzf "$RUNNER_TEMP/gse-state-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+
+      - name: Validate calibration foundation code
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python -m py_compile \
+            scripts/belief_calibration.py \
+            scripts/belief_data_quality_adapter.py \
+            scripts/belief_calibration_foundation.py
+          python -m unittest tests.test_belief_core_calibration_foundation -v
+
+      - name: Build canonical BELIEF_CALIBRATION_REPORT
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/belief_calibration_foundation.py \
+            --belief-state-dir "$STATE_DIR" \
+            --gse-state-dir "$GSE_STATE_DIR" \
+            --output "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json"
+
+      - name: Assert shadow-only safety and report contract
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['STATE_DIR'])/'BELIEF_CALIBRATION_REPORT.json').read_text())
+          assert report['report_name'] == 'BELIEF_CALIBRATION_REPORT'
+          assert report['mode'] == 'shadow'
+          assert report['controls']['decision_engine_connected'] is False
+          assert report['controls']['trade_execution_enabled'] is False
+          assert report['controls']['policy_output_enabled'] is False
+          assert report['controls']['automatic_tuning_enabled'] is False
+          assert report['controls']['belief_weight_changes_enabled'] is False
+          assert report['controls']['gse_transmission_weight_changes_enabled'] is False
+          assert report['promotion_gate']['decision_influence_allowed'] is False
+          assert report['promotion_gate']['bounded_modifier_allowed'] is False
+          print('BELIEF_CALIBRATION_REPORT safety contract: PASS')
+          print('Belief eligible N:', report['belief_calibration']['count_calibration_eligible'])
+          print('Data-quality health:', report['data_quality']['health'])
+          print('GSE available:', report['gse_forecast_source']['available'])
+          PY
+
+      - name: Pack cumulative Belief Core state with calibration report
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/belief-core-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative shadow state outside repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: belief-core-shadow-state
+          path: ${{ runner.temp }}/belief-core-state.tgz
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Keep rolling Belief Core artifact backups
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/artifacts-after.json"
+          python - "$RUNNER_TEMP/artifacts-after.json" > "$RUNNER_TEMP/delete-artifacts.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          for row in rows[48:]:
+              print(row['id'])
+          PY
+          while read -r artifact_id; do
+            [ -n "$artifact_id" ] || continue
+            curl -fsSL -X DELETE -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
+          done < "$RUNNER_TEMP/delete-artifacts.txt"
