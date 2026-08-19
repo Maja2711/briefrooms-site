@@ -58,6 +58,26 @@ def calibration(n=30, brier=0.18, bias=0.04) -> dict:
     }
 
 
+def verification_rows(*, asset="SPX", horizon=24, n=30) -> list[dict]:
+    rows = []
+    for i in range(n):
+        outcome = i < round(n * 0.60)
+        p = 0.60
+        y = 1.0 if outcome else 0.0
+        rows.append({
+            "verification_id": f"v{i}",
+            "forecast_id": f"historic-{i}",
+            "asset": asset,
+            "horizon_hours": horizon,
+            "predicted_probability": p,
+            "outcome": outcome,
+            "brier_score": (p - y) ** 2,
+            "log_loss": 0.6,
+            "calibration_eligible": True,
+        })
+    return rows
+
+
 def forecast(
     fid="g1",
     *,
@@ -67,10 +87,11 @@ def forecast(
     probability=0.70,
     forecast_at="2026-08-19T12:00:00Z",
     target_at="2026-08-20T12:00:00Z",
+    batch_id="batch-1",
 ) -> dict:
     return {
         "forecast_id": fid,
-        "batch_id": "batch-1",
+        "batch_id": batch_id,
         "asset": asset,
         "symbol": "SPY" if asset == "SPX" else "BZ=F",
         "forecast_at": forecast_at,
@@ -95,10 +116,14 @@ def forecast(
     }
 
 
-def prepare(root: Path, *, forecasts=None, cal=None, state=None, v2=None) -> None:
+def prepare(root: Path, *, forecasts=None, cal=None, state=None, v2=None, verifications=None) -> None:
     write_json(root / "gse_state.json", state if state is not None else safe_state())
     write_json(root / "gse_calibration.json", cal if cal is not None else calibration())
     write_jsonl(root / "gse_forecasts.jsonl", forecasts if forecasts is not None else [forecast()])
+    write_jsonl(
+        root / "gse_verifications.jsonl",
+        verifications if verifications is not None else verification_rows(),
+    )
     if v2 is not None:
         write_jsonl(root / "gse_v2_forecasts.jsonl", v2)
 
@@ -107,13 +132,26 @@ class GeopoliticalForecastAdapterTests(unittest.TestCase):
     def test_uncalibrated_gse_is_observation_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            prepare(root, cal=calibration(n=8))
+            prepare(root, cal=calibration(n=8), verifications=verification_rows(n=8))
             result = adapter.GeopoliticalForecastAdapter().run(root, AS_OF)
             self.assertEqual(len(result.observations), 1)
             self.assertEqual(len(result.evidence), 0)
             q = result.observations[0].metadata["calibration_qualification"]
             self.assertFalse(q["evidence_eligible"])
             self.assertIn("asset_calibration_n_below_30", q["reasons"])
+            self.assertIn("asset_horizon_joint_n_below_30", q["reasons"])
+
+    def test_good_marginals_do_not_bypass_small_joint_slice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prepare(root, cal=calibration(n=30), verifications=verification_rows(n=10))
+            result = adapter.GeopoliticalForecastAdapter().run(root, AS_OF)
+            self.assertEqual(len(result.evidence), 0)
+            q = result.observations[0].metadata["calibration_qualification"]
+            self.assertEqual(q["asset_count"], 30)
+            self.assertEqual(q["horizon_count"], 30)
+            self.assertEqual(q["asset_horizon_joint_count"], 10)
+            self.assertIn("asset_horizon_joint_n_below_30", q["reasons"])
 
     def test_calibrated_spx_24h_becomes_modest_shadow_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,6 +168,37 @@ class GeopoliticalForecastAdapterTests(unittest.TestCase):
             self.assertEqual(evidence.source_type, "derived")
             self.assertTrue(evidence.derived_from)
             self.assertFalse(evidence.metadata["decision_influence"])
+            q = evidence.metadata["calibration_qualification"]
+            self.assertEqual(q["asset_horizon_joint_count"], 30)
+
+    def test_serial_forecasts_share_one_independence_cluster(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rows = [
+                forecast(
+                    "g-old",
+                    forecast_at="2026-08-19T10:00:00Z",
+                    target_at="2026-08-20T10:00:00Z",
+                    batch_id="batch-old",
+                ),
+                forecast(
+                    "g-new",
+                    forecast_at="2026-08-19T12:00:00Z",
+                    target_at="2026-08-20T12:00:00Z",
+                    batch_id="batch-new",
+                ),
+            ]
+            prepare(root, forecasts=rows)
+            old = adapter.GeopoliticalForecastAdapter().run(
+                root, datetime(2026, 8, 19, 11, 0, tzinfo=UTC)
+            )
+            new = adapter.GeopoliticalForecastAdapter().run(
+                root, datetime(2026, 8, 19, 13, 0, tzinfo=UTC)
+            )
+            self.assertEqual(len(old.evidence), 1)
+            self.assertEqual(len(new.evidence), 1)
+            self.assertEqual(old.evidence[0].independence_cluster, new.evidence[0].independence_cluster)
+            self.assertEqual(new.evidence[0].independence_cluster, "gse:serial_forecast:SPX:24")
 
     def test_v2_candidate_is_telemetry_only_and_cannot_replace_v1_probability(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -167,7 +236,11 @@ class GeopoliticalForecastAdapterTests(unittest.TestCase):
     def test_non_spx_assets_remain_observations_until_atomic_beliefs_exist(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            prepare(root, forecasts=[forecast("brent", asset="BRENT", direction=1)])
+            prepare(
+                root,
+                forecasts=[forecast("brent", asset="BRENT", direction=1)],
+                verifications=verification_rows(asset="BRENT"),
+            )
             result = adapter.GeopoliticalForecastAdapter().run(root, AS_OF)
             self.assertEqual(len(result.observations), 1)
             self.assertEqual(result.observations[0].entity, "BRENT")
