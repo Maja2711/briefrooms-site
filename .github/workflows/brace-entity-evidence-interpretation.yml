@@ -1,0 +1,156 @@
+name: BRACE Entity Evidence Interpretation Shadow
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "BRACE Entity Primary-Source Evidence Shadow"
+    types: [completed]
+  schedule:
+    - cron: "45 3 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-entity-evidence-interpretation-shadow
+  cancel-in-progress: false
+
+env:
+  PR13_ARTIFACT_NAME: brace-entity-primary-source-evidence-state
+  STATE_ARTIFACT_NAME: brace-entity-evidence-interpretation-state
+
+jobs:
+  interpret:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare PR13 and PR14 private state directories
+        run: |
+          set -euo pipefail
+          echo "PR13_DIR=$RUNNER_TEMP/pr13_entity_primary_source" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr14_entity_evidence_interpretation" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr13_entity_primary_source" "$RUNNER_TEMP/pr14_entity_evidence_interpretation"
+
+      - name: Restore latest PR13 primary-source state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR13_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr13-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr13-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR14 blocked: PR13 primary-source state artifact has not been established yet')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr13.zip"
+          mkdir -p "$RUNNER_TEMP/pr13-zip"
+          unzip -q "$RUNNER_TEMP/pr13.zip" -d "$RUNNER_TEMP/pr13-zip"
+          test -f "$RUNNER_TEMP/pr13-zip/brace-entity-primary-source-evidence-state.tgz"
+          tar -xzf "$RUNNER_TEMP/pr13-zip/brace-entity-primary-source-evidence-state.tgz" -C "$PR13_DIR"
+          test -f "$PR13_DIR/ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json"
+          echo "PR13 primary-source prerequisite state: PASS"
+
+      - name: Restore prior cumulative PR14 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr14-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr14-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr14.zip"
+            mkdir -p "$RUNNER_TEMP/pr14-zip"
+            unzip -q "$RUNNER_TEMP/pr14.zip" -d "$RUNNER_TEMP/pr14-zip"
+            test -f "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR14 state; first run will seed cursor/baselines only and emit no historical Evidence."
+          fi
+
+      - name: Validate PR14 code
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_evidence_interpretation -v
+
+      - name: Interpret new prospective PR13 facts
+        run: |
+          PYTHONPATH=scripts:. python scripts/brace_entity_evidence_interpretation.py \
+            --state-dir "$STATE_DIR" \
+            --primary-state "$PR13_DIR/ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json"
+
+      - name: Assert PR14 anti-hindsight and zero-influence boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_ENTITY_EVIDENCE_INTERPRETATION_REPORT.json').read_text())
+          state=json.loads((root/'ENTITY_EVIDENCE_INTERPRETATION_STATE.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['anti_hindsight']['historical_interpretation_backfill'] is False
+          assert report['anti_hindsight']['first_pr14_run_activation_only'] is True
+          assert report['anti_hindsight']['derived_evidence_observed_at_is_interpretation_runtime'] is True
+          assert report['anti_hindsight']['pr13_collection_window_change_resets_comparison_baselines'] is True
+          assert report['interpretation_boundary']['raw_primary_facts_directly_polarized'] is False
+          assert report['interpretation_boundary']['pnl_tuned_thresholds'] is False
+          assert report['interpretation_boundary']['evidence_materialized_but_not_applied_to_belief_core'] is True
+          assert report['interpretation_boundary']['entity_forecasts_created'] is False
+          assert report['capabilities']['deterministic_entity_interpretation_enabled'] is True
+          assert report['capabilities']['llm_interpretation_enabled'] is False
+          assert report['capabilities']['belief_core_state_update_enabled'] is False
+          assert report['capabilities']['entity_forecast_capture_enabled'] is False
+          assert report['capabilities']['with_without_bridge_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          for ev in state.get('evidence', []):
+              assert ev['source_type'] == 'derived'
+              assert ev['direction'] in (-1, 1)
+              assert ev['metadata']['pnl_tuned'] is False
+              assert ev['metadata']['promotion_authority'] is False
+          print('PR14 prospective interpretation safety contract: PASS')
+          print('Sample:', report['sample'])
+          print('Statuses:', report['interpretation_status_counts'])
+          PY
+
+      - name: Pack cumulative private PR14 state
+        run: tar -czf "$RUNNER_TEMP/brace-entity-evidence-interpretation-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR14 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-entity-evidence-interpretation-state
+          path: ${{ runner.temp }}/brace-entity-evidence-interpretation-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
