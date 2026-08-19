@@ -105,3 +105,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# Manual trigger: current EN US Daily Stock selection 2026-08-19.
