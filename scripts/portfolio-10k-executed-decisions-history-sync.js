@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  window.__BR_BRACE_EXECUTION_HISTORY_AUTHORITY__ = true;
+
   const lang = (window.BR_PORTFOLIO_10K?.lang || document.documentElement.lang || 'pl')
     .toLowerCase().startsWith('en') ? 'en' : 'pl';
   const isPl = lang === 'pl';

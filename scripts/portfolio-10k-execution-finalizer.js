@@ -267,6 +267,7 @@
   }
 
   function renderExecutedDecisions(orders, paperPortfolio, universe, pending, reports, decisionContext) {
+    if (window.__BR_BRACE_EXECUTION_HISTORY_AUTHORITY__) return false;
     const root = document.getElementById('brace-decisions');
     if (!root) return false;
     ensureDecisionStyles();
