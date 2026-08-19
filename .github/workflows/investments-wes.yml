@@ -7,9 +7,11 @@ on:
     paths:
       - "scripts/investments_wes.py"
       - "scripts/investments_wes_runner.py"
+      - "scripts/investments_wes_memory.py"
       - "scripts/investments-wes-public.js"
       - "scripts/render_weekly_public_pages.py"
       - "tests/test_investments_wes.py"
+      - "tests/test_investments_wes_memory.py"
       - "data/investments/wes_methodology.json"
       - ".github/workflows/investments-wes.yml"
   workflow_run:
@@ -40,15 +42,19 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate WES code
         run: |
-          python -m py_compile scripts/investments_wes.py scripts/investments_wes_runner.py
+          python -m py_compile scripts/investments_wes.py scripts/investments_wes_runner.py scripts/investments_wes_memory.py
           node --check scripts/investments-wes-public.js
-          python -m unittest tests/test_investments_wes.py
+          python -m unittest tests/test_investments_wes.py tests/test_investments_wes_memory.py
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
         run: python scripts/investments_weekly_v5.py --mode ensure-exposure
       - name: Freeze WES adaptive TP and SL after any new entry
         run: python scripts/investments_wes_runner.py --mode postflight
+      - name: Refresh derived WES historical memory
+        run: |
+          python scripts/investments_wes_memory.py --write
+          python scripts/investments_wes_memory.py --check
       - name: Verify no weekly exposure survives its deadline
         run: python scripts/verify_weekly_close_deadline.py
       - name: Render WES public status
@@ -62,6 +68,8 @@ jobs:
           git add data/investments/weekly \
                   data/investments/wes_report.json \
                   data/investments/wes_learning.json \
+                  data/investments/wes_historical_memory.json \
+                  data/investments/wes_memory_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   pl/inwestycje/pozycje-tygodniowe.html \
