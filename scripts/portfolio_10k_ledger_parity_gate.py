@@ -2,8 +2,9 @@
 """Fail-closed accounting parity gate for Portfolio 10K publication.
 
 Checks durable paper ledger vs public PLN book, plus independent USD cash-yield
-book.  This is intentionally stricter than the public valuation gate: a fresh
-mark may not publish when quantities, deployable cash or interest ledgers drift.
+book. This is intentionally stricter than the public valuation gate: a fresh
+mark may not publish when quantities, deployable cash, interest ledgers or the
+historical cash-yield audit receipts drift.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ USD_PATH = ROOT / "data/investments/portfolio_10k_usd.json"
 QTY_TOL = 1e-8
 CASH_TOL = 0.02
 INTEREST_TOL = 1e-6
+CORRECTION_ID = "pre-cash-yield-activation-ledger-v1"
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -42,6 +44,20 @@ def positions(payload: dict[str, Any], *, paper: bool) -> dict[str, dict[str, An
         for row in payload.get("positions", []) or []
         if str(row.get("status") or "active") in allowed
     }
+
+
+def correction(payload: dict[str, Any], currency: str) -> dict[str, Any]:
+    rows = [
+        row
+        for row in payload.get("cash_yield_corrections", []) or []
+        if row.get("correction_id") == CORRECTION_ID and row.get("currency") == currency
+    ]
+    assert len(rows) == 1, f"Expected exactly one {currency} correction receipt, got {len(rows)}"
+    row = rows[0]
+    assert row.get("retroactive_estimation") is False
+    assert row.get("idempotent") is True
+    assert finite(row.get("amount")) >= 0.0
+    return row
 
 
 def main() -> None:
@@ -75,6 +91,11 @@ def main() -> None:
     assert abs(finite(public_yield.get("total_interest_accrued", 0.0)) - public_interest) <= INTEREST_TOL
     assert abs(finite(paper_yield.get("total_interest_accrued", 0.0)) - paper_interest) <= INTEREST_TOL
 
+    pln_public_receipt = correction(public, "PLN")
+    pln_paper_receipt = correction(paper, "PLN")
+    assert abs(finite(pln_public_receipt.get("amount")) - finite(pln_paper_receipt.get("amount"))) <= INTEREST_TOL
+    assert abs(finite(pln_public_receipt.get("annual_rate")) - 0.0375) <= 1e-12
+
     usd_principal = finite(usd.get("cash_principal_usd", 0.0))
     usd_interest = finite(usd.get("cash_interest_balance_usd", 0.0))
     usd_cash = finite(usd.get("cash_usd", usd.get("cash_pln")))
@@ -82,6 +103,12 @@ def main() -> None:
     usd_cumulative = finite(usd.get("cash_interest_accrued_usd", 0.0))
     usd_yield = usd.get("cash_yield") or {}
     assert abs(finite(usd_yield.get("total_interest_accrued", 0.0)) - usd_cumulative) <= INTEREST_TOL
+    usd_receipt = correction(usd, "USD")
+    assert abs(finite(usd_receipt.get("annual_rate")) - 0.03625) <= 1e-12
+    assert abs(
+        finite(usd_yield.get("historical_correction_amount")) - finite(usd_receipt.get("amount"))
+    ) <= INTEREST_TOL
+    assert usd_yield.get("historical_correction_applied") == CORRECTION_ID
 
     reconciliation = public.get("execution_reconciliation") or {}
     assert reconciliation.get("execution_authority") == "paper_portfolio.transactions"
@@ -97,8 +124,10 @@ def main() -> None:
         "public_deployable_cash_pln": round(public_deployable, 8),
         "paper_cash_pln": round(paper_cash, 8),
         "pln_interest_accrued": round(public_interest, 8),
+        "pln_historical_correction": round(finite(pln_public_receipt.get("amount")), 8),
         "usd_cash": round(usd_cash, 8),
         "usd_interest_accrued": round(usd_cumulative, 8),
+        "usd_historical_correction": round(finite(usd_receipt.get("amount")), 8),
     }, ensure_ascii=False))
 
 
