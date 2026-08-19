@@ -6,6 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from scripts import us_daily_stock as us
+from scripts import us_daily_stock_runtime as runtime
 
 NY = ZoneInfo("America/New_York")
 
@@ -56,6 +57,38 @@ class UsDailyStockTests(unittest.TestCase):
         }
         with self.assertRaises(us.PublicationError):
             us.validate_payload(payload, require_today=True, now=now)
+
+    def test_runtime_recovery_extends_only_operational_cutoff(self):
+        cfg = us.load_json(us.CONFIG_PATH)
+        now = datetime(2026, 8, 19, 10, 5, tzinfo=NY)
+        observed = {}
+
+        def fake_generate(moment):
+            effective = us.load_config()
+            observed["cutoff"] = effective["publication_cutoff"]
+            payload = us.base_payload(moment, effective, "NO_TRADE", "test")
+            payload["data_quality"] = {"status": "healthy"}
+            return payload
+
+        with patch.object(us, "generate", side_effect=fake_generate):
+            payload = runtime._generate_with_recovery(now, cfg)
+        self.assertEqual(observed["cutoff"], "11:30")
+        self.assertTrue(payload["data_quality"]["late_recovery"])
+        self.assertEqual(payload["data_quality"]["normal_publication_cutoff"], "09:45")
+
+    def test_runtime_does_not_recover_after_guardrail(self):
+        cfg = us.load_json(us.CONFIG_PATH)
+        now = datetime(2026, 8, 19, 11, 31, tzinfo=NY)
+        observed = {}
+
+        def fake_generate(moment):
+            observed["cutoff"] = us.load_config()["publication_cutoff"]
+            return us.base_payload(moment, us.load_config(), "DATA_ERROR", "late")
+
+        with patch.object(us, "generate", side_effect=fake_generate):
+            payload = runtime._generate_with_recovery(now, cfg)
+        self.assertEqual(observed["cutoff"], "09:45")
+        self.assertEqual(payload["decision"], "DATA_ERROR")
 
 
 if __name__ == "__main__":
