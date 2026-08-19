@@ -1,0 +1,126 @@
+name: BRACE Entity Primary-Source Evidence Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-entity-primary-source-evidence.yml"
+      - "scripts/brace_entity_primary_source_evidence.py"
+      - "tests/test_brace_entity_primary_source_evidence.py"
+      - "docs/BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE.md"
+  workflow_run:
+    workflows:
+      - "BRACE Company-Entity Framework Shadow"
+    types: [completed]
+  schedule:
+    # After the SEC's normal EDGAR acceptance window has ended in US Eastern time.
+    - cron: "15 3 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-entity-primary-source-evidence-shadow
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT_NAME: brace-entity-primary-source-evidence-state
+  SEC_USER_AGENT: "BriefRooms-EntityEvidence/1.0 research https://briefrooms.com"
+
+jobs:
+  collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private PR13 state directory
+        run: |
+          set -euo pipefail
+          echo "STATE_DIR=$RUNNER_TEMP/brace_entity_primary_source_evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/brace_entity_primary_source_evidence"
+
+      - name: Restore prior cumulative PR13 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/state.zip"
+            mkdir -p "$RUNNER_TEMP/state-zip"
+            unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/state-zip"
+            test -f "$RUNNER_TEMP/state-zip/brace-entity-primary-source-evidence-state.tgz"
+            tar -xzf "$RUNNER_TEMP/state-zip/brace-entity-primary-source-evidence-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR13 state; first run will establish prospective collection windows only."
+          fi
+
+      - name: Validate PR13 code
+        run: |
+          PYTHONPATH=scripts python -m py_compile scripts/brace_entity_primary_source_evidence.py
+          PYTHONPATH=. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+
+      - name: Collect prospective issuer primary-source observations
+        run: |
+          PYTHONPATH=scripts python scripts/brace_entity_primary_source_evidence.py --state-dir "$STATE_DIR"
+
+      - name: Assert anti-hindsight and zero-influence boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE_REPORT.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['anti_hindsight']['historical_backfill'] is False
+          assert report['anti_hindsight']['first_entity_run_opens_collection_window_only'] is True
+          assert report['anti_hindsight']['dormant_period_filings_backfilled_on_reactivation'] is False
+          assert report['interpretation_boundary']['belief_support_or_opposition_assigned'] is False
+          assert report['interpretation_boundary']['historical_comparison_performed'] is False
+          assert report['interpretation_boundary']['entity_forecasts_created'] is False
+          assert report['capabilities']['primary_source_collection_enabled'] is True
+          assert report['capabilities']['belief_evidence_interpretation_enabled'] is False
+          assert report['capabilities']['entity_forecast_capture_enabled'] is False
+          assert report['capabilities']['with_without_bridge_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          print('PR13 prospective primary-source safety contract: PASS')
+          print('Sample:', report['sample'])
+          print('Reporting regimes:', report['reporting_regimes'])
+          PY
+
+      - name: Pack cumulative private state
+        run: tar -czf "$RUNNER_TEMP/brace-entity-primary-source-evidence-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR13 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-entity-primary-source-evidence-state
+          path: ${{ runner.temp }}/brace-entity-primary-source-evidence-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
