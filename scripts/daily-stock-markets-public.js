@@ -255,21 +255,29 @@
 
     if (isTrade(payload, market) && !status.stale && selection.ticker) {
       const sources = Array.isArray(selection.sources) ? selection.sources : [];
-      const sourceHtml = sources.length ? `<ul class="dsm-sources">${sources.slice(0, 8).map((source) =>
-        `<li><a href="${escapeHtml(safeUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.publisher || "Source")}</a>: ${escapeHtml(source.title || "")}</li>`
-      ).join("")}</ul>` : "";
+      const localization = lang === "pl" && market === "us" && selection?.localized?.pl
+        ? selection.localized.pl
+        : null;
+      const localizedSources = localization?.source_summaries || {};
+      const thesisText = localization?.thesis || selection.thesis || "";
+      const whyText = localization?.why_now || selection.why_now || "";
+      const activationText = localization?.activation || selection.activation || "";
+      const sourceHtml = sources.length ? `<ul class="dsm-sources">${sources.slice(0, 8).map((source) => {
+        const sourceText = localizedSources[source.id] || source.title || "";
+        return `<li><a href="${escapeHtml(safeUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.publisher || "Source")}</a>: ${escapeHtml(sourceText)}</li>`;
+      }).join("")}</ul>` : "";
       const originalBadge = (market === "gpw" && lang === "en")
         ? `<span class="dsm-original-badge">${escapeHtml(T.originalPl)}</span>`
-        : (market === "us" && lang === "pl") ? `<span class="dsm-original-badge">${escapeHtml(T.originalEn)}</span>` : "";
+        : (market === "us" && lang === "pl" && !localization) ? `<span class="dsm-original-badge">${escapeHtml(T.originalEn)}</span>` : "";
       body = `<div class="dsm-pick"><div class="dsm-symbol"><strong>${escapeHtml(selection.ticker)}</strong><span>${escapeHtml(selection.name || "")}</span></div><span class="dsm-score">${escapeHtml(T.score)} <b>${Number(selection.score || 0).toFixed(1)}</b>/100</span></div>
-        <p class="dsm-thesis"><b>${escapeHtml(T.thesis)}:</b> ${originalBadge}${escapeHtml(selection.thesis || "")}</p>
-        <p class="dsm-why"><b>${escapeHtml(T.why)}:</b> ${originalBadge}${escapeHtml(selection.why_now || "")}</p>
+        <p class="dsm-thesis"><b>${escapeHtml(T.thesis)}:</b> ${originalBadge}${escapeHtml(thesisText)}</p>
+        <p class="dsm-why"><b>${escapeHtml(T.why)}:</b> ${originalBadge}${escapeHtml(whyText)}</p>
         <div class="dsm-levels">
           <div class="dsm-level"><small>${escapeHtml(T.entry)}</small><b>${money(selection.entry_zone?.[0], market)}–${money(selection.entry_zone?.[1], market)}</b></div>
           <div class="dsm-level stop"><small>${escapeHtml(T.stop)}</small><b>${money(selection.stop, market)}</b></div>
           <div class="dsm-level target"><small>${escapeHtml(T.target)}</small><b>${money(selection.target, market)}</b></div>
         </div>
-        <p class="dsm-activation">${escapeHtml(selection.activation || "")} ${selection.valid_until ? `${escapeHtml(T.valid)}: ${escapeHtml(selection.valid_until)}.` : ""}</p>
+        <p class="dsm-activation">${escapeHtml(activationText)} ${selection.valid_until ? `${escapeHtml(T.valid)}: ${escapeHtml(selection.valid_until)}.` : ""}</p>
         ${sourceHtml}`;
     } else {
       const reason = status.stale ? T.stale : (payload?.reason || T.noSelection);
