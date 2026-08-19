@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/investments_wes_counterfactual.py"
       - "tests/test_investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_counterfactual_deadline.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
       - ".github/workflows/investments-wes.yml"
       - ".github/workflows/wes-counterfactual-validation.yml"
@@ -31,6 +32,7 @@ jobs:
             scripts/investments_wes_spx_brace_bridge.py
           python -m unittest \
             tests/test_investments_wes_counterfactual.py \
+            tests/test_investments_wes_counterfactual_deadline.py \
             tests/test_investments_wes_spx_brace_bridge.py
       - name: Exercise prospective-only freeze on current repository ledger
         run: |
