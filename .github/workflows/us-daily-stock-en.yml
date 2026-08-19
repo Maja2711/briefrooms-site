@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/us-daily-stock-en.yml"
       - "scripts/us_daily_stock.py"
+      - "scripts/us_daily_stock_runtime.py"
       - "scripts/us-daily-stock-public.js"
       - "scripts/install_us_daily_stock_en.py"
       - "data/investments/us_daily_stock_config.json"
@@ -56,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest tests.test_us_daily_stock -v
-          python -m py_compile scripts/us_daily_stock.py scripts/install_us_daily_stock_en.py
+          python -m py_compile scripts/us_daily_stock.py scripts/us_daily_stock_runtime.py scripts/install_us_daily_stock_en.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
           python -m json.tool data/investments/us_daily_stock.json >/dev/null
           node --check scripts/us-daily-stock-public.js
@@ -67,8 +68,8 @@ jobs:
       - name: Generate or refresh US Daily Stock
         run: |
           set -euo pipefail
-          python scripts/us_daily_stock.py --mode auto
-          python scripts/us_daily_stock.py --mode validate
+          python scripts/us_daily_stock_runtime.py --mode auto
+          python scripts/us_daily_stock_runtime.py --mode validate
           python - <<'PY'
           import json
           from datetime import datetime, time as clock_time
@@ -95,11 +96,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            data/investments/us_daily_stock.json \
-            data/investments/us_daily_stock_metrics.json \
-            data/investments/us_daily_stock_history \
-            en/investing/portfolio-10k.html 2>/dev/null || true
+          git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json en/investing/portfolio-10k.html
+          git add data/investments/us_daily_stock_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -139,7 +137,7 @@ jobs:
           import json,time,urllib.request
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/1.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/2.0','Cache-Control':'no-cache'}
           today=datetime.now(ZoneInfo('America/New_York')).date().isoformat()
           last=None
           for attempt in range(1,43):
