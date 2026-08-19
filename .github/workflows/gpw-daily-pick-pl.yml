@@ -16,6 +16,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/gpw-daily-pick-pl.yml"
+      - "scripts/daily_stock_core.py"
+      - "scripts/daily_stock_gpw_adapter.py"
+      - "scripts/build_daily_stock_history_index.py"
+      - "scripts/daily-stock-markets-public.js"
       - "scripts/gpw_daily_pick.py"
       - "scripts/gpw_daily_control_loop.py"
       - "scripts/gpw_event_layer.py"
@@ -26,7 +30,9 @@ on:
       - "scripts/gpw_reviewer_v2.py"
       - "scripts/gpw-daily-pick-public.js"
       - "assets/gpw-daily-pick.css"
+      - "assets/daily-stock-markets.css"
       - "data/investments/gpw_daily_pick_config.json"
+      - "tests/test_daily_stock_core.py"
       - "tests/test_gpw_daily_pick.py"
       - "tests/test_gpw_daily_control_loop.py"
       - "tests/test_gpw_event_layer.py"
@@ -102,10 +108,11 @@ jobs:
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "GPW event control mode=$MODE Warsaw=$(TZ=Europe/Warsaw date +%H:%M) schedule=${EVENT_SCHEDULE:-push}"
 
-      - name: Test GPW v2 control, providers, reports and learning contracts
+      - name: Test shared core and GPW control contracts
         run: |
           set -euo pipefail
           python -m unittest \
+            tests.test_daily_stock_core \
             tests.test_gpw_daily_pick \
             tests.test_gpw_daily_control_loop \
             tests.test_gpw_event_layer \
@@ -113,6 +120,9 @@ jobs:
             tests.test_gpw_pipeline_v2 \
             tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
+            scripts/daily_stock_core.py \
+            scripts/daily_stock_gpw_adapter.py \
+            scripts/build_daily_stock_history_index.py \
             scripts/gpw_daily_pick.py \
             scripts/gpw_daily_control_loop.py \
             scripts/gpw_event_layer.py \
@@ -124,6 +134,7 @@ jobs:
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/gpw_daily_pick.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
+          node --check scripts/daily-stock-markets-public.js
 
       - name: Audit live GPW market coverage before generation
         if: steps.run.outputs.mode == 'auto'
@@ -179,19 +190,24 @@ jobs:
           PY
           fi
 
-      - name: Cache-bust the Polish GPW widget
+      - name: Rebuild shared GPW and US Daily Stock history index
+        if: steps.run.outputs.mode != 'validate'
+        run: python scripts/build_daily_stock_history_index.py
+
+      - name: Cache-bust the Polish Daily Stock client
         if: steps.run.outputs.mode == 'auto'
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
           path = Path('pl/inwestycje/portfel-10k.html')
           text = path.read_text(encoding='utf-8')
-          updated = text.replace('/scripts/gpw-daily-pick-public.js?v=2','/scripts/gpw-daily-pick-public.js?v=3')
+          updated = re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=5', text)
           if updated != text:
               path.write_text(updated, encoding='utf-8')
-              print('Bumped GPW client asset to v3.')
+              print('Bumped GPW Daily Stock client asset to v5.')
           else:
-              print('GPW client cache version already current.')
+              print('GPW Daily Stock client cache version already current.')
           PY
 
       - name: Commit scoped GPW state
@@ -202,7 +218,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json 2>/dev/null || true
+          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/daily_stock_history_index.json 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history 2>/dev/null || true
           git add data/internal/gpw_daily_pick_audit 2>/dev/null || true
           git add pl/inwestycje/portfel-10k.html 2>/dev/null || true
@@ -261,7 +277,7 @@ jobs:
                           assert selection.get('symbol') and selection.get('market_snapshot',{}).get('date')==today
                       with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}',headers=headers),timeout=20) as response:
                           html=response.read().decode('utf-8',errors='replace')
-                      assert 'gpw-daily-pick-public.js' in html
+                      assert 'gpw-daily-pick-public.js?v=5' in html
                       print(f"Production verified: {payload['decision']} {today} {(payload.get('selection') or {}).get('symbol','')}")
                       raise SystemExit(0)
               except Exception as error:
