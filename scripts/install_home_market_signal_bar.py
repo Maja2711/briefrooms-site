@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HOME_PATHS = [ROOT / "pl" / "index.html", ROOT / "en" / "index.html"]
-ASSET_VERSION = 2
+ASSET_VERSION = 3
 SCRIPT_RE = re.compile(r'<script\s+src="/scripts/home-weekly-top-position\.js\?v=\d+"\s+defer></script>', re.I)
 SCRIPT_TAG = f'<script src="/scripts/home-weekly-top-position.js?v={ASSET_VERSION}" defer></script>'
 
