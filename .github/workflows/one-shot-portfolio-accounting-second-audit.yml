@@ -1,0 +1,73 @@
+name: One-shot Portfolio 10K second accounting audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-portfolio-accounting-second-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Repair USD receipt metadata without changing economic cash
+        run: python scripts/repair_portfolio_10k_usd_cash_yield_receipt.py
+      - name: Run strict second accounting audit
+        run: |
+          python -m py_compile scripts/repair_portfolio_10k_usd_cash_yield_receipt.py scripts/portfolio_10k_ledger_parity_gate.py
+          python scripts/portfolio_10k_ledger_parity_gate.py
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          p=json.loads(Path('data/investments/portfolio_10k.json').read_text())
+          paper=json.loads(Path('data/portfolio10k/paper_portfolio.json').read_text())
+          u=json.loads(Path('data/investments/portfolio_10k_usd.json').read_text())
+          pln=next(x for x in p['cash_yield_corrections'] if x.get('currency')=='PLN')
+          usd=next(x for x in u['cash_yield_corrections'] if x.get('currency')=='USD')
+          receipt={
+            'schema_version':'portfolio-10k-accounting-second-audit-v1',
+            'audited_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            'status':'PASS',
+            'execution_authority':(p.get('execution_reconciliation') or {}).get('execution_authority'),
+            'active_ids':sorted(x['id'] for x in p['positions'] if x.get('status')=='active'),
+            'max_quantity_gap':max((abs(float(a['quantity'])-float(next(b for b in paper['positions'] if b['id']==a['id'])['quantity'])) for a in p['positions'] if a.get('status')=='active'),default=0.0),
+            'public_deployable_cash_pln':p.get('base_cash_pln'),
+            'paper_cash_pln':paper.get('cash_pln'),
+            'pln_historical_correction':pln,
+            'usd_historical_correction':usd,
+            'usd_cash':u.get('cash_usd'),
+            'usd_interest_accrued':u.get('cash_interest_accrued_usd'),
+            'hard_gate_quantity_cash_yield_parity':True,
+            'pre_execution_fresh_mtm_required':True,
+          }
+          Path('data/internal/portfolio_10k_accounting_second_audit.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(receipt,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit repaired receipt and second audit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/portfolio_10k_usd.json data/internal/portfolio_10k_accounting_second_audit.json
+          git commit -m "Pass second Portfolio 10K accounting audit" || exit 0
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*4))
+          done
+          exit 1
