@@ -25,11 +25,26 @@ Engine–Belief Observation
         + exact raw G6 source hash
         ↓
 Counterfactual Contract
-        ├─ WITHOUT BELIEF = frozen mean target exposure of 8 G6 candidates
-        └─ WITH BELIEF    = same exposure + fixed hypothetical Belief sensitivity tilt
+        ├─ WITHOUT BELIEF = 8 frozen G6 candidate target/applied exposure pairs
+        └─ WITH BELIEF    = the same 8 candidates + fixed hypothetical Belief tilt
 ```
 
 If the exact raw G6 source is no longer available or the contract is not captured within the prospective window, the pair is recorded as missed and is never reconstructed later.
+
+## Why candidate-level accounting matters
+
+G6 has eight parallel candidates and no authorized champion. The bridge can summarize their mean exposure for stance classification, but economic settlement must not replace the eight candidates with one synthetic mean-exposure portfolio.
+
+Turnover cost, cash weight and short-borrow cost are nonlinear in exposure. Therefore PR #7:
+
+1. freezes each candidate's `target_exposure_next_session`,
+2. freezes each candidate's `applied_exposure_latest_session`,
+3. settles every candidate separately under the exact same SPX next-session return,
+4. applies the hypothetical Belief tilt to each candidate separately,
+5. clips each candidate to the G6 mandate `[-1,+1]`,
+6. reports the equal-weight mean of the eight candidate-level returns.
+
+This preserves the economics of the G6 parallel-candidate book much more faithfully than computing PnL from mean exposure alone.
 
 ## WITH BELIEF policy
 
@@ -39,37 +54,36 @@ The overlay is deliberately simple, symmetric and predeclared:
 - defensive Belief: negative tilt,
 - neutral Belief: zero tilt,
 - maximum absolute tilt: `0.10` exposure,
-- actual tilt: `0.10 × frozen Belief confidence`,
-- final hypothetical exposure is clipped to the G6 mandate `[-1, +1]`.
+- requested tilt: `0.10 × frozen Belief confidence`,
+- the same requested tilt is applied to each frozen candidate,
+- each hypothetical candidate exposure is independently clipped to `[-1,+1]`.
 
 This is **not** a production modifier proposal. It is a fixed sensitivity test used to answer whether the Belief layer contains incremental economic information.
 
-## Outcome horizon
+## Outcome horizon and G6 accounting
 
 The primary outcome is the next trading session SPY close-to-close return, because G6 explicitly emits `target_exposure_next_session` and applies target exposure with a one-session lag.
 
-The accounting contract mirrors G6:
+Each candidate is settled with the G6 accounting contract:
 
 - SPY asset return,
 - unused capital earns the risk-free return derived from `^IRX`,
 - turnover cost = `0.0005` per unit of exposure change,
 - short borrow = `1%` annualized,
 - cash weight = `1 - abs(exposure)`,
-- both WITH and WITHOUT variants start from the same frozen previous applied exposure.
+- WITH and WITHOUT use the same frozen previous applied exposure for that candidate.
 
 ## Anti-hindsight rules
 
 1. First production run only establishes PR #7 activation. It does not backfill older PR #6 records.
 2. A counterfactual contract must be frozen within 3 hours of the G6 state timestamp.
 3. The raw G6 payload hash and timestamp must exactly match the source hash stored by PR #6.
-4. Exactly eight candidate snapshots are required.
+4. Exactly eight valid candidate snapshots are required.
 5. At most one independent contract is allowed per G6 market date.
 6. Settlements are append-only. Later market-data revisions cannot rewrite an already resolved pair.
 7. Missing or missed contracts stay missing; no historical reconstruction is allowed.
 
-## Report
-
-The canonical artifact is:
+## Canonical report
 
 `BRACE_SPX_ENGINE_BELIEF_CALIBRATION_REPORT.json`
 
@@ -78,8 +92,8 @@ It reports:
 - prospective sample size and effective N,
 - agreement / conflict / neutral slices,
 - forward SPX return,
-- original G6 consensus return,
-- hypothetical WITH BELIEF return,
+- original equal-weight G6 candidate-book return,
+- hypothetical WITH BELIEF candidate-book return,
 - `delta_pnl`,
 - cumulative return WITH vs WITHOUT,
 - maximum drawdown WITH vs WITHOUT,
@@ -87,13 +101,14 @@ It reports:
 - conditional directional hit rates,
 - whether conflict warned before negative original G6 outcomes,
 - whether agreement accompanied positive original G6 outcomes,
+- candidate-level delta PnL diagnostics,
 - temporal incremental-information diagnostics versus existing G6 family features.
 
 ## Incremental information over G6
 
-Once at least 40 usable prospective pairs exist, the report runs an expanding-window point-in-time comparison:
+Once at least 40 usable prospective pairs exist, the report runs an expanding-window point-in-time comparison.
 
-**Baseline model**
+Baseline features:
 
 - G6 consensus exposure,
 - price/trend family score,
@@ -101,9 +116,7 @@ Once at least 40 usable prospective pairs exist, the report runs an expanding-wi
 - liquidity family score,
 - options/VIX family score.
 
-**Augmented model**
-
-The same G6 features plus:
+Augmented features add:
 
 - frozen Belief probability,
 - frozen Belief confidence,
@@ -114,8 +127,6 @@ The report compares out-of-sample MSE and directional accuracy. This measurement
 ## Promotion boundary
 
 PR #7 never promotes Belief and never enables a bounded modifier. Even a positive WITH/WITHOUT result only becomes evidence for a later, separately reviewed Promotion Gate.
-
-Hard controls remain:
 
 ```text
 active decision influence = false
