@@ -11,6 +11,8 @@ on:
       - "scripts/portfolio_10k_guardian.py"
       - "scripts/portfolio_10k_hard_gate.py"
       - "scripts/reconcile_portfolio_10k_executions.py"
+      - "scripts/portfolio_10k_execution_ledger.py"
+      - "scripts/sync_portfolio_10k_from_transaction_ledger.py"
       - "scripts/build_portfolio_10k_usd.py"
       - "scripts/fix_portfolio_10k_usd_reviews.py"
       - "scripts/render_portfolio_10k_static.py"
@@ -18,6 +20,7 @@ on:
       - "scripts/brace_portfolio_execution.py"
       - "scripts/brace_portfolio_user_control.py"
       - "tests/test_portfolio_10k_guardian.py"
+      - "tests/test_portfolio_10k_execution_persistence.py"
       - "tests/test_validate_portfolio_10k_state.py"
       - "data/portfolio10k/paper_orders.json"
       - "data/portfolio10k/paper_portfolio.json"
@@ -47,8 +50,10 @@ jobs:
       - name: Install market dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
-      - name: Reconcile previously executed paper trades
-        run: python scripts/reconcile_portfolio_10k_executions.py
+      - name: Reconcile durable executed paper trades
+        run: |
+          python scripts/sync_portfolio_10k_from_transaction_ledger.py
+          python scripts/reconcile_portfolio_10k_executions.py
 
       - name: Mark portfolio to market
         run: python scripts/portfolio_10k_hourly_prices.py
@@ -69,6 +74,7 @@ jobs:
 
       - name: Reconcile any execution from this run
         run: |
+          python scripts/sync_portfolio_10k_from_transaction_ledger.py
           python scripts/reconcile_portfolio_10k_executions.py
           python scripts/build_portfolio_10k_usd.py
           python scripts/fix_portfolio_10k_usd_reviews.py
@@ -80,8 +86,26 @@ jobs:
             scripts/portfolio_10k_hourly_prices.py \
             scripts/portfolio_10k_guardian.py \
             scripts/portfolio_10k_hard_gate.py \
-            scripts/reconcile_portfolio_10k_executions.py
+            scripts/reconcile_portfolio_10k_executions.py \
+            scripts/portfolio_10k_execution_ledger.py \
+            scripts/sync_portfolio_10k_from_transaction_ledger.py
+          python -m unittest tests.test_portfolio_10k_execution_persistence -v
           python scripts/portfolio_10k_hard_gate.py
+
+      - name: Verify public holdings equal durable paper ledger
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          public=json.loads(Path('data/investments/portfolio_10k.json').read_text(encoding='utf-8'))
+          paper=json.loads(Path('data/portfolio10k/paper_portfolio.json').read_text(encoding='utf-8'))
+          public_ids={str(p.get('id') or p.get('instrument_id')) for p in public.get('positions',[]) if p.get('status') == 'active'}
+          paper_ids={str(p.get('id') or p.get('instrument_id')) for p in paper.get('positions',[]) if p.get('status') in {'active','paper_active'}}
+          assert public_ids == paper_ids, (public_ids,paper_ids)
+          state=public.get('execution_reconciliation') or {}
+          assert state.get('execution_authority') == 'paper_portfolio.transactions', state
+          print('HOLDINGS_LEDGER_PARITY_OK',sorted(public_ids))
+          PY
 
       - name: Publish core valuation immediately after hard gate
         run: |
@@ -115,6 +139,8 @@ jobs:
           python -m py_compile scripts/validate_portfolio_10k_state.py
           python -m unittest tests.test_validate_portfolio_10k_state -v
           python -m unittest tests.test_portfolio_10k_guardian -v
+          python -m unittest tests.test_brace_portfolio_reconciliation -v
+          python -m unittest tests.test_portfolio_10k_execution_persistence -v
           python scripts/validate_portfolio_10k_state.py
 
   refresh-public-snapshots:
@@ -190,4 +216,4 @@ jobs:
           done
           exit 1
 
-# trigger: force BRACE control frontend cache refresh 2026-08-18
+# trigger: durable transaction-ledger portfolio sync 2026-08-19
