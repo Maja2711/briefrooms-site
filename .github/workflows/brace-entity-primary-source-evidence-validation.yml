@@ -24,12 +24,12 @@ jobs:
 
       - name: Compile and test PR13 primary-source layer
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/brace_entity_primary_source_evidence.py
-          PYTHONPATH=. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence -v
 
       - name: Assert PR13 governance boundary against current repository state
         run: |
-          PYTHONPATH=scripts python - <<'PY'
+          PYTHONPATH=scripts:. python - <<'PY'
           import json
           from brace_company_entity_framework import DEFAULT_ANALYSIS, DEFAULT_PORTFOLIO, DEFAULT_UNIVERSE, desired_entities
           from brace_entity_primary_source_evidence import capabilities, safety_controls, promotion_evidence_standard
