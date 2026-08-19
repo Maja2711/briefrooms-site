@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -12,6 +13,7 @@ if str(SCRIPTS) not in sys.path:
 
 import brace_portfolio_decision as decision
 import brace_portfolio_self_learning as learning
+import brace_portfolio_user_control as user_control
 
 
 def config() -> SimpleNamespace:
@@ -176,3 +178,93 @@ def test_three_horizons_never_exceed_one_effective_sample_per_decision():
     duplicate = dict(events[0], outcome_event_id="duplicate-event")
     duplicate_stats = learning.learning_statistics(events + [duplicate])
     assert duplicate_stats["effective_samples"] == 1.0
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_explicit_human_rearm_restores_probationary_paper_control_after_fallback(
+    tmp_path, monkeypatch
+):
+    paths = {
+        "AUTH": tmp_path / "control_authorization.json",
+        "REGISTRY": tmp_path / "methodology_registry.json",
+        "PAPER": tmp_path / "paper_portfolio.json",
+        "ANALYSIS": tmp_path / "analysis.json",
+        "PENDING": tmp_path / "pending_decisions.json",
+        "SHADOW": tmp_path / "shadow_log.json",
+        "HISTORY": tmp_path / "promotion_history.json",
+        "OPERATIONAL": tmp_path / "operational_state.json",
+        "ADAPTIVE": tmp_path / "adaptive_policy.json",
+        "LEARNING": tmp_path / "learning_state.json",
+        "BASELINE_PORTFOLIO_PATH": tmp_path / "portfolio_10k.json",
+    }
+    for name, path in paths.items():
+        monkeypatch.setattr(user_control, name, path)
+
+    _write_json(
+        paths["AUTH"],
+        {
+            "schema_version": "brace-control-authorization-v1",
+            "enabled": True,
+            "paper_only": True,
+            "real_broker_connected": False,
+            "controller_status": "PROBATIONARY_CONTROL",
+            "authorized_at": "2026-08-02T20:37:00+00:00",
+            "authorized_by": "site_owner",
+            "reason_pl": "test",
+            "reason_en": "test",
+        },
+    )
+    _write_json(paths["BASELINE_PORTFOLIO_PATH"], {"portfolio_id": "baseline", "positions": []})
+    _write_json(paths["PAPER"], {"portfolio_id": "paper", "paper_only": True})
+    _write_json(paths["HISTORY"], {"schema_version": "1.0.0", "records": []})
+    for name in ("ANALYSIS", "PENDING", "SHADOW", "OPERATIONAL", "ADAPTIVE", "LEARNING"):
+        _write_json(paths[name], {})
+    _write_json(
+        paths["REGISTRY"],
+        {
+            "controller_state": "FALLBACK_BASELINE",
+            "champion_methodology_id": "portfolio-10k-baseline",
+            "challenger_methodology_id": "brace-portfolio-engine",
+            "baseline_methodology_id": "portfolio-10k-baseline",
+            "methodologies": [
+                {
+                    "methodology_id": "portfolio-10k-baseline",
+                    "status": "ACTIVE_BASELINE",
+                    "parameters": {},
+                    "validation_results": {},
+                },
+                {
+                    "methodology_id": "brace-portfolio-engine",
+                    "status": "FALLBACK_BASELINE",
+                    "parameters": {"real_broker_access": False},
+                    "validation_results": {
+                        "user_authorized_paper_control": {
+                            "paper_only": True,
+                            "remaining_automatic_promotion_gates_preserved": True,
+                        }
+                    },
+                },
+            ],
+        },
+    )
+
+    monkeypatch.setattr(user_control, "public_snapshot", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(user_control, "publish", lambda *_args, **_kwargs: None)
+
+    result = user_control.activate(datetime(2026, 8, 19, 10, 0, tzinfo=timezone.utc))
+    registry = json.loads(paths["REGISTRY"].read_text(encoding="utf-8"))
+    methods = {row["methodology_id"]: row for row in registry["methodologies"]}
+
+    assert result == {
+        "controller_status": "PROBATIONARY_CONTROL",
+        "previous_controller": "FALLBACK_BASELINE",
+    }
+    assert registry["controller_state"] == "PROBATIONARY_CONTROL"
+    assert registry["champion_methodology_id"] == "brace-portfolio-engine"
+    assert methods["brace-portfolio-engine"]["status"] == "PROBATIONARY_CONTROL"
+    assert methods["portfolio-10k-baseline"]["status"] == "FALLBACK_BASELINE"
+    assert methods["brace-portfolio-engine"]["parameters"]["real_broker_access"] is False
+    assert methods["brace-portfolio-engine"]["validation_results"]["user_authorized_paper_control"]["paper_only"] is True
