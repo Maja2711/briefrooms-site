@@ -1,0 +1,52 @@
+name: GSE Historical Analogue v2 Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/geopolitical_scenario_engine.py"
+      - "scripts/gse_historical_analogue.py"
+      - "data/gse/historical_event_catalog.json"
+      - "tests/test_geopolitical_scenario_engine.py"
+      - "tests/test_gse_historical_analogue.py"
+      - "docs/GSE_HISTORICAL_ANALOGUE_V2.md"
+      - ".github/workflows/gse-shadow-live.yml"
+      - ".github/workflows/gse-analogue-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-gse-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test GSE v1 plus v2
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python -m py_compile \
+            scripts/geopolitical_scenario_engine.py \
+            scripts/gse_historical_analogue.py
+          python -m unittest \
+            tests.test_geopolitical_scenario_engine \
+            tests.test_gse_historical_analogue -v
+      - name: Validate catalogue and safety contract
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import gse_historical_analogue as v2
+          catalog=v2.load_catalog(Path('data/gse/historical_event_catalog.json'))
+          assert catalog['governance']['market_outcomes_are_not_stored_in_catalog'] is True
+          assert catalog['governance']['automatic_event_selection_enabled'] is False
+          assert catalog['governance']['automatic_tuning_enabled'] is False
+          assert v2.MAX_OVERLAY_WEIGHT == 0.20
+          assert v2.MODE == 'shadow'
+          print('GSE v2 catalogue events:', len(catalog['events']))
+          print('GSE v2 safety contract: PASS')
+          PY

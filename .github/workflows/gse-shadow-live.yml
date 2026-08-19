@@ -12,8 +12,12 @@ on:
     paths:
       - ".github/workflows/gse-shadow-live.yml"
       - "scripts/geopolitical_scenario_engine.py"
+      - "scripts/gse_historical_analogue.py"
+      - "data/gse/historical_event_catalog.json"
       - "tests/test_geopolitical_scenario_engine.py"
+      - "tests/test_gse_historical_analogue.py"
       - "docs/GEOPOLITICAL_SCENARIO_ENGINE.md"
+      - "docs/GSE_HISTORICAL_ANALOGUE_V2.md"
   schedule:
     # Evidence scan every hour, 24x7. Scenario/forecast freezes occur inside the
     # engine at 00/06/12/18 UTC; due forecasts are verified on every hourly run.
@@ -86,21 +90,28 @@ jobs:
           test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"
           tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
 
-      - name: Validate GSE code and invariants
+      - name: Validate GSE v1 and historical analogue v2 code
         run: |
-          python -m py_compile scripts/geopolitical_scenario_engine.py
-          python -m unittest tests.test_geopolitical_scenario_engine -v
+          python -m py_compile \
+            scripts/geopolitical_scenario_engine.py \
+            scripts/gse_historical_analogue.py
+          python -m unittest \
+            tests.test_geopolitical_scenario_engine \
+            tests.test_gse_historical_analogue -v
           python - <<'PY'
           import geopolitical_scenario_engine as gse
+          import gse_historical_analogue as v2
           assert gse.MODE == 'shadow'
           assert gse.FORECAST_HORIZONS_H == (24, 168, 720)
           assert gse.FREEZE_HOURS_UTC == (0, 6, 12, 18)
-          print('GSE safety and cadence invariants: PASS')
+          assert v2.MODE == 'shadow'
+          assert v2.MAX_OVERLAY_WEIGHT == 0.20
+          print('GSE v1/v2 safety and cadence invariants: PASS')
           PY
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
 
-      - name: Run GSE shadow cycle
+      - name: Run GSE v1 shadow cycle
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
@@ -110,7 +121,15 @@ jobs:
           fi
           python scripts/geopolitical_scenario_engine.py "${args[@]}"
 
-      - name: Validate persisted GSE state
+      - name: Run GSE historical analogue v2 research overlay
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/gse_historical_analogue.py \
+            --state-dir "$GSE_STATE_DIR" \
+            --catalog data/gse/historical_event_catalog.json
+
+      - name: Validate persisted GSE v1 and v2 shadow state
         run: |
           python - <<'PY'
           import json, os
@@ -118,6 +137,9 @@ jobs:
           root=Path(os.environ['GSE_STATE_DIR'])
           state=json.loads((root/'gse_state.json').read_text())
           calibration=json.loads((root/'gse_calibration.json').read_text())
+          v2_state=json.loads((root/'gse_v2_state.json').read_text())
+          v2_calibration=json.loads((root/'gse_v2_calibration.json').read_text())
+          library=json.loads((root/'gse_historical_analogue_library.json').read_text())
           assert state['schema_version'] == 1
           assert state['mode'] == 'shadow'
           controls=state['controls']
@@ -126,9 +148,21 @@ jobs:
           assert controls['automatic_tuning_enabled'] is False
           assert controls['decision_engine_connected'] is False
           assert calibration['automatic_tuning_enabled'] is False
-          print('GSE persisted state validation: PASS')
-          print('GSE last status:', state['last_status'])
-          print('GSE cadence:', state['cadence'])
+          assert v2_state['mode'] == 'shadow'
+          assert v2_state['controls']['v1_forecast_modified'] is False
+          assert v2_state['controls']['trade_execution_enabled'] is False
+          assert v2_state['controls']['policy_output_enabled'] is False
+          assert v2_state['controls']['automatic_tuning_enabled'] is False
+          assert v2_state['controls']['decision_engine_connected'] is False
+          assert v2_state['controls']['belief_core_connected'] is False
+          assert v2_calibration['controls']['v1_forecast_modified'] is False
+          assert v2_calibration['controls']['automatic_tuning_enabled'] is False
+          assert library['decision_influence'] is False
+          assert library['automatic_tuning_enabled'] is False
+          print('GSE persisted v1/v2 shadow validation: PASS')
+          print('GSE v1 last status:', state['last_status'])
+          print('GSE v2 state:', v2_state)
+          print('GSE v2 paired calibration:', v2_calibration['overall'])
           PY
 
       - name: Pack cumulative GSE state
