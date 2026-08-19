@@ -202,10 +202,10 @@ jobs:
           from pathlib import Path
           path = Path('pl/inwestycje/portfel-10k.html')
           text = path.read_text(encoding='utf-8')
-          updated = re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=5', text)
+          updated = re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=6', text)
           if updated != text:
               path.write_text(updated, encoding='utf-8')
-              print('Bumped GPW Daily Stock client asset to v5.')
+              print('Bumped GPW Daily Stock client asset to v6.')
           else:
               print('GPW Daily Stock client cache version already current.')
           PY
@@ -262,7 +262,7 @@ jobs:
           from datetime import datetime
           from zoneinfo import ZoneInfo
           today=datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
-          headers={'User-Agent':'BriefRooms-GPW-production-verifier/5.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-GPW-production-verifier/6.0','Cache-Control':'no-cache'}
           last=None
           for attempt in range(1,49):
               token=f'{int(time.time())}-{attempt}'
@@ -277,7 +277,7 @@ jobs:
                           assert selection.get('symbol') and selection.get('market_snapshot',{}).get('date')==today
                       with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}',headers=headers),timeout=20) as response:
                           html=response.read().decode('utf-8',errors='replace')
-                      assert 'gpw-daily-pick-public.js?v=5' in html
+                      assert 'gpw-daily-pick-public.js?v=6' in html
                       print(f"Production verified: {payload['decision']} {today} {(payload.get('selection') or {}).get('symbol','')}")
                       raise SystemExit(0)
               except Exception as error:
