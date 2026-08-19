@@ -1,0 +1,41 @@
+name: WES-SPX Engine-Belief Calibration Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wes-spx-belief-calibration-validation.yml"
+      - ".github/workflows/wes-spx-belief-calibration.yml"
+      - "scripts/investments_wes_belief_calibration.py"
+      - "tests/test_investments_wes_belief_calibration.py"
+      - "docs/WES_SPX_ENGINE_BELIEF_CALIBRATION.md"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile evaluator
+        run: PYTHONPATH=scripts python -m py_compile scripts/investments_wes_belief_calibration.py
+      - name: Run PR9 calibration tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_calibration -v
+      - name: Run PR8 bridge regression tests
+        run: PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_bridge -v
+      - name: Assert static safety and fixed overlay
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import investments_wes_belief_calibration as c
+          assert all(v is False for v in c.safety_controls().values())
+          p=c.evaluation_policy()
+          assert p['with_without_evaluation_enabled'] is True
+          assert p['production_modifier_proposed'] is False
+          assert p['max_conflict_risk_attenuation'] == 0.10
+          assert p['max_score_modifier_points_telemetry_only'] == 2.0
+          assert p['agreement_can_increase_exposure'] is False
+          print('PR #9 research-only invariants: PASS')
+          PY
