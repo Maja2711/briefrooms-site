@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,6 +76,20 @@ def test_held_benchmark_inherits_closed_session_metadata_and_does_not_false_fail
     assert benchmark_row["maximum_price_age_hours"] == 72.0
     assert benchmark_row["price_age_hours"] > 6.0
     assert benchmark_row["status"] == "OK"
+
+
+def test_committed_2026_08_18_snapshot_clears_the_false_operational_alarm():
+    portfolio = json.loads(
+        (ROOT / "data" / "investments" / "portfolio_10k.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    now = datetime(2026, 8, 18, 21, 50, 11, tzinfo=timezone.utc)
+    report = data.data_freshness_report(portfolio, config(), now, "monitor")
+
+    assert report["safe_mode"] is False
+    assert report["reasons"] == []
+    assert report["invalid_instruments"] == 0
 
 
 def test_distinct_stale_benchmark_still_fails_closed():
