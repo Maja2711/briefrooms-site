@@ -144,6 +144,7 @@ class WesSpxBraceBridgeTests(unittest.TestCase):
         )
         self.assertEqual(len(ledger["records"]), 1)
         row = ledger["records"][0]
+        self.assertEqual(row["v5_counterfactual_capture"]["status"], "frozen_point_in_time")
         self.assertEqual(row["v5_counterfactual"]["risk_plan"]["model_version"], "v5-plan")
         self.assertIsNone(row["wes_actual"])
         frozen_brace = row["brace_spx"]
@@ -163,6 +164,21 @@ class WesSpxBraceBridgeTests(unittest.TestCase):
         self.assertEqual(row2["brace_spx"], frozen_brace)
         self.assertFalse(row2["active_decision_influence"])
         self.assertFalse(row2["counterfactual_overlay"]["bounded_modifier_applied"])
+
+    def test_delayed_pre_wes_capture_is_missed_not_reconstructed(self):
+        ledger = bridge.capture(
+            stage="pre-wes",
+            week=week("already-existing-plan"),
+            wes_report=report(),
+            brace_shadow=active_shadow(0.9),
+            ledger=bridge._new_ledger(),
+            captured_at=datetime(2026, 8, 19, 11, 0, tzinfo=timezone.utc),
+        )
+        row = ledger["records"][0]
+        self.assertIsNone(row["v5_counterfactual"])
+        self.assertEqual(row["v5_counterfactual_capture"]["status"], "missed_not_reconstructed")
+        self.assertEqual(row["v5_counterfactual_capture"]["reason"], "pre_wes_capture_window_missed")
+        self.assertGreater(row["v5_counterfactual_capture"]["decision_to_capture_delay_minutes"], 30.0)
 
     def test_actual_outcome_settles_but_v5_counterfactual_stays_pending(self):
         ledger = bridge.capture(
