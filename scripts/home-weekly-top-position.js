@@ -14,11 +14,8 @@
         console: root.console
       });
     };
-    if (root.document.readyState === 'loading') {
-      root.document.addEventListener('DOMContentLoaded', start, { once: true });
-    } else {
-      start();
-    }
+    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
@@ -26,52 +23,48 @@
   var CONFIG = {
     pl: {
       weeklyHref: '/pl/inwestycje/pozycje-tygodniowe.html',
-      dailyHref: '/pl/inwestycje/portfel-10k.html#overview',
-      dailyUrl: '/data/investments/gpw_daily_pick.json',
       weeklyKicker: 'Faworyzowana pozycja · WEEKLY',
-      dailyKicker: 'Daily Trade · GPW',
-      openLabel: 'OTWARTA',
-      recommendedLabel: 'RECOMMENDED',
-      entry: 'WEJŚCIE',
-      tp: 'TP',
-      sl: 'SL',
-      more: 'Szczegóły →',
-      locale: 'pl-PL'
+      entry: 'WEJŚCIE', tp: 'TP', sl: 'SL', more: 'Szczegóły →', locale: 'pl-PL'
     },
     en: {
       weeklyHref: '/en/investing/open-weekly-positions.html',
-      dailyHref: '/en/investing/portfolio-10k.html#overview',
-      dailyUrl: '/data/investments/us_daily_stock.json',
       weeklyKicker: 'Favored position · WEEKLY',
-      dailyKicker: 'Daily Trade · US MARKET',
-      openLabel: 'OPEN',
-      recommendedLabel: 'RECOMMENDED',
-      entry: 'ENTRY',
-      tp: 'TP',
-      sl: 'SL',
-      more: 'Details →',
-      locale: 'en-US'
+      entry: 'ENTRY', tp: 'TP', sl: 'SL', more: 'Details →', locale: 'en-US'
     }
   };
 
-  function configFor(lang) {
-    return lang === 'en' ? CONFIG.en : CONFIG.pl;
+  var MARKETS = {
+    gpw: {
+      url: '/data/investments/gpw_daily_pick.json',
+      decision: 'TRANSAKCJA',
+      timeZone: 'Europe/Warsaw',
+      href: '/pl/inwestycje/portfel-10k.html#overview',
+      kicker: { pl: 'Daily Trade · GPW', en: 'Daily Trade · GPW' }
+    },
+    us: {
+      url: '/data/investments/us_daily_stock.json',
+      decision: 'TRADE',
+      timeZone: 'America/New_York',
+      href: '/en/investing/portfolio-10k.html#overview',
+      kicker: { pl: 'Daily Trade · US MARKET', en: 'Daily Trade · US MARKET' }
+    }
+  };
+
+  function configFor(lang) { return lang === 'en' ? CONFIG.en : CONFIG.pl; }
+
+  function zonedDate(date, timeZone) {
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone,
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date || new Date());
+    var out = {};
+    parts.forEach(function (part) { if (part.type !== 'literal') out[part.type] = part.value; });
+    return out.year + '-' + out.month + '-' + out.day;
   }
 
   function warsawDateParts(date) {
-    var parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Warsaw',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).formatToParts(date || new Date());
-    var out = {};
-    parts.forEach(function (part) {
-      if (part.type === 'year' || part.type === 'month' || part.type === 'day') {
-        out[part.type] = Number(part.value);
-      }
-    });
-    return out;
+    var value = zonedDate(date || new Date(), 'Europe/Warsaw').split('-');
+    return { year: Number(value[0]), month: Number(value[1]), day: Number(value[2]) };
   }
 
   function isoWeekId(date) {
@@ -116,17 +109,14 @@
     return candidates[0];
   }
 
-  function decimalsFor(item) {
-    return String(item && item.instrument_id || '') === 'eurusd' ? 5 : 2;
-  }
+  function decimalsFor(item) { return String(item && item.instrument_id || '') === 'eurusd' ? 5 : 2; }
 
   function formatPrice(value, item, lang) {
     var n = finiteNumber(value);
     if (n === null) return '—';
     var decimals = item && item.kind === 'daily' ? 2 : decimalsFor(item);
     return new Intl.NumberFormat(configFor(lang).locale, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals
     }).format(n);
   }
 
@@ -137,10 +127,10 @@
     return formatPrice(signal.entry_price, signal, lang);
   }
 
-  function dailySignal(payload, lang) {
-    if (!payload || typeof payload !== 'object') return null;
-    var expectedDecision = lang === 'en' ? 'TRADE' : 'TRANSAKCJA';
-    if (payload.decision !== expectedDecision) return null;
+  function dailySignal(payload, market, now) {
+    var cfg = MARKETS[market];
+    if (!cfg || !payload || typeof payload !== 'object' || payload.decision !== cfg.decision) return null;
+    if (now && String(payload.date || '') !== zonedDate(now, cfg.timeZone)) return null;
     var outcome = payload.outcome || {};
     if (String(outcome.status || '').toUpperCase() === 'RESOLVED') return null;
     var selection = payload.selection || {};
@@ -149,48 +139,46 @@
     var high = finiteNumber(entry[1]);
     var stop = finiteNumber(selection.stop);
     var target = finiteNumber(selection.target);
-    if (!selection.ticker && !selection.symbol) return null;
-    if (low === null || high === null || stop === null || target === null) return null;
+    if ((!selection.ticker && !selection.symbol) || low === null || high === null || stop === null || target === null) return null;
     return {
-      kind: 'daily',
-      source: lang === 'en' ? 'us_daily' : 'gpw_daily',
+      kind: 'daily', market: market, source: market + '_daily',
       instrument_id: String(selection.ticker || selection.symbol || '').toLowerCase(),
       label_pl: String(selection.name || selection.ticker || selection.symbol || ''),
       label_en: String(selection.name || selection.ticker || selection.symbol || ''),
       ticker: String(selection.ticker || selection.symbol || ''),
-      direction: 'long',
-      entry_zone: [low, high],
-      entry_price: finiteNumber(selection.reference_price),
-      stop_loss_price: stop,
-      take_profit_price: target,
-      score: finiteNumber(selection.score),
-      valid_until: String(selection.valid_until || ''),
-      payload_date: String(payload.date || '')
+      direction: 'long', entry_zone: [low, high], entry_price: finiteNumber(selection.reference_price),
+      stop_loss_price: stop, take_profit_price: target, score: finiteNumber(selection.score),
+      valid_until: String(selection.valid_until || ''), payload_date: String(payload.date || ''),
+      href: cfg.href
     };
   }
 
-  function weeklySignal(item) {
+  function weeklySignal(item, lang) {
     if (!validPosition(item)) return null;
+    var cfg = configFor(lang || 'pl');
     return {
-      kind: 'weekly',
-      source: 'weekly',
-      instrument_id: item.instrument_id,
-      label_pl: item.label_pl,
-      label_en: item.label_en,
-      ticker: item.symbol || item.instrument_id,
-      direction: String(item.direction || '').toLowerCase(),
+      kind: 'weekly', market: 'weekly', source: 'weekly',
+      instrument_id: item.instrument_id, label_pl: item.label_pl, label_en: item.label_en,
+      ticker: item.symbol || item.instrument_id, direction: String(item.direction || '').toLowerCase(),
       entry_price: finiteNumber(item.entry_price),
       stop_loss_price: finiteNumber(item.risk_plan && item.risk_plan.stop_loss_price),
       take_profit_price: finiteNumber(item.risk_plan && item.risk_plan.take_profit_price),
-      score: finiteNumber(item.score),
-      conviction: conviction(item)
+      score: finiteNumber(item.score), conviction: conviction(item), href: cfg.weeklyHref
     };
   }
 
-  function chooseSignal(weeklyItems, dailyPayload, lang) {
+  function marketOrder(lang) { return lang === 'en' ? ['us', 'gpw'] : ['gpw', 'us']; }
+
+  function chooseSignal(weeklyItems, dailyPayloads, lang, now) {
     var top = selectTopPosition(weeklyItems);
-    if (top) return weeklySignal(top);
-    return dailySignal(dailyPayload, lang);
+    if (top) return weeklySignal(top, lang);
+    var payloads = dailyPayloads || {};
+    var order = marketOrder(lang);
+    for (var i = 0; i < order.length; i += 1) {
+      var signal = dailySignal(payloads[order[i]], order[i], now);
+      if (signal) return signal;
+    }
+    return null;
   }
 
   function injectStyle(document) {
@@ -218,10 +206,14 @@
     var label = lang === 'en' ? (signal.label_en || signal.label_pl) : (signal.label_pl || signal.label_en);
     var ticker = String(signal.ticker || '').replace(/\.WA$/i, '');
     if (!label) return ticker || signal.instrument_id || '';
-    if (signal.kind === 'daily' && ticker && label.toUpperCase().indexOf(ticker.toUpperCase()) === -1) {
-      return ticker + ' · ' + label;
-    }
+    if (signal.kind === 'daily' && ticker && label.toUpperCase().indexOf(ticker.toUpperCase()) === -1) return ticker + ' · ' + label;
     return String(label);
+  }
+
+  function kickerFor(signal, lang) {
+    if (signal.kind === 'weekly') return configFor(lang).weeklyKicker;
+    var market = MARKETS[signal.market];
+    return market ? market.kicker[lang === 'en' ? 'en' : 'pl'] : 'Daily Trade';
   }
 
   function render(document, signal, lang) {
@@ -229,7 +221,6 @@
     var share = document.querySelector('.br-share-strip');
     var host = share && share.parentNode ? share.parentNode : document.querySelector('.main-head');
     if (!host) return false;
-
     var oldCard = document.getElementById('weekly-top-position');
     if (oldCard) oldCard.remove();
     var existing = document.getElementById('home-market-signal');
@@ -237,15 +228,16 @@
     injectStyle(document);
 
     var cfg = configFor(lang);
+    var kickerText = kickerFor(signal, lang);
     var link = document.createElement('a');
     link.id = 'home-market-signal';
     link.className = 'home-market-signal';
-    link.href = signal.kind === 'weekly' ? cfg.weeklyHref : cfg.dailyHref;
-    link.setAttribute('aria-label', (signal.kind === 'weekly' ? cfg.weeklyKicker : cfg.dailyKicker) + ': ' + signalName(signal, lang));
+    link.href = signal.href || cfg.weeklyHref;
+    link.setAttribute('aria-label', kickerText + ': ' + signalName(signal, lang));
 
     var kicker = document.createElement('span');
     kicker.className = 'home-market-signal__kicker';
-    kicker.textContent = signal.kind === 'weekly' ? cfg.weeklyKicker : cfg.dailyKicker;
+    kicker.textContent = kickerText;
     link.appendChild(kicker);
 
     var main = document.createElement('span');
@@ -268,9 +260,7 @@
     tp.innerHTML = cfg.tp + ' <b>' + formatPrice(signal.take_profit_price, signal, lang) + '</b>';
     var sl = document.createElement('span');
     sl.innerHTML = cfg.sl + ' <b>' + formatPrice(signal.stop_loss_price, signal, lang) + '</b>';
-    levels.appendChild(entry);
-    levels.appendChild(tp);
-    levels.appendChild(sl);
+    levels.appendChild(entry); levels.appendChild(tp); levels.appendChild(sl);
     link.appendChild(levels);
 
     var cta = document.createElement('span');
@@ -293,30 +283,31 @@
     var document = options && options.document;
     var fetchImpl = options && options.fetchImpl;
     var lang = options && options.lang === 'en' ? 'en' : 'pl';
+    var now = options && options.now || new Date();
     var logger = options && options.console || { warn: function () {} };
     if (!document || typeof fetchImpl !== 'function') return false;
-    var cfg = configFor(lang);
-    var weekId = isoWeekId(options && options.now || new Date());
+    var weekId = isoWeekId(now);
 
-    var weeklyData = null;
     try {
-      weeklyData = await fetchJson(fetchImpl, '/data/investments/weekly/' + weekId + '.json');
+      var weeklyData = await fetchJson(fetchImpl, '/data/investments/weekly/' + weekId + '.json');
+      var top = selectTopPosition(weeklyData && weeklyData.instruments);
+      if (top) return render(document, weeklySignal(top, lang), lang);
     } catch (error) {
       logger.warn('BriefRooms weekly market signal unavailable.', error);
     }
 
-    var top = selectTopPosition(weeklyData && weeklyData.instruments);
-    if (top) return render(document, weeklySignal(top), lang);
-
-    try {
-      var dailyData = await fetchJson(fetchImpl, cfg.dailyUrl);
-      var daily = dailySignal(dailyData, lang);
-      if (!daily) return false;
-      return render(document, daily, lang);
-    } catch (error) {
-      logger.warn('BriefRooms daily market signal unavailable.', error);
-      return false;
+    var order = marketOrder(lang);
+    for (var i = 0; i < order.length; i += 1) {
+      var market = order[i];
+      try {
+        var payload = await fetchJson(fetchImpl, MARKETS[market].url);
+        var daily = dailySignal(payload, market, now);
+        if (daily) return render(document, daily, lang);
+      } catch (error) {
+        logger.warn('BriefRooms ' + market + ' daily market signal unavailable.', error);
+      }
     }
+    return false;
   }
 
   return {
@@ -327,10 +318,12 @@
     formatPrice: formatPrice,
     isoWeekId: isoWeekId,
     load: load,
+    marketOrder: marketOrder,
     render: render,
     selectTopPosition: selectTopPosition,
     validPosition: validPosition,
     warsawDateParts: warsawDateParts,
-    weeklySignal: weeklySignal
+    weeklySignal: weeklySignal,
+    zonedDate: zonedDate
   };
 });
