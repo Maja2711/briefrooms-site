@@ -66,6 +66,16 @@ class ResearchStateDurabilityWorkflowTests(unittest.TestCase):
                 self.assertIn('"scripts/research_state_durability.py"', push_section)
                 self.assertIn('"tests/test_research_state_durability.py"', push_section)
 
+    def test_heartbeat_is_manual_or_scheduled_only(self) -> None:
+        text = (ROOT / ".github/workflows/research-state-durability-heartbeat.yml").read_text(encoding="utf-8")
+        trigger_section = text.split("permissions:", 1)[0]
+        self.assertIn("workflow_dispatch:", trigger_section)
+        self.assertIn("schedule:", trigger_section)
+        self.assertIn('cron: "15 6 * * 0"', trigger_section)
+        self.assertNotIn("\n  push:", trigger_section)
+        self.assertNotIn("branches: [main]", trigger_section)
+        self.assertNotIn("paths:", trigger_section)
+
     def test_heartbeat_renews_from_primary_or_checkpoint_and_publishes_two_private_copies(self) -> None:
         text = (ROOT / ".github/workflows/research-state-durability-heartbeat.yml").read_text(encoding="utf-8")
         self.assertIn("name: Research State Durability Heartbeat", text)
