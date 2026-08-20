@@ -12,7 +12,7 @@ The experiment remains `research_shadow`. It has zero authority over the active 
 
 ## Arm A — multi-timeframe technical engine
 
-The technical contract uses the requested H1/D1 structure and is frozen prospectively.
+The first PR20 draft used SMA20/SMA50/EMA20 on the short-horizon feed. That contract is replaced in v1.1 by the requested H1/D1 structure.
 
 ### Moving averages
 
@@ -27,7 +27,7 @@ The MA family evaluates the ordering of 30/60/100/200 and the current price rela
 
 ### Pivot levels
 
-Classic daily floor pivots are derived from the previous completed D1 bar:
+The generic rolling support/resistance block from the first draft is replaced by **classic daily floor pivots** derived from the previous completed D1 bar:
 
 `P = (H + L + C) / 3`
 
@@ -52,25 +52,17 @@ Both **H1** and **D1** calculate standard MACD:
 
 MACD is normalized by local ATR before it contributes to the technical score.
 
-### Bollinger Bands — v1.2
+### Bollinger Bands
 
-Both **H1** and **D1** use a **30-period middle band**, aligned with the short MA horizon requested for the system.
+Both **H1** and **D1** calculate:
 
-For each timeframe the capture freezes:
+- 20-period middle band
+- upper/lower bands at 2 standard deviations
+- bandwidth
+- %B
+- current price location relative to the bands
 
-- MA30 middle band;
-- population standard deviation `sigma`;
-- price `z_score = (price - MA30) / sigma`;
-- upper/lower **1 sigma** bands;
-- upper/lower **2 sigma** bands;
-- upper/lower **3 sigma** bands;
-- bandwidth for the conventional 2-sigma envelope;
-- %B for the 2-sigma envelope;
-- flags describing whether price is above/below each 1/2/3-sigma level.
-
-The Bollinger family therefore records not only a band touch, but the actual degree of statistical displacement from MA30. The directional score uses the z-score normalized to a 2-sigma reference plus the slope of the 30-period middle band. The 1/2/3-sigma bands are diagnostic state variables, not three separate votes, which avoids triple-counting the same volatility move.
-
-Backward-compatible `upper` and `lower` fields point to the conventional **±2 sigma** envelope.
+Bollinger is treated as a market-state/momentum feature, not a naive `touch lower band = buy` rule.
 
 ### Retained technical context
 
@@ -81,6 +73,8 @@ The following families remain because they measure different aspects of price st
 - H1 ATR14
 - H1 momentum at 3h / 12h / 24h
 
+The prior generic rolling support/resistance family is removed to avoid double-counting with the formal Pivot structure.
+
 ## Frozen technical weights
 
 | Feature family | Weight |
@@ -88,7 +82,7 @@ The following families remain because they measure different aspects of price st
 | H1/D1 MA30/60/100/200 | 0.24 |
 | Daily Pivot + R/S levels | 0.16 |
 | H1/D1 MACD | 0.18 |
-| H1/D1 Bollinger(30), 1σ/2σ/3σ state | 0.14 |
+| H1/D1 Bollinger | 0.14 |
 | H1/D1 RSI | 0.08 |
 | H1 trendline | 0.09 |
 | H1 price momentum | 0.11 |
@@ -107,7 +101,7 @@ Future-dated Belief state is rejected fail-closed.
 
 ## Arm C — hybrid
 
-Arm C uses exactly the same technical payload as A, including Bollinger(30) with 1σ/2σ/3σ state, and combines it with Belief context:
+Arm C uses the same technical payload as A and combines it with Belief context:
 
 - technical: 70%
 - Belief context: 30%
@@ -122,7 +116,7 @@ The experiment uses one EUR/USD source but separate frozen windows:
 - 1h: technical timing / medium intraday structure
 - 1d: structural MA/MACD/Bollinger context and prior-day Pivot
 
-The collector requests enough H1 and D1 history to calculate MA200. Technical capture fails closed if fewer than 220 bars are available on either timeframe.
+The production collector requests enough H1 and D1 history to calculate MA200. Technical capture fails closed if fewer than 220 bars are available on either timeframe.
 
 ## Prospective capture and outcomes
 
@@ -151,7 +145,3 @@ Hard invariants remain:
 - no automatic tuning;
 - no PnL-tuned weights;
 - no promotion based on retrospective optimization.
-
-## v1.2 implementation note
-
-`scripts/daily_eurusd_experiment_v12.py` is the canonical PR20 v1.2 entry/configuration layer. It upgrades the v1.1 research harness to Bollinger(30) with explicit 1σ/2σ/3σ dispersion while preserving the same A/B/C, anti-hindsight and zero-authority contracts.
