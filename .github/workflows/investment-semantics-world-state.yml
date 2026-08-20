@@ -1,0 +1,245 @@
+name: Investment Semantics World State Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/investment_semantics_world_state.py"
+      - "tests/test_investment_semantics_world_state.py"
+      - "docs/INVESTMENT_SEMANTICS_WORLD_STATE.md"
+      - ".github/workflows/investment-semantics-world-state.yml"
+      - ".github/workflows/investment-semantics-world-state-validation.yml"
+  workflow_run:
+    workflows:
+      - "BRACE Sector-Factor Belief Shadow"
+      - "BRACE Entity Belief State-Forecast Shadow"
+    types: [completed]
+  schedule:
+    - cron: "0 22 * * 1-5"
+    - cron: "25 4 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: investment-semantics-world-state-shadow
+  cancel-in-progress: false
+
+env:
+  BROAD_ARTIFACT_NAME: brace-broad-market-belief-state
+  SECTOR_ARTIFACT_NAME: brace-sector-factor-belief-state
+  PR15_ARTIFACT_NAME: brace-entity-belief-state-forecast-state
+  STATE_ARTIFACT_NAME: investment-semantics-world-state
+
+jobs:
+  snapshot:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private state directories
+        run: |
+          set -euo pipefail
+          echo "BROAD_DIR=$RUNNER_TEMP/pr10_broad_market" >> "$GITHUB_ENV"
+          echo "SECTOR_DIR=$RUNNER_TEMP/pr11_sector_factor" >> "$GITHUB_ENV"
+          echo "PR15_DIR=$RUNNER_TEMP/pr15_entity_belief" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr16_1_world_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr10_broad_market" "$RUNNER_TEMP/pr11_sector_factor" "$RUNNER_TEMP/pr15_entity_belief" "$RUNNER_TEMP/pr16_1_world_state"
+
+      - name: Restore latest Broad-Market state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BROAD_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/broad-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/broad-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR16.1 blocked: Broad-Market Belief state artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/broad.zip"
+          mkdir -p "$RUNNER_TEMP/broad-zip"
+          unzip -q "$RUNNER_TEMP/broad.zip" -d "$RUNNER_TEMP/broad-zip"
+          test -f "$RUNNER_TEMP/broad-zip/brace-broad-market-belief-state.tgz"
+          tar -xzf "$RUNNER_TEMP/broad-zip/brace-broad-market-belief-state.tgz" -C "$BROAD_DIR"
+          test -f "$BROAD_DIR/BRACE_BROAD_MARKET_BELIEF_REPORT.json"
+
+      - name: Restore latest Sector-Factor state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${SECTOR_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/sector-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/sector-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR16.1 blocked: Sector-Factor Belief state artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/sector.zip"
+          mkdir -p "$RUNNER_TEMP/sector-zip"
+          unzip -q "$RUNNER_TEMP/sector.zip" -d "$RUNNER_TEMP/sector-zip"
+          test -f "$RUNNER_TEMP/sector-zip/brace-sector-factor-belief-state.tgz"
+          tar -xzf "$RUNNER_TEMP/sector-zip/brace-sector-factor-belief-state.tgz" -C "$SECTOR_DIR"
+          test -f "$SECTOR_DIR/BRACE_SECTOR_FACTOR_BELIEF_REPORT.json"
+
+      - name: Restore latest PR15 state when available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR15_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr15-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr15-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+            mkdir -p "$RUNNER_TEMP/pr15-zip"
+            unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
+            test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$PR15_DIR"
+            test -f "$PR15_DIR/belief_core/state.json"
+            echo "PR15 forecast state available for prospective binding."
+          else
+            echo "No PR15 state artifact yet; World State snapshot will still be created."
+          fi
+
+      - name: Restore prior cumulative PR16.1 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/world-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/world-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/world.zip"
+            mkdir -p "$RUNNER_TEMP/world-zip"
+            unzip -q "$RUNNER_TEMP/world.zip" -d "$RUNNER_TEMP/world-zip"
+            test -f "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz"
+            tar -xzf "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR16.1 state; this run establishes the prospective World State boundary."
+          fi
+
+      - name: Validate PR16.1 code
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_investment_semantics_world_state -v
+
+      - name: Build canonical World State and prospective forecast bindings
+        run: |
+          set -euo pipefail
+          args=(
+            --state-dir "$STATE_DIR"
+            --broad-market-report "$BROAD_DIR/BRACE_BROAD_MARKET_BELIEF_REPORT.json"
+            --sector-factor-report "$SECTOR_DIR/BRACE_SECTOR_FACTOR_BELIEF_REPORT.json"
+          )
+          if [ -f "$PR15_DIR/belief_core/state.json" ]; then
+            args+=(--pr15-core-state "$PR15_DIR/belief_core/state.json")
+          fi
+          PYTHONPATH=scripts:. python scripts/investment_semantics_world_state.py "${args[@]}"
+
+      - name: Assert semantics, timing and zero-influence boundaries
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from pathlib import Path
+
+          def dt(value):
+              return datetime.fromisoformat(str(value).replace('Z','+00:00'))
+
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json').read_text())
+          state=json.loads((root/'INVESTMENT_WORLD_STATE_RUNTIME_STATE.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['semantic_contract']['rules']['field_name_confidence_does_not_define_semantics'] is True
+          mappings=report['semantic_contract']['source_field_mappings']
+          assert mappings['investments_weekly_v2.confidence']['semantic_type'] == 'heuristic_signal_strength'
+          assert mappings['brace_portfolio.confidence_score']['semantic_type'] == 'data_quality_confidence'
+          assert mappings['brace_portfolio.probability_of_reaching_target']['semantic_type'] == 'model_probability'
+          assert mappings['belief_core.belief_state.probability']['semantic_type'] == 'belief_probability'
+          assert mappings['belief_core.belief_state.confidence']['semantic_type'] == 'belief_confidence'
+          assert report['world_state_contract']['broad_market_context_included'] is True
+          assert report['world_state_contract']['sector_factor_context_included'] is True
+          assert report['world_state_contract']['direct_raw_market_observables_included'] is False
+          assert report['anti_hindsight']['historical_world_state_backfill'] is False
+          assert report['anti_hindsight']['historical_forecast_context_backfill'] is False
+          assert report['anti_hindsight']['pre_activation_forecasts_are_not_regime_tagged'] is True
+          assert report['anti_hindsight']['retroactive_forecast_mutation'] is False
+          assert report['promotion']['automatic_promotion'] is False
+          assert report['promotion']['promotion_authority'] is False
+          assert report['capabilities']['with_without_bridge_enabled'] is False
+          assert report['capabilities']['promotion_gate_enabled'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          pre=set(state.get('pre_activation_pr15_forecast_ids') or [])
+          bindings=state.get('forecast_context_bindings') or {}
+          assert not (pre & set(bindings))
+          snapshots={x['world_state_id']:x for x in state.get('snapshots',[])}
+          for forecast_id,binding in bindings.items():
+              snap=snapshots[binding['world_state_id']]
+              assert dt(snap['created_at']) <= dt(binding['forecast_at'])
+              assert dt(snap['source_cutoff_at']) <= dt(binding['forecast_at'])
+              assert binding['prospective'] is True
+              assert binding['retroactive'] is False
+              assert binding['forecast_mutated'] is False
+              assert binding['historical_backfill'] is False
+          print('PR16.1 World State + prospective binding safety contract: PASS')
+          print('World State:', report['world_state_contract'])
+          print('Forecast context:', report['forecast_context_contract'])
+          PY
+
+      - name: Pack cumulative private PR16.1 state
+        run: tar -czf "$RUNNER_TEMP/investment-semantics-world-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR16.1 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-semantics-world-state
+          path: ${{ runner.temp }}/investment-semantics-world-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
