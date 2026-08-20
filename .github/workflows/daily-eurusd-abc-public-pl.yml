@@ -1,0 +1,92 @@
+name: Publish Daily EURUSD A-B-C PL Projection
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_abc_public_projection.py"
+      - "scripts/daily-eurusd-abc-lab-pl.js"
+      - "pl/inwestycje/daily-trading.html"
+      - ".github/workflows/daily-eurusd-abc-public-pl.yml"
+  schedule:
+    # Live-shadow collection runs at :12/:42; publish the sanitized PL projection five minutes later.
+    - cron: "17,47 13-22 * * 1-5"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: daily-eurusd-abc-public-pl
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore verified private PR20 A/B/C state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "ABC_STATE_DIR=$RUNNER_TEMP/eurusd_abc_private" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/eurusd_abc_private"
+          python scripts/daily_eurusd_abc_durability.py restore \
+            --layer pr20_eurusd_abc \
+            --state-dir "$RUNNER_TEMP/eurusd_abc_private"
+          python scripts/daily_eurusd_abc_durability.py verify \
+            --layer pr20_eurusd_abc \
+            --state-dir "$RUNNER_TEMP/eurusd_abc_private"
+
+      - name: Build sanitized Polish frontend projection
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_abc_public_projection.py \
+            --state "$ABC_STATE_DIR/EURUSD_DAILY_ABC_STATE.json" \
+            --report "$ABC_STATE_DIR/EURUSD_DAILY_ABC_REPORT.json" \
+            --output data/investments/eurusd_abc_public_pl.json
+          python scripts/daily_eurusd_abc_public_projection.py \
+            --output data/investments/eurusd_abc_public_pl.json \
+            --validate
+          python -m json.tool data/investments/eurusd_abc_public_pl.json >/dev/null
+          node --check scripts/daily-eurusd-abc-lab-pl.js
+
+      - name: Persist only sanitized public projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/eurusd_abc_public_pl.json
+          if git diff --cached --quiet; then
+            echo "No A/B/C public projection change"
+            exit 0
+          fi
+          git commit -m "Publish Daily EURUSD A-B-C PL projection"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Projection push attempt ${attempt} failed; rebasing on latest main"
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          echo "Unable to publish sanitized A/B/C projection" >&2
+          exit 1
