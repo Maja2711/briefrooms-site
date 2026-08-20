@@ -1,0 +1,161 @@
+name: PR13 Alias and PR16 Runtime Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pr13-alias-pr16-runtime-audit.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit post-merge PR13 aliases and first PR16 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR13_FIX_MERGED_AT: "2026-08-20T08:08:59Z"
+          PR16_MERGED_AT: "2026-08-20T08:20:32Z"
+        run: |
+          python - <<'PY'
+          import io, json, os, subprocess, tarfile, tempfile, time, urllib.parse, urllib.request, zipfile
+          from datetime import datetime
+          from pathlib import Path
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          headers={
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'BriefRooms-PostPR16Audit/1.0',
+          }
+
+          def dt(x): return datetime.fromisoformat(str(x).replace('Z','+00:00'))
+          def api_json(url):
+              req=urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as r: return json.load(r)
+          def api_bytes(url):
+              p=subprocess.run([
+                  'curl','-fsSL','-L',
+                  '-H',f'Authorization: Bearer {token}',
+                  '-H','Accept: application/vnd.github+json',
+                  '-H','X-GitHub-Api-Version: 2022-11-28',url,
+              ],check=True,stdout=subprocess.PIPE)
+              return p.stdout
+          def latest_fresh(name, not_before, attempts=30):
+              q=urllib.parse.quote(name,safe='')
+              for _ in range(attempts):
+                  data=api_json(f'https://api.github.com/repos/{repo}/actions/artifacts?name={q}&per_page=100')
+                  rows=[x for x in data.get('artifacts',[]) if not x.get('expired')]
+                  rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+                  if rows and dt(rows[0]['created_at']) >= not_before:
+                      return rows[0]
+                  time.sleep(5)
+              newest=rows[0]['created_at'] if rows else None
+              raise AssertionError(f'{name}: no fresh artifact after {not_before.isoformat()}; newest={newest}')
+          def unpack(artifact, expected_tgz, dest):
+              raw=api_bytes(artifact['archive_download_url'])
+              zroot=dest/'zip'; zroot.mkdir(parents=True,exist_ok=True)
+              with zipfile.ZipFile(io.BytesIO(raw)) as zf: zf.extractall(zroot)
+              tgz=zroot/expected_tgz
+              assert tgz.exists(), (artifact['name'], sorted(p.name for p in zroot.iterdir()))
+              out=dest/'state'; out.mkdir(parents=True,exist_ok=True)
+              with tarfile.open(tgz,'r:gz') as tf: tf.extractall(out,filter='data')
+              return out
+          def read(root, name): return json.loads((root/name).read_text(encoding='utf-8'))
+          def check_run(artifact):
+              run_id=(artifact.get('workflow_run') or {}).get('id')
+              assert run_id
+              run=api_json(f'https://api.github.com/repos/{repo}/actions/runs/{run_id}')
+              assert run.get('status')=='completed' and run.get('conclusion')=='success', run
+              return run
+
+          pr13_art=latest_fresh('brace-entity-primary-source-evidence-state', dt(os.environ['PR13_FIX_MERGED_AT']))
+          pr16_art=latest_fresh('brace-entity-calibration-diagnostics-state', dt(os.environ['PR16_MERGED_AT']))
+          pr13_run=check_run(pr13_art); pr16_run=check_run(pr16_art)
+
+          with tempfile.TemporaryDirectory() as tmp:
+              base=Path(tmp)
+              pr13_root=unpack(pr13_art,'brace-entity-primary-source-evidence-state.tgz',base/'pr13')
+              pr16_root=unpack(pr16_art,'brace-entity-calibration-diagnostics-state.tgz',base/'pr16')
+              p13s=read(pr13_root,'ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json')
+              p13r=read(pr13_root,'BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE_REPORT.json')
+              p16s=read(pr16_root,'ENTITY_CALIBRATION_DIAGNOSTICS_STATE.json')
+              p16r=read(pr16_root,'BRACE_ENTITY_CALIBRATION_DIAGNOSTICS_REPORT.json')
+
+              assert p13r['mode']=='research_shadow'
+              assert p13r['anti_hindsight']['historical_backfill'] is False
+              assert p13r['source_contract']['market_symbol_alias_contract_version']=='sec-market-symbol-alias-v1'
+              assert p13r['source_contract']['exchange_suffix_heuristic_enabled'] is False
+              by_symbol={str(v.get('market_symbol') or ''):v for v in (p13s.get('entities') or {}).values()}
+              expected={
+                  'NOVO-B.CO':(353278,'NVO'),
+                  'SAP.DE':(1000184,'SAP'),
+              }
+              for symbol,(cik,sec_symbol) in expected.items():
+                  assert symbol in by_symbol, f'{symbol} missing from preserved entity lineage'
+                  entity=by_symbol[symbol]
+                  source=entity.get('sec_source') or {}
+                  assert int(source.get('cik') or 0)==cik, (symbol,source)
+                  assert source.get('resolution_method')=='reviewed_explicit_market_symbol_alias', (symbol,source)
+                  assert source.get('sec_reporting_symbol')==sec_symbol, (symbol,source)
+                  assert source.get('alias_contract_version')=='sec-market-symbol-alias-v1'
+                  assert entity.get('first_seen_at')=='2026-08-19T21:04:38.279634Z'
+                  windows=entity.get('collection_windows') or []
+                  assert windows and windows[0].get('opened_at')=='2026-08-19T21:04:38.279634Z'
+
+              alias_diag={x['market_symbol']:x for x in p13r.get('sec_market_symbol_alias_diagnostics') or []}
+              for symbol in expected:
+                  assert alias_diag.get(symbol,{}).get('status')=='resolved', alias_diag
+
+              assert p16r['mode']=='research_shadow'
+              assert p16r['active_decision_influence'] is False
+              assert p16r['anti_hindsight']['historical_belief_backfill'] is False
+              assert p16r['anti_hindsight']['historical_forecast_backfill'] is False
+              assert p16r['effective_n']['effective_n_threshold_defined_here'] is False
+              assert p16r['effective_n']['effective_n_sufficient'] is None
+              if not p16r['effective_n']['dependency_diagnostics_complete']:
+                  assert p16r['effective_n']['promotion_grade_effective_n'] is None
+              assert p16r['regime_robustness']['multi_regime_robustness_assessable'] is False
+              assert p16r['promotion_readiness']['eligible_for_promotion_review'] is False
+              assert p16r['promotion_readiness']['with_without_available'] is False
+              assert p16r['promotion_readiness']['automatic_promotion'] is False
+              assert p16r['safety_controls'] and all(v is False for v in p16r['safety_controls'].values())
+              assert p16s['contract_version']==p16r['contract_version']=='entity-calibration-diagnostics-contract-v1'
+
+              summary={
+                  'PR13':{
+                      'run_id':pr13_run['id'],'event':pr13_run['event'],'artifact_id':pr13_art['id'],'artifact_created_at':pr13_art['created_at'],
+                      'active_entities':p13r['sample'].get('active_entities'),
+                      'source_resolved_active_entities':p13r['sample'].get('source_resolved_active_entities'),
+                      'source_issues_this_run':p13r['sample'].get('source_issues_this_run'),
+                      'reporting_regimes':p13r.get('reporting_regimes'),
+                      'prospective_observations_total':p13r['sample'].get('prospective_observations_total'),
+                      'novo_sec_source':by_symbol['NOVO-B.CO'].get('sec_source'),
+                      'sap_sec_source':by_symbol['SAP.DE'].get('sec_source'),
+                  },
+                  'PR16':{
+                      'run_id':pr16_run['id'],'event':pr16_run['event'],'artifact_id':pr16_art['id'],'artifact_created_at':pr16_art['created_at'],
+                      'sample':p16r.get('sample'),
+                      'calibration_n':p16r['calibration'].get('n'),
+                      'brier_score':p16r['calibration'].get('brier_score'),
+                      'log_loss':p16r['calibration'].get('log_loss'),
+                      'descriptive_effective_n_floor':p16r['effective_n'].get('descriptive_effective_n_floor'),
+                      'promotion_grade_effective_n':p16r['effective_n'].get('promotion_grade_effective_n'),
+                      'dependency_diagnostics_complete':p16r['effective_n'].get('dependency_diagnostics_complete'),
+                      'regime_status':p16r['regime_robustness'].get('status'),
+                      'promotion_status':p16r['promotion_readiness'].get('status'),
+                      'data_quality':p16r.get('data_quality'),
+                  }
+              }
+              print('POST_PR16_RUNTIME_AUDIT=PASS')
+              print(json.dumps(summary,indent=2,sort_keys=True))
+          PY
