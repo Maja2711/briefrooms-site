@@ -76,6 +76,7 @@ jobs:
           run_surface compile python -m py_compile \
             scripts/entity_semantic_eligibility.py \
             scripts/brace_company_entity_framework.py \
+            scripts/brace_entity_primary_source_evidence.py \
             scripts/brace_entity_evidence_interpretation_semantic.py \
             scripts/brace_entity_belief_state_forecast_semantic.py \
             scripts/brace_entity_calibration_diagnostics_semantic.py \
@@ -86,12 +87,14 @@ jobs:
           export PYTHONPATH=scripts:.
           run_surface semantic python -m unittest tests.test_entity_semantic_eligibility -v || failures=$((failures+1))
           run_surface pr12 python -m unittest tests.test_brace_company_entity_framework -v || failures=$((failures+1))
+          run_surface pr13 python -m unittest tests.test_brace_entity_primary_source_evidence tests.test_brace_entity_sec_source_aliases -v || failures=$((failures+1))
           run_surface pr14 python -m unittest tests.test_brace_entity_evidence_interpretation -v || failures=$((failures+1))
           run_surface pr15 python -m unittest tests.test_brace_entity_belief_state_forecast -v || failures=$((failures+1))
           run_surface pr16 python -m unittest tests.test_brace_entity_calibration_diagnostics -v || failures=$((failures+1))
           run_surface pr16_1 python -m unittest tests.test_investment_semantics_world_state -v || failures=$((failures+1))
           run_surface pr17 python -m unittest tests.test_brace_entity_belief_shadow_bridge -v || failures=$((failures+1))
           run_surface pr19 python -m unittest tests.test_belief_epistemic_causal_graph -v || failures=$((failures+1))
+          run_surface workflow_contracts python -m unittest tests.test_entity_runtime_bootstrap_workflows -v || failures=$((failures+1))
 
           if [ "$failures" -eq 0 ]; then
             publish_status "pr19.1/full-suite" success "all affected regression surfaces passed"
