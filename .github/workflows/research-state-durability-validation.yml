@@ -1,0 +1,51 @@
+name: Research State Durability Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/research-state-durability-validation.yml"
+      - ".github/workflows/research-state-durability-heartbeat.yml"
+      - "scripts/research_state_durability.py"
+      - "tests/test_research_state_durability.py"
+      - "tests/test_research_state_durability_workflows.py"
+      - "docs/RESEARCH_STATE_DURABILITY.md"
+  pull_request:
+    paths:
+      - ".github/workflows/research-state-durability-validation.yml"
+      - ".github/workflows/research-state-durability-heartbeat.yml"
+      - "scripts/research_state_durability.py"
+      - "tests/test_research_state_durability.py"
+      - "tests/test_research_state_durability_workflows.py"
+      - "docs/RESEARCH_STATE_DURABILITY.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-state-durability-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile durability contract
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/research_state_durability.py
+      - name: Run durability unit tests
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest tests.test_research_state_durability -v
+      - name: Run workflow contract tests when present
+        run: |
+          set -euo pipefail
+          if [ -f tests/test_research_state_durability_workflows.py ]; then
+            PYTHONPATH=scripts:. python -m unittest tests.test_research_state_durability_workflows -v
+          fi
