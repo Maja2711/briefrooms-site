@@ -7,8 +7,11 @@ on:
     paths:
       - ".github/workflows/brace-entity-primary-source-evidence.yml"
       - "scripts/brace_entity_primary_source_evidence.py"
+      - "scripts/brace_entity_sec_source_aliases.py"
       - "tests/test_brace_entity_primary_source_evidence.py"
+      - "tests/test_brace_entity_sec_source_aliases.py"
       - "docs/BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE.md"
+      - "docs/PR13_SEC_MARKET_SYMBOL_ALIASES.md"
   workflow_run:
     workflows:
       - "BRACE Company-Entity Framework Shadow"
@@ -79,12 +82,12 @@ jobs:
 
       - name: Validate PR13 code
         run: |
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py
-          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py scripts/brace_entity_sec_source_aliases.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence tests.test_brace_entity_sec_source_aliases -v
 
       - name: Collect prospective issuer primary-source observations
         run: |
-          PYTHONPATH=scripts:. python scripts/brace_entity_primary_source_evidence.py --state-dir "$STATE_DIR"
+          PYTHONPATH=scripts:. python scripts/brace_entity_sec_source_aliases.py --state-dir "$STATE_DIR"
 
       - name: Assert anti-hindsight and zero-influence boundary
         run: |
@@ -93,6 +96,7 @@ jobs:
           from pathlib import Path
           root=Path(os.environ['STATE_DIR'])
           report=json.loads((root/'BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE_REPORT.json').read_text())
+          state=json.loads((root/'ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json').read_text())
           assert report['mode'] == 'research_shadow'
           assert report['active_decision_influence'] is False
           assert report['anti_hindsight']['historical_backfill'] is False
@@ -107,10 +111,22 @@ jobs:
           assert report['capabilities']['with_without_bridge_enabled'] is False
           assert report['promotion_evidence_standard']['with_without_required'] is True
           assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['source_contract']['market_symbol_alias_contract_version'] == 'sec-market-symbol-alias-v1'
+          assert report['source_contract']['exchange_suffix_heuristic_enabled'] is False
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          by_symbol={str(v.get('market_symbol') or ''): v for v in (state.get('entities') or {}).values()}
+          expected={'NOVO-B.CO':353278, 'SAP.DE':1000184}
+          for symbol,cik in expected.items():
+              if symbol not in by_symbol:
+                  continue
+              source=by_symbol[symbol].get('sec_source') or {}
+              assert int(source.get('cik') or 0) == cik
+              assert source.get('resolution_method') == 'reviewed_explicit_market_symbol_alias'
+              assert source.get('alias_contract_version') == 'sec-market-symbol-alias-v1'
           print('PR13 prospective primary-source safety contract: PASS')
           print('Sample:', report['sample'])
           print('Reporting regimes:', report['reporting_regimes'])
+          print('SEC alias diagnostics:', report.get('sec_market_symbol_alias_diagnostics'))
           PY
 
       - name: Pack cumulative private state
