@@ -117,7 +117,7 @@ jobs:
               'state': os.environ['STATE'],
               'context': 'daily-eurusd-abc-pl-projection/publish',
               'description': 'PL A/B/C frontend projection published' if os.environ['STATE'] == 'success' else 'PL A/B/C frontend projection failed',
-              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
           }).encode()
           req=urllib.request.Request(url, data=payload, method='POST', headers={
               'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
