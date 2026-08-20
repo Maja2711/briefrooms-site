@@ -1,0 +1,56 @@
+name: Validate Daily EURUSD A-B-C PL Frontend
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_abc_public_projection.py"
+      - "scripts/daily-eurusd-abc-lab-pl.js"
+      - "tests/test_daily_eurusd_abc_public_projection.py"
+      - "pl/inwestycje/daily-trading.html"
+      - ".github/workflows/daily-eurusd-abc-public-pl.yml"
+      - ".github/workflows/daily-eurusd-abc-frontend-validation.yml"
+  push:
+    branches-ignore: [main]
+    paths:
+      - "scripts/daily_eurusd_abc_public_projection.py"
+      - "scripts/daily-eurusd-abc-lab-pl.js"
+      - "tests/test_daily_eurusd_abc_public_projection.py"
+      - "pl/inwestycje/daily-trading.html"
+      - ".github/workflows/daily-eurusd-abc-public-pl.yml"
+      - ".github/workflows/daily-eurusd-abc-frontend-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile projection
+        run: python -m py_compile scripts/daily_eurusd_abc_public_projection.py
+      - name: Run projection and PL-only frontend tests
+        run: python -m unittest tests.test_daily_eurusd_abc_public_projection -v
+      - name: Validate frontend JavaScript
+        run: node --check scripts/daily-eurusd-abc-lab-pl.js
+      - name: Assert publisher boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/daily-eurusd-abc-public-pl.yml').read_text(encoding='utf-8')
+          assert 'contents: write' in text
+          assert 'actions: read' in text
+          assert 'git add -- data/investments/eurusd_abc_public_pl.json' in text
+          assert 'EURUSD_DAILY_ABC_STATE.json' in text
+          assert 'daily_eurusd_abc_durability.py verify' in text
+          assert 'git add -A' not in text
+          assert 'git add .' not in text
+          print('PR21 publisher boundary: PASS')
+          PY
