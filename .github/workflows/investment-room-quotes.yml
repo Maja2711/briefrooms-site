@@ -9,8 +9,11 @@ on:
       - "scripts/update_investment_room_quotes_v2.py"
       - "scripts/daily_engine_contract.py"
       - "scripts/daily_engine_adapters.py"
+      - "scripts/daily_eurusd_lifecycle.py"
       - "scripts/daily_eurusd_spot.py"
+      - "scripts/daily-eurusd-spot-public.js"
       - "tests/test_daily_trading_architecture.py"
+      - "tests/test_daily_eurusd_lifecycle.py"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
     # Avoid the busiest quarter-hour boundaries, where GitHub may delay schedules.
@@ -43,32 +46,42 @@ jobs:
       - name: Install dependency
         run: python -m pip install --upgrade pip yfinance
 
-      - name: Validate Daily Trading contracts
+      - name: Validate Daily Trading contracts and EURUSD lifecycle
         run: |
           set -euo pipefail
-          python -m unittest tests.test_daily_trading_architecture -v
-          python -m py_compile scripts/daily_engine_contract.py scripts/daily_engine_adapters.py scripts/daily_eurusd_spot.py
+          python -m unittest tests.test_daily_trading_architecture tests.test_daily_eurusd_lifecycle -v
+          python -m py_compile scripts/daily_engine_contract.py scripts/daily_engine_adapters.py scripts/daily_eurusd_lifecycle.py scripts/daily_eurusd_spot.py
           node --check scripts/daily-eurusd-spot-public.js
 
       - name: Update investment room quotes
         run: python scripts/update_investment_room_quotes_v2.py
 
-      - name: Refresh Daily EURUSD Spot shadow engine
+      - name: Reconcile and refresh Daily EURUSD Spot
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot.py --output data/investments/eurusd_daily_spot.json
-          python scripts/daily_eurusd_spot.py --output data/investments/eurusd_daily_spot.json --validate
+          python scripts/daily_eurusd_spot.py \
+            --output data/investments/eurusd_daily_spot.json \
+            --history data/investments/eurusd_daily_history.json
+          python scripts/daily_eurusd_spot.py \
+            --output data/investments/eurusd_daily_spot.json \
+            --history data/investments/eurusd_daily_history.json \
+            --validate
           python -m json.tool data/investments/eurusd_daily_spot.json >/dev/null
+          python -m json.tool data/investments/eurusd_daily_history.json >/dev/null
 
-      - name: Commit investment room quotes and EURUSD shadow state
+      - name: Commit investment room quotes and EURUSD lifecycle state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/room_quotes.json data/investments/eurusd_daily_spot.json
+          git add \
+            data/investments/live_prices.json \
+            data/investments/room_quotes.json \
+            data/investments/eurusd_daily_spot.json \
+            data/investments/eurusd_daily_history.json
           if git diff --cached --quiet; then
-            echo "No investment room quote changes"
+            echo "No investment room quote or EURUSD lifecycle changes"
           else
-            git commit -m "Update investment room quotes"
+            git commit -m "Update investment room quotes and EURUSD lifecycle"
             git pull --rebase origin main
             git push
           fi
