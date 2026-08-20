@@ -3,7 +3,8 @@
 
   const lang = document.documentElement.lang === "en" ? "en" : "pl";
   const CURRENT_URL = "/data/investments/us_daily_stock.json";
-  const HISTORY_URL = "/data/investments/us_daily_stock_history/index.json";
+  const US_HISTORY_URL = "/data/investments/us_daily_stock_history/index.json";
+  const FALLBACK_HISTORY_URL = "/data/investments/daily_stock_history_index.json";
 
   const T = lang === "pl" ? {
     status: "POZYCJA OTWARTA",
@@ -31,8 +32,12 @@
     return response.json();
   };
 
+  const tryJson = async (url) => {
+    try { return await fetchJson(url); } catch (_) { return null; }
+  };
+
   const nyDate = () => {
-    const parts = new Intl.DateTimeFormat("en-CA", {
+    const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
     }).formatToParts(new Date());
     const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
@@ -53,12 +58,19 @@
   const tickerOf = (row) => String(row?.ticker || row?.symbol || "").trim().toUpperCase();
   const unresolved = (row) => String(row?.outcome?.status || "PENDING").toUpperCase() !== "RESOLVED";
 
-  const latestOpenTrade = (history, current) => {
-    const rows = Array.isArray(history?.trades) ? history.trades.filter(unresolved) : [];
-    rows.sort((a, b) => String(b.valid_until || b.date || "").localeCompare(String(a.valid_until || a.date || "")) || String(b.date || "").localeCompare(String(a.date || "")));
-    if (!rows.length) return null;
+  const historyRows = (usHistory, fallback) => {
+    if (Array.isArray(usHistory?.trades) && usHistory.trades.length) return usHistory.trades;
+    const fallbackUs = fallback?.markets?.us;
+    if (Array.isArray(fallbackUs?.trades)) return fallbackUs.trades;
+    return [];
+  };
 
-    const latest = { ...rows[0] };
+  const latestOpenTrade = (rows, current) => {
+    const open = rows.filter(unresolved).slice();
+    open.sort((a, b) => String(b.valid_until || b.date || "").localeCompare(String(a.valid_until || a.date || "")) || String(b.date || "").localeCompare(String(a.date || "")));
+    if (!open.length) return null;
+
+    const latest = { ...open[0] };
     const currentSelection = current?.selection || {};
     if (tickerOf(latest) && tickerOf(latest) === tickerOf(currentSelection)) {
       latest.reference_price = currentSelection.reference_price ?? latest.reference_price;
@@ -103,7 +115,6 @@
       status.textContent = T.status;
     }
 
-    const staleBody = card.querySelector(".dsm-empty");
     const body = document.createElement("div");
     body.className = "dsm-open-position";
     body.innerHTML = `
@@ -119,29 +130,40 @@
       <p>${T.copy(ticker, entry, deadline, target, stop)}</p>
       <p class="dsm-open-position-rule">${T.extension(ticker)}</p>`;
 
-    if (staleBody) staleBody.replaceWith(body);
-    else if (!card.querySelector(".dsm-open-position")) card.querySelector(".dsm-market-head")?.insertAdjacentElement("afterend", body);
+    const existing = card.querySelector(".dsm-open-position");
+    if (existing) existing.replaceWith(body);
+    else {
+      const staleBody = card.querySelector(".dsm-empty");
+      if (staleBody) staleBody.replaceWith(body);
+      else card.querySelector(".dsm-market-head")?.insertAdjacentElement("afterend", body);
+    }
     return true;
   };
 
   const apply = async () => {
-    try {
-      const [current, history] = await Promise.all([fetchJson(CURRENT_URL), fetchJson(HISTORY_URL)]);
-      const trade = latestOpenTrade(history, current);
-      if (!trade?.valid_until || nyDate() > String(trade.valid_until)) return;
+    const [current, usHistory, fallback] = await Promise.all([
+      tryJson(CURRENT_URL),
+      tryJson(US_HISTORY_URL),
+      tryJson(FALLBACK_HISTORY_URL),
+    ]);
 
-      const currentIsStale = Boolean(current?.date && String(current.date) !== nyDate());
-      if (!currentIsStale) return;
+    const trade = latestOpenTrade(historyRows(usHistory, fallback), current);
+    if (!trade?.valid_until || nyDate() > String(trade.valid_until)) return;
 
-      if (renderOpen(trade)) return;
-      const observer = new MutationObserver(() => {
-        if (renderOpen(trade)) observer.disconnect();
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => observer.disconnect(), 10000);
-    } catch (_) {
-      // Existing fail-closed renderer remains authoritative if lifecycle data cannot be read.
-    }
+    const currentDate = String(current?.date || "");
+    const currentTicker = tickerOf(current?.selection || {});
+    const freshDifferentTrade = currentDate === nyDate()
+      && current?.decision === "TRADE"
+      && currentTicker
+      && currentTicker !== tickerOf(trade);
+    if (freshDifferentTrade) return;
+
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (renderOpen(trade) || attempts >= 80) window.clearInterval(timer);
+    }, 250);
+    renderOpen(trade);
   };
 
   apply();
