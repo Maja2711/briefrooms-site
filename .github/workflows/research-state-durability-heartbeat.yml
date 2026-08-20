@@ -68,7 +68,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Refresh immutable research-state checkpoint
+      - name: Refresh private research-state lease without mutating research payload
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -76,7 +76,19 @@ jobs:
           state_dir="$RUNNER_TEMP/research-state-${{ matrix.layer }}"
           output="$RUNNER_TEMP/${{ matrix.archive }}"
           mkdir -p "$state_dir"
-          PYTHONPATH=scripts:. python scripts/research_state_durability.py refresh \
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "${{ matrix.layer }}" \
+            --state-dir "$state_dir"
+          if [ ! -f "$state_dir/RESEARCH_STATE_DURABILITY_MANIFEST.json" ]; then
+            PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+              --layer "${{ matrix.layer }}" \
+              --state-dir "$state_dir" \
+              --migration-from-legacy
+          fi
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py verify \
+            --layer "${{ matrix.layer }}" \
+            --state-dir "$state_dir"
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py pack \
             --layer "${{ matrix.layer }}" \
             --state-dir "$state_dir" \
             --output "$output"
