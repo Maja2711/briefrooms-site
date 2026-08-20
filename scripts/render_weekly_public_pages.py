@@ -14,7 +14,7 @@ PAGES = {
     ROOT / "pl/inwestycje/pozycje-tygodniowe.html": {
         "lang": "pl",
         "title": "Weekly Positions — BriefRooms",
-        "desc": "Pozycje paper-trading EUR/USD, S&P 500 futures i BTC/USD wraz z historią wyników.",
+        "desc": "Pozycje EUR/USD, S&P 500 futures i BTC/USD wraz z historią wyników.",
         "invest": "/pl/inwestycje.html",
         "daily": "/pl/inwestycje/daily-trading.html",
         "weekly": "/pl/inwestycje/pozycje-tygodniowe.html",
@@ -24,12 +24,12 @@ PAGES = {
         "back": "← Wróć do Daily Trading",
         "daily_label": "Daily Trading",
         "weekly_label": "Weekly Positions",
-        "legal": "Treści mają charakter edukacyjny i analityczny. Są to wyłącznie pozycje paper-trading, a nie rekomendacje ani rzeczywiste zlecenia.",
+        "legal": "Treści mają charakter edukacyjny i analityczny. Nie stanowią rekomendacji ani rzeczywistych zleceń.",
     },
     ROOT / "en/investing/open-weekly-positions.html": {
         "lang": "en",
         "title": "Weekly Positions — BriefRooms",
-        "desc": "EUR/USD, S&P 500 futures and BTC/USD paper-trading positions with result history.",
+        "desc": "EUR/USD, S&P 500 futures and BTC/USD positions with result history.",
         "invest": "/en/investing.html",
         "daily": "/en/investing/daily-trading.html",
         "weekly": "/en/investing/open-weekly-positions.html",
@@ -39,7 +39,7 @@ PAGES = {
         "back": "← Back to Daily Trading",
         "daily_label": "Daily Trading",
         "weekly_label": "Weekly Positions",
-        "legal": "Content is educational and analytical. These are paper-trading positions only, not recommendations or real broker orders.",
+        "legal": "Content is educational and analytical. It is not a recommendation or a real broker order.",
     },
 }
 
