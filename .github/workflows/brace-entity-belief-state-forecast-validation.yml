@@ -1,0 +1,96 @@
+name: BRACE Entity Belief State-Forecast Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-entity-belief-state-forecast.yml"
+      - ".github/workflows/brace-entity-belief-state-forecast-validation.yml"
+      - "scripts/brace_entity_belief_state_forecast.py"
+      - "tests/test_brace_entity_belief_state_forecast.py"
+      - "docs/BRACE_ENTITY_BELIEF_STATE_FORECAST.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR15 belief-state layer
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_state_forecast -v
+
+      - name: Assert PR15 governance against current BRACE Entity universe
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          import json, tempfile
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from brace_company_entity_framework import DEFAULT_ANALYSIS, DEFAULT_PORTFOLIO, DEFAULT_UNIVERSE, desired_entities
+          from brace_entity_belief_state_forecast import capabilities, promotion_evidence_standard, run, safety_controls
+          from brace_entity_evidence_interpretation import CONTRACT_VERSION as PR14_CONTRACT_VERSION, SCHEMA_VERSION as PR14_SCHEMA_VERSION
+
+          portfolio=json.loads(DEFAULT_PORTFOLIO.read_text())
+          analysis=json.loads(DEFAULT_ANALYSIS.read_text())
+          universe=json.loads(DEFAULT_UNIVERSE.read_text())
+          active=desired_entities(portfolio, analysis, universe)
+          assert active
+          now=datetime.now(timezone.utc)
+          now_z=now.isoformat().replace('+00:00','Z')
+          source={
+              'schema_version':PR14_SCHEMA_VERSION,
+              'mode':'research_shadow',
+              'contract_version':PR14_CONTRACT_VERSION,
+              'first_run_at':now_z,
+              'last_run_at':now_z,
+              'seen_primary_observation_ids':[],
+              'interpretations':[],
+              'derived_observations':[],
+              'evidence':[],
+              'entities':{
+                  entity_id:{
+                      'entity_id':entity_id,
+                      'current_status':'active',
+                      'sector':row.get('sector'),
+                      'reporting_regime':'validation_placeholder',
+                      'source_window_opened_at':now_z,
+                  }
+                  for entity_id,row in active.items()
+              },
+          }
+          with tempfile.TemporaryDirectory() as tmp:
+              root=Path(tmp)
+              source_path=root/'pr14.json'
+              source_path.write_text(json.dumps(source))
+              report=run(root/'state', interpretation_state_path=source_path, as_of=now)
+              assert report['sample']['activation_only_this_run'] is True
+              assert report['sample']['active_entities'] == len(active)
+              assert report['sample']['new_evidence_this_run'] == 0
+              assert report['sample']['new_forecasts_this_run'] == 0
+              assert report['state_boundary']['belief_core_state_update_enabled'] is True
+              assert report['state_boundary']['prospective_entity_forecast_capture_enabled'] is True
+              assert report['state_boundary']['brace_score_or_ranking_change'] is False
+              assert report['forecast_contract']['next_day_stock_return_used'] is False
+
+          assert all(v is False for v in safety_controls().values())
+          caps=capabilities()
+          assert caps['entity_belief_core_state_update_enabled'] is True
+          assert caps['prospective_entity_forecast_capture_enabled'] is True
+          assert caps['deterministic_forecast_outcome_resolution_enabled'] is True
+          assert caps['brace_entity_bridge_enabled'] is False
+          assert caps['with_without_bridge_enabled'] is False
+          gate=promotion_evidence_standard()
+          assert gate['with_without_required'] is True
+          assert gate['effective_n_required'] is True
+          assert gate['effective_n_threshold_defined_here'] is False
+          assert gate['automatic_promotion'] is False
+          print('PR15 governance + current-entity integration contract: PASS')
+          print('Current active entity count:', len(active))
+          PY
