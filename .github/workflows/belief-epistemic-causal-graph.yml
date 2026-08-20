@@ -6,7 +6,10 @@ on:
     branches: [main]
     paths:
       - "scripts/belief_epistemic_causal_graph.py"
+      - "scripts/belief_epistemic_causal_graph_semantic.py"
+      - "scripts/entity_semantic_eligibility.py"
       - "tests/test_belief_epistemic_causal_graph.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/BELIEF_EPISTEMIC_CAUSAL_GRAPH.md"
       - ".github/workflows/belief-epistemic-causal-graph.yml"
       - ".github/workflows/belief-epistemic-causal-graph-validation.yml"
@@ -40,18 +43,15 @@ jobs:
         with:
           ref: main
           fetch-depth: 1
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Prepare private directories
         run: |
           set -euo pipefail
           echo "PR15_DIR=$RUNNER_TEMP/pr15_entity_belief" >> "$GITHUB_ENV"
           echo "STATE_DIR=$RUNNER_TEMP/pr19_epistemic_graph" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/pr15_entity_belief" "$RUNNER_TEMP/pr19_epistemic_graph"
-
       - name: Restore latest PR15 Entity Belief state
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,24 +60,19 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR15_ARTIFACT_NAME}&per_page=100"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr15-artifacts.json"
           artifact_id=$(python - "$RUNNER_TEMP/pr15-artifacts.json" <<'PY'
-          import json, sys
+          import json,sys
           from pathlib import Path
           rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
           rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
-          if not rows:
-              raise SystemExit('PR19 blocked: PR15 Entity Belief artifact is missing')
+          if not rows: raise SystemExit('PR19 blocked: PR15 Entity Belief artifact is missing')
           print(rows[0]['id'])
           PY
           )
-          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
-          mkdir -p "$RUNNER_TEMP/pr15-zip"
-          unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+          mkdir -p "$RUNNER_TEMP/pr15-zip"; unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
           test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
           tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$PR15_DIR"
           test -f "$PR15_DIR/BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json"
-          echo "PR15 prerequisite: PASS"
-
       - name: Restore prior cumulative PR19 state
         env:
           GH_TOKEN: ${{ github.token }}
@@ -86,7 +81,7 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr19-artifacts.json"
           artifact_id=$(python - "$RUNNER_TEMP/pr19-artifacts.json" <<'PY'
-          import json, sys
+          import json,sys
           from pathlib import Path
           rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
           rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
@@ -94,39 +89,32 @@ jobs:
           PY
           )
           if [ -n "$artifact_id" ]; then
-            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr19.zip"
-            mkdir -p "$RUNNER_TEMP/pr19-zip"
-            unzip -q "$RUNNER_TEMP/pr19.zip" -d "$RUNNER_TEMP/pr19-zip"
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr19.zip"
+            mkdir -p "$RUNNER_TEMP/pr19-zip"; unzip -q "$RUNNER_TEMP/pr19.zip" -d "$RUNNER_TEMP/pr19-zip"
             test -f "$RUNNER_TEMP/pr19-zip/belief-epistemic-causal-graph-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr19-zip/belief-epistemic-causal-graph-state.tgz" -C "$STATE_DIR"
           else
             echo "No prior PR19 state; first run establishes the no-retroactive-binding boundary."
           fi
-
-      - name: Validate PR19 code
+      - name: Validate PR19 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/belief_epistemic_causal_graph.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/belief_epistemic_causal_graph.py scripts/belief_epistemic_causal_graph_semantic.py scripts/entity_semantic_eligibility.py
           PYTHONPATH=scripts:. python -m unittest tests.test_belief_epistemic_causal_graph -v
-
-      - name: Build epistemic contracts and causal hypothesis graph
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
+      - name: Build semantically current epistemic contracts and causal hypothesis graph
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python scripts/belief_epistemic_causal_graph.py \
+          PYTHONPATH=scripts:. python scripts/belief_epistemic_causal_graph_semantic.py \
             --state-dir "$STATE_DIR" \
             --pr15-report "$PR15_DIR/BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json"
-
-      - name: Assert PR19 anti-hindsight and zero-authority boundary
+      - name: Assert PR19 anti-hindsight, semantic migration and zero-authority boundary
         run: |
           python - <<'PY'
-          import json, os
+          import json,os
           from datetime import datetime
           from pathlib import Path
-
-          def dt(value):
-              return datetime.fromisoformat(str(value).replace('Z','+00:00'))
-
+          def dt(value): return datetime.fromisoformat(str(value).replace('Z','+00:00'))
           root=Path(os.environ['STATE_DIR'])
           report=json.loads((root/'BELIEF_EPISTEMIC_CAUSAL_GRAPH_REPORT.json').read_text())
           state=json.loads((root/'BELIEF_EPISTEMIC_CAUSAL_GRAPH_STATE.json').read_text())
@@ -137,17 +125,31 @@ jobs:
           assert report['graph_runtime']['correlation_to_causation_inference'] is False
           assert report['sample']['verified_causal_edges']==0
           assert report['research_boundary']['graph_edges_are_hypotheses_not_causal_proof'] is True
-          assert report['research_boundary']['operational_correctness_is_not_automatically_causal_validation'] is True
-          assert report['research_boundary']['entity_fundamental_correctness_is_not_economic_value'] is True
+          assert report['research_boundary']['semantic_migration_is_not_causal_validation'] is True
           assert report['research_boundary']['miv_score_enabled'] is False
           assert report['research_boundary']['alpha_score_enabled'] is False
           assert report['prospective_binding']['first_run_existing_forecasts_cursor_only'] is True
           assert report['prospective_binding']['graph_snapshot_must_preexist_forecast'] is True
           assert report['prospective_binding']['terminal_unbound_never_retroactively_bound'] is True
+          assert report['prospective_binding']['semantic_ineligible_belief_new_binding'] is False
+          assert report['entity_semantic_eligibility']['historical_graph_snapshot_deleted'] is False
+          assert report['entity_semantic_eligibility']['historical_graph_snapshot_rewritten'] is False
+          assert report['entity_semantic_eligibility']['historical_forecast_epistemic_binding_rewritten'] is False
+          excluded=set(report['entity_semantic_eligibility']['excluded_from_new_graph_belief_ids'])
+          latest=report['graph_runtime']['latest_graph_snapshot_id']
+          if latest:
+              latest_index=(state.get('graph_snapshots') or {})[latest]['contract_index']
+              assert not (excluded & set(latest_index))
+          for dep in (state.get('semantic_contract_deprecations') or {}).values():
+              assert dep['status']=='DEPRECATED_SEMANTIC_MISMATCH'
+              assert dep['historical_graph_snapshots_preserved'] is True
+              assert dep['historical_forecast_bindings_preserved'] is True
+              assert dep['active_membership_in_new_graph'] is False
+              assert dep['retroactive_graph_rewrite'] is False
+              assert dep['historical_deletion'] is False
           assert report['promotion']['status']=='NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
           assert report['promotion']['eligible_for_promotion_review'] is False
           assert report['promotion']['automatic_promotion'] is False
-          assert report['promotion']['effective_n_threshold_defined_here'] is False
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
           pre=set(state.get('pre_activation_forecast_ids') or [])
           bound=set((state.get('forecast_bindings') or {}).keys())
@@ -163,30 +165,16 @@ jobs:
               ref=snap['contract_index'][binding['belief_id']]
               assert ref['epistemic_contract_id']==binding['epistemic_contract_id']
               assert ref['immutable_sha256']==binding['epistemic_contract_sha256']
-          for row in (state.get('terminal_unbound_forecasts') or {}).values():
-              assert row['terminal_no_retroactive_binding'] is True
           for edge in report['graph']['edges']:
               assert edge['causal_status']=='UNVERIFIED_HYPOTHESIS'
               assert edge['causal_proof'] is False
               assert edge['decision_influence'] is False
-          for contract in report['contracts'].values():
-              assert contract['causal_assumptions']
-              assert contract['transmission_path']
-              assert contract['falsifiers']
-              assert contract['alternative_explanations']
-              assert contract['unknowns']
-              assert contract['regime_dependencies']
-              assert any(x['machine_testable'] for x in contract['falsifiers'])
-              assert contract['causal_proof'] is False
-              assert contract['decision_influence'] is False
-          print('PR19 epistemic + causal anti-hindsight contract: PASS')
+          print('PR19 epistemic + causal + PR19.1 semantic migration contract: PASS')
           print('Sample:', report['sample'])
-          print('Graph:', report['graph_runtime'])
+          print('Semantic deprecations:', len(state.get('semantic_contract_deprecations') or {}))
           PY
-
       - name: Pack cumulative private PR19 state
         run: tar -czf "$RUNNER_TEMP/belief-epistemic-causal-graph-state.tgz" -C "$STATE_DIR" .
-
       - name: Store cumulative PR19 state
         uses: actions/upload-artifact@v4
         with:

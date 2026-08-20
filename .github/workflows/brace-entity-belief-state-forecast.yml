@@ -7,7 +7,10 @@ on:
     paths:
       - ".github/workflows/brace-entity-belief-state-forecast.yml"
       - "scripts/brace_entity_belief_state_forecast.py"
+      - "scripts/brace_entity_belief_state_forecast_semantic.py"
+      - "scripts/entity_semantic_eligibility.py"
       - "tests/test_brace_entity_belief_state_forecast.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/BRACE_ENTITY_BELIEF_STATE_FORECAST.md"
   workflow_run:
     workflows:
@@ -103,18 +106,20 @@ jobs:
             echo "No prior PR15 state; first run will establish activation cursor and prior-only Belief states."
           fi
 
-      - name: Validate PR15 code
+      - name: Validate PR15 and PR19.1 semantic code
         run: |
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py scripts/brace_entity_belief_state_forecast_semantic.py scripts/entity_semantic_eligibility.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_state_forecast -v
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
-      - name: Update prospective Entity Belief state and forecasts
+      - name: Update prospective Entity Belief state and forecasts with semantic eligibility
         run: |
-          PYTHONPATH=scripts:. python scripts/brace_entity_belief_state_forecast.py \
+          PYTHONPATH=scripts:. python scripts/brace_entity_belief_state_forecast_semantic.py \
             --state-dir "$STATE_DIR" \
             --interpretation-state "$PR14_DIR/ENTITY_EVIDENCE_INTERPRETATION_STATE.json"
 
-      - name: Assert PR15 shadow and anti-hindsight boundaries
+      - name: Assert PR15 shadow, semantic migration and anti-hindsight boundaries
         run: |
           python - <<'PY'
           import json, os
@@ -129,6 +134,9 @@ jobs:
           assert report['anti_hindsight']['historical_forecast_backfill'] is False
           assert report['anti_hindsight']['first_pr15_run_activation_only'] is True
           assert report['anti_hindsight']['neutral_interpretation_not_forced_to_binary'] is True
+          assert report['anti_hindsight']['semantic_deprecation_rewrites_historical_forecast'] is False
+          assert report['anti_hindsight']['semantic_deprecation_rewrites_historical_verification'] is False
+          assert report['anti_hindsight']['semantic_deprecations_append_only'] is True
           assert report['forecast_contract']['next_day_stock_return_used'] is False
           assert report['forecast_contract']['one_live_forecast_per_belief'] is True
           assert report['state_boundary']['belief_core_state_update_enabled'] is True
@@ -137,6 +145,11 @@ jobs:
           assert report['state_boundary']['brace_sizing_or_exposure_change'] is False
           assert report['state_boundary']['entity_bridge_enabled'] is False
           assert report['state_boundary']['with_without_bridge_enabled'] is False
+          assert report['state_boundary']['deprecated_belief_new_evidence'] is False
+          assert report['state_boundary']['deprecated_belief_new_forecast'] is False
+          assert report['semantic_eligibility']['sector_is_not_business_model'] is True
+          assert report['semantic_eligibility']['future_bank_specific_evidence_requires_bank_archetype'] is True
+          assert report['semantic_eligibility']['future_bank_specific_forecast_requires_bank_archetype'] is True
           assert report['promotion_evidence_standard']['with_without_required'] is True
           assert report['promotion_evidence_standard']['effective_n_threshold_defined_here'] is False
           assert report['promotion_evidence_standard']['automatic_promotion'] is False
@@ -150,10 +163,22 @@ jobs:
           for verification in core.get('verifications', []):
               assert verification.get('calibration_eligible') is True
               assert verification.get('outcome_source') == 'PR14 deterministic entity interpretation'
+          for dep in (runtime.get('semantic_deprecations') or {}).values():
+              assert dep['status'] == 'DEPRECATED_SEMANTIC_MISMATCH'
+              assert dep['historical_definitions_preserved'] is True
+              assert dep['historical_forecasts_preserved'] is True
+              assert dep['future_evidence_enabled'] is False
+              assert dep['future_forecast_enabled'] is False
+              assert dep['historical_deletion'] is False
+          for closure in (runtime.get('forecast_closures') or {}).values():
+              if closure.get('status') == 'semantic_deprecated':
+                  assert closure['calibration_eligible'] is False
+                  assert closure['historical_forecast_preserved'] is True
+                  assert closure['forecast_rewritten'] is False
           assert runtime.get('contract_version') == report.get('contract_version')
-          print('PR15 Entity Belief shadow safety contract: PASS')
+          print('PR15 Entity Belief shadow + PR19.1 semantic migration: PASS')
           print('Sample:', report['sample'])
-          print('Closures:', report['forecast_closure_status_counts'])
+          print('Semantic deprecations:', len(runtime.get('semantic_deprecations') or {}))
           PY
 
       - name: Pack cumulative private PR15 state

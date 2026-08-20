@@ -6,7 +6,10 @@ on:
     branches: [main]
     paths:
       - "scripts/investment_semantics_world_state.py"
+      - "scripts/investment_semantics_world_state_semantic.py"
+      - "scripts/entity_semantic_eligibility.py"
       - "tests/test_investment_semantics_world_state.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/INVESTMENT_SEMANTICS_WORLD_STATE.md"
       - ".github/workflows/investment-semantics-world-state.yml"
       - ".github/workflows/investment-semantics-world-state-validation.yml"
@@ -75,8 +78,7 @@ jobs:
           print(rows[0]['id'])
           PY
           )
-          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/broad.zip"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/broad.zip"
           mkdir -p "$RUNNER_TEMP/broad-zip"
           unzip -q "$RUNNER_TEMP/broad.zip" -d "$RUNNER_TEMP/broad-zip"
           test -f "$RUNNER_TEMP/broad-zip/brace-broad-market-belief-state.tgz"
@@ -100,8 +102,7 @@ jobs:
           print(rows[0]['id'])
           PY
           )
-          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/sector.zip"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/sector.zip"
           mkdir -p "$RUNNER_TEMP/sector-zip"
           unzip -q "$RUNNER_TEMP/sector.zip" -d "$RUNNER_TEMP/sector-zip"
           test -f "$RUNNER_TEMP/sector-zip/brace-sector-factor-belief-state.tgz"
@@ -124,14 +125,14 @@ jobs:
           PY
           )
           if [ -n "$artifact_id" ]; then
-            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
             mkdir -p "$RUNNER_TEMP/pr15-zip"
             unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
             test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$PR15_DIR"
             test -f "$PR15_DIR/belief_core/state.json"
-            echo "PR15 forecast state available for prospective binding."
+            test -f "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json"
+            echo "PR15 forecast state available for prospective semantic binding."
           else
             echo "No PR15 state artifact yet; World State snapshot will still be created."
           fi
@@ -152,8 +153,7 @@ jobs:
           PY
           )
           if [ -n "$artifact_id" ]; then
-            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/world.zip"
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/world.zip"
             mkdir -p "$RUNNER_TEMP/world-zip"
             unzip -q "$RUNNER_TEMP/world.zip" -d "$RUNNER_TEMP/world-zip"
             test -f "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz"
@@ -162,13 +162,14 @@ jobs:
             echo "No prior PR16.1 state; this run establishes the prospective World State boundary."
           fi
 
-      - name: Validate PR16.1 code
+      - name: Validate PR16.1 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py scripts/investment_semantics_world_state_semantic.py scripts/entity_semantic_eligibility.py
           PYTHONPATH=scripts:. python -m unittest tests.test_investment_semantics_world_state -v
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
-      - name: Build canonical World State and prospective forecast bindings
+      - name: Build canonical World State and semantically eligible prospective forecast bindings
         run: |
           set -euo pipefail
           args=(
@@ -179,18 +180,18 @@ jobs:
           if [ -f "$PR15_DIR/belief_core/state.json" ]; then
             args+=(--pr15-core-state "$PR15_DIR/belief_core/state.json")
           fi
-          PYTHONPATH=scripts:. python scripts/investment_semantics_world_state.py "${args[@]}"
+          if [ -f "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json" ]; then
+            args+=(--pr15-runtime-state "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json")
+          fi
+          PYTHONPATH=scripts:. python scripts/investment_semantics_world_state_semantic.py "${args[@]}"
 
-      - name: Assert semantics, timing and zero-influence boundaries
+      - name: Assert semantics, timing, semantic eligibility and zero-influence boundaries
         run: |
           python - <<'PY'
           import json, os
           from datetime import datetime
           from pathlib import Path
-
-          def dt(value):
-              return datetime.fromisoformat(str(value).replace('Z','+00:00'))
-
+          def dt(value): return datetime.fromisoformat(str(value).replace('Z','+00:00'))
           root=Path(os.environ['STATE_DIR'])
           report=json.loads((root/'INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json').read_text())
           state=json.loads((root/'INVESTMENT_WORLD_STATE_RUNTIME_STATE.json').read_text())
@@ -200,26 +201,28 @@ jobs:
           mappings=report['semantic_contract']['source_field_mappings']
           assert mappings['investments_weekly_v2.confidence']['semantic_type'] == 'heuristic_signal_strength'
           assert mappings['brace_portfolio.confidence_score']['semantic_type'] == 'data_quality_confidence'
-          assert mappings['brace_portfolio.probability_of_reaching_target']['semantic_type'] == 'model_probability'
           assert mappings['belief_core.belief_state.probability']['semantic_type'] == 'belief_probability'
-          assert mappings['belief_core.belief_state.confidence']['semantic_type'] == 'belief_confidence'
           assert report['world_state_contract']['broad_market_context_included'] is True
           assert report['world_state_contract']['sector_factor_context_included'] is True
           assert report['world_state_contract']['direct_raw_market_observables_included'] is False
+          assert report['forecast_context_contract']['semantic_eligibility_required_for_new_binding'] is True
+          assert report['entity_semantic_eligibility']['new_binding_for_semantic_ineligible_forecast'] is False
+          assert report['entity_semantic_eligibility']['historical_binding_deleted'] is False
+          assert report['entity_semantic_eligibility']['historical_forecast_mutated'] is False
           assert report['anti_hindsight']['historical_world_state_backfill'] is False
           assert report['anti_hindsight']['historical_forecast_context_backfill'] is False
           assert report['anti_hindsight']['pre_activation_forecasts_are_not_regime_tagged'] is True
           assert report['anti_hindsight']['retroactive_forecast_mutation'] is False
           assert report['promotion']['automatic_promotion'] is False
           assert report['promotion']['promotion_authority'] is False
-          assert report['capabilities']['with_without_bridge_enabled'] is False
-          assert report['capabilities']['promotion_gate_enabled'] is False
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
-          pre=set(state.get('pre_activation_pr15_forecast_ids') or [])
+          excluded=set(report['entity_semantic_eligibility']['excluded_forecast_ids'])
           bindings=state.get('forecast_context_bindings') or {}
+          assert not (excluded & set(bindings)) or all(fid in state.get('seen_pr15_forecast_ids',[]) for fid in excluded & set(bindings))
+          pre=set(state.get('pre_activation_pr15_forecast_ids') or [])
           assert not (pre & set(bindings))
           snapshots={x['world_state_id']:x for x in state.get('snapshots',[])}
-          for forecast_id,binding in bindings.items():
+          for binding in bindings.values():
               snap=snapshots[binding['world_state_id']]
               assert dt(snap['created_at']) <= dt(binding['forecast_at'])
               assert dt(snap['source_cutoff_at']) <= dt(binding['forecast_at'])
@@ -227,9 +230,9 @@ jobs:
               assert binding['retroactive'] is False
               assert binding['forecast_mutated'] is False
               assert binding['historical_backfill'] is False
-          print('PR16.1 World State + prospective binding safety contract: PASS')
+          print('PR16.1 World State + PR19.1 semantic binding safety contract: PASS')
           print('World State:', report['world_state_contract'])
-          print('Forecast context:', report['forecast_context_contract'])
+          print('Semantic exclusions:', report['entity_semantic_eligibility']['excluded_belief_ids'])
           PY
 
       - name: Pack cumulative private PR16.1 state

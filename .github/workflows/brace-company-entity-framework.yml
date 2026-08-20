@@ -7,8 +7,17 @@ on:
     paths:
       - ".github/workflows/brace-company-entity-framework.yml"
       - "scripts/brace_company_entity_framework.py"
+      - "scripts/entity_semantic_eligibility.py"
+      - "scripts/brace_entity_evidence_interpretation_semantic.py"
+      - "scripts/brace_entity_belief_state_forecast_semantic.py"
+      - "scripts/brace_entity_calibration_diagnostics_semantic.py"
+      - "scripts/investment_semantics_world_state_semantic.py"
+      - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
+      - "scripts/belief_epistemic_causal_graph_semantic.py"
       - "tests/test_brace_company_entity_framework.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/BRACE_COMPANY_ENTITY_FRAMEWORK.md"
+      - "docs/ENTITY_SEMANTIC_ELIGIBILITY.md"
   workflow_run:
     workflows:
       - "BRACE Sector-Factor Belief Shadow"
@@ -93,7 +102,7 @@ jobs:
 
       - name: Validate PR12 framework
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/brace_company_entity_framework.py
+          PYTHONPATH=scripts python -m py_compile scripts/entity_semantic_eligibility.py scripts/brace_company_entity_framework.py
           PYTHONPATH=. python -m unittest tests.test_brace_company_entity_framework -v
 
       - name: Materialize current entity activation framework
@@ -113,6 +122,8 @@ jobs:
           assert report['activation_policy']['additional_hidden_candidate_threshold'] is False
           assert report['activation_policy']['new_company'] == 'activate_when_present_in_canonical_BRACE_analysis_candidates'
           assert report['anti_hindsight']['historical_backfill'] is False
+          assert report['capabilities']['entity_semantic_eligibility_enabled'] is True
+          assert report['capabilities']['bank_specific_dimensions_require_bank_archetype'] is True
           assert report['capabilities']['entity_evidence_ingestion_enabled'] is False
           assert report['capabilities']['entity_forecast_capture_enabled'] is False
           assert report['capabilities']['with_without_bridge_enabled'] is False
@@ -121,7 +132,9 @@ jobs:
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
           for row in report['entities']['active']:
               assert str(row.get('asset_type','')).lower() in {'stock','equity','common_stock','common stock'}
-          print('PR12 activation + zero-influence governance: PASS')
+              assert row.get('entity_archetype')
+              assert row.get('semantic_eligibility_contract_version') == 'entity-semantic-eligibility-v1'
+          print('PR12 activation + semantic eligibility + zero-influence governance: PASS')
           print('Sample:', report['sample'])
           PY
 
