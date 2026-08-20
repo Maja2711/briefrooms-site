@@ -24,33 +24,47 @@ jobs:
           - layer: pr10_broad_market
             primary: brace-broad-market-belief-state
             archive: brace-broad-market-belief-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr11_sector_factor
             primary: brace-sector-factor-belief-state
             archive: brace-sector-factor-belief-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr12_company_entity
             primary: brace-company-entity-framework-state
             archive: brace-company-entity-framework-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr13_primary_source
             primary: brace-entity-primary-source-evidence-state
             archive: brace-entity-primary-source-evidence-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr14_interpretation
             primary: brace-entity-evidence-interpretation-state
             archive: brace-entity-evidence-interpretation-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr15_belief_forecast
             primary: brace-entity-belief-state-forecast-state
             archive: brace-entity-belief-state-forecast-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr16_calibration
             primary: brace-entity-calibration-diagnostics-state
             archive: brace-entity-calibration-diagnostics-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr16_1_world_state
             primary: investment-semantics-world-state
             archive: investment-semantics-world-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr17_entity_bridge
             primary: brace-entity-belief-shadow-bridge-state
             archive: brace-entity-belief-shadow-bridge-state.tgz
+            driver: scripts/research_state_durability.py
           - layer: pr19_epistemic_graph
             primary: belief-epistemic-causal-graph-state
             archive: belief-epistemic-causal-graph-state.tgz
+            driver: scripts/research_state_durability.py
+          - layer: pr20_eurusd_abc
+            primary: daily-eurusd-abc-live-shadow-state
+            archive: daily-eurusd-abc-live-shadow-state.tgz
+            driver: scripts/daily_eurusd_abc_durability.py
     steps:
       - name: Checkout production main
         uses: actions/checkout@v4
@@ -68,19 +82,19 @@ jobs:
           state_dir="$RUNNER_TEMP/research-state-${{ matrix.layer }}"
           output="$RUNNER_TEMP/${{ matrix.archive }}"
           mkdir -p "$state_dir"
-          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+          PYTHONPATH=scripts:. python "${{ matrix.driver }}" restore \
             --layer "${{ matrix.layer }}" \
             --state-dir "$state_dir"
           if [ ! -f "$state_dir/RESEARCH_STATE_DURABILITY_MANIFEST.json" ]; then
-            PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            PYTHONPATH=scripts:. python "${{ matrix.driver }}" seal \
               --layer "${{ matrix.layer }}" \
               --state-dir "$state_dir" \
               --migration-from-legacy
           fi
-          PYTHONPATH=scripts:. python scripts/research_state_durability.py verify \
+          PYTHONPATH=scripts:. python "${{ matrix.driver }}" verify \
             --layer "${{ matrix.layer }}" \
             --state-dir "$state_dir"
-          PYTHONPATH=scripts:. python scripts/research_state_durability.py pack \
+          PYTHONPATH=scripts:. python "${{ matrix.driver }}" pack \
             --layer "${{ matrix.layer }}" \
             --state-dir "$state_dir" \
             --output "$output"
