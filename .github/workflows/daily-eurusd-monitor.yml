@@ -1,0 +1,84 @@
+name: Monitor Daily EURUSD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_engine_contract.py"
+      - "scripts/daily_eurusd_lifecycle.py"
+      - "scripts/daily_eurusd_spot.py"
+      - "scripts/daily-eurusd-spot-public.js"
+      - "tests/test_daily_eurusd_lifecycle.py"
+      - ".github/workflows/daily-eurusd-monitor.yml"
+  schedule:
+    # Independent risk monitor. Offset from round 5-minute boundaries.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-eurusd-monitor
+  cancel-in-progress: false
+
+jobs:
+  reconcile-eurusd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate lifecycle code
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_daily_eurusd_lifecycle -v
+          python -m py_compile scripts/daily_engine_contract.py scripts/daily_eurusd_lifecycle.py scripts/daily_eurusd_spot.py
+          node --check scripts/daily-eurusd-spot-public.js
+
+      - name: Reconcile open position and refresh candidate
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_spot.py \
+            --output data/investments/eurusd_daily_spot.json \
+            --history data/investments/eurusd_daily_history.json
+          python scripts/daily_eurusd_spot.py \
+            --output data/investments/eurusd_daily_spot.json \
+            --history data/investments/eurusd_daily_history.json \
+            --validate
+          python -m json.tool data/investments/eurusd_daily_spot.json >/dev/null
+          python -m json.tool data/investments/eurusd_daily_history.json >/dev/null
+
+      - name: Persist EURUSD state and append-only outcomes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
+          if git diff --cached --quiet; then
+            echo "No EURUSD state change"
+            exit 0
+          fi
+          git commit -m "Monitor Daily EURUSD position"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push; then
+              exit 0
+            fi
+            echo "Push attempt ${attempt} failed; retrying after ref refresh"
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          echo "Unable to persist EURUSD state after retries" >&2
+          exit 1
