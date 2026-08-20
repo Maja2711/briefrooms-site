@@ -9,8 +9,10 @@ on:
       - "scripts/brace_entity_belief_state_forecast.py"
       - "scripts/brace_entity_belief_state_forecast_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_entity_belief_state_forecast.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_ENTITY_BELIEF_STATE_FORECAST.md"
   workflow_run:
     workflows:
@@ -103,13 +105,22 @@ jobs:
             test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR15 state; first run will establish activation cursor and prior-only Belief states."
+            echo "No prior PR15 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr15_belief_forecast" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR15 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py scripts/brace_entity_belief_state_forecast_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py scripts/brace_entity_belief_state_forecast_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_state_forecast -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
@@ -180,6 +191,14 @@ jobs:
           print('Sample:', report['sample'])
           print('Semantic deprecations:', len(runtime.get('semantic_deprecations') or {}))
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr15_belief_forecast" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private PR15 state
         run: tar -czf "$RUNNER_TEMP/brace-entity-belief-state-forecast-state.tgz" -C "$STATE_DIR" .
