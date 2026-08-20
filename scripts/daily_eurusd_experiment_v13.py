@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 """PR24 virtual trade-path evaluation for the Daily EUR/USD A/B/C experiment.
 
-This layer preserves the existing point-in-time forward outcomes (30m/1h/2h/4h/24h)
-and adds a separate virtual trade path for prospective v1.3 captures only:
-- entry at the frozen reference price,
-- SL/TP risk contract aligned with active Daily EUR/USD,
-- MFE / MAE from 1-minute OHLC after the signal was generated,
-- first-touch TP/SL handling,
-- 24h time exit,
-- fail-closed ambiguity when TP and SL are both touched inside the same 1m bar.
+The existing 30m/1h/2h/4h/24h point-forward outcomes remain untouched. This
+layer adds a separate prospective virtual trade path for v1.3 captures only:
+entry at frozen reference, active-engine-parity SL/TP, 1m MFE/MAE, first-touch
+TP/SL, and 24h time exit. Terminal trade outcomes are append-only.
 
-It remains research_shadow only. It never executes a trade and never writes back to
-Belief Core or the active Daily EUR/USD decision path.
+Research boundary is unchanged: no trade execution, no active-engine influence,
+no Belief Core writeback.
 """
 from __future__ import annotations
 
@@ -33,12 +29,13 @@ RISK_FLOOR_PERCENT = 0.0027
 REWARD_RISK = 1.8
 POSITION_HORIZON_MINUTES = 1440
 MONITOR_INTERVAL = "1m"
+TERMINAL_PATH_STATUSES = {"CLOSED", "AMBIGUOUS", "NO_TRADE", "UNAVAILABLE"}
 
 _base_build_capture = base.build_capture
 _base_validate_state = base.validate_state
 _base_build_report = base.build_report
 
-# Upgrade the frozen experiment version before the inherited capture builder runs.
+# Freeze v1.3 before inherited capture/state helpers execute.
 base.ENGINE_VERSION = ENGINE_VERSION
 
 
@@ -66,8 +63,25 @@ def _eligible_30m_rows(rows: Sequence[Bar], observed_at: datetime) -> list[Bar]:
     ]
 
 
+def _empty_path_arm(status: str) -> dict[str, Any]:
+    return {
+        "status": status,
+        "mfe_bps": 0.0 if status == "OPEN" else None,
+        "mfe_at": None,
+        "mae_bps": 0.0 if status == "OPEN" else None,
+        "mae_at": None,
+        "first_touch": None,
+        "first_touch_at": None,
+        "minutes_to_first_touch": None,
+        "exit_reason": None,
+        "exit_at": None,
+        "exit_price": None,
+        "realized_bps": None,
+    }
+
+
 def build_trade_plan(capture: Mapping[str, Any], rows_30m: Sequence[Bar]) -> dict[str, Any]:
-    """Freeze one risk plan at capture time using the active Daily EUR/USD risk contract."""
+    """Freeze risk geometry at capture time using active Daily EUR/USD parity."""
     observed_at = _parse_time(str(capture["market_observed_at"]))
     captured_at = _parse_time(str(capture["captured_at"]))
     eligible = _eligible_30m_rows(rows_30m, observed_at)
@@ -107,12 +121,8 @@ def build_trade_plan(capture: Mapping[str, Any], rows_30m: Sequence[Bar]) -> dic
         if direction not in {"LONG", "SHORT"}:
             raise ValueError(f"unsupported PR24 arm direction: {arm_id}={direction}")
 
-        if direction == "LONG":
-            stop = entry - risk
-            target = entry + risk * REWARD_RISK
-        else:
-            stop = entry + risk
-            target = entry - risk * REWARD_RISK
+        stop = entry - risk if direction == "LONG" else entry + risk
+        target = entry + risk * REWARD_RISK if direction == "LONG" else entry - risk * REWARD_RISK
         arm_plans[arm_id] = {
             "available": True,
             "direction": direction,
@@ -144,29 +154,15 @@ def build_trade_plan(capture: Mapping[str, Any], rows_30m: Sequence[Bar]) -> dic
     }
 
 
-def _initial_trade_path(plan: Mapping[str, Any]) -> dict[str, Any]:
+def _initial_trade_path(plan: Mapping[str, Any], plan_sha: str) -> dict[str, Any]:
     arms: dict[str, Any] = {}
     for arm_id in ("A", "B", "C"):
-        arm_plan = (plan.get("arms") or {}).get(arm_id) or {}
-        plan_status = str(arm_plan.get("status") or "UNAVAILABLE")
+        plan_status = str(((plan.get("arms") or {}).get(arm_id) or {}).get("status") or "UNAVAILABLE")
         status = "OPEN" if plan_status == "TRACKED" else plan_status
-        arms[arm_id] = {
-            "status": status,
-            "mfe_bps": 0.0 if status == "OPEN" else None,
-            "mfe_at": None,
-            "mae_bps": 0.0 if status == "OPEN" else None,
-            "mae_at": None,
-            "first_touch": None,
-            "first_touch_at": None,
-            "minutes_to_first_touch": None,
-            "exit_reason": None,
-            "exit_at": None,
-            "exit_price": None,
-            "realized_bps": None,
-        }
+        arms[arm_id] = _empty_path_arm(status)
     return {
         "schema_version": TRADE_PATH_SCHEMA,
-        "source_plan_sha256": None,
+        "source_plan_sha256": plan_sha,
         "arms": arms,
     }
 
@@ -186,21 +182,16 @@ def build_capture(
         daily_rows=daily_rows,
         captured_at=captured_at,
     )
-    capture["engine_version"] = ENGINE_VERSION
     plan = build_trade_plan(capture, rows_30m)
     plan_sha = base._canonical_sha(plan)
     capture["trade_plan"] = plan
     capture["trade_plan_sha256"] = plan_sha
-    path = _initial_trade_path(plan)
-    path["source_plan_sha256"] = plan_sha
-    capture["trade_path"] = path
+    capture["trade_path"] = _initial_trade_path(plan, plan_sha)
     return capture
 
 
 def _directional_bps(direction: str, entry: float, price: float) -> float:
-    if direction == "LONG":
-        return (price / entry - 1.0) * 10000.0
-    return (entry / price - 1.0) * 10000.0
+    return (price / entry - 1.0) * 10000.0 if direction == "LONG" else (entry / price - 1.0) * 10000.0
 
 
 def _bar_extremes(bar: Bar) -> tuple[float, float, float]:
@@ -218,15 +209,13 @@ def evaluate_arm_trade_path(
     horizon_end_at: datetime,
     as_of: datetime,
 ) -> dict[str, Any]:
-    """Evaluate one virtual arm path from 1m OHLC without guessing same-bar ordering."""
+    """Evaluate one arm from 1m OHLC; never guess TP-vs-SL order in one bar."""
     direction = str(arm_plan.get("direction") or "UNAVAILABLE").upper()
     plan_status = str(arm_plan.get("status") or "UNAVAILABLE")
     if plan_status == "UNAVAILABLE":
-        return _initial_trade_path({"arms": {"A": arm_plan, "B": arm_plan, "C": arm_plan}})["arms"]["A"]
+        return _empty_path_arm("UNAVAILABLE")
     if plan_status == "NO_TRADE" or direction == "FLAT":
-        row = _initial_trade_path({"arms": {"A": {**dict(arm_plan), "status": "NO_TRADE"}, "B": {}, "C": {}}})["arms"]["A"]
-        row["status"] = "NO_TRADE"
-        return row
+        return _empty_path_arm("NO_TRADE")
     if direction not in {"LONG", "SHORT"}:
         raise ValueError(f"cannot evaluate trade path direction={direction}")
 
@@ -239,13 +228,10 @@ def evaluate_arm_trade_path(
         if signal_generated_at < bar.timestamp.astimezone(timezone.utc) <= cutoff
     ]
 
-    mfe_bps = 0.0
-    mae_bps = 0.0
+    mfe_bps = mae_bps = 0.0
     mfe_at = mae_at = None
-    exit_reason = exit_at = first_touch = first_touch_at = None
-    exit_price: float | None = None
-    realized_bps: float | None = None
-    minutes_to_first_touch: float | None = None
+    first_touch = first_touch_at = exit_reason = exit_at = None
+    exit_price = realized_bps = minutes_to_first_touch = None
     status = "OPEN"
 
     for bar in rows:
@@ -254,47 +240,41 @@ def evaluate_arm_trade_path(
         if direction == "LONG":
             favorable = _directional_bps(direction, entry, high)
             adverse = _directional_bps(direction, entry, low)
-            tp_hit = high >= target
-            sl_hit = low <= stop
+            tp_hit, sl_hit = high >= target, low <= stop
         else:
             favorable = _directional_bps(direction, entry, low)
             adverse = _directional_bps(direction, entry, high)
-            tp_hit = low <= target
-            sl_hit = high >= stop
+            tp_hit, sl_hit = low <= target, high >= stop
 
+        # 1m OHLC has no intrabar ordering. We include the exit bar in MFE/MAE,
+        # and fail closed if both thresholds are present inside that same bar.
         if favorable > mfe_bps:
-            mfe_bps = favorable
-            mfe_at = _iso_z(ts)
+            mfe_bps, mfe_at = favorable, _iso_z(ts)
         if adverse < mae_bps:
-            mae_bps = adverse
-            mae_at = _iso_z(ts)
+            mae_bps, mae_at = adverse, _iso_z(ts)
 
         if tp_hit and sl_hit:
             status = "AMBIGUOUS"
-            first_touch = "AMBIGUOUS_SAME_1M_BAR"
-            first_touch_at = _iso_z(ts)
-            exit_reason = "AMBIGUOUS_SAME_1M_BAR"
-            exit_at = _iso_z(ts)
+            first_touch = exit_reason = "AMBIGUOUS_SAME_1M_BAR"
+            first_touch_at = exit_at = _iso_z(ts)
             minutes_to_first_touch = round((ts - signal_generated_at).total_seconds() / 60.0, 2)
             break
         if tp_hit or sl_hit:
-            first_touch = "TAKE_PROFIT" if tp_hit else "STOP_LOSS"
-            first_touch_at = _iso_z(ts)
-            exit_reason = first_touch
-            exit_at = _iso_z(ts)
+            status = "CLOSED"
+            first_touch = exit_reason = "TAKE_PROFIT" if tp_hit else "STOP_LOSS"
+            first_touch_at = exit_at = _iso_z(ts)
             exit_price = target if tp_hit else stop
             realized_bps = _directional_bps(direction, entry, exit_price)
             minutes_to_first_touch = round((ts - signal_generated_at).total_seconds() / 60.0, 2)
-            status = "CLOSED"
             break
 
     if status == "OPEN" and as_of.astimezone(timezone.utc) >= horizon_end_at.astimezone(timezone.utc):
-        eligible_at_exit = [
+        eligible = [
             bar for bar in sorted(minute_rows, key=lambda item: item.timestamp)
             if signal_generated_at < bar.timestamp.astimezone(timezone.utc) <= horizon_end_at.astimezone(timezone.utc)
         ]
-        if eligible_at_exit:
-            last = eligible_at_exit[-1]
+        if eligible:
+            last = eligible[-1]
             ts = last.timestamp.astimezone(timezone.utc)
             _, _, close = _bar_extremes(last)
             status = "CLOSED"
@@ -325,7 +305,7 @@ def update_trade_paths(
     *,
     as_of: datetime | None = None,
 ) -> dict[str, Any]:
-    """Recompute v1.3 trade paths deterministically; older captures are never backfilled."""
+    """Update only OPEN v1.3 arms; terminal outcomes remain append-only forever."""
     updated = copy.deepcopy(dict(state))
     evaluation_time = (as_of or datetime.now(timezone.utc)).astimezone(timezone.utc)
     changed = False
@@ -343,8 +323,13 @@ def update_trade_paths(
 
         signal_generated_at = _parse_time(str(plan["signal_generated_at"]))
         horizon_end_at = _parse_time(str(plan["horizon_end_at"]))
-        new_arms = {}
+        old_arms = path.get("arms") or {}
+        new_arms: dict[str, Any] = {}
         for arm_id in ("A", "B", "C"):
+            existing = copy.deepcopy(old_arms.get(arm_id) or {})
+            if str(existing.get("status") or "") in TERMINAL_PATH_STATUSES:
+                new_arms[arm_id] = existing
+                continue
             new_arms[arm_id] = evaluate_arm_trade_path(
                 (plan.get("arms") or {}).get(arm_id) or {},
                 minute_rows,
@@ -352,7 +337,7 @@ def update_trade_paths(
                 horizon_end_at=horizon_end_at,
                 as_of=evaluation_time,
             )
-        if new_arms != (path.get("arms") or {}):
+        if new_arms != old_arms:
             capture["trade_path"] = {
                 "schema_version": TRADE_PATH_SCHEMA,
                 "source_plan_sha256": plan_sha,
@@ -366,7 +351,7 @@ def update_trade_paths(
 
 
 def trade_path_digest(state: Mapping[str, Any]) -> str:
-    payload = [
+    return base._canonical_sha([
         {
             "capture_id": capture.get("capture_id"),
             "engine_version": capture.get("engine_version"),
@@ -375,8 +360,11 @@ def trade_path_digest(state: Mapping[str, Any]) -> str:
         }
         for capture in state.get("captures") or []
         if str(capture.get("engine_version")) == ENGINE_VERSION
-    ]
-    return base._canonical_sha(payload)
+    ])
+
+
+def has_v13_trade_paths(state: Mapping[str, Any]) -> bool:
+    return any(str(capture.get("engine_version")) == ENGINE_VERSION for capture in state.get("captures") or [])
 
 
 def _mean(values: list[float]) -> float | None:
@@ -400,8 +388,7 @@ def trade_performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
             signals += 1
             path_arm = ((capture.get("trade_path") or {}).get("arms") or {}).get(arm_id) or {}
             status = str(path_arm.get("status") or "OPEN")
-            mfe = _number(path_arm.get("mfe_bps"), 4)
-            mae = _number(path_arm.get("mae_bps"), 4)
+            mfe, mae = _number(path_arm.get("mfe_bps"), 4), _number(path_arm.get("mae_bps"), 4)
             if mfe is not None:
                 mfe_values.append(mfe)
             if mae is not None:
@@ -418,18 +405,13 @@ def trade_performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
             if status == "CLOSED":
                 closed += 1
                 reason = str(path_arm.get("exit_reason") or "")
-                if reason == "TAKE_PROFIT":
-                    tp += 1
-                elif reason == "STOP_LOSS":
-                    sl += 1
-                elif reason == "TIME_EXIT_24H":
-                    time_exit += 1
+                tp += int(reason == "TAKE_PROFIT")
+                sl += int(reason == "STOP_LOSS")
+                time_exit += int(reason == "TIME_EXIT_24H")
                 pnl = _number(path_arm.get("realized_bps"), 4)
                 if pnl is not None:
                     realized.append(pnl)
-                    if pnl > 0:
-                        wins += 1
-
+                    wins += int(pnl > 0)
         summary[arm_id] = {
             "signals": signals,
             "open_trades": open_count,
@@ -449,12 +431,13 @@ def trade_performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
 
 def build_report(state: Mapping[str, Any]) -> dict[str, Any]:
     report = _base_build_report(state)
-    report["engine_version"] = str((state.get("captures") or [{}])[-1].get("engine_version") or ENGINE_VERSION)
     report["trade_path"] = {
         "schema_version": TRADE_PATH_SCHEMA,
         "prospective_from_engine_version": ENGINE_VERSION,
         "historical_backfill": False,
         "virtual_only": True,
+        "entry_basis": "frozen_reference_price_not_executable_quote",
+        "costs": "spread_and_slippage_not_available_in_yahoo_ohlc",
         "risk_contract": {
             "atr_timeframe": "30m",
             "atr_window": ATR_30M_WINDOW,
@@ -464,6 +447,7 @@ def build_report(state: Mapping[str, Any]) -> dict[str, Any]:
             "position_horizon_minutes": POSITION_HORIZON_MINUTES,
             "monitor_interval": MONITOR_INTERVAL,
             "same_1m_tp_sl_touch": "AMBIGUOUS_FAIL_CLOSED",
+            "terminal_outcomes": "APPEND_ONLY",
         },
         "performance": trade_performance_summary(state),
     }
@@ -478,9 +462,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
         boundary = capture.get("research_boundary") or {}
         if boundary.get("trade_execution") is not False or boundary.get("decision_influence") is not False:
             raise ValueError("PR24 cannot acquire production authority")
-        plan = capture.get("trade_plan")
+        plan, path = capture.get("trade_plan"), capture.get("trade_path")
         plan_sha = capture.get("trade_plan_sha256")
-        path = capture.get("trade_path")
         if not isinstance(plan, Mapping) or plan.get("schema_version") != TRADE_PLAN_SCHEMA:
             raise ValueError("PR24 v1.3 capture requires frozen trade plan")
         if not isinstance(plan_sha, str) or base._canonical_sha(plan) != plan_sha:
@@ -489,33 +472,32 @@ def validate_state(state: Mapping[str, Any]) -> None:
             raise ValueError("PR24 v1.3 capture requires trade path")
         if path.get("source_plan_sha256") != plan_sha:
             raise ValueError("PR24 trade path plan lineage mismatch")
-        if set((plan.get("arms") or {}).keys()) != {"A", "B", "C"}:
-            raise ValueError("PR24 trade plan must contain A/B/C")
-        if set((path.get("arms") or {}).keys()) != {"A", "B", "C"}:
-            raise ValueError("PR24 trade path must contain A/B/C")
+        if set((plan.get("arms") or {}).keys()) != {"A", "B", "C"} or set((path.get("arms") or {}).keys()) != {"A", "B", "C"}:
+            raise ValueError("PR24 trade plan/path must contain A/B/C")
         if str(plan.get("signal_generated_at")) != str(capture.get("captured_at")):
-            raise ValueError("PR24 trade monitoring must start at frozen signal generation time")
+            raise ValueError("PR24 monitoring must start at frozen signal generation time")
+        risk = plan.get("risk_contract") or {}
+        if risk.get("atr_window") != ATR_30M_WINDOW or float(risk.get("atr_multiple")) != ATR_MULTIPLE:
+            raise ValueError("PR24 risk contract drift")
+        if float(risk.get("risk_floor_percent")) != RISK_FLOOR_PERCENT or float(risk.get("reward_risk")) != REWARD_RISK:
+            raise ValueError("PR24 risk/reward contract drift")
         for arm_id in ("A", "B", "C"):
             arm_plan = (plan.get("arms") or {})[arm_id]
-            direction = str(arm_plan.get("direction") or "UNAVAILABLE")
-            status = str(arm_plan.get("status") or "UNAVAILABLE")
-            if direction == "LONG" and status == "TRACKED":
-                if not (float(arm_plan["stop_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["target_price"])):
-                    raise ValueError("invalid LONG PR24 risk geometry")
-            if direction == "SHORT" and status == "TRACKED":
-                if not (float(arm_plan["target_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["stop_price"])):
-                    raise ValueError("invalid SHORT PR24 risk geometry")
+            direction, status = str(arm_plan.get("direction") or "UNAVAILABLE"), str(arm_plan.get("status") or "UNAVAILABLE")
+            if direction == "LONG" and status == "TRACKED" and not (float(arm_plan["stop_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["target_price"])):
+                raise ValueError("invalid LONG PR24 risk geometry")
+            if direction == "SHORT" and status == "TRACKED" and not (float(arm_plan["target_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["stop_price"])):
+                raise ValueError("invalid SHORT PR24 risk geometry")
             path_status = str(((path.get("arms") or {})[arm_id]).get("status") or "")
             if path_status not in {"OPEN", "CLOSED", "AMBIGUOUS", "NO_TRADE", "UNAVAILABLE"}:
                 raise ValueError(f"invalid PR24 trade path status {arm_id}={path_status}")
 
 
-# Patch inherited runtime/report validation entrypoints used by base.main/run_cycle.
+# Patch inherited runtime/report validation paths.
 base.build_capture = build_capture
 base.validate_state = validate_state
 base.build_report = build_report
 
-# Re-export the stable experiment API.
 BELIEF_WEIGHTS = v12.BELIEF_WEIGHTS
 MA_WINDOWS = v12.MA_WINDOWS
 TECHNICAL_WEIGHTS = v12.TECHNICAL_WEIGHTS
