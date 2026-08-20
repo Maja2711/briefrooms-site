@@ -12,6 +12,7 @@ on:
       - "tests/test_daily_eurusd_experiment.py"
       - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_trade_path.py"
+      - "tests/test_daily_eurusd_abc_trade_path_settler.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -27,6 +28,7 @@ on:
       - "tests/test_daily_eurusd_experiment.py"
       - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_trade_path.py"
+      - "tests/test_daily_eurusd_abc_trade_path_settler.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -68,19 +70,23 @@ jobs:
           python -m unittest \
             tests.test_daily_eurusd_experiment \
             tests.test_daily_eurusd_abc_trade_path \
+            tests.test_daily_eurusd_abc_trade_path_settler \
             tests.test_daily_eurusd_abc_settler \
             tests.test_daily_eurusd_abc_durability -v
 
-      - name: Assert v1.3 zero-authority, risk parity and append-only contract
+      - name: Assert v1.3 isolation, zero-authority, risk parity and append-only contract
         run: |
           set -euo pipefail
           python - <<'PY'
           import sys
           sys.path.insert(0, "scripts")
+          import daily_eurusd_experiment_v12 as v12
           import daily_eurusd_experiment_v13 as abc
           import daily_eurusd_abc_durability as durability
 
           assert abc.base.MODE == "research_shadow"
+          assert v12.ENGINE_VERSION == "eurusd-daily-abc-v1.2.0"
+          assert abc.base.ENGINE_VERSION == "eurusd-daily-abc-v1.2.0"
           assert abc.ENGINE_VERSION == "eurusd-daily-abc-v1.3.0"
           assert abc.BOLLINGER_WINDOW == 30
           assert abc.BOLLINGER_STDDEV_LEVELS == (1.0, 2.0, 3.0)
@@ -98,7 +104,7 @@ jobs:
           assert "eurusd.trend.bullish" not in abc.HYBRID_CONTEXT_BELIEF_IDS
           spec=durability.rsd.LAYERS[durability.LAYER_ID]
           assert spec.primary_artifact == "daily-eurusd-abc-live-shadow-state"
-          print("Daily EURUSD A/B/C v1.3 + PR24 trade-path invariants: PASS")
+          print("Daily EURUSD A/B/C v1.3 + PR24 isolated trade-path invariants: PASS")
           PY
 
       - name: Assert production workflow remains shadow-only and settles every five minutes
@@ -123,5 +129,5 @@ jobs:
           assert 'daily_eurusd_abc_durability.py verify' in text
           assert 'trade_plan_sha256' in text
           assert 'virtual_only' in text
-          print('PR24 live-shadow five-minute point + virtual-trade settlement contract: PASS')
+          print('PR24 live-shadow five-minute point + terminal virtual-trade settlement contract: PASS')
           PY
