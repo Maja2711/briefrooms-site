@@ -1,0 +1,55 @@
+name: BRACE Entity Belief Shadow Bridge Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/brace_entity_belief_shadow_bridge.py"
+      - "tests/test_brace_entity_belief_shadow_bridge.py"
+      - "docs/BRACE_ENTITY_BELIEF_SHADOW_BRIDGE.md"
+      - ".github/workflows/brace-entity-belief-shadow-bridge.yml"
+      - ".github/workflows/brace-entity-belief-shadow-bridge-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test PR17 bridge
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_shadow_bridge.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_shadow_bridge -v
+      - name: Assert PR17 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from brace_entity_belief_shadow_bridge import (
+              PRIMARY_MODIFIER_SCORE_POINTS,
+              capabilities,
+              promotion_evidence_standard,
+              safety_controls,
+          )
+          controls=safety_controls()
+          caps=capabilities()
+          standard=promotion_evidence_standard()
+          assert controls and all(v is False for v in controls.values())
+          assert PRIMARY_MODIFIER_SCORE_POINTS == 2.0
+          assert caps['prospective_paired_without_with_capture_enabled'] is True
+          assert caps['primary_modifier_consumed_by_brace_enabled'] is False
+          assert caps['candidate_ranking_override_enabled'] is False
+          assert caps['engine_sizing_override_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          assert standard['with_without_required'] is True
+          assert standard['paired_prospective_counterfactual_required'] is True
+          assert standard['primary_modifier_frozen_ex_ante'] is True
+          assert standard['effective_n_threshold_defined_here'] is False
+          assert standard['automatic_promotion'] is False
+          print('PR17 BRACE↔Entity Belief shadow bridge governance: PASS')
+          PY
