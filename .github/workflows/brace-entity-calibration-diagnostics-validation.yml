@@ -1,0 +1,57 @@
+name: BRACE Entity Calibration Diagnostics Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/brace-entity-calibration-diagnostics.yml"
+      - ".github/workflows/brace-entity-calibration-diagnostics-validation.yml"
+      - "scripts/brace_entity_calibration_diagnostics.py"
+      - "tests/test_brace_entity_calibration_diagnostics.py"
+      - "docs/BRACE_ENTITY_CALIBRATION_DIAGNOSTICS.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR16 calibration diagnostics
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_calibration_diagnostics -v
+
+      - name: Assert PR16 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from brace_entity_calibration_diagnostics import capabilities, promotion_evidence_standard, safety_controls
+
+          assert safety_controls()
+          assert all(v is False for v in safety_controls().values())
+          caps=capabilities()
+          assert caps['pr15_calibration_input_enabled'] is True
+          assert caps['fixed_bin_calibration_diagnostics_enabled'] is True
+          assert caps['serial_dependency_diagnostics_enabled'] is True
+          assert caps['entity_cluster_dependency_diagnostics_enabled'] is True
+          assert caps['sector_cluster_dependency_diagnostics_enabled'] is True
+          assert caps['reporting_season_dependency_diagnostics_enabled'] is True
+          assert caps['forecast_window_overlap_diagnostics_enabled'] is True
+          assert caps['broad_market_regime_context_frozen_at_forecast_enabled'] is False
+          assert caps['sector_factor_regime_context_frozen_at_forecast_enabled'] is False
+          assert caps['with_without_bridge_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          gate=promotion_evidence_standard()
+          assert gate['with_without_required'] is True
+          assert gate['effective_n_required'] is True
+          assert gate['effective_n_threshold_defined_here'] is False
+          assert gate['multi_regime_robustness_required'] is True
+          assert gate['automatic_promotion'] is False
+          assert gate['review_output_only'] == 'ELIGIBLE_FOR_PROMOTION_REVIEW'
+          print('PR16 calibration diagnostics governance: PASS')
+          PY

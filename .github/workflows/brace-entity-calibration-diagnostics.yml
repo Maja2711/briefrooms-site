@@ -1,0 +1,169 @@
+name: BRACE Entity Calibration Diagnostics Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-entity-calibration-diagnostics.yml"
+      - "scripts/brace_entity_calibration_diagnostics.py"
+      - "tests/test_brace_entity_calibration_diagnostics.py"
+      - "docs/BRACE_ENTITY_CALIBRATION_DIAGNOSTICS.md"
+  workflow_run:
+    workflows:
+      - "BRACE Entity Belief State-Forecast Shadow"
+    types: [completed]
+  schedule:
+    - cron: "35 4 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-entity-calibration-diagnostics-shadow
+  cancel-in-progress: false
+
+env:
+  PR15_ARTIFACT_NAME: brace-entity-belief-state-forecast-state
+  STATE_ARTIFACT_NAME: brace-entity-calibration-diagnostics-state
+
+jobs:
+  diagnose:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare PR15 and PR16 private state directories
+        run: |
+          set -euo pipefail
+          echo "PR15_DIR=$RUNNER_TEMP/pr15_entity_belief_state_forecast" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr16_entity_calibration_diagnostics" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr15_entity_belief_state_forecast" "$RUNNER_TEMP/pr16_entity_calibration_diagnostics"
+
+      - name: Restore latest PR15 Belief/forecast state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR15_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr15-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr15-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR16 blocked: PR15 Belief/forecast state artifact has not been established yet')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+          mkdir -p "$RUNNER_TEMP/pr15-zip"
+          unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
+          test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
+          tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$PR15_DIR"
+          test -f "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json"
+          test -f "$PR15_DIR/BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json"
+          test -f "$PR15_DIR/belief_core/state.json"
+          echo "PR15 Belief/forecast prerequisite state: PASS"
+
+      - name: Restore prior cumulative PR16 diagnostic state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr16-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr16-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr16.zip"
+            mkdir -p "$RUNNER_TEMP/pr16-zip"
+            unzip -q "$RUNNER_TEMP/pr16.zip" -d "$RUNNER_TEMP/pr16-zip"
+            test -f "$RUNNER_TEMP/pr16-zip/brace-entity-calibration-diagnostics-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr16-zip/brace-entity-calibration-diagnostics-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR16 state; first run will bootstrap diagnostics from already-prospective PR15 records only."
+          fi
+
+      - name: Validate PR16 code
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_calibration_diagnostics -v
+
+      - name: Build prospective Entity calibration diagnostics
+        run: |
+          PYTHONPATH=scripts:. python scripts/brace_entity_calibration_diagnostics.py \
+            --state-dir "$STATE_DIR" \
+            --belief-core-state "$PR15_DIR/belief_core/state.json" \
+            --pr15-runtime-state "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json" \
+            --pr15-report "$PR15_DIR/BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json"
+
+      - name: Assert PR16 zero-influence and promotion boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_ENTITY_CALIBRATION_DIAGNOSTICS_REPORT.json').read_text())
+          state=json.loads((root/'ENTITY_CALIBRATION_DIAGNOSTICS_STATE.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['anti_hindsight']['historical_belief_backfill'] is False
+          assert report['anti_hindsight']['historical_forecast_backfill'] is False
+          assert report['anti_hindsight']['diagnostics_use_only_pr15_frozen_prospective_verifications'] is True
+          assert report['effective_n']['effective_n_threshold_defined_here'] is False
+          assert report['effective_n']['effective_n_sufficient'] is None
+          if report['effective_n']['dependency_diagnostics_complete'] is False:
+              assert report['effective_n']['promotion_grade_effective_n'] is None
+          assert report['regime_robustness']['broad_market_context_frozen_at_forecast'] is False
+          assert report['regime_robustness']['sector_factor_context_frozen_at_forecast'] is False
+          assert report['regime_robustness']['multi_regime_robustness_assessable'] is False
+          assert report['regime_robustness']['promotion_regime_robust'] is None
+          assert report['promotion_readiness']['eligible_for_promotion_review'] is False
+          assert report['promotion_readiness']['with_without_available'] is False
+          assert report['promotion_readiness']['automatic_promotion'] is False
+          assert report['capabilities']['with_without_bridge_enabled'] is False
+          assert report['capabilities']['promotion_gate_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['effective_n_threshold_defined_here'] is False
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          assert state['contract_version'] == report['contract_version']
+          print('PR16 Entity calibration diagnostics safety contract: PASS')
+          print('Sample:', report['sample'])
+          print('Calibration N:', report['calibration']['n'])
+          print('Effective N:', report['effective_n'])
+          print('Promotion readiness:', report['promotion_readiness'])
+          PY
+
+      - name: Pack cumulative private PR16 state
+        run: tar -czf "$RUNNER_TEMP/brace-entity-calibration-diagnostics-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR16 diagnostic state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-entity-calibration-diagnostics-state
+          path: ${{ runner.temp }}/brace-entity-calibration-diagnostics-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
