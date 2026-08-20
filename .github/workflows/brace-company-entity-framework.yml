@@ -14,8 +14,10 @@ on:
       - "scripts/investment_semantics_world_state_semantic.py"
       - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
       - "scripts/belief_epistemic_causal_graph_semantic.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_company_entity_framework.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_COMPANY_ENTITY_FRAMEWORK.md"
       - "docs/ENTITY_SEMANTIC_ELIGIBILITY.md"
   workflow_run:
@@ -97,12 +99,21 @@ jobs:
             test -f "$RUNNER_TEMP/state-zip/brace-company-entity-framework-state.tgz"
             tar -xzf "$RUNNER_TEMP/state-zip/brace-company-entity-framework-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR12 state; current holdings/candidates will establish the real activation boundary now."
+            echo "No prior PR12 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr12_company_entity" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR12 framework
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/entity_semantic_eligibility.py scripts/brace_company_entity_framework.py
+          PYTHONPATH=scripts python -m py_compile scripts/entity_semantic_eligibility.py scripts/brace_company_entity_framework.py scripts/research_state_durability.py
           PYTHONPATH=. python -m unittest tests.test_brace_company_entity_framework -v
 
       - name: Materialize current entity activation framework
@@ -137,6 +148,14 @@ jobs:
           print('PR12 activation + semantic eligibility + zero-influence governance: PASS')
           print('Sample:', report['sample'])
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr12_company_entity" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private state
         run: tar -czf "$RUNNER_TEMP/brace-company-entity-framework-state.tgz" -C "$STATE_DIR" .
