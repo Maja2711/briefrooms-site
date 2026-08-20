@@ -1,0 +1,132 @@
+name: Audit PR18 Runtime
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pr18-runtime-audit.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify first post-merge PR18 production artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGED_AT: "2026-08-20T12:39:33Z"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io, json, os, subprocess, tarfile, tempfile, time, urllib.parse, urllib.request, zipfile
+          from datetime import datetime
+          from pathlib import Path
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          merged_at=datetime.fromisoformat(os.environ['MERGED_AT'].replace('Z','+00:00'))
+          headers={
+              'Authorization': f'Bearer {token}',
+              'Accept':'application/vnd.github+json',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'BriefRooms-PR18-Runtime-Audit/1.0',
+          }
+          def dt(x): return datetime.fromisoformat(str(x).replace('Z','+00:00'))
+          def api_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          def api_bytes(url):
+              p=subprocess.run([
+                  'curl','-fsSL','-L',
+                  '-H',f'Authorization: Bearer {token}',
+                  '-H','Accept: application/vnd.github+json',
+                  '-H','X-GitHub-Api-Version: 2022-11-28',url,
+              ],check=True,stdout=subprocess.PIPE)
+              return p.stdout
+
+          name='brace-information-disagreement-capture-state'
+          q=urllib.parse.quote(name,safe='')
+          artifact=None
+          for _ in range(48):
+              data=api_json(f'https://api.github.com/repos/{repo}/actions/artifacts?name={q}&per_page=100')
+              rows=[x for x in data.get('artifacts',[]) if not x.get('expired')]
+              rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+              if rows and dt(rows[0]['created_at']) >= merged_at:
+                  artifact=rows[0]
+                  break
+              time.sleep(5)
+          assert artifact is not None, 'No fresh PR18 artifact after merge'
+          run_id=(artifact.get('workflow_run') or {}).get('id')
+          assert run_id, artifact
+          run=api_json(f'https://api.github.com/repos/{repo}/actions/runs/{run_id}')
+          assert run.get('status')=='completed' and run.get('conclusion')=='success', run
+          assert run.get('name')=='BRACE Information Set Disagreement Capture', run.get('name')
+
+          raw=api_bytes(artifact['archive_download_url'])
+          with tempfile.TemporaryDirectory() as tmp:
+              root=Path(tmp)
+              with zipfile.ZipFile(io.BytesIO(raw)) as zf: zf.extractall(root/'zip')
+              tgz=root/'zip'/'brace-information-disagreement-capture-state.tgz'
+              assert tgz.exists()
+              out=root/'state'; out.mkdir()
+              with tarfile.open(tgz,'r:gz') as tf: tf.extractall(out,filter='data')
+              report=json.loads((out/'BRACE_INFORMATION_DISAGREEMENT_REPORT.json').read_text())
+              state=json.loads((out/'BRACE_INFORMATION_DISAGREEMENT_STATE.json').read_text())
+
+              assert report['mode']=='research_shadow'
+              assert report['active_decision_influence'] is False
+              assert report['information_contracts']['source_snapshot_sha_parity_required'] is True
+              assert report['information_contracts']['historical_information_backfill'] is False
+              assert report['information_contracts']['retroactive_source_reconstruction'] is False
+              assert report['marginal_information_value']['status']=='MEASUREMENT_INPUTS_ONLY'
+              assert report['marginal_information_value']['miv_score'] is None
+              assert report['marginal_information_value']['miv_score_contract_exists'] is False
+              assert report['marginal_information_value']['redundancy_status']=='NOT_YET_ESTIMABLE'
+              assert report['marginal_information_value']['orthogonality_status']=='NOT_YET_ESTIMABLE'
+              assert report['promotion']['status']=='NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
+              assert report['promotion']['eligible_for_promotion_review'] is False
+              assert report['promotion']['automatic_promotion'] is False
+              assert report['promotion']['effective_n_threshold_defined_here'] is False
+              assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+              pre=set(state.get('pre_activation_pr17_pair_set_ids') or [])
+              captures=set((state.get('captures') or {}).keys())
+              assert not (pre & captures)
+              for capture in (state.get('captures') or {}).values():
+                  assert capture['prospective_to_economic_outcome'] is True
+                  assert capture['historical_information_backfill'] is False
+                  assert capture['source_reconstruction'] is False
+                  assert capture['promotion_authority'] is False
+                  for item in capture['items']:
+                      assert item['research_readiness']['miv_score'] is None
+                      assert item['research_readiness']['redundancy_status']=='NOT_YET_ESTIMABLE'
+                      assert item['research_readiness']['orthogonality_status']=='NOT_YET_ESTIMABLE'
+                      assert item['engine_information']['data_quality_confidence']['semantic_type']=='data_quality_confidence'
+              for terminal in (state.get('terminal_uncaptured') or {}).values():
+                  assert terminal['terminal_no_reconstruction'] is True
+
+              print('PR18_RUNTIME_AUDIT=PASS')
+              print(json.dumps({
+                  'run_id':run_id,
+                  'event':run.get('event'),
+                  'artifact_id':artifact['id'],
+                  'artifact_created_at':artifact['created_at'],
+                  'activation_only_this_run':report['sample']['activation_only_this_run'],
+                  'pr17_pair_sets_visible':report['sample']['pr17_pair_sets_visible'],
+                  'pre_activation_pair_sets_total':report['sample']['pre_activation_pair_sets_total'],
+                  'captures_total':report['sample']['captures_total'],
+                  'terminal_uncaptured_total':report['sample']['terminal_uncaptured_total'],
+                  'descriptive_item_rows':report['sample']['descriptive_item_rows'],
+                  'matured_descriptive_rows':report['sample']['matured_descriptive_rows'],
+                  'miv_status':report['marginal_information_value']['status'],
+                  'miv_score':report['marginal_information_value']['miv_score'],
+                  'promotion_status':report['promotion']['status'],
+              },indent=2,sort_keys=True))
+          PY
