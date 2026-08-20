@@ -9,13 +9,17 @@ on:
       - "scripts/daily-eurusd-abc-lab-pl.js"
       - "pl/inwestycje/daily-trading.html"
       - ".github/workflows/daily-eurusd-abc-public-pl.yml"
+  workflow_run:
+    workflows: ["Daily EURUSD A-B-C Live Shadow"]
+    types: [completed]
   schedule:
-    # Live-shadow collection runs at :12/:42; publish the sanitized PL projection five minutes later.
+    # Fallback refresh. Primary path is workflow_run after a successful PR20 live-shadow cycle.
     - cron: "17,47 13-22 * * 1-5"
 
 permissions:
   contents: write
   actions: read
+  statuses: write
 
 concurrency:
   group: daily-eurusd-abc-public-pl
@@ -26,6 +30,7 @@ env:
 
 jobs:
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -90,3 +95,36 @@ jobs:
           done
           echo "Unable to publish sanitized A/B/C projection" >&2
           exit 1
+
+      - name: Publish PL projection status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          state=failure
+          if [ "$JOB_STATUS" = "success" ]; then state=success; fi
+          target_sha="$GITHUB_SHA"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ] && [ -n "${SOURCE_HEAD_SHA:-}" ]; then
+            target_sha="$SOURCE_HEAD_SHA"
+          fi
+          STATE="$state" TARGET_SHA="$target_sha" python - <<'PY'
+          import json, os, urllib.request
+          url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['TARGET_SHA']}"
+          payload=json.dumps({
+              'state': os.environ['STATE'],
+              'context': 'daily-eurusd-abc-pl-projection/publish',
+              'description': 'PL A/B/C frontend projection published' if os.environ['STATE'] == 'success' else 'PL A/B/C frontend projection failed',
+              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req=urllib.request.Request(url, data=payload, method='POST', headers={
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
+          test "$state" = success
