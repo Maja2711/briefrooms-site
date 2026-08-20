@@ -1,0 +1,45 @@
+name: Belief Epistemic Causal Graph Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/belief_epistemic_causal_graph.py"
+      - "tests/test_belief_epistemic_causal_graph.py"
+      - "docs/BELIEF_EPISTEMIC_CAUSAL_GRAPH.md"
+      - ".github/workflows/belief-epistemic-causal-graph.yml"
+      - ".github/workflows/belief-epistemic-causal-graph-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test PR19
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/belief_epistemic_causal_graph.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_belief_epistemic_causal_graph -v
+      - name: Assert PR19 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from belief_epistemic_causal_graph import capabilities, safety_controls
+          controls=safety_controls()
+          caps=capabilities()
+          assert controls and all(v is False for v in controls.values())
+          assert caps['epistemic_contract_registry_enabled'] is True
+          assert caps['causal_hypothesis_graph_enabled'] is True
+          assert caps['explicit_falsifiers_enabled'] is True
+          assert caps['causal_claim_verification_enabled'] is False
+          assert caps['automatic_abduction_enabled'] is False
+          assert caps['causal_graph_alpha_enabled'] is False
+          assert caps['engine_specific_trust_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          print('PR19 epistemic causal governance: PASS')
+          PY
