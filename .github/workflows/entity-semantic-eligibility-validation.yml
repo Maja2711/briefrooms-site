@@ -37,6 +37,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: entity-semantic-eligibility-validation-${{ github.ref }}
@@ -91,3 +92,31 @@ jobs:
             tests.test_belief_epistemic_causal_graph \
             tests.test_entity_runtime_bootstrap_workflows \
             -v
+
+      - name: Publish validation commit status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          status = os.environ.get("JOB_STATUS", "failure")
+          state = "success" if status == "success" else "failure"
+          description = "Entity semantic eligibility validation passed" if state == "success" else "Entity semantic eligibility validation failed"
+          url = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['GITHUB_SHA']}"
+          payload = json.dumps({
+              "state": state,
+              "context": "entity-semantic-eligibility/validation",
+              "description": description,
+              "target_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req = urllib.request.Request(url, data=payload, method="POST", headers={
+              "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
