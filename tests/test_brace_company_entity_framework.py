@@ -27,7 +27,7 @@ class BraceCompanyEntityFrameworkTests(unittest.TestCase):
         self.universe = {
             "instruments": [
                 {"instrument_id": "alpha", "data_symbol": "ALPHA", "asset_type": "STOCK", "sector": "Information Technology", "region": "United States", "exchange": "NASDAQ", "availability": "AVAILABLE", "active": True},
-                {"instrument_id": "beta", "data_symbol": "BETA", "asset_type": "STOCK", "sector": "Financials", "region": "United States", "exchange": "NYSE", "availability": "AVAILABLE", "active": True},
+                {"instrument_id": "beta", "data_symbol": "BETA", "asset_type": "STOCK", "sector": "Financials", "exposure_key": "diversified_banking", "region": "United States", "exchange": "NYSE", "availability": "AVAILABLE", "active": True},
                 {"instrument_id": "gamma", "data_symbol": "GAMMA", "asset_type": "STOCK", "sector": "Health Care", "region": "United States", "exchange": "NYSE", "availability": "AVAILABLE", "active": True},
                 {"instrument_id": "etf", "data_symbol": "ETF", "asset_type": "BROAD_ETF", "sector": "Diversified", "availability": "AVAILABLE", "active": True},
             ]
