@@ -2,20 +2,29 @@
 """PR24 virtual trade-path evaluation for the Daily EUR/USD A/B/C experiment.
 
 The existing 30m/1h/2h/4h/24h point-forward outcomes remain untouched. This
-layer adds a separate prospective virtual trade path for v1.3 captures only:
-entry at frozen reference, active-engine-parity SL/TP, 1m MFE/MAE, first-touch
-TP/SL, and 24h time exit. Terminal trade outcomes are append-only.
+isolated v1.3 layer adds a separate prospective virtual trade path:
+- entry at frozen reference price,
+- SL/TP risk contract aligned with active Daily EUR/USD,
+- MFE / MAE from 1-minute OHLC,
+- first-touch TP/SL,
+- 24h time exit,
+- fail-closed ambiguity when TP and SL occur in the same 1m bar.
 
-Research boundary is unchanged: no trade execution, no active-engine influence,
-no Belief Core writeback.
+Importing v1.3 does NOT permanently mutate the v1.2 engine version. That keeps
+legacy v1.2 captures/tests isolated and prevents cross-version contamination.
+Research boundary remains zero-authority: no trade execution, no active-engine
+influence, no Belief Core writeback.
 """
 from __future__ import annotations
 
+import argparse
 import copy
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from belief_market_data_adapter import Bar
+from belief_market_data_adapter import Bar, YahooChartClient
 import daily_eurusd_experiment_v12 as v12
 
 base = v12.base
@@ -30,13 +39,12 @@ REWARD_RISK = 1.8
 POSITION_HORIZON_MINUTES = 1440
 MONITOR_INTERVAL = "1m"
 TERMINAL_PATH_STATUSES = {"CLOSED", "AMBIGUOUS", "NO_TRADE", "UNAVAILABLE"}
+EURUSD = "EURUSD=X"
 
+# v12 has already installed the Bollinger(30) technical contract on base.
+# Keep the original capture constructor as a function object; only ENGINE_VERSION
+# is switched temporarily around the call.
 _base_build_capture = base.build_capture
-_base_validate_state = base.validate_state
-_base_build_report = base.build_report
-
-# Freeze v1.3 before inherited capture/state helpers execute.
-base.ENGINE_VERSION = ENGINE_VERSION
 
 
 def _iso_z(value: datetime) -> str:
@@ -81,7 +89,7 @@ def _empty_path_arm(status: str) -> dict[str, Any]:
 
 
 def build_trade_plan(capture: Mapping[str, Any], rows_30m: Sequence[Bar]) -> dict[str, Any]:
-    """Freeze risk geometry at capture time using active Daily EUR/USD parity."""
+    """Freeze risk geometry at signal time using active Daily EUR/USD parity."""
     observed_at = _parse_time(str(capture["market_observed_at"]))
     captured_at = _parse_time(str(capture["captured_at"]))
     eligible = _eligible_30m_rows(rows_30m, observed_at)
@@ -175,13 +183,22 @@ def build_capture(
     daily_rows: Sequence[Bar],
     captured_at: datetime | None = None,
 ) -> dict[str, Any]:
-    capture = _base_build_capture(
-        rows_30m,
-        belief_payload,
-        hourly_rows=hourly_rows,
-        daily_rows=daily_rows,
-        captured_at=captured_at,
-    )
+    """Build one v1.3 capture without leaking v1.3 ENGINE_VERSION into v1.2."""
+    previous_version = base.ENGINE_VERSION
+    try:
+        base.ENGINE_VERSION = ENGINE_VERSION
+        capture = _base_build_capture(
+            rows_30m,
+            belief_payload,
+            hourly_rows=hourly_rows,
+            daily_rows=daily_rows,
+            captured_at=captured_at,
+        )
+    finally:
+        base.ENGINE_VERSION = previous_version
+
+    if capture.get("engine_version") != ENGINE_VERSION:
+        raise ValueError("PR24 capture version isolation failed")
     plan = build_trade_plan(capture, rows_30m)
     plan_sha = base._canonical_sha(plan)
     capture["trade_plan"] = plan
@@ -209,7 +226,7 @@ def evaluate_arm_trade_path(
     horizon_end_at: datetime,
     as_of: datetime,
 ) -> dict[str, Any]:
-    """Evaluate one arm from 1m OHLC; never guess TP-vs-SL order in one bar."""
+    """Evaluate one virtual arm from 1m OHLC without guessing intrabar order."""
     direction = str(arm_plan.get("direction") or "UNAVAILABLE").upper()
     plan_status = str(arm_plan.get("status") or "UNAVAILABLE")
     if plan_status == "UNAVAILABLE":
@@ -246,8 +263,8 @@ def evaluate_arm_trade_path(
             adverse = _directional_bps(direction, entry, high)
             tp_hit, sl_hit = low <= target, high >= stop
 
-        # 1m OHLC has no intrabar ordering. We include the exit bar in MFE/MAE,
-        # and fail closed if both thresholds are present inside that same bar.
+        # OHLC does not encode intrabar ordering. The exit bar is included in
+        # excursion metrics; if both limits occur inside it, fail closed.
         if favorable > mfe_bps:
             mfe_bps, mfe_at = favorable, _iso_z(ts)
         if adverse < mae_bps:
@@ -305,7 +322,7 @@ def update_trade_paths(
     *,
     as_of: datetime | None = None,
 ) -> dict[str, Any]:
-    """Update only OPEN v1.3 arms; terminal outcomes remain append-only forever."""
+    """Update only OPEN v1.3 arms; terminal outcomes remain append-only."""
     updated = copy.deepcopy(dict(state))
     evaluation_time = (as_of or datetime.now(timezone.utc)).astimezone(timezone.utc)
     changed = False
@@ -389,10 +406,11 @@ def trade_performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
             path_arm = ((capture.get("trade_path") or {}).get("arms") or {}).get(arm_id) or {}
             status = str(path_arm.get("status") or "OPEN")
             mfe, mae = _number(path_arm.get("mfe_bps"), 4), _number(path_arm.get("mae_bps"), 4)
-            if mfe is not None:
-                mfe_values.append(mfe)
-            if mae is not None:
-                mae_values.append(mae)
+            if status in {"CLOSED", "AMBIGUOUS"}:
+                if mfe is not None:
+                    mfe_values.append(mfe)
+                if mae is not None:
+                    mae_values.append(mae)
             minutes = _number(path_arm.get("minutes_to_first_touch"), 2)
             if minutes is not None:
                 touch_minutes.append(minutes)
@@ -429,8 +447,21 @@ def trade_performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def empty_state(now: datetime | None = None) -> dict[str, Any]:
+    state = base.empty_state(now)
+    state["engine_version"] = ENGINE_VERSION
+    return state
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return empty_state()
+    return base.load_state(path)
+
+
 def build_report(state: Mapping[str, Any]) -> dict[str, Any]:
-    report = _base_build_report(state)
+    report = v12.build_report(state)
+    report["engine_version"] = ENGINE_VERSION
     report["trade_path"] = {
         "schema_version": TRADE_PATH_SCHEMA,
         "prospective_from_engine_version": ENGINE_VERSION,
@@ -455,7 +486,8 @@ def build_report(state: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def validate_state(state: Mapping[str, Any]) -> None:
-    _base_validate_state(state)
+    # v12 validator remains the canonical technical/frozen-decision contract.
+    v12.validate_state(state)
     for capture in state.get("captures") or []:
         if str(capture.get("engine_version")) != ENGINE_VERSION:
             continue
@@ -478,26 +510,74 @@ def validate_state(state: Mapping[str, Any]) -> None:
             raise ValueError("PR24 monitoring must start at frozen signal generation time")
         risk = plan.get("risk_contract") or {}
         if risk.get("atr_window") != ATR_30M_WINDOW or float(risk.get("atr_multiple")) != ATR_MULTIPLE:
-            raise ValueError("PR24 risk contract drift")
+            raise ValueError("PR24 ATR risk contract drift")
         if float(risk.get("risk_floor_percent")) != RISK_FLOOR_PERCENT or float(risk.get("reward_risk")) != REWARD_RISK:
             raise ValueError("PR24 risk/reward contract drift")
         for arm_id in ("A", "B", "C"):
             arm_plan = (plan.get("arms") or {})[arm_id]
-            direction, status = str(arm_plan.get("direction") or "UNAVAILABLE"), str(arm_plan.get("status") or "UNAVAILABLE")
-            if direction == "LONG" and status == "TRACKED" and not (float(arm_plan["stop_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["target_price"])):
-                raise ValueError("invalid LONG PR24 risk geometry")
-            if direction == "SHORT" and status == "TRACKED" and not (float(arm_plan["target_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["stop_price"])):
-                raise ValueError("invalid SHORT PR24 risk geometry")
+            direction = str(arm_plan.get("direction") or "UNAVAILABLE")
+            status = str(arm_plan.get("status") or "UNAVAILABLE")
+            if direction == "LONG" and status == "TRACKED":
+                if not (float(arm_plan["stop_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["target_price"])):
+                    raise ValueError("invalid LONG PR24 risk geometry")
+            if direction == "SHORT" and status == "TRACKED":
+                if not (float(arm_plan["target_price"]) < float(arm_plan["entry_price"]) < float(arm_plan["stop_price"])):
+                    raise ValueError("invalid SHORT PR24 risk geometry")
             path_status = str(((path.get("arms") or {})[arm_id]).get("status") or "")
             if path_status not in {"OPEN", "CLOSED", "AMBIGUOUS", "NO_TRADE", "UNAVAILABLE"}:
                 raise ValueError(f"invalid PR24 trade path status {arm_id}={path_status}")
 
 
-# Patch inherited runtime/report validation paths.
-base.build_capture = build_capture
-base.validate_state = validate_state
-base.build_report = build_report
+def validate_files(state_dir: Path) -> None:
+    state = json.loads((state_dir / "EURUSD_DAILY_ABC_STATE.json").read_text(encoding="utf-8"))
+    report = json.loads((state_dir / "EURUSD_DAILY_ABC_REPORT.json").read_text(encoding="utf-8"))
+    validate_state(state)
+    if report.get("schema_version") != base.REPORT_SCHEMA_VERSION:
+        raise ValueError("unexpected experiment report schema")
+    if report.get("decision_influence") is not False:
+        raise ValueError("report must remain research shadow")
+    trade = report.get("trade_path") or {}
+    if trade.get("virtual_only") is not True or trade.get("historical_backfill") is not False:
+        raise ValueError("PR24 report trade-path boundary invalid")
 
+
+def run_cycle(
+    state_dir: Path,
+    *,
+    belief_state_path: Path | None = None,
+    client: YahooChartClient | None = None,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_path = state_dir / "EURUSD_DAILY_ABC_STATE.json"
+    report_path = state_dir / "EURUSD_DAILY_ABC_REPORT.json"
+    state = load_state(state_path)
+    client = client or YahooChartClient(timeout=15)
+    rows_30m = sorted(client.bars(EURUSD, "10d", "30m"), key=lambda bar: bar.timestamp)
+    hourly_rows = sorted(client.bars(EURUSD, "1y", "1h"), key=lambda bar: bar.timestamp)
+    daily_rows = sorted(client.bars(EURUSD, "2y", "1d"), key=lambda bar: bar.timestamp)
+    if len(rows_30m) < 60:
+        raise ValueError("EUR/USD 30-minute market data unavailable or insufficient")
+
+    state = base.resolve_outcomes(state, rows_30m)
+    belief_payload = base._load_belief_state(belief_state_path)
+    capture = build_capture(
+        rows_30m,
+        belief_payload,
+        hourly_rows=hourly_rows,
+        daily_rows=daily_rows,
+        captured_at=now,
+    )
+    state = base.append_capture(state, capture)
+    report = build_report(state)
+    validate_state(state)
+
+    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return state, report
+
+
+# Stable API used by settler/tests.
 BELIEF_WEIGHTS = v12.BELIEF_WEIGHTS
 MA_WINDOWS = v12.MA_WINDOWS
 TECHNICAL_WEIGHTS = v12.TECHNICAL_WEIGHTS
@@ -507,16 +587,35 @@ HYBRID_BELIEF_CONTEXT_WEIGHT = v12.HYBRID_BELIEF_CONTEXT_WEIGHT
 BOLLINGER_WINDOW = v12.BOLLINGER_WINDOW
 BOLLINGER_STDDEV_LEVELS = v12.BOLLINGER_STDDEV_LEVELS
 append_capture = base.append_capture
-empty_state = base.empty_state
 performance_summary = base.performance_summary
 resolve_outcomes = base.resolve_outcomes
 technical_snapshot = base.technical_snapshot
-validate_files = base.validate_files
-run_cycle = base.run_cycle
 
 
 def main() -> int:
-    return base.main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--state-dir", required=True)
+    parser.add_argument("--belief-state")
+    parser.add_argument("--validate", action="store_true")
+    args = parser.parse_args()
+    state_dir = Path(args.state_dir)
+    if args.validate:
+        validate_files(state_dir)
+        state = json.loads((state_dir / "EURUSD_DAILY_ABC_STATE.json").read_text(encoding="utf-8"))
+        print("EURUSD_ABC_EXPERIMENT_OK", len(state.get("captures") or []))
+        return 0
+    _, report = run_cycle(
+        state_dir,
+        belief_state_path=Path(args.belief_state) if args.belief_state else None,
+    )
+    latest = report.get("latest_capture") or {}
+    arms = latest.get("arms") or {}
+    print(
+        "EURUSD_ABC_RESEARCH_SHADOW",
+        latest.get("market_observed_at"),
+        {arm_id: (arm.get("direction"), arm.get("score")) for arm_id, arm in arms.items()},
+    )
+    return 0
 
 
 if __name__ == "__main__":
