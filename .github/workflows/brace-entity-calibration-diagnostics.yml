@@ -7,7 +7,10 @@ on:
     paths:
       - ".github/workflows/brace-entity-calibration-diagnostics.yml"
       - "scripts/brace_entity_calibration_diagnostics.py"
+      - "scripts/brace_entity_calibration_diagnostics_semantic.py"
+      - "scripts/entity_semantic_eligibility.py"
       - "tests/test_brace_entity_calibration_diagnostics.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/BRACE_ENTITY_CALIBRATION_DIAGNOSTICS.md"
   workflow_run:
     workflows:
@@ -105,20 +108,22 @@ jobs:
             echo "No prior PR16 state; first run will bootstrap diagnostics from already-prospective PR15 records only."
           fi
 
-      - name: Validate PR16 code
+      - name: Validate PR16 and PR19.1 semantic code
         run: |
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py scripts/brace_entity_calibration_diagnostics_semantic.py scripts/entity_semantic_eligibility.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_calibration_diagnostics -v
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
-      - name: Build prospective Entity calibration diagnostics
+      - name: Build semantically filtered prospective Entity calibration diagnostics
         run: |
-          PYTHONPATH=scripts:. python scripts/brace_entity_calibration_diagnostics.py \
+          PYTHONPATH=scripts:. python scripts/brace_entity_calibration_diagnostics_semantic.py \
             --state-dir "$STATE_DIR" \
             --belief-core-state "$PR15_DIR/belief_core/state.json" \
             --pr15-runtime-state "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json" \
             --pr15-report "$PR15_DIR/BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json"
 
-      - name: Assert PR16 zero-influence and promotion boundary
+      - name: Assert PR16 zero-influence, semantic filter and promotion boundary
         run: |
           python - <<'PY'
           import json, os
@@ -131,6 +136,10 @@ jobs:
           assert report['anti_hindsight']['historical_belief_backfill'] is False
           assert report['anti_hindsight']['historical_forecast_backfill'] is False
           assert report['anti_hindsight']['diagnostics_use_only_pr15_frozen_prospective_verifications'] is True
+          assert report['anti_hindsight']['semantic_filter_retroactively_relabels_outcomes'] is False
+          assert report['semantic_eligibility']['semantic_ineligible_included_in_calibration'] is False
+          assert report['semantic_eligibility']['historical_verifications_deleted'] is False
+          assert report['semantic_eligibility']['historical_verifications_rewritten'] is False
           assert report['effective_n']['effective_n_threshold_defined_here'] is False
           assert report['effective_n']['effective_n_sufficient'] is None
           if report['effective_n']['dependency_diagnostics_complete'] is False:
@@ -149,11 +158,9 @@ jobs:
           assert report['promotion_evidence_standard']['automatic_promotion'] is False
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
           assert state['contract_version'] == report['contract_version']
-          print('PR16 Entity calibration diagnostics safety contract: PASS')
+          print('PR16 Entity calibration diagnostics + PR19.1 semantic filter: PASS')
           print('Sample:', report['sample'])
-          print('Calibration N:', report['calibration']['n'])
-          print('Effective N:', report['effective_n'])
-          print('Promotion readiness:', report['promotion_readiness'])
+          print('Excluded:', report['semantic_eligibility']['excluded_belief_ids'])
           PY
 
       - name: Pack cumulative private PR16 state
