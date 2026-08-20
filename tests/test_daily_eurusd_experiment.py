@@ -4,8 +4,11 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from scripts.belief_market_data_adapter import Bar
-from scripts.daily_eurusd_experiment import (
+from scripts.daily_eurusd_experiment_v12 import (
     BELIEF_WEIGHTS,
+    BOLLINGER_STDDEV_LEVELS,
+    BOLLINGER_WINDOW,
+    ENGINE_VERSION,
     MA_WINDOWS,
     append_capture,
     build_capture,
@@ -83,12 +86,32 @@ class DailyEURUSDABCExperimentTests(unittest.TestCase):
         snap = technical_snapshot(h1, d1, reference_price=rows_30m[-1].close, observed_at=OBSERVED)
         indicators = snap["indicators"]
         self.assertEqual(MA_WINDOWS, (30, 60, 100, 200))
+        self.assertEqual(BOLLINGER_WINDOW, 30)
+        self.assertEqual(BOLLINGER_STDDEV_LEVELS, (1.0, 2.0, 3.0))
+        self.assertEqual(ENGINE_VERSION, "eurusd-daily-abc-v1.2.0")
         for tf in ("H1", "D1"):
             self.assertEqual(set(indicators[tf]["ma"]["values"]), {"ma30", "ma60", "ma100", "ma200"})
             self.assertIn("macd", indicators[tf])
             self.assertEqual(indicators[tf]["macd"]["parameters"], {"fast": 12, "slow": 26, "signal": 9})
-            self.assertIn("bollinger", indicators[tf])
-            self.assertEqual(indicators[tf]["bollinger"]["parameters"], {"window": 20, "stddevs": 2.0})
+            boll = indicators[tf]["bollinger"]
+            self.assertEqual(
+                boll["parameters"],
+                {
+                    "window": 30,
+                    "stddev_levels": [1.0, 2.0, 3.0],
+                    "score_reference_stddev": 2.0,
+                    "dispersion": "population_standard_deviation",
+                },
+            )
+            self.assertIn("sigma", boll)
+            self.assertIn("z_score", boll)
+            self.assertTrue({
+                "upper_1sigma", "lower_1sigma",
+                "upper_2sigma", "lower_2sigma",
+                "upper_3sigma", "lower_3sigma",
+            }.issubset(boll))
+            self.assertEqual(boll["upper"], boll["upper_2sigma"])
+            self.assertEqual(boll["lower"], boll["lower_2sigma"])
         pivot = indicators["pivot"]
         self.assertEqual(pivot["method"], "classic_floor_pivot")
         self.assertTrue({"pivot", "r1", "r2", "r3", "s1", "s2", "s3"}.issubset(pivot))
@@ -105,6 +128,7 @@ class DailyEURUSDABCExperimentTests(unittest.TestCase):
             daily_rows=d1,
             captured_at=OBSERVED + timedelta(minutes=1),
         )
+        self.assertEqual(capture["engine_version"], "eurusd-daily-abc-v1.2.0")
         self.assertEqual(set(capture["arms"]), {"A", "B", "C"})
         self.assertTrue(capture["arms"]["A"]["available"])
         self.assertTrue(capture["arms"]["B"]["available"])

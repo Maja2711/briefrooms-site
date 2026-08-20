@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "scripts/daily_eurusd_experiment.py"
+      - "scripts/daily_eurusd_experiment_v12.py"
       - "tests/test_daily_eurusd_experiment.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -12,6 +13,7 @@ on:
     branches-ignore: [main]
     paths:
       - "scripts/daily_eurusd_experiment.py"
+      - "scripts/daily_eurusd_experiment_v12.py"
       - "tests/test_daily_eurusd_experiment.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -39,26 +41,30 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/belief_market_data_adapter.py \
-            scripts/daily_eurusd_experiment.py
+            scripts/daily_eurusd_experiment.py \
+            scripts/daily_eurusd_experiment_v12.py
 
       - name: Run A-B-C prospective experiment tests
         run: |
           set -euo pipefail
           python -m unittest tests.test_daily_eurusd_experiment -v
 
-      - name: Assert zero-authority boundary
+      - name: Assert v1.2 zero-authority and Bollinger contract
         run: |
           set -euo pipefail
           python - <<'PY'
           import sys
           sys.path.insert(0, "scripts")
-          import daily_eurusd_experiment as abc
+          import daily_eurusd_experiment_v12 as abc
 
-          assert abc.MODE == "research_shadow"
+          assert abc.base.MODE == "research_shadow"
+          assert abc.ENGINE_VERSION == "eurusd-daily-abc-v1.2.0"
+          assert abc.BOLLINGER_WINDOW == 30
+          assert abc.BOLLINGER_STDDEV_LEVELS == (1.0, 2.0, 3.0)
           assert abs(sum(abc.TECHNICAL_WEIGHTS.values()) - 1.0) < 1e-12
           assert abs(sum(abc.BELIEF_WEIGHTS.values()) - 1.0) < 1e-12
           assert abc.HYBRID_TECHNICAL_WEIGHT == 0.70
           assert abc.HYBRID_BELIEF_CONTEXT_WEIGHT == 0.30
           assert "eurusd.trend.bullish" not in abc.HYBRID_CONTEXT_BELIEF_IDS
-          print("Daily EURUSD A/B/C research-shadow invariants: PASS")
+          print("Daily EURUSD A/B/C v1.2 Bollinger(30) research-shadow invariants: PASS")
           PY
