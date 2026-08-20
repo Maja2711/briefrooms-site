@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: research-state-durability-validation-${{ github.ref }}
@@ -49,3 +50,34 @@ jobs:
           if [ -f tests/test_research_state_durability_workflows.py ]; then
             PYTHONPATH=scripts:. python -m unittest tests.test_research_state_durability_workflows -v
           fi
+      - name: Publish durability validation status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description="Research State Durability validation failed"
+          if [ "$JOB_STATUS" = "success" ]; then
+            state=success
+            description="Research State Durability validation passed"
+          fi
+          STATE="$state" DESCRIPTION="$description" python - <<'PY'
+          import json, os, urllib.request
+          url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['GITHUB_SHA']}"
+          payload=json.dumps({
+              "state": os.environ["STATE"],
+              "context": "research-state-durability/validation",
+              "description": os.environ["DESCRIPTION"],
+              "target_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req=urllib.request.Request(url, data=payload, method="POST", headers={
+              "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
+          test "$state" = success
