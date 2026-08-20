@@ -1,0 +1,49 @@
+name: PR19.1 Semantic Eligibility CI
+
+on:
+  push:
+    branches:
+      - agent/entity-semantic-eligibility-pr19-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-semantic-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile semantic hardening modules
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile \
+            scripts/entity_semantic_eligibility.py \
+            scripts/brace_entity_evidence_interpretation_semantic.py \
+            scripts/brace_entity_belief_state_forecast_semantic.py \
+            scripts/brace_entity_calibration_diagnostics_semantic.py \
+            scripts/investment_semantics_world_state_semantic.py \
+            scripts/brace_entity_belief_shadow_bridge_semantic.py \
+            scripts/belief_epistemic_causal_graph_semantic.py
+      - name: Run PR19.1 semantic regression suite
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility_pr19_1 -v
+      - name: Run existing affected regression suites
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest \
+            tests.test_brace_company_entity_framework \
+            tests.test_brace_entity_evidence_interpretation \
+            tests.test_brace_entity_belief_state_forecast \
+            tests.test_brace_entity_calibration_diagnostics \
+            tests.test_investment_semantics_world_state \
+            tests.test_brace_entity_belief_shadow_bridge \
+            tests.test_belief_epistemic_causal_graph \
+            -v
