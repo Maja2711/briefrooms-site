@@ -1,14 +1,14 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-08-20T19:49:58Z",
+  "timestamp": "2026-08-20T19:52:53Z",
   "direction": "FLAT",
-  "score": 54.94,
+  "score": 55.42,
   "confidence": 0.0,
   "entry": null,
   "stop": null,
   "target": null,
   "horizon": "intraday_to_24h",
-  "engine_version": "eurusd-daily-spot-v1.1.0",
+  "engine_version": "eurusd-daily-spot-v1.2.0",
   "status": "NO_TRADE",
   "decision_mode": "WITHOUT",
   "metadata": {
@@ -23,9 +23,9 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": 0.1427,
-      "broad_usd_environment": 0.0694,
-      "us_rates_pressure_proxy": 0.0171
+      "trend": 0.1604,
+      "broad_usd_environment": 0.0738,
+      "us_rates_pressure_proxy": 0.0113
     },
     "weights": {
       "trend": 0.546009,
@@ -34,16 +34,14 @@
     },
     "candidate": {
       "direction": "FLAT",
-      "score": 54.94,
+      "score": 55.42,
       "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
-        "raw_score_neutral",
-        "post_stop_cooldown",
-        "daily_entry_limit_reached"
+        "raw_score_neutral"
       ],
-      "previous_score": 51.57,
-      "stretch_atr": 0.5366,
+      "previous_score": 51.56,
+      "stretch_atr": 0.3743,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -68,15 +66,19 @@
         "us_rates_pressure_proxy": 0.994701
       },
       "entry_thresholds": {
-        "long": 68.75,
-        "short": 32.0,
-        "min_confidence": 0.34
+        "long": 60.0,
+        "short": 40.0,
+        "min_confidence": 0.0
       },
-      "cooldown_until": "2026-08-20T20:32:00Z",
+      "cooldown_until": null,
       "policy": {
-        "max_entries_per_utc_day": 1,
-        "loss_cooldown_hours": 4,
-        "weight_update": "bounded outcome feedback; losses reduce reliability of components that supported the losing direction"
+        "signal_admission": "direct_long_short",
+        "daily_entry_limit": null,
+        "loss_cooldown_hours": 0,
+        "blocking_filters": [],
+        "one_open_position_at_a_time": true,
+        "position_horizon_hours": 24,
+        "weight_update": "bounded outcome feedback only; learning may change component weights but cannot veto LONG/SHORT admission"
       }
     },
     "risk": {
