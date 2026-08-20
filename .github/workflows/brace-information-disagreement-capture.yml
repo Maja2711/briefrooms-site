@@ -1,0 +1,220 @@
+name: BRACE Information Set Disagreement Capture
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brace_information_disagreement_capture.py"
+      - "tests/test_brace_information_disagreement_capture.py"
+      - "docs/BRACE_INFORMATION_DISAGREEMENT_CAPTURE.md"
+      - ".github/workflows/brace-information-disagreement-capture.yml"
+      - ".github/workflows/brace-information-disagreement-capture-validation.yml"
+  workflow_run:
+    workflows:
+      - "BRACE Entity Belief Prospective Shadow Bridge"
+    types: [completed]
+  schedule:
+    - cron: "20 5 * * 2-6"
+    - cron: "35 13 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-information-set-disagreement-capture
+  cancel-in-progress: false
+
+env:
+  PR17_ARTIFACT_NAME: brace-entity-belief-shadow-bridge-state
+  WORLD_ARTIFACT_NAME: investment-semantics-world-state
+  STATE_ARTIFACT_NAME: brace-information-disagreement-capture-state
+
+jobs:
+  capture:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private state directories
+        run: |
+          set -euo pipefail
+          echo "PR17_DIR=$RUNNER_TEMP/pr17_entity_bridge" >> "$GITHUB_ENV"
+          echo "WORLD_DIR=$RUNNER_TEMP/pr16_1_world_state" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr18_information_capture" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr17_entity_bridge" "$RUNNER_TEMP/pr16_1_world_state" "$RUNNER_TEMP/pr18_information_capture"
+
+      - name: Restore latest PR17 Entity Belief bridge state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR17_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr17-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr17-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR18 blocked: PR17 Entity Belief bridge artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr17.zip"
+          mkdir -p "$RUNNER_TEMP/pr17-zip"
+          unzip -q "$RUNNER_TEMP/pr17.zip" -d "$RUNNER_TEMP/pr17-zip"
+          test -f "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz"
+          tar -xzf "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz" -C "$PR17_DIR"
+          test -f "$PR17_DIR/BRACE_ENTITY_BELIEF_SHADOW_BRIDGE_STATE.json"
+          test -f "$PR17_DIR/BRACE_ENTITY_BELIEF_WITH_WITHOUT_REPORT.json"
+          echo "PR17 prerequisite state: PASS"
+
+      - name: Restore latest PR16.1 World State
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${WORLD_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/world-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/world-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR18 blocked: PR16.1 World State artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/world.zip"
+          mkdir -p "$RUNNER_TEMP/world-zip"
+          unzip -q "$RUNNER_TEMP/world.zip" -d "$RUNNER_TEMP/world-zip"
+          test -f "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz"
+          tar -xzf "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz" -C "$WORLD_DIR"
+          test -f "$WORLD_DIR/INVESTMENT_WORLD_STATE_RUNTIME_STATE.json"
+          test -f "$WORLD_DIR/INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json"
+          echo "PR16.1 prerequisite state: PASS"
+
+      - name: Restore prior cumulative PR18 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr18-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr18-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr18.zip"
+            mkdir -p "$RUNNER_TEMP/pr18-zip"
+            unzip -q "$RUNNER_TEMP/pr18.zip" -d "$RUNNER_TEMP/pr18-zip"
+            test -f "$RUNNER_TEMP/pr18-zip/brace-information-disagreement-capture-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr18-zip/brace-information-disagreement-capture-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR18 state; first run establishes the no-backfill information boundary."
+          fi
+
+      - name: Validate PR18 code
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_information_disagreement_capture.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_information_disagreement_capture -v
+
+      - name: Capture prospective BRACE information and disagreement topology
+        run: |
+          set -euo pipefail
+          test -f data/portfolio10k/analysis.json
+          test -f data/portfolio10k/pending_decisions.json
+          PYTHONPATH=scripts:. python scripts/brace_information_disagreement_capture.py \
+            --state-dir "$STATE_DIR" \
+            --pr17-state "$PR17_DIR/BRACE_ENTITY_BELIEF_SHADOW_BRIDGE_STATE.json" \
+            --pr17-report "$PR17_DIR/BRACE_ENTITY_BELIEF_WITH_WITHOUT_REPORT.json" \
+            --world-state "$WORLD_DIR/INVESTMENT_WORLD_STATE_RUNTIME_STATE.json" \
+            --world-report "$WORLD_DIR/INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json" \
+            --analysis data/portfolio10k/analysis.json \
+            --pending data/portfolio10k/pending_decisions.json
+
+      - name: Assert PR18 anti-hindsight and zero-authority boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from pathlib import Path
+
+          def dt(value):
+              return datetime.fromisoformat(str(value).replace('Z','+00:00'))
+
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_INFORMATION_DISAGREEMENT_REPORT.json').read_text())
+          state=json.loads((root/'BRACE_INFORMATION_DISAGREEMENT_STATE.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['information_contracts']['source_snapshot_sha_parity_required'] is True
+          assert report['information_contracts']['historical_information_backfill'] is False
+          assert report['information_contracts']['retroactive_source_reconstruction'] is False
+          assert report['marginal_information_value']['status'] == 'MEASUREMENT_INPUTS_ONLY'
+          assert report['marginal_information_value']['miv_score'] is None
+          assert report['marginal_information_value']['miv_score_contract_exists'] is False
+          assert report['marginal_information_value']['redundancy_status'] == 'NOT_YET_ESTIMABLE'
+          assert report['marginal_information_value']['orthogonality_status'] == 'NOT_YET_ESTIMABLE'
+          assert report['promotion']['status'] == 'NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
+          assert report['promotion']['eligible_for_promotion_review'] is False
+          assert report['promotion']['automatic_promotion'] is False
+          assert report['promotion']['effective_n_threshold_defined_here'] is False
+          assert report['capabilities']['marginal_information_value_score_enabled'] is False
+          assert report['capabilities']['promotion_gate_enabled'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          pre=set(state.get('pre_activation_pr17_pair_set_ids') or [])
+          captures=set((state.get('captures') or {}).keys())
+          assert not (pre & captures)
+          for capture in (state.get('captures') or {}).values():
+              assert capture['prospective_to_economic_outcome'] is True
+              assert capture['historical_information_backfill'] is False
+              assert capture['source_reconstruction'] is False
+              assert capture['promotion_authority'] is False
+              for item in capture['items']:
+                  assert item['research_readiness']['miv_score'] is None
+                  assert item['research_readiness']['redundancy_status'] == 'NOT_YET_ESTIMABLE'
+                  assert item['research_readiness']['orthogonality_status'] == 'NOT_YET_ESTIMABLE'
+                  assert item['engine_information']['data_quality_confidence']['semantic_type'] == 'data_quality_confidence'
+                  world=item['world_context']
+                  assert world['world_state_id'] == capture['decision_world_state_id']
+          for terminal in (state.get('terminal_uncaptured') or {}).values():
+              assert terminal['terminal_no_reconstruction'] is True
+          print('PR18 information set + disagreement anti-hindsight contract: PASS')
+          print('Sample:', report['sample'])
+          print('MIV:', report['marginal_information_value'])
+          PY
+
+      - name: Pack cumulative private PR18 state
+        run: tar -czf "$RUNNER_TEMP/brace-information-disagreement-capture-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR18 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-information-disagreement-capture-state
+          path: ${{ runner.temp }}/brace-information-disagreement-capture-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0

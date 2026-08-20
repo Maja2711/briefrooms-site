@@ -1,0 +1,49 @@
+name: BRACE Information Set Disagreement Capture Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/brace_information_disagreement_capture.py"
+      - "tests/test_brace_information_disagreement_capture.py"
+      - "docs/BRACE_INFORMATION_DISAGREEMENT_CAPTURE.md"
+      - ".github/workflows/brace-information-disagreement-capture.yml"
+      - ".github/workflows/brace-information-disagreement-capture-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test PR18 capture
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_information_disagreement_capture.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_information_disagreement_capture -v
+      - name: Assert PR18 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from brace_information_disagreement_capture import capabilities, safety_controls
+          controls=safety_controls()
+          caps=capabilities()
+          assert controls and all(v is False for v in controls.values())
+          assert caps['prospective_engine_information_capture_enabled'] is True
+          assert caps['prospective_belief_information_capture_enabled'] is True
+          assert caps['disagreement_topology_capture_enabled'] is True
+          assert caps['source_snapshot_sha_parity_required'] is True
+          assert caps['marginal_information_value_score_enabled'] is False
+          assert caps['redundancy_estimation_enabled'] is False
+          assert caps['orthogonality_estimation_enabled'] is False
+          assert caps['causal_belief_graph_enabled'] is False
+          assert caps['engine_specific_trust_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          print('PR18 BRACE information/disagreement governance: PASS')
+          PY
