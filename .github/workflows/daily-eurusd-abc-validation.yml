@@ -6,8 +6,10 @@ on:
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -17,8 +19,10 @@ on:
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
@@ -42,21 +46,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile experiment and durability entrypoint
+      - name: Compile experiment, settler and durability entrypoint
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/belief_market_data_adapter.py \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py \
+            scripts/daily_eurusd_abc_settler.py \
             scripts/daily_eurusd_abc_durability.py \
             scripts/research_state_durability.py
 
-      - name: Run A-B-C prospective and durability tests
+      - name: Run A-B-C prospective, settler and durability tests
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_experiment \
+            tests.test_daily_eurusd_abc_settler \
             tests.test_daily_eurusd_abc_durability -v
 
       - name: Assert v1.2 zero-authority and Bollinger contract
@@ -79,10 +85,10 @@ jobs:
           assert "eurusd.trend.bullish" not in abc.HYBRID_CONTEXT_BELIEF_IDS
           spec=durability.rsd.LAYERS[durability.LAYER_ID]
           assert spec.primary_artifact == "daily-eurusd-abc-live-shadow-state"
-          print("Daily EURUSD A/B/C v1.2 + durability invariants: PASS")
+          print("Daily EURUSD A/B/C v1.2 + PR23 durability invariants: PASS")
           PY
 
-      - name: Assert production workflow remains shadow-only
+      - name: Assert production workflow remains shadow-only and settles every five minutes
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -92,7 +98,14 @@ jobs:
           assert 'contents: write' not in text
           assert 'git push' not in text
           assert 'daily_eurusd_experiment_v12.py' in text
+          assert 'daily_eurusd_abc_settler.py' in text
           assert 'belief-core-shadow-state' in text
           assert 'research_boundary' in text
-          print('Live-shadow workflow static authority check: PASS')
+          assert '12,42 13-22 * * 1-5' in text
+          assert '2,7,17,22,27,32,37,47,52,57 * * * 1-5' in text
+          assert 'Settlement-only run: Belief restore intentionally skipped.' in text
+          assert "steps.cycle.outputs.state_changed == 'true'" in text
+          assert '/actions/artifacts/${artifact_id}/zip' in text
+          assert 'daily_eurusd_abc_durability.py verify' in text
+          print('PR23 live-shadow five-minute settlement contract: PASS')
           PY

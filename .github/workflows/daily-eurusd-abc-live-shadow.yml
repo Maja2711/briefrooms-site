@@ -7,14 +7,17 @@ on:
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
   schedule:
-    # Belief Core collects at :07/:37. A/B/C follows five minutes later so B/C
-    # consume the freshest frozen Belief state available for the same market window.
+    # Full frozen A/B/C capture: Belief Core collects at :07/:37, then A/B/C at :12/:42.
     - cron: "12,42 13-22 * * 1-5"
+    # PR23 settlement-only slots fill the remaining five-minute cadence without creating captures.
+    - cron: "2,7,17,22,27,32,37,47,52,57 * * * 1-5"
 
 permissions:
   contents: read
@@ -30,6 +33,7 @@ env:
   ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
   BELIEF_ARTIFACT_NAME: belief-core-shadow-state
   PR20_BOOTSTRAP_CUTOFF_UTC: "2026-08-20T23:59:59Z"
+  ABC_CAPTURE_CRON: "12,42 13-22 * * 1-5"
 
 jobs:
   collect:
@@ -47,25 +51,92 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prepare private runtime paths
+      - name: Prepare private runtime paths and run mode
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
+          set -euo pipefail
           echo "ABC_STATE_DIR=$RUNNER_TEMP/eurusd_abc_state" >> "$GITHUB_ENV"
           echo "BELIEF_STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/eurusd_abc_state" "$RUNNER_TEMP/belief_core_state"
 
-      - name: Restore durable A/B/C research state or establish one-time activation boundary
+          mode="capture"
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "${EVENT_SCHEDULE:-}" != "$ABC_CAPTURE_CRON" ]; then
+            mode="settle"
+          fi
+          echo "ABC_RUN_MODE=$mode" >> "$GITHUB_ENV"
+          echo "A/B/C run mode: $mode event=$GITHUB_EVENT_NAME schedule=${EVENT_SCHEDULE:-none}"
+
+      - name: Restore verified durable A/B/C state or establish one-time activation boundary
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if python scripts/daily_eurusd_abc_durability.py restore \
+          state_dir="$ABC_STATE_DIR"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ABC_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > "$RUNNER_TEMP/abc-artifacts.json"
+
+          python - "$RUNNER_TEMP/abc-artifacts.json" > "$RUNNER_TEMP/abc-candidates.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          for row in rows[:20]:
+              wr=row.get('workflow_run') or {}
+              if wr.get('id') and wr.get('head_branch') == 'main':
+                  print(f"{row['id']}|{wr['id']}")
+          PY
+
+          artifact_id=""
+          while IFS='|' read -r candidate_id run_id; do
+            [ -n "$candidate_id" ] || continue
+            curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              -o "$RUNNER_TEMP/abc-run.json"
+            if python - "$RUNNER_TEMP/abc-run.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          run=json.loads(Path(sys.argv[1]).read_text())
+          ok=(
+              run.get('name') == 'Daily EURUSD A-B-C Live Shadow'
+              and run.get('head_branch') == 'main'
+              and run.get('conclusion') == 'success'
+          )
+          raise SystemExit(0 if ok else 1)
+          PY
+            then
+              artifact_id="$candidate_id"
+              break
+            fi
+          done < "$RUNNER_TEMP/abc-candidates.txt"
+
+          if [ -n "$artifact_id" ]; then
+            echo "Restoring verified A/B/C artifact id=$artifact_id"
+            curl -fsSL -L \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+              -o "$RUNNER_TEMP/abc-state.zip"
+            mkdir -p "$RUNNER_TEMP/abc-state-artifact"
+            unzip -q "$RUNNER_TEMP/abc-state.zip" -d "$RUNNER_TEMP/abc-state-artifact"
+            test -f "$RUNNER_TEMP/abc-state-artifact/daily-eurusd-abc-live-shadow-state.tgz"
+            tar -xzf "$RUNNER_TEMP/abc-state-artifact/daily-eurusd-abc-live-shadow-state.tgz" -C "$state_dir"
+            python scripts/daily_eurusd_abc_durability.py verify \
               --layer pr20_eurusd_abc \
-              --state-dir "$ABC_STATE_DIR"; then
-            echo "Restored durable PR20 A/B/C state."
+              --state-dir "$state_dir"
             exit 0
           fi
 
-          if [ "${{ github.event_name }}" != "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || [ "$ABC_RUN_MODE" != "capture" ]; then
             echo "PR20 state missing outside initial merge activation; FAIL_CLOSED." >&2
             exit 1
           fi
@@ -80,11 +151,16 @@ jobs:
           print('PR20 first-run bootstrap explicitly allowed inside activation boundary.')
           PY
 
-      - name: Restore latest successful Belief Core state read-only
+      - name: Restore latest successful Belief Core state read-only for capture runs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          if [ "$ABC_RUN_MODE" != "capture" ]; then
+            echo "Settlement-only run: Belief restore intentionally skipped."
+            exit 0
+          fi
+
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
           curl -fsSL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -116,17 +192,21 @@ jobs:
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$BELIEF_STATE_DIR"
           test -f "$BELIEF_STATE_DIR/state.json"
 
-      - name: Validate PR20 runtime and zero-authority contract
+      - name: Validate PR23 runtime and zero-authority contract
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py \
+            scripts/daily_eurusd_abc_settler.py \
             scripts/daily_eurusd_abc_durability.py \
             scripts/research_state_durability.py
-          python -m unittest \
-            tests.test_daily_eurusd_experiment \
-            tests.test_daily_eurusd_abc_durability -v
+          if [ "$ABC_RUN_MODE" = "capture" ]; then
+            python -m unittest \
+              tests.test_daily_eurusd_experiment \
+              tests.test_daily_eurusd_abc_settler \
+              tests.test_daily_eurusd_abc_durability -v
+          fi
           python - <<'PY'
           import daily_eurusd_experiment_v12 as abc
           assert abc.base.MODE == 'research_shadow'
@@ -134,20 +214,35 @@ jobs:
           assert abc.BOLLINGER_WINDOW == 30
           assert abc.BOLLINGER_STDDEV_LEVELS == (1.0, 2.0, 3.0)
           assert abc.base.MODE != 'production_execution'
-          print('PR20 live-shadow authority boundary: PASS')
+          print('PR23 live-shadow authority boundary: PASS')
           PY
 
-      - name: Run one prospective A/B/C live-shadow cycle
+      - name: Capture or settle prospective A/B/C state
+        id: cycle
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_experiment_v12.py \
-            --state-dir "$ABC_STATE_DIR" \
-            --belief-state "$BELIEF_STATE_DIR/state.json"
+          if [ "$ABC_RUN_MODE" = "capture" ]; then
+            python scripts/daily_eurusd_experiment_v12.py \
+              --state-dir "$ABC_STATE_DIR" \
+              --belief-state "$BELIEF_STATE_DIR/state.json"
+            echo "state_changed=true" >> "$GITHUB_OUTPUT"
+            echo "resolved_delta=capture_cycle" >> "$GITHUB_OUTPUT"
+          else
+            output=$(python scripts/daily_eurusd_abc_settler.py --state-dir "$ABC_STATE_DIR")
+            printf '%s\n' "$output"
+            if printf '%s\n' "$output" | grep -q '^ABC_STATE_CHANGED=true$'; then
+              echo "state_changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "state_changed=false" >> "$GITHUB_OUTPUT"
+            fi
+            delta=$(printf '%s\n' "$output" | sed -n 's/^ABC_RESOLVED_DELTA=//p' | tail -1)
+            echo "resolved_delta=${delta:-0}" >> "$GITHUB_OUTPUT"
+          fi
           python scripts/daily_eurusd_experiment_v12.py \
             --state-dir "$ABC_STATE_DIR" \
             --validate
 
-      - name: Assert three-way parallel capture and no production authority
+      - name: Assert three-way frozen capture and no production authority
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -171,7 +266,8 @@ jobs:
           print('Latest A/B/C:', {k:(v.get('direction'),v.get('score'),v.get('available')) for k,v in latest['arms'].items()})
           PY
 
-      - name: Seal and verify PR20 research-state lineage
+      - name: Seal and verify changed PR23 research state
+        if: steps.cycle.outputs.state_changed == 'true'
         run: |
           set -euo pipefail
           python scripts/daily_eurusd_abc_durability.py seal \
@@ -186,7 +282,8 @@ jobs:
             --output "$RUNNER_TEMP/daily-eurusd-abc-live-shadow-state.tgz"
           test -s "$RUNNER_TEMP/daily-eurusd-abc-live-shadow-state.tgz"
 
-      - name: Store cumulative A/B/C state outside repository
+      - name: Store changed cumulative A/B/C state outside repository
+        if: steps.cycle.outputs.state_changed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: daily-eurusd-abc-live-shadow-state
@@ -200,6 +297,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
+          STATE_CHANGED: ${{ steps.cycle.outputs.state_changed }}
+          RESOLVED_DELTA: ${{ steps.cycle.outputs.resolved_delta }}
         run: |
           set -euo pipefail
           state=failure
@@ -209,8 +308,11 @@ jobs:
           from pathlib import Path
           root=Path(os.environ.get('ABC_STATE_DIR',''))
           path=root/'EURUSD_DAILY_ABC_STATE.json'
+          mode=os.environ.get('ABC_RUN_MODE','?')
+          changed=os.environ.get('STATE_CHANGED','false')
+          delta=os.environ.get('RESOLVED_DELTA','0')
           if not path.is_file():
-              print('A/B/C live shadow: no capture state')
+              print(f'A/B/C {mode}: no capture state')
           else:
               payload=json.loads(path.read_text())
               latest=(payload.get('captures') or [{}])[-1]
@@ -218,8 +320,8 @@ jobs:
               parts=[]
               for key in ('A','B','C'):
                   arm=arms.get(key) or {}
-                  parts.append(f"{key}:{arm.get('direction','?')}/{arm.get('score','?')}/{'ok' if arm.get('available') else 'NA'}")
-              print(('A/B/C ' + ' '.join(parts))[:135])
+                  parts.append(f"{key}:{arm.get('direction','?')}/{arm.get('score','?')}")
+              print((f"{mode} changed={changed} resolved={delta} " + ' '.join(parts))[:135])
           PY
           )
           STATE="$state" DESCRIPTION="$description" python - <<'PY'
@@ -229,7 +331,7 @@ jobs:
               'state': os.environ['STATE'],
               'context': 'daily-eurusd-abc-live-shadow/collection',
               'description': os.environ['DESCRIPTION'],
-              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
           }).encode()
           req=urllib.request.Request(url, data=payload, method='POST', headers={
               'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
