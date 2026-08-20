@@ -2,17 +2,64 @@
   "schema_version": "gpw-daily-pick-v1",
   "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
   "date": "2026-08-20",
-  "generated_at": "2026-08-20T09:27:57+02:00",
+  "generated_at": "2026-08-20T09:37:13+02:00",
   "timezone": "Europe/Warsaw",
-  "publication_cutoff": "09:10",
-  "decision": "AWARIA_DANYCH",
-  "reason": "Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed 09:10.",
-  "locked": true,
+  "publication_cutoff": "09:45",
+  "decision": "BRAK_TRANSAKCJI",
+  "reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka.",
+  "locked": false,
   "selection": null,
   "data_quality": {
-    "status": "failed",
-    "failed_stage": "missed_cutoff_guardian",
-    "control_loop_attempts": 0
+    "status": "healthy",
+    "complete_ratio": 0.95,
+    "expected_session": "2026-08-19",
+    "valid_market_symbols": 38,
+    "ranked_candidates": 0,
+    "provider_failures": {
+      "CCC.WA": "PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
+      "SPL.WA": "PublicationError: Brak danych rynkowych SPL.WA w prefetch cache."
+    },
+    "screened_out": {
+      "11B.WA": "screened_by_liquidity_atr_or_risk",
+      "ACP.WA": "screened_by_liquidity_atr_or_risk",
+      "ALE.WA": "screened_by_liquidity_atr_or_risk",
+      "ALR.WA": "screened_by_liquidity_atr_or_risk",
+      "ATT.WA": "screened_by_liquidity_atr_or_risk",
+      "BDX.WA": "screened_by_liquidity_atr_or_risk",
+      "BHW.WA": "screened_by_liquidity_atr_or_risk",
+      "CAR.WA": "screened_by_liquidity_atr_or_risk",
+      "CDR.WA": "screened_by_liquidity_atr_or_risk",
+      "CPS.WA": "screened_by_liquidity_atr_or_risk",
+      "DNP.WA": "screened_by_liquidity_atr_or_risk",
+      "DOM.WA": "screened_by_liquidity_atr_or_risk",
+      "ENA.WA": "screened_by_liquidity_atr_or_risk",
+      "EUR.WA": "screened_by_liquidity_atr_or_risk",
+      "GPW.WA": "screened_by_liquidity_atr_or_risk",
+      "ING.WA": "screened_by_liquidity_atr_or_risk",
+      "JSW.WA": "screened_by_liquidity_atr_or_risk",
+      "KGH.WA": "screened_by_liquidity_atr_or_risk",
+      "KRU.WA": "screened_by_liquidity_atr_or_risk",
+      "KTY.WA": "screened_by_liquidity_atr_or_risk",
+      "LPP.WA": "screened_by_liquidity_atr_or_risk",
+      "LWB.WA": "screened_by_liquidity_atr_or_risk",
+      "MBK.WA": "screened_by_liquidity_atr_or_risk",
+      "MIL.WA": "screened_by_liquidity_atr_or_risk",
+      "NEU.WA": "screened_by_liquidity_atr_or_risk",
+      "OPL.WA": "screened_by_liquidity_atr_or_risk",
+      "PCO.WA": "screened_by_liquidity_atr_or_risk",
+      "PEO.WA": "screened_by_liquidity_atr_or_risk",
+      "PGE.WA": "screened_by_liquidity_atr_or_risk",
+      "PKN.WA": "screened_by_liquidity_atr_or_risk",
+      "PKO.WA": "screened_by_liquidity_atr_or_risk",
+      "PZU.WA": "screened_by_liquidity_atr_or_risk",
+      "RBW.WA": "screened_by_liquidity_atr_or_risk",
+      "TEN.WA": "screened_by_liquidity_atr_or_risk",
+      "TPE.WA": "screened_by_liquidity_atr_or_risk",
+      "TXT.WA": "screened_by_liquidity_atr_or_risk",
+      "WPL.WA": "screened_by_liquidity_atr_or_risk",
+      "XTB.WA": "screened_by_liquidity_atr_or_risk"
+    },
+    "control_loop_attempts": 1
   },
   "methodology": {
     "horizon": "1-2 sesje GPW",
@@ -24,10 +71,19 @@
       "risk_reward": 15,
       "historical_expectancy": 10
     },
-    "minimum_score": 72,
+    "minimum_score": 72.0,
     "minimum_reward_risk": 1.5,
     "universe_size": 40,
     "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "target_score": 72.0,
+    "score_policy": "ranking_target_not_hard_gate",
+    "hard_admission_gates": [
+      "market_data_completeness",
+      "liquidity_and_position_risk",
+      "reward_risk",
+      "source_evidence",
+      "independent_review"
+    ],
     "learning_overlay": {
       "method": "bayesian_shrinkage_historical_overlay_v1",
       "active": false,
@@ -55,7 +111,7 @@
         "Stooq"
       ],
       "opening_quote_not_before": "09:05 Europe/Warsaw",
-      "publication_cutoff": "09:10 Europe/Warsaw",
+      "publication_cutoff": "09:45 Europe/Warsaw",
       "crosscheck_max_deviation": 0.02
     },
     "daily_stock_core": {
@@ -114,7 +170,9 @@
       "return_percent": 4.288,
       "r_multiple": 1.799,
       "exit_reason": "target",
-      "lesson": "PKO: cel został osiągnięty (1.80R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
+      "lesson": "PKO: cel został osiągnięty (1.80R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii.",
+      "event_type": "regulatory",
+      "event_label": "regulacja / spór prawny"
     },
     "weights_frozen": true,
     "event_learning_method": "event_family_bayesian_shrinkage_v1",
@@ -130,10 +188,5 @@
         "catalyst_adjustment": 0.0
       }
     ]
-  },
-  "history_index": {
-    "url": "/data/investments/gpw_daily_pick_history_index.json",
-    "selected_trades": 1,
-    "resolved_trades": 1
   }
 }
