@@ -66,14 +66,18 @@ class ResearchStateDurabilityWorkflowTests(unittest.TestCase):
                 self.assertIn('"scripts/research_state_durability.py"', push_section)
                 self.assertIn('"tests/test_research_state_durability.py"', push_section)
 
-    def test_heartbeat_refreshes_primary_compatibility_and_independent_checkpoint(self) -> None:
+    def test_heartbeat_renews_from_primary_or_checkpoint_and_publishes_two_private_copies(self) -> None:
         text = (ROOT / ".github/workflows/research-state-durability-heartbeat.yml").read_text(encoding="utf-8")
         self.assertIn("name: Research State Durability Heartbeat", text)
         self.assertIn('cron: "15 6 * * 0"', text)
         self.assertIn("contents: read", text)
         self.assertIn("actions: read", text)
         self.assertNotIn("contents: write", text)
-        self.assertIn("scripts/research_state_durability.py refresh", text)
+        self.assertIn("scripts/research_state_durability.py restore", text)
+        self.assertIn("scripts/research_state_durability.py verify", text)
+        self.assertIn("scripts/research_state_durability.py pack", text)
+        self.assertIn("--migration-from-legacy", text)
+        self.assertNotIn("scripts/research_state_durability.py refresh", text)
         self.assertIn("name: ${{ matrix.primary }}", text)
         self.assertIn("name: research-state-durability-${{ matrix.layer }}", text)
         for layer in WORKFLOWS.values():
