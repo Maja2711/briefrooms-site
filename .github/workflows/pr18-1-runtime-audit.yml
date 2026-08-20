@@ -1,0 +1,130 @@
+name: Audit PR18.1 Runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pr18-1-runtime-audit.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify first post-merge PR18.1 production artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGED_AT: "2026-08-20T13:29:15Z"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io, json, os, subprocess, tarfile, tempfile, time, urllib.parse, urllib.request, zipfile
+          from datetime import datetime
+          from pathlib import Path
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          merged_at=datetime.fromisoformat(os.environ['MERGED_AT'].replace('Z','+00:00'))
+          headers={
+              'Authorization': f'Bearer {token}',
+              'Accept':'application/vnd.github+json',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'BriefRooms-PR18-1-Runtime-Audit/1.0',
+          }
+          def dt(x): return datetime.fromisoformat(str(x).replace('Z','+00:00'))
+          def api_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          def api_bytes(url):
+              p=subprocess.run([
+                  'curl','-fsSL','-L',
+                  '-H',f'Authorization: Bearer {token}',
+                  '-H','Accept: application/vnd.github+json',
+                  '-H','X-GitHub-Api-Version: 2022-11-28',url,
+              ],check=True,stdout=subprocess.PIPE)
+              return p.stdout
+
+          name='brace-miv-diagnostics-state'
+          q=urllib.parse.quote(name,safe='')
+          artifact=None
+          for _ in range(48):
+              data=api_json(f'https://api.github.com/repos/{repo}/actions/artifacts?name={q}&per_page=100')
+              rows=[x for x in data.get('artifacts',[]) if not x.get('expired')]
+              rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+              if rows and dt(rows[0]['created_at']) >= merged_at:
+                  artifact=rows[0]
+                  break
+              time.sleep(5)
+          assert artifact is not None, 'No fresh PR18.1 artifact after merge'
+          run_id=(artifact.get('workflow_run') or {}).get('id')
+          assert run_id, artifact
+          run=api_json(f'https://api.github.com/repos/{repo}/actions/runs/{run_id}')
+          assert run.get('status')=='completed' and run.get('conclusion')=='success', run
+          assert run.get('name')=='BRACE Marginal Information Value Diagnostics', run.get('name')
+
+          raw=api_bytes(artifact['archive_download_url'])
+          with tempfile.TemporaryDirectory() as tmp:
+              root=Path(tmp)
+              with zipfile.ZipFile(io.BytesIO(raw)) as zf: zf.extractall(root/'zip')
+              tgz=root/'zip'/'brace-miv-diagnostics-state.tgz'
+              assert tgz.exists()
+              out=root/'state'; out.mkdir()
+              with tarfile.open(tgz,'r:gz') as tf: tf.extractall(out,filter='data')
+              report=json.loads((out/'BRACE_MIV_DIAGNOSTICS_REPORT.json').read_text())
+              state=json.loads((out/'BRACE_MIV_DIAGNOSTICS_STATE.json').read_text())
+
+              assert report['mode']=='research_shadow'
+              assert report['active_decision_influence'] is False
+              assert report['miv']['composite_miv_score'] is None
+              assert report['miv']['composite_miv_score_contract_exists'] is False
+              assert report['miv']['edge_claim_allowed'] is False
+              assert report['methodology']['effective_n_threshold_defined_here'] is False
+              assert report['miv']['dependence']['promotion_grade_effective_n'] is None
+              assert report['miv']['dependence']['effective_n_threshold_defined_here'] is False
+              assert report['research_boundary']['redundancy_proxy_is_not_causal_proof'] is True
+              assert report['research_boundary']['disagreement_slice_is_not_alpha'] is True
+              assert report['anti_hindsight']['only_pr18_prospectively_frozen_captures_are_consumed'] is True
+              assert report['anti_hindsight']['historical_information_backfill'] is False
+              assert report['anti_hindsight']['retroactive_source_reconstruction'] is False
+              assert report['promotion']['status']=='NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
+              assert report['promotion']['eligible_for_promotion_review'] is False
+              assert report['promotion']['automatic_promotion'] is False
+              assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+              red=report['miv']['information_redundancy']
+              if red['status']=='DESCRIPTIVE_PROXY_AVAILABLE':
+                  assert 0.0 <= red['redundancy_proxy'] <= 1.0
+                  assert 0.0 <= red['orthogonality_proxy'] <= 1.0
+              for snap in (state.get('diagnostic_snapshots') or {}).values():
+                  assert snap['composite_miv_score'] is None
+                  assert snap['historical_backfill'] is False
+                  assert snap['promotion_authority'] is False
+
+              print('PR18_1_RUNTIME_AUDIT=PASS')
+              print(json.dumps({
+                  'run_id':run_id,
+                  'event':run.get('event'),
+                  'artifact_id':artifact['id'],
+                  'artifact_created_at':artifact['created_at'],
+                  'miv_status':report['miv']['status'],
+                  'pr18_captures_total':report['sample']['pr18_captures_total'],
+                  'observation_rows_total':report['sample']['observation_rows_total'],
+                  'matured_economic_rows':report['sample']['matured_economic_rows'],
+                  'unique_belief_states_all_captures':report['sample']['unique_belief_states_all_captures'],
+                  'critical_data_quality_issues':report['sample']['critical_data_quality_issues'],
+                  'redundancy_status':red['status'],
+                  'redundancy_proxy':red.get('redundancy_proxy'),
+                  'orthogonality_proxy':red.get('orthogonality_proxy'),
+                  'descriptive_effective_n_floor':report['miv']['dependence']['descriptive_effective_n_floor'],
+                  'new_diagnostic_snapshot_this_run':report['runtime']['new_diagnostic_snapshot_this_run'],
+                  'diagnostic_snapshots_total':report['runtime']['diagnostic_snapshots_total'],
+                  'composite_miv_score':report['miv']['composite_miv_score'],
+                  'promotion_status':report['promotion']['status'],
+              },indent=2,sort_keys=True))
+          PY
