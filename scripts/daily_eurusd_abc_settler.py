@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Forward-only outcome settler for the Daily EUR/USD A/B/C live-shadow experiment.
+"""Forward-only settler for Daily EUR/USD A/B/C research state.
 
-The settler never creates a new capture and never changes a frozen A/B/C decision.
-It only appends matured forward outcomes to existing captures, rebuilds the private
-research report, and leaves files untouched when no horizon has matured yet.
+PR23 point-forward outcomes remain intact. PR24 additionally updates the virtual
+trade path of prospective v1.3 captures from 1-minute EUR/USD OHLC. The settler
+never creates captures, never changes frozen A/B/C decisions or trade plans, and
+leaves private files byte-identical when neither layer changes.
 """
 from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 from belief_market_data_adapter import YahooChartClient
-import daily_eurusd_experiment_v12 as abc
+import daily_eurusd_experiment_v13 as abc
 
 EURUSD = "EURUSD=X"
 
@@ -25,31 +27,43 @@ def _load(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _frozen_identity(state: Mapping[str, Any]) -> tuple[tuple[str, str, str, str], ...]:
-    rows: list[tuple[str, str, str, str]] = []
+def _frozen_identity(state: Mapping[str, Any]) -> tuple[tuple[str, str, str, str, str], ...]:
+    rows: list[tuple[str, str, str, str, str]] = []
     for capture in state.get("captures") or []:
         rows.append((
             str(capture.get("capture_id") or ""),
             str(capture.get("decision_sha256") or ""),
             str(capture.get("market_observed_at") or ""),
             str(capture.get("engine_version") or ""),
+            str(capture.get("trade_plan_sha256") or ""),
         ))
     return tuple(rows)
 
 
 def _resolved_outcomes(state: Mapping[str, Any]) -> int:
-    count = 0
+    return sum(
+        1
+        for capture in state.get("captures") or []
+        for horizon in (capture.get("horizons") or {}).values()
+        if isinstance(horizon, Mapping) and horizon.get("outcome") is not None
+    )
+
+
+def _open_v13_trade_paths(state: Mapping[str, Any]) -> bool:
     for capture in state.get("captures") or []:
-        for horizon in (capture.get("horizons") or {}).values():
-            if isinstance(horizon, Mapping) and horizon.get("outcome") is not None:
-                count += 1
-    return count
+        if str(capture.get("engine_version")) != abc.ENGINE_VERSION:
+            continue
+        for row in ((capture.get("trade_path") or {}).get("arms") or {}).values():
+            if isinstance(row, Mapping) and row.get("status") == "OPEN":
+                return True
+    return False
 
 
 def settle_state(
     state_dir: Path,
     *,
     client: YahooChartClient | None = None,
+    as_of: datetime | None = None,
 ) -> tuple[bool, int]:
     state_path = state_dir / "EURUSD_DAILY_ABC_STATE.json"
     report_path = state_dir / "EURUSD_DAILY_ABC_REPORT.json"
@@ -58,6 +72,7 @@ def settle_state(
 
     before_identity = _frozen_identity(state)
     before_resolved = _resolved_outcomes(state)
+    before_trade_digest = abc.trade_path_digest(state)
 
     client = client or YahooChartClient(timeout=15)
     rows_30m = sorted(client.bars(EURUSD, "10d", "30m"), key=lambda bar: bar.timestamp)
@@ -65,19 +80,31 @@ def settle_state(
         raise ValueError("EUR/USD 30-minute market data unavailable or insufficient for outcome settlement")
 
     settled = abc.resolve_outcomes(state, rows_30m)
-    abc.validate_state(settled)
 
+    trade_path_checked = False
+    if _open_v13_trade_paths(settled):
+        rows_1m = sorted(client.bars(EURUSD, "5d", "1m"), key=lambda bar: bar.timestamp)
+        if not rows_1m:
+            raise ValueError("EUR/USD 1-minute market data unavailable for PR24 trade-path settlement")
+        settled = abc.update_trade_paths(
+            settled,
+            rows_1m,
+            as_of=(as_of or datetime.now(timezone.utc)),
+        )
+        trade_path_checked = True
+
+    abc.validate_state(settled)
     after_identity = _frozen_identity(settled)
     if after_identity != before_identity:
-        raise ValueError("PR23 settler attempted to mutate frozen capture identity")
+        raise ValueError("settler attempted to mutate frozen capture or trade-plan identity")
 
     after_resolved = _resolved_outcomes(settled)
     resolved_delta = after_resolved - before_resolved
     if resolved_delta < 0:
-        raise ValueError("PR23 settler cannot remove previously resolved outcomes")
-    if resolved_delta == 0:
-        # resolve_outcomes updates bookkeeping timestamps even when nothing matured.
-        # Do not persist that no-op so we avoid unnecessary artifacts/public commits.
+        raise ValueError("settler cannot remove previously resolved point outcomes")
+
+    trade_changed = abc.trade_path_digest(settled) != before_trade_digest
+    if resolved_delta == 0 and not trade_changed:
         return False, 0
 
     report = abc.build_report(settled)
@@ -88,7 +115,7 @@ def settle_state(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Settle matured Daily EUR/USD A/B/C outcomes without creating captures")
+    parser = argparse.ArgumentParser(description="Settle Daily EUR/USD A/B/C point outcomes and PR24 virtual trade paths")
     parser.add_argument("--state-dir", required=True)
     parser.add_argument("--validate", action="store_true")
     args = parser.parse_args()
@@ -100,9 +127,14 @@ def main() -> int:
         print("EURUSD_ABC_SETTLER_OK", len(state.get("captures") or []), _resolved_outcomes(state))
         return 0
 
+    before = _load(state_dir / "EURUSD_DAILY_ABC_STATE.json")
+    before_trade = abc.trade_path_digest(before)
     changed, resolved_delta = settle_state(state_dir)
+    after = _load(state_dir / "EURUSD_DAILY_ABC_STATE.json") if changed else before
+    trade_changed = abc.trade_path_digest(after) != before_trade
     print(f"ABC_STATE_CHANGED={'true' if changed else 'false'}")
     print(f"ABC_RESOLVED_DELTA={resolved_delta}")
+    print(f"ABC_TRADE_PATH_CHANGED={'true' if trade_changed else 'false'}")
     return 0
 
 
