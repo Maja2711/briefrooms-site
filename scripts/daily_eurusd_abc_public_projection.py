@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build a sanitized, Polish-only public projection of the private EUR/USD A/B/C research state.
+"""Build the sanitized Polish public projection of private EUR/USD A/B/C state.
 
-The projection is intentionally read-only and strips research internals such as
-raw Belief rows, decision fingerprints, durability manifests and full technical
-indicator payloads. It exposes only current arm summaries, prospective outcomes
-and cumulative comparison metrics needed by the PL frontend.
+PR24 preserves the existing point-forward comparison and adds a safe public view
+of prospective virtual trade outcomes. Raw Beliefs, technical payloads, decision
+fingerprints, frozen trade plans/hashes and durability internals never leave the
+private research artifact.
 """
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-SCHEMA_VERSION = "eurusd-abc-public-pl-v1"
+SCHEMA_VERSION = "eurusd-abc-public-pl-v2"
+TRADE_ENGINE_VERSION = "eurusd-daily-abc-v1.3.0"
 HORIZONS = ("30m", "60m", "120m", "240m", "1440m")
 HORIZON_LABELS = {
     "30m": "30m",
@@ -37,6 +38,10 @@ DISALLOWED_PUBLIC_KEYS = {
     "durability_contract",
     "technical",
     "belief_context",
+    "trade_plan",
+    "trade_plan_sha256",
+    "trade_path",
+    "source_plan_sha256",
 }
 
 
@@ -136,9 +141,121 @@ def _comparison(report: Mapping[str, Any]) -> dict[str, Any]:
     return projected
 
 
+def _virtual_trade_arm(latest: Mapping[str, Any], arm_id: str) -> dict[str, Any]:
+    arm = ((latest.get("arms") or {}).get(arm_id) or {})
+    plan = latest.get("trade_plan") if isinstance(latest.get("trade_plan"), Mapping) else {}
+    path = latest.get("trade_path") if isinstance(latest.get("trade_path"), Mapping) else {}
+    plan_arm = ((plan.get("arms") or {}).get(arm_id) or {}) if isinstance(plan, Mapping) else {}
+    path_arm = ((path.get("arms") or {}).get(arm_id) or {}) if isinstance(path, Mapping) else {}
+
+    if not plan_arm:
+        return {
+            "tracked": False,
+            "direction": str(arm.get("direction") or "UNAVAILABLE"),
+            "status": "NOT_TRACKED_PRE_V13",
+            "entry_price": None,
+            "stop_price": None,
+            "target_price": None,
+            "mfe_bps": None,
+            "mfe_at": None,
+            "mae_bps": None,
+            "mae_at": None,
+            "first_touch": None,
+            "first_touch_at": None,
+            "minutes_to_first_touch": None,
+            "exit_reason": None,
+            "exit_at": None,
+            "exit_price": None,
+            "realized_bps": None,
+        }
+
+    status = str(path_arm.get("status") or plan_arm.get("status") or "UNAVAILABLE")
+    terminal = status in {"CLOSED", "AMBIGUOUS"}
+    return {
+        "tracked": str(plan_arm.get("status")) == "TRACKED",
+        "direction": str(plan_arm.get("direction") or arm.get("direction") or "UNAVAILABLE"),
+        "status": status,
+        "entry_price": _number(plan_arm.get("entry_price"), 5),
+        "stop_price": _number(plan_arm.get("stop_price"), 5),
+        "target_price": _number(plan_arm.get("target_price"), 5),
+        # OPEN-path excursions are intentionally not published as pseudo-final metrics.
+        "mfe_bps": _number(path_arm.get("mfe_bps"), 4) if terminal else None,
+        "mfe_at": path_arm.get("mfe_at") if terminal else None,
+        "mae_bps": _number(path_arm.get("mae_bps"), 4) if terminal else None,
+        "mae_at": path_arm.get("mae_at") if terminal else None,
+        "first_touch": path_arm.get("first_touch"),
+        "first_touch_at": path_arm.get("first_touch_at"),
+        "minutes_to_first_touch": _number(path_arm.get("minutes_to_first_touch"), 2),
+        "exit_reason": path_arm.get("exit_reason"),
+        "exit_at": path_arm.get("exit_at"),
+        "exit_price": _number(path_arm.get("exit_price"), 5),
+        "realized_bps": _number(path_arm.get("realized_bps"), 4),
+    }
+
+
+def _virtual_trade(latest: Mapping[str, Any]) -> dict[str, Any]:
+    plan = latest.get("trade_plan") if isinstance(latest.get("trade_plan"), Mapping) else {}
+    risk = (plan.get("risk_contract") or {}) if isinstance(plan, Mapping) else {}
+    available = str(latest.get("engine_version")) == TRADE_ENGINE_VERSION and bool(plan)
+    return {
+        "available": available,
+        "virtual_only": True,
+        "prospective_only": True,
+        "historical_backfill": False,
+        "entry_basis": "frozen_reference_price",
+        "spread_slippage_included": False,
+        "signal_generated_at": plan.get("signal_generated_at") if available else latest.get("captured_at"),
+        "horizon_end_at": plan.get("horizon_end_at") if available else None,
+        "risk": {
+            "atr_timeframe": risk.get("atr_timeframe") if available else None,
+            "atr_window": int(risk.get("atr_window")) if available and risk.get("atr_window") is not None else None,
+            "atr_value": _number(risk.get("atr_value"), 8) if available else None,
+            "atr_multiple": _number(risk.get("atr_multiple"), 4) if available else None,
+            "risk_floor_percent": _number(risk.get("risk_floor_percent"), 6) if available else None,
+            "risk_distance": _number(risk.get("risk_distance"), 8) if available else None,
+            "reward_risk": _number(risk.get("reward_risk"), 4) if available else None,
+            "position_horizon_minutes": int(risk.get("position_horizon_minutes")) if available and risk.get("position_horizon_minutes") is not None else None,
+            "monitor_interval": risk.get("monitor_interval") if available else None,
+        },
+        "arms": {arm_id: _virtual_trade_arm(latest, arm_id) for arm_id in ("A", "B", "C")},
+    }
+
+
+def _trade_metric(row: Mapping[str, Any] | None) -> dict[str, Any]:
+    row = row or {}
+    return {
+        "signals": int(row.get("signals") or 0),
+        "open_trades": int(row.get("open_trades") or 0),
+        "closed_trades": int(row.get("closed_trades") or 0),
+        "ambiguous_same_1m_bar": int(row.get("ambiguous_same_1m_bar") or 0),
+        "take_profit": int(row.get("take_profit") or 0),
+        "stop_loss": int(row.get("stop_loss") or 0),
+        "time_exit_24h": int(row.get("time_exit_24h") or 0),
+        "win_rate": _number(row.get("win_rate"), 6),
+        "mean_realized_bps": _number(row.get("mean_realized_bps"), 4),
+        "mean_mfe_bps": _number(row.get("mean_mfe_bps"), 4),
+        "mean_mae_bps": _number(row.get("mean_mae_bps"), 4),
+        "mean_minutes_to_first_touch": _number(row.get("mean_minutes_to_first_touch"), 2),
+    }
+
+
+def _trade_comparison(report: Mapping[str, Any]) -> dict[str, Any]:
+    trade = report.get("trade_path") if isinstance(report.get("trade_path"), Mapping) else {}
+    performance = (trade.get("performance") or {}) if isinstance(trade, Mapping) else {}
+    return {
+        "prospective_from_engine_version": trade.get("prospective_from_engine_version") or TRADE_ENGINE_VERSION,
+        "historical_backfill": False,
+        "virtual_only": True,
+        "arms": {
+            arm_id: _trade_metric((performance.get(arm_id) or {}) if isinstance(performance, Mapping) else None)
+            for arm_id in ("A", "B", "C")
+        },
+    }
+
+
 def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
     if state.get("mode") != "research_shadow" or report.get("mode") != "research_shadow":
-        raise ValueError("PR21 projection accepts research_shadow input only")
+        raise ValueError("public projection accepts research_shadow input only")
     if report.get("decision_influence") is not False:
         raise ValueError("public projection requires zero decision influence")
     governance = report.get("governance") or {}
@@ -151,8 +268,8 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
     latest = captures[-1]
     if not isinstance(latest, Mapping):
         raise ValueError("latest A/B/C capture must be an object")
-    research_boundary = latest.get("research_boundary") or {}
-    if research_boundary.get("decision_influence") is not False or research_boundary.get("trade_execution") is not False:
+    boundary = latest.get("research_boundary") or {}
+    if boundary.get("decision_influence") is not False or boundary.get("trade_execution") is not False:
         raise ValueError("latest capture violates zero-authority boundary")
 
     arms = latest.get("arms") or {}
@@ -160,9 +277,7 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
         raise ValueError("latest capture must contain A/B/C")
 
     signal_generated_at = latest.get("captured_at") or latest.get("market_observed_at")
-    generated_at = _iso_z(now) if now is not None else str(
-        state.get("updated_at") or signal_generated_at or _iso_z()
-    )
+    generated_at = _iso_z(now) if now is not None else str(state.get("updated_at") or signal_generated_at or _iso_z())
 
     payload = {
         "schema_version": SCHEMA_VERSION,
@@ -189,8 +304,10 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
             "reference_price": _number(latest.get("reference_price"), 5),
             "arms": {arm_id: _arm_summary(arm_id, arms[arm_id]) for arm_id in ("A", "B", "C")},
             "horizons": _latest_horizons(latest),
+            "virtual_trade": _virtual_trade(latest),
         },
         "comparison": _comparison(report),
+        "trade_comparison": _trade_comparison(report),
     }
     validate_public_projection(payload)
     return payload
@@ -214,25 +331,24 @@ def validate_public_projection(payload: Mapping[str, Any]) -> None:
     if payload.get("language") != "pl" or payload.get("mode") != "LIVE_SHADOW":
         raise ValueError("public projection must be PL live-shadow")
     boundary = payload.get("public_boundary") or {}
-    required_false = (
-        "decision_influence",
-        "trade_execution",
-        "belief_writeback",
-        "raw_belief_state_exposed",
-        "private_research_state_exposed",
-    )
+    required_false = ("decision_influence", "trade_execution", "belief_writeback", "raw_belief_state_exposed", "private_research_state_exposed")
     if boundary.get("read_only_projection") is not True or any(boundary.get(key) is not False for key in required_false):
         raise ValueError("invalid public read-only boundary")
     latest = payload.get("latest") or {}
     if not latest.get("signal_generated_at"):
         raise ValueError("public projection must expose signal generation time")
-    arms = latest.get("arms") or {}
-    if set(arms) != {"A", "B", "C"}:
+    if set(latest.get("arms") or {}) != {"A", "B", "C"}:
         raise ValueError("public projection must contain A/B/C")
-    horizons = latest.get("horizons") or {}
-    comparison = payload.get("comparison") or {}
-    if tuple(horizons.keys()) != HORIZONS or tuple(comparison.keys()) != HORIZONS:
+    if tuple((latest.get("horizons") or {}).keys()) != HORIZONS or tuple((payload.get("comparison") or {}).keys()) != HORIZONS:
         raise ValueError("public projection horizon contract mismatch")
+    virtual_trade = latest.get("virtual_trade") or {}
+    if virtual_trade.get("virtual_only") is not True or virtual_trade.get("historical_backfill") is not False:
+        raise ValueError("invalid PR24 public virtual-trade boundary")
+    if set(virtual_trade.get("arms") or {}) != {"A", "B", "C"}:
+        raise ValueError("public virtual trade must contain A/B/C")
+    trade_comparison = payload.get("trade_comparison") or {}
+    if trade_comparison.get("virtual_only") is not True or set(trade_comparison.get("arms") or {}) != {"A", "B", "C"}:
+        raise ValueError("public trade comparison contract mismatch")
     leaked = DISALLOWED_PUBLIC_KEYS.intersection(_walk_keys(payload))
     if leaked:
         raise ValueError(f"private research keys leaked into public projection: {sorted(leaked)}")
