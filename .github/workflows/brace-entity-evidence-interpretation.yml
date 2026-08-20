@@ -7,7 +7,10 @@ on:
     paths:
       - ".github/workflows/brace-entity-evidence-interpretation.yml"
       - "scripts/brace_entity_evidence_interpretation.py"
+      - "scripts/brace_entity_evidence_interpretation_semantic.py"
+      - "scripts/entity_semantic_eligibility.py"
       - "tests/test_brace_entity_evidence_interpretation.py"
+      - "tests/test_entity_semantic_eligibility.py"
       - "docs/BRACE_ENTITY_EVIDENCE_INTERPRETATION.md"
   workflow_run:
     workflows:
@@ -103,18 +106,21 @@ jobs:
             echo "No prior PR14 state; first run will seed cursor/baselines only and emit no historical Evidence."
           fi
 
-      - name: Validate PR14 code
+      - name: Validate PR14 and PR19.1 semantic code
         run: |
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py scripts/brace_entity_evidence_interpretation_semantic.py scripts/entity_semantic_eligibility.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_evidence_interpretation -v
+          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
-      - name: Interpret new prospective PR13 facts
+      - name: Interpret new prospective PR13 facts with semantic eligibility
         run: |
-          PYTHONPATH=scripts:. python scripts/brace_entity_evidence_interpretation.py \
+          PYTHONPATH=scripts:. python scripts/brace_entity_evidence_interpretation_semantic.py \
             --state-dir "$STATE_DIR" \
-            --primary-state "$PR13_DIR/ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json"
+            --primary-state "$PR13_DIR/ENTITY_PRIMARY_SOURCE_EVIDENCE_STATE.json" \
+            --universe data/portfolio10k/universe.json
 
-      - name: Assert PR14 anti-hindsight and zero-influence boundary
+      - name: Assert PR14 anti-hindsight, semantic and zero-influence boundary
         run: |
           python - <<'PY'
           import json, os
@@ -128,10 +134,16 @@ jobs:
           assert report['anti_hindsight']['first_pr14_run_activation_only'] is True
           assert report['anti_hindsight']['derived_evidence_observed_at_is_interpretation_runtime'] is True
           assert report['anti_hindsight']['pr13_collection_window_change_resets_comparison_baselines'] is True
+          assert report['anti_hindsight']['semantic_deprecations_append_only'] is True
+          assert report['anti_hindsight']['semantic_migration_deletes_historical_records'] is False
           assert report['interpretation_boundary']['raw_primary_facts_directly_polarized'] is False
           assert report['interpretation_boundary']['pnl_tuned_thresholds'] is False
           assert report['interpretation_boundary']['evidence_materialized_but_not_applied_to_belief_core'] is True
           assert report['interpretation_boundary']['entity_forecasts_created'] is False
+          assert report['interpretation_boundary']['financials_sector_alone_enables_nii'] is False
+          assert report['interpretation_boundary']['bank_archetype_required_for_future_nii'] is True
+          assert report['semantic_eligibility']['sector_is_not_business_model'] is True
+          assert report['semantic_eligibility']['resolved_nonbank_historical_records_are_append_only_deprecated'] is True
           assert report['capabilities']['deterministic_entity_interpretation_enabled'] is True
           assert report['capabilities']['llm_interpretation_enabled'] is False
           assert report['capabilities']['belief_core_state_update_enabled'] is False
@@ -141,13 +153,20 @@ jobs:
           assert report['promotion_evidence_standard']['automatic_promotion'] is False
           assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
           for ev in state.get('evidence', []):
-              assert ev['source_type'] == 'derived'
-              assert ev['direction'] in (-1, 1)
-              assert ev['metadata']['pnl_tuned'] is False
-              assert ev['metadata']['promotion_authority'] is False
-          print('PR14 prospective interpretation safety contract: PASS')
+              if set(ev) >= {'source_type','direction','metadata'}:
+                  assert ev['source_type'] == 'derived'
+                  assert ev['direction'] in (-1, 1)
+                  assert ev['metadata']['pnl_tuned'] is False
+                  assert ev['metadata']['promotion_authority'] is False
+          for dep in (state.get('semantic_deprecations') or {}).values():
+              assert dep['status'] == 'DEPRECATED_SEMANTIC_MISMATCH'
+              assert dep['historical_records_preserved'] is True
+              assert dep['future_interpretation_enabled'] is False
+              assert dep['future_evidence_enabled'] is False
+              assert dep['historical_deletion'] is False
+          print('PR14 prospective interpretation + PR19.1 semantic safety contract: PASS')
           print('Sample:', report['sample'])
-          print('Statuses:', report['interpretation_status_counts'])
+          print('Semantic deprecations:', len(state.get('semantic_deprecations') or {}))
           PY
 
       - name: Pack cumulative private PR14 state
