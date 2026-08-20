@@ -8,8 +8,10 @@ on:
       - "scripts/daily_engine_contract.py"
       - "scripts/daily_eurusd_lifecycle.py"
       - "scripts/daily_eurusd_spot.py"
+      - "scripts/daily_eurusd_spot_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
       - "tests/test_daily_eurusd_lifecycle.py"
+      - "tests/test_daily_eurusd_direct_signal.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
     # Independent risk monitor. Offset from round 5-minute boundaries.
@@ -39,25 +41,48 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate lifecycle code
+      - name: Validate lifecycle and direct admission code
         run: |
           set -euo pipefail
-          python -m unittest tests.test_daily_eurusd_lifecycle -v
-          python -m py_compile scripts/daily_engine_contract.py scripts/daily_eurusd_lifecycle.py scripts/daily_eurusd_spot.py
+          python -m unittest tests.test_daily_eurusd_lifecycle tests.test_daily_eurusd_direct_signal -v
+          python -m py_compile scripts/daily_engine_contract.py scripts/daily_eurusd_lifecycle.py scripts/daily_eurusd_spot.py scripts/daily_eurusd_spot_v12.py
           node --check scripts/daily-eurusd-spot-public.js
 
-      - name: Reconcile open position and refresh candidate
+      - name: Reconcile open position and refresh direct-signal candidate
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot.py \
+          python scripts/daily_eurusd_spot_v12.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot.py \
+          python scripts/daily_eurusd_spot_v12.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
           python -m json.tool data/investments/eurusd_daily_spot.json >/dev/null
           python -m json.tool data/investments/eurusd_daily_history.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path('data/investments/eurusd_daily_spot.json').read_text())
+          candidate=(payload.get('metadata') or {}).get('candidate') or {}
+          reasons=set(candidate.get('gate_reasons') or [])
+          forbidden={
+              'score_below_adaptive_long_threshold',
+              'score_above_adaptive_short_threshold',
+              'confidence_below_minimum',
+              'signal_not_persistent',
+              'entry_overextended_vs_ema20',
+              'latest_30m_bar_is_shock_bar',
+              'post_stop_cooldown',
+              'daily_entry_limit_reached',
+          }
+          leaked=sorted(reasons & forbidden)
+          if leaked:
+              raise SystemExit(f'legacy admission veto leaked into PR22 runtime: {leaked}')
+          if payload.get('engine_version') != 'eurusd-daily-spot-v1.2.0' and payload.get('status') != 'OPEN':
+              raise SystemExit(f"unexpected PR22 engine version: {payload.get('engine_version')}")
+          print('EURUSD_DIRECT_SIGNAL_ADMISSION_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), sorted(reasons))
+          PY
 
       - name: Persist EURUSD state and append-only outcomes
         run: |

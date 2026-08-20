@@ -1,0 +1,71 @@
+name: Validate Daily EURUSD Direct Signal Admission
+
+on:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_lifecycle.py"
+      - "scripts/daily_eurusd_spot.py"
+      - "scripts/daily_eurusd_spot_v12.py"
+      - "tests/test_daily_eurusd_lifecycle.py"
+      - "tests/test_daily_eurusd_direct_signal.py"
+      - ".github/workflows/daily-eurusd-monitor.yml"
+      - ".github/workflows/daily-eurusd-direct-signal-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_spot_v12.py"
+      - "tests/test_daily_eurusd_direct_signal.py"
+      - ".github/workflows/daily-eurusd-monitor.yml"
+      - ".github/workflows/daily-eurusd-direct-signal-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile runtime
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_engine_contract.py \
+            scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_spot.py \
+            scripts/daily_eurusd_spot_v12.py
+      - name: Run lifecycle and PR22 tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_direct_signal -v
+      - name: Assert production workflow uses v1.2 direct admission
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/daily-eurusd-monitor.yml').read_text()
+          required=[
+              'scripts/daily_eurusd_spot_v12.py',
+              'tests.test_daily_eurusd_direct_signal',
+              'daily_entry_limit_reached',
+              'post_stop_cooldown',
+              'confidence_below_minimum',
+              'signal_not_persistent',
+              'entry_overextended_vs_ema20',
+              'latest_30m_bar_is_shock_bar',
+          ]
+          missing=[item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f'PR22 production contract missing: {missing}')
+          if 'python scripts/daily_eurusd_spot.py \\\n' in text:
+              raise SystemExit('legacy base runtime is still invoked directly in production')
+          print('PR22_WORKFLOW_CONTRACT_OK')
+          PY
