@@ -6,8 +6,11 @@ on:
       - ".github/workflows/brace-entity-primary-source-evidence.yml"
       - ".github/workflows/brace-entity-primary-source-evidence-validation.yml"
       - "scripts/brace_entity_primary_source_evidence.py"
+      - "scripts/brace_entity_sec_source_aliases.py"
       - "tests/test_brace_entity_primary_source_evidence.py"
+      - "tests/test_brace_entity_sec_source_aliases.py"
       - "docs/BRACE_ENTITY_PRIMARY_SOURCE_EVIDENCE.md"
+      - "docs/PR13_SEC_MARKET_SYMBOL_ALIASES.md"
 
 permissions:
   contents: read
@@ -24,8 +27,8 @@ jobs:
 
       - name: Compile and test PR13 primary-source layer
         run: |
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py
-          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence -v
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_primary_source_evidence.py scripts/brace_entity_sec_source_aliases.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_primary_source_evidence tests.test_brace_entity_sec_source_aliases -v
 
       - name: Assert PR13 governance boundary against current repository state
         run: |
@@ -33,6 +36,7 @@ jobs:
           import json
           from brace_company_entity_framework import DEFAULT_ANALYSIS, DEFAULT_PORTFOLIO, DEFAULT_UNIVERSE, desired_entities
           from brace_entity_primary_source_evidence import capabilities, safety_controls, promotion_evidence_standard
+          from brace_entity_sec_source_aliases import SEC_MARKET_SYMBOL_ALIASES, ALIAS_CONTRACT_VERSION
 
           portfolio=json.loads(DEFAULT_PORTFOLIO.read_text())
           analysis=json.loads(DEFAULT_ANALYSIS.read_text())
@@ -41,6 +45,9 @@ jobs:
           assert active
           assert all(str(row.get('asset_type','')).lower() in {'stock','equity','common_stock','common stock'} for row in active.values())
           assert all(v is False for v in safety_controls().values())
+          assert ALIAS_CONTRACT_VERSION == 'sec-market-symbol-alias-v1'
+          assert SEC_MARKET_SYMBOL_ALIASES['NOVO-B.CO']['expected_cik'] == 353278
+          assert SEC_MARKET_SYMBOL_ALIASES['SAP.DE']['expected_cik'] == 1000184
           caps=capabilities()
           assert caps['primary_source_collection_enabled'] is True
           assert caps['sec_edgar_submissions_enabled'] is True
@@ -53,4 +60,5 @@ jobs:
           assert gate['automatic_promotion'] is False
           print('PR13 governance + current-entity integration contract: PASS')
           print('Current active entity count:', len(active))
+          print('Reviewed SEC aliases:', sorted(SEC_MARKET_SYMBOL_ALIASES))
           PY
