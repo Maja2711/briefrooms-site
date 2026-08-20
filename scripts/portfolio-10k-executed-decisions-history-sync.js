@@ -27,7 +27,8 @@
     reduce: 'REDUKCJA ZREALIZOWANA',
     reduceText: 'Zmniejszono pozycję',
     exit: 'SPRZEDAŻ ZREALIZOWANA',
-    exitText: 'Zamknięto pozycję'
+    exitText: 'Zamknięto pozycję',
+    active: 'aktywna'
   } : {
     title: 'LATEST EXECUTED DECISIONS (BRACE)',
     history: 'Full history',
@@ -47,7 +48,8 @@
     reduce: 'REDUCTION EXECUTED',
     reduceText: 'Reduced position',
     exit: 'SALE EXECUTED',
-    exitText: 'Closed position'
+    exitText: 'Closed position',
+    active: 'active'
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -244,6 +246,39 @@
     document.body.dataset.braceExecutions = 'transaction-history';
   }
 
+  function positionWasEntered(position) {
+    const status = String(position?.status || '').toLowerCase();
+    if (['active', 'paper_active'].includes(status)) return true;
+    return num(position?.quantity) > 0
+      && num(position?.entry_price) !== null
+      && Boolean(position?.entry_date || position?.entry_timestamp_utc);
+  }
+
+  function syncAuditStatuses(portfolio) {
+    const audit = document.getElementById('audit-body');
+    if (!audit) return false;
+    const bySymbol = new Map();
+    for (const position of portfolio?.positions || []) {
+      for (const symbol of [position?.broker_symbol, position?.market_symbol]) {
+        const key = String(symbol || '').trim().toUpperCase();
+        if (key) bySymbol.set(key, position);
+      }
+    }
+    let changed = false;
+    for (const row of audit.querySelectorAll('tr')) {
+      const symbol = row.querySelector('td:first-child b')?.textContent?.trim().toUpperCase();
+      const position = bySymbol.get(symbol || '');
+      const statusCell = row.querySelector('td:last-child');
+      if (!position || !statusCell || !positionWasEntered(position)) continue;
+      if (statusCell.textContent.trim() !== T.active) {
+        statusCell.textContent = T.active;
+        statusCell.dataset.executionStatus = 'active';
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   async function start() {
     const root = document.getElementById('brace-decisions');
     if (!root) return;
@@ -259,6 +294,7 @@
         if (rendering) return;
         rendering = true;
         apply(root, executions, meta);
+        syncAuditStatuses(portfolio);
         rendering = false;
       };
       render();
@@ -271,6 +307,12 @@
         if (!hasAuthorityRows) queueMicrotask(render);
       });
       observer.observe(root, { childList: true, subtree: false });
+
+      const audit = document.getElementById('audit-body');
+      if (audit) {
+        const auditObserver = new MutationObserver(() => queueMicrotask(() => syncAuditStatuses(portfolio)));
+        auditObserver.observe(audit, { childList: true, subtree: true, characterData: true });
+      }
       window.addEventListener('hashchange', () => setTimeout(render, 0));
       document.addEventListener('click', event => {
         if (event.target.closest('[data-tab]')) setTimeout(render, 0);
