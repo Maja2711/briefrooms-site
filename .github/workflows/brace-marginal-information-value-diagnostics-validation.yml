@@ -1,0 +1,56 @@
+name: BRACE Marginal Information Value Diagnostics Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/brace_marginal_information_value_diagnostics.py"
+      - "tests/test_brace_marginal_information_value_diagnostics.py"
+      - "docs/BRACE_MARGINAL_INFORMATION_VALUE_DIAGNOSTICS.md"
+      - ".github/workflows/brace-marginal-information-value-diagnostics.yml"
+      - ".github/workflows/brace-marginal-information-value-diagnostics-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR18.1 diagnostics
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_marginal_information_value_diagnostics.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_marginal_information_value_diagnostics -v
+
+      - name: Assert PR18.1 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from brace_marginal_information_value_diagnostics import (
+              MIN_SERIAL_N,
+              MIN_UNIQUE_BELIEF_STATES_FOR_DEPENDENCE,
+              capabilities,
+              safety_controls,
+          )
+          controls=safety_controls()
+          caps=capabilities()
+          assert controls and all(v is False for v in controls.values())
+          assert caps['prospective_miv_diagnostics_enabled'] is True
+          assert caps['economic_incremental_value_diagnostics_enabled'] is True
+          assert caps['redundancy_proxy_enabled'] is True
+          assert caps['orthogonality_proxy_enabled'] is True
+          assert caps['disagreement_regime_slices_enabled'] is True
+          assert caps['composite_miv_score_enabled'] is False
+          assert caps['engine_specific_trust_enabled'] is False
+          assert caps['causal_belief_graph_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          assert MIN_UNIQUE_BELIEF_STATES_FOR_DEPENDENCE == 4
+          assert MIN_SERIAL_N == 4
+          print('PR18.1 MIV diagnostic governance: PASS')
+          PY
