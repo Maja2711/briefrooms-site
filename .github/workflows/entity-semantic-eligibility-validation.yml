@@ -1,0 +1,93 @@
+name: Entity Semantic Eligibility Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/entity-semantic-eligibility-validation.yml"
+      - ".github/workflows/brace-company-entity-framework.yml"
+      - "scripts/entity_semantic_eligibility.py"
+      - "scripts/brace_company_entity_framework.py"
+      - "scripts/brace_entity_evidence_interpretation_semantic.py"
+      - "scripts/brace_entity_belief_state_forecast_semantic.py"
+      - "scripts/brace_entity_calibration_diagnostics_semantic.py"
+      - "scripts/investment_semantics_world_state_semantic.py"
+      - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
+      - "scripts/belief_epistemic_causal_graph_semantic.py"
+      - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_entity_semantic_workflow_contract.py"
+      - "tests/test_brace_company_entity_framework.py"
+      - "docs/ENTITY_SEMANTIC_ELIGIBILITY.md"
+  pull_request:
+    paths:
+      - ".github/workflows/entity-semantic-eligibility-validation.yml"
+      - ".github/workflows/brace-company-entity-framework.yml"
+      - "scripts/entity_semantic_eligibility.py"
+      - "scripts/brace_company_entity_framework.py"
+      - "scripts/brace_entity_evidence_interpretation_semantic.py"
+      - "scripts/brace_entity_belief_state_forecast_semantic.py"
+      - "scripts/brace_entity_calibration_diagnostics_semantic.py"
+      - "scripts/investment_semantics_world_state_semantic.py"
+      - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
+      - "scripts/belief_epistemic_causal_graph_semantic.py"
+      - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_entity_semantic_workflow_contract.py"
+      - "tests/test_brace_company_entity_framework.py"
+      - "docs/ENTITY_SEMANTIC_ELIGIBILITY.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: entity-semantic-eligibility-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile semantic hardening surface
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile \
+            scripts/entity_semantic_eligibility.py \
+            scripts/brace_company_entity_framework.py \
+            scripts/brace_entity_primary_source_evidence.py \
+            scripts/brace_entity_evidence_interpretation_semantic.py \
+            scripts/brace_entity_belief_state_forecast_semantic.py \
+            scripts/brace_entity_calibration_diagnostics_semantic.py \
+            scripts/investment_semantics_world_state_semantic.py \
+            scripts/brace_entity_belief_shadow_bridge_semantic.py \
+            scripts/belief_epistemic_causal_graph_semantic.py
+
+      - name: Run semantic migration and workflow contracts
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest \
+            tests.test_entity_semantic_eligibility \
+            tests.test_entity_semantic_workflow_contract \
+            -v
+
+      - name: Run all affected layer regressions
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest \
+            tests.test_brace_company_entity_framework \
+            tests.test_brace_entity_primary_source_evidence \
+            tests.test_brace_entity_sec_source_aliases \
+            tests.test_brace_entity_evidence_interpretation \
+            tests.test_brace_entity_belief_state_forecast \
+            tests.test_brace_entity_calibration_diagnostics \
+            tests.test_investment_semantics_world_state \
+            tests.test_brace_entity_belief_shadow_bridge \
+            tests.test_belief_epistemic_causal_graph \
+            tests.test_entity_runtime_bootstrap_workflows \
+            -v
