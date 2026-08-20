@@ -13,24 +13,32 @@ TZ = ZoneInfo("Europe/Warsaw")
 PAGES = {
     ROOT / "pl/inwestycje/pozycje-tygodniowe.html": {
         "lang": "pl",
-        "title": "Otwarte pozycje tygodniowe — BriefRooms",
+        "title": "Weekly Positions — BriefRooms",
         "desc": "Pozycje paper-trading EUR/USD, S&P 500 futures i BTC/USD wraz z historią wyników.",
         "invest": "/pl/inwestycje.html",
-        "h1": "Otwarte pozycje tygodniowe",
+        "daily": "/pl/inwestycje/daily-trading.html",
+        "weekly": "/pl/inwestycje/pozycje-tygodniowe.html",
+        "h1": "Weekly Positions",
         "lead": "Ładowanie danych pozycji tygodniowych i historii wyników…",
         "loading": "Ładowanie tygodni…",
-        "back": "← Wróć do Inwestycji",
+        "back": "← Wróć do Daily Trading",
+        "daily_label": "Daily Trading",
+        "weekly_label": "Weekly Positions",
         "legal": "Treści mają charakter edukacyjny i analityczny. Są to wyłącznie pozycje paper-trading, a nie rekomendacje ani rzeczywiste zlecenia.",
     },
     ROOT / "en/investing/open-weekly-positions.html": {
         "lang": "en",
-        "title": "Open weekly positions — BriefRooms",
+        "title": "Weekly Positions — BriefRooms",
         "desc": "EUR/USD, S&P 500 futures and BTC/USD paper-trading positions with result history.",
         "invest": "/en/investing.html",
-        "h1": "Open weekly positions",
+        "daily": "/en/investing/daily-trading.html",
+        "weekly": "/en/investing/open-weekly-positions.html",
+        "h1": "Weekly Positions",
         "lead": "Loading weekly positions and result history…",
         "loading": "Loading weeks…",
-        "back": "← Back to Investing",
+        "back": "← Back to Daily Trading",
+        "daily_label": "Daily Trading",
+        "weekly_label": "Weekly Positions",
         "legal": "Content is educational and analytical. These are paper-trading positions only, not recommendations or real broker orders.",
     },
 }
@@ -55,7 +63,7 @@ def shell_week_id() -> str:
 
 
 def page(cfg: dict) -> str:
-    return f'''<!doctype html><html lang="{cfg['lang']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{cfg['title']}</title><meta name="description" content="{cfg['desc']}"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/investments-weekly-public.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-weekly-governance.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/site-header.css?v={HEADER_VERSION}"><script src="/scripts/site-header.js?v={HEADER_VERSION}" defer></script></head><body><header id="site-header"></header><div class="wrap"><section class="hero"><span class="pill">EUR/USD · S&amp;P 500 · BTC/USD</span><h1>{cfg['h1']}</h1><p id="updated" class="lead">{cfg['lead']}</p></section><main id="app"><section class="panel"><h2>{shell_week_id()}</h2><p>{cfg['loading']}</p></section><p class="legal">{cfg['legal']}</p></main><a class="back" href="{cfg['invest']}">{cfg['back']}</a></div><footer>© BriefRooms</footer><script>window.BR_WEEKLY={{lang:'{cfg['lang']}'}};</script><script src="/scripts/investments-weekly-public.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-weekly-trade-times.js?v=1" defer></script><script src="/scripts/investments-weekly-governance.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-wes-public.js?v={ASSET_VERSION}" defer></script></body></html>\n'''
+    return f'''<!doctype html><html lang="{cfg['lang']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{cfg['title']}</title><meta name="description" content="{cfg['desc']}"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/investments-weekly-public.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-weekly-governance.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-hub.css?v=1"><link rel="stylesheet" href="/assets/site-header.css?v={HEADER_VERSION}"><script src="/scripts/site-header.js?v={HEADER_VERSION}" defer></script></head><body><header id="site-header"></header><div class="wrap"><section class="hero"><span class="pill">EUR/USD · S&amp;P 500 · BTC/USD</span><h1>{cfg['h1']}</h1><p id="updated" class="lead">{cfg['lead']}</p></section><nav class="switcher" aria-label="Trading horizon"><a href="{cfg['daily']}">{cfg['daily_label']}</a><a class="active" aria-current="page" href="{cfg['weekly']}">{cfg['weekly_label']}</a></nav><main id="app"><section class="panel"><h2>{shell_week_id()}</h2><p>{cfg['loading']}</p></section><p class="legal">{cfg['legal']}</p></main><a class="back" href="{cfg['daily']}">{cfg['back']}</a></div><footer>© BriefRooms</footer><script>window.BR_WEEKLY={{lang:'{cfg['lang']}'}};</script><script src="/scripts/investments-weekly-public.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-weekly-trade-times.js?v=1" defer></script><script src="/scripts/investments-weekly-governance.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-wes-public.js?v={ASSET_VERSION}" defer></script></body></html>\n'''
 
 
 def update_room_links() -> None:
