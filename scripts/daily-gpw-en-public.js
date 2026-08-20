@@ -40,7 +40,7 @@
     root.className = "dash-card page-card dsm-root";
     root.innerHTML = `<header class="dsm-head"><div><span class="dsm-kicker">BriefRooms Research · Daily Stock Core</span><h2>DAILY GPW POLAND</h2><p>Polish-market adapter with PLN, Warsaw session timing, ESPI/EBI evidence and market memory isolated from the US engine.</p></div><span class="dsm-common-chip">SHARED CORE · GPW MEMORY ISOLATED</span></header>
     <div class="dsm-market-grid" style="grid-template-columns:1fr"><article class="dsm-market-card" data-dsm-market="gpw"><header class="dsm-market-head"><div class="dsm-market-title"><small>Polish market</small><h3>GPW DAILY TRADE</h3><div class="dsm-market-meta">Updated: ${esc(stamp(p?.generated_at))}</div></div><span class="dsm-status ${status[1]}">${status[0]}</span></header>${body}<div class="dsm-footer"><span>GPW · PLN · confirmation from 09:05 Warsaw · ESPI/EBI</span></div></article></div>
-    <p class="dsm-legal">Research paper-trading module. Not investment advice.</p>`;
+    <p class="dsm-legal">Research module. Not investment advice.</p>`;
   };
 
   fetch(`/data/investments/gpw_daily_pick.json?v=${Date.now()}`,{cache:"no-store",headers:{"Cache-Control":"no-cache"}})
