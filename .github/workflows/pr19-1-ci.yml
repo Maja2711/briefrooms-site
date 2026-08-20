@@ -1,4 +1,4 @@
-name: PR19.1 Semantic Eligibility CI
+name: PR19.1 Full Affected-Surface CI
 
 on:
   push:
@@ -8,11 +8,12 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
-  focused-semantic-regression:
+  affected-surface:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,30 +21,80 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compile semantic hardening modules
+      - name: Run isolated regression surfaces and publish statuses
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile \
+          set -uo pipefail
+
+          publish_status() {
+            local context="$1"
+            local state="$2"
+            local description="$3"
+            CONTEXT="$context" STATE="$state" DESCRIPTION="$description" python - <<'PY'
+          import json, os, urllib.request
+          url = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['GITHUB_SHA']}"
+          payload = json.dumps({
+              "state": os.environ["STATE"],
+              "context": os.environ["CONTEXT"],
+              "description": os.environ["DESCRIPTION"][:140],
+              "target_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req = urllib.request.Request(url, data=payload, method="POST", headers={
+              "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
+          }
+
+          run_surface() {
+            local key="$1"
+            shift
+            local logfile="/tmp/${key//\//_}.log"
+            echo "=== $key ==="
+            if "$@" >"$logfile" 2>&1; then
+              cat "$logfile"
+              publish_status "pr19.1/full/${key}" success "${key} passed"
+              return 0
+            fi
+            rc=$?
+            cat "$logfile"
+            summary=$(grep -E '^(FAILED|ERROR:|FAIL:|Ran [0-9]+ tests|FAILED \()' "$logfile" | tail -n 1 | tr '\n' ' ' | cut -c1-105)
+            if [ -z "$summary" ]; then
+              summary=$(tail -n 1 "$logfile" | tr '\n' ' ' | cut -c1-105)
+            fi
+            publish_status "pr19.1/full/${key}" failure "${key} failed: ${summary}"
+            return "$rc"
+          }
+
+          failures=0
+
+          run_surface compile python -m py_compile \
             scripts/entity_semantic_eligibility.py \
+            scripts/brace_company_entity_framework.py \
             scripts/brace_entity_evidence_interpretation_semantic.py \
             scripts/brace_entity_belief_state_forecast_semantic.py \
             scripts/brace_entity_calibration_diagnostics_semantic.py \
             scripts/investment_semantics_world_state_semantic.py \
             scripts/brace_entity_belief_shadow_bridge_semantic.py \
-            scripts/belief_epistemic_causal_graph_semantic.py
-      - name: Run PR19.1 semantic regression suite
-        run: |
-          set -euo pipefail
-          PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility_pr19_1 -v
-      - name: Run existing affected regression suites
-        run: |
-          set -euo pipefail
-          PYTHONPATH=scripts:. python -m unittest \
-            tests.test_brace_company_entity_framework \
-            tests.test_brace_entity_evidence_interpretation \
-            tests.test_brace_entity_belief_state_forecast \
-            tests.test_brace_entity_calibration_diagnostics \
-            tests.test_investment_semantics_world_state \
-            tests.test_brace_entity_belief_shadow_bridge \
-            tests.test_belief_epistemic_causal_graph \
-            -v
+            scripts/belief_epistemic_causal_graph_semantic.py || failures=$((failures+1))
+
+          export PYTHONPATH=scripts:.
+          run_surface semantic python -m unittest tests.test_entity_semantic_eligibility_pr19_1 -v || failures=$((failures+1))
+          run_surface pr12 python -m unittest tests.test_brace_company_entity_framework -v || failures=$((failures+1))
+          run_surface pr14 python -m unittest tests.test_brace_entity_evidence_interpretation -v || failures=$((failures+1))
+          run_surface pr15 python -m unittest tests.test_brace_entity_belief_state_forecast -v || failures=$((failures+1))
+          run_surface pr16 python -m unittest tests.test_brace_entity_calibration_diagnostics -v || failures=$((failures+1))
+          run_surface pr16_1 python -m unittest tests.test_investment_semantics_world_state -v || failures=$((failures+1))
+          run_surface pr17 python -m unittest tests.test_brace_entity_belief_shadow_bridge -v || failures=$((failures+1))
+          run_surface pr19 python -m unittest tests.test_belief_epistemic_causal_graph -v || failures=$((failures+1))
+
+          if [ "$failures" -eq 0 ]; then
+            publish_status "pr19.1/full-suite" success "all affected regression surfaces passed"
+            exit 0
+          fi
+          publish_status "pr19.1/full-suite" failure "${failures} affected regression surface(s) failed"
+          exit 1
