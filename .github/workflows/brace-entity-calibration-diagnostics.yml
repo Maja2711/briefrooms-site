@@ -9,8 +9,10 @@ on:
       - "scripts/brace_entity_calibration_diagnostics.py"
       - "scripts/brace_entity_calibration_diagnostics_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_entity_calibration_diagnostics.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_ENTITY_CALIBRATION_DIAGNOSTICS.md"
   workflow_run:
     workflows:
@@ -105,13 +107,22 @@ jobs:
             test -f "$RUNNER_TEMP/pr16-zip/brace-entity-calibration-diagnostics-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr16-zip/brace-entity-calibration-diagnostics-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR16 state; first run will bootstrap diagnostics from already-prospective PR15 records only."
+            echo "No prior PR16 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr16_calibration" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR16 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py scripts/brace_entity_calibration_diagnostics_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_calibration_diagnostics.py scripts/brace_entity_calibration_diagnostics_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_calibration_diagnostics -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
@@ -162,6 +173,14 @@ jobs:
           print('Sample:', report['sample'])
           print('Excluded:', report['semantic_eligibility']['excluded_belief_ids'])
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr16_calibration" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private PR16 state
         run: tar -czf "$RUNNER_TEMP/brace-entity-calibration-diagnostics-state.tgz" -C "$STATE_DIR" .
