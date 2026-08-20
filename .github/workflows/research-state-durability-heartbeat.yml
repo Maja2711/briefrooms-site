@@ -1,0 +1,103 @@
+name: Research State Durability Heartbeat
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 6 * * 0"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: research-state-durability-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - layer: pr10_broad_market
+            primary: brace-broad-market-belief-state
+            archive: brace-broad-market-belief-state.tgz
+          - layer: pr11_sector_factor
+            primary: brace-sector-factor-belief-state
+            archive: brace-sector-factor-belief-state.tgz
+          - layer: pr12_company_entity
+            primary: brace-company-entity-framework-state
+            archive: brace-company-entity-framework-state.tgz
+          - layer: pr13_primary_source
+            primary: brace-entity-primary-source-evidence-state
+            archive: brace-entity-primary-source-evidence-state.tgz
+          - layer: pr14_interpretation
+            primary: brace-entity-evidence-interpretation-state
+            archive: brace-entity-evidence-interpretation-state.tgz
+          - layer: pr15_belief_forecast
+            primary: brace-entity-belief-state-forecast-state
+            archive: brace-entity-belief-state-forecast-state.tgz
+          - layer: pr16_calibration
+            primary: brace-entity-calibration-diagnostics-state
+            archive: brace-entity-calibration-diagnostics-state.tgz
+          - layer: pr16_1_world_state
+            primary: investment-semantics-world-state
+            archive: investment-semantics-world-state.tgz
+          - layer: pr17_entity_bridge
+            primary: brace-entity-belief-shadow-bridge-state
+            archive: brace-entity-belief-shadow-bridge-state.tgz
+          - layer: pr19_epistemic_graph
+            primary: belief-epistemic-causal-graph-state
+            archive: belief-epistemic-causal-graph-state.tgz
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refresh private research-state lease without mutating research payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state_dir="$RUNNER_TEMP/research-state-${{ matrix.layer }}"
+          output="$RUNNER_TEMP/${{ matrix.archive }}"
+          mkdir -p "$state_dir"
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "${{ matrix.layer }}" \
+            --state-dir "$state_dir"
+          if [ ! -f "$state_dir/RESEARCH_STATE_DURABILITY_MANIFEST.json" ]; then
+            PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+              --layer "${{ matrix.layer }}" \
+              --state-dir "$state_dir" \
+              --migration-from-legacy
+          fi
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py verify \
+            --layer "${{ matrix.layer }}" \
+            --state-dir "$state_dir"
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py pack \
+            --layer "${{ matrix.layer }}" \
+            --state-dir "$state_dir" \
+            --output "$output"
+          test -s "$output"
+      - name: Refresh compatibility artifact used by existing consumers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.primary }}
+          path: ${{ runner.temp }}/${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Upload independent durability checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-state-durability-${{ matrix.layer }}
+          path: ${{ runner.temp }}/${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

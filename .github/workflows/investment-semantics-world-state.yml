@@ -8,8 +8,10 @@ on:
       - "scripts/investment_semantics_world_state.py"
       - "scripts/investment_semantics_world_state_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_investment_semantics_world_state.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/INVESTMENT_SEMANTICS_WORLD_STATE.md"
       - ".github/workflows/investment-semantics-world-state.yml"
       - ".github/workflows/investment-semantics-world-state-validation.yml"
@@ -159,13 +161,22 @@ jobs:
             test -f "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz"
             tar -xzf "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR16.1 state; this run establishes the prospective World State boundary."
+            echo "No prior PR16.1 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr16_1_world_state" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR16.1 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py scripts/investment_semantics_world_state_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py scripts/investment_semantics_world_state_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_investment_semantics_world_state -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
@@ -234,6 +245,14 @@ jobs:
           print('World State:', report['world_state_contract'])
           print('Semantic exclusions:', report['entity_semantic_eligibility']['excluded_belief_ids'])
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr16_1_world_state" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private PR16.1 state
         run: tar -czf "$RUNNER_TEMP/investment-semantics-world-state.tgz" -C "$STATE_DIR" .

@@ -8,8 +8,10 @@ on:
       - "scripts/belief_epistemic_causal_graph.py"
       - "scripts/belief_epistemic_causal_graph_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_belief_epistemic_causal_graph.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BELIEF_EPISTEMIC_CAUSAL_GRAPH.md"
       - ".github/workflows/belief-epistemic-causal-graph.yml"
       - ".github/workflows/belief-epistemic-causal-graph-validation.yml"
@@ -94,12 +96,20 @@ jobs:
             test -f "$RUNNER_TEMP/pr19-zip/belief-epistemic-causal-graph-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr19-zip/belief-epistemic-causal-graph-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR19 state; first run establishes the no-retroactive-binding boundary."
+            echo "No prior PR19 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr19_epistemic_graph" \
+            --state-dir "$STATE_DIR"
       - name: Validate PR19 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/belief_epistemic_causal_graph.py scripts/belief_epistemic_causal_graph_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/belief_epistemic_causal_graph.py scripts/belief_epistemic_causal_graph_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_belief_epistemic_causal_graph -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
       - name: Build semantically current epistemic contracts and causal hypothesis graph
@@ -173,6 +183,13 @@ jobs:
           print('Sample:', report['sample'])
           print('Semantic deprecations:', len(state.get('semantic_contract_deprecations') or {}))
           PY
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr19_epistemic_graph" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
       - name: Pack cumulative private PR19 state
         run: tar -czf "$RUNNER_TEMP/belief-epistemic-causal-graph-state.tgz" -C "$STATE_DIR" .
       - name: Store cumulative PR19 state

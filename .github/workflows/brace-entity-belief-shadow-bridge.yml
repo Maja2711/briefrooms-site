@@ -8,8 +8,10 @@ on:
       - "scripts/brace_entity_belief_shadow_bridge.py"
       - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_entity_belief_shadow_bridge.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_ENTITY_BELIEF_SHADOW_BRIDGE.md"
       - ".github/workflows/brace-entity-belief-shadow-bridge.yml"
       - ".github/workflows/brace-entity-belief-shadow-bridge-validation.yml"
@@ -121,12 +123,20 @@ jobs:
             test -f "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR17 state; first run establishes the no-backfill decision boundary."
+            echo "No prior PR17 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr17_entity_bridge" \
+            --state-dir "$STATE_DIR"
       - name: Validate PR17 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_shadow_bridge.py scripts/brace_entity_belief_shadow_bridge_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_shadow_bridge.py scripts/brace_entity_belief_shadow_bridge_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_shadow_bridge -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
       - name: Build semantically filtered prospective BRACE Entity WITH/WITHOUT bridge
@@ -173,14 +183,18 @@ jobs:
               assert pair['hypothetical_only'] is True
               assert pair['historical_backfill'] is False
               for item in pair['items']:
-                  # Historical append-only pairs can contain a later-deprecated Belief.
-                  # New pairs, identified by capture time after this semantic report,
-                  # are built by the filtered entrypoint; wrapper unit tests enforce it.
                   for forecast in item['forecasts']:
                       assert dt(forecast['forecast_at']) <= dt(pair['decision_at']) < dt(forecast['target_at'])
           print('PR17 paired WITH/WITHOUT + PR19.1 semantic filter: PASS')
           print('Excluded beliefs:', sorted(excluded))
           PY
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr17_entity_bridge" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
       - name: Pack cumulative private PR17 state
         run: tar -czf "$RUNNER_TEMP/brace-entity-belief-shadow-bridge-state.tgz" -C "$STATE_DIR" .
       - name: Store cumulative PR17 state

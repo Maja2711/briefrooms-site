@@ -1,0 +1,83 @@
+name: Research State Durability Validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/research-state-durability-validation.yml"
+      - ".github/workflows/research-state-durability-heartbeat.yml"
+      - "scripts/research_state_durability.py"
+      - "tests/test_research_state_durability.py"
+      - "tests/test_research_state_durability_workflows.py"
+      - "docs/RESEARCH_STATE_DURABILITY.md"
+  pull_request:
+    paths:
+      - ".github/workflows/research-state-durability-validation.yml"
+      - ".github/workflows/research-state-durability-heartbeat.yml"
+      - "scripts/research_state_durability.py"
+      - "tests/test_research_state_durability.py"
+      - "tests/test_research_state_durability_workflows.py"
+      - "docs/RESEARCH_STATE_DURABILITY.md"
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: research-state-durability-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile durability contract
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/research_state_durability.py
+      - name: Run durability unit tests
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m unittest tests.test_research_state_durability -v
+      - name: Run workflow contract tests when present
+        run: |
+          set -euo pipefail
+          if [ -f tests/test_research_state_durability_workflows.py ]; then
+            PYTHONPATH=scripts:. python -m unittest tests.test_research_state_durability_workflows -v
+          fi
+      - name: Publish durability validation status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description="Research State Durability validation failed"
+          if [ "$JOB_STATUS" = "success" ]; then
+            state=success
+            description="Research State Durability validation passed"
+          fi
+          STATE="$state" DESCRIPTION="$description" python - <<'PY'
+          import json, os, urllib.request
+          url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['GITHUB_SHA']}"
+          payload=json.dumps({
+              "state": os.environ["STATE"],
+              "context": "research-state-durability/validation",
+              "description": os.environ["DESCRIPTION"],
+              "target_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req=urllib.request.Request(url, data=payload, method="POST", headers={
+              "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
+          test "$state" = success
