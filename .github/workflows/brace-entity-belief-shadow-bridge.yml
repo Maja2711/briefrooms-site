@@ -1,0 +1,229 @@
+name: BRACE Entity Belief Prospective Shadow Bridge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brace_entity_belief_shadow_bridge.py"
+      - "tests/test_brace_entity_belief_shadow_bridge.py"
+      - "docs/BRACE_ENTITY_BELIEF_SHADOW_BRIDGE.md"
+      - ".github/workflows/brace-entity-belief-shadow-bridge.yml"
+      - ".github/workflows/brace-entity-belief-shadow-bridge-validation.yml"
+  workflow_run:
+    workflows:
+      - "Investment Semantics World State Shadow"
+      - "BRACE Portfolio Research and Paper Control"
+    types: [completed]
+  schedule:
+    - cron: "50 4 * * 2-6"
+    - cron: "15 10 * * 0"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-entity-belief-prospective-shadow-bridge
+  cancel-in-progress: false
+
+env:
+  PR15_ARTIFACT_NAME: brace-entity-belief-state-forecast-state
+  WORLD_ARTIFACT_NAME: investment-semantics-world-state
+  STATE_ARTIFACT_NAME: brace-entity-belief-shadow-bridge-state
+
+jobs:
+  bridge:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private state directories
+        run: |
+          set -euo pipefail
+          echo "PR15_DIR=$RUNNER_TEMP/pr15_entity_belief" >> "$GITHUB_ENV"
+          echo "WORLD_DIR=$RUNNER_TEMP/pr16_1_world_state" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr17_entity_bridge" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr15_entity_belief" "$RUNNER_TEMP/pr16_1_world_state" "$RUNNER_TEMP/pr17_entity_bridge"
+
+      - name: Restore latest PR15 Entity Belief state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR15_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr15-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr15-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR17 blocked: PR15 Entity Belief state artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+          mkdir -p "$RUNNER_TEMP/pr15-zip"
+          unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
+          test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
+          tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$PR15_DIR"
+          test -f "$PR15_DIR/belief_core/state.json"
+          test -f "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json"
+          echo "PR15 prerequisite state: PASS"
+
+      - name: Restore latest PR16.1 World State
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${WORLD_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/world-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/world-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR17 blocked: PR16.1 World State artifact is missing')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/world.zip"
+          mkdir -p "$RUNNER_TEMP/world-zip"
+          unzip -q "$RUNNER_TEMP/world.zip" -d "$RUNNER_TEMP/world-zip"
+          test -f "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz"
+          tar -xzf "$RUNNER_TEMP/world-zip/investment-semantics-world-state.tgz" -C "$WORLD_DIR"
+          test -f "$WORLD_DIR/INVESTMENT_WORLD_STATE_RUNTIME_STATE.json"
+          test -f "$WORLD_DIR/INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json"
+          echo "PR16.1 prerequisite state: PASS"
+
+      - name: Restore prior cumulative PR17 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr17-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr17-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr17.zip"
+            mkdir -p "$RUNNER_TEMP/pr17-zip"
+            unzip -q "$RUNNER_TEMP/pr17.zip" -d "$RUNNER_TEMP/pr17-zip"
+            test -f "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr17-zip/brace-entity-belief-shadow-bridge-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR17 state; first run will establish the no-backfill decision boundary."
+          fi
+
+      - name: Validate PR17 code
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_shadow_bridge.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_shadow_bridge -v
+
+      - name: Build prospective BRACE Entity WITH/WITHOUT bridge
+        run: |
+          set -euo pipefail
+          test -f data/portfolio10k/pending_decisions.json
+          test -f data/portfolio10k/analysis.json
+          test -f data/investments/portfolio_10k.json
+          PYTHONPATH=scripts:. python scripts/brace_entity_belief_shadow_bridge.py \
+            --state-dir "$STATE_DIR" \
+            --pr15-core-state "$PR15_DIR/belief_core/state.json" \
+            --pr15-runtime-state "$PR15_DIR/ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json" \
+            --world-state "$WORLD_DIR/INVESTMENT_WORLD_STATE_RUNTIME_STATE.json" \
+            --world-report "$WORLD_DIR/INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json" \
+            --pending-decisions data/portfolio10k/pending_decisions.json \
+            --analysis data/portfolio10k/analysis.json \
+            --portfolio data/investments/portfolio_10k.json
+
+      - name: Assert PR17 paired economics and zero-authority boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from pathlib import Path
+
+          def dt(value):
+              return datetime.fromisoformat(str(value).replace('Z','+00:00'))
+
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_ENTITY_BELIEF_WITH_WITHOUT_REPORT.json').read_text())
+          state=json.loads((root/'BRACE_ENTITY_BELIEF_SHADOW_BRIDGE_STATE.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['bridge_phase'] == 'A_COMPUTED_NOT_CONSUMED'
+          assert report['active_decision_influence'] is False
+          assert report['primary_modifier_contract']['score_point_ceiling'] == 2.0
+          assert report['primary_modifier_contract']['engine_consumes_modifier'] is False
+          assert report['primary_modifier_contract']['candidate_ranking_override'] is False
+          assert report['primary_modifier_contract']['new_sizing_instruction'] is False
+          assert report['primary_modifier_contract']['veto'] is False
+          assert report['primary_modifier_contract']['forced_exit'] is False
+          econ=report['with_without_economics']
+          assert 'ENGINE_ORIGINAL_WITHOUT_BELIEF' in econ
+          assert 'ENGINE_PLUS_HYPOTHETICAL_BELIEF_WITH_BELIEF' in econ
+          assert 'DELTA' in econ
+          dd=econ['required_drawdown_fields']
+          assert set(dd) == {'max_drawdown_without','max_drawdown_with','drawdown_change','drawdown_improvement'}
+          assert report['promotion_readiness']['eligible_for_promotion_review'] is False
+          assert report['promotion_readiness']['status'] == 'NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
+          assert report['promotion_readiness']['automatic_promotion'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['effective_n_threshold_defined_here'] is False
+          assert report['capabilities']['primary_modifier_consumed_by_brace_enabled'] is False
+          assert report['capabilities']['promotion_gate_enabled'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          pre=set(state.get('pre_activation_decision_set_ids') or [])
+          paired_decision_ids={x['decision_set_id'] for x in state.get('pair_sets',{}).values()}
+          assert not (pre & paired_decision_ids)
+          for pair in state.get('pair_sets',{}).values():
+              assert pair['engine_consumed_belief'] is False
+              assert pair['hypothetical_only'] is True
+              assert pair['historical_backfill'] is False
+              assert pair['promotion_authority'] is False
+              assert pair['transaction_cost_bps'] == 5.0
+              for item in pair['items']:
+                  assert abs(float(item['belief_modifier_score_points'])) <= 2.0 + 1e-12
+                  if item['without_action'] == 'EXIT':
+                      assert item['with_action'] == 'EXIT'
+                  if item['with_action_raw'] == 'EXIT' and item['without_action'] != 'EXIT':
+                      assert item['with_action'] != 'EXIT'
+                  for forecast in item['forecasts']:
+                      assert dt(forecast['forecast_at']) <= dt(pair['decision_at']) < dt(forecast['target_at'])
+          print('PR17 paired WITH/WITHOUT + shadow governance contract: PASS')
+          print('Sample:', report['sample'])
+          print('Economics:', econ)
+          PY
+
+      - name: Pack cumulative private PR17 state
+        run: tar -czf "$RUNNER_TEMP/brace-entity-belief-shadow-bridge-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR17 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-entity-belief-shadow-bridge-state
+          path: ${{ runner.temp }}/brace-entity-belief-shadow-bridge-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
