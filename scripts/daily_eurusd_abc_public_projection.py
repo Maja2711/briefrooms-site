@@ -159,10 +159,15 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
     if set(arms) != {"A", "B", "C"}:
         raise ValueError("latest capture must contain A/B/C")
 
+    signal_generated_at = latest.get("captured_at") or latest.get("market_observed_at")
+    generated_at = _iso_z(now) if now is not None else str(
+        state.get("updated_at") or signal_generated_at or _iso_z()
+    )
+
     payload = {
         "schema_version": SCHEMA_VERSION,
         "language": "pl",
-        "generated_at": _iso_z(now),
+        "generated_at": generated_at,
         "engine_version": str(latest.get("engine_version") or report.get("engine_version") or ""),
         "mode": "LIVE_SHADOW",
         "public_boundary": {
@@ -176,9 +181,11 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
         "sample": {
             "captures": len(captures),
             "latest_market_observed_at": latest.get("market_observed_at"),
+            "latest_signal_generated_at": signal_generated_at,
         },
         "latest": {
             "market_observed_at": latest.get("market_observed_at"),
+            "signal_generated_at": signal_generated_at,
             "reference_price": _number(latest.get("reference_price"), 5),
             "arms": {arm_id: _arm_summary(arm_id, arms[arm_id]) for arm_id in ("A", "B", "C")},
             "horizons": _latest_horizons(latest),
@@ -217,6 +224,8 @@ def validate_public_projection(payload: Mapping[str, Any]) -> None:
     if boundary.get("read_only_projection") is not True or any(boundary.get(key) is not False for key in required_false):
         raise ValueError("invalid public read-only boundary")
     latest = payload.get("latest") or {}
+    if not latest.get("signal_generated_at"):
+        raise ValueError("public projection must expose signal generation time")
     arms = latest.get("arms") or {}
     if set(arms) != {"A", "B", "C"}:
         raise ValueError("public projection must contain A/B/C")
