@@ -1,0 +1,26 @@
+name: PR19.1 Workspace Export
+
+on:
+  push:
+    branches:
+      - agent/entity-semantic-eligibility-pr19-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Pack workspace
+        run: tar --exclude=.git -czf "$RUNNER_TEMP/pr19-1-workspace.tgz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr19-1-workspace
+          path: ${{ runner.temp }}/pr19-1-workspace.tgz
+          if-no-files-found: error
+          retention-days: 1
