@@ -6,17 +6,23 @@ on:
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
+      - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
   push:
     branches-ignore: [main]
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_durability.py"
       - "docs/DAILY_EURUSD_ABC_EXPERIMENT.md"
       - ".github/workflows/daily-eurusd-abc-validation.yml"
+      - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
 
 permissions:
   contents: read
@@ -24,7 +30,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
@@ -36,18 +42,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile experiment
+      - name: Compile experiment and durability entrypoint
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/belief_market_data_adapter.py \
             scripts/daily_eurusd_experiment.py \
-            scripts/daily_eurusd_experiment_v12.py
+            scripts/daily_eurusd_experiment_v12.py \
+            scripts/daily_eurusd_abc_durability.py \
+            scripts/research_state_durability.py
 
-      - name: Run A-B-C prospective experiment tests
+      - name: Run A-B-C prospective and durability tests
         run: |
           set -euo pipefail
-          python -m unittest tests.test_daily_eurusd_experiment -v
+          python -m unittest \
+            tests.test_daily_eurusd_experiment \
+            tests.test_daily_eurusd_abc_durability -v
 
       - name: Assert v1.2 zero-authority and Bollinger contract
         run: |
@@ -56,6 +66,7 @@ jobs:
           import sys
           sys.path.insert(0, "scripts")
           import daily_eurusd_experiment_v12 as abc
+          import daily_eurusd_abc_durability as durability
 
           assert abc.base.MODE == "research_shadow"
           assert abc.ENGINE_VERSION == "eurusd-daily-abc-v1.2.0"
@@ -66,5 +77,22 @@ jobs:
           assert abc.HYBRID_TECHNICAL_WEIGHT == 0.70
           assert abc.HYBRID_BELIEF_CONTEXT_WEIGHT == 0.30
           assert "eurusd.trend.bullish" not in abc.HYBRID_CONTEXT_BELIEF_IDS
-          print("Daily EURUSD A/B/C v1.2 Bollinger(30) research-shadow invariants: PASS")
+          spec=durability.rsd.LAYERS[durability.LAYER_ID]
+          assert spec.primary_artifact == "daily-eurusd-abc-live-shadow-state"
+          print("Daily EURUSD A/B/C v1.2 + durability invariants: PASS")
+          PY
+
+      - name: Assert production workflow remains shadow-only
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/daily-eurusd-abc-live-shadow.yml').read_text()
+          assert 'contents: read' in text
+          assert 'contents: write' not in text
+          assert 'git push' not in text
+          assert 'daily_eurusd_experiment_v12.py' in text
+          assert 'belief-core-shadow-state' in text
+          assert 'research_boundary' in text
+          print('Live-shadow workflow static authority check: PASS')
           PY
