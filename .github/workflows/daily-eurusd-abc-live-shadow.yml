@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
   actions: read
+  statuses: write
 
 concurrency:
   group: daily-eurusd-abc-live-shadow
@@ -146,7 +147,7 @@ jobs:
             --state-dir "$ABC_STATE_DIR" \
             --validate
 
-      - name: Assert parallel capture and no production authority
+      - name: Assert three-way parallel capture and no production authority
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -159,6 +160,9 @@ jobs:
           assert state['captures']
           latest=state['captures'][-1]
           assert set(latest['arms']) == {'A','B','C'}
+          unavailable=[arm_id for arm_id, arm in latest['arms'].items() if not arm.get('available')]
+          if unavailable:
+              raise AssertionError(f"parallel A/B/C capture incomplete; unavailable={unavailable}")
           assert latest['research_boundary']['decision_influence'] is False
           assert latest['research_boundary']['trade_execution'] is False
           assert latest['research_boundary']['belief_writeback'] is False
@@ -190,3 +194,49 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
+
+      - name: Publish A/B/C live-shadow collection status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          state=failure
+          if [ "$JOB_STATUS" = "success" ]; then state=success; fi
+          description=$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ.get('ABC_STATE_DIR',''))
+          path=root/'EURUSD_DAILY_ABC_STATE.json'
+          if not path.is_file():
+              print('A/B/C live shadow: no capture state')
+          else:
+              payload=json.loads(path.read_text())
+              latest=(payload.get('captures') or [{}])[-1]
+              arms=latest.get('arms') or {}
+              parts=[]
+              for key in ('A','B','C'):
+                  arm=arms.get(key) or {}
+                  parts.append(f"{key}:{arm.get('direction','?')}/{arm.get('score','?')}/{'ok' if arm.get('available') else 'NA'}")
+              print(('A/B/C ' + ' '.join(parts))[:135])
+          PY
+          )
+          STATE="$state" DESCRIPTION="$description" python - <<'PY'
+          import json, os, urllib.request
+          url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['GITHUB_SHA']}"
+          payload=json.dumps({
+              'state': os.environ['STATE'],
+              'context': 'daily-eurusd-abc-live-shadow/collection',
+              'description': os.environ['DESCRIPTION'],
+              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions",
+          }).encode()
+          req=urllib.request.Request(url, data=payload, method='POST', headers={
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              print(response.status)
+          PY
+          test "$state" = success
