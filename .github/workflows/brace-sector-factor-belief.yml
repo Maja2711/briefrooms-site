@@ -7,7 +7,9 @@ on:
     paths:
       - ".github/workflows/brace-sector-factor-belief.yml"
       - "scripts/brace_sector_factor_belief.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_sector_factor_belief.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_SECTOR_FACTOR_BELIEF.md"
   workflow_run:
     workflows:
@@ -88,13 +90,22 @@ jobs:
             test -f "$RUNNER_TEMP/state-zip/brace-sector-factor-belief-state.tgz"
             tar -xzf "$RUNNER_TEMP/state-zip/brace-sector-factor-belief-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR11 state; first valid run will establish activation boundary only."
+            echo "No prior PR11 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr11_sector_factor" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR11 code
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/brace_sector_factor_belief.py
-          PYTHONPATH=scripts python -m unittest tests.test_brace_sector_factor_belief -v
+          PYTHONPATH=scripts python -m py_compile scripts/brace_sector_factor_belief.py scripts/research_state_durability.py
+          PYTHONPATH=scripts python -m unittest tests.test_brace_sector_factor_belief tests.test_research_state_durability -v
 
       - name: Run prospective sector-factor layer
         run: |
@@ -118,6 +129,14 @@ jobs:
           print('PR11 hierarchy + zero-influence + promotion-evidence contract: PASS')
           print('Sample:', report['sample'])
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr11_sector_factor" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private state
         run: tar -czf "$RUNNER_TEMP/brace-sector-factor-belief-state.tgz" -C "$STATE_DIR" .
