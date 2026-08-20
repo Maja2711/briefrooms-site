@@ -30,24 +30,34 @@ jobs:
       matrix:
         include:
           - layer: pr10_broad_market
+            primary: brace-broad-market-belief-state
             archive: brace-broad-market-belief-state.tgz
           - layer: pr11_sector_factor
+            primary: brace-sector-factor-belief-state
             archive: brace-sector-factor-belief-state.tgz
           - layer: pr12_company_entity
+            primary: brace-company-entity-framework-state
             archive: brace-company-entity-framework-state.tgz
           - layer: pr13_primary_source
+            primary: brace-entity-primary-source-evidence-state
             archive: brace-entity-primary-source-evidence-state.tgz
           - layer: pr14_interpretation
+            primary: brace-entity-evidence-interpretation-state
             archive: brace-entity-evidence-interpretation-state.tgz
           - layer: pr15_belief_forecast
+            primary: brace-entity-belief-state-forecast-state
             archive: brace-entity-belief-state-forecast-state.tgz
           - layer: pr16_calibration
+            primary: brace-entity-calibration-diagnostics-state
             archive: brace-entity-calibration-diagnostics-state.tgz
           - layer: pr16_1_world_state
+            primary: investment-semantics-world-state
             archive: investment-semantics-world-state.tgz
           - layer: pr17_entity_bridge
+            primary: brace-entity-belief-shadow-bridge-state
             archive: brace-entity-belief-shadow-bridge-state.tgz
           - layer: pr19_epistemic_graph
+            primary: belief-epistemic-causal-graph-state
             archive: belief-epistemic-causal-graph-state.tgz
     steps:
       - name: Checkout production main
@@ -71,6 +81,14 @@ jobs:
             --state-dir "$state_dir" \
             --output "$output"
           test -s "$output"
+      - name: Refresh compatibility artifact used by existing consumers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.primary }}
+          path: ${{ runner.temp }}/${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
       - name: Upload independent durability checkpoint
         uses: actions/upload-artifact@v4
         with:
