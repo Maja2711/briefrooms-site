@@ -3,7 +3,8 @@
 
 The adapter deliberately leaves the proven GPW event layer, ESPI/EBI evidence,
 opening cross-check, outcome monitor and control-loop learning in place.  It
-only replaces the duplicated quant/composite mechanics with Daily Stock Core.
+uses Daily Stock Core as the primary quant/composite implementation while
+retaining the proven legacy GPW quant screen as a compatibility fallback.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ except ModuleNotFoundError:
 
 _INSTALLED = False
 _ORIGINAL_PUBLISH = gpw.publish
+_LEGACY_BUILD_QUANT_CANDIDATE = gpw.build_quant_candidate
 
 
 def _history_scorer(
@@ -29,7 +31,7 @@ def _history_scorer(
 
 
 def _build_quant_candidate(company, bars, expected_day, config, history):
-    return core.build_quant_candidate(
+    candidate = core.build_quant_candidate(
         company,
         bars,
         expected_day,
@@ -38,6 +40,21 @@ def _build_quant_candidate(company, bars, expected_day, config, history):
         history=history,
         history_scorer=_history_scorer,
     )
+    if candidate is not None:
+        candidate["quant_engine"] = "daily-stock-core-v1"
+        return candidate
+
+    # Compatibility guardrail: the shared core must never make the mature GPW
+    # engine less capable of producing a valid candidate.  If the common layer
+    # rejects a name for a core-specific history/data-shape constraint, retry
+    # the exact proven GPW quant screen.  Its liquidity, ATR/risk and bounded
+    # historical-learning rules remain in force, so this is not a forced pick.
+    candidate = _LEGACY_BUILD_QUANT_CANDIDATE(
+        company, bars, expected_day, config, history
+    )
+    if candidate is not None:
+        candidate["quant_engine"] = "gpw-legacy-compatible-fallback"
+    return candidate
 
 
 def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -50,6 +67,7 @@ def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
         "official_channels": ["ESPI", "EBI", "PAP MediaRoom", "Biznes PAP"],
         "legacy_learning_preserved": True,
         "event_learning_preserved": True,
+        "legacy_quant_fallback": True,
     }
     return value
 
