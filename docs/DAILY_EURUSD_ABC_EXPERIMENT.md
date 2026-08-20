@@ -2,121 +2,127 @@
 
 ## Purpose
 
-Daily EUR/USD is evaluated as three **parallel research arms** on the same
-market timestamp and the same EUR/USD reference price. The experiment asks a
-narrow question:
+Daily EUR/USD is evaluated as three parallel research arms on the same frozen market timestamp and reference price:
 
-> Does Belief Core add incremental intraday value beyond deterministic
-> technical market structure, and does an overlap-controlled hybrid outperform
-> either input alone?
+- **A — TECHNICAL_ONLY**
+- **B — BELIEF_ONLY**
+- **C — HYBRID**
 
-The experiment is `research_shadow`. It has **zero influence** on the active
-Daily EUR/USD engine, position lifecycle, sizing or execution.
+The experiment remains `research_shadow`. It has zero authority over the active Daily EUR/USD engine, sizing or execution.
 
-## Arms
+## Arm A — multi-timeframe technical engine
 
-### A — TECHNICAL_ONLY
+The first PR20 draft used SMA20/SMA50/EMA20 on the short-horizon feed. That contract is replaced in v1.1 by the requested H1/D1 structure.
 
-Arm A is the timing / price-action arm. It uses only EUR/USD 30-minute bars.
+### Moving averages
 
-Frozen v1 feature families:
+Both **H1** and **D1** calculate:
 
-- SMA20 / SMA50 structure;
-- EMA20 diagnostic continuity with the existing Daily EUR/USD engine;
-- RSI14;
-- algorithmic trend line: 24-bar least-squares slope + R²;
-- algorithmic support / resistance: prior 48-bar range with deterministic
-  breakout, bounce and rejection rules;
-- ATR14 for normalization;
-- multi-horizon price momentum.
+- MA30
+- MA60
+- MA100
+- MA200
 
-No hand-drawn line or discretionary support/resistance interpretation is
-allowed. Every feature is machine-reproducible from the frozen bar set.
+The MA family evaluates the ordering of 30/60/100/200 and the current price relative to all four averages. Inside the multi-timeframe family H1 carries 65% and D1 35%, because this is a day-trading experiment while D1 supplies the structural trend.
 
-### B — BELIEF_ONLY
+### Pivot levels
 
-Arm B reads the actual frozen Belief Core state available **at or before** the
-market observation:
+The generic rolling support/resistance block from the first draft is replaced by **classic daily floor pivots** derived from the previous completed D1 bar:
+
+`P = (H + L + C) / 3`
+
+The engine freezes:
+
+- Pivot (P)
+- R1, R2, R3
+- S1, S2, S3
+
+The current EUR/USD reference price is classified into the corresponding pivot zone. No hand-drawn support/resistance is used.
+
+### MACD
+
+Both **H1** and **D1** calculate standard MACD:
+
+- fast EMA: 12
+- slow EMA: 26
+- signal EMA: 9
+- MACD line
+- signal line
+- histogram
+
+MACD is normalized by local ATR before it contributes to the technical score.
+
+### Bollinger Bands
+
+Both **H1** and **D1** calculate:
+
+- 20-period middle band
+- upper/lower bands at 2 standard deviations
+- bandwidth
+- %B
+- current price location relative to the bands
+
+Bollinger is treated as a market-state/momentum feature, not a naive `touch lower band = buy` rule.
+
+### Retained technical context
+
+The following families remain because they measure different aspects of price state:
+
+- RSI14 (H1/D1 blend)
+- H1 algorithmic trendline, 24 bars, with slope and R²
+- H1 ATR14
+- H1 momentum at 3h / 12h / 24h
+
+The prior generic rolling support/resistance family is removed to avoid double-counting with the formal Pivot structure.
+
+## Frozen technical weights
+
+| Feature family | Weight |
+| --- | ---: |
+| H1/D1 MA30/60/100/200 | 0.24 |
+| Daily Pivot + R/S levels | 0.16 |
+| H1/D1 MACD | 0.18 |
+| H1/D1 Bollinger | 0.14 |
+| H1/D1 RSI | 0.08 |
+| H1 trendline | 0.09 |
+| H1 price momentum | 0.11 |
+
+Weights sum to 1.00 and are frozen engineering hypotheses. They are not PnL tuned and there is no runtime optimizer.
+
+## Arm B — Belief only
+
+Arm B reads the actual frozen Belief Core state available at or before the market observation:
 
 - `eurusd.trend.bullish`
 - `eurusd.usd_environment.supportive`
 - `eurusd.us_rates_pressure.supportive`
 
-The current Belief implementation is intentionally tested as it really exists.
-This means B is not falsely labelled "pure macro": the current WES EUR/USD
-Beliefs contain price/UUP/TLT-derived evidence. The experiment records this
-known overlap instead of pretending the information sets are independent.
-
 Future-dated Belief state is rejected fail-closed.
 
-### C — HYBRID
+## Arm C — hybrid
 
-Arm C treats technical structure as the primary timing layer and Belief as
-context.
+Arm C uses the same technical payload as A and combines it with Belief context:
 
-Frozen v1 blend:
+- technical: 70%
+- Belief context: 30%
 
-- technical: `70%`
-- Belief context: `30%`
+`eurusd.trend.bullish` remains excluded from the C context sub-score because Arm A already contains direct EUR/USD price-trend information. C therefore adds only the current USD-environment and US-rates-pressure Beliefs.
 
-To avoid direct double-counting, `eurusd.trend.bullish` is **excluded from the
-hybrid context sub-score** because Arm A already contains direct EUR/USD trend
-information. C therefore uses:
+## Data feeds and timeframes
 
-- `eurusd.usd_environment.supportive`
-- `eurusd.us_rates_pressure.supportive`
+The experiment uses one EUR/USD source but separate frozen windows:
 
-If technical and Belief context are both strong (`|signed score| >= 0.35`) and
-point in opposite directions, C records `FLAT`. This is a hypothetical shadow
-filter only; it has no authority over the active Daily engine.
+- 30m: reference timestamp and forward outcome measurement
+- 1h: technical timing / medium intraday structure
+- 1d: structural MA/MACD/Bollinger context and prior-day Pivot
 
-## Frozen scoring contract
-
-Directional thresholds are shared by A/B/C:
-
-- `LONG`: score >= 60
-- `SHORT`: score <= 40
-- otherwise `FLAT`
-
-Technical weights:
-
-| Feature | Weight |
-| --- | ---: |
-| MA structure | 0.24 |
-| RSI momentum | 0.16 |
-| trend line | 0.20 |
-| support / resistance | 0.20 |
-| price momentum | 0.20 |
-
-Belief-only weights preserve the existing Daily EUR/USD information hierarchy:
-
-| Belief | Weight |
-| --- | ---: |
-| EUR/USD trend | 0.55 |
-| broad USD environment | 0.25 |
-| US rates pressure proxy | 0.20 |
-
-These are frozen engineering hypotheses. They are **not PnL tuned** and the
-runtime contains no automatic parameter tuning.
+The production collector requests enough H1 and D1 history to calculate MA200. Technical capture fails closed if fewer than 220 bars are available on either timeframe.
 
 ## Prospective capture and outcomes
 
-Every new 30-minute market observation may create at most one immutable
-capture. A capture freezes:
+Every capture freezes the A/B/C decisions and receives `decision_sha256`. Forward outcome resolution may populate only future outcome slots. Any mutation of the frozen decision payload invalidates validation.
 
-- EUR/USD market observation time;
-- reference price;
-- A/B/C decisions;
-- technical features;
-- Belief states used by B/C;
-- all arm weights and overlap controls;
-- future target timestamps.
-
-The frozen decision payload receives `decision_sha256`. Forward outcome
-resolution may populate only the outcome slots; changing the frozen decision
-payload invalidates validation.
-
-Outcome horizons:
+Outcome horizons remain:
 
 - 30 minutes
 - 1 hour
@@ -124,46 +130,18 @@ Outcome horizons:
 - 4 hours
 - 24 hours
 
-Outcome price is the first available EUR/USD 30-minute close at or after the
-frozen target time.
+No synthetic bid/ask spread or transaction cost is invented from Yahoo OHLC. Cost-adjusted performance remains disabled until an executable spread source exists.
 
-Reported descriptive metrics include:
+## Governance
 
-- decision rate;
-- directional hit rate;
-- mean signed return in bps for signal observations;
-- mean strategy return in bps across all available observations, with `FLAT`
-  contributing zero.
+Hard invariants remain:
 
-No synthetic bid/ask or transaction-cost estimate is invented from Yahoo OHLC.
-Cost-adjusted performance therefore remains disabled until an executable spread
-source exists.
-
-## Anti-hindsight and governance
-
-Hard invariants:
-
+- prospective only;
 - no historical signal backfill;
 - no future Belief state;
-- one capture per frozen market observation;
-- forward-only outcome resolution;
-- frozen-decision hash validation;
 - no Belief writeback;
 - no active Daily-engine writeback;
 - no trade execution;
 - no automatic tuning;
+- no PnL-tuned weights;
 - no promotion based on retrospective optimization.
-
-## Repository status
-
-`scripts/daily_eurusd_experiment.py` implements the research harness and
-append-only-compatible state contract.
-
-`tests/test_daily_eurusd_experiment.py` verifies the technical indicator
-families, A/B/C separation, overlap control, future-Belief fail-closed behavior,
-capture immutability and forward-only outcome resolution.
-
-The first change is intentionally **validation-only**. It does not activate a
-scheduled production collector or create public Git research state. Runtime
-activation should restore the existing private Belief Core artifact and persist
-the A/B/C state in private durable research storage after validation.

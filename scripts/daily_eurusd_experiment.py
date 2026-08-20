@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Prospective A/B/C research shadow for Daily EUR/USD.
 
-A = EUR/USD technical-only timing arm.
+A = multi-timeframe technical-only timing arm.
 B = canonical frozen Belief Core arm.
 C = overlap-controlled hybrid: technical timing + orthogonal Belief context.
 
-The module never writes to Belief Core and never influences the live Daily
-EUR/USD decision path. All captures are prospective and outcome resolution is
-forward-only.
+The module never writes to Belief Core and never influences the active Daily
+EUR/USD decision path. Captures are prospective and outcomes resolve forward-only.
 """
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ import argparse
 import hashlib
 import json
 import math
+import statistics
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -23,20 +23,25 @@ from belief_market_data_adapter import Bar, YahooChartClient
 
 SCHEMA_VERSION = "eurusd-daily-abc-experiment-v1"
 REPORT_SCHEMA_VERSION = "eurusd-daily-abc-report-v1"
-ENGINE_VERSION = "eurusd-daily-abc-v1.0.0"
+ENGINE_VERSION = "eurusd-daily-abc-v1.1.0"
 MODE = "research_shadow"
 EURUSD = "EURUSD=X"
 
 HORIZONS_MINUTES = (30, 60, 120, 240, 1440)
 LONG_THRESHOLD = 60.0
 SHORT_THRESHOLD = 40.0
+MA_WINDOWS = (30, 60, 100, 200)
+TIMEFRAME_FAST_WEIGHT = 0.65
+TIMEFRAME_SLOW_WEIGHT = 0.35
 
 TECHNICAL_WEIGHTS = {
-    "ma_structure": 0.24,
-    "rsi_momentum": 0.16,
-    "trendline": 0.20,
-    "support_resistance": 0.20,
-    "price_momentum": 0.20,
+    "multi_timeframe_ma": 0.24,
+    "pivot_structure": 0.16,
+    "multi_timeframe_macd": 0.18,
+    "multi_timeframe_bollinger": 0.14,
+    "rsi_momentum": 0.08,
+    "trendline": 0.09,
+    "price_momentum": 0.11,
 }
 
 BELIEF_WEIGHTS = {
@@ -45,9 +50,8 @@ BELIEF_WEIGHTS = {
     "eurusd.us_rates_pressure.supportive": 0.20,
 }
 
-# The direct EUR/USD trend Belief overlaps with Arm A's price-derived trend
-# family, so Arm C excludes it from the context sub-score instead of counting
-# the same information twice.
+# Direct EUR/USD trend Belief overlaps with Arm A's price-derived trend family,
+# so C excludes it from context instead of double-counting the same information.
 HYBRID_CONTEXT_BELIEF_IDS = (
     "eurusd.usd_environment.supportive",
     "eurusd.us_rates_pressure.supportive",
@@ -95,14 +99,30 @@ def _sma(rows: Sequence[Bar], window: int) -> float | None:
     return sum(values) / len(values)
 
 
-def _ema(rows: Sequence[Bar], window: int) -> float | None:
-    if len(rows) < window:
+def _ema_from_values(values: Sequence[float], window: int) -> float | None:
+    if len(values) < window:
         return None
     alpha = 2.0 / (window + 1.0)
-    value = float(rows[-window].close)
-    for bar in rows[-window + 1 :]:
-        value = alpha * float(bar.close) + (1.0 - alpha) * value
+    value = float(values[-window])
+    for item in values[-window + 1 :]:
+        value = alpha * float(item) + (1.0 - alpha) * value
     return value
+
+
+def _ema(rows: Sequence[Bar], window: int) -> float | None:
+    return _ema_from_values([float(bar.close) for bar in rows], window)
+
+
+def _ema_series(values: Sequence[float], window: int) -> list[float]:
+    if len(values) < window:
+        return []
+    alpha = 2.0 / (window + 1.0)
+    current = sum(float(x) for x in values[:window]) / window
+    output = [current]
+    for item in values[window:]:
+        current = alpha * float(item) + (1.0 - alpha) * current
+        output.append(current)
+    return output
 
 
 def _atr(rows: Sequence[Bar], window: int = 14) -> float | None:
@@ -155,111 +175,229 @@ def _trendline(rows: Sequence[Bar], window: int = 24) -> tuple[float, float, flo
     return slope, r2, fitted[-1]
 
 
-def _support_resistance(rows: Sequence[Bar], window: int = 48) -> dict[str, float | bool] | None:
-    if len(rows) < window + 2:
-        return None
-    prior = list(rows[-window - 1 : -1])
-    support = min(float(bar.low if bar.low is not None else bar.close) for bar in prior)
-    resistance = max(float(bar.high if bar.high is not None else bar.close) for bar in prior)
-    latest = rows[-1]
-    previous = rows[-2]
-    close = float(latest.close)
-    open_ = float(latest.open if latest.open is not None else latest.close)
-    high = float(latest.high if latest.high is not None else latest.close)
-    low = float(latest.low if latest.low is not None else latest.close)
-    prev_close = float(previous.close)
+def _ma_structure(rows: Sequence[Bar]) -> dict[str, Any]:
+    if len(rows) < max(MA_WINDOWS):
+        raise ValueError("MA structure requires at least 200 bars")
     atr = float(_atr(rows, 14) or 0.0)
-
-    breakout_up = close > resistance
-    breakout_down = close < support
-    support_bounce = bool(
-        atr > 0
-        and low <= support + 0.20 * atr
-        and close > open_
-        and close > prev_close
-    )
-    resistance_rejection = bool(
-        atr > 0
-        and high >= resistance - 0.20 * atr
-        and close < open_
-        and close < prev_close
-    )
-
-    if breakout_up:
-        score = 1.0 if atr <= 0 else _clamp((close - resistance) / (0.50 * atr), 0.0, 1.0)
-    elif breakout_down:
-        score = -1.0 if atr <= 0 else -_clamp((support - close) / (0.50 * atr), 0.0, 1.0)
-    elif support_bounce and not resistance_rejection:
-        score = 0.55
-    elif resistance_rejection and not support_bounce:
-        score = -0.55
-    else:
-        score = 0.0
-
-    distance_support_atr = None if atr <= 0 else (close - support) / atr
-    distance_resistance_atr = None if atr <= 0 else (resistance - close) / atr
+    if atr <= 0:
+        raise ValueError("MA structure requires positive ATR")
+    close = float(rows[-1].close)
+    values = {window: float(_sma(rows, window)) for window in MA_WINDOWS}
+    pair_diffs = [
+        (values[30] - values[60]) / atr,
+        (values[60] - values[100]) / atr,
+        (values[100] - values[200]) / atr,
+    ]
+    hierarchy = sum(_clamp(diff / 0.75) for diff in pair_diffs) / len(pair_diffs)
+    price_position = sum(_clamp((close - values[window]) / (2.0 * atr)) for window in MA_WINDOWS) / len(MA_WINDOWS)
+    score = _clamp(0.75 * hierarchy + 0.25 * price_position)
+    bullish_order = values[30] > values[60] > values[100] > values[200]
+    bearish_order = values[30] < values[60] < values[100] < values[200]
     return {
-        "support": support,
-        "resistance": resistance,
-        "breakout_up": breakout_up,
-        "breakout_down": breakout_down,
-        "support_bounce": support_bounce,
-        "resistance_rejection": resistance_rejection,
-        "distance_support_atr": distance_support_atr,
-        "distance_resistance_atr": distance_resistance_atr,
-        "score": float(score),
+        "score": round(score, 6),
+        "values": {f"ma{window}": round(values[window], 5) for window in MA_WINDOWS},
+        "bullish_order": bullish_order,
+        "bearish_order": bearish_order,
+        "close_above_all": all(close > value for value in values.values()),
+        "close_below_all": all(close < value for value in values.values()),
     }
 
 
-def technical_snapshot(rows: Sequence[Bar]) -> dict[str, Any]:
-    if len(rows) < 60:
-        raise ValueError("technical arm requires at least 60 EUR/USD 30-minute bars")
+def _macd(rows: Sequence[Bar]) -> dict[str, Any]:
+    closes = [float(bar.close) for bar in rows]
+    if len(closes) < 40:
+        raise ValueError("MACD requires at least 40 bars")
+    fast = _ema_series(closes, 12)
+    slow = _ema_series(closes, 26)
+    offset = len(fast) - len(slow)
+    aligned_fast = fast[offset:]
+    macd_series = [a - b for a, b in zip(aligned_fast, slow)]
+    if len(macd_series) < 9:
+        raise ValueError("MACD signal requires at least 9 MACD observations")
+    signal = float(_ema_from_values(macd_series, 9))
+    line = float(macd_series[-1])
+    histogram = line - signal
+    atr = float(_atr(rows, 14) or 0.0)
+    if atr <= 0:
+        raise ValueError("MACD requires positive ATR")
+    score = _clamp(
+        0.60 * _clamp(histogram / (0.15 * atr))
+        + 0.40 * _clamp(line / (0.60 * atr))
+    )
+    return {
+        "score": round(score, 6),
+        "line": round(line, 8),
+        "signal": round(signal, 8),
+        "histogram": round(histogram, 8),
+        "bullish_cross_state": line > signal,
+        "bearish_cross_state": line < signal,
+        "parameters": {"fast": 12, "slow": 26, "signal": 9},
+    }
 
-    atr14 = _atr(rows, 14)
-    sma20 = _sma(rows, 20)
-    sma50 = _sma(rows, 50)
-    ema20 = _ema(rows, 20)
-    rsi14 = _rsi(rows, 14)
-    trendline = _trendline(rows, 24)
-    sr = _support_resistance(rows, 48)
-    if None in {atr14, sma20, sma50, ema20, rsi14} or trendline is None or sr is None:
-        raise ValueError("insufficient EUR/USD bars for technical feature computation")
 
-    close = float(rows[-1].close)
-    atr_value = float(atr14)
-    if atr_value <= 0:
-        raise ValueError("ATR must be positive")
+def _bollinger(rows: Sequence[Bar], window: int = 20, stddevs: float = 2.0) -> dict[str, Any]:
+    if len(rows) < window + 1:
+        raise ValueError("Bollinger Bands require at least 21 bars")
+    closes = [float(bar.close) for bar in rows]
+    recent = closes[-window:]
+    middle = sum(recent) / window
+    sigma = statistics.pstdev(recent)
+    upper = middle + stddevs * sigma
+    lower = middle - stddevs * sigma
+    previous_middle = sum(closes[-window - 1 : -1]) / window
+    close = closes[-1]
+    atr = float(_atr(rows, 14) or 0.0)
+    half_width = upper - middle
+    location = 0.0 if half_width <= 1e-15 else _clamp((close - middle) / half_width)
+    middle_slope = 0.0 if atr <= 0 else _clamp((middle - previous_middle) / (0.20 * atr))
+    score = _clamp(0.75 * location + 0.25 * middle_slope)
+    bandwidth = 0.0 if abs(middle) <= 1e-15 else (upper - lower) / abs(middle)
+    return {
+        "score": round(score, 6),
+        "middle": round(middle, 5),
+        "upper": round(upper, 5),
+        "lower": round(lower, 5),
+        "bandwidth": round(bandwidth, 8),
+        "percent_b": None if upper - lower <= 1e-15 else round((close - lower) / (upper - lower), 6),
+        "above_upper": close > upper,
+        "below_lower": close < lower,
+        "parameters": {"window": window, "stddevs": stddevs},
+    }
 
-    ma_gap_atr = (float(sma20) - float(sma50)) / atr_value
-    price_vs_fast_atr = (close - float(sma20)) / atr_value
-    ma_score = _clamp(
-        0.65 * _clamp(ma_gap_atr / 1.20)
-        + 0.35 * _clamp(price_vs_fast_atr / 1.20)
+
+def _previous_daily_bar(rows: Sequence[Bar], observed_at: datetime) -> Bar:
+    eligible = [bar for bar in rows if bar.timestamp.astimezone(timezone.utc).date() < observed_at.date()]
+    if eligible:
+        return eligible[-1]
+    if len(rows) >= 2:
+        return rows[-2]
+    raise ValueError("Pivot requires a prior completed daily bar")
+
+
+def _classic_pivots(rows: Sequence[Bar], observed_at: datetime, reference_price: float) -> dict[str, Any]:
+    previous = _previous_daily_bar(rows, observed_at)
+    high = float(previous.high if previous.high is not None else previous.close)
+    low = float(previous.low if previous.low is not None else previous.close)
+    close = float(previous.close)
+    pivot = (high + low + close) / 3.0
+    r1 = 2.0 * pivot - low
+    s1 = 2.0 * pivot - high
+    r2 = pivot + (high - low)
+    s2 = pivot - (high - low)
+    r3 = high + 2.0 * (pivot - low)
+    s3 = low - 2.0 * (high - pivot)
+    price = float(reference_price)
+    if price >= r3:
+        score = 1.0
+        zone = "ABOVE_R3"
+    elif price >= r2:
+        score = 0.75
+        zone = "R2_R3"
+    elif price >= r1:
+        score = 0.50
+        zone = "R1_R2"
+    elif price >= pivot:
+        score = 0.20
+        zone = "P_R1"
+    elif price <= s3:
+        score = -1.0
+        zone = "BELOW_S3"
+    elif price <= s2:
+        score = -0.75
+        zone = "S3_S2"
+    elif price <= s1:
+        score = -0.50
+        zone = "S2_S1"
+    else:
+        score = -0.20
+        zone = "S1_P"
+    return {
+        "score": score,
+        "method": "classic_floor_pivot",
+        "source_daily_bar_at": _iso_z(previous.timestamp.astimezone(timezone.utc)),
+        "source_high": round(high, 5),
+        "source_low": round(low, 5),
+        "source_close": round(close, 5),
+        "pivot": round(pivot, 5),
+        "r1": round(r1, 5),
+        "r2": round(r2, 5),
+        "r3": round(r3, 5),
+        "s1": round(s1, 5),
+        "s2": round(s2, 5),
+        "s3": round(s3, 5),
+        "price_zone": zone,
+    }
+
+
+def _as_of(rows: Sequence[Bar], observed_at: datetime) -> list[Bar]:
+    return [bar for bar in rows if bar.timestamp.astimezone(timezone.utc) <= observed_at]
+
+
+def technical_snapshot(
+    hourly_rows: Sequence[Bar],
+    daily_rows: Sequence[Bar],
+    *,
+    reference_price: float,
+    observed_at: datetime,
+) -> dict[str, Any]:
+    h1 = _as_of(sorted(hourly_rows, key=lambda bar: bar.timestamp), observed_at)
+    d1 = _as_of(sorted(daily_rows, key=lambda bar: bar.timestamp), observed_at)
+    if len(h1) < 220:
+        raise ValueError("technical arm requires at least 220 EUR/USD H1 bars")
+    if len(d1) < 220:
+        raise ValueError("technical arm requires at least 220 EUR/USD D1 bars")
+
+    h1_atr = float(_atr(h1, 14) or 0.0)
+    d1_atr = float(_atr(d1, 14) or 0.0)
+    if h1_atr <= 0 or d1_atr <= 0:
+        raise ValueError("technical arm requires positive H1 and D1 ATR")
+
+    ma_h1 = _ma_structure(h1)
+    ma_d1 = _ma_structure(d1)
+    ma_score = _clamp(TIMEFRAME_FAST_WEIGHT * float(ma_h1["score"]) + TIMEFRAME_SLOW_WEIGHT * float(ma_d1["score"]))
+
+    macd_h1 = _macd(h1)
+    macd_d1 = _macd(d1)
+    macd_score = _clamp(TIMEFRAME_FAST_WEIGHT * float(macd_h1["score"]) + TIMEFRAME_SLOW_WEIGHT * float(macd_d1["score"]))
+
+    boll_h1 = _bollinger(h1)
+    boll_d1 = _bollinger(d1)
+    bollinger_score = _clamp(TIMEFRAME_FAST_WEIGHT * float(boll_h1["score"]) + TIMEFRAME_SLOW_WEIGHT * float(boll_d1["score"]))
+
+    pivot = _classic_pivots(d1, observed_at, reference_price)
+
+    rsi_h1 = float(_rsi(h1, 14))
+    rsi_d1 = float(_rsi(d1, 14))
+    rsi_score = _clamp(
+        TIMEFRAME_FAST_WEIGHT * _clamp((rsi_h1 - 50.0) / 20.0)
+        + TIMEFRAME_SLOW_WEIGHT * _clamp((rsi_d1 - 50.0) / 20.0)
     )
 
-    rsi_value = float(rsi14)
-    rsi_score = _clamp((rsi_value - 50.0) / 20.0)
-
+    trendline = _trendline(h1, 24)
+    if trendline is None:
+        raise ValueError("insufficient H1 bars for trendline")
     slope, r2, trendline_last = trendline
-    slope_atr_per_bar = float(slope) / atr_value
+    slope_atr_per_bar = float(slope) / h1_atr
     trendline_score = _clamp(slope_atr_per_bar / 0.08) * math.sqrt(max(0.0, float(r2)))
 
-    r6 = _return(rows, 6)
-    r13 = _return(rows, 13)
-    r26 = _return(rows, 26)
-    if None in {r6, r13, r26}:
-        raise ValueError("insufficient EUR/USD bars for momentum feature")
+    r3 = _return(h1, 3)
+    r12 = _return(h1, 12)
+    r24 = _return(h1, 24)
+    if None in {r3, r12, r24}:
+        raise ValueError("insufficient H1 bars for price momentum")
     momentum_score = _clamp(
-        0.35 * _clamp(float(r6) / 0.0030)
-        + 0.40 * _clamp(float(r13) / 0.0065)
-        + 0.25 * _clamp(float(r26) / 0.0120)
+        0.30 * _clamp(float(r3) / 0.0025)
+        + 0.40 * _clamp(float(r12) / 0.0060)
+        + 0.30 * _clamp(float(r24) / 0.0100)
     )
 
     components = {
-        "ma_structure": float(ma_score),
-        "rsi_momentum": float(rsi_score),
+        "multi_timeframe_ma": ma_score,
+        "pivot_structure": float(pivot["score"]),
+        "multi_timeframe_macd": macd_score,
+        "multi_timeframe_bollinger": bollinger_score,
+        "rsi_momentum": rsi_score,
         "trendline": float(trendline_score),
-        "support_resistance": float(sr["score"]),
         "price_momentum": float(momentum_score),
     }
     composite = _clamp(sum(TECHNICAL_WEIGHTS[key] * components[key] for key in TECHNICAL_WEIGHTS))
@@ -273,29 +411,38 @@ def technical_snapshot(rows: Sequence[Bar]) -> dict[str, Any]:
         "confidence": _confidence_from_score(score),
         "components": {key: round(value, 6) for key, value in components.items()},
         "weights": dict(TECHNICAL_WEIGHTS),
+        "timeframe_blend": {"H1": TIMEFRAME_FAST_WEIGHT, "D1": TIMEFRAME_SLOW_WEIGHT},
         "indicators": {
-            "close": round(close, 5),
-            "sma20": round(float(sma20), 5),
-            "sma50": round(float(sma50), 5),
-            "ema20": round(float(ema20), 5),
-            "rsi14": round(rsi_value, 4),
-            "rsi_overbought": rsi_value >= 70.0,
-            "rsi_oversold": rsi_value <= 30.0,
-            "atr14": round(atr_value, 6),
-            "trendline_window_bars": 24,
-            "trendline_slope": round(float(slope), 8),
-            "trendline_slope_atr_per_bar": round(slope_atr_per_bar, 6),
-            "trendline_r2": round(float(r2), 6),
-            "trendline_last": round(float(trendline_last), 5),
-            "support_window_bars": 48,
-            "support": round(float(sr["support"]), 5),
-            "resistance": round(float(sr["resistance"]), 5),
-            "breakout_up": bool(sr["breakout_up"]),
-            "breakout_down": bool(sr["breakout_down"]),
-            "support_bounce": bool(sr["support_bounce"]),
-            "resistance_rejection": bool(sr["resistance_rejection"]),
-            "distance_support_atr": None if sr["distance_support_atr"] is None else round(float(sr["distance_support_atr"]), 4),
-            "distance_resistance_atr": None if sr["distance_resistance_atr"] is None else round(float(sr["distance_resistance_atr"]), 4),
+            "reference_price": round(float(reference_price), 5),
+            "H1": {
+                "observed_at": _iso_z(h1[-1].timestamp.astimezone(timezone.utc)),
+                "ma": ma_h1,
+                "macd": macd_h1,
+                "bollinger": boll_h1,
+                "rsi14": round(rsi_h1, 4),
+                "atr14": round(h1_atr, 6),
+                "trendline": {
+                    "window_bars": 24,
+                    "slope": round(float(slope), 8),
+                    "slope_atr_per_bar": round(slope_atr_per_bar, 6),
+                    "r2": round(float(r2), 6),
+                    "last": round(float(trendline_last), 5),
+                },
+                "momentum": {
+                    "3h": round(float(r3), 8),
+                    "12h": round(float(r12), 8),
+                    "24h": round(float(r24), 8),
+                },
+            },
+            "D1": {
+                "observed_at": _iso_z(d1[-1].timestamp.astimezone(timezone.utc)),
+                "ma": ma_d1,
+                "macd": macd_d1,
+                "bollinger": boll_d1,
+                "rsi14": round(rsi_d1, 4),
+                "atr14": round(d1_atr, 6),
+            },
+            "pivot": pivot,
         },
     }
 
@@ -325,10 +472,7 @@ def _belief_rows(payload: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     }
 
 
-def belief_snapshot(
-    payload: Mapping[str, Any] | None,
-    observed_at: datetime,
-) -> dict[str, Any]:
+def belief_snapshot(payload: Mapping[str, Any] | None, observed_at: datetime) -> dict[str, Any]:
     if not payload:
         return {
             "available": False,
@@ -414,14 +558,23 @@ def _hybrid_context_signed(belief: Mapping[str, Any]) -> float | None:
     states = belief.get("beliefs") or {}
     weights = {belief_id: BELIEF_WEIGHTS[belief_id] for belief_id in HYBRID_CONTEXT_BELIEF_IDS}
     total = sum(weights.values()) or 1.0
-    return _clamp(
-        sum((weights[belief_id] / total) * float(states[belief_id]["signed_support"]) for belief_id in HYBRID_CONTEXT_BELIEF_IDS)
+    return _clamp(sum((weights[belief_id] / total) * float(states[belief_id]["signed_support"]) for belief_id in HYBRID_CONTEXT_BELIEF_IDS))
+
+
+def build_arms(
+    hourly_rows: Sequence[Bar],
+    daily_rows: Sequence[Bar],
+    *,
+    reference_price: float,
+    observed_at: datetime,
+    belief_payload: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    technical = technical_snapshot(
+        hourly_rows,
+        daily_rows,
+        reference_price=reference_price,
+        observed_at=observed_at,
     )
-
-
-def build_arms(rows: Sequence[Bar], belief_payload: Mapping[str, Any] | None) -> dict[str, Any]:
-    observed_at = rows[-1].timestamp.astimezone(timezone.utc)
-    technical = technical_snapshot(rows)
     belief = belief_snapshot(belief_payload, observed_at)
 
     arm_a = {
@@ -434,7 +587,6 @@ def build_arms(rows: Sequence[Bar], belief_payload: Mapping[str, Any] | None) ->
         "decision_influence": False,
         "technical": technical,
     }
-
     arm_b = {
         "arm_id": "B",
         "label": "BELIEF_ONLY",
@@ -493,10 +645,7 @@ def build_arms(rows: Sequence[Bar], belief_payload: Mapping[str, Any] | None) ->
                 "strong_conflict_filter_triggered": strong_conflict,
             },
             "technical": technical,
-            "belief_context": {
-                belief_id: belief["beliefs"][belief_id]
-                for belief_id in HYBRID_CONTEXT_BELIEF_IDS
-            },
+            "belief_context": {belief_id: belief["beliefs"][belief_id] for belief_id in HYBRID_CONTEXT_BELIEF_IDS},
             "overlap_control": {
                 "excluded_from_hybrid_context": ["eurusd.trend.bullish"],
                 "rationale": "direct EUR/USD trend is already represented by Arm A technical features",
@@ -514,10 +663,7 @@ def _decision_fingerprint(capture: Mapping[str, Any]) -> dict[str, Any]:
         "reference_price": capture["reference_price"],
         "arms": capture["arms"],
         "horizons": {
-            key: {
-                "minutes": value["minutes"],
-                "target_at": value["target_at"],
-            }
+            key: {"minutes": value["minutes"], "target_at": value["target_at"]}
             for key, value in capture["horizons"].items()
         },
         "research_boundary": capture["research_boundary"],
@@ -525,18 +671,20 @@ def _decision_fingerprint(capture: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def build_capture(
-    rows: Sequence[Bar],
+    rows_30m: Sequence[Bar],
     belief_payload: Mapping[str, Any] | None,
     *,
+    hourly_rows: Sequence[Bar],
+    daily_rows: Sequence[Bar],
     captured_at: datetime | None = None,
 ) -> dict[str, Any]:
-    if not rows:
-        raise ValueError("EUR/USD rows are required")
-    observed_at = rows[-1].timestamp.astimezone(timezone.utc)
+    if not rows_30m:
+        raise ValueError("EUR/USD 30-minute rows are required")
+    observed_at = rows_30m[-1].timestamp.astimezone(timezone.utc)
     captured = (captured_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
     if captured < observed_at:
         captured = observed_at
-    reference = round(float(rows[-1].close), 5)
+    reference = round(float(rows_30m[-1].close), 5)
     capture_id = "eurusd-abc-" + _canonical_sha(
         {"engine_version": ENGINE_VERSION, "market_observed_at": _iso_z(observed_at), "reference_price": reference}
     )[:24]
@@ -555,7 +703,13 @@ def build_capture(
         "captured_at": _iso_z(captured),
         "market_observed_at": _iso_z(observed_at),
         "reference_price": reference,
-        "arms": build_arms(rows, belief_payload),
+        "arms": build_arms(
+            hourly_rows,
+            daily_rows,
+            reference_price=reference,
+            observed_at=observed_at,
+            belief_payload=belief_payload,
+        ),
         "horizons": horizons,
         "research_boundary": {
             "prospective_only": True,
@@ -620,12 +774,7 @@ def resolve_outcomes(state: Mapping[str, Any], rows: Sequence[Bar]) -> dict[str,
                 direction = str(arm.get("direction") or "UNAVAILABLE")
                 available = bool(arm.get("available"))
                 if not available or direction == "UNAVAILABLE":
-                    arm_results[arm_id] = {
-                        "available": False,
-                        "direction": direction,
-                        "directional_correct": None,
-                        "signed_return_bps": None,
-                    }
+                    arm_results[arm_id] = {"available": False, "direction": direction, "directional_correct": None, "signed_return_bps": None}
                     continue
                 if direction == "LONG":
                     signed = raw_return
@@ -689,15 +838,10 @@ def performance_summary(state: Mapping[str, Any]) -> dict[str, Any]:
                     continue
                 available_captures += 1
                 rows.append(result)
-
             signals = [row for row in rows if row.get("direction") in {"LONG", "SHORT"}]
             correct = [row for row in signals if row.get("directional_correct") is True]
             signal_returns = [float(row["signed_return_bps"]) for row in signals if row.get("signed_return_bps") is not None]
-            strategy_returns = [
-                float(row["signed_return_bps"])
-                for row in rows
-                if row.get("signed_return_bps") is not None
-            ]
+            strategy_returns = [float(row["signed_return_bps"]) for row in rows if row.get("signed_return_bps") is not None]
             by_horizon[key] = {
                 "matured_captures": total_captures,
                 "available_captures": available_captures,
@@ -719,28 +863,25 @@ def build_report(state: Mapping[str, Any]) -> dict[str, Any]:
         "engine_version": ENGINE_VERSION,
         "mode": MODE,
         "decision_influence": False,
-        "sample": {
-            "captures": len(captures),
-            "latest_market_observed_at": None if latest is None else latest["market_observed_at"],
-        },
+        "sample": {"captures": len(captures), "latest_market_observed_at": None if latest is None else latest["market_observed_at"]},
         "arms": {
             "A": {
                 "label": "TECHNICAL_ONLY",
                 "technical_indicators": [
-                    "SMA20",
-                    "SMA50",
-                    "EMA20",
-                    "RSI14",
-                    "algorithmic_trendline",
-                    "algorithmic_support_resistance",
-                    "ATR14",
-                    "price_momentum",
+                    "H1_MA30_MA60_MA100_MA200",
+                    "D1_MA30_MA60_MA100_MA200",
+                    "classic_daily_pivot_R1_R2_R3_S1_S2_S3",
+                    "H1_MACD_12_26_9",
+                    "D1_MACD_12_26_9",
+                    "H1_Bollinger_20_2",
+                    "D1_Bollinger_20_2",
+                    "H1_D1_RSI14",
+                    "H1_algorithmic_trendline",
+                    "H1_ATR14",
+                    "H1_price_momentum",
                 ],
             },
-            "B": {
-                "label": "BELIEF_ONLY",
-                "belief_ids": list(BELIEF_WEIGHTS),
-            },
+            "B": {"label": "BELIEF_ONLY", "belief_ids": list(BELIEF_WEIGHTS)},
             "C": {
                 "label": "HYBRID",
                 "technical_weight": HYBRID_TECHNICAL_WEIGHT,
@@ -785,14 +926,21 @@ def run_cycle(
     report_path = state_dir / "EURUSD_DAILY_ABC_REPORT.json"
     state = load_state(state_path)
     client = client or YahooChartClient(timeout=15)
-    rows = client.bars(EURUSD, "10d", "30m")
-    if len(rows) < 60:
-        raise ValueError("EUR/USD market data unavailable or insufficient")
-    rows = sorted(rows, key=lambda bar: bar.timestamp)
-    state = resolve_outcomes(state, rows)
+    rows_30m = sorted(client.bars(EURUSD, "10d", "30m"), key=lambda bar: bar.timestamp)
+    hourly_rows = sorted(client.bars(EURUSD, "1y", "1h"), key=lambda bar: bar.timestamp)
+    daily_rows = sorted(client.bars(EURUSD, "2y", "1d"), key=lambda bar: bar.timestamp)
+    if len(rows_30m) < 60:
+        raise ValueError("EUR/USD 30-minute market data unavailable or insufficient")
+    state = resolve_outcomes(state, rows_30m)
 
     belief_payload = _load_belief_state(belief_state_path)
-    capture = build_capture(rows, belief_payload, captured_at=now)
+    capture = build_capture(
+        rows_30m,
+        belief_payload,
+        hourly_rows=hourly_rows,
+        daily_rows=daily_rows,
+        captured_at=now,
+    )
     state = append_capture(state, capture)
     report = build_report(state)
 
@@ -831,6 +979,17 @@ def validate_state(state: Mapping[str, Any]) -> None:
             raise ValueError("available Arm C must contain technical features")
         if arms["B"].get("available") and "technical" in arms["B"]:
             raise ValueError("Arm B must not contain Arm A technical feature payload")
+        technical = arms["A"]["technical"]
+        indicators = technical.get("indicators") or {}
+        for tf in ("H1", "D1"):
+            ma = ((indicators.get(tf) or {}).get("ma") or {}).get("values") or {}
+            if set(ma) != {"ma30", "ma60", "ma100", "ma200"}:
+                raise ValueError(f"{tf} MA contract must be MA30/60/100/200")
+            if "macd" not in (indicators.get(tf) or {}) or "bollinger" not in (indicators.get(tf) or {}):
+                raise ValueError(f"{tf} must contain MACD and Bollinger")
+        pivot = indicators.get("pivot") or {}
+        if not {"pivot", "r1", "r2", "r3", "s1", "s2", "s3"}.issubset(pivot):
+            raise ValueError("classic Pivot R1-R3/S1-S3 contract missing")
 
 
 def validate_files(state_dir: Path) -> None:
@@ -855,17 +1014,10 @@ def main() -> int:
         state = json.loads((state_dir / "EURUSD_DAILY_ABC_STATE.json").read_text(encoding="utf-8"))
         print("EURUSD_ABC_EXPERIMENT_OK", len(state.get("captures") or []))
         return 0
-    _, report = run_cycle(
-        state_dir,
-        belief_state_path=Path(args.belief_state) if args.belief_state else None,
-    )
+    _, report = run_cycle(state_dir, belief_state_path=Path(args.belief_state) if args.belief_state else None)
     latest = report.get("latest_capture") or {}
     arms = latest.get("arms") or {}
-    print(
-        "EURUSD_ABC_RESEARCH_SHADOW",
-        latest.get("market_observed_at"),
-        {arm_id: (arm.get("direction"), arm.get("score")) for arm_id, arm in arms.items()},
-    )
+    print("EURUSD_ABC_RESEARCH_SHADOW", latest.get("market_observed_at"), {arm_id: (arm.get("direction"), arm.get("score")) for arm_id, arm in arms.items()})
     return 0
 
 
