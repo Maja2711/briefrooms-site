@@ -1,0 +1,57 @@
+name: Investment Semantics World State Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/investment_semantics_world_state.py"
+      - "tests/test_investment_semantics_world_state.py"
+      - "docs/INVESTMENT_SEMANTICS_WORLD_STATE.md"
+      - ".github/workflows/investment-semantics-world-state.yml"
+      - ".github/workflows/investment-semantics-world-state-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test PR16.1 semantics/world-state layer
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python -m py_compile scripts/investment_semantics_world_state.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_investment_semantics_world_state -v
+
+      - name: Assert PR16.1 governance boundary
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from investment_semantics_world_state import capabilities, safety_controls, semantic_contract
+
+          controls=safety_controls()
+          caps=capabilities()
+          sem=semantic_contract()
+          assert controls and all(v is False for v in controls.values())
+          assert caps['canonical_metric_semantics_registry_enabled'] is True
+          assert caps['canonical_world_state_snapshot_enabled'] is True
+          assert caps['prospective_entity_forecast_context_binding_enabled'] is True
+          assert caps['direct_raw_market_observables_in_world_state_enabled'] is False
+          assert caps['engine_output_rewrite_enabled'] is False
+          assert caps['belief_probability_update_enabled'] is False
+          assert caps['with_without_bridge_enabled'] is False
+          assert caps['promotion_gate_enabled'] is False
+          assert sem['rules']['field_name_confidence_does_not_define_semantics'] is True
+          assert sem['source_field_mappings']['investments_weekly_v2.confidence']['semantic_type'] == 'heuristic_signal_strength'
+          assert sem['source_field_mappings']['brace_portfolio.confidence_score']['semantic_type'] == 'data_quality_confidence'
+          assert sem['source_field_mappings']['brace_portfolio.probability_of_reaching_target']['semantic_type'] == 'model_probability'
+          assert sem['source_field_mappings']['belief_core.belief_state.probability']['semantic_type'] == 'belief_probability'
+          assert sem['source_field_mappings']['belief_core.belief_state.confidence']['semantic_type'] == 'belief_confidence'
+          print('PR16.1 semantics + World State governance contract: PASS')
+          PY
