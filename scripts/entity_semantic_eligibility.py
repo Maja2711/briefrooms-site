@@ -24,6 +24,11 @@ ARCHETYPE_FINANCIAL_DATA_RATINGS = "financial_data_ratings"
 ARCHETYPE_FINANCIALS_UNRESOLVED = "financials_unresolved"
 ARCHETYPE_GENERAL = "general_corporate"
 
+STATUS_ELIGIBLE = "eligible"
+STATUS_UNRESOLVED_FAIL_CLOSED = "unresolved_fail_closed"
+STATUS_RESOLVED_MISMATCH = "resolved_mismatch"
+STATUS_NOT_RESTRICTED = "not_restricted"
+
 EXPOSURE_KEY_ARCHETYPES: Mapping[str, str] = {
     "diversified_banking": ARCHETYPE_BANK,
     "commercial_banking": ARCHETYPE_BANK,
@@ -84,22 +89,32 @@ def dimension_eligibility(entity: Mapping[str, Any], dimension: str) -> Dict[str
     profile = semantic_profile(entity)
     dimension = _text(dimension)
     if dimension in BANK_SPECIFIC_DIMENSIONS:
-        eligible = profile["entity_archetype"] == ARCHETYPE_BANK
+        archetype = profile["entity_archetype"]
+        if archetype == ARCHETYPE_BANK:
+            status = STATUS_ELIGIBLE
+            eligible = True
+            reason = "bank_archetype_confirmed"
+        elif archetype == ARCHETYPE_FINANCIALS_UNRESOLVED:
+            status = STATUS_UNRESOLVED_FAIL_CLOSED
+            eligible = False
+            reason = "bank_specific_dimension_waits_for_resolved_archetype"
+        else:
+            status = STATUS_RESOLVED_MISMATCH
+            eligible = False
+            reason = "resolved_nonbank_archetype_rejects_bank_specific_dimension"
         return {
             **profile,
             "dimension": dimension,
             "eligible": eligible,
+            "status": status,
             "eligibility_scope": "entity_archetype:bank",
-            "reason": (
-                "bank_specific_dimension_requires_entity_archetype_bank"
-                if not eligible
-                else "bank_archetype_confirmed"
-            ),
+            "reason": reason,
         }
     return {
         **profile,
         "dimension": dimension,
         "eligible": True,
+        "status": STATUS_NOT_RESTRICTED,
         "eligibility_scope": "not_bank_specific",
         "reason": "dimension_not_restricted_by_bank_archetype_contract",
     }
@@ -109,5 +124,16 @@ def annotate_entity(entity: Mapping[str, Any]) -> Dict[str, Any]:
     return {**dict(entity), **semantic_profile(entity)}
 
 
-def is_semantically_deprecated_belief(entity: Mapping[str, Any], dimension: str) -> bool:
+def is_semantically_ineligible(entity: Mapping[str, Any], dimension: str) -> bool:
     return not bool(dimension_eligibility(entity, dimension)["eligible"])
+
+
+def is_resolved_semantic_mismatch(entity: Mapping[str, Any], dimension: str) -> bool:
+    """True only when an established archetype contradicts the dimension.
+
+    This distinction is critical for append-only migration: an unresolved
+    Financials archetype must fail closed for *new* use, but it must not create
+    an irreversible deprecation event until the non-bank classification is
+    actually established.
+    """
+    return dimension_eligibility(entity, dimension)["status"] == STATUS_RESOLVED_MISMATCH
