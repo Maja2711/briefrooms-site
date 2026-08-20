@@ -9,8 +9,10 @@ on:
       - "scripts/brace_entity_evidence_interpretation.py"
       - "scripts/brace_entity_evidence_interpretation_semantic.py"
       - "scripts/entity_semantic_eligibility.py"
+      - "scripts/research_state_durability.py"
       - "tests/test_brace_entity_evidence_interpretation.py"
       - "tests/test_entity_semantic_eligibility.py"
+      - "tests/test_research_state_durability.py"
       - "docs/BRACE_ENTITY_EVIDENCE_INTERPRETATION.md"
   workflow_run:
     workflows:
@@ -103,13 +105,22 @@ jobs:
             test -f "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz"
             tar -xzf "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz" -C "$STATE_DIR"
           else
-            echo "No prior PR14 state; first run will seed cursor/baselines only and emit no historical Evidence."
+            echo "No prior PR14 state found by legacy restore; durability guard decides whether continuity is recoverable."
           fi
+
+      - name: Enforce durable research-state continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py restore \
+            --layer "pr14_interpretation" \
+            --state-dir "$STATE_DIR"
 
       - name: Validate PR14 and PR19.1 semantic code
         run: |
           set -euo pipefail
-          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py scripts/brace_entity_evidence_interpretation_semantic.py scripts/entity_semantic_eligibility.py
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_evidence_interpretation.py scripts/brace_entity_evidence_interpretation_semantic.py scripts/entity_semantic_eligibility.py scripts/research_state_durability.py
           PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_evidence_interpretation -v
           PYTHONPATH=scripts:. python -m unittest tests.test_entity_semantic_eligibility -v
 
@@ -168,6 +179,14 @@ jobs:
           print('Sample:', report['sample'])
           print('Semantic deprecations:', len(state.get('semantic_deprecations') or {}))
           PY
+
+      - name: Seal research-state checkpoint lineage
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts:. python scripts/research_state_durability.py seal \
+            --layer "pr14_interpretation" \
+            --state-dir "$STATE_DIR" \
+            --migration-from-legacy
 
       - name: Pack cumulative private PR14 state
         run: tar -czf "$RUNNER_TEMP/brace-entity-evidence-interpretation-state.tgz" -C "$STATE_DIR" .
