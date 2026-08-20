@@ -27,6 +27,7 @@ concurrency:
 
 env:
   PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+  ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
 
 jobs:
   publish:
@@ -51,13 +52,75 @@ jobs:
         run: |
           set -euo pipefail
           echo "ABC_STATE_DIR=$RUNNER_TEMP/eurusd_abc_private" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/eurusd_abc_private"
-          python scripts/daily_eurusd_abc_durability.py restore \
-            --layer pr20_eurusd_abc \
-            --state-dir "$RUNNER_TEMP/eurusd_abc_private"
+          state_dir="$RUNNER_TEMP/eurusd_abc_private"
+          mkdir -p "$state_dir"
+
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ABC_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > "$RUNNER_TEMP/abc-artifacts.json"
+
+          python - "$RUNNER_TEMP/abc-artifacts.json" > "$RUNNER_TEMP/abc-candidates.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          for row in rows[:12]:
+              wr=row.get('workflow_run') or {}
+              if wr.get('id') and wr.get('head_branch') == 'main':
+                  print(f"{row['id']}|{wr['id']}")
+          PY
+
+          artifact_id=""
+          while IFS='|' read -r candidate_id run_id; do
+            [ -n "$candidate_id" ] || continue
+            curl -fsSL \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+              -o "$RUNNER_TEMP/abc-run.json"
+            if python - "$RUNNER_TEMP/abc-run.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          run=json.loads(Path(sys.argv[1]).read_text())
+          ok=(
+              run.get('name') == 'Daily EURUSD A-B-C Live Shadow'
+              and run.get('head_branch') == 'main'
+              and run.get('conclusion') == 'success'
+          )
+          raise SystemExit(0 if ok else 1)
+          PY
+            then
+              artifact_id="$candidate_id"
+              break
+            fi
+          done < "$RUNNER_TEMP/abc-candidates.txt"
+
+          if [ -z "$artifact_id" ]; then
+            echo "No successful main A/B/C live-shadow artifact available" >&2
+            exit 1
+          fi
+          echo "Restoring verified A/B/C artifact id=$artifact_id"
+          curl -fsSL -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o "$RUNNER_TEMP/abc-state.zip"
+          mkdir -p "$RUNNER_TEMP/abc-state-artifact"
+          unzip -q "$RUNNER_TEMP/abc-state.zip" -d "$RUNNER_TEMP/abc-state-artifact"
+          test -f "$RUNNER_TEMP/abc-state-artifact/daily-eurusd-abc-live-shadow-state.tgz"
+          tar -xzf "$RUNNER_TEMP/abc-state-artifact/daily-eurusd-abc-live-shadow-state.tgz" -C "$state_dir"
+
+          # The transport is curl because GitHub's artifact redirect currently 401s
+          # through urllib. Integrity and producer lineage remain enforced here.
           python scripts/daily_eurusd_abc_durability.py verify \
             --layer pr20_eurusd_abc \
-            --state-dir "$RUNNER_TEMP/eurusd_abc_private"
+            --state-dir "$state_dir"
 
       - name: Build sanitized Polish frontend projection
         run: |
