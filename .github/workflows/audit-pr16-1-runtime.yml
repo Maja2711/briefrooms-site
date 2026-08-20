@@ -1,0 +1,120 @@
+name: Audit PR16.1 Runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/audit-pr16-1-runtime.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify first post-merge PR16.1 production artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGED_AT: "2026-08-20T11:24:16Z"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io, json, os, subprocess, tarfile, tempfile, time, urllib.parse, urllib.request, zipfile
+          from datetime import datetime
+          from pathlib import Path
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          merged_at=datetime.fromisoformat(os.environ['MERGED_AT'].replace('Z','+00:00'))
+          headers={
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'BriefRooms-PR16-1-Runtime-Audit/1.0',
+          }
+
+          def dt(x): return datetime.fromisoformat(str(x).replace('Z','+00:00'))
+          def api_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          def api_bytes(url):
+              p=subprocess.run([
+                  'curl','-fsSL','-L',
+                  '-H',f'Authorization: Bearer {token}',
+                  '-H','Accept: application/vnd.github+json',
+                  '-H','X-GitHub-Api-Version: 2022-11-28',url,
+              ],check=True,stdout=subprocess.PIPE)
+              return p.stdout
+
+          name='investment-semantics-world-state'
+          q=urllib.parse.quote(name,safe='')
+          artifact=None
+          for _ in range(30):
+              data=api_json(f'https://api.github.com/repos/{repo}/actions/artifacts?name={q}&per_page=100')
+              rows=[x for x in data.get('artifacts',[]) if not x.get('expired')]
+              rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+              if rows and dt(rows[0]['created_at']) >= merged_at:
+                  artifact=rows[0]
+                  break
+              time.sleep(5)
+          assert artifact is not None, 'No fresh PR16.1 production artifact after merge'
+          run_id=(artifact.get('workflow_run') or {}).get('id')
+          assert run_id, artifact
+          run=api_json(f'https://api.github.com/repos/{repo}/actions/runs/{run_id}')
+          assert run.get('status')=='completed' and run.get('conclusion')=='success', run
+          assert run.get('name')=='Investment Semantics World State Shadow', run.get('name')
+
+          raw=api_bytes(artifact['archive_download_url'])
+          with tempfile.TemporaryDirectory() as tmp:
+              root=Path(tmp)
+              with zipfile.ZipFile(io.BytesIO(raw)) as zf: zf.extractall(root/'zip')
+              tgz=root/'zip'/'investment-semantics-world-state.tgz'
+              assert tgz.exists()
+              out=root/'state'; out.mkdir()
+              with tarfile.open(tgz,'r:gz') as tf: tf.extractall(out,filter='data')
+              report=json.loads((out/'INVESTMENT_SEMANTICS_WORLD_STATE_REPORT.json').read_text())
+              state=json.loads((out/'INVESTMENT_WORLD_STATE_RUNTIME_STATE.json').read_text())
+
+              assert report['mode']=='research_shadow'
+              assert report['active_decision_influence'] is False
+              assert report['world_state_contract']['snapshot_count'] >= 1
+              assert report['world_state_contract']['broad_market_context_included'] is True
+              assert report['world_state_contract']['sector_factor_context_included'] is True
+              assert report['world_state_contract']['direct_raw_market_observables_included'] is False
+              assert report['anti_hindsight']['historical_world_state_backfill'] is False
+              assert report['anti_hindsight']['historical_forecast_context_backfill'] is False
+              assert report['anti_hindsight']['pre_activation_forecasts_are_not_regime_tagged'] is True
+              assert report['semantic_contract']['source_field_mappings']['investments_weekly_v2.confidence']['semantic_type']=='heuristic_signal_strength'
+              assert report['semantic_contract']['source_field_mappings']['brace_portfolio.confidence_score']['semantic_type']=='data_quality_confidence'
+              assert report['semantic_contract']['source_field_mappings']['brace_portfolio.probability_of_reaching_target']['semantic_type']=='model_probability'
+              assert report['promotion']['status']=='NOT_ELIGIBLE_FOR_PROMOTION_REVIEW'
+              assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+              snapshots={x['world_state_id']:x for x in state.get('snapshots',[])}
+              for forecast_id,b in (state.get('forecast_context_bindings') or {}).items():
+                  snap=snapshots[b['world_state_id']]
+                  assert dt(snap['created_at']) <= dt(b['forecast_at'])
+                  assert dt(snap['source_cutoff_at']) <= dt(b['forecast_at'])
+                  assert b['prospective'] is True and b['retroactive'] is False
+              print('PR16_1_RUNTIME_AUDIT=PASS')
+              print(json.dumps({
+                  'run_id':run_id,
+                  'artifact_id':artifact['id'],
+                  'artifact_created_at':artifact['created_at'],
+                  'event':run.get('event'),
+                  'world_state_id':report['world_state_contract']['latest_world_state_id'],
+                  'snapshot_count':report['world_state_contract']['snapshot_count'],
+                  'bindings_total':report['forecast_context_contract']['bindings_total'],
+                  'unbound_total':report['forecast_context_contract']['unbound_total'],
+                  'pre_activation_forecasts_total':report['forecast_context_contract']['pre_activation_forecasts_total'],
+                  'latest_context_as_of':(report.get('latest_world_state') or {}).get('context_as_of'),
+                  'source_time_skew_seconds':(report.get('latest_world_state') or {}).get('source_time_skew_seconds'),
+                  'missing_probability_beliefs':((report.get('latest_world_state') or {}).get('data_quality') or {}).get('missing_probability_beliefs'),
+              },indent=2,sort_keys=True))
+          PY
