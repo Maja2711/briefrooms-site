@@ -1,15 +1,15 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-08-20T17:36:55Z",
+  "timestamp": "2026-08-20T17:59:56Z",
   "direction": "FLAT",
-  "score": 48.78,
+  "score": 50.41,
   "confidence": 0.0,
   "entry": null,
   "stop": null,
   "target": null,
   "horizon": "intraday_to_24h",
   "engine_version": "eurusd-daily-spot-v1.1.0",
-  "status": "CLOSED_SL",
+  "status": "NO_TRADE",
   "decision_mode": "WITHOUT",
   "metadata": {
     "market": "FX_SPOT",
@@ -23,9 +23,9 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.0301,
-      "broad_usd_environment": 0.1532,
-      "us_rates_pressure_proxy": -0.2288
+      "trend": 0.0053,
+      "broad_usd_environment": 0.1627,
+      "us_rates_pressure_proxy": -0.1747
     },
     "weights": {
       "trend": 0.546009,
@@ -34,18 +34,16 @@
     },
     "candidate": {
       "direction": "FLAT",
-      "score": 48.78,
+      "score": 50.41,
       "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
         "raw_score_neutral",
-        "entry_overextended_vs_ema20",
         "post_stop_cooldown",
-        "daily_entry_limit_reached",
-        "entry_disabled_this_cycle"
+        "daily_entry_limit_reached"
       ],
-      "previous_score": 48.97,
-      "stretch_atr": 1.2932,
+      "previous_score": 49.57,
+      "stretch_atr": 0.9955,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -99,45 +97,6 @@
       "executable_bid_ask_available": false,
       "rate_differential_claimed": false,
       "ecb_policy_coverage": false
-    },
-    "position": null,
-    "last_trade": {
-      "trade_id": "eurusd:20260820T104856Z:LONG",
-      "instrument": "EUR/USD",
-      "direction": "LONG",
-      "opened_at": "2026-08-20T10:48:56Z",
-      "closed_at": "2026-08-20T16:32:00Z",
-      "entry": 1.17041,
-      "stop": 1.16749,
-      "target": 1.17568,
-      "exit_price": 1.16749,
-      "exit_reason": "STOP_LOSS",
-      "result_percent": -0.24949,
-      "return_fraction": -0.00249485,
-      "r_multiple": -1.0,
-      "outcome": "LOSS",
-      "entry_score": 64.02,
-      "entry_confidence": 0.28,
-      "entry_components": {
-        "trend": 0.3775,
-        "broad_usd_environment": 0.2332,
-        "us_rates_pressure_proxy": 0.0724
-      },
-      "entry_weights": {
-        "trend": 0.55,
-        "broad_usd_environment": 0.25,
-        "us_rates_pressure_proxy": 0.2
-      },
-      "engine_version": "eurusd-daily-spot-v1.0.0",
-      "monitor": {
-        "source": "Yahoo Finance EURUSD=X 1m OHLC",
-        "conservative_same_bar": false,
-        "bar_timestamp": "2026-08-20T16:32:00Z",
-        "bar_open": 1.1674060821533203,
-        "bar_high": 1.1674060821533203,
-        "bar_low": 1.1674060821533203,
-        "bar_close": 1.1674060821533203
-      }
     }
   },
   "schema_version": "daily-engine-output-v1"
