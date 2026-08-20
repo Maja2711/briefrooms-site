@@ -2,6 +2,13 @@ name: BRACE Entity Belief State-Forecast Shadow
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-entity-belief-state-forecast.yml"
+      - "scripts/brace_entity_belief_state_forecast.py"
+      - "tests/test_brace_entity_belief_state_forecast.py"
+      - "docs/BRACE_ENTITY_BELIEF_STATE_FORECAST.md"
   workflow_run:
     workflows:
       - "BRACE Entity Evidence Interpretation Shadow"

@@ -2,6 +2,13 @@ name: BRACE Entity Evidence Interpretation Shadow
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-entity-evidence-interpretation.yml"
+      - "scripts/brace_entity_evidence_interpretation.py"
+      - "tests/test_brace_entity_evidence_interpretation.py"
+      - "docs/BRACE_ENTITY_EVIDENCE_INTERPRETATION.md"
   workflow_run:
     workflows:
       - "BRACE Entity Primary-Source Evidence Shadow"
