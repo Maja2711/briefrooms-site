@@ -1,0 +1,192 @@
+name: Daily EURUSD A-B-C Live Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_experiment.py"
+      - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_abc_durability.py"
+      - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_abc_durability.py"
+      - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
+  schedule:
+    # Belief Core collects at :07/:37. A/B/C follows five minutes later so B/C
+    # consume the freshest frozen Belief state available for the same market window.
+    - cron: "12,42 13-22 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-eurusd-abc-live-shadow
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+  ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  PR20_BOOTSTRAP_CUTOFF_UTC: "2026-08-20T23:59:59Z"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private runtime paths
+        run: |
+          echo "ABC_STATE_DIR=$RUNNER_TEMP/eurusd_abc_state" >> "$GITHUB_ENV"
+          echo "BELIEF_STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/eurusd_abc_state" "$RUNNER_TEMP/belief_core_state"
+
+      - name: Restore durable A/B/C research state or establish one-time activation boundary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if python scripts/daily_eurusd_abc_durability.py restore \
+              --layer pr20_eurusd_abc \
+              --state-dir "$ABC_STATE_DIR"; then
+            echo "Restored durable PR20 A/B/C state."
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "PR20 state missing outside initial merge activation; FAIL_CLOSED." >&2
+            exit 1
+          fi
+
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import os
+          cutoff=datetime.fromisoformat(os.environ['PR20_BOOTSTRAP_CUTOFF_UTC'].replace('Z','+00:00'))
+          now=datetime.now(timezone.utc)
+          if now > cutoff:
+              raise SystemExit(f"PR20 bootstrap cutoff passed: now={now.isoformat()} cutoff={cutoff.isoformat()}")
+          print('PR20 first-run bootstrap explicitly allowed inside activation boundary.')
+          PY
+
+      - name: Restore latest successful Belief Core state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No Belief Core shadow artifact; A/B/C parallel collection cannot be valid." >&2
+            exit 1
+          fi
+          curl -fsSL -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o "$RUNNER_TEMP/belief-state.zip"
+          mkdir -p "$RUNNER_TEMP/belief-state-artifact"
+          unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+          test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$BELIEF_STATE_DIR"
+          test -f "$BELIEF_STATE_DIR/state.json"
+
+      - name: Validate PR20 runtime and zero-authority contract
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_eurusd_experiment.py \
+            scripts/daily_eurusd_experiment_v12.py \
+            scripts/daily_eurusd_abc_durability.py \
+            scripts/research_state_durability.py
+          python -m unittest \
+            tests.test_daily_eurusd_experiment \
+            tests.test_daily_eurusd_abc_durability -v
+          python - <<'PY'
+          import daily_eurusd_experiment_v12 as abc
+          assert abc.base.MODE == 'research_shadow'
+          assert abc.ENGINE_VERSION == 'eurusd-daily-abc-v1.2.0'
+          assert abc.BOLLINGER_WINDOW == 30
+          assert abc.BOLLINGER_STDDEV_LEVELS == (1.0, 2.0, 3.0)
+          assert abc.base.MODE != 'production_execution'
+          print('PR20 live-shadow authority boundary: PASS')
+          PY
+
+      - name: Run one prospective A/B/C live-shadow cycle
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_experiment_v12.py \
+            --state-dir "$ABC_STATE_DIR" \
+            --belief-state "$BELIEF_STATE_DIR/state.json"
+          python scripts/daily_eurusd_experiment_v12.py \
+            --state-dir "$ABC_STATE_DIR" \
+            --validate
+
+      - name: Assert parallel capture and no production authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['ABC_STATE_DIR'])
+          state=json.loads((root/'EURUSD_DAILY_ABC_STATE.json').read_text())
+          report=json.loads((root/'EURUSD_DAILY_ABC_REPORT.json').read_text())
+          assert state['mode'] == 'research_shadow'
+          assert state['captures']
+          latest=state['captures'][-1]
+          assert set(latest['arms']) == {'A','B','C'}
+          assert latest['research_boundary']['decision_influence'] is False
+          assert latest['research_boundary']['trade_execution'] is False
+          assert latest['research_boundary']['belief_writeback'] is False
+          assert report['decision_influence'] is False
+          assert report['governance']['active_daily_engine_influence'] is False
+          print('Latest A/B/C:', {k:(v.get('direction'),v.get('score'),v.get('available')) for k,v in latest['arms'].items()})
+          PY
+
+      - name: Seal and verify PR20 research-state lineage
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_abc_durability.py seal \
+            --layer pr20_eurusd_abc \
+            --state-dir "$ABC_STATE_DIR"
+          python scripts/daily_eurusd_abc_durability.py verify \
+            --layer pr20_eurusd_abc \
+            --state-dir "$ABC_STATE_DIR"
+          python scripts/daily_eurusd_abc_durability.py pack \
+            --layer pr20_eurusd_abc \
+            --state-dir "$ABC_STATE_DIR" \
+            --output "$RUNNER_TEMP/daily-eurusd-abc-live-shadow-state.tgz"
+          test -s "$RUNNER_TEMP/daily-eurusd-abc-live-shadow-state.tgz"
+
+      - name: Store cumulative A/B/C state outside repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-eurusd-abc-live-shadow-state
+          path: ${{ runner.temp }}/daily-eurusd-abc-live-shadow-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
