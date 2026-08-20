@@ -8,22 +8,24 @@
 
   const T = lang === "pl" ? {
     status: "POZYCJA OTWARTA",
-    eyebrow: "AKTYWNA POZYCJA PAPER",
-    entry: "Cena wejścia (paper/reference)",
+    eyebrow: "AKTYWNA POZYCJA",
+    entry: "Cena wejścia",
     stop: "SL",
     target: "TP",
     holdUntil: "Maks. horyzont",
-    copy: (ticker, entry, deadline, target, stop) => `Pozycja ${ticker} pozostaje otwarta. Cena wejścia (paper/reference): ${entry}. Trzymamy ją maksymalnie przez 3 sesje od wyboru, do ${deadline}, chyba że wcześniej zostanie osiągnięty TP ${target} albo SL ${stop}.`,
+    copy: (ticker, entry, deadline, target, stop) => `Pozycja ${ticker} pozostaje otwarta. Cena wejścia: ${entry}. Trzymamy ją maksymalnie przez 3 sesje od wyboru, do ${deadline}, chyba że wcześniej zostanie osiągnięty TP ${target} albo SL ${stop}.`,
     extension: (ticker) => `Jeżeli metodologia Daily Trading ponownie wybierze ${ticker} przed zamknięciem, aktywny horyzont zostanie przedłużony do najnowszego valid_until. TP i SL pozostają nadrzędnymi warunkami wyjścia.`,
+    legal: "Moduł badawczy. Nie stanowi rekomendacji inwestycyjnej.",
   } : {
     status: "POSITION OPEN",
-    eyebrow: "ACTIVE PAPER POSITION",
-    entry: "Entry (paper/reference)",
+    eyebrow: "ACTIVE POSITION",
+    entry: "Entry",
     stop: "SL",
     target: "TP",
     holdUntil: "Max horizon",
-    copy: (ticker, entry, deadline, target, stop) => `${ticker} remains an open paper position. Entry (paper/reference): ${entry}. We hold it for a maximum of 3 trading sessions from selection, through ${deadline}, unless TP ${target} or SL ${stop} is reached earlier.`,
+    copy: (ticker, entry, deadline, target, stop) => `${ticker} remains open. Entry: ${entry}. We hold it for a maximum of 3 trading sessions from selection, through ${deadline}, unless TP ${target} or SL ${stop} is reached earlier.`,
     extension: (ticker) => `If the Daily Trading methodology selects ${ticker} again before the position closes, the active horizon is extended to the newest valid_until. TP and SL remain the primary exit conditions.`,
+    legal: "Research module. Not investment advice.",
   };
 
   const fetchJson = async (url) => {
@@ -35,6 +37,21 @@
   const tryJson = async (url) => {
     try { return await fetchJson(url); } catch (_) { return null; }
   };
+
+  const cleanVisibleCopy = () => {
+    document.querySelectorAll(".dsm-legal").forEach((node) => { node.textContent = T.legal; });
+    document.querySelectorAll(".dsm-market-details h4").forEach((node) => {
+      if (node.textContent.trim() === "Resolved paper trades") node.textContent = "Resolved trades";
+    });
+  };
+
+  cleanVisibleCopy();
+  let cleanAttempts = 0;
+  const cleanTimer = window.setInterval(() => {
+    cleanAttempts += 1;
+    cleanVisibleCopy();
+    if (cleanAttempts >= 40) window.clearInterval(cleanTimer);
+  }, 250);
 
   const nyDate = () => {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -137,6 +154,7 @@
       if (staleBody) staleBody.replaceWith(body);
       else card.querySelector(".dsm-market-head")?.insertAdjacentElement("afterend", body);
     }
+    cleanVisibleCopy();
     return true;
   };
 
@@ -161,6 +179,7 @@
     let attempts = 0;
     const timer = window.setInterval(() => {
       attempts += 1;
+      cleanVisibleCopy();
       if (renderOpen(trade) || attempts >= 80) window.clearInterval(timer);
     }, 250);
     renderOpen(trade);
