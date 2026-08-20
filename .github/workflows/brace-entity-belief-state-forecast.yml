@@ -1,0 +1,162 @@
+name: BRACE Entity Belief State-Forecast Shadow
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "BRACE Entity Evidence Interpretation Shadow"
+    types: [completed]
+  schedule:
+    - cron: "15 4 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brace-entity-belief-state-forecast-shadow
+  cancel-in-progress: false
+
+env:
+  PR14_ARTIFACT_NAME: brace-entity-evidence-interpretation-state
+  STATE_ARTIFACT_NAME: brace-entity-belief-state-forecast-state
+
+jobs:
+  run:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare PR14 and PR15 private state directories
+        run: |
+          set -euo pipefail
+          echo "PR14_DIR=$RUNNER_TEMP/pr14_entity_evidence_interpretation" >> "$GITHUB_ENV"
+          echo "STATE_DIR=$RUNNER_TEMP/pr15_entity_belief_state_forecast" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/pr14_entity_evidence_interpretation" "$RUNNER_TEMP/pr15_entity_belief_state_forecast"
+
+      - name: Restore latest PR14 interpretation state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${PR14_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr14-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr14-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('PR15 blocked: PR14 interpretation state artifact has not been established yet')
+          print(rows[0]['id'])
+          PY
+          )
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr14.zip"
+          mkdir -p "$RUNNER_TEMP/pr14-zip"
+          unzip -q "$RUNNER_TEMP/pr14.zip" -d "$RUNNER_TEMP/pr14-zip"
+          test -f "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz"
+          tar -xzf "$RUNNER_TEMP/pr14-zip/brace-entity-evidence-interpretation-state.tgz" -C "$PR14_DIR"
+          test -f "$PR14_DIR/ENTITY_EVIDENCE_INTERPRETATION_STATE.json"
+          echo "PR14 interpretation prerequisite state: PASS"
+
+      - name: Restore prior cumulative PR15 state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/pr15-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/pr15-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/pr15.zip"
+            mkdir -p "$RUNNER_TEMP/pr15-zip"
+            unzip -q "$RUNNER_TEMP/pr15.zip" -d "$RUNNER_TEMP/pr15-zip"
+            test -f "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz"
+            tar -xzf "$RUNNER_TEMP/pr15-zip/brace-entity-belief-state-forecast-state.tgz" -C "$STATE_DIR"
+          else
+            echo "No prior PR15 state; first run will establish activation cursor and prior-only Belief states."
+          fi
+
+      - name: Validate PR15 code
+        run: |
+          PYTHONPATH=scripts:. python -m py_compile scripts/brace_entity_belief_state_forecast.py
+          PYTHONPATH=scripts:. python -m unittest tests.test_brace_entity_belief_state_forecast -v
+
+      - name: Update prospective Entity Belief state and forecasts
+        run: |
+          PYTHONPATH=scripts:. python scripts/brace_entity_belief_state_forecast.py \
+            --state-dir "$STATE_DIR" \
+            --interpretation-state "$PR14_DIR/ENTITY_EVIDENCE_INTERPRETATION_STATE.json"
+
+      - name: Assert PR15 shadow and anti-hindsight boundaries
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          report=json.loads((root/'BRACE_ENTITY_BELIEF_STATE_FORECAST_REPORT.json').read_text())
+          runtime=json.loads((root/'ENTITY_BELIEF_FORECAST_RUNTIME_STATE.json').read_text())
+          core=json.loads((root/'belief_core'/'state.json').read_text())
+          assert report['mode'] == 'research_shadow'
+          assert report['active_decision_influence'] is False
+          assert report['anti_hindsight']['historical_evidence_backfill'] is False
+          assert report['anti_hindsight']['historical_forecast_backfill'] is False
+          assert report['anti_hindsight']['first_pr15_run_activation_only'] is True
+          assert report['anti_hindsight']['neutral_interpretation_not_forced_to_binary'] is True
+          assert report['forecast_contract']['next_day_stock_return_used'] is False
+          assert report['forecast_contract']['one_live_forecast_per_belief'] is True
+          assert report['state_boundary']['belief_core_state_update_enabled'] is True
+          assert report['state_boundary']['prospective_entity_forecast_capture_enabled'] is True
+          assert report['state_boundary']['brace_score_or_ranking_change'] is False
+          assert report['state_boundary']['brace_sizing_or_exposure_change'] is False
+          assert report['state_boundary']['entity_bridge_enabled'] is False
+          assert report['state_boundary']['with_without_bridge_enabled'] is False
+          assert report['promotion_evidence_standard']['with_without_required'] is True
+          assert report['promotion_evidence_standard']['effective_n_threshold_defined_here'] is False
+          assert report['promotion_evidence_standard']['automatic_promotion'] is False
+          assert report['safety_controls'] and all(v is False for v in report['safety_controls'].values())
+          for forecast in core.get('forecasts', []):
+              meta=forecast.get('metadata') or {}
+              assert meta.get('engine_influence') is False
+              assert meta.get('historical_backfill') is False
+              assert meta.get('pnl_tuned') is False
+              assert meta.get('promotion_authority') is False
+          for verification in core.get('verifications', []):
+              assert verification.get('calibration_eligible') is True
+              assert verification.get('outcome_source') == 'PR14 deterministic entity interpretation'
+          assert runtime.get('contract_version') == report.get('contract_version')
+          print('PR15 Entity Belief shadow safety contract: PASS')
+          print('Sample:', report['sample'])
+          print('Closures:', report['forecast_closure_status_counts'])
+          PY
+
+      - name: Pack cumulative private PR15 state
+        run: tar -czf "$RUNNER_TEMP/brace-entity-belief-state-forecast-state.tgz" -C "$STATE_DIR" .
+
+      - name: Store cumulative PR15 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-entity-belief-state-forecast-state
+          path: ${{ runner.temp }}/brace-entity-belief-state-forecast-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
