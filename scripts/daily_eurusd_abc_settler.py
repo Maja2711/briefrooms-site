@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Forward-only settler for Daily EUR/USD A/B/C research state.
 
-PR23 point-forward outcomes remain intact. PR24 additionally updates the virtual
-trade path of prospective v1.3 captures from 1-minute EUR/USD OHLC. The settler
-never creates captures, never changes frozen A/B/C decisions or trade plans, and
-leaves private files byte-identical when neither layer changes.
+PR23 point-forward outcomes remain intact. PR24 additionally evaluates prospective
+v1.3 virtual trades from 1-minute EUR/USD OHLC. Open-path MFE/MAE is intentionally
+not checkpointed every five minutes: only terminal TP/SL/AMBIGUOUS/24h events are
+persisted, with final MFE/MAE for the whole observed path. This avoids checkpoint
+and public-commit churn while preserving exact terminal research outcomes.
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,16 +30,16 @@ def _load(path: Path) -> dict[str, Any]:
 
 
 def _frozen_identity(state: Mapping[str, Any]) -> tuple[tuple[str, str, str, str, str], ...]:
-    rows: list[tuple[str, str, str, str, str]] = []
-    for capture in state.get("captures") or []:
-        rows.append((
+    return tuple(
+        (
             str(capture.get("capture_id") or ""),
             str(capture.get("decision_sha256") or ""),
             str(capture.get("market_observed_at") or ""),
             str(capture.get("engine_version") or ""),
             str(capture.get("trade_plan_sha256") or ""),
-        ))
-    return tuple(rows)
+        )
+        for capture in state.get("captures") or []
+    )
 
 
 def _resolved_outcomes(state: Mapping[str, Any]) -> int:
@@ -57,6 +59,26 @@ def _open_v13_trade_paths(state: Mapping[str, Any]) -> bool:
             if isinstance(row, Mapping) and row.get("status") == "OPEN":
                 return True
     return False
+
+
+def _retain_only_terminal_trade_updates(before: Mapping[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Discard transient OPEN MFE/MAE changes; keep only transitions to terminal states."""
+    before_by_id = {
+        str(capture.get("capture_id")): capture
+        for capture in before.get("captures") or []
+    }
+    for capture in candidate.get("captures") or []:
+        if str(capture.get("engine_version")) != abc.ENGINE_VERSION:
+            continue
+        previous = before_by_id.get(str(capture.get("capture_id"))) or {}
+        old_arms = ((previous.get("trade_path") or {}).get("arms") or {})
+        new_arms = ((capture.get("trade_path") or {}).get("arms") or {})
+        for arm_id in ("A", "B", "C"):
+            old = old_arms.get(arm_id) or {}
+            new = new_arms.get(arm_id) or {}
+            if old.get("status") == "OPEN" and new.get("status") == "OPEN":
+                new_arms[arm_id] = copy.deepcopy(old)
+    return candidate
 
 
 def settle_state(
@@ -81,7 +103,6 @@ def settle_state(
 
     settled = abc.resolve_outcomes(state, rows_30m)
 
-    trade_path_checked = False
     if _open_v13_trade_paths(settled):
         rows_1m = sorted(client.bars(EURUSD, "5d", "1m"), key=lambda bar: bar.timestamp)
         if not rows_1m:
@@ -91,15 +112,13 @@ def settle_state(
             rows_1m,
             as_of=(as_of or datetime.now(timezone.utc)),
         )
-        trade_path_checked = True
+        settled = _retain_only_terminal_trade_updates(state, settled)
 
     abc.validate_state(settled)
-    after_identity = _frozen_identity(settled)
-    if after_identity != before_identity:
+    if _frozen_identity(settled) != before_identity:
         raise ValueError("settler attempted to mutate frozen capture or trade-plan identity")
 
-    after_resolved = _resolved_outcomes(settled)
-    resolved_delta = after_resolved - before_resolved
+    resolved_delta = _resolved_outcomes(settled) - before_resolved
     if resolved_delta < 0:
         raise ValueError("settler cannot remove previously resolved point outcomes")
 
