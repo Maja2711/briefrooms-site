@@ -107,7 +107,7 @@ jobs:
           print("Daily EURUSD A/B/C v1.3 + PR24 isolated trade-path invariants: PASS")
           PY
 
-      - name: Assert production workflow remains shadow-only and settles every five minutes
+      - name: Assert production workflow remains shadow-only, Warsaw-gated and settles every five minutes
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -121,13 +121,15 @@ jobs:
           assert 'test_daily_eurusd_abc_trade_path' in text
           assert 'belief-core-shadow-state' in text
           assert 'research_boundary' in text
-          assert '12,42 13-22 * * 1-5' in text
-          assert '2,7,17,22,27,32,37,47,52,57 * * * 1-5' in text
-          assert 'Settlement-only run: Belief restore intentionally skipped.' in text
+          assert '12,42 5-22 * * 1-5' in text
+          assert '2,7,17,22,27,32,37,47,52,57 5-22 * * 1-5' in text
+          assert 'TZ=Europe/Warsaw' in text
+          assert 'ABC_WINDOW_OPEN' in text
+          assert 'Warsaw 07:00-24:00 window closed' in text
           assert "steps.cycle.outputs.state_changed == 'true'" in text
           assert '/actions/artifacts/${artifact_id}/zip' in text
           assert 'daily_eurusd_abc_durability.py verify' in text
           assert 'trade_plan_sha256' in text
           assert 'virtual_only' in text
-          print('PR24 live-shadow five-minute point + terminal virtual-trade settlement contract: PASS')
+          print('PR24 Warsaw 07:00-24:00 + five-minute point + terminal virtual-trade contract: PASS')
           PY
