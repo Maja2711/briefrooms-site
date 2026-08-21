@@ -5,9 +5,11 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from scripts import us_daily_stock_position_lifecycle as lifecycle
+from scripts import us_daily_stock_runtime as runtime
 
 NY = ZoneInfo("America/New_York")
 NOW = datetime(2026, 8, 21, 10, 30, tzinfo=NY)
@@ -176,6 +178,34 @@ class USDailyStockPositionLifecycleTests(unittest.TestCase):
         self.assertEqual(hold["selection"]["target"], 158.17)
         self.assertEqual(hold["position"]["mark"], 154.34)
         self.assertTrue(hold["candidate_watch"]["same_as_open_position"])
+
+    def test_position_snapshot_excludes_pre_entry_low_on_same_day(self):
+        pre = datetime(2026, 8, 21, 9, 35, tzinfo=NY)
+        post1 = datetime(2026, 8, 21, 10, 11, tzinfo=NY)
+        post2 = datetime(2026, 8, 21, 10, 12, tzinfo=NY)
+        yahoo = {
+            "chart": {"result": [{
+                "timestamp": [int(pre.timestamp()), int(post1.timestamp()), int(post2.timestamp())],
+                "indicators": {"quote": [{
+                    "open": [150.0, 151.2, 151.5],
+                    "high": [151.0, 152.0, 152.4],
+                    "low": [145.0, 150.9, 151.2],
+                    "close": [150.5, 151.6, 152.0],
+                    "volume": [1000, 1200, 900],
+                }]},
+            }]},
+        }
+        raw = json.dumps(yahoo).encode("utf-8")
+        with patch.object(runtime.us, "request_bytes", return_value=raw):
+            snap = runtime.position_snapshot(
+                "MRK",
+                opened_at="2026-08-21T10:10:00-04:00",
+                now=NOW,
+            )
+        self.assertEqual(snap["path_start_at"], "2026-08-21T10:11:00-04:00")
+        self.assertEqual(snap["low"], 150.9)
+        self.assertNotEqual(snap["low"], 145.0)
+        self.assertEqual(snap["last"], 152.0)
 
 
 if __name__ == "__main__":
