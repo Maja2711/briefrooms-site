@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, time as clock_time
-from pathlib import Path
 from typing import Any, Mapping
 
 try:
@@ -23,8 +22,6 @@ except ModuleNotFoundError:
     import daily_stock_us_adapter as core_adapter
     import us_daily_stock_position_lifecycle as lifecycle
 
-# Existing workflow entry points keep working, but the selector now uses the
-# shared Daily Stock Core before any runtime objects capture engine functions.
 core_adapter.install()
 
 LAST_PREFETCH_AUDIT: dict[str, Any] = {}
@@ -83,7 +80,6 @@ def install_cache(cache: dict[str, tuple[list[us.Bar], dict[str, Any]]]) -> None
 
 
 def _generate_with_recovery(now: datetime, config: dict[str, Any]) -> dict[str, Any]:
-    """Reuse the canonical selector after a missed 09:45 ET run, never after 11:30 ET."""
     normal_cutoff = us.parse_clock(config["publication_cutoff"])
     if now.time() < normal_cutoff:
         return us.generate(now)
@@ -133,6 +129,22 @@ def _position_view(position: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _hold_from_book(
+    book: Mapping[str, Any],
+    *,
+    now: datetime,
+    snapshot: Mapping[str, Any],
+    candidate_watch: Mapping[str, Any] | None = None,
+    reason: str,
+) -> dict[str, Any]:
+    canonical = _canonical_payload(book["open_position"])
+    hold = lifecycle.hold_payload(canonical, book, now=now, candidate_watch=candidate_watch, reason=reason)
+    selection = dict(hold.get("selection") or {})
+    selection["market_snapshot"] = dict(snapshot)
+    hold["selection"] = selection
+    return hold
+
+
 def _closed_today_payload(now: datetime, config: dict[str, Any], closure: Mapping[str, Any]) -> dict[str, Any]:
     payload = us.base_payload(now, config, "NO_TRADE", "US position closed in this session; no same-session re-entry after TP/SL/horizon exit.")
     payload["locked"] = True
@@ -146,10 +158,6 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
     now = now or us.now_ny()
     config = us.load_config()
 
-    # Position state is authoritative across sessions and is bootstrapped once
-    # from legacy history. This migration collapses the 19/20/21 Aug MRK overlap
-    # into the earliest actually activated paper position without rewriting raw
-    # signal history.
     book = lifecycle.load_or_bootstrap(BOOK_PATH, us.HISTORY_DIR, now=now)
     open_position = book.get("open_position")
     current_snapshot: dict[str, Any] | None = None
@@ -168,7 +176,6 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
                 return _closed_today_payload(now, config, closure)
             lifecycle.save_book(BOOK_PATH, book, now=now)
         except Exception as exc:
-            # Never invent an exit if the current-session mark is unavailable.
             payload = us.base_payload(now, config, "DATA_ERROR", f"Open US position could not be marked: {type(exc).__name__}.")
             payload["locked"] = False
             payload["position_action"] = "HOLD_MARK_ERROR"
@@ -179,18 +186,14 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
         if isinstance(book.get("open_position"), Mapping):
             canonical = _canonical_payload(book["open_position"])
             snapshot = current_snapshot or (canonical.get("selection") or {}).get("market_snapshot") or {}
-            return lifecycle.hold_payload(
-                canonical,
+            return _hold_from_book(
                 book,
                 now=now,
-                current_snapshot=snapshot,
+                snapshot=snapshot,
                 reason="Existing US position remains open outside the new-entry analysis window.",
             )
         return us.generate(now)
 
-    # Same-day lock applies only when there is no open portfolio position. With
-    # an open position we still need to transform a repeated daily signal into
-    # HOLD and evaluate rotation opportunity.
     if book.get("open_position") is None:
         current = us.load_json(us.PUBLIC_PATH)
         if isinstance(current, dict) and current.get("date") == now.date().isoformat() and current.get("locked") and current.get("decision") in {"TRADE", "NO_TRADE"}:
@@ -213,8 +216,6 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
             book, old_closure = lifecycle.close_for_rotation(book, now=now)
             lifecycle.apply_closure_to_history(us.HISTORY_DIR, old_closure)
             if not lifecycle.activated_at_selection(candidate):
-                # Defensive: a rotation candidate must itself be executable in
-                # its published entry zone; otherwise keep the portfolio flat.
                 lifecycle.save_book(BOOK_PATH, book, now=now)
                 return _closed_today_payload(now, config, old_closure)
             book = lifecycle.open_from_payload(book, candidate)
@@ -231,18 +232,16 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
         if candidate.get("decision") == "TRADE":
             book = lifecycle.record_suppressed_signal(book, candidate, reason=reason)
         lifecycle.save_book(BOOK_PATH, book, now=now)
-        canonical = _canonical_payload(book["open_position"])
-        snapshot = current_snapshot or (canonical.get("selection") or {}).get("market_snapshot") or {}
+        snapshot = current_snapshot or (_canonical_payload(book["open_position"]).get("selection") or {}).get("market_snapshot") or {}
         hold_reason = (
             "Repeated signal for the held stock was suppressed; the original position remains open."
             if reason == "same_symbol_hold"
             else f"Open US position retained; replacement candidate rejected by rotation policy ({reason})."
         )
-        hold = lifecycle.hold_payload(
-            canonical,
+        hold = _hold_from_book(
             book,
             now=now,
-            current_snapshot=snapshot,
+            snapshot=snapshot,
             candidate_watch=candidate,
             reason=hold_reason,
         )
@@ -259,7 +258,6 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
 
 
 def publish(payload: dict[str, Any], *, now: datetime) -> None:
-    """Publish public state but never create a second history row for HOLD."""
     us.validate_payload(payload, now=now)
     us.atomic_json(us.PUBLIC_PATH, payload)
     us.atomic_json(us.METRICS_PATH, payload.get("metrics") or {})
