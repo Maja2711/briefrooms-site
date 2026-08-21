@@ -1,7 +1,7 @@
 {
   "schema_version": "eurusd-abc-public-pl-v2",
   "language": "pl",
-  "generated_at": "2026-08-21T13:59:57.388395Z",
+  "generated_at": "2026-08-21T14:45:18.799408Z",
   "engine_version": "eurusd-daily-abc-v1.3.0",
   "mode": "LIVE_SHADOW",
   "public_boundary": {
@@ -13,38 +13,47 @@
     "private_research_state_exposed": false
   },
   "sample": {
-    "captures": 16,
-    "history_exposed": 16,
-    "latest_market_observed_at": "2026-08-21T13:59:55Z",
-    "latest_signal_generated_at": "2026-08-21T13:59:57.388395Z"
+    "captures": 17,
+    "history_exposed": 17,
+    "latest_market_observed_at": "2026-08-21T14:44:56Z",
+    "latest_signal_generated_at": "2026-08-21T14:45:18.799408Z"
   },
   "latest": {
-    "market_observed_at": "2026-08-21T13:59:55Z",
-    "signal_generated_at": "2026-08-21T13:59:57.388395Z",
-    "reference_price": 1.16863,
+    "market_observed_at": "2026-08-21T14:44:56Z",
+    "signal_generated_at": "2026-08-21T14:45:18.799408Z",
+    "reference_price": 1.16754,
     "arms": {
       "A": {
         "arm_id": "A",
         "label_pl": "Tylko techniczny",
         "available": true,
-        "direction": "LONG",
-        "score": 62.38,
-        "confidence": 0.248
+        "direction": "FLAT",
+        "score": 52.6,
+        "confidence": 0.0
       },
       "B": {
         "arm_id": "B",
         "label_pl": "Tylko Belief",
         "available": true,
-        "direction": "FLAT",
-        "score": 51.34,
-        "confidence": 0.0
+        "direction": "SHORT",
+        "score": 30.51,
+        "confidence": 0.39,
+        "raw_score": 48.05,
+        "calibration": {
+          "method": "support_scale_v1",
+          "raw_long_trigger": 0.02,
+          "raw_short_trigger": -0.02,
+          "equivalent_raw_score_long": 51.0,
+          "equivalent_raw_score_short": 49.0,
+          "prospective_from_pr": "PR25"
+        }
       },
       "C": {
         "arm_id": "C",
         "label_pl": "Hybrydowy",
         "available": true,
         "direction": "FLAT",
-        "score": 59.21,
+        "score": 52.36,
         "confidence": 0.0
       }
     },
@@ -52,7 +61,7 @@
       "30m": {
         "label": "30m",
         "minutes": 30,
-        "target_at": "2026-08-21T14:29:55Z",
+        "target_at": "2026-08-21T15:14:56Z",
         "status": "PENDING",
         "resolved_at": null,
         "price": null,
@@ -81,7 +90,7 @@
       "60m": {
         "label": "1h",
         "minutes": 60,
-        "target_at": "2026-08-21T14:59:55Z",
+        "target_at": "2026-08-21T15:44:56Z",
         "status": "PENDING",
         "resolved_at": null,
         "price": null,
@@ -110,7 +119,7 @@
       "120m": {
         "label": "2h",
         "minutes": 120,
-        "target_at": "2026-08-21T15:59:55Z",
+        "target_at": "2026-08-21T16:44:56Z",
         "status": "PENDING",
         "resolved_at": null,
         "price": null,
@@ -139,7 +148,7 @@
       "240m": {
         "label": "4h",
         "minutes": 240,
-        "target_at": "2026-08-21T17:59:55Z",
+        "target_at": "2026-08-21T18:44:56Z",
         "status": "PENDING",
         "resolved_at": null,
         "price": null,
@@ -168,7 +177,7 @@
       "1440m": {
         "label": "24h",
         "minutes": 1440,
-        "target_at": "2026-08-22T13:59:55Z",
+        "target_at": "2026-08-22T14:44:56Z",
         "status": "PENDING",
         "resolved_at": null,
         "price": null,
@@ -202,27 +211,27 @@
       "historical_backfill": false,
       "entry_basis": "frozen_reference_price",
       "spread_slippage_included": false,
-      "signal_generated_at": "2026-08-21T13:59:57.388395Z",
-      "horizon_end_at": "2026-08-22T13:59:57.388395Z",
+      "signal_generated_at": "2026-08-21T14:45:18.799408Z",
+      "horizon_end_at": "2026-08-22T14:45:18.799408Z",
       "risk": {
         "atr_timeframe": "30m",
         "atr_window": 26,
-        "atr_value": 0.00067921,
+        "atr_value": 0.00068958,
         "atr_multiple": 1.35,
         "risk_floor_percent": 0.0027,
-        "risk_distance": 0.0031553,
+        "risk_distance": 0.00315236,
         "reward_risk": 1.8,
         "position_horizon_minutes": 1440,
         "monitor_interval": "1m"
       },
       "arms": {
         "A": {
-          "tracked": true,
-          "direction": "LONG",
-          "status": "OPEN",
-          "entry_price": 1.16863,
-          "stop_price": 1.16547,
-          "target_price": 1.17431,
+          "tracked": false,
+          "direction": "FLAT",
+          "status": "NO_TRADE",
+          "entry_price": null,
+          "stop_price": null,
+          "target_price": null,
           "mfe_bps": null,
           "mfe_at": null,
           "mae_bps": null,
@@ -236,12 +245,12 @@
           "realized_bps": null
         },
         "B": {
-          "tracked": false,
-          "direction": "FLAT",
-          "status": "NO_TRADE",
-          "entry_price": null,
-          "stop_price": null,
-          "target_price": null,
+          "tracked": true,
+          "direction": "SHORT",
+          "status": "OPEN",
+          "entry_price": 1.16754,
+          "stop_price": 1.17069,
+          "target_price": 1.16187,
           "mfe_bps": null,
           "mfe_at": null,
           "mae_bps": null,
@@ -280,13 +289,43 @@
     "30m": {
       "label": "30m",
       "A": {
+        "matured_captures": 16,
+        "available_captures": 16,
+        "signals": 12,
+        "decision_rate": 0.75,
+        "hit_rate": 0.5,
+        "mean_signed_return_bps_signal_only": -0.8527,
+        "mean_strategy_return_bps_all_available": -0.6395
+      },
+      "B": {
+        "matured_captures": 16,
+        "available_captures": 16,
+        "signals": 0,
+        "decision_rate": 0.0,
+        "hit_rate": null,
+        "mean_signed_return_bps_signal_only": null,
+        "mean_strategy_return_bps_all_available": 0.0
+      },
+      "C": {
+        "matured_captures": 16,
+        "available_captures": 16,
+        "signals": 10,
+        "decision_rate": 0.625,
+        "hit_rate": 0.6,
+        "mean_signed_return_bps_signal_only": -0.096,
+        "mean_strategy_return_bps_all_available": -0.06
+      }
+    },
+    "60m": {
+      "label": "1h",
+      "A": {
         "matured_captures": 15,
         "available_captures": 15,
         "signals": 11,
         "decision_rate": 0.733333,
-        "hit_rate": 0.545455,
-        "mean_signed_return_bps_signal_only": -0.1901,
-        "mean_strategy_return_bps_all_available": -0.1394
+        "hit_rate": 0.454545,
+        "mean_signed_return_bps_signal_only": -1.8898,
+        "mean_strategy_return_bps_all_available": -1.3859
       },
       "B": {
         "matured_captures": 15,
@@ -302,21 +341,21 @@
         "available_captures": 15,
         "signals": 10,
         "decision_rate": 0.666667,
-        "hit_rate": 0.6,
-        "mean_signed_return_bps_signal_only": -0.096,
-        "mean_strategy_return_bps_all_available": -0.064
+        "hit_rate": 0.4,
+        "mean_signed_return_bps_signal_only": -2.0825,
+        "mean_strategy_return_bps_all_available": -1.3884
       }
     },
-    "60m": {
-      "label": "1h",
+    "120m": {
+      "label": "2h",
       "A": {
         "matured_captures": 14,
         "available_captures": 14,
         "signals": 10,
         "decision_rate": 0.714286,
         "hit_rate": 0.5,
-        "mean_signed_return_bps_signal_only": -0.9143,
-        "mean_strategy_return_bps_all_available": -0.6531
+        "mean_signed_return_bps_signal_only": -3.366,
+        "mean_strategy_return_bps_all_available": -2.4043
       },
       "B": {
         "matured_captures": 14,
@@ -333,38 +372,8 @@
         "signals": 9,
         "decision_rate": 0.642857,
         "hit_rate": 0.444444,
-        "mean_signed_return_bps_signal_only": -1.02,
-        "mean_strategy_return_bps_all_available": -0.6557
-      }
-    },
-    "120m": {
-      "label": "2h",
-      "A": {
-        "matured_captures": 13,
-        "available_captures": 13,
-        "signals": 9,
-        "decision_rate": 0.692308,
-        "hit_rate": 0.555556,
-        "mean_signed_return_bps_signal_only": -1.2796,
-        "mean_strategy_return_bps_all_available": -0.8859
-      },
-      "B": {
-        "matured_captures": 13,
-        "available_captures": 13,
-        "signals": 0,
-        "decision_rate": 0.0,
-        "hit_rate": null,
-        "mean_signed_return_bps_signal_only": null,
-        "mean_strategy_return_bps_all_available": 0.0
-      },
-      "C": {
-        "matured_captures": 13,
-        "available_captures": 13,
-        "signals": 8,
-        "decision_rate": 0.615385,
-        "hit_rate": 0.5,
-        "mean_signed_return_bps_signal_only": -1.8824,
-        "mean_strategy_return_bps_all_available": -1.1584
+        "mean_signed_return_bps_signal_only": -4.1336,
+        "mean_strategy_return_bps_all_available": -2.6573
       }
     },
     "240m": {
@@ -448,8 +457,8 @@
         "mean_minutes_to_first_touch": null
       },
       "B": {
-        "signals": 0,
-        "open_trades": 0,
+        "signals": 1,
+        "open_trades": 1,
         "closed_trades": 0,
         "ambiguous_same_1m_bar": 0,
         "take_profit": 0,
@@ -478,6 +487,274 @@
     }
   },
   "history": [
+    {
+      "signal_generated_at": "2026-08-21T14:45:18.799408Z",
+      "market_observed_at": "2026-08-21T14:44:56Z",
+      "reference_price": 1.16754,
+      "engine_version": "eurusd-daily-abc-v1.3.0",
+      "arms": {
+        "A": {
+          "arm_id": "A",
+          "label_pl": "Tylko techniczny",
+          "available": true,
+          "direction": "FLAT",
+          "score": 52.6,
+          "confidence": 0.0
+        },
+        "B": {
+          "arm_id": "B",
+          "label_pl": "Tylko Belief",
+          "available": true,
+          "direction": "SHORT",
+          "score": 30.51,
+          "confidence": 0.39,
+          "raw_score": 48.05,
+          "calibration": {
+            "method": "support_scale_v1",
+            "raw_long_trigger": 0.02,
+            "raw_short_trigger": -0.02,
+            "equivalent_raw_score_long": 51.0,
+            "equivalent_raw_score_short": 49.0,
+            "prospective_from_pr": "PR25"
+          }
+        },
+        "C": {
+          "arm_id": "C",
+          "label_pl": "Hybrydowy",
+          "available": true,
+          "direction": "FLAT",
+          "score": 52.36,
+          "confidence": 0.0
+        }
+      },
+      "horizons": {
+        "30m": {
+          "label": "30m",
+          "minutes": 30,
+          "target_at": "2026-08-21T15:14:56Z",
+          "status": "PENDING",
+          "resolved_at": null,
+          "price": null,
+          "raw_return_bps": null,
+          "arms": {
+            "A": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "B": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "C": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            }
+          }
+        },
+        "60m": {
+          "label": "1h",
+          "minutes": 60,
+          "target_at": "2026-08-21T15:44:56Z",
+          "status": "PENDING",
+          "resolved_at": null,
+          "price": null,
+          "raw_return_bps": null,
+          "arms": {
+            "A": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "B": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "C": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            }
+          }
+        },
+        "120m": {
+          "label": "2h",
+          "minutes": 120,
+          "target_at": "2026-08-21T16:44:56Z",
+          "status": "PENDING",
+          "resolved_at": null,
+          "price": null,
+          "raw_return_bps": null,
+          "arms": {
+            "A": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "B": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "C": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            }
+          }
+        },
+        "240m": {
+          "label": "4h",
+          "minutes": 240,
+          "target_at": "2026-08-21T18:44:56Z",
+          "status": "PENDING",
+          "resolved_at": null,
+          "price": null,
+          "raw_return_bps": null,
+          "arms": {
+            "A": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "B": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "C": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            }
+          }
+        },
+        "1440m": {
+          "label": "24h",
+          "minutes": 1440,
+          "target_at": "2026-08-22T14:44:56Z",
+          "status": "PENDING",
+          "resolved_at": null,
+          "price": null,
+          "raw_return_bps": null,
+          "arms": {
+            "A": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "B": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            },
+            "C": {
+              "available": false,
+              "direction": "UNAVAILABLE",
+              "directional_correct": null,
+              "signed_return_bps": null
+            }
+          }
+        }
+      },
+      "virtual_trade": {
+        "available": true,
+        "virtual_only": true,
+        "prospective_only": true,
+        "historical_backfill": false,
+        "entry_basis": "frozen_reference_price",
+        "spread_slippage_included": false,
+        "signal_generated_at": "2026-08-21T14:45:18.799408Z",
+        "horizon_end_at": "2026-08-22T14:45:18.799408Z",
+        "risk": {
+          "atr_timeframe": "30m",
+          "atr_window": 26,
+          "atr_value": 0.00068958,
+          "atr_multiple": 1.35,
+          "risk_floor_percent": 0.0027,
+          "risk_distance": 0.00315236,
+          "reward_risk": 1.8,
+          "position_horizon_minutes": 1440,
+          "monitor_interval": "1m"
+        },
+        "arms": {
+          "A": {
+            "tracked": false,
+            "direction": "FLAT",
+            "status": "NO_TRADE",
+            "entry_price": null,
+            "stop_price": null,
+            "target_price": null,
+            "mfe_bps": null,
+            "mfe_at": null,
+            "mae_bps": null,
+            "mae_at": null,
+            "first_touch": null,
+            "first_touch_at": null,
+            "minutes_to_first_touch": null,
+            "exit_reason": null,
+            "exit_at": null,
+            "exit_price": null,
+            "realized_bps": null
+          },
+          "B": {
+            "tracked": true,
+            "direction": "SHORT",
+            "status": "OPEN",
+            "entry_price": 1.16754,
+            "stop_price": 1.17069,
+            "target_price": 1.16187,
+            "mfe_bps": null,
+            "mfe_at": null,
+            "mae_bps": null,
+            "mae_at": null,
+            "first_touch": null,
+            "first_touch_at": null,
+            "minutes_to_first_touch": null,
+            "exit_reason": null,
+            "exit_at": null,
+            "exit_price": null,
+            "realized_bps": null
+          },
+          "C": {
+            "tracked": false,
+            "direction": "FLAT",
+            "status": "NO_TRADE",
+            "entry_price": null,
+            "stop_price": null,
+            "target_price": null,
+            "mfe_bps": null,
+            "mfe_at": null,
+            "mae_bps": null,
+            "mae_at": null,
+            "first_touch": null,
+            "first_touch_at": null,
+            "minutes_to_first_touch": null,
+            "exit_reason": null,
+            "exit_at": null,
+            "exit_price": null,
+            "realized_bps": null
+          }
+        }
+      }
+    },
     {
       "signal_generated_at": "2026-08-21T13:59:57.388395Z",
       "market_observed_at": "2026-08-21T13:59:55Z",
@@ -514,28 +791,28 @@
           "label": "30m",
           "minutes": 30,
           "target_at": "2026-08-21T14:29:55Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T14:30:00Z",
+          "price": 1.16768,
+          "raw_return_bps": -8.1412,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -8.1412
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             }
           }
         },
@@ -802,28 +1079,28 @@
           "label": "1h",
           "minutes": 60,
           "target_at": "2026-08-21T14:09:54Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T14:30:00Z",
+          "price": 1.16768,
+          "raw_return_bps": -11.6455,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -11.6455
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -11.6455
             }
           }
         },
@@ -1090,28 +1367,28 @@
           "label": "2h",
           "minutes": 120,
           "target_at": "2026-08-21T14:03:57Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T14:30:00Z",
+          "price": 1.16768,
+          "raw_return_bps": -22.1437,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -22.1437
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -22.1437
             }
           }
         },
