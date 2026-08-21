@@ -1,0 +1,82 @@
+name: Monitor US Daily Stock Position
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Broad UTC window covers 09:30-16:00 New York in both EDT and EST.
+    # Python session gating prevents work outside the regular US session.
+    - cron: "*/5 13-21 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: us-daily-stock-en
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate one-position lifecycle
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_us_daily_stock_position_lifecycle -v
+          python -m py_compile \
+            scripts/us_daily_stock_position_lifecycle.py \
+            scripts/us_daily_stock_position_monitor.py \
+            scripts/us_daily_stock_runtime.py \
+            scripts/build_daily_stock_history_index.py
+
+      - name: Reconcile open US position
+        run: |
+          set -euo pipefail
+          python scripts/us_daily_stock_position_monitor.py
+          python -m json.tool data/investments/us_daily_stock.json >/dev/null
+          if [[ -f data/investments/us_daily_stock_position.json ]]; then
+            python -m json.tool data/investments/us_daily_stock_position.json >/dev/null
+          fi
+          python -m json.tool data/investments/us_daily_stock_history/index.json >/dev/null
+          python -m json.tool data/investments/daily_stock_history_index.json >/dev/null
+
+      - name: Persist position and append-only outcome state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/us_daily_stock_history/index.json data/investments/daily_stock_history_index.json
+          git add -- data/investments/us_daily_stock_position.json 2>/dev/null || true
+          # A TP/SL/horizon event mutates only the canonical originating day file;
+          # migration may also mark legacy duplicate signals SUPPRESSED.
+          git add -- data/investments/us_daily_stock_history/????-??-??.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No US position state change"
+            exit 0
+          fi
+          git commit -m "Monitor US Daily Stock position"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push attempt ${attempt} failed; retrying"
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*3))
+          done
+          exit 1

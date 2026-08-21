@@ -6,18 +6,22 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/us-daily-stock-en.yml"
+      - ".github/workflows/us-daily-stock-position-monitor.yml"
       - "scripts/daily_stock_core.py"
       - "scripts/daily_stock_us_adapter.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/daily-stock-markets-public.js"
       - "scripts/us_daily_stock.py"
       - "scripts/us_daily_stock_runtime.py"
+      - "scripts/us_daily_stock_position_lifecycle.py"
+      - "scripts/us_daily_stock_position_monitor.py"
       - "scripts/us-daily-stock-public.js"
       - "scripts/install_us_daily_stock_en.py"
       - "assets/daily-stock-markets.css"
       - "data/investments/us_daily_stock_config.json"
       - "tests/test_daily_stock_core.py"
       - "tests/test_us_daily_stock.py"
+      - "tests/test_us_daily_stock_position_lifecycle.py"
       - "tests/test_gpw_daily_pick_ui.py"
   schedule:
     # 09:36/09:42 New York during EDT (13:36/13:42 UTC) and EST (14:36/14:42 UTC).
@@ -60,16 +64,22 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Test shared core and US Daily Stock contracts
+      - name: Test shared core and one-position US Daily Stock contracts
         run: |
           set -euo pipefail
-          python -m unittest tests.test_daily_stock_core tests.test_us_daily_stock tests.test_gpw_daily_pick_ui -v
+          python -m unittest \
+            tests.test_daily_stock_core \
+            tests.test_us_daily_stock \
+            tests.test_us_daily_stock_position_lifecycle \
+            tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_us_adapter.py \
             scripts/build_daily_stock_history_index.py \
             scripts/us_daily_stock.py \
             scripts/us_daily_stock_runtime.py \
+            scripts/us_daily_stock_position_lifecycle.py \
+            scripts/us_daily_stock_position_monitor.py \
             scripts/install_us_daily_stock_en.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
           python -m json.tool data/investments/us_daily_stock.json >/dev/null
@@ -93,33 +103,37 @@ jobs:
           now=datetime.now(ZoneInfo('America/New_York'))
           if now.time() >= clock_time(9,35) and now.time() < clock_time(9,50) and p.get('decision') == 'PENDING':
               raise SystemExit('US Daily Stock remained PENDING after the post-open analysis window began.')
+          action=p.get('position_action')
           if p.get('decision') == 'TRADE':
               s=p.get('selection') or {}
               assert s.get('review',{}).get('approved') is True
               assert s.get('sources')
               assert s.get('market_snapshot',{}).get('date') == now.date().isoformat()
               assert float(s.get('reward_risk') or 0) >= 1.5
-              print('US_DAILY_STOCK',s.get('symbol'),s.get('score'),s.get('reference_price'))
+              if action in {'OPEN','HOLD','ROTATE_OPEN'}:
+                  assert (p.get('position') or {}).get('status') == 'OPEN'
+              print('US_DAILY_STOCK',action or 'DAILY',s.get('symbol'),s.get('score'),s.get('reference_price'))
           else:
-              print('US_DAILY_STOCK_STATE',p.get('decision'),p.get('reason'))
+              print('US_DAILY_STOCK_STATE',action or p.get('decision'),p.get('reason'))
           PY
 
       - name: Rebuild shared GPW and US Daily Stock history index
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Commit US Daily Stock state and EN frontend
+      - name: Commit US Daily Stock position, state and EN frontend
         id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/daily_stock_history_index.json en/investing/portfolio-10k.html
+          git add data/investments/us_daily_stock_position.json 2>/dev/null || true
           git add data/investments/us_daily_stock_history 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "Publish EN US Daily Stock state"
+          git commit -m "Publish EN US Daily Stock position state"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
@@ -154,7 +168,7 @@ jobs:
           import json,time,urllib.request
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/3.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/4.0','Cache-Control':'no-cache'}
           today=datetime.now(ZoneInfo('America/New_York')).date().isoformat()
           last=None
           for attempt in range(1,43):
@@ -166,7 +180,7 @@ jobs:
                   with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers),timeout=20) as r:
                       html=r.read().decode('utf-8',errors='replace')
                   if data.get('date') == today and 'us-daily-stock-root' in html and 'us-daily-stock-public.js?v=2' in html:
-                      print('PRODUCTION_US_DAILY_STOCK_OK',data.get('decision'),(data.get('selection') or {}).get('symbol'))
+                      print('PRODUCTION_US_DAILY_STOCK_OK',data.get('position_action') or data.get('decision'),(data.get('selection') or {}).get('symbol'))
                       raise SystemExit(0)
               except Exception as exc:
                   print('attempt',attempt,type(exc).__name__,str(exc)[:150])
