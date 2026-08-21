@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build one public history index for GPW and US Daily Stock.
 
-The underlying market histories remain append-only and isolated.  This file is
-only a presentation/index layer so PL and EN can show both markets together.
+The underlying market histories remain isolated. PR26 keeps raw US day files for
+audit while the presentation layer collapses overlapping daily selections into
+one canonical open position.
 """
 from __future__ import annotations
 
@@ -11,6 +12,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from scripts import us_daily_stock_position_lifecycle as us_lifecycle
+except ModuleNotFoundError:
+    import us_daily_stock_position_lifecycle as us_lifecycle
 
 ROOT = Path(__file__).resolve().parents[1]
 INVESTMENTS = ROOT / "data/investments"
@@ -64,31 +70,44 @@ def normalized_trade(payload: dict[str, Any], market: str) -> dict[str, Any] | N
     }
 
 
-def scan(directory: Path, market: str) -> list[dict[str, Any]]:
+def scan(directory: Path, market: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = []
+    suppressed: list[dict[str, Any]] = []
     if not directory.exists():
-        return rows
-    for path in sorted(directory.glob("????-??-??.json")):
-        payload = load(path)
-        if not payload:
-            continue
-        row = normalized_trade(payload, market)
-        if row:
-            rows.append(row)
+        return rows, suppressed
+
+    if market == "us":
+        payloads, suppressed = us_lifecycle.canonical_history_payloads(directory)
+        for payload in payloads:
+            row = normalized_trade(payload, market)
+            if row:
+                rows.append(row)
+    else:
+        for path in sorted(directory.glob("????-??-??.json")):
+            payload = load(path)
+            if not payload:
+                continue
+            row = normalized_trade(payload, market)
+            if row:
+                rows.append(row)
+
     rows.sort(key=lambda row: (str(row.get("date") or ""), str(row.get("generated_at") or "")), reverse=True)
-    return rows
+    return rows, suppressed
 
 
-def market_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def market_summary(rows: list[dict[str, Any]], suppressed: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     resolved = [row for row in rows if (row.get("outcome") or {}).get("status") == "RESOLVED"]
     activated = [row for row in resolved if (row.get("outcome") or {}).get("activated") is True]
     wins = [row for row in activated if float((row.get("outcome") or {}).get("return_percent", 0.0)) > 0]
     r_values = [float((row.get("outcome") or {}).get("r_multiple", 0.0)) for row in activated]
     returns = [float((row.get("outcome") or {}).get("return_percent", 0.0)) for row in activated]
+    suppressed = list(suppressed or [])
     return {
         "selected_trades": len(rows),
         "resolved_trades": len(resolved),
         "activated_resolved_trades": len(activated),
+        "suppressed_overlapping_signals": len(suppressed),
+        "suppressed_signals": suppressed,
         "win_rate": round(len(wins) / len(activated), 4) if activated else None,
         "average_r": round(sum(r_values) / len(r_values), 3) if r_values else None,
         "average_return_percent": round(sum(returns) / len(returns), 3) if returns else None,
@@ -98,19 +117,19 @@ def market_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def build(now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
-    gpw = scan(GPW_DIR, "gpw")
-    us = scan(US_DIR, "us")
+    gpw, gpw_suppressed = scan(GPW_DIR, "gpw")
+    us, us_suppressed = scan(US_DIR, "us")
     all_rows = sorted(
         [*gpw, *us],
         key=lambda row: (str(row.get("date") or ""), str(row.get("generated_at") or "")),
         reverse=True,
     )
     return {
-        "schema_version": "daily-stock-history-index-v1",
+        "schema_version": "daily-stock-history-index-v2",
         "updated_at": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
         "markets": {
-            "gpw": market_summary(gpw),
-            "us": market_summary(us),
+            "gpw": market_summary(gpw, gpw_suppressed),
+            "us": market_summary(us, us_suppressed),
         },
         "all": all_rows,
     }
@@ -123,6 +142,7 @@ def main() -> int:
         "status": "OK",
         "gpw": payload["markets"]["gpw"]["selected_trades"],
         "us": payload["markets"]["us"]["selected_trades"],
+        "us_suppressed": payload["markets"]["us"]["suppressed_overlapping_signals"],
         "out": str(OUT.relative_to(ROOT)),
     }, ensure_ascii=False))
     return 0
