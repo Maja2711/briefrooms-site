@@ -4,15 +4,15 @@
 PR26 turns the daily selector into a portfolio-aware paper-trading process:
 - at most one US position may be OPEN at a time,
 - a repeated signal for the already-held symbol is HOLD, never a second entry,
-- legacy overlapping pending signals are preserved in raw history but suppressed
-  from the canonical trade count,
+- legacy overlapping pending signals stay available for audit but are permanently
+  marked SUPPRESSED so they can never reappear as phantom trades,
 - TP / SL / horizon exits are deterministic and written back to the canonical
   originating history record,
 - rotation to a different stock is deliberately hard: the new setup must have a
   material score edge while the current trade is already profitable in R terms.
 
-The module is deliberately provider-agnostic. Runtime code supplies market
-snapshots so unit tests stay deterministic and no network access is required.
+The module is provider-agnostic. Runtime code supplies market snapshots so unit
+tests stay deterministic and no network access is required.
 """
 from __future__ import annotations
 
@@ -21,11 +21,13 @@ import tempfile
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
 BOOK_SCHEMA = "us-daily-stock-position-book-v1"
 ROTATION_SCORE_EDGE = 10.0
 ROTATION_MIN_CURRENT_R = 0.25
+SUPPRESSED_STATUS = "SUPPRESSED"
+SUPPRESSED_LIFECYCLE_STATUS = "SUPPRESSED_DUPLICATE_SIGNAL"
 
 
 def _load(path: Path) -> dict[str, Any] | None:
@@ -77,8 +79,20 @@ def _trade_payloads(history_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
     return rows
 
 
+def _outcome_status(payload: Mapping[str, Any]) -> str:
+    return str(((payload.get("outcome") or {}).get("status") or "")).upper()
+
+
 def _outcome_resolved(payload: Mapping[str, Any]) -> bool:
-    return str(((payload.get("outcome") or {}).get("status") or "")).upper() == "RESOLVED"
+    return _outcome_status(payload) == "RESOLVED"
+
+
+def _outcome_suppressed(payload: Mapping[str, Any]) -> bool:
+    lifecycle = payload.get("position_lifecycle") or {}
+    return (
+        _outcome_status(payload) == SUPPRESSED_STATUS
+        or str(lifecycle.get("status") or "") == SUPPRESSED_LIFECYCLE_STATUS
+    )
 
 
 def _selection(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -92,12 +106,9 @@ def _symbol(payload: Mapping[str, Any]) -> str:
 
 
 def activated_at_selection(payload: Mapping[str, Any]) -> bool:
-    """Infer activation only when the published market mark was in the entry zone.
-
-    Legacy US records did not persist an activation flag even though the public
-    card called them open. We bootstrap only when the observed mark was inside
-    the published entry zone, avoiding an invented fill when price never entered.
-    """
+    """Infer activation only when the published mark was inside the entry zone."""
+    if _outcome_suppressed(payload):
+        return False
     selection = _selection(payload)
     zone = selection.get("entry_zone") or []
     snapshot = selection.get("market_snapshot") or {}
@@ -154,18 +165,62 @@ def _suppression(payload: Mapping[str, Any], canonical: Mapping[str, Any], reaso
     }
 
 
-def bootstrap_book(history_dir: Path, *, now: datetime | None = None) -> dict[str, Any]:
+def _existing_suppression(payload: Mapping[str, Any]) -> dict[str, Any]:
+    meta = payload.get("position_lifecycle") or {}
+    return {
+        "date": payload.get("date"),
+        "generated_at": payload.get("generated_at"),
+        "symbol": _symbol(payload),
+        "score": _selection(payload).get("score"),
+        "reason": meta.get("reason") or "legacy_overlap_while_position_open",
+        "canonical_position_id": meta.get("canonical_position_id"),
+        "canonical_source_history_date": meta.get("canonical_source_history_date"),
+    }
+
+
+def mark_history_suppressed(path: Path, canonical: Mapping[str, Any], *, reason: str) -> dict[str, Any]:
+    """Persist that a legacy daily TRADE was only a duplicate signal, not a fill."""
+    payload = _load(path)
+    if not isinstance(payload, dict):
+        raise ValueError(f"cannot suppress missing US history file: {path}")
+    if _outcome_resolved(payload):
+        raise ValueError("cannot suppress an already resolved US trade")
+    row = _suppression(payload, canonical, reason)
+    payload["position_lifecycle"] = {
+        "status": SUPPRESSED_LIFECYCLE_STATUS,
+        "reason": reason,
+        "canonical_position_id": canonical.get("position_id"),
+        "canonical_source_history_date": canonical.get("source_history_date"),
+    }
+    payload["outcome"] = {
+        "status": SUPPRESSED_STATUS,
+        "activated": False,
+        "reason": reason,
+        "canonical_position_id": canonical.get("position_id"),
+        "canonical_source_history_date": canonical.get("source_history_date"),
+    }
+    _atomic(path, payload)
+    return row
+
+
+def bootstrap_book(history_dir: Path, *, now: datetime | None = None, persist_suppression: bool = True) -> dict[str, Any]:
     """Migrate legacy pending daily signals into one canonical open position."""
     book = empty_book(now)
-    for _path, payload in _trade_payloads(history_dir):
+    for path, payload in _trade_payloads(history_dir):
+        if _outcome_suppressed(payload):
+            book["suppressed_signals"].append(_existing_suppression(payload))
+            continue
         if _outcome_resolved(payload) or not activated_at_selection(payload):
             continue
         if book["open_position"] is None:
             book["open_position"] = position_from_trade(payload)
             continue
-        book["suppressed_signals"].append(
-            _suppression(payload, book["open_position"], "legacy_overlap_while_position_open")
-        )
+        reason = "legacy_overlap_while_position_open"
+        if persist_suppression:
+            row = mark_history_suppressed(path, book["open_position"], reason=reason)
+        else:
+            row = _suppression(payload, book["open_position"], reason)
+        book["suppressed_signals"].append(row)
     return book
 
 
@@ -173,7 +228,7 @@ def load_or_bootstrap(book_path: Path, history_dir: Path, *, now: datetime | Non
     payload = _load(book_path)
     if isinstance(payload, dict) and payload.get("schema_version") == BOOK_SCHEMA:
         return payload
-    book = bootstrap_book(history_dir, now=now)
+    book = bootstrap_book(history_dir, now=now, persist_suppression=True)
     _atomic(book_path, book)
     return book
 
@@ -273,6 +328,12 @@ def apply_closure_to_history(history_dir: Path, closure: Mapping[str, Any]) -> P
     payload = _load(path)
     if not isinstance(payload, dict):
         raise ValueError(f"canonical US history missing for {source_date}")
+    payload["position_lifecycle"] = {
+        "status": "CLOSED",
+        "position_id": closure.get("position_id"),
+        "closed_at": closure.get("closed_at"),
+        "exit_reason": closure.get("exit_reason"),
+    }
     payload["outcome"] = {
         "status": "RESOLVED",
         "activated": True,
@@ -343,15 +404,14 @@ def open_from_payload(book: Mapping[str, Any], payload: Mapping[str, Any]) -> di
 
 
 def canonical_history_payloads(history_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Collapse legacy overlapping unresolved US selections for presentation.
-
-    Raw day files remain untouched. The first unresolved activated selection is
-    canonical; later TRADE records are presentation-suppressed until it resolves.
-    """
+    """Return trade history with duplicate daily signals permanently excluded."""
     included: list[dict[str, Any]] = []
     suppressed: list[dict[str, Any]] = []
     active: dict[str, Any] | None = None
     for _path, payload in _trade_payloads(history_dir):
+        if _outcome_suppressed(payload):
+            suppressed.append(_existing_suppression(payload))
+            continue
         if _outcome_resolved(payload):
             included.append(payload)
             if active and str(active.get("date")) == str(payload.get("date")):
