@@ -1,0 +1,87 @@
+name: Validate US Daily Stock Single Position
+
+on:
+  pull_request:
+    paths:
+      - "scripts/us_daily_stock.py"
+      - "scripts/us_daily_stock_runtime.py"
+      - "scripts/us_daily_stock_position_lifecycle.py"
+      - "scripts/us_daily_stock_position_monitor.py"
+      - "scripts/build_daily_stock_history_index.py"
+      - "tests/test_us_daily_stock.py"
+      - "tests/test_us_daily_stock_position_lifecycle.py"
+      - ".github/workflows/us-daily-stock-en.yml"
+      - ".github/workflows/us-daily-stock-position-monitor.yml"
+      - ".github/workflows/us-daily-stock-position-validation.yml"
+  push:
+    branches-ignore: [main]
+    paths:
+      - "scripts/us_daily_stock.py"
+      - "scripts/us_daily_stock_runtime.py"
+      - "scripts/us_daily_stock_position_lifecycle.py"
+      - "scripts/us_daily_stock_position_monitor.py"
+      - "scripts/build_daily_stock_history_index.py"
+      - "tests/test_us_daily_stock.py"
+      - "tests/test_us_daily_stock_position_lifecycle.py"
+      - ".github/workflows/us-daily-stock-en.yml"
+      - ".github/workflows/us-daily-stock-position-monitor.yml"
+      - ".github/workflows/us-daily-stock-position-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile position-aware runtime
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/us_daily_stock.py \
+            scripts/us_daily_stock_runtime.py \
+            scripts/us_daily_stock_position_lifecycle.py \
+            scripts/us_daily_stock_position_monitor.py \
+            scripts/build_daily_stock_history_index.py
+
+      - name: Run US selector and lifecycle tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_us_daily_stock \
+            tests.test_us_daily_stock_position_lifecycle -v
+
+      - name: Assert PR26 one-position production contract
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          lifecycle=Path('scripts/us_daily_stock_position_lifecycle.py').read_text(encoding='utf-8')
+          runtime=Path('scripts/us_daily_stock_runtime.py').read_text(encoding='utf-8')
+          monitor=Path('.github/workflows/us-daily-stock-position-monitor.yml').read_text(encoding='utf-8')
+          daily=Path('.github/workflows/us-daily-stock-en.yml').read_text(encoding='utf-8')
+          history=Path('scripts/build_daily_stock_history_index.py').read_text(encoding='utf-8')
+          assert 'max_open_positions' in lifecycle
+          assert 'HOLD_NO_NEW_ENTRY' in lifecycle
+          assert 'SUPPRESSED_DUPLICATE_SIGNAL' in lifecycle
+          assert 'ROTATION_SCORE_EDGE = 10.0' in lifecycle
+          assert 'ROTATION_MIN_CURRENT_R = 0.25' in lifecycle
+          assert 'same_symbol_hold' in lifecycle
+          assert 'reconcile_open_position' in runtime
+          assert 'position_action' in runtime
+          assert 'us_daily_stock_position.json' in daily
+          assert 'tests.test_us_daily_stock_position_lifecycle' in daily
+          assert '*/5 13-21 * * 1-5' in monitor
+          assert 'us-daily-stock-en' in monitor
+          assert 'canonical_history_payloads' in history
+          print('PR26_SINGLE_US_POSITION_CONTRACT_OK')
+          PY
