@@ -16,10 +16,11 @@ on:
       - "tests/test_daily_eurusd_abc_durability.py"
       - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
   schedule:
-    # Full frozen A/B/C capture: Belief Core collects at :07/:37, then A/B/C at :12/:42.
-    - cron: "12,42 13-22 * * 1-5"
+    # Broad UTC envelope covering 07:00-24:00 Europe/Warsaw in both CET and CEST.
+    # Runtime gate below enforces the exact Warsaw window and handles DST automatically.
+    - cron: "12,42 5-22 * * 1-5"
     # Settlement-only slots: point outcomes + PR24 virtual trade path, no new captures.
-    - cron: "2,7,17,22,27,32,37,47,52,57 * * * 1-5"
+    - cron: "2,7,17,22,27,32,37,47,52,57 5-22 * * 1-5"
 
 permissions:
   contents: read
@@ -35,7 +36,7 @@ env:
   ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
   BELIEF_ARTIFACT_NAME: belief-core-shadow-state
   PR20_BOOTSTRAP_CUTOFF_UTC: "2026-08-20T23:59:59Z"
-  ABC_CAPTURE_CRON: "12,42 13-22 * * 1-5"
+  ABC_CAPTURE_CRON: "12,42 5-22 * * 1-5"
 
 jobs:
   collect:
@@ -53,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prepare private runtime paths and run mode
+      - name: Prepare private runtime paths, Warsaw window and run mode
         env:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
@@ -66,8 +67,18 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "${EVENT_SCHEDULE:-}" != "$ABC_CAPTURE_CRON" ]; then
             mode="settle"
           fi
+
+          warsaw_hour=$(TZ=Europe/Warsaw date +%H)
+          warsaw_weekday=$(TZ=Europe/Warsaw date +%u)
+          warsaw_now=$(TZ=Europe/Warsaw date '+%Y-%m-%dT%H:%M:%S%z')
+          window_open=false
+          if [ "$warsaw_weekday" -le 5 ] && [ "$warsaw_hour" -ge 7 ]; then
+            window_open=true
+          fi
+
           echo "ABC_RUN_MODE=$mode" >> "$GITHUB_ENV"
-          echo "A/B/C run mode: $mode event=$GITHUB_EVENT_NAME schedule=${EVENT_SCHEDULE:-none}"
+          echo "ABC_WINDOW_OPEN=$window_open" >> "$GITHUB_ENV"
+          echo "A/B/C run mode: $mode event=$GITHUB_EVENT_NAME schedule=${EVENT_SCHEDULE:-none} Warsaw=${warsaw_now} window_07_24=${window_open}"
 
       - name: Restore verified durable A/B/C state or establish one-time activation boundary
         env:
@@ -158,8 +169,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ "$ABC_RUN_MODE" != "capture" ]; then
-            echo "Settlement-only run: Belief restore intentionally skipped."
+          if [ "$ABC_RUN_MODE" != "capture" ] || [ "$ABC_WINDOW_OPEN" != "true" ]; then
+            echo "Belief restore skipped: settlement-only or Warsaw 07:00-24:00 window closed."
             exit 0
           fi
 
@@ -204,7 +215,7 @@ jobs:
             scripts/daily_eurusd_abc_settler.py \
             scripts/daily_eurusd_abc_durability.py \
             scripts/research_state_durability.py
-          if [ "$ABC_RUN_MODE" = "capture" ]; then
+          if [ "$ABC_RUN_MODE" = "capture" ] && [ "$ABC_WINDOW_OPEN" = "true" ]; then
             python -m unittest \
               tests.test_daily_eurusd_experiment \
               tests.test_daily_eurusd_abc_settler \
@@ -230,7 +241,12 @@ jobs:
         id: cycle
         run: |
           set -euo pipefail
-          if [ "$ABC_RUN_MODE" = "capture" ]; then
+          if [ "$ABC_WINDOW_OPEN" != "true" ]; then
+            echo "Warsaw 07:00-24:00 window closed; no new capture or settlement mutation."
+            echo "state_changed=false" >> "$GITHUB_OUTPUT"
+            echo "resolved_delta=window_closed" >> "$GITHUB_OUTPUT"
+            echo "trade_path_changed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ABC_RUN_MODE" = "capture" ]; then
             python scripts/daily_eurusd_experiment_v13.py \
               --state-dir "$ABC_STATE_DIR" \
               --belief-state "$BELIEF_STATE_DIR/state.json"
