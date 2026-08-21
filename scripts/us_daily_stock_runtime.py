@@ -9,6 +9,8 @@ rotation policy in us_daily_stock_position_lifecycle.
 from __future__ import annotations
 
 import argparse
+import json
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, time as clock_time
 from typing import Any, Mapping
@@ -77,6 +79,66 @@ def install_cache(cache: dict[str, tuple[list[us.Bar], dict[str, Any]]]) -> None
             raise us.PublicationError(f"No prefetched US market history for {symbol}.")
         return cache[symbol]
     us.fetch_resilient_bars = cached
+
+
+def position_snapshot(symbol: str, *, opened_at: str | None, now: datetime) -> dict[str, Any]:
+    """Return only 1m OHLC occurring after the position actually opened.
+
+    For overnight positions the whole current regular session is eligible. For a
+    position opened today, pre-entry highs/lows are excluded so an earlier move
+    cannot fabricate a TP or SL touch after the trade did not yet exist.
+    """
+    opened = None
+    if opened_at:
+        try:
+            opened = datetime.fromisoformat(str(opened_at).replace("Z", "+00:00"))
+            if opened.tzinfo is None:
+                opened = opened.replace(tzinfo=us.NEW_YORK)
+            opened = opened.astimezone(us.NEW_YORK)
+        except ValueError:
+            opened = None
+
+    params = urllib.parse.urlencode({"range": "1d", "interval": "1m", "events": "history", "includePrePost": "false"})
+    encoded = urllib.parse.quote(symbol, safe="")
+    failures: list[str] = []
+    for host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com"):
+        try:
+            payload = json.loads(us.request_bytes(f"https://{host}/v8/finance/chart/{encoded}?{params}"))
+            result = (payload.get("chart", {}).get("result") or [None])[0]
+            if not result:
+                raise ValueError("empty chart")
+            stamps = result.get("timestamp") or []
+            quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+            points: list[tuple[datetime, float, float, float, float, int]] = []
+            for i, stamp in enumerate(stamps):
+                vals = {k: (quote.get(k) or [None] * len(stamps))[i] for k in ("open", "high", "low", "close", "volume")}
+                if any(vals[k] is None for k in ("open", "high", "low", "close")):
+                    continue
+                dt = datetime.fromtimestamp(int(stamp), us.NEW_YORK)
+                if dt.date() != now.date() or dt.time() < clock_time(9, 30):
+                    continue
+                if opened is not None and opened.date() == now.date() and dt <= opened:
+                    continue
+                points.append((dt, float(vals["open"]), float(vals["high"]), float(vals["low"]), float(vals["close"]), int(vals["volume"] or 0)))
+            if not points:
+                raise ValueError("no post-entry regular-session points")
+            first, last = points[0], points[-1]
+            return {
+                "provider": "Yahoo",
+                "symbol": symbol,
+                "date": now.date().isoformat(),
+                "observed_at": last[0].isoformat(timespec="seconds"),
+                "path_start_at": first[0].isoformat(timespec="seconds"),
+                "open": us.round2(first[1]),
+                "high": us.round2(max(p[2] for p in points)),
+                "low": us.round2(min(p[3] for p in points)),
+                "last": us.round2(last[4]),
+                "volume": sum(max(p[5], 0) for p in points),
+                "status": "post_entry_single_source",
+            }
+        except Exception as exc:
+            failures.append(f"{host}:{type(exc).__name__}")
+    raise us.PublicationError(f"Post-entry current-session quote unavailable for {symbol}: {' | '.join(failures)}")
 
 
 def _generate_with_recovery(now: datetime, config: dict[str, Any]) -> dict[str, Any]:
@@ -163,7 +225,11 @@ def generate(now: datetime | None = None) -> dict[str, Any]:
     current_snapshot: dict[str, Any] | None = None
     if isinstance(open_position, Mapping) and us.is_session_day(now.date(), config):
         try:
-            current_snapshot = us.opening_snapshot(str(open_position["symbol"]), now=now)
+            current_snapshot = position_snapshot(
+                str(open_position["symbol"]),
+                opened_at=str(open_position.get("opened_at") or ""),
+                now=now,
+            )
             book, closure = lifecycle.reconcile_open_position(
                 book,
                 current_snapshot,
@@ -262,7 +328,8 @@ def publish(payload: dict[str, Any], *, now: datetime) -> None:
     us.atomic_json(us.PUBLIC_PATH, payload)
     us.atomic_json(us.METRICS_PATH, payload.get("metrics") or {})
     action = str(payload.get("position_action") or "")
-    if payload.get("decision") in {"TRADE", "NO_TRADE"} and action != "HOLD":
+    non_selection_actions = {"HOLD", "CLOSED", "HOLD_MARK_ERROR"}
+    if payload.get("decision") in {"TRADE", "NO_TRADE"} and action not in non_selection_actions:
         us.atomic_json(us.HISTORY_DIR / f"{payload['date']}.json", payload)
 
 
