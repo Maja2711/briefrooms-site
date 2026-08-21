@@ -7,17 +7,20 @@ on:
     paths:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/daily_eurusd_experiment_v13.py"
       - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
       - "tests/test_daily_eurusd_abc_settler.py"
+      - "tests/test_daily_eurusd_abc_trade_path.py"
       - "tests/test_daily_eurusd_abc_durability.py"
       - ".github/workflows/daily-eurusd-abc-live-shadow.yml"
   schedule:
-    # Full frozen A/B/C capture: Belief Core collects at :07/:37, then A/B/C at :12/:42.
-    - cron: "12,42 13-22 * * 1-5"
-    # PR23 settlement-only slots fill the remaining five-minute cadence without creating captures.
-    - cron: "2,7,17,22,27,32,37,47,52,57 * * * 1-5"
+    # Broad UTC envelope covering 07:00-24:00 Europe/Warsaw in both CET and CEST.
+    # Runtime gate below enforces the exact Warsaw window and handles DST automatically.
+    - cron: "12,42 5-22 * * 1-5"
+    # Settlement-only slots: point outcomes + PR24 virtual trade path, no new captures.
+    - cron: "2,7,17,22,27,32,37,47,52,57 5-22 * * 1-5"
 
 permissions:
   contents: read
@@ -33,7 +36,7 @@ env:
   ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
   BELIEF_ARTIFACT_NAME: belief-core-shadow-state
   PR20_BOOTSTRAP_CUTOFF_UTC: "2026-08-20T23:59:59Z"
-  ABC_CAPTURE_CRON: "12,42 13-22 * * 1-5"
+  ABC_CAPTURE_CRON: "12,42 5-22 * * 1-5"
 
 jobs:
   collect:
@@ -51,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prepare private runtime paths and run mode
+      - name: Prepare private runtime paths, Warsaw window and run mode
         env:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
@@ -64,8 +67,18 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "${EVENT_SCHEDULE:-}" != "$ABC_CAPTURE_CRON" ]; then
             mode="settle"
           fi
+
+          warsaw_hour=$(TZ=Europe/Warsaw date +%H)
+          warsaw_weekday=$(TZ=Europe/Warsaw date +%u)
+          warsaw_now=$(TZ=Europe/Warsaw date '+%Y-%m-%dT%H:%M:%S%z')
+          window_open=false
+          if [ "$warsaw_weekday" -le 5 ] && [ "$warsaw_hour" -ge 7 ]; then
+            window_open=true
+          fi
+
           echo "ABC_RUN_MODE=$mode" >> "$GITHUB_ENV"
-          echo "A/B/C run mode: $mode event=$GITHUB_EVENT_NAME schedule=${EVENT_SCHEDULE:-none}"
+          echo "ABC_WINDOW_OPEN=$window_open" >> "$GITHUB_ENV"
+          echo "A/B/C run mode: $mode event=$GITHUB_EVENT_NAME schedule=${EVENT_SCHEDULE:-none} Warsaw=${warsaw_now} window_07_24=${window_open}"
 
       - name: Restore verified durable A/B/C state or establish one-time activation boundary
         env:
@@ -156,8 +169,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ "$ABC_RUN_MODE" != "capture" ]; then
-            echo "Settlement-only run: Belief restore intentionally skipped."
+          if [ "$ABC_RUN_MODE" != "capture" ] || [ "$ABC_WINDOW_OPEN" != "true" ]; then
+            echo "Belief restore skipped: settlement-only or Warsaw 07:00-24:00 window closed."
             exit 0
           fi
 
@@ -192,41 +205,54 @@ jobs:
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$BELIEF_STATE_DIR"
           test -f "$BELIEF_STATE_DIR/state.json"
 
-      - name: Validate PR23 runtime and zero-authority contract
+      - name: Validate PR24 runtime and zero-authority contract
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py \
+            scripts/daily_eurusd_experiment_v13.py \
             scripts/daily_eurusd_abc_settler.py \
             scripts/daily_eurusd_abc_durability.py \
             scripts/research_state_durability.py
-          if [ "$ABC_RUN_MODE" = "capture" ]; then
+          if [ "$ABC_RUN_MODE" = "capture" ] && [ "$ABC_WINDOW_OPEN" = "true" ]; then
             python -m unittest \
               tests.test_daily_eurusd_experiment \
               tests.test_daily_eurusd_abc_settler \
+              tests.test_daily_eurusd_abc_trade_path \
               tests.test_daily_eurusd_abc_durability -v
           fi
           python - <<'PY'
-          import daily_eurusd_experiment_v12 as abc
+          import daily_eurusd_experiment_v13 as abc
           assert abc.base.MODE == 'research_shadow'
-          assert abc.ENGINE_VERSION == 'eurusd-daily-abc-v1.2.0'
+          assert abc.ENGINE_VERSION == 'eurusd-daily-abc-v1.3.0'
           assert abc.BOLLINGER_WINDOW == 30
           assert abc.BOLLINGER_STDDEV_LEVELS == (1.0, 2.0, 3.0)
+          assert abc.ATR_30M_WINDOW == 26
+          assert abc.ATR_MULTIPLE == 1.35
+          assert abc.RISK_FLOOR_PERCENT == 0.0027
+          assert abc.REWARD_RISK == 1.8
+          assert abc.POSITION_HORIZON_MINUTES == 1440
           assert abc.base.MODE != 'production_execution'
-          print('PR23 live-shadow authority boundary: PASS')
+          print('PR24 live-shadow virtual trade-path authority boundary: PASS')
           PY
 
       - name: Capture or settle prospective A/B/C state
         id: cycle
         run: |
           set -euo pipefail
-          if [ "$ABC_RUN_MODE" = "capture" ]; then
-            python scripts/daily_eurusd_experiment_v12.py \
+          if [ "$ABC_WINDOW_OPEN" != "true" ]; then
+            echo "Warsaw 07:00-24:00 window closed; no new capture or settlement mutation."
+            echo "state_changed=false" >> "$GITHUB_OUTPUT"
+            echo "resolved_delta=window_closed" >> "$GITHUB_OUTPUT"
+            echo "trade_path_changed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ABC_RUN_MODE" = "capture" ]; then
+            python scripts/daily_eurusd_experiment_v13.py \
               --state-dir "$ABC_STATE_DIR" \
               --belief-state "$BELIEF_STATE_DIR/state.json"
             echo "state_changed=true" >> "$GITHUB_OUTPUT"
             echo "resolved_delta=capture_cycle" >> "$GITHUB_OUTPUT"
+            echo "trade_path_changed=new_capture" >> "$GITHUB_OUTPUT"
           else
             output=$(python scripts/daily_eurusd_abc_settler.py --state-dir "$ABC_STATE_DIR")
             printf '%s\n' "$output"
@@ -236,13 +262,15 @@ jobs:
               echo "state_changed=false" >> "$GITHUB_OUTPUT"
             fi
             delta=$(printf '%s\n' "$output" | sed -n 's/^ABC_RESOLVED_DELTA=//p' | tail -1)
+            trade=$(printf '%s\n' "$output" | sed -n 's/^ABC_TRADE_PATH_CHANGED=//p' | tail -1)
             echo "resolved_delta=${delta:-0}" >> "$GITHUB_OUTPUT"
+            echo "trade_path_changed=${trade:-false}" >> "$GITHUB_OUTPUT"
           fi
-          python scripts/daily_eurusd_experiment_v12.py \
+          python scripts/daily_eurusd_experiment_v13.py \
             --state-dir "$ABC_STATE_DIR" \
             --validate
 
-      - name: Assert three-way frozen capture and no production authority
+      - name: Assert frozen A/B/C decision, PR24 trade plan and zero production authority
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -263,10 +291,16 @@ jobs:
           assert latest['research_boundary']['belief_writeback'] is False
           assert report['decision_influence'] is False
           assert report['governance']['active_daily_engine_influence'] is False
+          if latest.get('engine_version') == 'eurusd-daily-abc-v1.3.0':
+              assert latest.get('trade_plan_sha256')
+              assert set((latest.get('trade_plan') or {}).get('arms') or {}) == {'A','B','C'}
+              assert set((latest.get('trade_path') or {}).get('arms') or {}) == {'A','B','C'}
+              assert report['trade_path']['virtual_only'] is True
+              assert report['trade_path']['historical_backfill'] is False
           print('Latest A/B/C:', {k:(v.get('direction'),v.get('score'),v.get('available')) for k,v in latest['arms'].items()})
           PY
 
-      - name: Seal and verify changed PR23 research state
+      - name: Seal and verify changed PR24 research state
         if: steps.cycle.outputs.state_changed == 'true'
         run: |
           set -euo pipefail
@@ -299,6 +333,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           STATE_CHANGED: ${{ steps.cycle.outputs.state_changed }}
           RESOLVED_DELTA: ${{ steps.cycle.outputs.resolved_delta }}
+          TRADE_PATH_CHANGED: ${{ steps.cycle.outputs.trade_path_changed }}
         run: |
           set -euo pipefail
           state=failure
@@ -311,6 +346,7 @@ jobs:
           mode=os.environ.get('ABC_RUN_MODE','?')
           changed=os.environ.get('STATE_CHANGED','false')
           delta=os.environ.get('RESOLVED_DELTA','0')
+          trade=os.environ.get('TRADE_PATH_CHANGED','false')
           if not path.is_file():
               print(f'A/B/C {mode}: no capture state')
           else:
@@ -321,7 +357,7 @@ jobs:
               for key in ('A','B','C'):
                   arm=arms.get(key) or {}
                   parts.append(f"{key}:{arm.get('direction','?')}/{arm.get('score','?')}")
-              print((f"{mode} changed={changed} resolved={delta} " + ' '.join(parts))[:135])
+              print((f"{mode} changed={changed} point={delta} trade={trade} " + ' '.join(parts))[:135])
           PY
           )
           STATE="$state" DESCRIPTION="$description" python - <<'PY'
