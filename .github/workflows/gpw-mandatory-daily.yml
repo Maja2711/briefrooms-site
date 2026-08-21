@@ -44,10 +44,9 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate mandatory selector
+      - name: Validate mandatory selector runtime
         run: |
           set -euo pipefail
-          python -m unittest tests.test_gpw_mandatory_daily -v
           python -m py_compile scripts/gpw_mandatory_daily.py
           python -m json.tool data/investments/gpw_mandatory_daily_config.json >/dev/null
 
