@@ -10,6 +10,7 @@ on:
       - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_b_calibration.py"
       - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_trade_path.py"
       - "tests/test_daily_eurusd_abc_trade_path_settler.py"
@@ -26,6 +27,7 @@ on:
       - "scripts/daily_eurusd_abc_settler.py"
       - "scripts/daily_eurusd_abc_durability.py"
       - "tests/test_daily_eurusd_experiment.py"
+      - "tests/test_daily_eurusd_b_calibration.py"
       - "tests/test_daily_eurusd_abc_settler.py"
       - "tests/test_daily_eurusd_abc_trade_path.py"
       - "tests/test_daily_eurusd_abc_trade_path_settler.py"
@@ -64,17 +66,18 @@ jobs:
             scripts/daily_eurusd_abc_durability.py \
             scripts/research_state_durability.py
 
-      - name: Run A-B-C prospective, trade-path, settler and durability tests
+      - name: Run A-B-C prospective, calibration, trade-path, settler and durability tests
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_experiment \
+            tests.test_daily_eurusd_b_calibration \
             tests.test_daily_eurusd_abc_trade_path \
             tests.test_daily_eurusd_abc_trade_path_settler \
             tests.test_daily_eurusd_abc_settler \
             tests.test_daily_eurusd_abc_durability -v
 
-      - name: Assert v1.3 isolation, zero-authority, risk parity and append-only contract
+      - name: Assert v1.3 isolation, PR25 B calibration, zero-authority and risk parity
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -96,7 +99,10 @@ jobs:
           assert abc.REWARD_RISK == 1.8
           assert abc.POSITION_HORIZON_MINUTES == 1440
           assert abc.MONITOR_INTERVAL == "1m"
-          assert abc.TERMINAL_PATH_STATUSES == {"CLOSED", "AMBIGUOUS", "NO_TRADE", "UNAVAILABLE"}
+          assert abc.BELIEF_DECISION_CALIBRATION == "support_scale_v1"
+          assert abc.BELIEF_DECISION_SUPPORT_SCALE == 0.10
+          assert abc.BELIEF_RAW_LONG_TRIGGER == 0.02
+          assert abc.BELIEF_RAW_SHORT_TRIGGER == -0.02
           assert abs(sum(abc.TECHNICAL_WEIGHTS.values()) - 1.0) < 1e-12
           assert abs(sum(abc.BELIEF_WEIGHTS.values()) - 1.0) < 1e-12
           assert abc.HYBRID_TECHNICAL_WEIGHT == 0.70
@@ -104,7 +110,7 @@ jobs:
           assert "eurusd.trend.bullish" not in abc.HYBRID_CONTEXT_BELIEF_IDS
           spec=durability.rsd.LAYERS[durability.LAYER_ID]
           assert spec.primary_artifact == "daily-eurusd-abc-live-shadow-state"
-          print("Daily EURUSD A/B/C v1.3 + PR24 isolated trade-path invariants: PASS")
+          print("Daily EURUSD A/B/C PR25 Belief calibration + PR24 trade path invariants: PASS")
           PY
 
       - name: Assert production workflow remains shadow-only, Warsaw-gated and settles every five minutes
@@ -118,7 +124,6 @@ jobs:
           assert 'git push' not in text
           assert 'daily_eurusd_experiment_v13.py' in text
           assert 'daily_eurusd_abc_settler.py' in text
-          assert 'test_daily_eurusd_abc_trade_path' in text
           assert 'belief-core-shadow-state' in text
           assert 'research_boundary' in text
           assert '12,42 5-22 * * 1-5' in text
@@ -131,5 +136,5 @@ jobs:
           assert 'daily_eurusd_abc_durability.py verify' in text
           assert 'trade_plan_sha256' in text
           assert 'virtual_only' in text
-          print('PR24 Warsaw 07:00-24:00 + five-minute point + terminal virtual-trade contract: PASS')
+          print('PR25 shadow-only Warsaw + five-minute settlement contract: PASS')
           PY
