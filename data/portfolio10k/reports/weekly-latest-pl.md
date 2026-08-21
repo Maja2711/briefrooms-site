@@ -1,6 +1,6 @@
 # Tygodniowy raport BRACE Portfolio Engine
 
-- **Aktualny status:** PROBATIONARY_CONTROL
+- **Aktualny status:** BRACE_PROBATIONARY_PAPER_CONTROL
 - **Champion:** brace-portfolio-engine 3.0.0
 - **Challenger:** brace-portfolio-engine 3.0.0 (PROBATIONARY_CONTROL)
 - **Postep awansu:** 9/18 (50.0%)
