@@ -1,6 +1,6 @@
 # BRACE Portfolio Engine weekly report
 
-- **Current status:** BRACE_PROBATIONARY_PAPER_CONTROL
+- **Current status:** PROBATIONARY_CONTROL
 - **Champion:** brace-portfolio-engine 3.0.0
 - **Challenger:** brace-portfolio-engine 3.0.0 (PROBATIONARY_CONTROL)
 - **Promotion progress:** 9/18 (50.0%)
