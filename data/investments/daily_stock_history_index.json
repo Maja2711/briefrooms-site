@@ -1,11 +1,13 @@
 {
-  "schema_version": "daily-stock-history-index-v1",
-  "updated_at": "2026-08-21T17:05:10+00:00",
+  "schema_version": "daily-stock-history-index-v2",
+  "updated_at": "2026-08-21T17:29:09+00:00",
   "markets": {
     "gpw": {
       "selected_trades": 1,
       "resolved_trades": 1,
       "activated_resolved_trades": 1,
+      "suppressed_overlapping_signals": 0,
+      "suppressed_signals": [],
       "win_rate": 1.0,
       "average_r": 1.799,
       "average_return_percent": 4.288,
@@ -48,59 +50,30 @@
       ]
     },
     "us": {
-      "selected_trades": 3,
+      "selected_trades": 1,
       "resolved_trades": 0,
       "activated_resolved_trades": 0,
+      "suppressed_overlapping_signals": 2,
+      "suppressed_signals": [
+        {
+          "date": "2026-08-20",
+          "symbol": "MRK",
+          "reason": "overlap_while_prior_us_position_open",
+          "canonical_date": "2026-08-19",
+          "canonical_symbol": "MRK"
+        },
+        {
+          "date": "2026-08-21",
+          "symbol": "MRK",
+          "reason": "overlap_while_prior_us_position_open",
+          "canonical_date": "2026-08-19",
+          "canonical_symbol": "MRK"
+        }
+      ],
       "win_rate": null,
       "average_r": null,
       "average_return_percent": null,
       "trades": [
-        {
-          "market": "us",
-          "date": "2026-08-21",
-          "generated_at": "2026-08-21T10:16:26-04:00",
-          "ticker": "MRK",
-          "symbol": "MRK",
-          "name": "Merck",
-          "sector": "healthcare",
-          "score": 78.89,
-          "entry_zone": [
-            153.88,
-            155.27
-          ],
-          "stop": 149.53,
-          "target": 162.99,
-          "reward_risk": 1.8,
-          "valid_until": "2026-08-25",
-          "decision": "TRADE",
-          "outcome": {
-            "status": "PENDING",
-            "activated": null
-          }
-        },
-        {
-          "market": "us",
-          "date": "2026-08-20",
-          "generated_at": "2026-08-20T10:18:08-04:00",
-          "ticker": "MRK",
-          "symbol": "MRK",
-          "name": "Merck",
-          "sector": "healthcare",
-          "score": 84.15,
-          "entry_zone": [
-            149.2,
-            150.55
-          ],
-          "stop": 145.18,
-          "target": 157.7,
-          "reward_risk": 1.8,
-          "valid_until": "2026-08-24",
-          "decision": "TRADE",
-          "outcome": {
-            "status": "PENDING",
-            "activated": null
-          }
-        },
         {
           "market": "us",
           "date": "2026-08-19",
@@ -128,52 +101,6 @@
     }
   },
   "all": [
-    {
-      "market": "us",
-      "date": "2026-08-21",
-      "generated_at": "2026-08-21T10:16:26-04:00",
-      "ticker": "MRK",
-      "symbol": "MRK",
-      "name": "Merck",
-      "sector": "healthcare",
-      "score": 78.89,
-      "entry_zone": [
-        153.88,
-        155.27
-      ],
-      "stop": 149.53,
-      "target": 162.99,
-      "reward_risk": 1.8,
-      "valid_until": "2026-08-25",
-      "decision": "TRADE",
-      "outcome": {
-        "status": "PENDING",
-        "activated": null
-      }
-    },
-    {
-      "market": "us",
-      "date": "2026-08-20",
-      "generated_at": "2026-08-20T10:18:08-04:00",
-      "ticker": "MRK",
-      "symbol": "MRK",
-      "name": "Merck",
-      "sector": "healthcare",
-      "score": 84.15,
-      "entry_zone": [
-        149.2,
-        150.55
-      ],
-      "stop": 145.18,
-      "target": 157.7,
-      "reward_risk": 1.8,
-      "valid_until": "2026-08-24",
-      "decision": "TRADE",
-      "outcome": {
-        "status": "PENDING",
-        "activated": null
-      }
-    },
     {
       "market": "gpw",
       "date": "2026-08-19",
