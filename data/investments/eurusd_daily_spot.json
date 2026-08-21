@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-08-21T15:59:57Z",
+  "timestamp": "2026-08-21T16:38:58Z",
   "direction": "LONG",
   "score": 61.06,
   "confidence": 0.221,
@@ -22,21 +22,28 @@
       "bridge_ready": true,
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
-    "components": {},
+    "components": {
+      "trend": -0.0312,
+      "broad_usd_environment": 0.136,
+      "us_rates_pressure_proxy": -0.0649
+    },
     "weights": {
       "trend": 0.546009,
       "broad_usd_environment": 0.250882,
       "us_rates_pressure_proxy": 0.203109
     },
     "candidate": {
-      "direction": "LONG",
-      "score": 61.06,
-      "confidence": 0.221,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.14
+      "direction": "FLAT",
+      "score": 50.19,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 47.73,
+      "stretch_atr": 0.602,
+      "shock_ratio": 0.0
     },
     "learning": {
       "total_closed": 1,
@@ -94,30 +101,6 @@
       "rate_differential_claimed": false,
       "ecb_policy_coverage": false
     },
-    "decision_source": "A_TECHNICAL_FALLBACK",
-    "learning_eligible": false,
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 48.3,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 47.46,
-      "stretch_atr": 0.8952,
-      "shock_ratio": 0.0
-    },
-    "a_fallback": {
-      "method": "same_technical_model_as_research_arm_A_recomputed_live",
-      "research_state_consumed": false,
-      "direction": "LONG",
-      "score": 61.06,
-      "confidence": 0.221,
-      "market_observed_at": "2026-08-21T15:59:57Z",
-      "max_market_age_minutes": 90.0,
-      "risk_source": "active_daily_eurusd_current_30m_atr"
-    },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
       "trade_id": "eurusd:20260821T155957Z:LONG",
@@ -142,14 +125,17 @@
       "unrealized_percent": 0.00033
     },
     "candidate_at_refresh": {
-      "direction": "LONG",
-      "score": 61.06,
-      "confidence": 0.221,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.14
+      "direction": "FLAT",
+      "score": 50.19,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 47.73,
+      "stretch_atr": 0.602,
+      "shock_ratio": 0.0
     }
   },
   "schema_version": "daily-engine-output-v1"
