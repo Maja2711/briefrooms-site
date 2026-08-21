@@ -45,7 +45,11 @@ def run(now=None) -> str:
         _refresh_indexes(now)
         return "OUTSIDE_US_SESSION"
 
-    snapshot = us.opening_snapshot(str(position["symbol"]), now=now)
+    snapshot = runtime.position_snapshot(
+        str(position["symbol"]),
+        opened_at=str(position.get("opened_at") or ""),
+        now=now,
+    )
     book, closure = lifecycle.reconcile_open_position(
         book,
         snapshot,
@@ -65,7 +69,6 @@ def run(now=None) -> str:
         _refresh_indexes(now)
         return f"CLOSED_{str(closure.get('exit_reason') or 'UNKNOWN').upper()}"
 
-    canonical = runtime._canonical_payload(book["open_position"])
     hold = runtime._hold_from_book(
         book,
         now=now,
