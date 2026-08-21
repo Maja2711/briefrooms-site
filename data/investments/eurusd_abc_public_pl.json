@@ -1,7 +1,7 @@
 {
   "schema_version": "eurusd-abc-public-pl-v2",
   "language": "pl",
-  "generated_at": "2026-08-21T14:53:23.270833Z",
+  "generated_at": "2026-08-21T15:18:11.054474Z",
   "engine_version": "eurusd-daily-abc-v1.3.0",
   "mode": "LIVE_SHADOW",
   "public_boundary": {
@@ -289,13 +289,43 @@
     "30m": {
       "label": "30m",
       "A": {
+        "matured_captures": 17,
+        "available_captures": 17,
+        "signals": 12,
+        "decision_rate": 0.705882,
+        "hit_rate": 0.5,
+        "mean_signed_return_bps_signal_only": -0.8527,
+        "mean_strategy_return_bps_all_available": -0.6019
+      },
+      "B": {
+        "matured_captures": 17,
+        "available_captures": 17,
+        "signals": 1,
+        "decision_rate": 0.058824,
+        "hit_rate": 0.0,
+        "mean_signed_return_bps_signal_only": -1.1871,
+        "mean_strategy_return_bps_all_available": -0.0698
+      },
+      "C": {
+        "matured_captures": 17,
+        "available_captures": 17,
+        "signals": 10,
+        "decision_rate": 0.588235,
+        "hit_rate": 0.6,
+        "mean_signed_return_bps_signal_only": -0.096,
+        "mean_strategy_return_bps_all_available": -0.0565
+      }
+    },
+    "60m": {
+      "label": "1h",
+      "A": {
         "matured_captures": 16,
         "available_captures": 16,
         "signals": 12,
         "decision_rate": 0.75,
-        "hit_rate": 0.5,
-        "mean_signed_return_bps_signal_only": -0.8527,
-        "mean_strategy_return_bps_all_available": -0.6395
+        "hit_rate": 0.416667,
+        "mean_signed_return_bps_signal_only": -2.3135,
+        "mean_strategy_return_bps_all_available": -1.7351
       },
       "B": {
         "matured_captures": 16,
@@ -311,21 +341,21 @@
         "available_captures": 16,
         "signals": 10,
         "decision_rate": 0.625,
-        "hit_rate": 0.6,
-        "mean_signed_return_bps_signal_only": -0.096,
-        "mean_strategy_return_bps_all_available": -0.06
+        "hit_rate": 0.4,
+        "mean_signed_return_bps_signal_only": -2.0825,
+        "mean_strategy_return_bps_all_available": -1.3016
       }
     },
-    "60m": {
-      "label": "1h",
+    "120m": {
+      "label": "2h",
       "A": {
         "matured_captures": 15,
         "available_captures": 15,
         "signals": 11,
         "decision_rate": 0.733333,
         "hit_rate": 0.454545,
-        "mean_signed_return_bps_signal_only": -1.8898,
-        "mean_strategy_return_bps_all_available": -1.3859
+        "mean_signed_return_bps_signal_only": -4.1187,
+        "mean_strategy_return_bps_all_available": -3.0204
       },
       "B": {
         "matured_captures": 15,
@@ -342,38 +372,8 @@
         "signals": 10,
         "decision_rate": 0.666667,
         "hit_rate": 0.4,
-        "mean_signed_return_bps_signal_only": -2.0825,
-        "mean_strategy_return_bps_all_available": -1.3884
-      }
-    },
-    "120m": {
-      "label": "2h",
-      "A": {
-        "matured_captures": 14,
-        "available_captures": 14,
-        "signals": 10,
-        "decision_rate": 0.714286,
-        "hit_rate": 0.5,
-        "mean_signed_return_bps_signal_only": -3.366,
-        "mean_strategy_return_bps_all_available": -2.4043
-      },
-      "B": {
-        "matured_captures": 14,
-        "available_captures": 14,
-        "signals": 0,
-        "decision_rate": 0.0,
-        "hit_rate": null,
-        "mean_signed_return_bps_signal_only": null,
-        "mean_strategy_return_bps_all_available": 0.0
-      },
-      "C": {
-        "matured_captures": 14,
-        "available_captures": 14,
-        "signals": 9,
-        "decision_rate": 0.642857,
-        "hit_rate": 0.444444,
-        "mean_signed_return_bps_signal_only": -4.1336,
-        "mean_strategy_return_bps_all_available": -2.6573
+        "mean_signed_return_bps_signal_only": -4.8848,
+        "mean_strategy_return_bps_all_available": -3.2565
       }
     },
     "240m": {
@@ -800,28 +800,28 @@
           "label": "30m",
           "minutes": 30,
           "target_at": "2026-08-21T15:14:56Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T15:17:56Z",
+          "price": 1.16768,
+          "raw_return_bps": 1.1871,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "SHORT",
+              "directional_correct": false,
+              "signed_return_bps": -1.1871
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             }
           }
         },
@@ -1088,28 +1088,28 @@
           "label": "1h",
           "minutes": 60,
           "target_at": "2026-08-21T14:59:55Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T15:00:00Z",
+          "price": 1.16781,
+          "raw_return_bps": -6.9742,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -6.9742
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             }
           }
         },
@@ -1376,28 +1376,28 @@
           "label": "2h",
           "minutes": 120,
           "target_at": "2026-08-21T15:09:54Z",
-          "status": "PENDING",
-          "resolved_at": null,
-          "price": null,
-          "raw_return_bps": null,
+          "status": "RESOLVED",
+          "resolved_at": "2026-08-21T15:17:56Z",
+          "price": 1.16768,
+          "raw_return_bps": -11.6455,
           "arms": {
             "A": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -11.6455
             },
             "B": {
-              "available": false,
-              "direction": "UNAVAILABLE",
+              "available": true,
+              "direction": "FLAT",
               "directional_correct": null,
-              "signed_return_bps": null
+              "signed_return_bps": 0.0
             },
             "C": {
-              "available": false,
-              "direction": "UNAVAILABLE",
-              "directional_correct": null,
-              "signed_return_bps": null
+              "available": true,
+              "direction": "LONG",
+              "directional_correct": false,
+              "signed_return_bps": -11.6455
             }
           }
         },
