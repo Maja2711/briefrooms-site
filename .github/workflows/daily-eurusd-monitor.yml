@@ -9,9 +9,13 @@ on:
       - "scripts/daily_eurusd_lifecycle.py"
       - "scripts/daily_eurusd_spot.py"
       - "scripts/daily_eurusd_spot_v12.py"
+      - "scripts/daily_eurusd_spot_v13.py"
+      - "scripts/daily_eurusd_experiment.py"
+      - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
+      - "tests/test_daily_eurusd_a_fallback.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
     # Independent risk monitor. Offset from round 5-minute boundaries.
@@ -27,9 +31,9 @@ concurrency:
 jobs:
   reconcile-eurusd:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
-      PYTHONPATH: ${{ github.workspace }}/scripts
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -41,20 +45,30 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate lifecycle and direct admission code
+      - name: Validate lifecycle, direct admission and A fallback
         run: |
           set -euo pipefail
-          python -m unittest tests.test_daily_eurusd_lifecycle tests.test_daily_eurusd_direct_signal -v
-          python -m py_compile scripts/daily_engine_contract.py scripts/daily_eurusd_lifecycle.py scripts/daily_eurusd_spot.py scripts/daily_eurusd_spot_v12.py
+          python -m unittest \
+            tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_direct_signal \
+            tests.test_daily_eurusd_a_fallback -v
+          python -m py_compile \
+            scripts/daily_engine_contract.py \
+            scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_spot.py \
+            scripts/daily_eurusd_spot_v12.py \
+            scripts/daily_eurusd_spot_v13.py \
+            scripts/daily_eurusd_experiment.py \
+            scripts/daily_eurusd_experiment_v12.py
           node --check scripts/daily-eurusd-spot-public.js
 
-      - name: Reconcile open position and refresh direct-signal candidate
+      - name: Reconcile open position and refresh native-or-A candidate
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot_v12.py \
+          python scripts/daily_eurusd_spot_v13.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot_v12.py \
+          python scripts/daily_eurusd_spot_v13.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
@@ -78,10 +92,12 @@ jobs:
           }
           leaked=sorted(reasons & forbidden)
           if leaked:
-              raise SystemExit(f'legacy admission veto leaked into PR22 runtime: {leaked}')
-          if payload.get('engine_version') != 'eurusd-daily-spot-v1.2.0' and payload.get('status') != 'OPEN':
-              raise SystemExit(f"unexpected PR22 engine version: {payload.get('engine_version')}")
-          print('EURUSD_DIRECT_SIGNAL_ADMISSION_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), sorted(reasons))
+              raise SystemExit(f'legacy admission veto leaked into PR25 runtime: {leaked}')
+          version=payload.get('engine_version')
+          if version not in {'eurusd-daily-spot-v1.3.0','eurusd-daily-spot-v1.2.0','eurusd-daily-spot-v1.1.0'} and payload.get('status') != 'OPEN':
+              raise SystemExit(f"unexpected PR25 engine version: {version}")
+          source=(payload.get('metadata') or {}).get('decision_source','NATIVE_OR_FLAT')
+          print('EURUSD_PR25_PARTICIPATION_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons))
           PY
 
       - name: Persist EURUSD state and append-only outcomes
@@ -89,7 +105,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
+          git add -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
           if git diff --cached --quiet; then
             echo "No EURUSD state change"
             exit 0
