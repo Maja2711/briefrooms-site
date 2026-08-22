@@ -1,0 +1,77 @@
+name: GPW Daily observable recovery audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/gpw-pr-audit-20260819.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+      GPW_RECOVERY_DATE: "2026-08-19"
+      GPW_RECOVERY_CUTOFF: "12:30"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Run contract tests
+        run: |
+          python -m unittest tests.test_gpw_pipeline_v2 tests.test_gpw_market_data tests.test_gpw_daily_control_loop tests.test_gpw_event_layer -v
+          python -m py_compile scripts/gpw_pipeline_v2.py scripts/gpw_provider_v2.py scripts/gpw_event_driven_loop.py
+      - name: Execute full 40-stock pipeline
+        id: pipeline
+        shell: bash
+        run: |
+          set +e
+          python scripts/gpw_event_driven_loop.py --mode auto 2>&1 | tee gpw-recovery.log
+          CODE=${PIPESTATUS[0]}
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          print('FINAL_PAYLOAD')
+          print(json.dumps(payload,ensure_ascii=False,indent=2))
+          PY
+          exit "$CODE"
+      - name: Validate full transaction
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          assert p.get('date')=='2026-08-19', p
+          assert p.get('decision')=='TRANSAKCJA', (p.get('decision'),p.get('reason'),p.get('data_quality'))
+          s=p.get('selection') or {}
+          assert s.get('review',{}).get('approved') is True
+          assert s.get('market_snapshot',{}).get('date')=='2026-08-19'
+          assert s.get('sources')
+          print('SELECTED',s.get('symbol'),s.get('score'),s.get('reference_price'))
+          PY
+      - name: Save diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpw-recovery-audit
+          path: |
+            data/investments/gpw_daily_pick.json
+            data/investments/gpw_daily_pick_learning.json
+            data/internal/gpw_daily_pick_audit/
+            gpw-recovery.log
+          if-no-files-found: warn
