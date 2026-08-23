@@ -9,6 +9,7 @@ on:
       - ".github/workflows/us-daily-stock-position-monitor.yml"
       - "scripts/daily_stock_core.py"
       - "scripts/daily_stock_us_adapter.py"
+      - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/daily-stock-markets-public.js"
       - "scripts/us_daily_stock.py"
@@ -20,6 +21,7 @@ on:
       - "assets/daily-stock-markets.css"
       - "data/investments/us_daily_stock_config.json"
       - "tests/test_daily_stock_core.py"
+      - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_us_daily_stock_position_lifecycle.py"
       - "tests/test_gpw_daily_pick_ui.py"
@@ -69,12 +71,15 @@ jobs:
           set -euo pipefail
           python -m unittest \
             tests.test_daily_stock_core \
+            tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_us_daily_stock \
             tests.test_us_daily_stock_position_lifecycle \
             tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_us_adapter.py \
+            scripts/daily_stock_rejected_candidate_freeze.py \
+            scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
             scripts/build_daily_stock_history_index.py \
             scripts/us_daily_stock.py \
             scripts/us_daily_stock_runtime.py \
@@ -116,6 +121,12 @@ jobs:
           else:
               print('US_DAILY_STOCK_STATE',action or p.get('decision'),p.get('reason'))
           PY
+
+      - name: Freeze PR29.1 rejected US candidates before commit
+        run: |
+          set -euo pipefail
+          python scripts/daily_stock_rejected_candidate_freeze.py --market us
+          python scripts/daily_stock_rejected_candidate_freeze.py --market us --verify
 
       - name: Rebuild shared GPW and US Daily Stock history index
         run: python scripts/build_daily_stock_history_index.py
