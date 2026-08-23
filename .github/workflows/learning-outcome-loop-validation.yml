@@ -1,0 +1,59 @@
+name: Learning Outcome Loop validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/learning_ledger.py"
+      - "scripts/learning_outcome_loop.py"
+      - "tests/test_learning_ledger.py"
+      - "tests/test_learning_outcome_loop.py"
+      - "docs/LEARNING_LEDGER_OUTCOME_LOOP_V1.md"
+      - "docs/LEARNING_OUTCOME_LOOP_INTEGRATION.md"
+      - ".github/workflows/learning-outcome-loop.yml"
+      - ".github/workflows/learning-outcome-loop-validation.yml"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile PR27 and PR28 learning components
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/learning_ledger.py scripts/learning_outcome_loop.py
+      - name: Run Learning Ledger and Outcome Loop tests
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
+      - name: Validate production workflow syntax-sensitive invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          workflow=Path('.github/workflows/learning-outcome-loop.yml').read_text(encoding='utf-8')
+          required=[
+              'name: Learning Outcome Loop',
+              'learning-outcome-loop-state',
+              'learning-outcome-loop-checkpoint',
+              'Belief Core Live Shadow Collection',
+              'Publish EN US Daily Stock',
+              'Monitor US Daily Stock Position',
+              'Monitor Daily EURUSD',
+              'Publish PL GPW Daily Pick',
+              'Monitor PL GPW Daily Trade Outcomes',
+              'FAIL_CLOSED',
+          ]
+          for marker in required:
+              assert marker in workflow, marker
+          assert 'contents: write' not in workflow
+          assert 'git push' not in workflow
+          print('PR28_WORKFLOW_GOVERNANCE_PASS')
+          PY
