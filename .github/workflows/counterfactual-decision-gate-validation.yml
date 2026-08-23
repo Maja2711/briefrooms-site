@@ -1,0 +1,91 @@
+name: Counterfactual Decision Gate Diagnostics validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/counterfactual_decision_gate_diagnostics.py"
+      - "scripts/learning_ledger.py"
+      - "tests/test_counterfactual_decision_gate_diagnostics.py"
+      - "docs/COUNTERFACTUAL_DECISION_GATE_DIAGNOSTICS.md"
+      - ".github/workflows/counterfactual-decision-gate-validation.yml"
+      - ".github/workflows/learning-outcome-loop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile PR27-PR29 learning components
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/learning_ledger.py \
+            scripts/learning_outcome_loop.py \
+            scripts/counterfactual_decision_gate_diagnostics.py
+
+      - name: Run PR29 unit tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_learning_ledger \
+            tests.test_counterfactual_decision_gate_diagnostics -v
+
+      - name: Smoke test current-repo adapters without historical backfill
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/pr29-smoke"
+          mkdir -p "$state"
+          : > "$state/learning_ledger.jsonl"
+          python scripts/counterfactual_decision_gate_diagnostics.py \
+            --state-dir "$state" \
+            --repo-root .
+          python scripts/counterfactual_decision_gate_diagnostics.py \
+            --state-dir "$state" \
+            --verify
+          python scripts/counterfactual_decision_gate_diagnostics.py \
+            --state-dir "$state" \
+            --registry > /tmp/pr29-registry.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          registry=json.loads(Path('/tmp/pr29-registry.json').read_text())
+          assert set(registry['engines']) == {
+              'gpw_daily','us_daily','eurusd_daily','wes','brace_portfolio_10k','brace_spx_g6'
+          }
+          assert 'belief_core' in registry['non_decision_layers']
+          assert 'gse' in registry['non_decision_layers']
+          print('PR29_ENGINE_REGISTRY_PASS')
+          PY
+
+      - name: Enforce governance markers
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('scripts/counterfactual_decision_gate_diagnostics.py').read_text(encoding='utf-8')
+          required=[
+              'historical_backfill": False',
+              'same_cycle_snapshot_outcome_binding": False',
+              'counterfactual_direction_synthesis": False',
+              'risk_plan_reconstruction_after_outcome": False',
+              'source_engine_writeback": False',
+              'gate_threshold_writeback": False',
+              'flat_policy_writeback": False',
+              'insufficient_counterfactual_state',
+          ]
+          for marker in required:
+              assert marker in code, marker
+          workflow=Path('.github/workflows/learning-outcome-loop.yml').read_text(encoding='utf-8')
+          assert 'contents: write' not in workflow
+          assert 'git push' not in workflow
+          print('PR29_ZERO_AUTHORITY_WORKFLOW_PASS')
+          PY
