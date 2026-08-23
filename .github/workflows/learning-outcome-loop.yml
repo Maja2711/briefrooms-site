@@ -3,7 +3,8 @@ name: Learning Outcome Loop
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"
+    - cron: "15 6 * * 0"
   workflow_run:
     workflows:
       - "Belief Core Live Shadow Collection"
@@ -29,7 +30,9 @@ env:
 
 jobs:
   collect:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -51,7 +54,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/learning_ledger.py scripts/learning_outcome_loop.py
-          python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
+          python -m unittest discover -s tests -p 'test_learning_outcome_loop*.py' -v
+          python -m unittest tests.test_learning_ledger -v
 
       - name: Prepare private runtime directories
         run: |
@@ -80,18 +84,31 @@ jobs:
           fi
 
           echo "bootstrap=false" >> "$GITHUB_OUTPUT"
-          rm -rf "$RUNNER_TEMP/learning-artifact"
-          mkdir -p "$RUNNER_TEMP/learning-artifact"
-
           restored=false
           for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
-            rm -rf "$RUNNER_TEMP/learning-artifact"/*
-            if gh run download "$prior_success" -n "$artifact" -D "$RUNNER_TEMP/learning-artifact"; then
+            mapfile -t candidate_runs < <(
+              gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact}&per_page=100" \
+                --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .workflow_run.id'
+            )
+            for run_id in "${candidate_runs[@]}"; do
+              [[ -n "$run_id" ]] || continue
+              run_meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+              run_name="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+              run_result="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+              [[ "$run_name" == "Learning Outcome Loop" && "$run_result" == "success" ]] || continue
+
+              rm -rf "$RUNNER_TEMP/learning-artifact" "$LEARNING_STATE_DIR"
+              mkdir -p "$RUNNER_TEMP/learning-artifact" "$LEARNING_STATE_DIR"
+              if ! gh run download "$run_id" -n "$artifact" -D "$RUNNER_TEMP/learning-artifact"; then
+                continue
+              fi
               archive="$RUNNER_TEMP/learning-artifact/$ARCHIVE_NAME"
-              if [[ -s "$archive" ]]; then
-                tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
-                if python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify; then
-                  python - <<'PY'
+              [[ -s "$archive" ]] || continue
+              tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
+              if ! python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify; then
+                continue
+              fi
+              if python - <<'PY'
           import json, os
           from pathlib import Path
           root=Path(os.environ['LEARNING_STATE_DIR'])
@@ -101,16 +118,15 @@ jobs:
           assert activation['anti_hindsight']['same_cycle_outcome_binding'] is False
           print('PR28_RESTORE_OK', activation['activated_at'])
           PY
-                  restored=true
-                  break
-                fi
-                rm -rf "$LEARNING_STATE_DIR"/*
+              then
+                restored=true
+                break 2
               fi
-            fi
+            done
           done
 
           if [[ "$restored" != true ]]; then
-            echo "A previous successful PR28 run exists but neither durable artifact restored cleanly." >&2
+            echo "A previous successful PR28 run exists but no valid durable state artifact could be restored." >&2
             echo "FAIL_CLOSED: refusing to create a new activation boundary." >&2
             exit 1
           fi
@@ -158,6 +174,7 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Collect prospective forecasts decisions and outcomes
+        id: collect
         shell: bash
         env:
           BOOTSTRAP: ${{ steps.restore.outputs.bootstrap }}
@@ -176,6 +193,16 @@ jobs:
           fi
           python scripts/learning_outcome_loop.py "${args[@]}"
           python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
+          changed="$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          status=json.loads((Path(os.environ['LEARNING_STATE_DIR'])/'learning_loop_status.json').read_text(encoding='utf-8'))
+          bootstrap=os.environ.get('BOOTSTRAP') == 'true'
+          print('true' if bootstrap or int(status['events_after']) > int(status['events_before']) else 'false')
+          PY
+          )"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "PR28_STATE_CHANGED=$changed"
 
       - name: Validate zero authority and anti-hindsight state
         run: |
@@ -197,6 +224,7 @@ jobs:
           PY
 
       - name: Pack private cumulative learning state
+        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         run: |
           set -euo pipefail
           tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$LEARNING_STATE_DIR" .
@@ -204,6 +232,7 @@ jobs:
           ls -lh "$RUNNER_TEMP/$ARCHIVE_NAME"
 
       - name: Store primary Learning Outcome Loop state
+        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         uses: actions/upload-artifact@v4
         with:
           name: learning-outcome-loop-state
@@ -213,6 +242,7 @@ jobs:
           compression-level: 0
 
       - name: Store independent PR28 checkpoint
+        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         uses: actions/upload-artifact@v4
         with:
           name: learning-outcome-loop-checkpoint
