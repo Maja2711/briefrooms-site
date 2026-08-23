@@ -1,0 +1,75 @@
+name: Daily Stock Rejected Candidate Freeze validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/daily_stock_rejected_candidate_freeze.py"
+      - "scripts/counterfactual_decision_gate_diagnostics_v29_1.py"
+      - "tests/test_daily_stock_rejected_candidate_freeze.py"
+      - ".github/workflows/gpw-daily-pick-pl.yml"
+      - ".github/workflows/us-daily-stock-en.yml"
+      - ".github/workflows/learning-outcome-loop.yml"
+      - ".github/workflows/daily-stock-rejected-candidate-freeze-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile PR29.1 components
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_stock_rejected_candidate_freeze.py \
+            scripts/counterfactual_decision_gate_diagnostics.py \
+            scripts/counterfactual_decision_gate_diagnostics_v29_1.py
+      - name: Run PR29.1 and PR29 regression tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_learning_ledger \
+            tests.test_counterfactual_decision_gate_diagnostics \
+            tests.test_daily_stock_rejected_candidate_freeze -v
+      - name: Validate publisher and collector integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          gpw=Path('.github/workflows/gpw-daily-pick-pl.yml').read_text(encoding='utf-8')
+          us=Path('.github/workflows/us-daily-stock-en.yml').read_text(encoding='utf-8')
+          learning=Path('.github/workflows/learning-outcome-loop.yml').read_text(encoding='utf-8')
+          for workflow, market in [(gpw,'gpw'),(us,'us')]:
+              marker=f'python scripts/daily_stock_rejected_candidate_freeze.py --market {market}'
+              assert marker in workflow, marker
+              assert f'{marker} --verify' in workflow
+          assert 'counterfactual_decision_gate_diagnostics_v29_1.py' in learning
+          assert 'tests.test_daily_stock_rejected_candidate_freeze' in learning
+          assert 'contents: write' not in learning
+          assert 'git push' not in learning
+          print('PR29_1_WORKFLOW_INTEGRATION_PASS')
+          PY
+      - name: Enforce no-authority and no-LLM-rerun contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('scripts/daily_stock_rejected_candidate_freeze.py').read_text(encoding='utf-8')
+          bridge=Path('scripts/counterfactual_decision_gate_diagnostics_v29_1.py').read_text(encoding='utf-8')
+          for marker in [
+              '"decision_influence": False',
+              '"ranking_writeback": False',
+              '"gate_writeback": False',
+              '"historical_backfill": False',
+              '"news_or_llm_rerun": False',
+              'preserve_existing_same_decision',
+          ]:
+              assert marker in code, marker
+          assert 'selected_risk_plan_plus_full_rejected_candidate_state_v29_1' in bridge
+          print('PR29_1_ZERO_AUTHORITY_PASS')
+          PY
