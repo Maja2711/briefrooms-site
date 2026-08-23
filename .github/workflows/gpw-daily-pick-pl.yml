@@ -18,6 +18,7 @@ on:
       - ".github/workflows/gpw-daily-pick-pl.yml"
       - "scripts/daily_stock_core.py"
       - "scripts/daily_stock_gpw_adapter.py"
+      - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/daily-stock-markets-public.js"
       - "scripts/gpw_daily_pick.py"
@@ -33,6 +34,7 @@ on:
       - "assets/daily-stock-markets.css"
       - "data/investments/gpw_daily_pick_config.json"
       - "tests/test_daily_stock_core.py"
+      - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_gpw_daily_pick.py"
       - "tests/test_gpw_daily_control_loop.py"
       - "tests/test_gpw_event_layer.py"
@@ -113,6 +115,7 @@ jobs:
           set -euo pipefail
           python -m unittest \
             tests.test_daily_stock_core \
+            tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_gpw_daily_pick \
             tests.test_gpw_daily_control_loop \
             tests.test_gpw_event_layer \
@@ -122,6 +125,8 @@ jobs:
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_gpw_adapter.py \
+            scripts/daily_stock_rejected_candidate_freeze.py \
+            scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
             scripts/build_daily_stock_history_index.py \
             scripts/gpw_daily_pick.py \
             scripts/gpw_daily_control_loop.py \
@@ -189,6 +194,13 @@ jobs:
               raise SystemExit(f"2026-08-19 recovery requires full TRANSAKCJA, got {payload.get('decision')}: {payload.get('reason')}")
           PY
           fi
+
+      - name: Freeze PR29.1 rejected GPW candidates before commit
+        if: steps.run.outputs.mode == 'auto'
+        run: |
+          set -euo pipefail
+          python scripts/daily_stock_rejected_candidate_freeze.py --market gpw
+          python scripts/daily_stock_rejected_candidate_freeze.py --market gpw --verify
 
       - name: Rebuild shared GPW and US Daily Stock history index
         if: steps.run.outputs.mode != 'validate'
