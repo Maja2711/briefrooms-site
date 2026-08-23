@@ -14,7 +14,9 @@ on:
       - "scripts/gse_discovery_common.py"
       - "scripts/gse_discovery_sources.py"
       - "scripts/gse_discovery_cluster.py"
+      - "scripts/gse_publish_discovery_status.py"
       - "tests/test_gse_historical_event_discovery.py"
+      - "tests/test_gse_publish_discovery_status.py"
       - "data/gse/historical_event_sources.json"
       - "data/gse/historical_event_catalog.json"
       - "docs/GSE_HISTORICAL_EVENT_DISCOVERY.md"
@@ -23,7 +25,7 @@ on:
     - cron: "41 2 * * 0"
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 concurrency:
@@ -32,6 +34,7 @@ concurrency:
 
 env:
   ARTIFACT_NAME: gse-shadow-state
+  PUBLIC_STATUS_PATH: data/gse/historical_discovery_status.json
 
 jobs:
   discover:
@@ -42,6 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -63,7 +67,10 @@ jobs:
           artifact_id=$(python - "$RUNNER_TEMP/gse-artifacts.json" <<'PY'
           import json,sys
           from pathlib import Path
-          p=json.loads(Path(sys.argv[1]).read_text()); r=[x for x in p.get("artifacts",[]) if not x.get("expired")]; r.sort(key=lambda x:x.get("created_at",""),reverse=True); print(r[0]["id"] if r else "")
+          p=json.loads(Path(sys.argv[1]).read_text())
+          r=[x for x in p.get("artifacts",[]) if not x.get("expired")]
+          r.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(r[0]["id"] if r else "")
           PY
           )
           if [ -z "$artifact_id" ]; then
@@ -71,16 +78,27 @@ jobs:
             exit 0
           fi
           curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/gse-state.zip"
-          mkdir -p "$RUNNER_TEMP/gse-artifact"; unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-artifact"
-          test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"; tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+          mkdir -p "$RUNNER_TEMP/gse-artifact"
+          unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-artifact"
+          test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"
+          tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
 
       - name: Validate discovery pipeline
         run: |
           set -euo pipefail
-          python -m py_compile scripts/gse_discovery_common.py scripts/gse_discovery_sources.py scripts/gse_discovery_cluster.py scripts/gse_historical_event_discovery.py scripts/gse_historical_analogue.py scripts/gse_v2_learning_loop.py
+          python -m py_compile \
+            scripts/gse_discovery_common.py \
+            scripts/gse_discovery_sources.py \
+            scripts/gse_discovery_cluster.py \
+            scripts/gse_historical_event_discovery.py \
+            scripts/gse_publish_discovery_status.py \
+            scripts/gse_historical_analogue.py \
+            scripts/gse_v2_learning_loop.py
           python -m json.tool data/gse/historical_event_sources.json >/dev/null
           python -m json.tool data/gse/historical_event_catalog.json >/dev/null
-          PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python -m unittest tests.test_gse_historical_event_discovery -v
+          PYTHONPATH="${GITHUB_WORKSPACE}/scripts:${GITHUB_WORKSPACE}" python -m unittest \
+            tests.test_gse_historical_event_discovery \
+            tests.test_gse_publish_discovery_status -v
           PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python - <<'PY'
           import gse_historical_event_discovery as d
           import gse_discovery_common as c
@@ -90,22 +108,82 @@ jobs:
           PY
 
       - name: Discover verify and cluster historical primary-source events
+        id: discovery
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
-          set -euo pipefail
+          set +e
           args=(
             --state-dir "$GSE_STATE_DIR"
             --curated-catalog data/gse/historical_event_catalog.json
             --source-config data/gse/historical_event_sources.json
-            --require-target
           )
           if [ "${{ github.event_name }}" = "push" ] || { [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_full }}" = "true" ]; }; then
             args+=(--force-full)
           fi
           python scripts/gse_historical_event_discovery.py "${args[@]}"
+          rc=$?
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "Discovery exit code: $rc"
+          exit 0
+
+      - name: Publish compact auditable discovery status
+        id: status
+        if: always()
+        env:
+          DISCOVERY_EXIT_CODE: ${{ steps.discovery.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          rc="${DISCOVERY_EXIT_CODE:-1}"
+          python scripts/gse_publish_discovery_status.py \
+            --state-dir "$GSE_STATE_DIR" \
+            --output "$PUBLIC_STATUS_PATH" \
+            --discovery-exit-code "$rc"
+          cp "$PUBLIC_STATUS_PATH" "$GSE_STATE_DIR/gse_historical_discovery_public_status.json"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from pathlib import Path
+          payload=json.loads(Path(os.environ["PUBLIC_STATUS_PATH"]).read_text())
+          print(f"target_met={str(bool(payload.get('target_met'))).lower()}")
+          value=payload.get('verified_clusters')
+          print(f"verified_clusters={'' if value is None else value}")
+          print(f"status={payload.get('status') or 'unknown'}")
+          PY
+
+      - name: Persist auditable discovery status to main
+        if: always()
+        run: |
+          set -euo pipefail
+          test -f "$PUBLIC_STATUS_PATH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$PUBLIC_STATUS_PATH"
+          if git diff --cached --quiet; then
+            echo "Discovery status unchanged."
+            exit 0
+          fi
+          git commit -m "Update GSE historical discovery status"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Status rebase failed on attempt $attempt"
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then
+              echo "Discovery status published to main."
+              exit 0
+            fi
+            echo "Status push failed on attempt $attempt"
+            sleep $((attempt * 2))
+          done
+          echo "Unable to publish discovery status after retries." >&2
+          exit 1
 
       - name: Rebuild historical analogue library on effective catalogue
+        if: steps.discovery.outputs.exit_code == '0' && steps.status.outputs.target_met == 'true'
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
@@ -114,6 +192,7 @@ jobs:
             --catalog "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json"
 
       - name: Run advanced GSE v2 learning on expanded history
+        if: steps.discovery.outputs.exit_code == '0' && steps.status.outputs.target_met == 'true'
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
@@ -122,19 +201,18 @@ jobs:
             --catalog "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" \
             --refresh-days 7
 
-      - name: Validate 100-cluster gate and zero-authority boundary
+      - name: Validate zero-authority boundary after expanded learning
+        if: steps.discovery.outputs.exit_code == '0' && steps.status.outputs.target_met == 'true'
         run: |
           python - <<'PY'
-          import json,os
+          import json, os
           from pathlib import Path
           root=Path(os.environ['GSE_STATE_DIR'])
           state=json.loads((root/'gse_historical_discovery_state.json').read_text())
           catalog=json.loads((root/'gse_historical_event_catalog_effective.json').read_text())
           controls=state['controls']
-          assert state['target_met'] is True
           assert int(state['effective_verified_cluster_n']) >= 100
           assert int(catalog['coverage']['verified_cluster_n']) >= 100
-          assert catalog['coverage']['target_met'] is True
           assert controls['market_outcomes_used_for_event_selection'] is False
           assert controls['automatic_tuning_enabled'] is False
           assert controls['decision_engine_connected'] is False
@@ -143,16 +221,16 @@ jobs:
           assert controls['policy_output_enabled'] is False
           assert catalog['governance']['market_outcomes_used_for_event_selection'] is False
           assert catalog['governance']['decision_influence'] is False
-          print('GSE historical discovery target:', state['effective_verified_cluster_n'])
-          print('Balance:', state['quality_balance_gate'])
-          print('By scenario:', state['by_scenario'])
-          print('By source:', state['by_source'])
           PY
 
-      - name: Pack cumulative GSE state
-        run: tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .
+      - name: Pack cumulative GSE state even when target is not met
+        if: always()
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .
 
-      - name: Store cumulative GSE shadow state
+      - name: Store cumulative GSE shadow state even when target is not met
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gse-shadow-state
@@ -160,3 +238,30 @@ jobs:
           if-no-files-found: error
           retention-days: 60
           compression-level: 0
+
+      - name: Enforce discovery runtime and 100-cluster gate
+        if: always()
+        env:
+          DISCOVERY_EXIT_CODE: ${{ steps.discovery.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          rc="${DISCOVERY_EXIT_CODE:-1}"
+          python - "$rc" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          rc=int(sys.argv[1])
+          path=Path(os.environ['PUBLIC_STATUS_PATH'])
+          if not path.exists():
+              raise SystemExit('Auditable GSE discovery status was not published')
+          status=json.loads(path.read_text())
+          print('GSE discovery status:', status.get('status'))
+          print('Verified clusters:', status.get('verified_clusters'))
+          print('Target:', status.get('target_verified_clusters'))
+          print('Quality balance:', status.get('quality_balance_gate'))
+          print('By scenario:', status.get('by_scenario'))
+          print('By source:', status.get('by_source'))
+          if rc != 0:
+              raise SystemExit(f'Historical discovery runtime failed with exit code {rc}')
+          if not status.get('target_met') or int(status.get('verified_clusters') or 0) < 100:
+              raise SystemExit('Historical discovery target not met: verified_clusters < 100')
+          PY
