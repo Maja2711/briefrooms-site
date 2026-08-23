@@ -13,6 +13,9 @@ on:
       - "Monitor Daily EURUSD"
       - "Publish PL GPW Daily Pick"
       - "Monitor PL GPW Daily Trade Outcomes"
+      - "Weekly Engine Star"
+      - "BRACE Portfolio Research and Paper Control"
+      - "BRACE-SPX Generation 6"
     types: [completed]
 
 permissions:
@@ -50,12 +53,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate PR28 collector before touching durable state
+      - name: Validate PR28 and PR29 collectors before touching durable state
         run: |
           set -euo pipefail
-          python -m py_compile scripts/learning_ledger.py scripts/learning_outcome_loop.py
+          python -m py_compile \
+            scripts/learning_ledger.py \
+            scripts/learning_outcome_loop.py \
+            scripts/counterfactual_decision_gate_diagnostics.py
           python -m unittest discover -s tests -p 'test_learning_outcome_loop*.py' -v
           python -m unittest tests.test_learning_ledger -v
+          python -m unittest tests.test_counterfactual_decision_gate_diagnostics -v
 
       - name: Prepare private runtime directories
         run: |
@@ -204,6 +211,32 @@ jobs:
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
           echo "PR28_STATE_CHANGED=$changed"
 
+      - name: Freeze PR29 counterfactual decisions and refresh gate diagnostics
+        id: pr29
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr29_bootstrap=false
+          if [[ ! -f "$LEARNING_STATE_DIR/counterfactual_activation.json" ]]; then
+            pr29_bootstrap=true
+          fi
+          python scripts/counterfactual_decision_gate_diagnostics.py \
+            --state-dir "$LEARNING_STATE_DIR" \
+            --repo-root .
+          python scripts/counterfactual_decision_gate_diagnostics.py \
+            --state-dir "$LEARNING_STATE_DIR" \
+            --verify
+          changed="$(PR29_BOOTSTRAP="$pr29_bootstrap" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          status=json.loads((Path(os.environ['LEARNING_STATE_DIR'])/'counterfactual_status.json').read_text(encoding='utf-8'))
+          bootstrap=os.environ.get('PR29_BOOTSTRAP') == 'true'
+          print('true' if bootstrap or int(status['events_after']) > int(status['events_before']) else 'false')
+          PY
+          )"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "PR29_STATE_CHANGED=$changed"
+
       - name: Validate zero authority and anti-hindsight state
         run: |
           set -euo pipefail
@@ -212,19 +245,26 @@ jobs:
           from pathlib import Path
           sys.path.insert(0,'scripts')
           from learning_outcome_loop import integration_safety_controls
+          from counterfactual_decision_gate_diagnostics import safety_controls as pr29_safety, verify_pr29_state
           root=Path(os.environ['LEARNING_STATE_DIR'])
           status=json.loads((root/'learning_loop_status.json').read_text(encoding='utf-8'))
           activation=json.loads((root/'learning_loop_activation.json').read_text(encoding='utf-8'))
+          cf_activation=json.loads((root/'counterfactual_activation.json').read_text(encoding='utf-8'))
           assert all(value is False for value in integration_safety_controls().values())
           assert all(value is False for value in status['zero_authority'].values())
+          assert all(value is False for value in pr29_safety().values())
           assert activation['anti_hindsight']['historical_backfill'] is False
           assert activation['anti_hindsight']['same_cycle_outcome_binding'] is False
+          assert cf_activation['anti_hindsight']['historical_backfill'] is False
+          assert cf_activation['anti_hindsight']['same_cycle_snapshot_outcome_binding'] is False
+          verified=verify_pr29_state(root)
           print('PR28_ZERO_AUTHORITY_PASS', status['events_before'], status['events_after'])
           print('PR28_SOURCES', json.dumps(status.get('sources',{}), sort_keys=True))
+          print('PR29_ZERO_AUTHORITY_PASS', json.dumps(verified, sort_keys=True))
           PY
 
       - name: Pack private cumulative learning state
-        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
+        if: steps.collect.outputs.changed == 'true' || steps.pr29.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         run: |
           set -euo pipefail
           tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$LEARNING_STATE_DIR" .
@@ -232,7 +272,7 @@ jobs:
           ls -lh "$RUNNER_TEMP/$ARCHIVE_NAME"
 
       - name: Store primary Learning Outcome Loop state
-        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
+        if: steps.collect.outputs.changed == 'true' || steps.pr29.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         uses: actions/upload-artifact@v4
         with:
           name: learning-outcome-loop-state
@@ -241,8 +281,8 @@ jobs:
           retention-days: 90
           compression-level: 0
 
-      - name: Store independent PR28 checkpoint
-        if: steps.collect.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
+      - name: Store independent PR28-PR29 checkpoint
+        if: steps.collect.outputs.changed == 'true' || steps.pr29.outputs.changed == 'true' || github.event.schedule == '15 6 * * 0'
         uses: actions/upload-artifact@v4
         with:
           name: learning-outcome-loop-checkpoint
