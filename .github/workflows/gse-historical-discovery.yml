@@ -83,9 +83,10 @@ jobs:
           PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python -m unittest tests.test_gse_historical_event_discovery -v
           PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python - <<'PY'
           import gse_historical_event_discovery as d
+          import gse_discovery_common as c
           assert d.MODE == 'shadow'
           assert d.TARGET_VERIFIED_CLUSTERS == 100
-          assert d.MIN_VERIFY_SCORE >= 0.75
+          assert c.MIN_VERIFY_SCORE >= 0.75
           PY
 
       - name: Discover verify and cluster historical primary-source events
