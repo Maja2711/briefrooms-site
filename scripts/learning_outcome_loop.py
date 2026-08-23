@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 """PR28 — prospective Learning Ledger / Outcome Loop integration.
 
-Reads existing authoritative engine outputs and copies only prospectively observed,
-immutable decision/forecast/outcome facts into the PR27 Learning Ledger.
-
-This module has zero decision authority. It never changes source engine state,
-weights, beliefs, causal edges, ranking, sizing or execution. Anti-hindsight is
-strict: a resolved outcome/verification is admitted only when its upstream
-forecast/decision was already present in the ledger before the current sync.
+Copies only prospectively observed immutable facts from existing BriefRooms
+producer state into the PR27 Learning Ledger. It has zero decision authority.
 """
 from __future__ import annotations
 
@@ -78,7 +73,12 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     tmp.replace(path)
 
 
-def ensure_activation(state_dir: Path, *, now: Optional[datetime] = None, bootstrap: bool = False) -> Dict[str, Any]:
+def ensure_activation(
+    state_dir: Path,
+    *,
+    now: Optional[datetime] = None,
+    bootstrap: bool = False,
+) -> Dict[str, Any]:
     path = state_dir / ACTIVATION_FILENAME
     existing = _load_json(path)
     if isinstance(existing, dict):
@@ -88,10 +88,9 @@ def ensure_activation(state_dir: Path, *, now: Optional[datetime] = None, bootst
         return existing
     if not bootstrap:
         raise RuntimeError("learning-loop activation state missing; refusing silent first-run reset")
-    activated = now or datetime.now(timezone.utc)
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "activated_at": iso_z(activated),
+        "activated_at": iso_z(now or datetime.now(timezone.utc)),
         "anti_hindsight": {
             "historical_backfill": False,
             "outcome_requires_preexisting_upstream_event": True,
@@ -110,7 +109,10 @@ def _event_key(event_type: str, subject_id: str) -> tuple[str, str]:
 
 
 def _event_index(events: Iterable[Mapping[str, Any]]) -> set[tuple[str, str]]:
-    return {_event_key(str(row.get("event_type") or ""), str(row.get("subject_id") or "")) for row in events}
+    return {
+        _event_key(str(row.get("event_type") or ""), str(row.get("subject_id") or ""))
+        for row in events
+    }
 
 
 def _after_activation(value: str, activated_at: datetime) -> bool:
@@ -118,7 +120,10 @@ def _after_activation(value: str, activated_at: datetime) -> bool:
 
 
 def _inc(summary: Dict[str, Any], source: str, field: str, amount: int = 1) -> None:
-    bucket = summary.setdefault("sources", {}).setdefault(source, {"appended": 0, "skipped_hindsight": 0, "skipped_pre_activation": 0})
+    bucket = summary.setdefault("sources", {}).setdefault(
+        source,
+        {"appended": 0, "skipped_hindsight": 0, "skipped_pre_activation": 0},
+    )
     bucket[field] = int(bucket.get(field, 0)) + amount
 
 
@@ -147,7 +152,8 @@ def _append_once(
     )
     current_index.add(key)
     _inc(summary, source, "appended")
-    summary["appended_by_type"][event_type] = int(summary["appended_by_type"].get(event_type, 0)) + 1
+    counts = summary["appended_by_type"]
+    counts[event_type] = int(counts.get(event_type, 0)) + 1
 
 
 def sync_belief_core(
@@ -164,9 +170,7 @@ def sync_belief_core(
         return
     forecasts = [row for row in (state.get("forecasts") or []) if isinstance(row, dict)]
     verifications = [row for row in (state.get("verifications") or []) if isinstance(row, dict)]
-    verification_by_forecast = {
-        str(row.get("forecast_id")): row for row in verifications if row.get("forecast_id")
-    }
+    verified_ids = {str(row.get("forecast_id")) for row in verifications if row.get("forecast_id")}
 
     for row in sorted(forecasts, key=lambda x: (str(x.get("forecast_at") or ""), str(x.get("forecast_id") or ""))):
         forecast_id = str(row.get("forecast_id") or "")
@@ -176,13 +180,13 @@ def sync_belief_core(
         if not _after_activation(forecast_at, activated_at):
             _inc(summary, "belief_core", "skipped_pre_activation")
             continue
-        # If first observation of this forecast happens only after it has already
-        # been verified, admitting it would reconstruct a pre-outcome state with hindsight.
-        if forecast_id in verification_by_forecast and _event_key("forecast", forecast_id) not in preexisting_index:
+        if forecast_id in verified_ids and _event_key("forecast", forecast_id) not in preexisting_index:
             _inc(summary, "belief_core", "skipped_hindsight")
             continue
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source="belief_core",
             event_type="forecast",
             occurred_at=forecast_at,
@@ -204,7 +208,6 @@ def sync_belief_core(
             },
         )
 
-    # Outcomes/verifications require a forecast that existed before this sync.
     for row in sorted(verifications, key=lambda x: (str(x.get("verified_at") or ""), str(x.get("verification_id") or ""))):
         forecast_id = str(row.get("forecast_id") or "")
         verified_at = str(row.get("verified_at") or "")
@@ -216,13 +219,16 @@ def sync_belief_core(
         if _event_key("forecast", forecast_id) not in preexisting_index:
             _inc(summary, "belief_core", "skipped_hindsight")
             continue
+        outcome_ref = str(row.get("outcome_ref") or "")
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source="belief_core",
             event_type="outcome",
             occurred_at=verified_at,
             subject_id=forecast_id,
-            source_ref=str(row.get("outcome_ref") or f"belief-core://verification/{row.get('verification_id') or forecast_id}"),
+            source_ref=outcome_ref or f"belief-core://verification/{row.get('verification_id') or forecast_id}",
             payload={
                 "outcome": bool(row.get("outcome")),
                 "outcome_source": row.get("outcome_source"),
@@ -231,7 +237,9 @@ def sync_belief_core(
             },
         )
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source="belief_core",
             event_type="verification",
             occurred_at=verified_at,
@@ -254,16 +262,6 @@ def sync_belief_core(
         )
 
 
-def _stock_subject(market: str, payload: Mapping[str, Any]) -> str:
-    selection = payload.get("selection") or {}
-    symbol = str(selection.get("symbol") or selection.get("ticker") or "NO_TRADE")
-    date = str(payload.get("date") or "unknown-date")
-    position = payload.get("position") or {}
-    if market == "us" and position.get("position_id"):
-        return str(position["position_id"])
-    return f"{market}:{date}:{symbol}"
-
-
 def _stock_payloads(history_dir: Path, current_path: Optional[Path], market: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     if history_dir.exists():
@@ -273,11 +271,10 @@ def _stock_payloads(history_dir: Path, current_path: Optional[Path], market: str
                     from us_daily_stock_position_lifecycle import canonical_history_payloads
                 except ModuleNotFoundError:
                     from scripts.us_daily_stock_position_lifecycle import canonical_history_payloads
-                canonical, _suppressed = canonical_history_payloads(history_dir)
+                canonical, _ = canonical_history_payloads(history_dir)
                 rows.extend(x for x in canonical if isinstance(x, dict))
-            except Exception:
-                # Fail closed on canonicalization failure instead of ingesting overlapping legacy signals.
-                raise RuntimeError("unable to canonicalize US Daily Stock history")
+            except Exception as exc:
+                raise RuntimeError("unable to canonicalize US Daily Stock history") from exc
         else:
             for path in sorted(history_dir.glob("????-??-??.json")):
                 payload = _load_json(path)
@@ -287,9 +284,26 @@ def _stock_payloads(history_dir: Path, current_path: Optional[Path], market: str
         current = _load_json(current_path)
         if isinstance(current, dict):
             signature = (str(current.get("date") or ""), str(current.get("generated_at") or ""))
-            if signature not in {(str(x.get("date") or ""), str(x.get("generated_at") or "")) for x in rows}:
+            known = {(str(x.get("date") or ""), str(x.get("generated_at") or "")) for x in rows}
+            if signature not in known:
                 rows.append(current)
     return rows
+
+
+def _stock_identity(market: str, row: Mapping[str, Any]) -> tuple[str, str, Mapping[str, Any], str]:
+    selection = row.get("selection") if isinstance(row.get("selection"), Mapping) else {}
+    generated_at = str(row.get("generated_at") or "")
+    decision = str(row.get("decision") or "")
+    if market == "us" and isinstance(row.get("position"), Mapping):
+        position = row["position"]
+        if position.get("position_id") and position.get("opened_at"):
+            entry_selection = position.get("entry_selection")
+            if isinstance(entry_selection, Mapping):
+                selection = entry_selection
+            return str(position["position_id"]), str(position["opened_at"]), selection, "TRADE"
+    symbol = str(selection.get("symbol") or selection.get("ticker") or "NO_TRADE")
+    date = str(row.get("date") or "unknown-date")
+    return f"{market}:{date}:{symbol}", generated_at, selection, decision
 
 
 def sync_daily_stock(
@@ -304,34 +318,33 @@ def sync_daily_stock(
     summary: Dict[str, Any],
 ) -> None:
     trade_decision = "TRADE" if market == "us" else "TRANSAKCJA"
-    for row in sorted(_stock_payloads(history_dir, current_path, market), key=lambda x: str(x.get("generated_at") or "")):
-        generated_at = str(row.get("generated_at") or "")
-        if not generated_at:
+    rows = _stock_payloads(history_dir, current_path, market)
+    for row in sorted(rows, key=lambda x: str(x.get("generated_at") or "")):
+        subject_id, decision_at, selection, decision = _stock_identity(market, row)
+        if not decision_at:
             continue
-        if not _after_activation(generated_at, activated_at):
+        if not _after_activation(decision_at, activated_at):
             _inc(summary, market, "skipped_pre_activation")
             continue
-        subject_id = _stock_subject(market, row)
-        outcome = row.get("outcome") if isinstance(row.get("outcome"), dict) else {}
+        outcome = row.get("outcome") if isinstance(row.get("outcome"), Mapping) else {}
         resolved = str(outcome.get("status") or "").upper() == "RESOLVED"
         had_decision_before = _event_key("decision", subject_id) in preexisting_index
-
-        # Never reconstruct a resolved trade as a fresh pre-outcome decision.
         if resolved and not had_decision_before:
             _inc(summary, market, "skipped_hindsight")
             continue
 
-        selection = row.get("selection") if isinstance(row.get("selection"), dict) else {}
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source=market,
             event_type="decision",
-            occurred_at=generated_at,
+            occurred_at=decision_at,
             subject_id=subject_id,
             source_ref=f"{market}-daily://{row.get('date') or subject_id}",
             payload={
                 "market": market,
-                "decision": row.get("decision"),
+                "decision": decision,
                 "reason": row.get("reason"),
                 "policy_version": row.get("policy_version"),
                 "date": row.get("date"),
@@ -345,19 +358,24 @@ def sync_daily_stock(
                 "target": selection.get("target"),
                 "reward_risk": selection.get("reward_risk"),
                 "valid_until": selection.get("valid_until"),
-                "is_trade": str(row.get("decision") or "") == trade_decision,
+                "is_trade": decision == trade_decision,
             },
         )
-
         if not resolved:
             continue
-        resolved_at = str(outcome.get("resolved_at") or outcome.get("exit_bar_at") or generated_at)
-        # Strictly require the decision to have existed on a previous collector run.
         if not had_decision_before:
             _inc(summary, market, "skipped_hindsight")
             continue
+        resolved_at = str(
+            outcome.get("resolved_at")
+            or outcome.get("closed_at")
+            or outcome.get("exit_bar_at")
+            or decision_at
+        )
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source=market,
             event_type="outcome",
             occurred_at=resolved_at,
@@ -371,9 +389,11 @@ def sync_daily_stock(
                 "entry_price": outcome.get("entry_price"),
                 "exit_price": outcome.get("exit_price"),
                 "exit_reason": outcome.get("exit_reason"),
+                "closed_at": outcome.get("closed_at"),
                 "return_percent": outcome.get("return_percent"),
                 "gross_return_percent": outcome.get("gross_return_percent"),
                 "r_multiple": outcome.get("r_multiple"),
+                "outcome": outcome.get("outcome"),
                 "cost_assumption_percent": outcome.get("cost_assumption_percent"),
                 "settlement_policy": outcome.get("settlement_policy"),
             },
@@ -392,14 +412,16 @@ def sync_eurusd(
 ) -> None:
     current = _load_json(current_path, {})
     if isinstance(current, dict):
-        metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
-        position = metadata.get("position") if isinstance(metadata.get("position"), dict) else {}
+        metadata = current.get("metadata") if isinstance(current.get("metadata"), Mapping) else {}
+        position = metadata.get("position") if isinstance(metadata.get("position"), Mapping) else {}
         trade_id = str(position.get("trade_id") or "")
         opened_at = str(position.get("opened_at") or "")
         if trade_id and opened_at and str(position.get("status") or "").upper() == "OPEN":
             if _after_activation(opened_at, activated_at):
                 _append_once(
-                    ledger, current_index, summary,
+                    ledger,
+                    current_index,
+                    summary,
                     source="eurusd",
                     event_type="decision",
                     occurred_at=opened_at,
@@ -435,12 +457,12 @@ def sync_eurusd(
             _inc(summary, "eurusd", "skipped_pre_activation")
             continue
         if _event_key("decision", trade_id) not in preexisting_index:
-            # A trade that opened and closed between collector observations is excluded;
-            # its entry snapshot is not retroactively admitted after the result is known.
             _inc(summary, "eurusd", "skipped_hindsight")
             continue
         _append_once(
-            ledger, current_index, summary,
+            ledger,
+            current_index,
+            summary,
             source="eurusd",
             event_type="outcome",
             occurred_at=closed_at,
@@ -494,13 +516,13 @@ def sync_all(
 
     if belief_state_path and belief_state_path.exists():
         sync_belief_core(
-            belief_state_path, ledger,
+            belief_state_path,
+            ledger,
             activated_at=activated_at,
             preexisting_index=preexisting_index,
             current_index=current_index,
             summary=summary,
         )
-
     sync_daily_stock(
         market="gpw",
         history_dir=investments_dir / "gpw_daily_pick_history",
@@ -545,8 +567,8 @@ def main() -> int:
     parser.add_argument("--state-dir", type=Path, required=True)
     parser.add_argument("--belief-state", type=Path)
     parser.add_argument("--investments-dir", type=Path, default=Path("data/investments"))
-    parser.add_argument("--bootstrap", action="store_true", help="Create a first activation boundary only when no prior state exists")
-    parser.add_argument("--now", help="Test/controlled timestamp")
+    parser.add_argument("--bootstrap", action="store_true")
+    parser.add_argument("--now")
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
 
@@ -554,13 +576,11 @@ def main() -> int:
         result = verify_chain(args.state_dir / LEDGER_FILENAME)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0 if result["ok"] else 2
-
-    now = parse_time(args.now) if args.now else None
     result = sync_all(
         args.state_dir,
         belief_state_path=args.belief_state,
         investments_dir=args.investments_dir,
-        now=now,
+        now=parse_time(args.now) if args.now else None,
         bootstrap=args.bootstrap,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
