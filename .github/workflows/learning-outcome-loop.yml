@@ -59,10 +59,13 @@ jobs:
           python -m py_compile \
             scripts/learning_ledger.py \
             scripts/learning_outcome_loop.py \
-            scripts/counterfactual_decision_gate_diagnostics.py
+            scripts/counterfactual_decision_gate_diagnostics.py \
+            scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
+            scripts/daily_stock_rejected_candidate_freeze.py
           python -m unittest discover -s tests -p 'test_learning_outcome_loop*.py' -v
           python -m unittest tests.test_learning_ledger -v
           python -m unittest tests.test_counterfactual_decision_gate_diagnostics -v
+          python -m unittest tests.test_daily_stock_rejected_candidate_freeze -v
 
       - name: Prepare private runtime directories
         run: |
@@ -220,10 +223,10 @@ jobs:
           if [[ ! -f "$LEARNING_STATE_DIR/counterfactual_activation.json" ]]; then
             pr29_bootstrap=true
           fi
-          python scripts/counterfactual_decision_gate_diagnostics.py \
+          python scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
             --state-dir "$LEARNING_STATE_DIR" \
             --repo-root .
-          python scripts/counterfactual_decision_gate_diagnostics.py \
+          python scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
             --state-dir "$LEARNING_STATE_DIR" \
             --verify
           changed="$(PR29_BOOTSTRAP="$pr29_bootstrap" python - <<'PY'
