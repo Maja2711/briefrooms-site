@@ -16,9 +16,11 @@ on:
       - "scripts/belief_adapter_contract.py"
       - "scripts/belief_*_adapter.py"
       - "scripts/learning_ledger.py"
+      - "scripts/learning_outcome_loop.py"
       - "tests/test_belief_core*.py"
       - "tests/test_belief_geopolitical_forecast_adapter.py"
       - "tests/test_learning_ledger.py"
+      - "tests/test_learning_outcome_loop.py"
       - "docs/BELIEF_CORE.md"
       - "docs/BELIEF_CORE_SHADOW_OPERATIONS.md"
       - "docs/BELIEF_EVIDENCE_ADAPTERS.md"
@@ -26,7 +28,10 @@ on:
       - "docs/BELIEF_CALIBRATION_FOUNDATION.md"
       - "docs/BELIEF_GSE_GEOPOLITICAL_ADAPTER.md"
       - "docs/LEARNING_LEDGER_OUTCOME_LOOP_V1.md"
+      - "docs/LEARNING_OUTCOME_LOOP_INTEGRATION.md"
       - ".github/workflows/belief-core-tests.yml"
+      - ".github/workflows/learning-outcome-loop.yml"
+      - ".github/workflows/learning-outcome-loop-validation.yml"
       - ".github/workflows/belief-core-shadow-live.yml"
       - ".github/workflows/belief-core-events-live.yml"
       - ".github/workflows/belief-calibration-live.yml"
@@ -38,7 +43,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 7
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,9 +72,10 @@ jobs:
             scripts/belief_geopolitical_live.py \
             scripts/belief_external_live.py \
             scripts/belief_core_live.py \
-            scripts/learning_ledger.py
+            scripts/learning_ledger.py \
+            scripts/learning_outcome_loop.py
       - name: Run Belief Core unit tests
         run: |
           python -m unittest discover -s tests -p 'test_belief_core*.py' -v
           python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
-          python -m unittest tests.test_learning_ledger -v
+          python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
