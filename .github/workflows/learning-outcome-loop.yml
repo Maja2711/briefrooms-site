@@ -1,0 +1,222 @@
+name: Learning Outcome Loop
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_run:
+    workflows:
+      - "Belief Core Live Shadow Collection"
+      - "Publish EN US Daily Stock"
+      - "Monitor US Daily Stock Position"
+      - "Monitor Daily EURUSD"
+      - "Publish PL GPW Daily Pick"
+      - "Monitor PL GPW Daily Trade Outcomes"
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: learning-outcome-loop
+  cancel-in-progress: false
+
+env:
+  PRIMARY_ARTIFACT: learning-outcome-loop-state
+  CHECKPOINT_ARTIFACT: learning-outcome-loop-checkpoint
+  ARCHIVE_NAME: learning-outcome-loop-state.tgz
+
+jobs:
+  collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate PR28 collector before touching durable state
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/learning_ledger.py scripts/learning_outcome_loop.py
+          python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
+
+      - name: Prepare private runtime directories
+        run: |
+          set -euo pipefail
+          echo "LEARNING_STATE_DIR=$RUNNER_TEMP/learning-outcome-loop" >> "$GITHUB_ENV"
+          echo "BELIEF_STATE_DIR=$RUNNER_TEMP/belief-core-readonly" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/learning-outcome-loop" "$RUNNER_TEMP/belief-core-readonly"
+
+      - name: Restore prior Learning Outcome Loop state or establish first activation
+        id: restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          prior_success="$(gh run list \
+            --workflow learning-outcome-loop.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          if [[ -z "$prior_success" ]]; then
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            echo "No prior successful PR28 run. A new prospective activation boundary is allowed."
+            exit 0
+          fi
+
+          echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+          rm -rf "$RUNNER_TEMP/learning-artifact"
+          mkdir -p "$RUNNER_TEMP/learning-artifact"
+
+          restored=false
+          for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
+            rm -rf "$RUNNER_TEMP/learning-artifact"/*
+            if gh run download "$prior_success" -n "$artifact" -D "$RUNNER_TEMP/learning-artifact"; then
+              archive="$RUNNER_TEMP/learning-artifact/$ARCHIVE_NAME"
+              if [[ -s "$archive" ]]; then
+                tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
+                if python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify; then
+                  python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['LEARNING_STATE_DIR'])
+          activation=json.loads((root/'learning_loop_activation.json').read_text(encoding='utf-8'))
+          assert activation['schema_version']=='learning-outcome-loop-v1'
+          assert activation['anti_hindsight']['historical_backfill'] is False
+          assert activation['anti_hindsight']['same_cycle_outcome_binding'] is False
+          print('PR28_RESTORE_OK', activation['activated_at'])
+          PY
+                  restored=true
+                  break
+                fi
+                rm -rf "$LEARNING_STATE_DIR"/*
+              fi
+            fi
+          done
+
+          if [[ "$restored" != true ]]; then
+            echo "A previous successful PR28 run exists but neither durable artifact restored cleanly." >&2
+            echo "FAIL_CLOSED: refusing to create a new activation boundary." >&2
+            exit 1
+          fi
+
+      - name: Restore latest Belief Core state read-only when available
+        id: belief
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list \
+            --workflow belief-core-shadow-live.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No successful Belief Core shadow run available; trading sources will still be collected."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/belief-artifact"
+          mkdir -p "$RUNNER_TEMP/belief-artifact"
+          if ! gh run download "$run_id" -n belief-core-shadow-state -D "$RUNNER_TEMP/belief-artifact"; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Belief Core artifact unavailable; no belief forecasts will be copied this cycle."
+            exit 0
+          fi
+          archive="$RUNNER_TEMP/belief-artifact/belief-core-state.tgz"
+          if [[ ! -s "$archive" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          tar -xzf "$archive" -C "$BELIEF_STATE_DIR"
+          test -s "$BELIEF_STATE_DIR/state.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          state=json.loads((Path(os.environ['BELIEF_STATE_DIR'])/'state.json').read_text(encoding='utf-8'))
+          assert state.get('schema_version') == 2
+          assert isinstance(state.get('forecasts'), list)
+          assert isinstance(state.get('verifications'), list)
+          print('BELIEF_CORE_READONLY_STATE_OK',len(state['forecasts']),len(state['verifications']))
+          PY
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Collect prospective forecasts decisions and outcomes
+        shell: bash
+        env:
+          BOOTSTRAP: ${{ steps.restore.outputs.bootstrap }}
+          BELIEF_AVAILABLE: ${{ steps.belief.outputs.available }}
+        run: |
+          set -euo pipefail
+          args=(
+            --state-dir "$LEARNING_STATE_DIR"
+            --investments-dir data/investments
+          )
+          if [[ "$BOOTSTRAP" == "true" ]]; then
+            args+=(--bootstrap)
+          fi
+          if [[ "$BELIEF_AVAILABLE" == "true" ]]; then
+            args+=(--belief-state "$BELIEF_STATE_DIR/state.json")
+          fi
+          python scripts/learning_outcome_loop.py "${args[@]}"
+          python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
+
+      - name: Validate zero authority and anti-hindsight state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from learning_outcome_loop import integration_safety_controls
+          root=Path(os.environ['LEARNING_STATE_DIR'])
+          status=json.loads((root/'learning_loop_status.json').read_text(encoding='utf-8'))
+          activation=json.loads((root/'learning_loop_activation.json').read_text(encoding='utf-8'))
+          assert all(value is False for value in integration_safety_controls().values())
+          assert all(value is False for value in status['zero_authority'].values())
+          assert activation['anti_hindsight']['historical_backfill'] is False
+          assert activation['anti_hindsight']['same_cycle_outcome_binding'] is False
+          print('PR28_ZERO_AUTHORITY_PASS', status['events_before'], status['events_after'])
+          print('PR28_SOURCES', json.dumps(status.get('sources',{}), sort_keys=True))
+          PY
+
+      - name: Pack private cumulative learning state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$LEARNING_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$ARCHIVE_NAME"
+          ls -lh "$RUNNER_TEMP/$ARCHIVE_NAME"
+
+      - name: Store primary Learning Outcome Loop state
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-outcome-loop-state
+          path: ${{ runner.temp }}/learning-outcome-loop-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Store independent PR28 checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-outcome-loop-checkpoint
+          path: ${{ runner.temp }}/learning-outcome-loop-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
