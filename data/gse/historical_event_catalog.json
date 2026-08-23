@@ -1,89 +1,35 @@
 {
-  "schema_version": "gse-historical-event-catalog-v1",
-  "catalog_version": "2026-08-19.1",
+  "schema_version": "gse-historical-event-catalog-v2",
+  "catalog_version": "2026-08-23.1",
   "governance": {
     "curated_ex_ante_event_anchors": true,
     "market_outcomes_are_not_stored_in_catalog": true,
+    "market_outcomes_used_for_event_selection": false,
     "future_events_must_not_enter_past_forecasts": true,
+    "event_clusters_prevent_correlated_sample_inflation": true,
+    "event_features_are_defined_without_market_outcomes": true,
     "automatic_event_selection_enabled": false,
-    "automatic_tuning_enabled": false
+    "automatic_tuning_enabled": false,
+    "decision_influence": false
   },
   "events": [
-    {
-      "event_id": "ukraine_full_scale_invasion_2022_02_24",
-      "event_at": "2022-02-24T00:00:00Z",
-      "label": "Russian full-scale military operation inside Ukraine",
-      "scenario_types": [
-        "russia_ukraine_black_sea_escalation",
-        "grain_export_disruption"
-      ],
-      "source": "United Nations",
-      "source_ref": "https://ukraine.un.org/en/173250-statement-secretary-general-%E2%80%93-ukraine",
-      "anchor_rule": "calendar_event_date",
-      "notes": "Primary institutional record dated 24 February 2022."
-    },
-    {
-      "event_id": "russia_financial_sanctions_2022_02_24",
-      "event_at": "2022-02-24T00:00:00Z",
-      "label": "Expansion of U.S. financial sanctions after Russia's invasion",
-      "scenario_types": [
-        "sanctions_escalation",
-        "russia_ukraine_black_sea_escalation"
-      ],
-      "source": "U.S. Department of the Treasury",
-      "source_ref": "https://home.treasury.gov/news/press-releases/jy0608",
-      "anchor_rule": "calendar_event_date",
-      "notes": "Treasury action dated 24 February 2022. Same-day market anchor is correlated with the invasion event and is capped to one effective market episode per date."
-    },
-    {
-      "event_id": "black_sea_grain_initiative_termination_2023_07_17",
-      "event_at": "2023-07-17T00:00:00Z",
-      "label": "Termination of the Black Sea Grain Initiative",
-      "scenario_types": [
-        "grain_export_disruption",
-        "russia_ukraine_black_sea_escalation"
-      ],
-      "source": "United Nations",
-      "source_ref": "https://www.un.org/en/node/185720",
-      "anchor_rule": "calendar_event_date",
-      "notes": "UN background records termination on 17 July 2023."
-    },
-    {
-      "event_id": "red_sea_houthi_strikes_2024_01_12",
-      "event_at": "2024-01-12T00:00:00Z",
-      "label": "U.S. and partner strikes on Houthi military targets after Red Sea shipping attacks",
-      "scenario_types": [
-        "red_sea_shipping_disruption",
-        "middle_east_energy_escalation"
-      ],
-      "source": "U.S. Department of Defense",
-      "source_ref": "https://www.defense.gov/News/News-Stories/Article/Article/3644027/us-partners-forces-strike-houthi-military-targets-in-yemen/",
-      "anchor_rule": "publication_date",
-      "notes": "DoD publication dated 12 January 2024 describes strikes conducted the previous day; publication date is used conservatively as the observable anchor."
-    },
-    {
-      "event_id": "iran_direct_attack_israel_2024_04_13",
-      "event_at": "2024-04-13T00:00:00Z",
-      "label": "Large-scale direct Iranian attack on Israel",
-      "scenario_types": [
-        "middle_east_energy_escalation"
-      ],
-      "source": "United Nations",
-      "source_ref": "https://www.un.org/sg/en/content/sg/statements/2024-04-13/statement-the-secretary-general-regarding-attacks-the-islamic-republic-of-iran-targeting-israel",
-      "anchor_rule": "calendar_event_date",
-      "notes": "UN Secretary-General statement dated 13 April 2024."
-    },
-    {
-      "event_id": "taiwan_joint_sword_2024a_2024_05_23",
-      "event_at": "2024-05-23T00:00:00Z",
-      "label": "Joint Sword-2024A military exercise around Taiwan",
-      "scenario_types": [
-        "china_taiwan_trade_escalation"
-      ],
-      "source": "Taiwan Ministry of National Defense",
-      "source_ref": "https://www.mnd.gov.tw/en/news/pressrelease/83056/436",
-      "anchor_rule": "calendar_event_date",
-      "notes": "Taiwan MND release dated 23 May 2024."
-    }
+    {"event_id":"russia_sectoral_sanctions_2014_07_16","event_cluster_id":"ukraine_2014_sectoral_sanctions_july","event_at":"2014-07-16T00:00:00Z","label":"U.S. sectoral sanctions on major Russian financial and energy institutions","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jl2572","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.72,"surprise":0.6,"global_scope":0.82,"military_relevance":0.35,"energy_relevance":0.75,"shipping_relevance":0.2,"sanctions_relevance":1.0,"food_relevance":0.2,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"crimea_sanctions_2014_12_19","event_cluster_id":"ukraine_2014_crimea_sanctions_december","event_at":"2014-12-19T00:00:00Z","label":"Additional U.S. sanctions on Ukrainian separatists and Russian actors over Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jl9729","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.58,"surprise":0.42,"global_scope":0.66,"military_relevance":0.35,"energy_relevance":0.35,"shipping_relevance":0.15,"sanctions_relevance":1.0,"food_relevance":0.15,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"russia_oligarch_sanctions_2018_04_06","event_cluster_id":"russia_sanctions_2018_april","event_at":"2018-04-06T00:00:00Z","label":"U.S. designates major Russian oligarchs, officials and entities","scenario_types":["sanctions_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm0338","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.7,"surprise":0.62,"global_scope":0.7,"military_relevance":0.2,"energy_relevance":0.4,"shipping_relevance":0.1,"sanctions_relevance":1.0,"food_relevance":0.0,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"iran_full_sanctions_reimposition_2018_11_05","event_cluster_id":"iran_sanctions_2018_november","event_at":"2018-11-05T00:00:00Z","label":"U.S. fully re-imposes nuclear-related sanctions on Iran","scenario_types":["sanctions_escalation","middle_east_energy_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm541","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.82,"surprise":0.45,"global_scope":0.85,"military_relevance":0.2,"energy_relevance":0.95,"shipping_relevance":0.25,"sanctions_relevance":1.0,"food_relevance":0.0,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"russia_crimea_sanctions_2018_11_08","event_cluster_id":"russia_crimea_sanctions_2018_november","event_at":"2018-11-08T00:00:00Z","label":"Additional U.S. sanctions over Russia's occupation of Crimea and eastern Ukraine","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm543","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.55,"surprise":0.38,"global_scope":0.62,"military_relevance":0.3,"energy_relevance":0.3,"shipping_relevance":0.15,"sanctions_relevance":1.0,"food_relevance":0.15,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"kerch_strait_sanctions_2019_03_15","event_cluster_id":"kerch_strait_2019_sanctions","event_at":"2019-03-15T00:00:00Z","label":"Coordinated sanctions over Kerch Strait aggression and Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm629","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.6,"surprise":0.4,"global_scope":0.65,"military_relevance":0.5,"energy_relevance":0.3,"shipping_relevance":0.55,"sanctions_relevance":1.0,"food_relevance":0.15,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"iran_irgc_sanctions_2019_06_24","event_cluster_id":"iran_escalation_2019_june","event_at":"2019-06-24T00:00:00Z","label":"U.S. sanctions senior IRGC commanders and Iran's Supreme Leader structure","scenario_types":["sanctions_escalation","middle_east_energy_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm716","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.72,"surprise":0.58,"global_scope":0.72,"military_relevance":0.6,"energy_relevance":0.65,"shipping_relevance":0.45,"sanctions_relevance":1.0,"food_relevance":0.0,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"soleimani_strike_2020_01_02","event_cluster_id":"iran_us_escalation_2020_january","event_at":"2020-01-02T00:00:00Z","label":"U.S. strike kills IRGC-QF commander Qasem Soleimani","scenario_types":["middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/Releases/release/article/2049534/statement-by-the-department-of-defense/","anchor_rule":"primary_source_publication_date","source_reliability":0.97,"features":{"severity":0.94,"surprise":0.92,"global_scope":0.9,"military_relevance":1.0,"energy_relevance":0.9,"shipping_relevance":0.4,"sanctions_relevance":0.2,"food_relevance":0.0,"china_relevance":0.0},"notes":"Clustered with the subsequent Iranian missile response so one crisis cannot inflate effective N."},
+    {"event_id":"iran_missile_response_2020_01_08","event_cluster_id":"iran_us_escalation_2020_january","event_at":"2020-01-08T00:00:00Z","label":"Iran launches ballistic missiles at Iraqi bases used by U.S. forces","scenario_types":["middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/Article/2052632/trump-no-casualties-in-iranian-missile-attack-us-wont-allow-nuclear-iran/","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.92,"surprise":0.8,"global_scope":0.88,"military_relevance":1.0,"energy_relevance":0.88,"shipping_relevance":0.35,"sanctions_relevance":0.25,"food_relevance":0.0,"china_relevance":0.0},"notes":"Same crisis cluster as the Soleimani strike."},
+    {"event_id":"crimea_sanctions_2021_04_15","event_cluster_id":"russia_crimea_sanctions_2021_april","event_at":"2021-04-15T00:00:00Z","label":"U.S. sanctions persons and entities related to Russia's occupation of Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jy0125","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.55,"surprise":0.35,"global_scope":0.6,"military_relevance":0.28,"energy_relevance":0.28,"shipping_relevance":0.15,"sanctions_relevance":1.0,"food_relevance":0.1,"china_relevance":0.0},"notes":"Market outcomes are not part of the catalogue."},
+    {"event_id":"ukraine_full_scale_invasion_2022_02_24","event_cluster_id":"ukraine_full_scale_invasion_2022_february","event_at":"2022-02-24T00:00:00Z","label":"Russian full-scale military operation inside Ukraine","scenario_types":["russia_ukraine_black_sea_escalation","grain_export_disruption"],"source":"United Nations","source_ref":"https://ukraine.un.org/en/173250-statement-secretary-general-%E2%80%93-ukraine","anchor_rule":"calendar_event_date","source_reliability":0.98,"features":{"severity":1.0,"surprise":0.88,"global_scope":1.0,"military_relevance":1.0,"energy_relevance":0.9,"shipping_relevance":0.7,"sanctions_relevance":0.6,"food_relevance":0.95,"china_relevance":0.0},"notes":"Primary institutional record dated 24 February 2022."},
+    {"event_id":"russia_financial_sanctions_2022_02_24","event_cluster_id":"ukraine_full_scale_invasion_2022_february","event_at":"2022-02-24T00:00:00Z","label":"Expansion of U.S. financial sanctions after Russia's invasion","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jy0608","anchor_rule":"calendar_event_date","source_reliability":0.97,"features":{"severity":0.92,"surprise":0.78,"global_scope":0.95,"military_relevance":0.65,"energy_relevance":0.75,"shipping_relevance":0.45,"sanctions_relevance":1.0,"food_relevance":0.55,"china_relevance":0.0},"notes":"Same crisis cluster as invasion; effective-N cluster cap prevents double counting."},
+    {"event_id":"taiwan_live_fire_exercises_2022_08_04","event_cluster_id":"taiwan_strait_escalation_2022_august","event_at":"2022-08-04T00:00:00Z","label":"PLA live-fire exercise and ballistic missile launches around Taiwan","scenario_types":["china_taiwan_trade_escalation"],"source":"Taiwan Ministry of National Defense","source_ref":"https://www.mnd.gov.tw/en/Publication/80261","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.88,"surprise":0.78,"global_scope":0.9,"military_relevance":1.0,"energy_relevance":0.1,"shipping_relevance":0.65,"sanctions_relevance":0.2,"food_relevance":0.0,"china_relevance":1.0},"notes":"Taiwan MND release records ballistic missile launches on 4 August 2022."},
+    {"event_id":"black_sea_grain_initiative_termination_2023_07_17","event_cluster_id":"black_sea_grain_termination_2023_july","event_at":"2023-07-17T00:00:00Z","label":"Termination of the Black Sea Grain Initiative","scenario_types":["grain_export_disruption","russia_ukraine_black_sea_escalation"],"source":"United Nations","source_ref":"https://www.un.org/en/node/207702","anchor_rule":"calendar_event_date","source_reliability":0.97,"features":{"severity":0.78,"surprise":0.62,"global_scope":0.82,"military_relevance":0.38,"energy_relevance":0.15,"shipping_relevance":0.85,"sanctions_relevance":0.1,"food_relevance":1.0,"china_relevance":0.0},"notes":"UN update dated 17 July 2023."},
+    {"event_id":"red_sea_shipping_crisis_2023_12_21","event_cluster_id":"red_sea_shipping_crisis_2023_december","event_at":"2023-12-21T00:00:00Z","label":"Pentagon details multinational response to continuing Houthi attacks on Red Sea shipping","scenario_types":["red_sea_shipping_disruption","middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/article/3624836/ryder-gives-more-detail-on-how-operation-prosperity-guardian-will-work/","anchor_rule":"primary_source_publication_date","source_reliability":0.96,"features":{"severity":0.82,"surprise":0.66,"global_scope":0.88,"military_relevance":0.72,"energy_relevance":0.65,"shipping_relevance":1.0,"sanctions_relevance":0.1,"food_relevance":0.1,"china_relevance":0.0},"notes":"Uses the observable DoD publication date, not an earlier inferred market date."},
+    {"event_id":"red_sea_houthi_strikes_2024_01_12","event_cluster_id":"red_sea_strikes_2024_january","event_at":"2024-01-12T00:00:00Z","label":"U.S. and partner strikes on Houthi military targets after Red Sea shipping attacks","scenario_types":["red_sea_shipping_disruption","middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/Article/3644027/us-partners-forces-strike-houthi-military-targets-in-yemen/","anchor_rule":"publication_date","source_reliability":0.97,"features":{"severity":0.9,"surprise":0.76,"global_scope":0.88,"military_relevance":0.95,"energy_relevance":0.7,"shipping_relevance":1.0,"sanctions_relevance":0.1,"food_relevance":0.1,"china_relevance":0.0},"notes":"DoD publication dated 12 January 2024."},
+    {"event_id":"iran_direct_attack_israel_2024_04_13","event_cluster_id":"iran_israel_direct_escalation_2024_april","event_at":"2024-04-13T00:00:00Z","label":"Large-scale direct Iranian attack on Israel","scenario_types":["middle_east_energy_escalation"],"source":"United Nations","source_ref":"https://www.un.org/sg/en/content/sg/statements/2024-04-13/statement-the-secretary-general-regarding-attacks-the-islamic-republic-of-iran-targeting-israel","anchor_rule":"calendar_event_date","source_reliability":0.98,"features":{"severity":0.98,"surprise":0.9,"global_scope":0.95,"military_relevance":1.0,"energy_relevance":0.95,"shipping_relevance":0.5,"sanctions_relevance":0.15,"food_relevance":0.0,"china_relevance":0.0},"notes":"UN Secretary-General statement dated 13 April 2024."},
+    {"event_id":"taiwan_joint_sword_2024a_2024_05_23","event_cluster_id":"taiwan_joint_sword_2024a_may","event_at":"2024-05-23T00:00:00Z","label":"Joint Sword-2024A military exercise around Taiwan","scenario_types":["china_taiwan_trade_escalation"],"source":"Taiwan Ministry of National Defense","source_ref":"https://www.mnd.gov.tw/en/Publication/83008","anchor_rule":"calendar_event_date","source_reliability":0.96,"features":{"severity":0.82,"surprise":0.68,"global_scope":0.88,"military_relevance":0.95,"energy_relevance":0.1,"shipping_relevance":0.6,"sanctions_relevance":0.1,"food_relevance":0.0,"china_relevance":1.0},"notes":"Taiwan MND release dated 23 May 2024."}
   ]
 }

@@ -1,0 +1,100 @@
+name: GSE v2 Advanced Historical Learning
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Geopolitical Scenario Engine Shadow"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/gse_v2_learning_loop.py"
+      - "tests/test_gse_v2_learning_loop.py"
+      - "data/gse/historical_event_catalog.json"
+      - "docs/GSE_V2_ADVANCED_LEARNING_LOOP.md"
+      - ".github/workflows/gse-v2-learning-shadow.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: gse-live-shadow
+  cancel-in-progress: false
+
+env:
+  ARTIFACT_NAME: gse-shadow-state
+
+jobs:
+  learn:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current production code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare GSE state directory
+        run: |
+          echo "GSE_STATE_DIR=$RUNNER_TEMP/gse_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gse_state"
+      - name: Restore latest cumulative GSE state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$api" > "$RUNNER_TEMP/gse-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/gse-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=json.loads(Path(sys.argv[1]).read_text()); r=[x for x in p.get("artifacts",[]) if not x.get("expired")]; r.sort(key=lambda x:x.get("created_at",""),reverse=True); print(r[0]["id"] if r else "")
+          PY
+          )
+          test -n "$artifact_id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/gse-state.zip"
+          mkdir -p "$RUNNER_TEMP/gse-artifact"; unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-artifact"
+          test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"; tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+          test -f "$GSE_STATE_DIR/gse_forecasts.jsonl"; test -f "$GSE_STATE_DIR/gse_historical_analogue_library.json"
+      - name: Validate advanced learning code
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/gse_v2_learning_loop.py
+          python -m json.tool data/gse/historical_event_catalog.json >/dev/null
+          python -m unittest tests.test_gse_v2_learning_loop -v
+          python - <<'PY'
+          import gse_v2_learning_loop as l
+          assert l.MODE=="shadow" and l.HORIZONS_H==(24,168,720) and l.ACTIVE_RESEARCH_POLICY["max_overlay_weight"]<=0.20
+          PY
+      - name: Run advanced historical learning loop
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: python scripts/gse_v2_learning_loop.py --state-dir "$GSE_STATE_DIR" --catalog data/gse/historical_event_catalog.json --refresh-days 7
+      - name: Validate learned state and zero-authority boundary
+        run: |
+          python - <<'PY'
+          import json,os,sys
+          from pathlib import Path
+          root=Path(os.environ["GSE_STATE_DIR"]); s=json.loads((root/"gse_v2_learning_state.json").read_text()); h=json.loads((root/"gse_v2_historical_walkforward.json").read_text()); p=json.loads((root/"gse_v2_policy_proposal.json").read_text()); c=json.loads((root/"gse_v2_regime_calibration.json").read_text()); lib=json.loads((root/"gse_v2_enriched_library.json").read_text())
+          z=s["controls"]; assert s["mode"]=="shadow"; assert not z["automatic_tuning_enabled"] and not z["policy_proposal_auto_apply_enabled"] and not z["automatic_promotion_enabled"] and not z["decision_engine_connected"] and not z["belief_core_connected"] and not z["trade_execution_enabled"] and not z["policy_output_enabled"] and not z["v1_forecast_modified"]
+          assert p["automatically_applied"] is False and p["active_policy_unchanged"] is True; assert lib["market_outcomes_used_for_event_selection"] is False and lib["decision_influence"] is False; assert c["controls"]["automatic_tuning_enabled"] is False and h["automatic_tuning_applied"] is False
+          sys.path.insert(0,"scripts"); import gse_v2_learning_loop as l; rows=l.read_jsonl(root/"gse_v2_learning_ledger.jsonl"); l._validate_ledger(rows); assert rows
+          print("Historical",s["historical"]); print("Prospective",s["prospective"]); print("Readiness",s["readiness"]); print("Policy",p["status"])
+          PY
+      - name: Pack cumulative GSE state
+        run: tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .
+      - name: Store cumulative GSE shadow state
+        uses: actions/upload-artifact@v4
+        with:
+          name: gse-shadow-state
+          path: ${{ runner.temp }}/gse-state.tgz
+          if-no-files-found: error
+          retention-days: 60
+          compression-level: 0
