@@ -81,6 +81,46 @@ jobs:
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
           echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
 
+      - name: Restore cumulative prior Epistemic State history
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-epistemic-state&per_page=100"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > "$RUNNER_TEMP/epistemic-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/epistemic-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text()).get('artifacts', [])
+          rows=[x for x in rows if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No prior Epistemic State artifact; starting prospective history."
+            exit 0
+          fi
+          curl -fsSL -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o "$RUNNER_TEMP/epistemic-state.zip"
+          mkdir -p "$RUNNER_TEMP/epistemic-state-artifact"
+          unzip -q "$RUNNER_TEMP/epistemic-state.zip" -d "$RUNNER_TEMP/epistemic-state-artifact"
+          test -f "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz"
+          mkdir -p "$RUNNER_TEMP/prior-epistemic-state"
+          tar -xzf "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz" -C "$RUNNER_TEMP/prior-epistemic-state"
+          if [ -f "$RUNNER_TEMP/prior-epistemic-state/epistemic_state_history.jsonl" ]; then
+            cp "$RUNNER_TEMP/prior-epistemic-state/epistemic_state_history.jsonl" "$STATE_DIR/epistemic_state_history.jsonl"
+          fi
+
       - name: Build authoritative Epistemic State projection
         if: github.event_name == 'workflow_run'
         run: |
@@ -98,16 +138,19 @@ jobs:
           assert state['authority']['llm_may_override_probability'] is False
           assert state['controls']['belief_core_writeback_enabled'] is False
           assert state['controls']['llm_override_enabled'] is False
+          history=[x for x in (root/'epistemic_state_history.jsonl').read_text().splitlines() if x.strip()]
+          assert history
           print('Aggregate Authority Principle: PASS')
+          print('Epistemic history rows:', len(history))
           PY
 
-      - name: Pack Epistemic State runtime artifact
+      - name: Pack cumulative Epistemic State runtime artifact
         if: github.event_name == 'workflow_run'
         run: |
           tar -czf "$RUNNER_TEMP/belief-epistemic-state.tgz" -C "$STATE_DIR" \
             epistemic_state.json epistemic_state_history.jsonl epistemic_drilldown_index.json
 
-      - name: Store Epistemic State outside repository
+      - name: Store cumulative Epistemic State outside repository
         if: github.event_name == 'workflow_run'
         uses: actions/upload-artifact@v4
         with:
