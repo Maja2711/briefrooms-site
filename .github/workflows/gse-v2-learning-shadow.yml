@@ -73,10 +73,17 @@ jobs:
           import gse_v2_learning_loop as l
           assert l.MODE=="shadow" and l.HORIZONS_H==(24,168,720) and l.ACTIVE_RESEARCH_POLICY["max_overlay_weight"]<=0.20
           PY
+      - name: Resolve latest historical catalogue
+        run: |
+          if [ -f "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" ]; then
+            echo "GSE_HISTORICAL_CATALOG=$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" >> "$GITHUB_ENV"
+          else
+            echo "GSE_HISTORICAL_CATALOG=$GITHUB_WORKSPACE/data/gse/historical_event_catalog.json" >> "$GITHUB_ENV"
+          fi
       - name: Run advanced historical learning loop
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
-        run: python scripts/gse_v2_learning_loop.py --state-dir "$GSE_STATE_DIR" --catalog data/gse/historical_event_catalog.json --refresh-days 7
+        run: python scripts/gse_v2_learning_loop.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --refresh-days 7
       - name: Validate learned state and zero-authority boundary
         run: |
           python - <<'PY'
@@ -86,7 +93,13 @@ jobs:
           z=s["controls"]; assert s["mode"]=="shadow"; assert not z["automatic_tuning_enabled"] and not z["policy_proposal_auto_apply_enabled"] and not z["automatic_promotion_enabled"] and not z["decision_engine_connected"] and not z["belief_core_connected"] and not z["trade_execution_enabled"] and not z["policy_output_enabled"] and not z["v1_forecast_modified"]
           assert p["automatically_applied"] is False and p["active_policy_unchanged"] is True; assert lib["market_outcomes_used_for_event_selection"] is False and lib["decision_influence"] is False; assert c["controls"]["automatic_tuning_enabled"] is False and h["automatic_tuning_applied"] is False
           sys.path.insert(0,"scripts"); import gse_v2_learning_loop as l; rows=l.read_jsonl(root/"gse_v2_learning_ledger.jsonl"); l._validate_ledger(rows); assert rows
-          print("Historical",s["historical"]); print("Prospective",s["prospective"]); print("Readiness",s["readiness"]); print("Policy",p["status"])
+          discovery=root/'gse_historical_discovery_state.json'
+          if discovery.exists():
+              d=json.loads(discovery.read_text())
+              assert d['controls']['market_outcomes_used_for_event_selection'] is False
+              if d.get('target_met'):
+                  assert int(d['effective_verified_cluster_n']) >= 100
+          print("Historical catalogue",os.environ.get("GSE_HISTORICAL_CATALOG")); print("Historical",s["historical"]); print("Prospective",s["prospective"]); print("Readiness",s["readiness"]); print("Policy",p["status"])
           PY
       - name: Pack cumulative GSE state
         run: tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .

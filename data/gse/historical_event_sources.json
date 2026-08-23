@@ -1,0 +1,62 @@
+{
+  "schema_version": "gse-historical-discovery-sources-v1",
+  "start_date": "2014-01-01T00:00:00Z",
+  "recent_overlap_days": 45,
+  "max_detail_fetches": 900,
+  "governance": {
+    "primary_sources_only": true,
+    "market_outcomes_used_for_event_selection": false,
+    "automatic_tuning_enabled": false,
+    "decision_influence": false
+  },
+  "sources": [
+    {
+      "name": "OFAC Sanctions List Updates",
+      "kind": "ofac_recent_actions",
+      "enabled": true,
+      "source_reliability": 0.98,
+      "list_url": "https://ofac.treasury.gov/recent-actions/sanctions-list-updates?page={page}",
+      "max_pages": 230,
+      "empty_page_stop": 3
+    },
+    {
+      "name": "U.S. Treasury Press Releases",
+      "kind": "treasury_press_releases",
+      "enabled": true,
+      "source_reliability": 0.97,
+      "list_url": "https://home.treasury.gov/news/press-releases?title={query}&page={page}",
+      "queries": [
+        "Russia",
+        "Ukraine",
+        "Iran",
+        "Houthi",
+        "Red Sea",
+        "Taiwan",
+        "China",
+        "Black Sea",
+        "grain",
+        "sanctions"
+      ],
+      "max_pages": 18,
+      "empty_page_stop": 2
+    },
+    {
+      "name": "U.S. Department of Defense News",
+      "kind": "defense_search",
+      "enabled": true,
+      "source_reliability": 0.97,
+      "list_url": "https://www.defense.gov/News/News-Stories/Search/{query_path}/?Page={page}",
+      "queries": [
+        "Iran",
+        "Houthi",
+        "Red Sea",
+        "Taiwan",
+        "Ukraine",
+        "Russia",
+        "Black Sea"
+      ],
+      "max_pages": 12,
+      "empty_page_stop": 2
+    }
+  ]
+}

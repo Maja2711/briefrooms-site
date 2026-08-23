@@ -1,0 +1,161 @@
+name: GSE Historical Event Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_full:
+        description: "Force a full historical archive backfill"
+        required: false
+        default: "true"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/gse_historical_event_discovery.py"
+      - "scripts/gse_discovery_common.py"
+      - "scripts/gse_discovery_sources.py"
+      - "scripts/gse_discovery_cluster.py"
+      - "tests/test_gse_historical_event_discovery.py"
+      - "data/gse/historical_event_sources.json"
+      - "data/gse/historical_event_catalog.json"
+      - "docs/GSE_HISTORICAL_EVENT_DISCOVERY.md"
+      - ".github/workflows/gse-historical-discovery.yml"
+  schedule:
+    - cron: "41 2 * * 0"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: gse-live-shadow
+  cancel-in-progress: false
+
+env:
+  ARTIFACT_NAME: gse-shadow-state
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current production code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare GSE state directory
+        run: |
+          echo "GSE_STATE_DIR=$RUNNER_TEMP/gse_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gse_state"
+
+      - name: Restore latest cumulative GSE state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$api" > "$RUNNER_TEMP/gse-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/gse-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=json.loads(Path(sys.argv[1]).read_text()); r=[x for x in p.get("artifacts",[]) if not x.get("expired")]; r.sort(key=lambda x:x.get("created_at",""),reverse=True); print(r[0]["id"] if r else "")
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No previous GSE artifact; discovery will bootstrap state."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/gse-state.zip"
+          mkdir -p "$RUNNER_TEMP/gse-artifact"; unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-artifact"
+          test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"; tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+
+      - name: Validate discovery pipeline
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/gse_discovery_common.py scripts/gse_discovery_sources.py scripts/gse_discovery_cluster.py scripts/gse_historical_event_discovery.py scripts/gse_historical_analogue.py scripts/gse_v2_learning_loop.py
+          python -m json.tool data/gse/historical_event_sources.json >/dev/null
+          python -m json.tool data/gse/historical_event_catalog.json >/dev/null
+          PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python -m unittest tests.test_gse_historical_event_discovery -v
+          PYTHONPATH="${GITHUB_WORKSPACE}/scripts" python - <<'PY'
+          import gse_historical_event_discovery as d
+          assert d.MODE == 'shadow'
+          assert d.TARGET_VERIFIED_CLUSTERS == 100
+          assert d.MIN_VERIFY_SCORE >= 0.75
+          PY
+
+      - name: Discover verify and cluster historical primary-source events
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          args=(
+            --state-dir "$GSE_STATE_DIR"
+            --curated-catalog data/gse/historical_event_catalog.json
+            --source-config data/gse/historical_event_sources.json
+            --require-target
+          )
+          if [ "${{ github.event_name }}" = "push" ] || { [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_full }}" = "true" ]; }; then
+            args+=(--force-full)
+          fi
+          python scripts/gse_historical_event_discovery.py "${args[@]}"
+
+      - name: Rebuild historical analogue library on effective catalogue
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/gse_historical_analogue.py \
+            --state-dir "$GSE_STATE_DIR" \
+            --catalog "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json"
+
+      - name: Run advanced GSE v2 learning on expanded history
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/gse_v2_learning_loop.py \
+            --state-dir "$GSE_STATE_DIR" \
+            --catalog "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" \
+            --refresh-days 7
+
+      - name: Validate 100-cluster gate and zero-authority boundary
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ['GSE_STATE_DIR'])
+          state=json.loads((root/'gse_historical_discovery_state.json').read_text())
+          catalog=json.loads((root/'gse_historical_event_catalog_effective.json').read_text())
+          controls=state['controls']
+          assert state['target_met'] is True
+          assert int(state['effective_verified_cluster_n']) >= 100
+          assert int(catalog['coverage']['verified_cluster_n']) >= 100
+          assert catalog['coverage']['target_met'] is True
+          assert controls['market_outcomes_used_for_event_selection'] is False
+          assert controls['automatic_tuning_enabled'] is False
+          assert controls['decision_engine_connected'] is False
+          assert controls['belief_core_connected'] is False
+          assert controls['trade_execution_enabled'] is False
+          assert controls['policy_output_enabled'] is False
+          assert catalog['governance']['market_outcomes_used_for_event_selection'] is False
+          assert catalog['governance']['decision_influence'] is False
+          print('GSE historical discovery target:', state['effective_verified_cluster_n'])
+          print('Balance:', state['quality_balance_gate'])
+          print('By scenario:', state['by_scenario'])
+          print('By source:', state['by_source'])
+          PY
+
+      - name: Pack cumulative GSE state
+        run: tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .
+
+      - name: Store cumulative GSE shadow state
+        uses: actions/upload-artifact@v4
+        with:
+          name: gse-shadow-state
+          path: ${{ runner.temp }}/gse-state.tgz
+          if-no-files-found: error
+          retention-days: 60
+          compression-level: 0

@@ -19,8 +19,6 @@ on:
       - "docs/GEOPOLITICAL_SCENARIO_ENGINE.md"
       - "docs/GSE_HISTORICAL_ANALOGUE_V2.md"
   schedule:
-    # Evidence scan every hour, 24x7. Scenario/forecast freezes occur inside the
-    # engine at 00/06/12/18 UTC; due forecasts are verified on every hourly run.
     - cron: "17 * * * *"
 
 permissions:
@@ -121,13 +119,23 @@ jobs:
           fi
           python scripts/geopolitical_scenario_engine.py "${args[@]}"
 
+      - name: Resolve latest historical catalogue
+        run: |
+          if [ -f "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" ]; then
+            echo "GSE_HISTORICAL_CATALOG=$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" >> "$GITHUB_ENV"
+            echo "Using expanded machine-verified historical catalogue."
+          else
+            echo "GSE_HISTORICAL_CATALOG=$GITHUB_WORKSPACE/data/gse/historical_event_catalog.json" >> "$GITHUB_ENV"
+            echo "Using curated historical catalogue fallback."
+          fi
+
       - name: Run GSE historical analogue v2 research overlay
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
           python scripts/gse_historical_analogue.py \
             --state-dir "$GSE_STATE_DIR" \
-            --catalog data/gse/historical_event_catalog.json
+            --catalog "$GSE_HISTORICAL_CATALOG"
 
       - name: Validate persisted GSE v1 and v2 shadow state
         run: |
@@ -159,7 +167,20 @@ jobs:
           assert v2_calibration['controls']['automatic_tuning_enabled'] is False
           assert library['decision_influence'] is False
           assert library['automatic_tuning_enabled'] is False
+          discovery=root/'gse_historical_discovery_state.json'
+          if discovery.exists():
+              d=json.loads(discovery.read_text())
+              c=d['controls']
+              assert c['market_outcomes_used_for_event_selection'] is False
+              assert c['automatic_tuning_enabled'] is False
+              assert c['decision_engine_connected'] is False
+              assert c['belief_core_connected'] is False
+              assert c['trade_execution_enabled'] is False
+              assert c['policy_output_enabled'] is False
+              if d.get('target_met'):
+                  assert int(d['effective_verified_cluster_n']) >= 100
           print('GSE persisted v1/v2 shadow validation: PASS')
+          print('GSE historical catalogue:', os.environ.get('GSE_HISTORICAL_CATALOG'))
           print('GSE v1 last status:', state['last_status'])
           print('GSE v2 state:', v2_state)
           print('GSE v2 paired calibration:', v2_calibration['overall'])
