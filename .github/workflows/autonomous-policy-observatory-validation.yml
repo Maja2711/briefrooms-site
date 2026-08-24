@@ -1,0 +1,55 @@
+name: Autonomous Policy Observatory validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/autonomous_policy_observatory.py"
+      - "tests/test_autonomous_policy_observatory.py"
+      - "docs/AUTONOMOUS_POLICY_OBSERVATORY_V1.md"
+      - ".github/workflows/autonomous-policy-promotion.yml"
+      - ".github/workflows/autonomous-policy-observatory-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile PR35-PR37 modules
+        run: |
+          python -m py_compile \
+            scripts/autonomous_policy_promotion.py \
+            scripts/statistical_promotion_gate.py \
+            scripts/autonomous_policy_observatory.py
+
+      - name: Run PR35-PR37 tests
+        run: |
+          python -m unittest \
+            tests.test_autonomous_policy_promotion \
+            tests.test_statistical_promotion_gate \
+            tests.test_autonomous_policy_observatory -v
+
+      - name: Enforce read-only observatory contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('scripts/autonomous_policy_observatory.py').read_text()
+          assert 'promote_candidate(' not in source
+          assert 'monitor_rollbacks(' not in source
+          assert 'policy_repo_materializer' not in source
+          assert 'statistical_policy_materializer' not in source
+          wf=Path('.github/workflows/autonomous-policy-promotion.yml').read_text()
+          assert 'autonomous_policy_observatory.py' in wf
+          assert 'data/public/autonomous_policy_observatory.json' in wf
+          print('PR37_READ_ONLY_OBSERVATORY_PASS')
+          PY
