@@ -25,6 +25,7 @@ except ModuleNotFoundError:  # pragma: no cover
 SCHEMA = "briefrooms-autonomous-policy-observatory-v1"
 PUBLIC_PATH = "data/public/autonomous_policy_observatory.json"
 PRIVATE_PATH = "autonomous_policy_observatory_private.json"
+BASELINES_PATH = "data/investments/autonomous_policy_baselines.json"
 
 VISIBLE_EVENTS = {
     "candidate_created",
@@ -60,11 +61,6 @@ def _write(path: Path, payload: Mapping[str, Any]) -> None:
     tmp.replace(path)
 
 
-def _parameter_for_engine(engine_id: str) -> str:
-    spec = ap.POLICY_SPECS.get(engine_id) or {}
-    return str(spec.get("parameter") or "")
-
-
 def _candidate_priority(candidate: Mapping[str, Any]) -> int:
     order = {"SHADOW_VALIDATION": 0, "PROMOTED": 1, "STATISTICAL_REJECTED": 2, "ROLLED_BACK": 3, "REJECTED": 4}
     return order.get(str(candidate.get("status") or ""), 9)
@@ -76,9 +72,7 @@ def _current_candidate(registry: Mapping[str, Any], engine_id: str) -> Mapping[s
         if isinstance(row, Mapping) and row.get("engine_id") == engine_id
     ]
     active = [row for row in rows if row.get("status") in {"SHADOW_VALIDATION", "PROMOTED"}]
-    if active:
-        return sorted(active, key=lambda row: (_candidate_priority(row), str(row.get("created_at") or "")))[0]
-    return None
+    return sorted(active, key=lambda row: (_candidate_priority(row), str(row.get("created_at") or "")))[0] if active else None
 
 
 def _progress(candidate: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -92,13 +86,25 @@ def _progress(candidate: Mapping[str, Any] | None) -> dict[str, Any] | None:
     return {"paired_n": paired_n, "required_n": target, "progress_percent": min(100, round(100 * paired_n / target))}
 
 
-def _engine_view(registry: Mapping[str, Any], auth: Mapping[str, Any], engine_id: str, repo_root: Path) -> dict[str, Any]:
+def _engine_view(
+    registry: Mapping[str, Any],
+    auth: Mapping[str, Any],
+    baselines: Mapping[str, Any],
+    engine_id: str,
+    repo_root: Path,
+) -> dict[str, Any]:
     state = (registry.get("engines") or {}).get(engine_id) or {}
     spec = ap.POLICY_SPECS.get(engine_id) or {}
-    parameter = str(spec.get("parameter") or "")
+    baseline_spec = (baselines.get("engines") or {}).get(engine_id) or {}
+    parameter = str(spec.get("parameter") or baseline_spec.get("parameter") or "")
     config = _read_json(repo_root / str(spec.get("config_path") or ""), {}) if spec.get("config_path") else {}
     overrides = state.get("overrides") if isinstance(state.get("overrides"), Mapping) else {}
-    active_value = overrides.get(parameter, config.get(parameter))
+    if parameter in overrides:
+        active_value = overrides[parameter]
+    elif int(state.get("revision") or 0) == 0 and baseline_spec.get("baseline_value") is not None:
+        active_value = baseline_spec.get("baseline_value")
+    else:
+        active_value = config.get(parameter)
     candidate = _current_candidate(registry, engine_id)
     authorized = int(state.get("revision") or 0) == 0 or str(state.get("policy_id") or "") in (auth.get("authorizations") or {})
     row: dict[str, Any] = {
@@ -160,7 +166,10 @@ def build(state_dir: Path, repo_root: Path) -> tuple[dict[str, Any], dict[str, A
     sg.verify_state(state_dir)
     registry = _read_json(state_dir / ap.REGISTRY_FILENAME, {})
     auth = sg._load_authorizations(state_dir / sg.AUTH_FILENAME)
-    engines = [_engine_view(registry, auth, engine_id, repo_root) for engine_id in sorted(registry.get("engines") or {})]
+    baselines = _read_json(repo_root / BASELINES_PATH, {})
+    if baselines.get("schema_version") != "briefrooms-autonomous-policy-baselines-v1":
+        raise ValueError("observatory baseline schema mismatch")
+    engines = [_engine_view(registry, auth, baselines, engine_id, repo_root) for engine_id in sorted(registry.get("engines") or {})]
     public_body = {
         "schema_version": SCHEMA,
         "mode": "read_only_observatory",
