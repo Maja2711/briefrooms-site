@@ -1,11 +1,10 @@
 import json
-import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from epistemic_consumer_interface import EpistemicConsumerInterface, build_consumer_bundle, SPX_BELIEF_IDS
+from scripts.epistemic_consumer_interface import EpistemicConsumerInterface, build_consumer_bundle, SPX_BELIEF_IDS
 
 
 def sample_state():
@@ -28,6 +27,7 @@ def sample_state():
         }
     return {
         "contract_version": "belief-epistemic-state-v1",
+        "created_at": "2026-08-24T08:00:00Z",
         "authority": {"llm_may_ignore_aggregate": False, "llm_may_override_probability": False},
         "controls": {"belief_core_writeback_enabled": False},
         "states": states,
@@ -44,6 +44,7 @@ class EpistemicConsumerInterfaceTests(unittest.TestCase):
         self.assertEqual(brace.stance, "risk_on")
         self.assertFalse(brace.authority.consumer_may_override_probability)
         self.assertFalse(brace.authority.belief_core_writeback_enabled)
+        self.assertEqual(brace.source_created_at, "2026-08-24T08:00:00Z")
 
     def test_missing_state_fails_closed(self):
         payload = sample_state()
@@ -51,6 +52,21 @@ class EpistemicConsumerInterfaceTests(unittest.TestCase):
         env = EpistemicConsumerInterface(payload, {}).envelope("BRACE_SPX")
         self.assertFalse(env.available)
         self.assertEqual(env.reason, "required_epistemic_states_missing")
+
+    def test_point_in_time_projection_rejects_future_state(self):
+        interface = EpistemicConsumerInterface(sample_state(), {})
+        engine_at = datetime(2026, 8, 24, 7, 59, tzinfo=timezone.utc)
+        row = interface.point_in_time_projection("BRACE_SPX", engine_at)
+        self.assertFalse(row["available"])
+        self.assertEqual(row["reason"], "epistemic_state_created_after_engine_state")
+
+    def test_point_in_time_projection_accepts_prior_fresh_state(self):
+        interface = EpistemicConsumerInterface(sample_state(), {})
+        engine_at = datetime(2026, 8, 24, 9, 0, tzinfo=timezone.utc)
+        row = interface.point_in_time_projection("WES_SPX", engine_at)
+        self.assertTrue(row["available"])
+        self.assertTrue(row["aggregate_authoritative"])
+        self.assertFalse(row["consumer_may_override"])
 
     def test_drilldown_is_bounded_and_cannot_override(self):
         interface = EpistemicConsumerInterface(sample_state(), {SPX_BELIEF_IDS[0]: {"path": "state->belief->evidence->source"}})
