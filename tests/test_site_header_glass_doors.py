@@ -12,8 +12,8 @@ WEEKLY_RENDERER = ROOT / "scripts" / "render_weekly_public_pages.py"
 def test_shared_header_contains_all_six_rooms_in_both_languages() -> None:
     js = JS_PATH.read_text(encoding="utf-8")
     expected = (
-        "Aktualności", "Geopolityka", "Zdrowie", "Nauka", "Inwestycje", "O nas",
-        "News", "Geopolitics", "Health", "Science", "Investing", "About",
+        "Informacje", "Inwestycje", "Nauka", "Zdrowie", "Geopolityka", "O nas",
+        "Information", "Investing", "Science", "Health", "Geopolitics", "About",
     )
     for label in expected:
         assert f"label: '{label}'" in js
