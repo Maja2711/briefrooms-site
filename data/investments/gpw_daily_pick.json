@@ -2,18 +2,174 @@
   "schema_version": "gpw-daily-pick-v1",
   "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
   "date": "2026-08-24",
-  "generated_at": "2026-08-24T09:10:44+02:00",
+  "generated_at": "2026-08-24T09:35:10+02:00",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
-  "decision": "AWARIA_DANYCH",
-  "reason": "Brak dzisiaj wyboru.",
-  "locked": false,
-  "selection": null,
+  "decision": "TRANSAKCJA",
+  "reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane.",
+  "locked": true,
+  "selection": {
+    "symbol": "DNP.WA",
+    "ticker": "DNP",
+    "name": "Dino Polska",
+    "sector": "handel",
+    "score": 69.04,
+    "reference_price": 34.72,
+    "entry_zone": [
+      34.62,
+      34.93
+    ],
+    "activation": "Setup po otwarciu: wejście tylko w podanej strefie od 09:05; powyżej górnej granicy nie gonić ceny.",
+    "stop": 33.66,
+    "target": 36.62,
+    "reward_risk": 1.8,
+    "valid_until": "2026-08-26",
+    "thesis": "Brak wiarygodnego i świeżego katalizatora w horyzoncie 1-2 sesji. Ostatnie doniesienia dotyczą wyników z II kwartału 2026 roku oraz dyskusji rynkowych sprzed kilku dni.",
+    "why_now": "Brak nowych raportów bieżących w wymaganym oknie czasowym.",
+    "risk_factors": [
+      "Wyczerpanie krótkoterminowego momentum cenowego",
+      "Brak nowych informacji fundamentalnych"
+    ],
+    "scores": {
+      "relative_momentum": 100.0,
+      "volume_liquidity": 100.0,
+      "market_context": 55.03,
+      "risk_reward": 88.57,
+      "historical_expectancy": 50.0,
+      "catalyst": 30.0
+    },
+    "sources": [
+      {
+        "id": "src-12b6c5ea557e",
+        "title": "Wyniki Dino Polska w II kw. 2026 roku vs. konsensus PAP (tabela) - PAP Biznes",
+        "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNNXV0Q1hqWDRHWm5qNVFSZ0ZiUVRrOHQzZjNWZ0NHTXdVaEpWcjA1SDBmdG13U1Z2RHRVWUdPcnZQTWpEVmNsbVlrdU1rSkFFSDJ5M3NiUnkwYW5uX1ZpWkZ6cXZhWGZJTDRzN3ZJdXlKZzhLb2xMdGNQdnF5WTd5YWo5WS1OVVVWdGQ4OVVGVWp1LWcwQWpOUUg5TGNFRVFO?oc=5",
+        "publisher": "PAP Biznes",
+        "published_at": "2026-08-20T18:18+02:00",
+        "age_hours": 87.3,
+        "quality": "pierwotne",
+        "source_kind": "issuer_report",
+        "channel": "ESPI_EBI_PAP",
+        "event_type": "earnings",
+        "event_label": "wyniki / raport okresowy",
+        "materiality": 5,
+        "issuer_ticker": "DNP"
+      },
+      {
+        "id": "src-a795a5923ef2",
+        "title": "Cła USA na Kanadę, wyższy CIT dla energetyki i powrót wiary w Dino - Rzeczpospolita",
+        "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxORzNVMlNSS2tZN2hGd1ZPbTc4SE11dldURW5SeHR2RFpERjJhNGdUU2I3eDgzak93S09ZSFRURXhSOFFtelB3eXVXX05Pa1h5aHBybW00ZHhWeS1RT1ZMR0tsTGtpSkFaMzNjcldoVXU5TFRTMTc2SkJWMUZiZTN6azFKU2JicEZJQldZOFZCLXFtcmcxVWhlVGRQS1g2aTcwTUl6eVJaZU1EX0NMaVM0?oc=5",
+        "publisher": "Rzeczpospolita",
+        "published_at": "2026-08-24T06:30+02:00",
+        "age_hours": 3.1,
+        "quality": "wtórne",
+        "event_type": "other",
+        "event_label": "inne zdarzenie",
+        "materiality": 2,
+        "source_kind": "news",
+        "channel": "NEWS"
+      }
+    ],
+    "review": {
+      "approved": true,
+      "reason": "Wszystkie twierdzenia faktyczne mają oparcie w przekazanych źródłach, kierunek transakcji nie stoi w sprzeczności z faktami, identyfikatory źródeł są poprawne, a plan ryzyka spełnia warunki matematyczne (stop < entry < target oraz RR >= 1.5).",
+      "supported_source_ids": [
+        "src-12b6c5ea557e",
+        "src-a795a5923ef2"
+      ],
+      "contradictions": [],
+      "fatal_checks": {
+        "evidence_supported": true,
+        "direction_not_contradicted": true,
+        "source_integrity_ok": true,
+        "risk_plan_ok": true
+      },
+      "fatal_issues": [],
+      "review_policy": "integrity_v2_not_second_ranking",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "score_target": 72.0,
+    "score_target_met": false,
+    "conviction": "umiarkowane",
+    "market_snapshot": {
+      "provider": "Yahoo",
+      "symbol": "DNP.WA",
+      "date": "2026-08-24",
+      "observed_at": "2026-08-24T09:20:26+02:00",
+      "open": 34.76,
+      "high": 34.9,
+      "low": 34.38,
+      "last": 34.72,
+      "volume": 353107,
+      "crosscheck": {
+        "available_providers": [
+          "Yahoo"
+        ],
+        "errors": [
+          "Stooq:PublicationError"
+        ],
+        "status": "single_source"
+      }
+    },
+    "event_context": {
+      "primary_type": "earnings",
+      "primary_label": "wyniki / raport okresowy",
+      "primary_source_id": "src-12b6c5ea557e",
+      "primary_source_kind": "issuer_report",
+      "primary_channel": "ESPI_EBI_PAP",
+      "materiality": 5,
+      "official_report_used": true,
+      "selected_event_source_ids": [
+        "src-12b6c5ea557e",
+        "src-a795a5923ef2"
+      ],
+      "market_reaction": {
+        "measurement": "latest_completed_session",
+        "return_1d_percent": 7.711,
+        "return_5d_percent": 7.313,
+        "relative_5d_percent": 8.985,
+        "volume_ratio_20d": 2.607,
+        "reference_price": 34.78,
+        "note": "Reakcja z ostatniej zakończonej sesji; nie jest traktowana jako samodzielny katalizator."
+      },
+      "event_learning": {
+        "sample": 0,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": null,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      }
+    },
+    "evidence_summary": {
+      "official_reports": 1,
+      "independent_news": 1,
+      "primary_event": "wyniki / raport okresowy"
+    }
+  },
   "data_quality": {
-    "status": "failed",
-    "failed_stage": "opening_quote",
-    "opening_quote_error": "Brak dzisiejszego kwotowania DNP.WA po otwarciu (Yahoo:PublicationError; Stooq:PublicationError).",
-    "control_loop_attempts": 2
+    "status": "healthy",
+    "complete_ratio": 0.95,
+    "expected_session": "2026-08-21",
+    "valid_market_symbols": 38,
+    "ranked_candidates": 35,
+    "reviewed_candidates": 6,
+    "eligible_candidates": 5,
+    "provider_failures": {
+      "CCC.WA": "PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
+      "SPL.WA": "PublicationError: Brak danych rynkowych SPL.WA w prefetch cache."
+    },
+    "screened_out": {
+      "11B.WA": "screened_by_liquidity_atr_or_risk",
+      "EUR.WA": "screened_by_liquidity_atr_or_risk",
+      "WPL.WA": "screened_by_liquidity_atr_or_risk"
+    },
+    "analysis_rejections": {
+      "JSW.WA": "source_gate"
+    },
+    "review_rejections": [],
+    "opening_quote": "single_source",
+    "control_loop_attempts": 1
   },
   "methodology": {
     "horizon": "1-2 sesje GPW",
@@ -25,10 +181,19 @@
       "risk_reward": 15,
       "historical_expectancy": 10
     },
-    "minimum_score": 72,
+    "minimum_score": 72.0,
     "minimum_reward_risk": 1.5,
     "universe_size": 40,
     "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "target_score": 72.0,
+    "score_policy": "ranking_target_not_hard_gate",
+    "hard_admission_gates": [
+      "market_data_completeness",
+      "liquidity_and_position_risk",
+      "reward_risk",
+      "source_evidence",
+      "independent_review"
+    ],
     "learning_overlay": {
       "method": "bayesian_shrinkage_historical_overlay_v1",
       "active": false,
@@ -104,6 +269,10 @@
     "automatic_weight_changes": false
   },
   "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+  "outcome": {
+    "status": "PENDING",
+    "activated": null
+  },
   "learning": {
     "method": "bayesian_shrinkage_historical_overlay_v1",
     "resolved_trades": 1,
@@ -135,5 +304,4016 @@
         "catalyst_adjustment": 0.0
       }
     ]
+  },
+  "counterfactual_rejected_candidate_freeze": {
+    "schema_version": "daily-stock-rejected-candidate-freeze-v1",
+    "market": "gpw",
+    "date": "2026-08-24",
+    "decision_at": "2026-08-24T09:35:10+02:00",
+    "frozen_at": "2026-08-24T07:36:01.217951Z",
+    "source_payload_sha256": "12589ca4a8a69d625a6f3037767628091f86d51964c62b954fa4bb52620f1c87",
+    "status": "frozen",
+    "selected_symbol": "DNP.WA",
+    "candidate_count": 39,
+    "economically_evaluable_count": 37,
+    "candidates": [
+      {
+        "candidate_id": "gpw:2026-08-24:11B.WA:LONG",
+        "market": "gpw",
+        "symbol": "11B.WA",
+        "name": "11 bit studios",
+        "sector": "gry",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "liquidity",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "median_turnover_threshold",
+          "observed_value": 821250.140846,
+          "threshold": 1000000.0
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 821250.140846,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02900643,
+              "threshold": 0.07
+            }
+          ],
+          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 133.0,
+          "median_turnover": 821250.140846,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02900643
+        },
+        "risk_plan": {
+          "reference_price": 133.0,
+          "entry_zone": [
+            132.335,
+            134.995
+          ],
+          "stop": 129.14214478,
+          "target": 139.9441394,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02900643,
+          "atr": 3.50714111,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "b0454a0f87fe4bfb889a014bd2d7ab273477ad737e186551717fef37242521cd"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ACP.WA:LONG",
+        "market": "gpw",
+        "symbol": "ACP.WA",
+        "name": "Asseco Poland",
+        "sector": "technologia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 29800958.720383,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03112043,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 229.5,
+          "median_turnover": 29800958.720383,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03112043
+        },
+        "risk_plan": {
+          "reference_price": 229.5,
+          "entry_zone": [
+            228.3525,
+            232.9425
+          ],
+          "stop": 222.35786122,
+          "target": 242.35584981,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03112043,
+          "atr": 6.49285344,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "83384a54af65c7b982d1d00057ceae4bd9f9a2cf37e594107ae5c6a82feb1c61"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ALE.WA:LONG",
+        "market": "gpw",
+        "symbol": "ALE.WA",
+        "name": "Allegro",
+        "sector": "handel internetowy",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 215684442.703629,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02707617,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 45.09500122,
+          "median_turnover": 215684442.703629,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02707617
+        },
+        "risk_plan": {
+          "reference_price": 45.09500122,
+          "entry_zone": [
+            44.86952621,
+            45.77142624
+          ],
+          "stop": 43.87400145,
+          "target": 47.29280081,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02707617,
+          "atr": 1.10999979,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "73210cb24cc6f30a60e3012dff430c904143890c9d79b1dedb451b24846e8098"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ALR.WA:LONG",
+        "market": "gpw",
+        "symbol": "ALR.WA",
+        "name": "Alior Bank",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 25294277.709595,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02903002,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 130.05000305,
+          "median_turnover": 25294277.709595,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02903002
+        },
+        "risk_plan": {
+          "reference_price": 130.05000305,
+          "entry_zone": [
+            129.39975304,
+            132.0007531
+          ],
+          "stop": 126.27464927,
+          "target": 136.84563987,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02903002,
+          "atr": 3.43213981,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "817bff5ac88e8d359e7fe49fc015931b08e640fc9da90ed8a186772447305847"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ATT.WA:LONG",
+        "market": "gpw",
+        "symbol": "ATT.WA",
+        "name": "Grupa Azoty",
+        "sector": "chemia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 5013337.713932,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03689936,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 22.05999947,
+          "median_turnover": 5013337.713932,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03689936
+        },
+        "risk_plan": {
+          "reference_price": 22.05999947,
+          "entry_zone": [
+            21.94969947,
+            22.39089946
+          ],
+          "stop": 21.24599957,
+          "target": 23.52519928,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03689936,
+          "atr": 0.73999991,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "3e2291906f49085533975793eba07790d7ffbcb8ea6ed915b3e1c162392c5414"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:BDX.WA:LONG",
+        "market": "gpw",
+        "symbol": "BDX.WA",
+        "name": "Budimex",
+        "sector": "budownictwo",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 20870448.551605,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03141076,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 706.40002441,
+          "median_turnover": 20870448.551605,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03141076
+        },
+        "risk_plan": {
+          "reference_price": 706.40002441,
+          "entry_zone": [
+            702.86802429,
+            716.99602478
+          ],
+          "stop": 684.21146066,
+          "target": 746.33943917,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03141076,
+          "atr": 20.1714216,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "611b30488ac122388909d5c51e390b9bd7eb3358f21f6643d0abde1fadd9f58a"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:BHW.WA:LONG",
+        "market": "gpw",
+        "symbol": "BHW.WA",
+        "name": "Bank Handlowy",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 2603664.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.01763065,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 123.0,
+          "median_turnover": 2603664.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.01763065
+        },
+        "risk_plan": {
+          "reference_price": 123.0,
+          "entry_zone": [
+            122.385,
+            124.845
+          ],
+          "stop": 120.83142989,
+          "target": 126.9034262,
+          "reward_risk": 1.8,
+          "risk_percent": 0.01763065,
+          "atr": 1.97142737,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "4b6d21a403d0f7fcdce5a95d1c0a803a387d46758ecd9f635adcdfb87189e247"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:CAR.WA:LONG",
+        "market": "gpw",
+        "symbol": "CAR.WA",
+        "name": "Inter Cars",
+        "sector": "handel",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 3349677.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02567747,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 970.0,
+          "median_turnover": 3349677.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02567747
+        },
+        "risk_plan": {
+          "reference_price": 970.0,
+          "entry_zone": [
+            965.15,
+            984.55
+          ],
+          "stop": 945.09285714,
+          "target": 1014.83285714,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02567747,
+          "atr": 22.64285714,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "94a7d8b5f71a6a1fb977ccb6e7196323d7a07fbcdadd3fe581e2d84ae4026dfa"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:CCC.WA:LONG",
+        "market": "gpw",
+        "symbol": "CCC.WA",
+        "name": "CCC",
+        "sector": "handel",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "market_data",
+          "passed": false,
+          "hard": true,
+          "stage": "market_data",
+          "reason": "freeze_fetch_failure:PublicationError",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": false,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "freeze_fetch_failure:PublicationError",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": "provider_failure:PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": null,
+          "reference_price": null,
+          "median_turnover": null,
+          "turnover_threshold": null,
+          "risk_percent": null
+        },
+        "risk_plan": null,
+        "settlement_eligibility": {
+          "eligible": false,
+          "mode": "insufficient_counterfactual_state",
+          "reason": "market_state_insufficient"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "7bfa70be1a20f625e603ba8665395b059fc911a9ee0271955daf93eb8a56c881"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:CDR.WA:LONG",
+        "market": "gpw",
+        "symbol": "CDR.WA",
+        "name": "CD Projekt",
+        "sector": "gry",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 66815316.106941,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03459327,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 258.70001221,
+          "median_turnover": 66815316.106941,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03459327
+        },
+        "risk_plan": {
+          "reference_price": 258.70001221,
+          "entry_zone": [
+            257.40651215,
+            262.58051239
+          ],
+          "stop": 249.75073297,
+          "target": 274.80871484,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03459327,
+          "atr": 8.1357084,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "adb996888104322a637f0ebb466a7e93c312f79ec63e30fad1c559f3a11617bc"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:CPS.WA:LONG",
+        "market": "gpw",
+        "symbol": "CPS.WA",
+        "name": "Cyfrowy Polsat",
+        "sector": "media i telekomunikacja",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 8636807.771086,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03856555,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 15.81999969,
+          "median_turnover": 8636807.771086,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03856555
+        },
+        "risk_plan": {
+          "reference_price": 15.81999969,
+          "entry_zone": [
+            15.7408997,
+            16.05729969
+          ],
+          "stop": 15.20989275,
+          "target": 16.9181922,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03856555,
+          "atr": 0.55464268,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "6b5d65a3006349c8020789b0a4a4556c7e4e7b9092feb568b540cceeffdaa1d5"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:DOM.WA:LONG",
+        "market": "gpw",
+        "symbol": "DOM.WA",
+        "name": "Dom Development",
+        "sector": "deweloperzy",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 1443998.75,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02128628,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 251.0,
+          "median_turnover": 1443998.75,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02128628
+        },
+        "risk_plan": {
+          "reference_price": 251.0,
+          "entry_zone": [
+            249.745,
+            254.765
+          ],
+          "stop": 245.65714286,
+          "target": 260.61714286,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02128628,
+          "atr": 4.85714286,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "267ea4187b33d783b96ecee158d1156046059a297e93fbd4b3f1d6008ab3267e"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ENA.WA:LONG",
+        "market": "gpw",
+        "symbol": "ENA.WA",
+        "name": "Enea",
+        "sector": "energia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 5743352.277342,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03512557,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 19.17000008,
+          "median_turnover": 5743352.277342,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03512557
+        },
+        "risk_plan": {
+          "reference_price": 19.17000008,
+          "entry_zone": [
+            19.07415008,
+            19.45755008
+          ],
+          "stop": 18.49664281,
+          "target": 20.38204316,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03512557,
+          "atr": 0.61214297,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "729b61189b094eaa7d56c55445efc5b7485d48217ca2e8675a55f3e7f8ee77bc"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:EUR.WA:LONG",
+        "market": "gpw",
+        "symbol": "EUR.WA",
+        "name": "Eurocash",
+        "sector": "handel",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "liquidity",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "median_turnover_threshold",
+          "observed_value": 646464.362582,
+          "threshold": 1000000.0
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 646464.362582,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.01932083,
+              "threshold": 0.07
+            }
+          ],
+          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 4.88000011,
+          "median_turnover": 646464.362582,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.01932083
+        },
+        "risk_plan": {
+          "reference_price": 4.88000011,
+          "entry_zone": [
+            4.85560011,
+            4.95320012
+          ],
+          "stop": 4.78571445,
+          "target": 5.04971431,
+          "reward_risk": 1.8,
+          "risk_percent": 0.01932083,
+          "atr": 0.08571424,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "6e10fce72e362a53b64b3caf731a11646a7bacbcef8ae1765e9dc326b1ca3c3a"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:GPW.WA:LONG",
+        "market": "gpw",
+        "symbol": "GPW.WA",
+        "name": "Giełda Papierów Wartościowych",
+        "sector": "finanse",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 8415723.810871,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03245513,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 99.5,
+          "median_turnover": 8415723.810871,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03245513
+        },
+        "risk_plan": {
+          "reference_price": 99.5,
+          "entry_zone": [
+            99.0025,
+            100.9925
+          ],
+          "stop": 96.27071501,
+          "target": 105.31271299,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03245513,
+          "atr": 2.93571363,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "37d8f51d896a1603e252237e3cc1ed9600b1e07aa3a7b9e10e73d2cb6e56d1f6"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:ING.WA:LONG",
+        "market": "gpw",
+        "symbol": "ING.WA",
+        "name": "ING Bank Śląski",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 7378385.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.0207101,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 445.3999939,
+          "median_turnover": 7378385.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.0207101
+        },
+        "risk_plan": {
+          "reference_price": 445.3999939,
+          "entry_zone": [
+            443.17299393,
+            452.0809938
+          ],
+          "stop": 436.17571346,
+          "target": 462.00369869,
+          "reward_risk": 1.8,
+          "risk_percent": 0.0207101,
+          "atr": 8.38570949,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "2518e0ff6608254ed35f5f5118ceb8b54ecdb37197f53b6b1fea8d7dd44c076b"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:JSW.WA:LONG",
+        "market": "gpw",
+        "symbol": "JSW.WA",
+        "name": "JSW",
+        "sector": "surowce",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "source_gate",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 8232019.542664,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.04163569,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "source_gate",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": "source_gate",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 29.59000015,
+          "median_turnover": 8232019.542664,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.04163569
+        },
+        "risk_plan": {
+          "reference_price": 29.59000015,
+          "entry_zone": [
+            29.44205015,
+            30.03385015
+          ],
+          "stop": 28.35799998,
+          "target": 31.80760047,
+          "reward_risk": 1.8,
+          "risk_percent": 0.04163569,
+          "atr": 1.12000016,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "28d541a8d218e4922a53db06efe480a63246c309456ef968e81b157d40a9eba3"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:KGH.WA:LONG",
+        "market": "gpw",
+        "symbol": "KGH.WA",
+        "name": "KGHM",
+        "sector": "surowce",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 253165773.729202,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.05077823,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 342.3500061,
+          "median_turnover": 253165773.729202,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.05077823
+        },
+        "risk_plan": {
+          "reference_price": 342.3500061,
+          "entry_zone": [
+            340.63825607,
+            347.4852562
+          ],
+          "stop": 324.96607753,
+          "target": 373.64107753,
+          "reward_risk": 1.8,
+          "risk_percent": 0.05077823,
+          "atr": 15.80357143,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "19abe786023c52bccfd88df78272db72ced4fcd5628ee5e516fd33b8d4ca4fc6"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:KRU.WA:LONG",
+        "market": "gpw",
+        "symbol": "KRU.WA",
+        "name": "Kruk",
+        "sector": "finanse",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 13239045.72821,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02124332,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 435.70001221,
+          "median_turnover": 13239045.72821,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02124332
+        },
+        "risk_plan": {
+          "reference_price": 435.70001221,
+          "entry_zone": [
+            433.52151215,
+            442.23551239
+          ],
+          "stop": 426.44429888,
+          "target": 452.36029619,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02124332,
+          "atr": 8.41428484,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "7c1c505e0a33f839e77688580a8405f8ae388b7361a1dde6b97f6af82fae659e"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:KTY.WA:LONG",
+        "market": "gpw",
+        "symbol": "KTY.WA",
+        "name": "Grupa Kęty",
+        "sector": "przemysł",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 27328176.5,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03080102,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 1227.0,
+          "median_turnover": 27328176.5,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03080102
+        },
+        "risk_plan": {
+          "reference_price": 1227.0,
+          "entry_zone": [
+            1220.865,
+            1245.405
+          ],
+          "stop": 1189.20714286,
+          "target": 1295.02714286,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03080102,
+          "atr": 34.35714286,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "eb1f712f42597ee4841256c7e848d02f0bee973f752f7d086a482885a5626d7f"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:LPP.WA:LONG",
+        "market": "gpw",
+        "symbol": "LPP.WA",
+        "name": "LPP",
+        "sector": "handel",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 66845400.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02802885,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 20800.0,
+          "median_turnover": 66845400.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02802885
+        },
+        "risk_plan": {
+          "reference_price": 20800.0,
+          "entry_zone": [
+            20696.0,
+            21112.0
+          ],
+          "stop": 20217.0,
+          "target": 21849.4,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02802885,
+          "atr": 530.0,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "13b35bf56df88a489c3060f6a757214c8c7402aeb404ed93c75a1d5e6b53340e"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:LWB.WA:LONG",
+        "market": "gpw",
+        "symbol": "LWB.WA",
+        "name": "Bogdanka",
+        "sector": "surowce",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 1181724.942341,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03416866,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 23.79999924,
+          "median_turnover": 1181724.942341,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03416866
+        },
+        "risk_plan": {
+          "reference_price": 23.79999924,
+          "entry_zone": [
+            23.68099924,
+            24.15699923
+          ],
+          "stop": 22.98678522,
+          "target": 25.26378447,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03416866,
+          "atr": 0.73928547,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "aa7f963e530e2f646cadc03b9ba1c5fe38ab8c2fcc7c1a93e906aef58ec5710f"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:MBK.WA:LONG",
+        "market": "gpw",
+        "symbol": "MBK.WA",
+        "name": "mBank",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 28818991.25,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03119039,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 1385.5,
+          "median_turnover": 28818991.25,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03119039
+        },
+        "risk_plan": {
+          "reference_price": 1385.5,
+          "entry_zone": [
+            1378.5725,
+            1406.2825
+          ],
+          "stop": 1342.28571429,
+          "target": 1463.28571429,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03119039,
+          "atr": 39.28571429,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "718eb004a27654087d5e64088512ee0c6c1dab15d52e73bfe2386d2d1e2e3817"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:MIL.WA:LONG",
+        "market": "gpw",
+        "symbol": "MIL.WA",
+        "name": "Bank Millennium",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 11909079.021132,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03332422,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 20.88999939,
+          "median_turnover": 11909079.021132,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03332422
+        },
+        "risk_plan": {
+          "reference_price": 20.88999939,
+          "entry_zone": [
+            20.78554939,
+            21.20334938
+          ],
+          "stop": 20.19385648,
+          "target": 22.14305662,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03332422,
+          "atr": 0.63285719,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "1102a86eb9f56eccc1f8a20bcaac85d68b7f3b0ab39768fbbedc0e53d7adafc4"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:NEU.WA:LONG",
+        "market": "gpw",
+        "symbol": "NEU.WA",
+        "name": "Neuca",
+        "sector": "ochrona zdrowia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 1404438.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02482283,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 766.0,
+          "median_turnover": 1404438.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02482283
+        },
+        "risk_plan": {
+          "reference_price": 766.0,
+          "entry_zone": [
+            762.17,
+            777.49
+          ],
+          "stop": 746.98571429,
+          "target": 800.22571429,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02482283,
+          "atr": 17.28571429,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "ceeffe7295ab0943550cc7e7ca1bde5af205f7f7b77783bc530b9f9db9833824"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:OPL.WA:LONG",
+        "market": "gpw",
+        "symbol": "OPL.WA",
+        "name": "Orange Polska",
+        "sector": "telekomunikacja",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 16387001.036435,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03095153,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 14.16499996,
+          "median_turnover": 16387001.036435,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03095153
+        },
+        "risk_plan": {
+          "reference_price": 14.16499996,
+          "entry_zone": [
+            14.09417496,
+            14.37747496
+          ],
+          "stop": 13.72657155,
+          "target": 14.95417111,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03095153,
+          "atr": 0.39857129,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "26b5f8b9f3dbdda5261aad0cf8757624b650974164bcf05eb671057b8a71dcd5"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PCO.WA:LONG",
+        "market": "gpw",
+        "symbol": "PCO.WA",
+        "name": "Pepco Group",
+        "sector": "handel",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 50645185.070507,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02650801,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 42.88999939,
+          "median_turnover": 50645185.070507,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02650801
+        },
+        "risk_plan": {
+          "reference_price": 42.88999939,
+          "entry_zone": [
+            42.67554939,
+            43.53334938
+          ],
+          "stop": 41.75307102,
+          "target": 44.93647045,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02650801,
+          "atr": 1.03357124,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "ee19d9efb2c2bb4cd7c1d093ffe368cd68b006fdea69d144e3dd448ae025407a"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PEO.WA:LONG",
+        "market": "gpw",
+        "symbol": "PEO.WA",
+        "name": "Bank Pekao",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 111017653.892059,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02298246,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 258.79998779,
+          "median_turnover": 111017653.892059,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02298246
+        },
+        "risk_plan": {
+          "reference_price": 258.79998779,
+          "entry_zone": [
+            257.50598785,
+            262.68198761
+          ],
+          "stop": 252.85212849,
+          "target": 269.50613453,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02298246,
+          "atr": 5.40714482,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "9c5ac948dbb7450e2d6cff31acd625c548ee2f23d3e0d5ddfbef268577ab7856"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PGE.WA:LONG",
+        "market": "gpw",
+        "symbol": "PGE.WA",
+        "name": "PGE",
+        "sector": "energia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 31822883.242752,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.04496076,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 10.18999958,
+          "median_turnover": 31822883.242752,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.04496076
+        },
+        "risk_plan": {
+          "reference_price": 10.18999958,
+          "entry_zone": [
+            10.13904958,
+            10.34284957
+          ],
+          "stop": 9.7318494,
+          "target": 11.0146699,
+          "reward_risk": 1.8,
+          "risk_percent": 0.04496076,
+          "atr": 0.41650016,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "54036c3221d66c564a80b7e06328fea43f3a1baa1be937fc345d398ee9198292"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PKN.WA:LONG",
+        "market": "gpw",
+        "symbol": "PKN.WA",
+        "name": "ORLEN",
+        "sector": "energia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 200711372.774734,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03222074,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 153.13999939,
+          "median_turnover": 200711372.774734,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03222074
+        },
+        "risk_plan": {
+          "reference_price": 153.13999939,
+          "entry_zone": [
+            152.37429939,
+            155.43709938
+          ],
+          "stop": 148.20571463,
+          "target": 162.02171195,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03222074,
+          "atr": 4.48571341,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "0382b4c3dd2d17167a9c46101763d96a4ec3b2bf54943e5aad3cb8f7411c3a24"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PKO.WA:LONG",
+        "market": "gpw",
+        "symbol": "PKO.WA",
+        "name": "PKO BP",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 260223862.434456,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02511032,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 113.95999908,
+          "median_turnover": 260223862.434456,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02511032
+        },
+        "risk_plan": {
+          "reference_price": 113.95999908,
+          "entry_zone": [
+            113.39019909,
+            115.66939907
+          ],
+          "stop": 111.0984272,
+          "target": 119.11082848,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02511032,
+          "atr": 2.60142899,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "c6c1c8c234bb33a5085db5367b2add77b10a746b9e1227d79ee6369d0df01cdb"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:PZU.WA:LONG",
+        "market": "gpw",
+        "symbol": "PZU.WA",
+        "name": "PZU",
+        "sector": "ubezpieczenia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 106482504.939148,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.01712817,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 72.01999664,
+          "median_turnover": 106482504.939148,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.01712817
+        },
+        "risk_plan": {
+          "reference_price": 72.01999664,
+          "entry_zone": [
+            71.65989666,
+            73.10029659
+          ],
+          "stop": 70.78642605,
+          "target": 74.2404237,
+          "reward_risk": 1.8,
+          "risk_percent": 0.01712817,
+          "atr": 1.12142781,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "8a8ab70b1db9864f5963b36e923cca583b8c5e6b853c8ec4050f7139d0a67d98"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:RBW.WA:LONG",
+        "market": "gpw",
+        "symbol": "RBW.WA",
+        "name": "Rainbow Tours",
+        "sector": "turystyka",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 3845627.026993,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02306068,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 152.30000305,
+          "median_turnover": 3845627.026993,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02306068
+        },
+        "risk_plan": {
+          "reference_price": 152.30000305,
+          "entry_zone": [
+            151.53850304,
+            154.5845031
+          ],
+          "stop": 148.78786163,
+          "target": 158.6218576,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02306068,
+          "atr": 3.19285583,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "705036a4b34a34225629888d14909d5afa079de3f48330cb5bf227b9813017be"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:SPL.WA:LONG",
+        "market": "gpw",
+        "symbol": "SPL.WA",
+        "name": "Santander Bank Polska",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "market_data",
+          "passed": false,
+          "hard": true,
+          "stage": "market_data",
+          "reason": "freeze_fetch_failure:PublicationError",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": false,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "freeze_fetch_failure:PublicationError",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": "provider_failure:PublicationError: Brak danych rynkowych SPL.WA w prefetch cache.",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": null,
+          "reference_price": null,
+          "median_turnover": null,
+          "turnover_threshold": null,
+          "risk_percent": null
+        },
+        "risk_plan": null,
+        "settlement_eligibility": {
+          "eligible": false,
+          "mode": "insufficient_counterfactual_state",
+          "reason": "market_state_insufficient"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "482b2328f41ef1659a7e036de1a1aaa4ccf9f7b8cf4bd124603d9307da98d629"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:TEN.WA:LONG",
+        "market": "gpw",
+        "symbol": "TEN.WA",
+        "name": "Ten Square Games",
+        "sector": "gry",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 1982931.0,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02639391,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 103.0,
+          "median_turnover": 1982931.0,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02639391
+        },
+        "risk_plan": {
+          "reference_price": 103.0,
+          "entry_zone": [
+            102.485,
+            104.545
+          ],
+          "stop": 100.28142749,
+          "target": 107.89343051,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02639391,
+          "atr": 2.47142955,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "77842edfe057c9a791f86b436ab9fd67e5f7e170768a0fd8e0e3c0b28ad18224"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:TPE.WA:LONG",
+        "market": "gpw",
+        "symbol": "TPE.WA",
+        "name": "Tauron Polska Energia",
+        "sector": "energia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 28927414.223963,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03589443,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 8.24800014,
+          "median_turnover": 28927414.223963,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03589443
+        },
+        "risk_plan": {
+          "reference_price": 8.24800014,
+          "entry_zone": [
+            8.20676014,
+            8.37172015
+          ],
+          "stop": 7.95194288,
+          "target": 8.78090322,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03589443,
+          "atr": 0.26914297,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "5ddec14443cf1600f875dada6a25b945a0cf524b1fa536057e3ec1f5676f6de1"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:TXT.WA:LONG",
+        "market": "gpw",
+        "symbol": "TXT.WA",
+        "name": "Text",
+        "sector": "technologia",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 2772859.175739,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03347145,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 50.0,
+          "median_turnover": 2772859.175739,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03347145
+        },
+        "risk_plan": {
+          "reference_price": 50.0,
+          "entry_zone": [
+            49.75,
+            50.75
+          ],
+          "stop": 48.32642773,
+          "target": 53.01243008,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03347145,
+          "atr": 1.52142933,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "9bf1cb9971292ca07bab9ba290ab9502395db0a097da2cfbcba67f2a3c2c16b3"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:WPL.WA:LONG",
+        "market": "gpw",
+        "symbol": "WPL.WA",
+        "name": "Wirtualna Polska",
+        "sector": "media",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "liquidity",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "median_turnover_threshold",
+          "observed_value": 494292.582451,
+          "threshold": 1000000.0
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 494292.582451,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.02477252,
+              "threshold": 0.07
+            }
+          ],
+          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 62.79999924,
+          "median_turnover": 494292.582451,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.02477252
+        },
+        "risk_plan": {
+          "reference_price": 62.79999924,
+          "entry_zone": [
+            62.48599924,
+            63.74199923
+          ],
+          "stop": 61.24428471,
+          "target": 65.60028538,
+          "reward_risk": 1.8,
+          "risk_percent": 0.02477252,
+          "atr": 1.41428593,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "14c4495438a4173052c0aa39a70f60e1e0142d1466bf051c6574c88250e9904a"
+      },
+      {
+        "candidate_id": "gpw:2026-08-24:XTB.WA:LONG",
+        "market": "gpw",
+        "symbol": "XTB.WA",
+        "name": "XTB",
+        "sector": "finanse",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-08-24T09:35:10+02:00",
+        "expected_session": "2026-08-21",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": null,
+              "threshold": null
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 94185512.058502,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.0449113,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-08-21",
+          "reference_price": 168.30000305,
+          "median_turnover": 94185512.058502,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.0449113
+        },
+        "risk_plan": {
+          "reference_price": 168.30000305,
+          "entry_zone": [
+            167.45850304,
+            170.8245031
+          ],
+          "stop": 160.74143066,
+          "target": 181.90543335,
+          "reward_risk": 1.8,
+          "risk_percent": 0.0449113,
+          "atr": 6.87142944,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "13aa4faef946c077fb71cf49f4e9055fccd321633e8ff4ea8fcb426a49dc3d2c"
+      }
+    ],
+    "contract": {
+      "prospective_only": true,
+      "preserve_existing_same_decision": true,
+      "news_or_llm_rerun": false,
+      "source_engine_writeback": false,
+      "decision_influence": false,
+      "future_outcome_requires_preexisting_freeze": true
+    },
+    "freeze_sha256": "cf18dec5113005dcfcaaa7280c7da53b2123198c72eb3eac50615c9df72c309c"
   }
 }

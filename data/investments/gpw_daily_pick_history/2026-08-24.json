@@ -2,18 +2,174 @@
   "schema_version": "gpw-daily-pick-v1",
   "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
   "date": "2026-08-24",
-  "generated_at": "2026-08-24T09:10:44+02:00",
+  "generated_at": "2026-08-24T09:35:10+02:00",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
-  "decision": "AWARIA_DANYCH",
-  "reason": "Brak dzisiaj wyboru.",
-  "locked": false,
-  "selection": null,
+  "decision": "TRANSAKCJA",
+  "reason": "Najlepszy dostępny kandydat przeszedł twarde bramki danych, płynności/ryzyka, RR, źródeł i niezależnej recenzji; wynik 69.04 jest poniżej celu 72, więc przekonanie jest umiarkowane.",
+  "locked": true,
+  "selection": {
+    "symbol": "DNP.WA",
+    "ticker": "DNP",
+    "name": "Dino Polska",
+    "sector": "handel",
+    "score": 69.04,
+    "reference_price": 34.72,
+    "entry_zone": [
+      34.62,
+      34.93
+    ],
+    "activation": "Setup po otwarciu: wejście tylko w podanej strefie od 09:05; powyżej górnej granicy nie gonić ceny.",
+    "stop": 33.66,
+    "target": 36.62,
+    "reward_risk": 1.8,
+    "valid_until": "2026-08-26",
+    "thesis": "Brak wiarygodnego i świeżego katalizatora w horyzoncie 1-2 sesji. Ostatnie doniesienia dotyczą wyników z II kwartału 2026 roku oraz dyskusji rynkowych sprzed kilku dni.",
+    "why_now": "Brak nowych raportów bieżących w wymaganym oknie czasowym.",
+    "risk_factors": [
+      "Wyczerpanie krótkoterminowego momentum cenowego",
+      "Brak nowych informacji fundamentalnych"
+    ],
+    "scores": {
+      "relative_momentum": 100.0,
+      "volume_liquidity": 100.0,
+      "market_context": 55.03,
+      "risk_reward": 88.57,
+      "historical_expectancy": 50.0,
+      "catalyst": 30.0
+    },
+    "sources": [
+      {
+        "id": "src-12b6c5ea557e",
+        "title": "Wyniki Dino Polska w II kw. 2026 roku vs. konsensus PAP (tabela) - PAP Biznes",
+        "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNNXV0Q1hqWDRHWm5qNVFSZ0ZiUVRrOHQzZjNWZ0NHTXdVaEpWcjA1SDBmdG13U1Z2RHRVWUdPcnZQTWpEVmNsbVlrdU1rSkFFSDJ5M3NiUnkwYW5uX1ZpWkZ6cXZhWGZJTDRzN3ZJdXlKZzhLb2xMdGNQdnF5WTd5YWo5WS1OVVVWdGQ4OVVGVWp1LWcwQWpOUUg5TGNFRVFO?oc=5",
+        "publisher": "PAP Biznes",
+        "published_at": "2026-08-20T18:18+02:00",
+        "age_hours": 87.3,
+        "quality": "pierwotne",
+        "source_kind": "issuer_report",
+        "channel": "ESPI_EBI_PAP",
+        "event_type": "earnings",
+        "event_label": "wyniki / raport okresowy",
+        "materiality": 5,
+        "issuer_ticker": "DNP"
+      },
+      {
+        "id": "src-a795a5923ef2",
+        "title": "Cła USA na Kanadę, wyższy CIT dla energetyki i powrót wiary w Dino - Rzeczpospolita",
+        "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxORzNVMlNSS2tZN2hGd1ZPbTc4SE11dldURW5SeHR2RFpERjJhNGdUU2I3eDgzak93S09ZSFRURXhSOFFtelB3eXVXX05Pa1h5aHBybW00ZHhWeS1RT1ZMR0tsTGtpSkFaMzNjcldoVXU5TFRTMTc2SkJWMUZiZTN6azFKU2JicEZJQldZOFZCLXFtcmcxVWhlVGRQS1g2aTcwTUl6eVJaZU1EX0NMaVM0?oc=5",
+        "publisher": "Rzeczpospolita",
+        "published_at": "2026-08-24T06:30+02:00",
+        "age_hours": 3.1,
+        "quality": "wtórne",
+        "event_type": "other",
+        "event_label": "inne zdarzenie",
+        "materiality": 2,
+        "source_kind": "news",
+        "channel": "NEWS"
+      }
+    ],
+    "review": {
+      "approved": true,
+      "reason": "Wszystkie twierdzenia faktyczne mają oparcie w przekazanych źródłach, kierunek transakcji nie stoi w sprzeczności z faktami, identyfikatory źródeł są poprawne, a plan ryzyka spełnia warunki matematyczne (stop < entry < target oraz RR >= 1.5).",
+      "supported_source_ids": [
+        "src-12b6c5ea557e",
+        "src-a795a5923ef2"
+      ],
+      "contradictions": [],
+      "fatal_checks": {
+        "evidence_supported": true,
+        "direction_not_contradicted": true,
+        "source_integrity_ok": true,
+        "risk_plan_ok": true
+      },
+      "fatal_issues": [],
+      "review_policy": "integrity_v2_not_second_ranking",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "score_target": 72.0,
+    "score_target_met": false,
+    "conviction": "umiarkowane",
+    "market_snapshot": {
+      "provider": "Yahoo",
+      "symbol": "DNP.WA",
+      "date": "2026-08-24",
+      "observed_at": "2026-08-24T09:20:26+02:00",
+      "open": 34.76,
+      "high": 34.9,
+      "low": 34.38,
+      "last": 34.72,
+      "volume": 353107,
+      "crosscheck": {
+        "available_providers": [
+          "Yahoo"
+        ],
+        "errors": [
+          "Stooq:PublicationError"
+        ],
+        "status": "single_source"
+      }
+    },
+    "event_context": {
+      "primary_type": "earnings",
+      "primary_label": "wyniki / raport okresowy",
+      "primary_source_id": "src-12b6c5ea557e",
+      "primary_source_kind": "issuer_report",
+      "primary_channel": "ESPI_EBI_PAP",
+      "materiality": 5,
+      "official_report_used": true,
+      "selected_event_source_ids": [
+        "src-12b6c5ea557e",
+        "src-a795a5923ef2"
+      ],
+      "market_reaction": {
+        "measurement": "latest_completed_session",
+        "return_1d_percent": 7.711,
+        "return_5d_percent": 7.313,
+        "relative_5d_percent": 8.985,
+        "volume_ratio_20d": 2.607,
+        "reference_price": 34.78,
+        "note": "Reakcja z ostatniej zakończonej sesji; nie jest traktowana jako samodzielny katalizator."
+      },
+      "event_learning": {
+        "sample": 0,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": null,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      }
+    },
+    "evidence_summary": {
+      "official_reports": 1,
+      "independent_news": 1,
+      "primary_event": "wyniki / raport okresowy"
+    }
+  },
   "data_quality": {
-    "status": "failed",
-    "failed_stage": "opening_quote",
-    "opening_quote_error": "Brak dzisiejszego kwotowania DNP.WA po otwarciu (Yahoo:PublicationError; Stooq:PublicationError).",
-    "control_loop_attempts": 2
+    "status": "healthy",
+    "complete_ratio": 0.95,
+    "expected_session": "2026-08-21",
+    "valid_market_symbols": 38,
+    "ranked_candidates": 35,
+    "reviewed_candidates": 6,
+    "eligible_candidates": 5,
+    "provider_failures": {
+      "CCC.WA": "PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
+      "SPL.WA": "PublicationError: Brak danych rynkowych SPL.WA w prefetch cache."
+    },
+    "screened_out": {
+      "11B.WA": "screened_by_liquidity_atr_or_risk",
+      "EUR.WA": "screened_by_liquidity_atr_or_risk",
+      "WPL.WA": "screened_by_liquidity_atr_or_risk"
+    },
+    "analysis_rejections": {
+      "JSW.WA": "source_gate"
+    },
+    "review_rejections": [],
+    "opening_quote": "single_source",
+    "control_loop_attempts": 1
   },
   "methodology": {
     "horizon": "1-2 sesje GPW",
@@ -25,10 +181,19 @@
       "risk_reward": 15,
       "historical_expectancy": 10
     },
-    "minimum_score": 72,
+    "minimum_score": 72.0,
     "minimum_reward_risk": 1.5,
     "universe_size": 40,
     "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "target_score": 72.0,
+    "score_policy": "ranking_target_not_hard_gate",
+    "hard_admission_gates": [
+      "market_data_completeness",
+      "liquidity_and_position_risk",
+      "reward_risk",
+      "source_evidence",
+      "independent_review"
+    ],
     "learning_overlay": {
       "method": "bayesian_shrinkage_historical_overlay_v1",
       "active": false,
@@ -104,6 +269,10 @@
     "automatic_weight_changes": false
   },
   "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+  "outcome": {
+    "status": "PENDING",
+    "activated": null
+  },
   "learning": {
     "method": "bayesian_shrinkage_historical_overlay_v1",
     "resolved_trades": 1,
