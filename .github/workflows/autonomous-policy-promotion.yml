@@ -1,0 +1,262 @@
+name: Autonomous Policy Promotion
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Learning Outcome Loop"
+    types: [completed]
+  schedule:
+    - cron: "27 5 * * 1-5"
+    - cron: "27 17 * * 1-5"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: autonomous-policy-promotion
+  cancel-in-progress: false
+
+env:
+  PRIMARY_ARTIFACT: autonomous-policy-state
+  CHECKPOINT_ARTIFACT: autonomous-policy-checkpoint
+  ARCHIVE_NAME: autonomous-policy-state.tgz
+
+jobs:
+  promote:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate PR35 before touching durable state
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/policy_runtime_overlay.py \
+            scripts/policy_repo_materializer.py \
+            scripts/autonomous_policy_promotion.py
+          python -m unittest \
+            tests.test_autonomous_policy_promotion \
+            tests.test_policy_repo_materializer -v
+          python -m json.tool data/investments/autonomous_policy_baselines.json >/dev/null
+
+      - name: Prepare private runtime directories
+        run: |
+          set -euo pipefail
+          echo "POLICY_STATE_DIR=$RUNNER_TEMP/autonomous-policy" >> "$GITHUB_ENV"
+          echo "LEARNING_STATE_DIR=$RUNNER_TEMP/learning-outcome-loop-readonly" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/autonomous-policy" "$RUNNER_TEMP/learning-outcome-loop-readonly"
+
+      - name: Restore prior autonomous policy state or allow first activation
+        id: restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          prior_success="$(gh run list \
+            --workflow autonomous-policy-promotion.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          if [[ -z "$prior_success" ]]; then
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            echo "No prior successful PR35 run; first prospective activation is allowed."
+            exit 0
+          fi
+
+          echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+          restored=false
+          for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
+            mapfile -t candidate_runs < <(
+              gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact}&per_page=100" \
+                --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .workflow_run.id'
+            )
+            for run_id in "${candidate_runs[@]}"; do
+              [[ -n "$run_id" ]] || continue
+              run_meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+              run_name="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+              run_result="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+              [[ "$run_name" == "Autonomous Policy Promotion" && "$run_result" == "success" ]] || continue
+              rm -rf "$RUNNER_TEMP/policy-artifact" "$POLICY_STATE_DIR"
+              mkdir -p "$RUNNER_TEMP/policy-artifact" "$POLICY_STATE_DIR"
+              if ! gh run download "$run_id" -n "$artifact" -D "$RUNNER_TEMP/policy-artifact"; then
+                continue
+              fi
+              archive="$RUNNER_TEMP/policy-artifact/$ARCHIVE_NAME"
+              [[ -s "$archive" ]] || continue
+              tar -xzf "$archive" -C "$POLICY_STATE_DIR"
+              if python scripts/autonomous_policy_promotion.py --state-dir "$POLICY_STATE_DIR" --verify; then
+                restored=true
+                break 2
+              fi
+            done
+          done
+
+          if [[ "$restored" != true ]]; then
+            echo "Previous PR35 history exists but no valid policy artifact can be restored." >&2
+            echo "FAIL_CLOSED: refusing a second activation boundary." >&2
+            exit 1
+          fi
+
+      - name: Restore latest Learning Outcome Loop state read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list \
+            --workflow learning-outcome-loop.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No Learning Outcome Loop state yet; PR35 will activate with zero evidence."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/learning-artifact"
+          mkdir -p "$RUNNER_TEMP/learning-artifact"
+          if ! gh run download "$run_id" -n learning-outcome-loop-state -D "$RUNNER_TEMP/learning-artifact"; then
+            echo "Latest learning run has no state artifact; continuing without new evidence."
+            exit 0
+          fi
+          archive="$RUNNER_TEMP/learning-artifact/learning-outcome-loop-state.tgz"
+          [[ -s "$archive" ]] || exit 0
+          tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
+          if [[ -f "$LEARNING_STATE_DIR/learning_ledger.jsonl" ]]; then
+            python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
+          fi
+
+      - name: Run autonomous candidate promotion and rollback loop
+        run: |
+          set -euo pipefail
+          python scripts/autonomous_policy_promotion.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --learning-state-dir "$LEARNING_STATE_DIR" \
+            --repo-root .
+          python scripts/autonomous_policy_promotion.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --verify
+
+      - name: Materialize active policy into allowlisted production configs
+        id: materialize
+        run: |
+          set -euo pipefail
+          python scripts/policy_repo_materializer.py \
+            --registry "$POLICY_STATE_DIR/policy_registry.json" \
+            --repo-root . | tee "$RUNNER_TEMP/materialize.json"
+          changed="$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'materialize.json').read_text())
+          print('true' if p.get('changed') else 'false')
+          PY
+          )"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Commit autonomous promotion or rollback to production main
+        if: steps.materialize.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/gpw_daily_pick_config.json data/investments/us_daily_stock_config.json
+          git diff --cached --name-only
+          test "$(git diff --cached --name-only | grep -vcE '^(data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json)$' || true)" -eq 0
+          git commit -m "PR35 autonomous policy promotion state"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "PR35 production policy writeback complete: $(git rev-parse HEAD)"
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
+
+      - name: Assert bounded autonomy contract
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['POLICY_STATE_DIR'])
+          registry=json.loads((root/'policy_registry.json').read_text())
+          status=json.loads((root/'policy_promotion_status.json').read_text())
+          controls=registry['controls']
+          assert controls['autonomous_promotion_enabled'] is True
+          assert controls['automatic_rollback_enabled'] is True
+          assert controls['code_mutation_enabled'] is False
+          assert controls['arbitrary_parameter_mutation_enabled'] is False
+          assert controls['trade_execution_enabled'] is False
+          assert controls['historical_backfill_enabled'] is False
+          assert controls['same_sample_train_and_validate_enabled'] is False
+          assert controls['multi_parameter_candidate_enabled'] is False
+          assert controls['llm_policy_mutation_enabled'] is False
+          assert set(registry['engines']) == {'gpw_daily','us_daily'}
+          print('PR35_BOUNDED_AUTONOMY_PASS')
+          print(json.dumps(status['active_policies'], sort_keys=True))
+          PY
+
+      - name: Pack private autonomous policy state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$POLICY_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$ARCHIVE_NAME"
+
+      - name: Store primary autonomous policy state
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-policy-state
+          path: ${{ runner.temp }}/autonomous-policy-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Store autonomous policy checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-policy-checkpoint
+          path: ${{ runner.temp }}/autonomous-policy-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Prune old autonomous policy artifacts
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact}&per_page=100" > "$RUNNER_TEMP/${artifact}.json"
+            python - "$RUNNER_TEMP/${artifact}.json" <<'PY' > "$RUNNER_TEMP/delete.txt"
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          for row in rows[72:]: print(row['id'])
+          PY
+            while read -r artifact_id; do
+              [[ -n "$artifact_id" ]] || continue
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
+            done < "$RUNNER_TEMP/delete.txt"
+          done
