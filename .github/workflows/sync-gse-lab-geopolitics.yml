@@ -1,0 +1,67 @@
+name: Sync GSE Lab Geopolitics Room
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/sync_gse_lab_geopolitics_pages.py"
+      - "assets/gse-lab-entry.css"
+      - "scripts/gse-lab-entry.js"
+      - "pl/geo/gse-lab.html"
+      - "en/geo/gse-lab.html"
+      - ".github/workflows/sync-gse-lab-geopolitics.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-gse-lab-geopolitics
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Synchronize GSE Lab entry
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/sync_gse_lab_geopolitics_pages.py
+          python scripts/sync_gse_lab_geopolitics_pages.py
+          python scripts/sync_gse_lab_geopolitics_pages.py
+
+      - name: Commit room pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/geopolityka.html en/geopolitics.html
+          if git diff --cached --quiet; then
+            echo "GSE Lab entry already current."
+            exit 0
+          fi
+          git commit -m "feat(geo): add GSE Lab room entry"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt*2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          echo "::error::Could not publish GSE Lab room entry"
+          exit 1
