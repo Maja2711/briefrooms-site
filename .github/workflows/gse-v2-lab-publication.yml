@@ -1,0 +1,128 @@
+name: GSE v2 Lab Public Projection
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["GSE v2 Advanced Historical Learning"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/gse_v2_public_lab_projection.py"
+      - "tests/test_gse_v2_public_lab_projection.py"
+      - ".github/workflows/gse-v2-lab-publication.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: gse-v2-lab-publication
+  cancel-in-progress: true
+
+env:
+  ARTIFACT_NAME: gse-shadow-state
+  PUBLIC_PATH: data/gse/gse_v2_lab_public.json
+
+jobs:
+  publish:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/gse_v2_public_lab_projection.py
+          python -m unittest tests.test_gse_v2_public_lab_projection -v
+
+      - name: Restore latest cumulative GSE state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "GSE_STATE_DIR=$RUNNER_TEMP/gse_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gse_state"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$api" > "$RUNNER_TEMP/gse-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/gse-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in p.get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          test -n "$artifact_id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/gse-state.zip"
+          mkdir -p "$RUNNER_TEMP/gse-artifact"
+          unzip -q "$RUNNER_TEMP/gse-state.zip" -d "$RUNNER_TEMP/gse-artifact"
+          test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"
+          tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+          test -f "$GSE_STATE_DIR/gse_v2_learning_state.json"
+
+      - name: Resolve effective catalogue
+        run: |
+          if [ -f "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" ]; then
+            echo "GSE_HISTORICAL_CATALOG=$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" >> "$GITHUB_ENV"
+          else
+            echo "GSE_HISTORICAL_CATALOG=$GITHUB_WORKSPACE/data/gse/historical_event_catalog.json" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build safe public GSE Lab projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/gse_v2_public_lab_projection.py \
+            --state-dir "$GSE_STATE_DIR" \
+            --catalog "$GSE_HISTORICAL_CATALOG" \
+            --output "$PUBLIC_PATH"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/gse/gse_v2_lab_public.json').read_text())
+          assert p['engine']['decision_influence'] is False
+          assert p['public_boundary']['raw_evidence_exposed'] is False
+          assert p['public_boundary']['private_forecasts_exposed'] is False
+          assert len(p['horizons']) == 3
+          print('GSE Lab summary:',p['summary'])
+          print('Best horizon:',p['best_horizon'])
+          PY
+
+      - name: Publish GSE Lab projection to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PUBLIC_PATH"
+          if git diff --cached --quiet; then
+            echo "GSE Lab projection already current."
+            exit 0
+          fi
+          git commit -m "Update GSE v2 public lab projection"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt*2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          echo "::error::Could not publish GSE Lab projection"
+          exit 1
