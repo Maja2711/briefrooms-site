@@ -23,6 +23,13 @@ class AutonomousPolicyObservatoryTests(unittest.TestCase):
         (self.root / "data/investments/us_daily_stock_config.json").write_text(json.dumps({
             "policy_version": "us-base-v1", "target_score": 72
         }), encoding="utf-8")
+        (self.root / obs.BASELINES_PATH).write_text(json.dumps({
+            "schema_version": "briefrooms-autonomous-policy-baselines-v1",
+            "engines": {
+                "gpw_daily": {"parameter": "minimum_composite_score", "baseline_value": 72},
+                "us_daily": {"parameter": "target_score", "baseline_value": 72}
+            }
+        }), encoding="utf-8")
         self.state = self.root / "state"
         self.state.mkdir()
         self.now = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
