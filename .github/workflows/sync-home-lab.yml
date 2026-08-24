@@ -1,0 +1,74 @@
+name: Sync BriefRooms Lab Homepages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "assets/home-lab.css"
+      - "scripts/home-lab.js"
+      - "scripts/sync_home_lab.py"
+      - "data/lab/home_lab_status.json"
+      - ".github/workflows/sync-home-lab.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: home-lab-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate synchronizer
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/sync_home_lab.py
+          python -m json.tool data/lab/home_lab_status.json >/dev/null
+
+      - name: Install BriefRooms Lab on PL and EN homepages
+        run: |
+          set -euo pipefail
+          python scripts/sync_home_lab.py
+          python scripts/sync_home_lab.py --check
+
+      - name: Commit homepage changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/index.html en/index.html
+          if git diff --cached --quiet; then
+            echo "BriefRooms Lab is already installed."
+            exit 0
+          fi
+          git commit -m "feat(home): replace Hot X with BriefRooms Lab"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+          echo "::error::Could not publish BriefRooms Lab homepage changes."
+          exit 1
