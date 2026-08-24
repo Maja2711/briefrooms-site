@@ -1,0 +1,27 @@
+{
+  "schema_version": "briefrooms-autonomous-policy-baselines-v1",
+  "engines": {
+    "gpw_daily": {
+      "config_path": "data/investments/gpw_daily_pick_config.json",
+      "baseline_policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
+      "parameter": "minimum_composite_score",
+      "baseline_value": 72,
+      "minimum_allowed": 68,
+      "maximum_allowed": 76
+    },
+    "us_daily": {
+      "config_path": "data/investments/us_daily_stock_config.json",
+      "baseline_policy_version": "us-short-horizon-en-v1",
+      "parameter": "target_score",
+      "baseline_value": 72,
+      "minimum_allowed": 68,
+      "maximum_allowed": 76
+    }
+  },
+  "non_autonomous_engines": {
+    "eurusd_daily": "observe_only_until_versioned_policy_contract",
+    "wes": "observe_only_until_versioned_policy_contract",
+    "brace_portfolio_10k": "observe_only_until_versioned_policy_contract",
+    "brace_spx_g6": "research_shadow_only"
+  }
+}
