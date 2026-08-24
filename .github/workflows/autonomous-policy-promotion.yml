@@ -46,17 +46,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate PR35 before touching durable state
+      - name: Validate PR35 and PR36 before touching durable state
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/policy_runtime_overlay.py \
             scripts/policy_repo_materializer.py \
-            scripts/autonomous_policy_promotion.py
+            scripts/autonomous_policy_promotion.py \
+            scripts/statistical_promotion_gate.py \
+            scripts/statistical_policy_materializer.py
           python -m unittest \
             tests.test_autonomous_policy_promotion \
-            tests.test_policy_repo_materializer -v
+            tests.test_policy_repo_materializer \
+            tests.test_statistical_promotion_gate -v
           python -m json.tool data/investments/autonomous_policy_baselines.json >/dev/null
+          python -m json.tool data/investments/statistical_promotion_gate_config.json >/dev/null
 
       - name: Prepare private runtime directories
         run: |
@@ -80,7 +84,7 @@ jobs:
 
           if [[ -z "$prior_success" ]]; then
             echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-            echo "No prior successful PR35 run; first prospective activation is allowed."
+            echo "No prior successful autonomous policy run; first prospective activation is allowed."
             exit 0
           fi
 
@@ -113,7 +117,7 @@ jobs:
           done
 
           if [[ "$restored" != true ]]; then
-            echo "Previous PR35 history exists but no valid policy artifact can be restored." >&2
+            echo "Previous autonomous policy history exists but no valid artifact can be restored." >&2
             echo "FAIL_CLOSED: refusing a second activation boundary." >&2
             exit 1
           fi
@@ -130,7 +134,7 @@ jobs:
             --json databaseId \
             --jq '.[0].databaseId // empty')"
           if [[ -z "$run_id" ]]; then
-            echo "No Learning Outcome Loop state yet; PR35 will activate with zero evidence."
+            echo "No Learning Outcome Loop state yet; autonomous policy will activate with zero evidence."
             exit 0
           fi
           rm -rf "$RUNNER_TEMP/learning-artifact"
@@ -146,7 +150,7 @@ jobs:
             python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
           fi
 
-      - name: Run autonomous candidate promotion and rollback loop
+      - name: Run PR35 autonomous candidate and rollback loop
         run: |
           set -euo pipefail
           python scripts/autonomous_policy_promotion.py \
@@ -157,12 +161,23 @@ jobs:
             --state-dir "$POLICY_STATE_DIR" \
             --verify
 
-      - name: Materialize active policy into allowlisted production configs
+      - name: Run PR36 Champion vs Challenger statistical gate
+        run: |
+          set -euo pipefail
+          python scripts/statistical_promotion_gate.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+          python scripts/statistical_promotion_gate.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --verify
+
+      - name: Materialize only statistically authorized policy
         id: materialize
         run: |
           set -euo pipefail
-          python scripts/policy_repo_materializer.py \
+          python scripts/statistical_policy_materializer.py \
             --registry "$POLICY_STATE_DIR/policy_registry.json" \
+            --authorizations "$POLICY_STATE_DIR/statistical_policy_authorizations.json" \
             --repo-root . | tee "$RUNNER_TEMP/materialize.json"
           changed="$(python - <<'PY'
           import json, os
@@ -183,17 +198,17 @@ jobs:
           git add data/investments/gpw_daily_pick_config.json data/investments/us_daily_stock_config.json
           git diff --cached --name-only
           test "$(git diff --cached --name-only | grep -vcE '^(data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json)$' || true)" -eq 0
-          git commit -m "PR35 autonomous policy promotion state"
+          git commit -m "PR35/PR36 autonomous statistically validated policy state"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "PR35 production policy writeback complete: $(git rev-parse HEAD)"
+              echo "Autonomous production policy writeback complete: $(git rev-parse HEAD)"
               exit 0
             fi
             sleep $((attempt * 4))
           done
           exit 1
 
-      - name: Assert bounded autonomy contract
+      - name: Assert bounded statistically gated autonomy contract
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -202,6 +217,7 @@ jobs:
           root=Path(os.environ['POLICY_STATE_DIR'])
           registry=json.loads((root/'policy_registry.json').read_text())
           status=json.loads((root/'policy_promotion_status.json').read_text())
+          auth=json.loads((root/'statistical_policy_authorizations.json').read_text())
           controls=registry['controls']
           assert controls['autonomous_promotion_enabled'] is True
           assert controls['automatic_rollback_enabled'] is True
@@ -213,7 +229,13 @@ jobs:
           assert controls['multi_parameter_candidate_enabled'] is False
           assert controls['llm_policy_mutation_enabled'] is False
           assert set(registry['engines']) == {'gpw_daily','us_daily'}
-          print('PR35_BOUNDED_AUTONOMY_PASS')
+          for engine_id,state in registry['engines'].items():
+              if int(state.get('revision') or 0) > 0:
+                  row=auth['authorizations'].get(state['policy_id'])
+                  assert row and row['status']=='PASS'
+                  assert row['effective_policy_version']==state['effective_policy_version']
+                  assert row['candidate_id']==state['source_candidate_id']
+          print('PR35_PR36_BOUNDED_AUTONOMY_PASS')
           print(json.dumps(status['active_policies'], sort_keys=True))
           PY
 
