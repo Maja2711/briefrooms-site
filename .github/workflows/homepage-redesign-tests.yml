@@ -1,0 +1,102 @@
+name: Homepage Redesign Regression
+
+on:
+  pull_request:
+    paths:
+      - "pl/index.html"
+      - "en/index.html"
+      - "pl/o-projekcie.html"
+      - "en/about.html"
+      - "assets/home-*.css"
+      - "assets/about-redesign.css"
+      - "scripts/home-redesign.js"
+      - "scripts/site-header.js"
+      - "scripts/news-live.js"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/generate_permanent_briefs.py"
+      - "tests/test_homepage_*.py"
+      - "tests/test_site_header*"
+      - ".github/workflows/homepage-redesign-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "pl/index.html"
+      - "en/index.html"
+      - "pl/o-projekcie.html"
+      - "en/about.html"
+      - "assets/home-*.css"
+      - "assets/about-redesign.css"
+      - "scripts/home-redesign.js"
+      - "scripts/site-header.js"
+      - "scripts/news-live.js"
+      - "scripts/enforce_homepage_photo_only.py"
+      - "scripts/generate_permanent_briefs.py"
+      - "tests/test_homepage_*.py"
+      - "tests/test_site_header*"
+      - ".github/workflows/homepage-redesign-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Syntax checks
+        run: |
+          set -euo pipefail
+          node --check scripts/home-redesign.js
+          node --check scripts/news-live.js
+          node --check scripts/site-header.js
+          python -m py_compile scripts/enforce_homepage_photo_only.py scripts/generate_permanent_briefs.py
+
+      - name: Homepage and photo-feed contracts
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_homepage_static tests.test_homepage_photo_only -v
+
+      - name: Shared header contracts
+        run: |
+          set -euo pipefail
+          node --test tests/test_site_header.js
+          python -m pytest -q tests/test_site_header_glass_doors.py
+
+      - name: News publication compatibility
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_publish_news -v
+
+      - name: Photo guard must be idempotent on redesigned homepages
+        run: |
+          set -euo pipefail
+          python scripts/enforce_homepage_photo_only.py
+          git diff --exit-code -- pl/index.html en/index.html
+
+      - name: Validate redesigned local navigation targets
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          root = Path('.')
+          for page in (root/'pl/index.html', root/'en/index.html'):
+              source = page.read_text(encoding='utf-8')
+              match = re.search(r'<nav\s+class=["\']br-home-nav["\'][^>]*>(.*?)</nav>', source, re.I|re.S)
+              assert match, f'{page}: br-home-nav missing'
+              for href in re.findall(r'href=["\'](/(?:pl|en)/[^"\']*)["\']', match.group(1)):
+                  path = href.split('?',1)[0].split('#',1)[0]
+                  local = root / (path.lstrip('/') + ('index.html' if path.endswith('/') else ''))
+                  assert local.exists(), f'{page}: missing target {href} -> {local}'
+          print('Homepage navigation targets exist in both languages.')
+          PY
