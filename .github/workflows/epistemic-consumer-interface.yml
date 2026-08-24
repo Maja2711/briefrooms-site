@@ -1,0 +1,43 @@
+name: Epistemic Consumer Interface
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/epistemic_consumer_interface.py"
+      - "scripts/epistemic_consumer_live.py"
+      - "tests/test_epistemic_consumer_interface.py"
+      - "docs/EPISTEMIC_CONSUMER_INTERFACE.md"
+      - ".github/workflows/epistemic-consumer-interface.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate consumer contract
+        run: |
+          python -m py_compile scripts/epistemic_consumer_interface.py scripts/epistemic_consumer_live.py
+          python -m unittest tests/test_epistemic_consumer_interface.py -v
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          import epistemic_consumer_interface as e
+          a=e.ConsumerAuthority()
+          assert a.aggregate_authoritative is True
+          assert a.consumer_may_override_probability is False
+          assert a.consumer_may_ignore_aggregate is False
+          assert a.belief_core_writeback_enabled is False
+          assert a.decision_writeback_enabled is False
+          assert a.automatic_tuning_enabled is False
+          assert set(e.CONSUMER_PROFILES) == {'BRACE_SPX','WES_SPX'}
+          print('Epistemic consumer authority invariants: PASS')
+          PY
