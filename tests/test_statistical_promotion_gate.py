@@ -143,6 +143,9 @@ class StatisticalPromotionGateTests(unittest.TestCase):
             assert_statistical_authorization(self.state / ap.REGISTRY_FILENAME, self.state / sg.AUTH_FILENAME)
 
     def test_bad_large_sample_is_statistically_rejected_and_blocked(self) -> None:
+        self.candidate["validation_start_at"] = ap._iso(self.now - timedelta(days=60))
+        self.registry["candidates"][self.candidate["candidate_id"]]["validation_start_at"] = self.candidate["validation_start_at"]
+        ap._atomic_json(self.state / ap.REGISTRY_FILENAME, self.registry)
         self._append_rows(50, return_percent=0.05, start_days_ago=49)
         sg.run(self.state, self.root, now=self.now)
         registry = json.loads((self.state / ap.REGISTRY_FILENAME).read_text())
