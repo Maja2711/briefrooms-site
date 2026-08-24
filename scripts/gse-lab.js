@@ -38,14 +38,14 @@
     }
   }[lang];
   const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
-  const num=(v,d=4)=>Number.isFinite(Number(v))?Number(v).toFixed(d):'—';
-  const pct=(v,d=1)=>Number.isFinite(Number(v))?`${Number(v).toFixed(d)}%`:'—';
-  const ratio=(v)=>Number.isFinite(Number(v))?`${Math.round(Number(v)*100)}%`:'—';
-  const signed=(v,d=6)=>Number.isFinite(Number(v))?`${Number(v)>=0?'+':''}${Number(v).toFixed(d)}`:'—';
-  const date=(v)=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{year:'numeric',month:'short',day:'2-digit'}).format(d)};
-  const dateTime=(v)=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d)};
-  const scenarioLabel=(s)=>String(s||'').replaceAll('_',' ');
-
+  const valid=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+  const num=(v,d=4)=>valid(v)?Number(v).toFixed(d):'—';
+  const pct=(v,d=1)=>valid(v)?`${Number(v).toFixed(d)}%`:'—';
+  const ratio=v=>valid(v)?`${Math.round(Number(v)*100)}%`:'—';
+  const signed=(v,d=6)=>valid(v)?`${Number(v)>=0?'+':''}${Number(v).toFixed(d)}`:'—';
+  const date=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{year:'numeric',month:'short',day:'2-digit'}).format(d)};
+  const dateTime=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d)};
+  const scenarioLabel=s=>String(s||'').replaceAll('_',' ');
   function metric(label,value){const box=el('div','gse-kpi');box.append(el('strong','',String(value??'—')),el('span','',label));return box}
   function row(label,value,kind=''){const r=el('div','gse-metric-row');r.append(el('span','',label),el('strong',kind,value));return r}
 
@@ -63,16 +63,16 @@
 
     const sc=el('section','gse-section');const sh=el('div','gse-section-head');const scopy=el('div');scopy.append(el('h2','',t.scenarios),el('p','',t.scenariosSub));sh.append(scopy);sc.append(sh);const wrap=el('div','gse-table-wrap');const table=el('table','gse-table');const thead=document.createElement('thead');const tr=document.createElement('tr');[lang==='pl'?'Scenariusz':'Scenario',t.sample,t.regime,t.base,t.improvement,t.hit].forEach(x=>tr.append(el('th','',x)));thead.append(tr);table.append(thead);const tbody=document.createElement('tbody');const scenarios=(data.scenarios||[]).length?data.scenarios:Object.entries(data.scenario_catalog_counts||{}).map(([scenario_type,n])=>({scenario_type,n}));scenarios.slice(0,12).forEach(x=>{const r=document.createElement('tr');r.append(el('td','gse-scenario-name',scenarioLabel(x.scenario_type)),el('td','',String(x.n??'—')),el('td','',num(x.regime_brier)),el('td','',num(x.baseline_brier)),el('td','gse-positive',pct(x.brier_improvement_pct)),el('td','',ratio(x.hit_rate)));tbody.append(r)});table.append(tbody);wrap.append(table);sc.append(wrap);frag.append(sc);
 
-    const two=el('section','gse-section');const th=el('div','gse-section-head');th.append(el('div','','')).firstChild?.append(el('h2','',t.challenger));two.append(th);const twogrid=el('div','gse-two');
-    const ch=data.challenger||{};const cbox=el('div','gse-status-box');cbox.append(el('h3','',t.challenger),row(t.status,String(ch.status||'—')),row('temperature',String(ch.candidate?.similarity_temperature??'—')),row('prior strength',String(ch.candidate?.prior_strength??'—')),row('holdout ΔBrier',signed(ch.holdout_delta_brier_candidate_minus_active),Number(ch.holdout_delta_brier_candidate_minus_active)<0?'gse-positive':''),el('p','',t.active));
-    const p=data.prospective||{};const pbox=el('div','gse-status-box');pbox.append(el('h3','',t.prospective),row(t.paired,String(p.paired_n??'—')),row(t.v1,num(p.mean_brier_v1,6)),row(t.v2,num(p.mean_brier_v2,6)),row(t.delta,signed(p.delta_brier_v2_minus_v1,6),Number(p.delta_brier_v2_minus_v1)<0?'gse-positive':'gse-negative'),row(t.bias,num(p.calibration_bias_v2,4),Math.abs(Number(p.calibration_bias_v2))<=.1?'gse-positive':'gse-negative'));
+    const two=el('section','gse-section');const th=el('div','gse-section-head');const thcopy=el('div');thcopy.append(el('h2','',t.challenger));th.append(thcopy);two.append(th);const twogrid=el('div','gse-two');
+    const ch=data.challenger||{};const cbox=el('div','gse-status-box');cbox.append(el('h3','',t.challenger),row(t.status,String(ch.status||'—')),row('temperature',String(ch.candidate?.similarity_temperature??'—')),row('prior strength',String(ch.candidate?.prior_strength??'—')),row('holdout ΔBrier',signed(ch.holdout_delta_brier_candidate_minus_active),valid(ch.holdout_delta_brier_candidate_minus_active)&&Number(ch.holdout_delta_brier_candidate_minus_active)<0?'gse-positive':''),el('p','',t.active));
+    const p=data.prospective||{};const pbox=el('div','gse-status-box');pbox.append(el('h3','',t.prospective),row(t.paired,String(p.paired_n??'—')),row(t.v1,num(p.mean_brier_v1,6)),row(t.v2,num(p.mean_brier_v2,6)),row(t.delta,signed(p.delta_brier_v2_minus_v1,6),valid(p.delta_brier_v2_minus_v1)&&Number(p.delta_brier_v2_minus_v1)<0?'gse-positive':'gse-negative'),row(t.bias,num(p.calibration_bias_v2,4),valid(p.calibration_bias_v2)&&Math.abs(Number(p.calibration_bias_v2))<=.1?'gse-positive':'gse-negative'));
     twogrid.append(cbox,pbox);two.append(twogrid);const ready=el('div','gse-highlight');ready.style.marginTop='14px';ready.append(el('strong','',`${t.readiness}: ${data.readiness?.status||'—'}`));const reasons=el('ul','gse-reasons');(data.readiness?.reasons||[]).forEach(x=>reasons.append(el('li','',scenarioLabel(x))));ready.append(reasons);two.append(ready);frag.append(two);
 
     const ep=el('section','gse-section');const eh=el('div','gse-section-head');const ecopy=el('div');ecopy.append(el('h2','',t.history),el('p','',t.historySub));eh.append(ecopy);ep.append(eh);const epgrid=el('div','gse-episodes');const episodes=data.episodes||[];episodes.forEach((x,i)=>{const a=el('article','gse-episode');if(i>=8)a.hidden=true;a.dataset.extra=i>=8?'1':'0';a.append(el('time','',date(x.event_at)),el('h3','',x.label||x.event_id||'Event'),el('p','',`${scenarioLabel((x.scenario_types||[]).join(' · '))} · ${t.source}: ${x.source||'—'}`));if(x.source_ref){const link=el('a','',lang==='pl'?'Źródło pierwotne →':'Primary source →');link.href=x.source_ref;link.target='_blank';link.rel='noopener noreferrer external';a.append(link)}epgrid.append(a)});ep.append(epgrid);if(episodes.length>8){const more=el('div','gse-more');const b=el('button','',t.more);b.type='button';b.setAttribute('aria-expanded','false');b.addEventListener('click',()=>{const open=b.getAttribute('aria-expanded')==='true';epgrid.querySelectorAll('[data-extra="1"]').forEach(n=>n.hidden=open);b.setAttribute('aria-expanded',String(!open));b.textContent=open?t.more:t.less});more.append(b);ep.append(more)}frag.append(ep);
 
     const learn=el('section','gse-section');const lh=el('div','gse-section-head');const lcopy=el('div');lcopy.append(el('h2','',t.learning),el('p','',t.learningSub));lh.append(lcopy);learn.append(lh);const timeline=el('div','gse-timeline');(data.learning_timeline||[]).slice().reverse().forEach(x=>{const r=el('div','gse-timeline-row');r.append(el('time','',dateTime(x.recorded_at)),el('span','',`${x.candidates_added??0} ${t.candidates}`),el('span','',`${x.verifications_added??0} ${t.verifications}`));timeline.append(r)});learn.append(timeline);frag.append(learn);
 
-    const method=el('section','gse-section');const mh=el('div','gse-section-head');mh.append(el('div','','')).firstChild?.append(el('h2','',t.method));method.append(mh);const flow=el('div','gse-method');t.methodSteps.forEach((x,i)=>flow.append(el('div','',`${i+1}. ${x}`)));method.append(flow,el('p','gse-footnote',`${t.updated}: ${dateTime(data.generated_at)} · ${t.automatic}`));frag.append(method);
+    const method=el('section','gse-section');const mh=el('div','gse-section-head');const mhcopy=el('div');mhcopy.append(el('h2','',t.method));mh.append(mhcopy);method.append(mh);const flow=el('div','gse-method');t.methodSteps.forEach((x,i)=>flow.append(el('div','',`${i+1}. ${x}`)));method.append(flow,el('p','gse-footnote',`${t.updated}: ${dateTime(data.generated_at)} · ${t.automatic}`));frag.append(method);
     root.replaceChildren(frag);
   }
 
