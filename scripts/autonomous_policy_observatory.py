@@ -2,7 +2,7 @@
 """PR37 — read-only Autonomous Policy Observatory.
 
 Consumes validated private PR35/PR36 state and emits a small sanitized public
-snapshot.  It never mutates policy state.  The public file changes only when a
+snapshot. It never mutates policy state. The public file changes only when a
 meaningful policy/candidate/metric state changes, avoiding timestamp-only churn.
 """
 from __future__ import annotations
@@ -66,13 +66,7 @@ def _parameter_for_engine(engine_id: str) -> str:
 
 
 def _candidate_priority(candidate: Mapping[str, Any]) -> int:
-    order = {
-        "SHADOW_VALIDATION": 0,
-        "PROMOTED": 1,
-        "STATISTICAL_REJECTED": 2,
-        "ROLLED_BACK": 3,
-        "REJECTED": 4,
-    }
+    order = {"SHADOW_VALIDATION": 0, "PROMOTED": 1, "STATISTICAL_REJECTED": 2, "ROLLED_BACK": 3, "REJECTED": 4}
     return order.get(str(candidate.get("status") or ""), 9)
 
 
@@ -83,7 +77,7 @@ def _current_candidate(registry: Mapping[str, Any], engine_id: str) -> Mapping[s
     ]
     active = [row for row in rows if row.get("status") in {"SHADOW_VALIDATION", "PROMOTED"}]
     if active:
-        return sorted(active, key=lambda row: (_candidate_priority(row), str(row.get("created_at") or "")), reverse=False)[0]
+        return sorted(active, key=lambda row: (_candidate_priority(row), str(row.get("created_at") or "")))[0]
     return None
 
 
@@ -95,17 +89,16 @@ def _progress(candidate: Mapping[str, Any] | None) -> dict[str, Any] | None:
     metrics = statistical.get("metrics") if isinstance(statistical.get("metrics"), Mapping) else {}
     paired_n = int(metrics.get("n") or validation.get("n") or 0)
     target = 25
-    return {
-        "paired_n": paired_n,
-        "required_n": target,
-        "progress_percent": min(100, round(100 * paired_n / target)) if target else 100,
-    }
+    return {"paired_n": paired_n, "required_n": target, "progress_percent": min(100, round(100 * paired_n / target))}
 
 
-def _engine_view(registry: Mapping[str, Any], auth: Mapping[str, Any], engine_id: str) -> dict[str, Any]:
+def _engine_view(registry: Mapping[str, Any], auth: Mapping[str, Any], engine_id: str, repo_root: Path) -> dict[str, Any]:
     state = (registry.get("engines") or {}).get(engine_id) or {}
-    parameter = _parameter_for_engine(engine_id)
+    spec = ap.POLICY_SPECS.get(engine_id) or {}
+    parameter = str(spec.get("parameter") or "")
+    config = _read_json(repo_root / str(spec.get("config_path") or ""), {}) if spec.get("config_path") else {}
     overrides = state.get("overrides") if isinstance(state.get("overrides"), Mapping) else {}
+    active_value = overrides.get(parameter, config.get(parameter))
     candidate = _current_candidate(registry, engine_id)
     authorized = int(state.get("revision") or 0) == 0 or str(state.get("policy_id") or "") in (auth.get("authorizations") or {})
     row: dict[str, Any] = {
@@ -114,7 +107,7 @@ def _engine_view(registry: Mapping[str, Any], auth: Mapping[str, Any], engine_id
             "policy_version": state.get("effective_policy_version"),
             "revision": int(state.get("revision") or 0),
             "parameter": parameter,
-            "value": overrides.get(parameter),
+            "value": active_value,
             "baseline": int(state.get("revision") or 0) == 0,
             "statistically_authorized": bool(authorized),
         },
@@ -162,12 +155,12 @@ def _timeline(state_dir: Path, limit: int = 12) -> list[dict[str, Any]]:
     return visible[-limit:]
 
 
-def build(state_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+def build(state_dir: Path, repo_root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     ap.verify_state(state_dir)
     sg.verify_state(state_dir)
     registry = _read_json(state_dir / ap.REGISTRY_FILENAME, {})
     auth = sg._load_authorizations(state_dir / sg.AUTH_FILENAME)
-    engines = [_engine_view(registry, auth, engine_id) for engine_id in sorted(registry.get("engines") or {})]
+    engines = [_engine_view(registry, auth, engine_id, repo_root) for engine_id in sorted(registry.get("engines") or {})]
     public_body = {
         "schema_version": SCHEMA,
         "mode": "read_only_observatory",
@@ -197,7 +190,7 @@ def build(state_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
 
 
 def publish(state_dir: Path, repo_root: Path) -> dict[str, Any]:
-    public, private = build(state_dir)
+    public, private = build(state_dir, repo_root)
     target = repo_root / PUBLIC_PATH
     existing = _read_json(target, {})
     changed = not isinstance(existing, Mapping) or existing.get("state_digest") != public.get("state_digest")
@@ -213,11 +206,12 @@ def main() -> int:
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
+    repo_root = Path(args.repo_root)
     if args.verify:
-        public, _ = build(Path(args.state_dir))
+        public, _ = build(Path(args.state_dir), repo_root)
         print(json.dumps({"ok": True, "state_digest": public["state_digest"], "engines": len(public["engines"])}, sort_keys=True))
         return 0
-    print(json.dumps(publish(Path(args.state_dir), Path(args.repo_root)), sort_keys=True))
+    print(json.dumps(publish(Path(args.state_dir), repo_root), sort_keys=True))
     return 0
 
 
