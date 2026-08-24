@@ -7,7 +7,10 @@ on:
     paths:
       - "scripts/sync_gse_lab_geopolitics_pages.py"
       - "assets/gse-lab-entry.css"
+      - "assets/gse-lab.css"
       - "scripts/gse-lab-entry.js"
+      - "scripts/gse-lab.js"
+      - "data/gse/gse_v2_lab_public.json"
       - "pl/geo/gse-lab.html"
       - "en/geo/gse-lab.html"
       - ".github/workflows/sync-gse-lab-geopolitics.yml"
@@ -35,10 +38,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Synchronize GSE Lab entry
+      - name: Validate GSE Lab frontend and synchronize room entry
         run: |
           set -euo pipefail
           python -m py_compile scripts/sync_gse_lab_geopolitics_pages.py
+          node --check scripts/gse-lab.js
+          node --check scripts/gse-lab-entry.js
+          python -m json.tool data/gse/gse_v2_lab_public.json >/dev/null
+          test -f pl/geo/gse-lab.html
+          test -f en/geo/gse-lab.html
+          grep -q "Geopolitical Scenario Engine" pl/geo/gse-lab.html
+          grep -q "Geopolitical Scenario Engine" en/geo/gse-lab.html
           python scripts/sync_gse_lab_geopolitics_pages.py
           python scripts/sync_gse_lab_geopolitics_pages.py
 
