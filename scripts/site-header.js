@@ -91,8 +91,8 @@
     '/en/investing/daily-trading.html': '/pl/inwestycje/daily-trading.html',
     '/pl/inwestycje/long-view.html': '/en/investing/long-view.html',
     '/en/investing/long-view.html': '/pl/inwestycje/long-view.html',
-    '/pl/inwestycje/pozycje-tygodniowe.html': '/en/investing/weekly-positions.html',
-    '/en/investing/weekly-positions.html': '/pl/inwestycje/pozycje-tygodniowe.html'
+    '/pl/inwestycje/pozycje-tygodniowe.html': '/en/investing/open-weekly-positions.html',
+    '/en/investing/open-weekly-positions.html': '/pl/inwestycje/pozycje-tygodniowe.html'
   };
 
   function normalizePath(pathname) {
