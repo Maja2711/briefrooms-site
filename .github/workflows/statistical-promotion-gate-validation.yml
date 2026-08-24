@@ -1,0 +1,73 @@
+name: Champion Challenger Statistical Gate validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/statistical_promotion_gate.py"
+      - "scripts/statistical_policy_materializer.py"
+      - "data/investments/statistical_promotion_gate_config.json"
+      - "tests/test_statistical_promotion_gate.py"
+      - "docs/CHAMPION_CHALLENGER_STATISTICAL_GATE_V1.md"
+      - ".github/workflows/autonomous-policy-promotion.yml"
+      - ".github/workflows/statistical-promotion-gate-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile PR35 and PR36 modules
+        run: |
+          python -m py_compile \
+            scripts/autonomous_policy_promotion.py \
+            scripts/policy_repo_materializer.py \
+            scripts/statistical_promotion_gate.py \
+            scripts/statistical_policy_materializer.py
+
+      - name: Run PR35 and PR36 tests
+        run: |
+          python -m unittest \
+            tests.test_autonomous_policy_promotion \
+            tests.test_policy_repo_materializer \
+            tests.test_statistical_promotion_gate -v
+
+      - name: Validate statistical gate contract
+        run: |
+          python -m json.tool data/investments/statistical_promotion_gate_config.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/statistical_promotion_gate_config.json').read_text())
+          assert p['schema_version']=='briefrooms-statistical-promotion-gate-config-v1'
+          assert p['minimum_paired_n'] >= 25
+          assert p['bootstrap_samples'] >= 1000
+          assert p['confidence_level'] >= 0.90
+          assert p['minimum_net_incremental_return_percent'] > 0
+          assert p['engines']['gpw_daily']['round_trip_cost_stress_percent'] > 0
+          assert p['engines']['us_daily']['round_trip_cost_stress_percent'] > 0
+          print('PR36_STATISTICAL_CONTRACT_PASS')
+          PY
+
+      - name: Production path guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          wf=Path('.github/workflows/autonomous-policy-promotion.yml').read_text()
+          assert 'statistical_promotion_gate.py' in wf
+          assert 'statistical_policy_materializer.py' in wf
+          materialize=wf.index('statistical_policy_materializer.py')
+          gate=wf.index('statistical_promotion_gate.py')
+          assert gate < materialize
+          print('PR36_PRODUCTION_ORDER_PASS')
+          PY
