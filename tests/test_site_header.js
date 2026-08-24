@@ -88,8 +88,8 @@ function localFile(route) {
 }
 
 test('PL and EN navigation remain independent and complete', () => {
-  assert.deepEqual(header.navigation.pl.map((item) => item.label), ['Aktualności', 'Geopolityka', 'Zdrowie', 'Nauka', 'Inwestycje', 'O nas']);
-  assert.deepEqual(header.navigation.en.map((item) => item.label), ['News', 'Geopolitics', 'Health', 'Science', 'Investing', 'About']);
+  assert.deepEqual(header.navigation.pl.map((item) => item.label), ['Informacje', 'Inwestycje', 'Nauka', 'Zdrowie', 'Geopolityka', 'O nas']);
+  assert.deepEqual(header.navigation.en.map((item) => item.label), ['Information', 'Investing', 'Science', 'Health', 'Geopolitics', 'About']);
   assert.equal(header.navigation.pl.length, 6);
   assert.equal(header.navigation.en.length, 6);
   assert.ok(header.navigation.pl.every((item) => item.href.startsWith('/pl/')));
