@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-08-24T09:52:38+02:00",
+  "updated_at": "2026-08-24T10:02:38+02:00",
   "resolved_trades": 1,
   "adaptation_active": false,
   "minimum_sample": 8,
@@ -27,12 +27,37 @@
     "return_percent": 4.288,
     "r_multiple": 1.799,
     "exit_reason": "target",
-    "lesson": "PKO: cel został osiągnięty (1.80R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
+    "lesson": "PKO: cel został osiągnięty (1.80R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii.",
+    "event_type": "regulatory",
+    "event_label": "regulacja / spór prawny"
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  }
+  },
+  "event_expectancy": [
+    {
+      "event_type": "earnings",
+      "label": "wyniki / raport okresowy",
+      "sample": 0,
+      "minimum_sample": 6,
+      "active": false,
+      "average_r": null,
+      "shrunk_r": 0.0,
+      "catalyst_adjustment": 0.0
+    },
+    {
+      "event_type": "regulatory",
+      "label": "regulacja / spór prawny",
+      "sample": 1,
+      "minimum_sample": 6,
+      "active": false,
+      "average_r": 1.799,
+      "shrunk_r": 0.0,
+      "catalyst_adjustment": 0.0
+    }
+  ],
+  "event_learning_method": "event_family_bayesian_shrinkage_v1"
 }
