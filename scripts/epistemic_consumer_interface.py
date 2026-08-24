@@ -9,9 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import fmean
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 CONTRACT_VERSION = "epistemic-consumer-interface-v1"
 EPISTEMIC_CONTRACT = "belief-epistemic-state-v1"
@@ -33,6 +34,18 @@ CONSUMER_PROFILES: Dict[str, Tuple[str, ...]] = {
 def _sha(payload: Any) -> str:
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _dt(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        out = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if out.tzinfo is None:
+        out = out.replace(tzinfo=timezone.utc)
+    return out.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
@@ -64,6 +77,7 @@ class ConsumerEnvelope:
     drilldown_reasons: Tuple[str, ...]
     states: Tuple[Mapping[str, Any], ...]
     source_contract_version: str
+    source_created_at: Optional[str]
     source_sha256: str
     authority: ConsumerAuthority = ConsumerAuthority()
     contract_version: str = CONTRACT_VERSION
@@ -86,6 +100,8 @@ class EpistemicConsumerInterface:
         controls = self.payload.get("controls") or {}
         if controls.get("belief_core_writeback_enabled") is not False:
             raise ValueError("Belief Core writeback must remain disabled")
+        if _dt(self.payload.get("created_at")) is None:
+            raise ValueError("EpistemicState created_at is required for point-in-time consumers")
 
     @classmethod
     def from_state_dir(cls, state_dir: Path) -> "EpistemicConsumerInterface":
@@ -104,13 +120,14 @@ class EpistemicConsumerInterface:
         required = CONSUMER_PROFILES[consumer]
         states_by_id = self._states()
         selected = [states_by_id[x] for x in required if x in states_by_id]
+        source_created_at = self.payload.get("created_at")
         if len(selected) != len(required):
             return ConsumerEnvelope(
                 consumer=consumer, available=False, reason="required_epistemic_states_missing",
                 stance="unavailable", aggregate_probability=None, aggregate_confidence=None,
                 max_contradiction=None, max_abs_delta_probability=None, drilldown_required=False,
                 drilldown_reasons=(), states=tuple(selected), source_contract_version=EPISTEMIC_CONTRACT,
-                source_sha256=_sha(self.payload),
+                source_created_at=source_created_at, source_sha256=_sha(self.payload),
             )
         probs = [float(x.get("probability", 0.5)) for x in selected]
         confs = [float(x.get("confidence", 0.0)) for x in selected]
@@ -146,8 +163,54 @@ class EpistemicConsumerInterface:
             max_contradiction=round(max(contradictions), 6),
             max_abs_delta_probability=round(max(deltas), 6) if deltas else None,
             drilldown_required=drilldown_required, drilldown_reasons=tuple(reasons),
-            states=compact_states, source_contract_version=EPISTEMIC_CONTRACT, source_sha256=_sha(self.payload),
+            states=compact_states, source_contract_version=EPISTEMIC_CONTRACT,
+            source_created_at=source_created_at, source_sha256=_sha(self.payload),
         )
+
+    def point_in_time_projection(self, consumer: str, engine_at: datetime, *, max_age_hours: float = 18.0) -> Dict[str, Any]:
+        """Return a legacy-compatible read view without future leakage.
+
+        Current EpistemicState is usable only if its projection timestamp is not
+        later than the engine decision time and is not older than the allowed age.
+        We deliberately fail closed rather than reconstructing a historical state.
+        """
+        env = self.envelope(consumer)
+        source_at = _dt(env.source_created_at)
+        target_at = engine_at.astimezone(timezone.utc)
+        if source_at is None:
+            return {"available": False, "stance": "unavailable", "confidence": 0.0,
+                    "reason": "epistemic_timestamp_missing", "forecast_at": None,
+                    "age_hours": None, "beliefs": []}
+        age_hours = (target_at - source_at).total_seconds() / 3600.0
+        if age_hours < -1e-9:
+            return {"available": False, "stance": "unavailable", "confidence": 0.0,
+                    "reason": "epistemic_state_created_after_engine_state", "forecast_at": env.source_created_at,
+                    "age_hours": round(age_hours, 6), "beliefs": []}
+        if age_hours > max_age_hours:
+            return {"available": False, "stance": "unavailable", "confidence": 0.0,
+                    "reason": "epistemic_state_too_old_at_engine_state", "forecast_at": env.source_created_at,
+                    "age_hours": round(age_hours, 6), "beliefs": []}
+        if not env.available:
+            return {"available": False, "stance": "unavailable", "confidence": 0.0,
+                    "reason": env.reason, "forecast_at": env.source_created_at,
+                    "age_hours": round(age_hours, 6), "beliefs": list(env.states)}
+        return {
+            "available": True,
+            "stance": env.stance,
+            "confidence": env.aggregate_confidence,
+            "risk_on_probability_mean": env.aggregate_probability,
+            "aggregation": "epistemic_consumer_interface_equal_weight_predeclared_spx_states",
+            "reason": "authoritative_epistemic_consumer_projection",
+            "forecast_set_id": env.source_sha256[:20],
+            "forecast_at": env.source_created_at,
+            "age_hours": round(age_hours, 6),
+            "beliefs": list(env.states),
+            "snapshot_sha256": env.source_sha256,
+            "drilldown_required": env.drilldown_required,
+            "drilldown_reasons": list(env.drilldown_reasons),
+            "aggregate_authoritative": True,
+            "consumer_may_override": False,
+        }
 
     def drilldown_request(self, consumer: str, belief_id: str, *, depth: int = 4) -> Dict[str, Any]:
         if consumer not in CONSUMER_PROFILES or belief_id not in CONSUMER_PROFILES[consumer]:
@@ -181,6 +244,7 @@ def build_consumer_bundle(state_dir: Path) -> Dict[str, Any]:
     payload = {
         "contract_version": CONTRACT_VERSION,
         "source_contract_version": EPISTEMIC_CONTRACT,
+        "source_created_at": interface.payload.get("created_at"),
         "authority": asdict(ConsumerAuthority()),
         "consumers": envelopes,
     }
