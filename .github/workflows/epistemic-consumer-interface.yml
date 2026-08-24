@@ -6,6 +6,8 @@ on:
     paths:
       - "scripts/epistemic_consumer_interface.py"
       - "scripts/epistemic_consumer_live.py"
+      - "scripts/brace_spx_epistemic_bridge.py"
+      - "scripts/wes_spx_epistemic_bridge.py"
       - "tests/test_epistemic_consumer_interface.py"
       - "docs/EPISTEMIC_CONSUMER_INTERFACE.md"
       - ".github/workflows/epistemic-consumer-interface.yml"
@@ -23,13 +25,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate consumer contract
+        env:
+          PYTHONPATH: scripts
         run: |
-          python -m py_compile scripts/epistemic_consumer_interface.py scripts/epistemic_consumer_live.py
+          python -m py_compile \
+            scripts/epistemic_consumer_interface.py \
+            scripts/epistemic_consumer_live.py \
+            scripts/brace_spx_epistemic_bridge.py \
+            scripts/wes_spx_epistemic_bridge.py
           python -m unittest tests/test_epistemic_consumer_interface.py -v
+          python -m unittest tests.test_brace_spx_belief_bridge -v
+          python -m unittest tests.test_investments_wes_belief_bridge -v
           python - <<'PY'
-          import sys
-          from pathlib import Path
-          sys.path.insert(0, str(Path('scripts').resolve()))
           import epistemic_consumer_interface as e
           a=e.ConsumerAuthority()
           assert a.aggregate_authoritative is True
