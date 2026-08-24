@@ -1,0 +1,79 @@
+name: Autonomous Policy Promotion validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/autonomous_policy_promotion.py"
+      - "scripts/policy_runtime_overlay.py"
+      - "scripts/policy_repo_materializer.py"
+      - "data/investments/autonomous_policy_baselines.json"
+      - "tests/test_autonomous_policy_promotion.py"
+      - "tests/test_policy_repo_materializer.py"
+      - "docs/AUTONOMOUS_POLICY_PROMOTION_V1.md"
+      - ".github/workflows/autonomous-policy-promotion.yml"
+      - ".github/workflows/autonomous-policy-promotion-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile PR35 modules
+        run: |
+          python -m py_compile \
+            scripts/autonomous_policy_promotion.py \
+            scripts/policy_runtime_overlay.py \
+            scripts/policy_repo_materializer.py
+
+      - name: Run PR35 tests
+        run: |
+          python -m unittest \
+            tests.test_autonomous_policy_promotion \
+            tests.test_policy_repo_materializer -v
+
+      - name: Validate policy baseline contract
+        run: |
+          python -m json.tool data/investments/autonomous_policy_baselines.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/autonomous_policy_baselines.json').read_text())
+          assert p['schema_version']=='briefrooms-autonomous-policy-baselines-v1'
+          assert set(p['engines'])=={'gpw_daily','us_daily'}
+          assert p['engines']['gpw_daily']['parameter']=='minimum_composite_score'
+          assert p['engines']['us_daily']['parameter']=='target_score'
+          assert p['engines']['gpw_daily']['minimum_allowed'] >= 68
+          assert p['engines']['us_daily']['minimum_allowed'] >= 68
+          print('PR35_BASELINE_ALLOWLIST_PASS')
+          PY
+
+      - name: Governance guard
+        run: |
+          python - <<'PY'
+          from scripts import autonomous_policy_promotion as p
+          c=p.CONTROLS
+          assert c['autonomous_promotion_enabled'] is True
+          assert c['automatic_rollback_enabled'] is True
+          assert c['code_mutation_enabled'] is False
+          assert c['arbitrary_parameter_mutation_enabled'] is False
+          assert c['trade_execution_enabled'] is False
+          assert c['historical_backfill_enabled'] is False
+          assert c['same_sample_train_and_validate_enabled'] is False
+          assert c['multi_parameter_candidate_enabled'] is False
+          assert c['llm_policy_mutation_enabled'] is False
+          assert p.TRAIN_MIN_N >= 30
+          assert p.VALIDATION_MIN_N >= 20
+          assert p.ROLLBACK_MIN_N >= 8
+          print('PR35_AUTONOMY_GOVERNANCE_PASS')
+          PY
