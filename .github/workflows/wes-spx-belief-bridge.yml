@@ -6,15 +6,14 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/wes-spx-belief-bridge.yml"
-      - "scripts/investments_wes_belief_bridge.py"
+      - "scripts/wes_spx_epistemic_bridge.py"
+      - "scripts/epistemic_consumer_interface.py"
       - "tests/test_investments_wes_belief_bridge.py"
-      - "docs/WES_SPX_BELIEF_READ_ONLY_BRIDGE.md"
+      - "tests/test_epistemic_consumer_interface.py"
   workflow_run:
     workflows:
       - "Weekly Engine Star"
-      - "Belief Core Live Shadow Collection"
-      - "Belief Core News Macro Shadow Collection"
-      - "Belief Calibration Foundation"
+      - "Belief Epistemic State Projection"
     types: [completed]
   schedule:
     - cron: "25 22 * * 1-5"
@@ -28,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  EPISTEMIC_ARTIFACT_NAME: belief-epistemic-state
   BRIDGE_ARTIFACT_NAME: wes-spx-belief-bridge-state
 
 jobs:
@@ -51,18 +50,18 @@ jobs:
       - name: Prepare isolated runtime directories
         run: |
           set -euo pipefail
-          echo "BELIEF_DIR=$RUNNER_TEMP/belief_state" >> "$GITHUB_ENV"
+          echo "EPISTEMIC_DIR=$RUNNER_TEMP/epistemic_state" >> "$GITHUB_ENV"
           echo "BRIDGE_DIR=$RUNNER_TEMP/wes_spx_belief_bridge" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/belief_state" "$RUNNER_TEMP/wes_spx_belief_bridge"
+          mkdir -p "$RUNNER_TEMP/epistemic_state" "$RUNNER_TEMP/wes_spx_belief_bridge"
 
-      - name: Restore latest cumulative Belief Core state read-only
+      - name: Restore latest authoritative EpistemicState read-only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
-          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${EPISTEMIC_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/epistemic-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/epistemic-artifacts.json" <<'PY'
           import json, sys
           from pathlib import Path
           rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
@@ -70,20 +69,17 @@ jobs:
           print(rows[0]['id'] if rows else '')
           PY
           )
-          if [ -z "$artifact_id" ]; then
-            echo "No Belief Core artifact available."
-            printf '{}\n' > "$BELIEF_DIR/state.json"
-          else
-            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief.zip"
-            mkdir -p "$RUNNER_TEMP/belief-zip"
-            unzip -q "$RUNNER_TEMP/belief.zip" -d "$RUNNER_TEMP/belief-zip"
-            test -f "$RUNNER_TEMP/belief-zip/belief-core-state.tgz"
-            tar -xzf "$RUNNER_TEMP/belief-zip/belief-core-state.tgz" -C "$BELIEF_DIR"
-            test -f "$BELIEF_DIR/state.json"
-          fi
+          test -n "$artifact_id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/epistemic.zip"
+          mkdir -p "$RUNNER_TEMP/epistemic-zip"
+          unzip -q "$RUNNER_TEMP/epistemic.zip" -d "$RUNNER_TEMP/epistemic-zip"
+          test -f "$RUNNER_TEMP/epistemic-zip/belief-epistemic-state.tgz"
+          tar -xzf "$RUNNER_TEMP/epistemic-zip/belief-epistemic-state.tgz" -C "$EPISTEMIC_DIR"
+          test -f "$EPISTEMIC_DIR/epistemic_state.json"
+          test -f "$EPISTEMIC_DIR/epistemic_drilldown_index.json"
 
-      - name: Restore prior WES-SPX Belief bridge ledger read-only
+      - name: Restore prior WES-SPX bridge ledger read-only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -105,22 +101,25 @@ jobs:
             unzip -q "$RUNNER_TEMP/bridge.zip" -d "$RUNNER_TEMP/bridge-zip"
             test -f "$RUNNER_TEMP/bridge-zip/wes-spx-belief-bridge-state.tgz"
             tar -xzf "$RUNNER_TEMP/bridge-zip/wes-spx-belief-bridge-state.tgz" -C "$BRIDGE_DIR"
-          else
-            echo "No prior WES-SPX Belief bridge artifact; activation-only run expected."
           fi
 
-      - name: Validate bridge
+      - name: Validate Epistemic consumer bridge
+        env:
+          PYTHONPATH: scripts
         run: |
-          PYTHONPATH=scripts python -m py_compile scripts/investments_wes_belief_bridge.py
-          PYTHONPATH=scripts python -m unittest tests.test_investments_wes_belief_bridge -v
-          PYTHONPATH=scripts python -m unittest tests.test_brace_spx_belief_bridge -v
+          python -m py_compile scripts/epistemic_consumer_interface.py scripts/wes_spx_epistemic_bridge.py scripts/investments_wes_belief_bridge.py
+          python -m unittest tests.test_epistemic_consumer_interface -v
+          python -m unittest tests.test_investments_wes_belief_bridge -v
+          python -m unittest tests.test_brace_spx_belief_bridge -v
 
-      - name: Freeze prospective WES-SPX Belief observation
+      - name: Freeze prospective WES-SPX EpistemicState observation
+        env:
+          PYTHONPATH: scripts
         run: |
-          PYTHONPATH=scripts python scripts/investments_wes_belief_bridge.py \
+          python scripts/wes_spx_epistemic_bridge.py \
             --bridge-dir "$BRIDGE_DIR" \
             --wes-source data/investments/wes_spx_brace_bridge.json \
-            --belief-state "$BELIEF_DIR/state.json"
+            --epistemic-dir "$EPISTEMIC_DIR"
 
       - name: Assert read-only zero-influence contract
         run: |
@@ -137,8 +136,7 @@ jobs:
           assert report['activation']['historical_backfill_allowed'] is False
           assert report['decision_influence'] is False
           assert report['bounded_modifier'] is False
-          print('WES-SPX / Belief read-only contract: PASS')
-          print('Bridge sample:', report['sample'])
+          print('WES-SPX -> EpistemicState consumer path: PASS')
           PY
 
       - name: Pack cumulative bridge state
