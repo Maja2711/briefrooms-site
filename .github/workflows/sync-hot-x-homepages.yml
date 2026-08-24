@@ -1,5 +1,7 @@
-name: Sync Hot X Homepages
-# Triggered after workflow installation so the current feed is written into both homepages.
+name: Hot X Feed Health
+# Hot X data and legacy rendering code are retained, but the redesigned homepage
+# no longer contains a Hot X surface. This workflow validates the feed only and
+# must not rewrite pl/index.html or en/index.html.
 
 on:
   push:
@@ -11,89 +13,47 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: hot-x-homepage-sync
+  group: hot-x-feed-health
   cancel-in-progress: true
 
 jobs:
-  sync:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Check out current main
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Validate synchronizer
-        run: python -m py_compile scripts/sync_hot_x_homepages.py
-
-      - name: Synchronize static Hot X cards and push
-        shell: bash
+      - name: Validate retained Hot X feed and renderer
         run: |
           set -euo pipefail
-          pushed=0
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git reset --hard origin/main
-            python scripts/sync_hot_x_homepages.py
-            python scripts/sync_hot_x_homepages.py --check
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add pl/index.html en/index.html
-            if git diff --cached --quiet; then
-              echo "Homepage Hot X cards are already current."
-              pushed=1
-              break
-            fi
-            git commit -m "chore(hot-x): sync homepage cards"
-            if git push origin HEAD:main; then
-              pushed=1
-              break
-            fi
-            sleep $((attempt * 5))
-          done
-          if [[ "$pushed" != "1" ]]; then
-            echo "::error::Could not push synchronized Hot X homepage cards."
-            exit 1
-          fi
+          python -m py_compile scripts/sync_hot_x_homepages.py scripts/hot_x_items.py
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          import sync_hot_x_homepages as hotx
 
-      - name: Verify static Hot X cards on production
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-          python scripts/sync_hot_x_homepages.py \
-            --verify-production \
-            --base-url https://briefrooms.com
-
-      - name: Commit production verification status
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hot_x_homepage_production_status.json
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "chore(hot-x): verify homepage implementation"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
-              git rebase origin/main
-            fi
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 5))
-          done
-          echo "::error::Could not push Hot X homepage verification status."
-          exit 1
+          data = hotx.load_feed()
+          items = data.get('items') or []
+          assert len(items) >= hotx.INITIAL_VISIBLE
+          for lang in ('pl', 'en'):
+              rendered = hotx.static_block(data, lang)
+              assert '<!-- HOT_X_STATIC_START -->' in rendered
+              assert '<!-- HOT_X_STATIC_END -->' in rendered
+          for path in (Path('pl/index.html'), Path('en/index.html')):
+              source = path.read_text(encoding='utf-8')
+              assert 'class="br-home"' in source
+              assert '<!-- HOT_X_STATIC_START -->' not in source
+          print('Hot X feed is healthy and intentionally decoupled from the redesigned homepage.')
+          PY
