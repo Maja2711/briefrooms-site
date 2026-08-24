@@ -14,22 +14,8 @@ def report(selected="full_representatives", retention=1.0, selected_complexity=4
                 "representation_disagreement": 0.02,
                 "residual_probability_gap": gap,
                 "representations": [
-                    {
-                        "name": "full_representatives",
-                        "information_retention": 1.0,
-                        "complexity_units": full_complexity,
-                        "retained_effective_mass": 1.0,
-                        "residual_effective_mass": 0.0,
-                        "pruned": False,
-                    },
-                    {
-                        "name": "fresh_signal",
-                        "information_retention": retention,
-                        "complexity_units": selected_complexity,
-                        "retained_effective_mass": retention,
-                        "residual_effective_mass": max(0.0, 1.0-retention),
-                        "pruned": selected != "fresh_signal",
-                    },
+                    {"name": "full_representatives", "information_retention": 1.0, "complexity_units": full_complexity, "retained_effective_mass": 1.0, "residual_effective_mass": 0.0, "pruned": False},
+                    {"name": "fresh_signal", "information_retention": retention, "complexity_units": selected_complexity, "retained_effective_mass": retention, "residual_effective_mass": max(0.0, 1.0-retention), "pruned": selected != "fresh_signal"},
                 ],
             }
         },
@@ -45,7 +31,7 @@ class ARISShadowReportTests(unittest.TestCase):
     def test_candidate_review_requires_large_evidence_base(self):
         rows = []
         for i in range(120):
-            rows.append(report(selected="fresh_signal" if i < 30 else "full_representatives", retention=0.95, selected_complexity=2, full_complexity=4, gap=0.01))
+            rows.append(report(selected="fresh_signal" if i < 60 else "full_representatives", retention=0.95, selected_complexity=2, full_complexity=4, gap=0.01))
         out = aggregate(rows)
         self.assertEqual(out["recommendation"], "REVIEW_CANDIDATES_FOR_CALIBRATION_TESTING")
         self.assertGreaterEqual(out["non_full_win_share"], 0.20)
