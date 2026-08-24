@@ -46,7 +46,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate PR35 and PR36 before touching durable state
+      - name: Validate PR35-PR37 before touching durable state
         run: |
           set -euo pipefail
           python -m py_compile \
@@ -54,11 +54,13 @@ jobs:
             scripts/policy_repo_materializer.py \
             scripts/autonomous_policy_promotion.py \
             scripts/statistical_promotion_gate.py \
-            scripts/statistical_policy_materializer.py
+            scripts/statistical_policy_materializer.py \
+            scripts/autonomous_policy_observatory.py
           python -m unittest \
             tests.test_autonomous_policy_promotion \
             tests.test_policy_repo_materializer \
-            tests.test_statistical_promotion_gate -v
+            tests.test_statistical_promotion_gate \
+            tests.test_autonomous_policy_observatory -v
           python -m json.tool data/investments/autonomous_policy_baselines.json >/dev/null
           python -m json.tool data/investments/statistical_promotion_gate_config.json >/dev/null
 
@@ -171,6 +173,26 @@ jobs:
             --state-dir "$POLICY_STATE_DIR" \
             --verify
 
+      - name: Publish PR37 Autonomous Policy Observatory
+        id: observatory
+        run: |
+          set -euo pipefail
+          python scripts/autonomous_policy_observatory.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root . | tee "$RUNNER_TEMP/observatory.json"
+          python scripts/autonomous_policy_observatory.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root . \
+            --verify
+          changed="$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'observatory.json').read_text())
+          print('true' if p.get('changed') else 'false')
+          PY
+          )"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
       - name: Materialize only statistically authorized policy
         id: materialize
         run: |
@@ -188,20 +210,24 @@ jobs:
           )"
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
-      - name: Commit autonomous promotion or rollback to production main
-        if: steps.materialize.outputs.changed == 'true'
+      - name: Commit autonomous policy or observatory state to production main
+        if: steps.materialize.outputs.changed == 'true' || steps.observatory.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/gpw_daily_pick_config.json data/investments/us_daily_stock_config.json
+          git add \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/us_daily_stock_config.json \
+            data/public/autonomous_policy_observatory.json
           git diff --cached --name-only
-          test "$(git diff --cached --name-only | grep -vcE '^(data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json)$' || true)" -eq 0
-          git commit -m "PR35/PR36 autonomous statistically validated policy state"
+          test "$(git diff --cached --name-only | grep -vcE '^(data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json|data/public/autonomous_policy_observatory.json)$' || true)" -eq 0
+          git diff --cached --quiet && exit 0
+          git commit -m "Update autonomous policy and observatory state"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "Autonomous production policy writeback complete: $(git rev-parse HEAD)"
+              echo "Autonomous production state writeback complete: $(git rev-parse HEAD)"
               exit 0
             fi
             sleep $((attempt * 4))
@@ -218,6 +244,7 @@ jobs:
           registry=json.loads((root/'policy_registry.json').read_text())
           status=json.loads((root/'policy_promotion_status.json').read_text())
           auth=json.loads((root/'statistical_policy_authorizations.json').read_text())
+          observatory=json.loads(Path('data/public/autonomous_policy_observatory.json').read_text())
           controls=registry['controls']
           assert controls['autonomous_promotion_enabled'] is True
           assert controls['automatic_rollback_enabled'] is True
@@ -229,13 +256,14 @@ jobs:
           assert controls['multi_parameter_candidate_enabled'] is False
           assert controls['llm_policy_mutation_enabled'] is False
           assert set(registry['engines']) == {'gpw_daily','us_daily'}
+          assert observatory['mode']=='read_only_observatory'
           for engine_id,state in registry['engines'].items():
               if int(state.get('revision') or 0) > 0:
                   row=auth['authorizations'].get(state['policy_id'])
                   assert row and row['status']=='PASS'
                   assert row['effective_policy_version']==state['effective_policy_version']
                   assert row['candidate_id']==state['source_candidate_id']
-          print('PR35_PR36_BOUNDED_AUTONOMY_PASS')
+          print('PR35_PR37_BOUNDED_AUTONOMY_PASS')
           print(json.dumps(status['active_policies'], sort_keys=True))
           PY
 
