@@ -10,12 +10,14 @@ on:
       - "scripts/daily_eurusd_spot.py"
       - "scripts/daily_eurusd_spot_v12.py"
       - "scripts/daily_eurusd_spot_v13.py"
+      - "scripts/daily_eurusd_spot_v14.py"
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
+      - "tests/test_daily_eurusd_dynamic_exit.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
     # Independent risk monitor. Offset from round 5-minute boundaries.
@@ -45,30 +47,32 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate lifecycle, direct admission and A fallback
+      - name: Validate lifecycle, admission, A fallback and dynamic exits
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_lifecycle \
             tests.test_daily_eurusd_direct_signal \
-            tests.test_daily_eurusd_a_fallback -v
+            tests.test_daily_eurusd_a_fallback \
+            tests.test_daily_eurusd_dynamic_exit -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
             scripts/daily_eurusd_lifecycle.py \
             scripts/daily_eurusd_spot.py \
             scripts/daily_eurusd_spot_v12.py \
             scripts/daily_eurusd_spot_v13.py \
+            scripts/daily_eurusd_spot_v14.py \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py
           node --check scripts/daily-eurusd-spot-public.js
 
-      - name: Reconcile open position and refresh native-or-A candidate
+      - name: Reconcile open position with dynamic exit policy
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot_v13.py \
+          python scripts/daily_eurusd_spot_v14.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot_v13.py \
+          python scripts/daily_eurusd_spot_v14.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
@@ -94,10 +98,13 @@ jobs:
           if leaked:
               raise SystemExit(f'legacy admission veto leaked into PR25 runtime: {leaked}')
           version=payload.get('engine_version')
-          if version not in {'eurusd-daily-spot-v1.3.0','eurusd-daily-spot-v1.2.0','eurusd-daily-spot-v1.1.0'} and payload.get('status') != 'OPEN':
-              raise SystemExit(f"unexpected PR25 engine version: {version}")
+          if version not in {'eurusd-daily-spot-v1.4.0','eurusd-daily-spot-v1.3.0','eurusd-daily-spot-v1.2.0','eurusd-daily-spot-v1.1.0'} and payload.get('status') != 'OPEN':
+              raise SystemExit(f"unexpected EUR/USD engine version: {version}")
+          dynamic=(payload.get('metadata') or {}).get('dynamic_exit') or {}
+          if version == 'eurusd-daily-spot-v1.4.0' and not dynamic.get('enabled'):
+              raise SystemExit('v1.4 output missing dynamic-exit metadata')
           source=(payload.get('metadata') or {}).get('decision_source','NATIVE_OR_FLAT')
-          print('EURUSD_PR25_PARTICIPATION_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons))
+          print('EURUSD_DYNAMIC_EXIT_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), dynamic.get('policy'))
           PY
 
       - name: Persist EURUSD state and append-only outcomes
