@@ -1,6 +1,6 @@
 {
   "week_id": "2026-W35",
-  "method_version": "5.0.0-experimental",
+  "method_version": "5.6.0-experimental",
   "model_status": "experimental_governed_execution_parity_paper_only",
   "forecast_created_at": "2026-08-24T03:26:11+02:00",
   "forecast_locked_at": "2026-08-24T03:26:11+02:00",
@@ -100,13 +100,13 @@
       "latest_macro_context": {
         "as_of": "2026-08-24T00:00:00",
         "data_quality": "passed",
-        "macro_score": -4.6519,
+        "macro_score": -4.7588,
         "macro_direction": "short",
         "position_direction": "short",
         "aligned": true,
         "observations": {
-          "oil_1w_percent": 0.9231,
-          "oil_4w_percent": 3.2321,
+          "oil_1w_percent": 0.9941,
+          "oil_4w_percent": 3.3047,
           "us10y_1w_bps": 4.2,
           "us10y_4w_bps": 5.9
         },
@@ -164,7 +164,7 @@
           "reasons": [
             "d1_above_all_ma"
           ],
-          "evaluated_at": "2026-08-24T09:38:16+02:00",
+          "evaluated_at": "2026-08-24T09:38:52+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -836,16 +836,29 @@
       "exit_source": null,
       "exit_reason": null,
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-08-24T09:19:26+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-08-24T09:38:55+02:00",
         "direction": "long",
-        "stop_loss_price": 7604.22026484,
-        "take_profit_price": 7787.52593027,
-        "stop_loss_distance": 69.52973516,
-        "take_profit_distance": 113.77593027,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 7614.07013504,
+        "take_profit_price": 7812.41782023,
+        "stop_loss_distance": 59.67986496,
+        "take_profit_distance": 138.66782023,
+        "reward_to_risk": 2.3235,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-08-28T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9925,
+          "conviction_factor": 0.57,
+          "tp_multiplier": 1.2188,
+          "sl_multiplier": 0.8583,
+          "target_min_rr": 1.2,
+          "learning_count": 3,
+          "learning_mean_net_percent": -0.917507,
+          "learning_win_rate": 0.3333
+        },
+        "friday_tactical_low_tp": false
       },
       "trade_status": "open",
       "result": null,
@@ -853,7 +866,7 @@
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "forecast_direction": "long",
       "forecast_score": 39,
       "continuous_entry_decision": {
@@ -1180,7 +1193,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     },
     {
       "instrument_id": "btcusd",
@@ -1611,18 +1626,25 @@
   "base_forecast_hash": "86886d587aaf253cd0361d89e749179957d0bca5b3ea7229d25f4d4c6b49d365",
   "multi_instrument_exposure_layer": {
     "enabled": true,
-    "version": "5.0.0-experimental",
+    "version": "5.6.0-experimental",
     "common_validation_gate": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-08-24T09:38:19+02:00"
+    "last_checked_at": "2026-08-24T09:38:52+02:00"
   },
   "governance_started_at": "2026-08-24T08:24:57+02:00",
   "wes": {
     "version": "WES-1.0.0",
-    "last_postflight_at": "2026-08-24T08:25:35+02:00",
+    "last_postflight_at": "2026-08-24T09:38:55+02:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   }
