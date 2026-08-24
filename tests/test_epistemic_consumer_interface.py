@@ -1,9 +1,11 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.epistemic_consumer_interface import EpistemicConsumerInterface, build_consumer_bundle, SPX_BELIEF_IDS
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from epistemic_consumer_interface import EpistemicConsumerInterface, build_consumer_bundle, SPX_BELIEF_IDS
 
 
 def sample_state():
