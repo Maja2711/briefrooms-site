@@ -1,22 +1,24 @@
-name: Publish Homepage Navigation Order
+name: Validate Homepage Navigation
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "scripts/reorder_homepage_navigation.py"
+      - "pl/index.html"
+      - "en/index.html"
+      - "scripts/site-header.js"
       - ".github/workflows/homepage-navigation-order.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: homepage-navigation-order
   cancel-in-progress: true
 
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,95 +26,44 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Validate navigation utility
-        run: python -m py_compile scripts/reorder_homepage_navigation.py
-
-      - name: Publish navigation order with retry
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git reset --hard origin/main
-            python scripts/reorder_homepage_navigation.py
-            python scripts/reorder_homepage_navigation.py --check
-            git add pl/index.html en/index.html
-
-            if git diff --cached --quiet; then
-              echo "Homepage navigation order is already current."
-              exit 0
-            fi
-
-            git commit -m "feat(home): place Investing next to News"
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 4))
-          done
-
-          echo "::error::Could not publish homepage navigation order."
-          exit 1
-
-      - name: Verify production navigation order
+      - name: Validate PL and EN homepage navigation
         run: |
           python - <<'PY'
           import re
-          import time
-          import urllib.request
+          from pathlib import Path
 
           expected = {
-              'https://briefrooms.com/pl/': [
+              'pl': [
                   '/pl/aktualnosci.html',
                   '/pl/inwestycje.html',
-                  '/pl/zdrowie.html',
                   '/pl/nauka.html',
+                  '/pl/zdrowie.html',
                   '/pl/geopolityka.html',
                   '/pl/o-projekcie.html',
               ],
-              'https://briefrooms.com/en/': [
+              'en': [
                   '/en/news.html',
                   '/en/investing.html',
-                  '/en/health.html',
                   '/en/science.html',
+                  '/en/health.html',
                   '/en/geopolitics.html',
                   '/en/about.html',
               ],
           }
-          nav_pattern = re.compile(r'<nav\s+class=["\']nav["\'][^>]*>(.*?)</nav>', re.I | re.S)
-          href_pattern = re.compile(r'<a\b[^>]*\bhref=["\']([^"\']+)["\'][^>]*>', re.I)
-          headers = {
-              'User-Agent': 'BriefRooms homepage navigation verifier/1.0',
-              'Cache-Control': 'no-cache',
+          labels = {
+              'pl': ['Informacje', 'Inwestycje', 'Nauka', 'Zdrowie', 'Geopolityka', 'O nas'],
+              'en': ['Information', 'Investing', 'Science', 'Health', 'Geopolitics', 'About'],
           }
-          last = []
-          for attempt in range(1, 31):
-              last = []
-              for url, order in expected.items():
-                  try:
-                      request = urllib.request.Request(f'{url}?navorder={int(time.time())}-{attempt}', headers=headers)
-                      with urllib.request.urlopen(request, timeout=15) as response:
-                          body = response.read().decode('utf-8', 'replace')
-                      match = nav_pattern.search(body)
-                      if not match:
-                          last.append(f'{url}: navigation missing')
-                          continue
-                      actual = href_pattern.findall(match.group(1))
-                      if actual != order:
-                          last.append(f'{url}: {actual}')
-                  except Exception as exc:
-                      last.append(f'{url}: {exc}')
-              if not last:
-                  print('Production homepage navigation is correct in PL and EN.')
-                  raise SystemExit(0)
-              time.sleep(10)
-          raise SystemExit('Production navigation verification failed: ' + '; '.join(last))
+          nav_pattern = re.compile(r'<nav\s+class=["\']br-home-nav["\'][^>]*>(.*?)</nav>', re.I | re.S)
+          link_pattern = re.compile(r'<a\b[^>]*\bhref=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.I | re.S)
+          for lang in ('pl', 'en'):
+              source = Path(f'{lang}/index.html').read_text(encoding='utf-8')
+              match = nav_pattern.search(source)
+              assert match, f'{lang}: redesigned navigation missing'
+              links = link_pattern.findall(match.group(1))
+              assert [href for href, _ in links] == expected[lang], links
+              actual_labels = [re.sub(r'<[^>]+>', '', text).strip() for _, text in links]
+              assert actual_labels == labels[lang], actual_labels
+          print('Redesigned PL and EN homepage navigation is correct.')
           PY
