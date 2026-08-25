@@ -1,0 +1,158 @@
+name: TimesFM Shadow Forecaster
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */4 * * 1-5"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: timesfm-shadow-forecaster-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: timesfm-shadow-state
+  STATE_ARCHIVE: timesfm-shadow-state.tgz
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout experiment ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Prepare Hugging Face cache
+        run: |
+          echo "HF_HOME=$RUNNER_TEMP/huggingface" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/huggingface"
+
+      - name: Cache TimesFM checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/huggingface
+          key: timesfm-2.5-200m-pytorch-${{ runner.os }}-py311-v1
+          restore-keys: |
+            timesfm-2.5-200m-pytorch-${{ runner.os }}-py311-
+
+      - name: Install pinned TimesFM runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "timesfm[torch]==2.0.2"
+          python - <<'PY'
+          import importlib.metadata
+          import timesfm
+          print("TIMESFM_PACKAGE", importlib.metadata.version("timesfm"))
+          print("TIMESFM_MODEL_CLASS", hasattr(timesfm, "TimesFM_2p5_200M_torch"))
+          assert hasattr(timesfm, "TimesFM_2p5_200M_torch")
+          PY
+
+      - name: Validate shadow code before durable state access
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/timesfm_shadow_forecaster.py
+          python -m unittest tests.test_timesfm_shadow_forecaster -v
+
+      - name: Prepare private state directory
+        run: |
+          set -euo pipefail
+          echo "TIMESFM_STATE_DIR=$RUNNER_TEMP/timesfm-shadow" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/timesfm-shadow"
+
+      - name: Restore prior durable TimesFM state or establish first activation
+        id: restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          prior_success="$(gh run list \
+            --workflow timesfm-shadow-forecaster.yml \
+            --branch "$GITHUB_REF_NAME" \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          if [[ -z "$prior_success" ]]; then
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            echo "No prior successful TimesFM shadow run on $GITHUB_REF_NAME; explicit prospective activation is allowed."
+            exit 0
+          fi
+
+          echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+          rm -rf "$RUNNER_TEMP/timesfm-artifact"
+          mkdir -p "$RUNNER_TEMP/timesfm-artifact"
+          if ! gh run download "$prior_success" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/timesfm-artifact"; then
+            echo "FAIL_CLOSED: prior successful TimesFM run exists but state artifact cannot be restored." >&2
+            exit 1
+          fi
+          archive="$RUNNER_TEMP/timesfm-artifact/$STATE_ARCHIVE"
+          if [[ ! -s "$archive" ]]; then
+            echo "FAIL_CLOSED: restored TimesFM artifact does not contain $STATE_ARCHIVE." >&2
+            exit 1
+          fi
+          tar -xzf "$archive" -C "$TIMESFM_STATE_DIR"
+          python scripts/timesfm_shadow_forecaster.py --state-dir "$TIMESFM_STATE_DIR" --verify
+
+      - name: Run prospective TimesFM shadow cycle
+        env:
+          BOOTSTRAP: ${{ steps.restore.outputs.bootstrap }}
+        run: |
+          set -euo pipefail
+          args=(--state-dir "$TIMESFM_STATE_DIR")
+          if [[ "$BOOTSTRAP" == "true" ]]; then
+            args+=(--bootstrap)
+          fi
+          python scripts/timesfm_shadow_forecaster.py "${args[@]}"
+          python scripts/timesfm_shadow_forecaster.py --state-dir "$TIMESFM_STATE_DIR" --verify
+
+      - name: Validate zero authority and activation boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from timesfm_shadow_forecaster import safety_controls
+
+          root = Path(os.environ["TIMESFM_STATE_DIR"])
+          activation = json.loads((root / "timesfm_shadow_activation.json").read_text(encoding="utf-8"))
+          status = json.loads((root / "timesfm_shadow_status.json").read_text(encoding="utf-8"))
+          assert all(value is False for value in safety_controls().values())
+          assert all(value is False for value in activation["authority"].values())
+          assert all(value is False for value in status["zero_authority"].values())
+          assert activation["anti_hindsight"]["historical_backfill"] is False
+          assert activation["anti_hindsight"]["same_cycle_new_forecast_outcome_binding"] is False
+          print("TIMESFM_SHADOW_ZERO_AUTHORITY_PASS")
+          print("TIMESFM_SHADOW_LEDGER", status["ledger_count"], status["ledger_head_hash"])
+          print("TIMESFM_SHADOW_CYCLE", status["forecasts_appended"], status["outcomes_appended"], status["skipped_stale_origin"])
+          PY
+
+      - name: Pack cumulative private TimesFM research state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$TIMESFM_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+          ls -lh "$RUNNER_TEMP/$STATE_ARCHIVE"
+
+      - name: Store cumulative TimesFM shadow state
+        uses: actions/upload-artifact@v4
+        with:
+          name: timesfm-shadow-state
+          path: ${{ runner.temp }}/timesfm-shadow-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

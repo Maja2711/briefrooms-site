@@ -1,0 +1,84 @@
+name: TimesFM Shadow tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/timesfm_shadow_forecaster.py"
+      - "tests/test_timesfm_shadow_forecaster.py"
+      - "docs/TIMESFM_SHADOW_FORECASTER_V1.md"
+      - ".github/workflows/timesfm-shadow-tests.yml"
+      - ".github/workflows/timesfm-shadow-forecaster.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile TimesFM shadow integration
+        run: |
+          python -m py_compile scripts/timesfm_shadow_forecaster.py
+
+      - name: Run TimesFM shadow unit tests
+        run: |
+          python -m unittest tests.test_timesfm_shadow_forecaster -v
+
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Prepare Hugging Face cache
+        run: |
+          echo "HF_HOME=$RUNNER_TEMP/huggingface" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/huggingface"
+
+      - name: Cache TimesFM checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/huggingface
+          key: timesfm-2.5-200m-pytorch-${{ runner.os }}-py311-smoke-v1
+
+      - name: Install official TimesFM runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "timesfm[torch]==2.0.2"
+
+      - name: Run real TimesFM 2.5 inference smoke test
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.metadata
+          from scripts.timesfm_shadow_forecaster import MODEL_ID, TimesFMRuntime
+
+          runtime = TimesFMRuntime()
+          context = [1.0800 + 0.00002 * i for i in range(256)]
+          points, quantiles = runtime.forecast(context, 2)
+          assert len(points) == 2
+          assert len(quantiles) == 2
+          assert all(key in quantiles[-1] for key in ("q10", "q50", "q90"))
+          assert all(value > 0 for value in points)
+          print("TIMESFM_REAL_SMOKE_PASS", MODEL_ID, importlib.metadata.version("timesfm"), points[-1], quantiles[-1]["q10"], quantiles[-1]["q90"])
+          PY
