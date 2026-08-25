@@ -1,0 +1,118 @@
+name: Publish TimesFM Shadow PL Projection
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["TimesFM Shadow Forecaster"]
+    types: [completed]
+  schedule:
+    - cron: "47 */4 * * 1-5"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: timesfm-shadow-public-pl
+  cancel-in-progress: false
+
+env:
+  TIMESFM_ARTIFACT_NAME: timesfm-shadow-state
+  TIMESFM_STATE_ARCHIVE: timesfm-shadow-state.tgz
+
+jobs:
+  publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore latest verified TimesFM main artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state_dir="$RUNNER_TEMP/timesfm-shadow-private"
+          mkdir -p "$state_dir"
+          echo "TIMESFM_STATE_DIR=$state_dir" >> "$GITHUB_ENV"
+
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${TIMESFM_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/timesfm-artifacts.json"
+          python - "$RUNNER_TEMP/timesfm-artifacts.json" > "$RUNNER_TEMP/timesfm-candidates.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          for row in rows[:20]:
+              wr=row.get('workflow_run') or {}
+              if wr.get('id') and wr.get('head_branch') == 'main':
+                  print(f"{row['id']}|{wr['id']}")
+          PY
+
+          artifact_id=""
+          while IFS='|' read -r candidate_id run_id; do
+            [ -n "$candidate_id" ] || continue
+            curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" -o "$RUNNER_TEMP/timesfm-run.json"
+            if python - "$RUNNER_TEMP/timesfm-run.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          run=json.loads(Path(sys.argv[1]).read_text())
+          ok=(run.get('name') == 'TimesFM Shadow Forecaster' and run.get('head_branch') == 'main' and run.get('conclusion') == 'success')
+          raise SystemExit(0 if ok else 1)
+          PY
+            then artifact_id="$candidate_id"; break; fi
+          done < "$RUNNER_TEMP/timesfm-candidates.txt"
+
+          if [ -z "$artifact_id" ]; then
+            echo "No successful TimesFM main artifact available" >&2
+            exit 1
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/timesfm-state.zip"
+          mkdir -p "$RUNNER_TEMP/timesfm-artifact"
+          unzip -q "$RUNNER_TEMP/timesfm-state.zip" -d "$RUNNER_TEMP/timesfm-artifact"
+          test -s "$RUNNER_TEMP/timesfm-artifact/$TIMESFM_STATE_ARCHIVE"
+          tar -xzf "$RUNNER_TEMP/timesfm-artifact/$TIMESFM_STATE_ARCHIVE" -C "$state_dir"
+          PYTHONPATH="${GITHUB_WORKSPACE}/scripts:${GITHUB_WORKSPACE}" python scripts/timesfm_shadow_forecaster.py --state-dir "$state_dir" --verify
+
+      - name: Build sanitized TimesFM frontend projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python scripts/timesfm_shadow_public_projection.py --state-dir "$TIMESFM_STATE_DIR" --output data/investments/timesfm_shadow_public_pl.json
+          python scripts/timesfm_shadow_public_projection.py --output data/investments/timesfm_shadow_public_pl.json --validate
+          python -m json.tool data/investments/timesfm_shadow_public_pl.json >/dev/null
+          node --check scripts/timesfm-shadow-lab-pl.js
+
+      - name: Persist only sanitized public projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/timesfm_shadow_public_pl.json
+          if git diff --cached --quiet; then
+            echo "No TimesFM public projection change"
+            exit 0
+          fi
+          git commit -m "Publish TimesFM shadow PL projection"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          exit 1
