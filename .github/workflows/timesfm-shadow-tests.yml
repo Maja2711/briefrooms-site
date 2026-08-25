@@ -35,3 +35,47 @@ jobs:
       - name: Run TimesFM shadow unit tests
         run: |
           python -m unittest tests.test_timesfm_shadow_forecaster -v
+
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      HF_HOME: ${{ runner.temp }}/huggingface
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache TimesFM checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/huggingface
+          key: timesfm-2.5-200m-pytorch-${{ runner.os }}-py311-smoke-v1
+
+      - name: Install official TimesFM runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "timesfm[torch]==2.0.2"
+
+      - name: Run real TimesFM 2.5 inference smoke test
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.metadata
+          from scripts.timesfm_shadow_forecaster import MODEL_ID, TimesFMRuntime
+
+          runtime = TimesFMRuntime()
+          context = [1.0800 + 0.00002 * i for i in range(256)]
+          points, quantiles = runtime.forecast(context, 2)
+          assert len(points) == 2
+          assert len(quantiles) == 2
+          assert all(key in quantiles[-1] for key in ("q10", "q50", "q90"))
+          assert all(value > 0 for value in points)
+          print("TIMESFM_REAL_SMOKE_PASS", MODEL_ID, importlib.metadata.version("timesfm"), points[-1], quantiles[-1]["q10"], quantiles[-1]["q90"])
+          PY
