@@ -35,7 +35,7 @@
     stop: "SL",
     target: "TP",
     validUntil: "Valid through",
-    history: "Closed trade history",
+    history: "Trade history",
     historyGpw: "Polish market (GPW)",
     historyUs: "US market",
     closed: "closed",
