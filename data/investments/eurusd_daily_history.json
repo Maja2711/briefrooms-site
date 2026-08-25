@@ -1,6 +1,6 @@
 {
   "schema_version": "eurusd-daily-history-v1",
-  "updated_at": "2026-08-25T12:03:30Z",
+  "updated_at": "2026-08-25T13:04:32Z",
   "trades": [
     {
       "trade_id": "eurusd:20260820T104856Z:LONG",
@@ -128,18 +128,73 @@
           "bar_timestamp": "2026-08-25T05:34:32Z"
         }
       }
+    },
+    {
+      "trade_id": "eurusd:20260825T060133Z:SHORT",
+      "instrument": "EUR/USD",
+      "direction": "SHORT",
+      "opened_at": "2026-08-25T06:01:33Z",
+      "closed_at": "2026-08-25T13:04:32Z",
+      "entry": 1.16577,
+      "stop": 1.16892,
+      "target": 1.16011,
+      "exit_price": 1.167,
+      "exit_reason": "DYNAMIC_RISK_EXIT",
+      "result_percent": -0.10528,
+      "return_fraction": -0.00105279,
+      "r_multiple": -0.3896,
+      "outcome": "LOSS",
+      "entry_score": 37.74,
+      "entry_confidence": 0.245,
+      "entry_components": {},
+      "entry_weights": {
+        "trend": 0.546009,
+        "broad_usd_environment": 0.250882,
+        "us_rates_pressure_proxy": 0.203109
+      },
+      "engine_version": "eurusd-daily-spot-v1.4.0",
+      "monitor": {
+        "source": "Yahoo Finance EURUSD=X 1m OHLC",
+        "conservative_same_bar": false,
+        "bar_timestamp": "2026-08-25T13:04:32Z",
+        "bar_open": 1.1669973134994507,
+        "bar_high": 1.1669973134994507,
+        "bar_low": 1.1669973134994507,
+        "bar_close": 1.1669973134994507,
+        "dynamic_exit": {
+          "policy": "R_PACE_V1",
+          "age_hours": 7.05,
+          "soft_horizon_reached": false,
+          "hard_horizon_reached": false,
+          "remaining_hard_hours": 19.95,
+          "current_r": -0.3896,
+          "target_r": 1.7968,
+          "remaining_r_to_target": 2.1864,
+          "mfe_r": 0.0853,
+          "giveback_r": 0.4749,
+          "velocity_1h_rph": -0.1285,
+          "velocity_3h_rph": 0.0,
+          "blended_velocity_rph": -0.0835,
+          "required_velocity_rph": 0.1096,
+          "tp_feasibility_ratio": 0.0,
+          "projected_hours_to_target": null,
+          "hold_score": -0.6708,
+          "mark_price": 1.167,
+          "bar_timestamp": "2026-08-25T13:04:32Z"
+        }
+      }
     }
   ],
   "learning_state": {
-    "total_closed": 3,
+    "total_closed": 4,
     "wins": 1,
-    "losses": 2,
-    "win_rate_percent": 33.33,
-    "average_r": -0.3182,
-    "consecutive_losses": 0,
+    "losses": 3,
+    "win_rate_percent": 25.0,
+    "average_r": -0.3361,
+    "consecutive_losses": 1,
     "direction_loss_streak": {
       "LONG": 2,
-      "SHORT": 0
+      "SHORT": 1
     },
     "adaptive_weights": {
       "trend": 0.546009,
@@ -152,9 +207,9 @@
       "us_rates_pressure_proxy": 0.994701
     },
     "entry_thresholds": {
-      "long": 67.82,
-      "short": 33.68,
-      "min_confidence": 0.32
+      "long": 68.84,
+      "short": 31.91,
+      "min_confidence": 0.34
     },
     "cooldown_until": "2026-08-20T20:32:00Z",
     "policy": {
