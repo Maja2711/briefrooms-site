@@ -1,0 +1,35 @@
+name: TimesFM Shadow tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/timesfm_shadow_forecaster.py"
+      - "tests/test_timesfm_shadow_forecaster.py"
+      - "docs/TIMESFM_SHADOW_FORECASTER_V1.md"
+      - ".github/workflows/timesfm-shadow-tests.yml"
+      - ".github/workflows/timesfm-shadow-forecaster.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile TimesFM shadow integration
+        run: |
+          python -m py_compile scripts/timesfm_shadow_forecaster.py
+
+      - name: Run TimesFM shadow unit tests
+        run: |
+          python -m unittest tests.test_timesfm_shadow_forecaster -v
