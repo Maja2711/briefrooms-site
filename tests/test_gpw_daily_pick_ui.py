@@ -37,6 +37,27 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn('if (lang === "en")', script)
         self.assertIn('cache: "no-store"', script)
 
+    def test_active_position_overlay_keeps_open_gpw_visible_and_history_closed_only(self):
+        script = (ROOT / "scripts/daily-stock-position-ux.js").read_text(encoding="utf-8")
+        polish = (ROOT / "pl/inwestycje/daily-trading.html").read_text(encoding="utf-8")
+        english = (ROOT / "en/investing/daily-trading.html").read_text(encoding="utf-8")
+        css = (ROOT / "assets/daily-trading-contrast.css").read_text(encoding="utf-8")
+
+        self.assertIn("/data/investments/gpw_daily_pick_history_index.json", script)
+        self.assertIn('status: "W TOKU"', script)
+        self.assertIn("row?.outcome?.activated === true", script)
+        self.assertIn("trade?.outcome?.entry_price", script)
+        self.assertIn("rows.filter(isResolved)", script)
+        self.assertIn("outcome.entry_price", script)
+        self.assertIn("outcome.exit_price", script)
+        self.assertIn("Historia zamkniętych transakcji", script)
+        self.assertIn("daily-stock-position-ux.js?v=1", polish)
+        self.assertIn("daily-stock-position-ux.js?v=1", english)
+        self.assertNotIn("daily-us-open-position-public.js", polish)
+        self.assertNotIn("daily-us-open-position-public.js", english)
+        self.assertIn(".dsm-history-row.dsm-history-row-closed", css)
+        self.assertIn("font-size:11px", css)
+
     def test_shared_client_keeps_market_specific_currency_and_session_context(self):
         script = (ROOT / "scripts/daily-stock-markets-public.js").read_text(encoding="utf-8")
         self.assertIn('currency: market === "gpw" ? "PLN" : "USD"', script)
