@@ -17,6 +17,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 7
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
