@@ -24,7 +24,6 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       GH_TOKEN: ${{ github.token }}
-      HF_HOME: ${{ runner.temp }}/huggingface
     steps:
       - name: Checkout experiment ref
         uses: actions/checkout@v4
@@ -36,7 +35,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: "pip"
+
+      - name: Prepare Hugging Face cache
+        run: |
+          echo "HF_HOME=$RUNNER_TEMP/huggingface" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/huggingface"
 
       - name: Cache TimesFM checkpoint
         uses: actions/cache@v4
