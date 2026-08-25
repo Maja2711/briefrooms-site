@@ -17,7 +17,7 @@
     stop: "SL",
     target: "TP",
     validUntil: "Ważna do",
-    history: "Historia zamkniętych transakcji — GPW i USA",
+    history: "Historia transakcji",
     historyGpw: "Rynek polski (GPW)",
     historyUs: "Rynek amerykański (USA)",
     closed: "zamkniętych",
