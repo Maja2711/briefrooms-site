@@ -126,6 +126,8 @@ The pull-request CI has two independent layers:
 
 **Merge gate:** both the deterministic test job and the real-model runtime smoke job must pass on the current PR head.
 
+CI retrigger marker: final PR-head validation requested after PR #452 opened.
+
 ## Evaluation gate
 
 No production integration is implied by a successful workflow. The first evaluation should compare TimesFM prospectively on at least:
