@@ -117,6 +117,13 @@ The cumulative private artifact contains:
 
 The model cache is not part of research state.
 
+## Validation
+
+The pull-request CI has two independent layers:
+
+1. deterministic unit tests using a fake forecasting runtime, covering activation, anti-hindsight, hash-chain durability, settlement, stale-data rejection and zero authority;
+2. a real TimesFM 2.5 smoke test that installs the pinned official package, loads `google/timesfm-2.5-200m-pytorch`, and performs genuine inference before this experiment is considered merge-ready.
+
 ## Evaluation gate
 
 No production integration is implied by a successful workflow. The first evaluation should compare TimesFM prospectively on at least:
