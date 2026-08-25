@@ -4,10 +4,16 @@ on:
   pull_request:
     paths:
       - "scripts/timesfm_shadow_forecaster.py"
+      - "scripts/timesfm_shadow_public_projection.py"
+      - "scripts/timesfm-shadow-lab-pl.js"
       - "tests/test_timesfm_shadow_forecaster.py"
+      - "tests/test_timesfm_shadow_public_projection.py"
       - "docs/TIMESFM_SHADOW_FORECASTER_V1.md"
+      - "assets/timesfm-lab-shell.css"
+      - "pl/inwestycje/daily-trading.html"
       - ".github/workflows/timesfm-shadow-tests.yml"
       - ".github/workflows/timesfm-shadow-forecaster.yml"
+      - ".github/workflows/timesfm-shadow-public-pl.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,11 +36,12 @@ jobs:
 
       - name: Compile TimesFM shadow integration
         run: |
-          python -m py_compile scripts/timesfm_shadow_forecaster.py
+          python -m py_compile scripts/timesfm_shadow_forecaster.py scripts/timesfm_shadow_public_projection.py
+          node --check scripts/timesfm-shadow-lab-pl.js
 
       - name: Run TimesFM shadow unit tests
         run: |
-          python -m unittest tests.test_timesfm_shadow_forecaster -v
+          python -m unittest tests.test_timesfm_shadow_forecaster tests.test_timesfm_shadow_public_projection -v
 
   runtime-smoke:
     runs-on: ubuntu-latest

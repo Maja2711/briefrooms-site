@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/assets/investments-hub.css?v=2">
 <link rel="stylesheet" href="/assets/daily-trading-contrast.css?v=2">
 <link rel="stylesheet" href="/assets/eurusd-abc-lab-pl.css?v=1">
+<link rel="stylesheet" href="/assets/timesfm-lab-shell.css?v=1">
 <script src="/scripts/site-header.js?v=20260806-3" defer></script>
 </head><body><header id="site-header"></header>
 <main class="investments-shell">
@@ -23,12 +24,23 @@
 <section class="panel"><div id="gpw-daily-pick-root" aria-live="polite"><p>Ładowanie Daily Stock Core…</p></div></section>
 <h2 class="section-title">Daily EUR/USD Spot</h2>
 <section class="panel"><div id="eurusd-daily-root" aria-live="polite"><p>Ładowanie stanu EUR/USD…</p></div></section>
-<h2 class="section-title">A/B/C Research Lab — EUR/USD</h2>
-<section class="panel"><div id="eurusd-abc-lab-pl-root" aria-live="polite"><p>Ładowanie porównania A/B/C…</p></div></section>
-<p class="legal">Materiał badawczy. `confidence` oznacza siłę decyzji, nie skalibrowane prawdopodobieństwo sukcesu. A/B/C Research Lab nie wykonuje transakcji. Wirtualne pozycje TP/SL/MFE/MAE są testem prospektywnym; aktywny Daily EUR/USD przelicza fallback A niezależnie, bez konsumowania research state.</p>
+<details class="research-lab-shell">
+  <summary class="research-lab-summary">
+    <span class="research-lab-summary-copy"><span class="research-lab-kicker">Research · EUR/USD</span><strong>Laboratorium A/B/C + TimesFM</strong><small>Porównania modeli, historia wyników i eksperymentalny Shadow Forecaster. Domyślnie zwinięte.</small></span>
+    <span class="research-lab-toggle"><span class="research-lab-toggle-label">Rozwiń</span></span>
+  </summary>
+  <div class="research-lab-content">
+    <h2 class="section-title">A/B/C Research Lab — EUR/USD</h2>
+    <section class="panel"><div id="eurusd-abc-lab-pl-root" aria-live="polite"><p>Ładowanie porównania A/B/C…</p></div></section>
+    <h2 class="section-title research-lab-subtitle">TimesFM Shadow Forecaster</h2>
+    <section class="panel"><div id="timesfm-shadow-lab-pl-root" aria-live="polite"><p>Ładowanie prognozy TimesFM…</p></div></section>
+    <p class="legal">Materiał badawczy. `confidence` oznacza siłę decyzji, nie skalibrowane prawdopodobieństwo sukcesu. A/B/C Research Lab nie wykonuje transakcji. TimesFM działa wyłącznie w trybie shadow i nie wpływa na A/B/C, aktywny sygnał EUR/USD, BRACE/WES, sizing ani wykonanie. Wirtualne pozycje TP/SL/MFE/MAE pozostają testem prospektywnym.</p>
+  </div>
+</details>
 </main>
 <script src="/scripts/gpw-daily-pick-public.js?v=6" defer></script>
 <script src="/scripts/daily-us-open-position-public.js?v=3" defer></script>
 <script src="/scripts/daily-eurusd-spot-public.js?v=2" defer></script>
 <script src="/scripts/daily-eurusd-abc-lab-pl.js?v=4" defer></script>
+<script src="/scripts/timesfm-shadow-lab-pl.js?v=1" defer></script>
 </body></html>
