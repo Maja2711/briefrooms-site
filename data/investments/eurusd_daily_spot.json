@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-08-25T06:01:33Z",
+  "timestamp": "2026-08-25T07:00:29Z",
   "direction": "SHORT",
   "score": 37.74,
   "confidence": 0.245,
@@ -22,21 +22,28 @@
       "bridge_ready": true,
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
-    "components": {},
+    "components": {
+      "trend": -0.1215,
+      "broad_usd_environment": 0.0677,
+      "us_rates_pressure_proxy": 0.1674
+    },
     "weights": {
       "trend": 0.546009,
       "broad_usd_environment": 0.250882,
       "us_rates_pressure_proxy": 0.203109
     },
     "candidate": {
-      "direction": "SHORT",
-      "score": 37.74,
-      "confidence": 0.245,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.03
+      "direction": "FLAT",
+      "score": 49.23,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 48.98,
+      "stretch_atr": 1.8143,
+      "shock_ratio": 0.0
     },
     "learning": {
       "total_closed": 3,
@@ -98,30 +105,6 @@
       "rate_differential_claimed": false,
       "ecb_policy_coverage": false
     },
-    "decision_source": "A_TECHNICAL_FALLBACK",
-    "learning_eligible": false,
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 48.62,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 49.34,
-      "stretch_atr": 1.6274,
-      "shock_ratio": 0.0
-    },
-    "a_fallback": {
-      "method": "same_technical_model_as_research_arm_A_recomputed_live",
-      "research_state_consumed": false,
-      "direction": "SHORT",
-      "score": 37.74,
-      "confidence": 0.245,
-      "market_observed_at": "2026-08-25T06:01:33Z",
-      "max_market_age_minutes": 90.0,
-      "risk_source": "active_daily_eurusd_current_30m_atr"
-    },
     "dynamic_exit": {
       "enabled": true,
       "policy": "R_PACE_V1",
@@ -161,18 +144,21 @@
       "dynamic_exit_policy": "R_PACE_V1",
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
-      "mark_price": 1.16577,
-      "unrealized_percent": -0.00025
+      "mark_price": 1.16564,
+      "unrealized_percent": 0.01141
     },
     "candidate_at_refresh": {
-      "direction": "SHORT",
-      "score": 37.74,
-      "confidence": 0.245,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.03
+      "direction": "FLAT",
+      "score": 49.23,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 48.98,
+      "stretch_atr": 1.8143,
+      "shock_ratio": 0.0
     }
   },
   "schema_version": "daily-engine-output-v1"
