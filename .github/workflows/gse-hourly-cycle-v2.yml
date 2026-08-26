@@ -1,0 +1,215 @@
+name: GSE Hourly Learning Pipeline v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_freeze:
+        description: "Force a forecast freeze outside the normal 6-hour window"
+        required: false
+        default: "false"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gse-hourly-cycle-v2.yml"
+      - "scripts/geopolitical_scenario_engine.py"
+      - "scripts/gse_v2_fast_cycle.py"
+      - "scripts/gse_v2_learning_loop.py"
+      - "scripts/gse_publish_learning_review_status.py"
+      - "scripts/gse_v2_public_lab_projection.py"
+      - "tests/test_gse_v2_fast_cycle.py"
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+concurrency:
+  group: gse-hourly-learning-v2
+  cancel-in-progress: false
+
+env:
+  ARTIFACT_NAME: gse-shadow-state-v2
+  LEGACY_ARTIFACT_NAME: gse-shadow-state
+  PUBLIC_REVIEW_STATUS_PATH: data/gse/gse_v2_learning_review_status.json
+  PUBLIC_LAB_PATH: data/gse/gse_v2_lab_public.json
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare state directory
+        run: |
+          echo "GSE_STATE_DIR=$RUNNER_TEMP/gse_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/gse_state"
+
+      - name: Restore v2 state or migrate legacy state once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          find_artifact() {
+            local name="$1"
+            curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}&per_page=100" > "$RUNNER_TEMP/artifacts.json"
+            python - "$RUNNER_TEMP/artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in p.get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''),reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          }
+          artifact_id=$(find_artifact "$ARTIFACT_NAME")
+          if [ -z "$artifact_id" ]; then
+            echo "No v2 state yet; importing latest legacy GSE state once."
+            artifact_id=$(find_artifact "$LEGACY_ARTIFACT_NAME")
+          fi
+          test -n "$artifact_id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/state.zip"
+          mkdir -p "$RUNNER_TEMP/artifact"
+          unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/artifact"
+          test -f "$RUNNER_TEMP/artifact/gse-state.tgz"
+          tar -xzf "$RUNNER_TEMP/artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
+          test -f "$GSE_STATE_DIR/gse_state.json"
+          test -f "$GSE_STATE_DIR/gse_v2_historical_walkforward.json"
+          test -f "$GSE_STATE_DIR/gse_v2_policy_proposal.json"
+          test -f "$GSE_STATE_DIR/gse_v2_enriched_library.json"
+
+      - name: Validate fast-cycle code
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          python -m py_compile scripts/geopolitical_scenario_engine.py scripts/gse_v2_learning_loop.py scripts/gse_v2_fast_cycle.py scripts/gse_publish_learning_review_status.py scripts/gse_v2_public_lab_projection.py
+          python -m unittest tests.test_gse_v2_fast_cycle tests.test_gse_publish_learning_review_status tests.test_gse_v2_public_lab_projection -v
+
+      - name: Run current GSE scan forecast and verification
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          args=(--state-dir "$GSE_STATE_DIR")
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_freeze }}" = "true" ]; then args+=(--force-freeze); fi
+          python scripts/geopolitical_scenario_engine.py "${args[@]}"
+
+      - name: Resolve historical catalogue
+        run: |
+          if [ -f "$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" ]; then
+            echo "GSE_HISTORICAL_CATALOG=$GSE_STATE_DIR/gse_historical_event_catalog_effective.json" >> "$GITHUB_ENV"
+          else
+            echo "GSE_HISTORICAL_CATALOG=$GITHUB_WORKSPACE/data/gse/historical_event_catalog.json" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run fast prospective GSE v2 learning
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: python scripts/gse_v2_fast_cycle.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG"
+
+      - name: Prove this run appended a fresh learning cycle
+        run: |
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          root=Path(os.environ['GSE_STATE_DIR'])
+          g=json.loads((root/'gse_state.json').read_text())
+          rows=[json.loads(x) for x in (root/'gse_v2_learning_ledger.jsonl').read_text().splitlines() if x.strip()]
+          def dt(v): return datetime.fromisoformat(str(v).replace('Z','+00:00')).astimezone(timezone.utc)
+          scan=dt(g['last_run_at']); learning=max(dt(x['recorded_at']) for x in rows); now=datetime.now(timezone.utc)
+          assert learning >= scan-timedelta(minutes=2), (scan,learning)
+          assert now-learning < timedelta(minutes=15), learning
+          print('scan=',scan.isoformat(),'learning=',learning.isoformat(),'cycles=',len(rows))
+          PY
+
+      - name: Build review status and public Lab from exact same state
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          previous=""
+          if [ -f "$PUBLIC_REVIEW_STATUS_PATH" ]; then previous="$PUBLIC_REVIEW_STATUS_PATH"; fi
+          python scripts/gse_publish_learning_review_status.py --state-dir "$GSE_STATE_DIR" --output "$PUBLIC_REVIEW_STATUS_PATH" ${previous:+--previous "$previous"}
+          cp "$PUBLIC_REVIEW_STATUS_PATH" "$GSE_STATE_DIR/gse_v2_learning_review_status.json"
+          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --output "$PUBLIC_LAB_PATH"
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          p=json.loads(Path(os.environ['PUBLIC_LAB_PATH']).read_text())
+          assert p['schema_version']=='gse-v2-public-lab-v2'
+          assert p['learning_timeline']
+          assert p['engine']['decision_influence'] is False
+          def dt(v): return datetime.fromisoformat(str(v).replace('Z','+00:00')).astimezone(timezone.utc)
+          assert dt(p['activity']['last_learning_at']) >= dt(p['activity']['last_scan_at'])-timedelta(minutes=2)
+          assert datetime.now(timezone.utc)-dt(p['activity']['last_learning_at']) < timedelta(minutes=15)
+          print('activity=',p['activity'])
+          print('latest=',p['learning_timeline'][0])
+          PY
+
+      - name: Validate ledger chain and hard safety boundary
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          import gse_v2_learning_loop as l
+          root=Path(os.environ['GSE_STATE_DIR']); s=json.loads((root/'gse_v2_learning_state.json').read_text()); c=s['controls']
+          assert s['mode']=='shadow'; assert not c['automatic_tuning_enabled']; assert not c['automatic_promotion_enabled']; assert not c['decision_engine_connected']; assert not c['belief_core_connected']; assert not c['trade_execution_enabled']; assert not c['policy_output_enabled']
+          l._validate_ledger(l.read_jsonl(root/'gse_v2_learning_ledger.jsonl'))
+          PY
+
+      - name: Pack post-learning state
+        run: tar -czf "$RUNNER_TEMP/gse-state.tgz" -C "$GSE_STATE_DIR" .
+
+      - name: Store authoritative v2 state
+        uses: actions/upload-artifact@v4
+        with:
+          name: gse-shadow-state-v2
+          path: ${{ runner.temp }}/gse-state.tgz
+          if-no-files-found: error
+          retention-days: 60
+          compression-level: 0
+
+      - name: Publish public state to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$PUBLIC_REVIEW_STATUS_PATH" "$PUBLIC_LAB_PATH"
+          if git diff --cached --quiet; then echo "No public diff."; exit 0; fi
+          git commit -m "Update GSE v2 hourly learning state"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then git rebase --abort || true; sleep $((attempt*2)); continue; fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['PUBLIC_LAB_PATH'])
+          print('## GSE v2 hourly learning')
+          if p.exists():
+              d=json.loads(p.read_text()); a=d.get('activity') or {}; s=d.get('summary') or {}
+              print(f"- Last scan: `{a.get('last_scan_at')}`")
+              print(f"- Last learning: `{a.get('last_learning_at')}`")
+              print(f"- Last verification: `{a.get('last_verification_at')}`")
+              print(f"- Learning cycles: `{s.get('learning_cycles')}`")
+          PY
