@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import investments_weekly as legacy
+from instrument_registry import canonical_vendor_symbol
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD_PATH = ROOT / "data" / "investments" / "methodology.json"
@@ -74,6 +75,22 @@ def parse_dt(value: Any) -> Optional[datetime]:
 def current_week_path(now: Optional[datetime] = None) -> Path:
     now = now or legacy.now_local()
     return WEEKLY_DIR / f"{legacy.week_id_from_date(now)}.json"
+
+
+def canonical_yahoo_symbol(instrument_id: str, configured_symbol: Optional[str] = None) -> str:
+    """Resolve Yahoo symbol from the canonical registry and reject symbol drift."""
+    return canonical_vendor_symbol(
+        instrument_id,
+        "yahoo",
+        configured_symbol=configured_symbol,
+    )
+
+
+def _item_yahoo_symbol(item: Dict[str, Any]) -> str:
+    return canonical_yahoo_symbol(
+        str(item.get("instrument_id") or ""),
+        str(item.get("symbol") or ""),
+    )
 
 
 def _series(df: Any, name: str) -> Any:
@@ -176,7 +193,8 @@ def units_to_price_distance(inst_id: str, units: float, last: float) -> float:
 
 
 def model_signal(inst: Dict[str, Any], method: Dict[str, Any], week_id: str, forecast_at: datetime) -> Dict[str, Any]:
-    df = download_daily(str(inst["symbol"]))
+    symbol = canonical_yahoo_symbol(str(inst["id"]), str(inst.get("symbol") or ""))
+    df = download_daily(symbol)
     if df is None:
         return {"direction": "neutral", "score": 0, "signal_strength": 0.0, "data_quality": "failed", "quality_reason": "daily_history_unavailable", "signals": {}}
     closes = [float(x) for x in _series(df, "Close").tolist()]
@@ -275,11 +293,12 @@ def make_forecast() -> Optional[Path]:
         return path
     items: List[Dict[str, Any]] = []
     for inst in method.get("instruments", []):
+        symbol = canonical_yahoo_symbol(str(inst["id"]), str(inst.get("symbol") or ""))
         signal = model_signal(inst, method, week_id, now)
         direction = signal.get("direction", "neutral")
         long_threshold, short_threshold = entry_thresholds(method, str(inst["id"]))
         items.append({
-            "instrument_id": inst["id"], "symbol": inst["symbol"], "label_pl": inst["label_pl"], "label_en": inst["label_en"], **signal,
+            "instrument_id": inst["id"], "symbol": symbol, "label_pl": inst["label_pl"], "label_en": inst["label_en"], **signal,
             "entry_thresholds": {"long": long_threshold, "short": short_threshold},
             "entry_price": None, "entry_captured_at": None, "entry_source": None,
             "entry_quality_status": "not_due" if direction in {"long", "short"} else "not_applicable_neutral",
@@ -401,7 +420,8 @@ def capture_entries(path: Optional[Path] = None) -> bool:
         previous = None
         if sf(item.get("entry_price")) is not None:
             previous = {"price": item.get("entry_price"), "captured_at": item.get("entry_captured_at"), "source": item.get("entry_source"), "reason": "outside_monday_08_00_to_10_00_window"}
-        point = first_bar_at_or_after(str(item.get("symbol") or ""), target)
+        symbol = _item_yahoo_symbol(item)
+        point = first_bar_at_or_after(symbol, target)
         if point is None:
             item["entry_quality_status"] = "not_opened_target_price_unavailable"; item["trade_status"] = "not_opened"
             if previous:
@@ -489,7 +509,8 @@ def review_open_positions(path: Optional[Path] = None) -> bool:
         start = parse_dt(item.get("last_risk_review_at")) or parse_dt(item.get("entry_captured_at"))
         if start is None or start >= now:
             continue
-        df = intraday_bars(str(item.get("symbol") or ""), start, now)
+        symbol = _item_yahoo_symbol(item)
+        df = intraday_bars(symbol, start, now)
         if df is None:
             continue
         try:
@@ -511,7 +532,7 @@ def review_open_positions(path: Optional[Path] = None) -> bool:
         item["last_risk_review_at"] = now.isoformat(timespec="seconds"); changed = True
         if hit:
             reason, level, ts = hit
-            item["exit_price"] = level; item["exit_captured_at"] = ts.isoformat(timespec="seconds"); item["exit_source"] = f"Yahoo Finance:{item.get('symbol')}:5m:OHLC_threshold"
+            item["exit_price"] = level; item["exit_captured_at"] = ts.isoformat(timespec="seconds"); item["exit_source"] = f"Yahoo Finance:{symbol}:5m:OHLC_threshold"
             item["exit_reason"] = reason; item["exit_execution_model"] = "planned_level_first_intraday_bar_conservative"; item["risk_status"] = "stop_loss_hit" if reason == "stop_loss" else "take_profit_hit"; item["trade_status"] = "closed"
             mark_exposure_closed(item)
             set_result(item, level)
@@ -543,7 +564,8 @@ def close_due_weeks() -> bool:
                 if mark_exposure_closed(item):
                     changed = True
                 continue
-            point = first_bar_at_or_after(str(item.get("symbol") or ""), target)
+            symbol = _item_yahoo_symbol(item)
+            point = first_bar_at_or_after(symbol, target)
             if point is None:
                 item["close_quality_status"] = "target_close_price_unavailable_no_live_fallback"; changed = True; continue
             item["exit_price"] = point["price"]; item["exit_captured_at"] = point["timestamp"]; item["exit_source"] = point["source"]
