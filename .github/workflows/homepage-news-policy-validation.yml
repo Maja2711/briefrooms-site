@@ -1,0 +1,30 @@
+name: Validate Homepage News Policy
+
+on:
+  pull_request:
+    paths:
+      - "scripts/homepage_news_policy.py"
+      - "tests/test_homepage_news_policy.py"
+      - "tests/test_homepage_static.py"
+      - ".github/workflows/publish-news.yml"
+      - ".github/workflows/homepage-news-policy-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate homepage policy contract
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/homepage_news_policy.py
+          python -m unittest tests.test_homepage_news_policy -v
+          python -m unittest tests.test_homepage_static -v
