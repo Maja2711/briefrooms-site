@@ -1,107 +1,2673 @@
 {
-  "schema_version": "gse-v2-public-lab-v1",
-  "generated_at": "2026-08-24T20:50:00Z",
-  "engine": {
-    "short_name": "GSE v2",
-    "full_name": "Geopolitical Scenario Engine",
-    "mode": "shadow",
-    "decision_influence": false,
-    "automatic_promotion": false
+  "activity": {
+    "last_base_verification_at": "2026-08-25T19:00:55.820362Z",
+    "last_learning_at": "2026-08-26T11:30:51.503837Z",
+    "last_scan_at": "2026-08-26T11:30:18.842121Z",
+    "last_v2_verification_at": "2026-08-25T19:00:55.820362Z",
+    "last_verification_at": "2026-08-25T19:00:55.820362Z",
+    "learning_cadence": "after_successful_gse_shadow_run",
+    "projection_generated_at": "2026-08-26T11:30:52.801205Z",
+    "scan_cadence": "hourly",
+    "verification_cadence": "hourly_when_due"
   },
-  "summary": {
-    "verified_clusters": 18,
-    "target_verified_clusters": 100,
-    "catalog_events": 18,
-    "historical_response_rows": 462,
-    "walk_forward_n": 282,
-    "prospective_paired_n": 32,
-    "learning_cycles": 11,
-    "scenario_family_count": 6
-  },
-  "historical_overall": {
-    "regime_brier": 0.2573,
-    "baseline_brier": 0.2717,
-    "brier_improvement_pct": 5.3,
-    "regime_log_loss": 0.7085,
-    "baseline_log_loss": 0.7403,
-    "log_loss_improvement_pct": 4.2956,
-    "hit_rate": null,
-    "calibration_bias": null
-  },
-  "horizons": [
-    {"hours":24,"label":"24h","n":null,"regime_brier":0.2686,"baseline_brier":0.2807,"brier_improvement_pct":4.3107,"regime_log_loss":null,"baseline_log_loss":null,"hit_rate":null,"calibration_bias":null,"best":false},
-    {"hours":168,"label":"7d","n":null,"regime_brier":0.2626,"baseline_brier":0.2745,"brier_improvement_pct":4.3352,"regime_log_loss":null,"baseline_log_loss":null,"hit_rate":null,"calibration_bias":null,"best":false},
-    {"hours":720,"label":"30d","n":null,"regime_brier":0.2408,"baseline_brier":0.2599,"brier_improvement_pct":7.349,"regime_log_loss":null,"baseline_log_loss":null,"hit_rate":null,"calibration_bias":null,"best":true}
-  ],
-  "best_horizon": {"hours":720,"label":"30d","n":null,"regime_brier":0.2408,"baseline_brier":0.2599,"brier_improvement_pct":7.349,"best":true},
-  "scenarios": [],
-  "scenario_catalog_counts": {
-    "china_taiwan_trade_escalation": 2,
-    "grain_export_disruption": 2,
-    "middle_east_energy_escalation": 6,
-    "red_sea_shipping_disruption": 2,
-    "russia_ukraine_black_sea_escalation": 8,
-    "sanctions_escalation": 10
-  },
-  "prospective": {
-    "paired_n": 32,
-    "mean_brier_v1": 0.309386,
-    "mean_brier_v2": 0.309338,
-    "delta_brier_v2_minus_v1": -0.000048,
-    "mean_log_loss_v1": 0.820845,
-    "mean_log_loss_v2": 0.820725,
-    "delta_log_loss_v2_minus_v1": -0.00012,
-    "calibration_bias_v2": 0.3011
+  "best_horizon": {
+    "baseline_brier": 0.25994,
+    "baseline_log_loss": 0.718098,
+    "best": true,
+    "brier_improvement_pct": 7.3502,
+    "calibration_bias": -0.04955,
+    "hit_rate": 0.595745,
+    "hours": 720,
+    "label": "30d",
+    "n": 94,
+    "regime_brier": 0.240834,
+    "regime_log_loss": 0.675016
   },
   "challenger": {
-    "status": "eligible_for_human_shadow_review",
-    "candidate": {"similarity_temperature":0.5,"prior_strength":18.0,"max_overlay_weight":0.2,"weight_per_effective_cluster":0.025},
-    "train_metrics": null,
-    "holdout_metrics": {"brier":0.277832},
-    "active_policy_holdout_metrics": {"brier":0.279029},
+    "active_policy_holdout_metrics": {
+      "brier": 0.279029,
+      "calibration_bias": -0.096312,
+      "hit_rate_50": 0.444444,
+      "log_loss": 0.754112,
+      "n": 54
+    },
+    "automatically_applied": false,
+    "candidate": {
+      "max_overlay_weight": 0.2,
+      "prior_strength": 18.0,
+      "similarity_temperature": 0.5,
+      "weight_per_effective_cluster": 0.025
+    },
     "holdout_delta_brier_candidate_minus_active": -0.001197,
-    "automatically_applied": false
-  },
-  "readiness": {
-    "status": "shadow_learning",
-    "reasons": ["prospective_brier_improvement_below_gate","prospective_calibration_bias_above_0_10"],
-    "automatic_promotion": false
+    "holdout_metrics": {
+      "brier": 0.277832,
+      "calibration_bias": -0.095036,
+      "hit_rate_50": 0.425926,
+      "log_loss": 0.751192,
+      "n": 54
+    },
+    "status": "eligible_for_human_shadow_review",
+    "train_metrics": {
+      "brier": 0.251057,
+      "calibration_bias": -0.03038,
+      "hit_rate_50": 0.513158,
+      "log_loss": 0.695317,
+      "n": 228
+    }
   },
   "discovery": {
-    "status": "backfill_retry",
-    "target_met": false,
-    "effective_verified_cluster_n": 18
+    "effective_verified_cluster_n": 297,
+    "status": null,
+    "target_met": true
+  },
+  "engine": {
+    "automatic_promotion": false,
+    "decision_influence": false,
+    "full_name": "Geopolitical Scenario Engine",
+    "mode": "shadow",
+    "short_name": "GSE v2"
   },
   "episodes": [
-    {"event_id":"taiwan_joint_sword_2024a_2024_05_23","event_cluster_id":"taiwan_joint_sword_2024a_may","event_at":"2024-05-23T00:00:00Z","label":"Joint Sword-2024A military exercise around Taiwan","scenario_types":["china_taiwan_trade_escalation"],"source":"Taiwan Ministry of National Defense","source_ref":"https://www.mnd.gov.tw/en/Publication/83008","source_reliability":0.96},
-    {"event_id":"iran_direct_attack_israel_2024_04_13","event_cluster_id":"iran_israel_direct_escalation_2024_april","event_at":"2024-04-13T00:00:00Z","label":"Large-scale direct Iranian attack on Israel","scenario_types":["middle_east_energy_escalation"],"source":"United Nations","source_ref":"https://www.un.org/sg/en/content/sg/statements/2024-04-13/statement-the-secretary-general-regarding-attacks-the-islamic-republic-of-iran-targeting-israel","source_reliability":0.98},
-    {"event_id":"red_sea_houthi_strikes_2024_01_12","event_cluster_id":"red_sea_strikes_2024_january","event_at":"2024-01-12T00:00:00Z","label":"U.S. and partner strikes on Houthi military targets after Red Sea shipping attacks","scenario_types":["red_sea_shipping_disruption","middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/Article/3644027/us-partners-forces-strike-houthi-military-targets-in-yemen/","source_reliability":0.97},
-    {"event_id":"red_sea_shipping_crisis_2023_12_21","event_cluster_id":"red_sea_shipping_crisis_2023_december","event_at":"2023-12-21T00:00:00Z","label":"Pentagon details multinational response to continuing Houthi attacks on Red Sea shipping","scenario_types":["red_sea_shipping_disruption","middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/article/3624836/ryder-gives-more-detail-on-how-operation-prosperity-guardian-will-work/","source_reliability":0.96},
-    {"event_id":"black_sea_grain_initiative_termination_2023_07_17","event_cluster_id":"black_sea_grain_termination_2023_july","event_at":"2023-07-17T00:00:00Z","label":"Termination of the Black Sea Grain Initiative","scenario_types":["grain_export_disruption","russia_ukraine_black_sea_escalation"],"source":"United Nations","source_ref":"https://www.un.org/en/node/207702","source_reliability":0.97},
-    {"event_id":"taiwan_live_fire_exercises_2022_08_04","event_cluster_id":"taiwan_strait_escalation_2022_august","event_at":"2022-08-04T00:00:00Z","label":"PLA live-fire exercise and ballistic missile launches around Taiwan","scenario_types":["china_taiwan_trade_escalation"],"source":"Taiwan Ministry of National Defense","source_ref":"https://www.mnd.gov.tw/en/Publication/80261","source_reliability":0.96},
-    {"event_id":"russia_financial_sanctions_2022_02_24","event_cluster_id":"ukraine_full_scale_invasion_2022_february","event_at":"2022-02-24T00:00:00Z","label":"Expansion of U.S. financial sanctions after Russia's invasion","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jy0608","source_reliability":0.97},
-    {"event_id":"ukraine_full_scale_invasion_2022_02_24","event_cluster_id":"ukraine_full_scale_invasion_2022_february","event_at":"2022-02-24T00:00:00Z","label":"Russian full-scale military operation inside Ukraine","scenario_types":["russia_ukraine_black_sea_escalation","grain_export_disruption"],"source":"United Nations","source_ref":"https://ukraine.un.org/en/173250-statement-secretary-general-%E2%80%93-ukraine","source_reliability":0.98},
-    {"event_id":"crimea_sanctions_2021_04_15","event_cluster_id":"russia_crimea_sanctions_2021_april","event_at":"2021-04-15T00:00:00Z","label":"U.S. sanctions persons and entities related to Russia's occupation of Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jy0125","source_reliability":0.96},
-    {"event_id":"iran_missile_response_2020_01_08","event_cluster_id":"iran_us_escalation_2020_january","event_at":"2020-01-08T00:00:00Z","label":"Iran launches ballistic missiles at Iraqi bases used by U.S. forces","scenario_types":["middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/News-Stories/Article/Article/2052632/trump-no-casualties-in-iranian-missile-attack-us-wont-allow-nuclear-iran/","source_reliability":0.96},
-    {"event_id":"soleimani_strike_2020_01_02","event_cluster_id":"iran_us_escalation_2020_january","event_at":"2020-01-02T00:00:00Z","label":"U.S. strike kills IRGC-QF commander Qasem Soleimani","scenario_types":["middle_east_energy_escalation"],"source":"U.S. Department of Defense","source_ref":"https://www.defense.gov/News/Releases/release/article/2049534/statement-by-the-department-of-defense/","source_reliability":0.97},
-    {"event_id":"iran_irgc_sanctions_2019_06_24","event_cluster_id":"iran_escalation_2019_june","event_at":"2019-06-24T00:00:00Z","label":"U.S. sanctions senior IRGC commanders and Iran's Supreme Leader structure","scenario_types":["sanctions_escalation","middle_east_energy_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm716","source_reliability":0.96},
-    {"event_id":"kerch_strait_sanctions_2019_03_15","event_cluster_id":"kerch_strait_2019_sanctions","event_at":"2019-03-15T00:00:00Z","label":"Coordinated sanctions over Kerch Strait aggression and Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm629","source_reliability":0.96},
-    {"event_id":"russia_crimea_sanctions_2018_11_08","event_cluster_id":"russia_crimea_sanctions_2018_november","event_at":"2018-11-08T00:00:00Z","label":"Additional U.S. sanctions over Russia's occupation of Crimea and eastern Ukraine","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm543","source_reliability":0.96},
-    {"event_id":"iran_full_sanctions_reimposition_2018_11_05","event_cluster_id":"iran_sanctions_2018_november","event_at":"2018-11-05T00:00:00Z","label":"U.S. fully re-imposes nuclear-related sanctions on Iran","scenario_types":["sanctions_escalation","middle_east_energy_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm541","source_reliability":0.96},
-    {"event_id":"russia_oligarch_sanctions_2018_04_06","event_cluster_id":"russia_sanctions_2018_april","event_at":"2018-04-06T00:00:00Z","label":"U.S. designates major Russian oligarchs, officials and entities","scenario_types":["sanctions_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/sm0338","source_reliability":0.96},
-    {"event_id":"crimea_sanctions_2014_12_19","event_cluster_id":"ukraine_2014_crimea_sanctions_december","event_at":"2014-12-19T00:00:00Z","label":"Additional U.S. sanctions on Ukrainian separatists and Russian actors over Crimea","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jl9729","source_reliability":0.96},
-    {"event_id":"russia_sectoral_sanctions_2014_07_16","event_cluster_id":"ukraine_2014_sectoral_sanctions_july","event_at":"2014-07-16T00:00:00Z","label":"U.S. sectoral sanctions on major Russian financial and energy institutions","scenario_types":["sanctions_escalation","russia_ukraine_black_sea_escalation"],"source":"U.S. Department of the Treasury","source_ref":"https://home.treasury.gov/news/press-releases/jl2572","source_reliability":0.96}
+    {
+      "event_at": "2026-08-24T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b8a8f5cbbf5c1d704f34",
+      "event_id": "gse-auto-event-35af99fdaba2483ef617",
+      "label": "Counter Narcotics, Counter Terrorism, Cuba-related, and Iran-related Designations; Issuance of Russia-related General License; Issuance of Associated Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260820",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-08-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ee41fcf2c9dec440f8e4",
+      "event_id": "gse-auto-event-090f0c870541d41ecb05",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260729",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-08-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-158c1334b42a96913712",
+      "event_id": "gse-auto-event-1c29608c9148c81b6f51",
+      "label": "International Criminal Court-related Designations; Venezuela-related Designation; Issuance of International Criminal Court-related General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260818",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-08-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-2c95ce1f7b248af2d27b",
+      "event_id": "gse-auto-event-907aee6bd67218116b50",
+      "label": "Iran-related Designations; Issuance of Amended Russia-related General License and Frequently Asked Questions; Issuance of Amended Venezuela-related Frequently Asked Question; Publication of Regulatory Amendments",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260724",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-07-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-21abe5593e7ed093b34c",
+      "event_id": "gse-auto-event-ad72a981e9238d509343",
+      "label": "Russia-related Designations Updates",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260720",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-07-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f8052cbe50109c36d86a",
+      "event_id": "gse-auto-event-4c15a51fb9fc6512fadb",
+      "label": "Iran-related and Counter Terrorism Designations; Issuance of Iran-related General License",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260710_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-07-14T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-bcc4d66776d233ad8ac0",
+      "event_id": "gse-auto-event-78018da5c317a34ecf05",
+      "label": "Iran-related Designations; Iran-related and Counter Terrorism Designation Update; Issuance of Iran-related General License",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260714",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-06-25T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-8de55ab34d68da07a409",
+      "event_id": "gse-auto-event-205468bfc9ff450a47dd",
+      "label": "Cuba Designation; Russia-related Designations Removals and Designation Update; Issuance of Amended Russia-related General Licenses and Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260611",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-06-22T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ea71a57eeaec1ca3a49b",
+      "event_id": "gse-auto-event-578133c1ad45fa69fee8",
+      "label": "Counter Terrorism and Iran-related Designations; Democratic Republic of the Congo-related Designations; Issuance of Iran-related Frequently Asked Question",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260602",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-05-27T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-21dd9db918835f2f77d0",
+      "event_id": "gse-auto-event-194bb5f3279a3e9c60c3",
+      "label": "Iran-related Designations; Issuance of Russia-related General License and Amended Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260528_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-05-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-65ceb1689670c6ec4c06",
+      "event_id": "gse-auto-event-9952d71429fe24ca9aca",
+      "label": "Counter Terrorism and Counter Narcotics Designations; Sudan-related Designations and Designation Update; Russia-related Designation Update; Issuance of Counter Terrorism General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260219",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-05-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-0feec0804120ad67c0d1",
+      "event_id": "gse-auto-event-f58ec190c2f13c37a20a",
+      "label": "Counter Terrorism and Iran-related Designations; Cuba Designation and Designations Updates; Issuance of Cuba-related General License and Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260507",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-05-01T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b86b3bd8d14996659dc9",
+      "event_id": "gse-auto-event-81f73ed133aa207dd280",
+      "label": "Iran-related Designations; Issuance of Iran-related General License and Frequently Asked Question; Publication of Iran-related OFAC Alert",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260501",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-04-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f83ca32b0ae1810dd587",
+      "event_id": "gse-auto-event-334b2f7d55367290fa29",
+      "label": "Iran-related Designations; Counter Terrorism Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260415",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-04-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-02b69ffd8e7d51f7d5f7",
+      "event_id": "gse-auto-event-67a096a6c63c369a84cc",
+      "label": "Venezuela-related Designation Removal; Issuance of Venezuela-related General Licenses and Frequently Asked Question; Publication of Report for Licensing Activities Undertaken Pursuant to the Trade Sanctions Reform and Export Enhancement Act (TSRA)",
+      "scenario_types": [
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260414_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-04-14T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-d4d5a48bac191dd4f0a7",
+      "event_id": "gse-auto-event-2620ee8aa132ed52d91f",
+      "label": "Counter Narcotics, Counter Terrorism Designations; Issuance of Related General License; Issuance of Amended Russia-related General Licenses and Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260414",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-03-09T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-fa8943afe6d01d6647cf",
+      "event_id": "gse-auto-event-2ea5c6686bbd576d472e",
+      "label": "Nicaragua-related Designations; Issuance of Amended Russia-related General License and Associated Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260226",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-02-25T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-195ffad367127a714acf",
+      "event_id": "gse-auto-event-c8f4db697e0593b90f2d",
+      "label": "Cyber-related Designations; CAATSA - Russia-related Designations; PAIPA Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260224",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-02-24T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-e3aafaaf512eca054248",
+      "event_id": "gse-auto-event-1bc3b2f0a3a16729d02d",
+      "label": "Iran-related Designations; Counter Terrorism Designations; Non-Proliferation Designation Update and Designation Removal",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260130",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-02-03T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-156a354b42148c6e0117",
+      "event_id": "gse-auto-event-5b89402a7964ebe91f21",
+      "label": "Venezuela-related Designations; Issuance of Venezuela-related General License; Publication of Amended Venezuela-related Frequently Asked Question",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251219",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-01-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a91ed65d8e0f14c22dc1",
+      "event_id": "gse-auto-event-8d8f15e3ac2280c311de",
+      "label": "Iran-related Designations; Issuance of Iran-related General License",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20260123",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-01-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-127b97d515dcbcf8bad4",
+      "event_id": "gse-auto-event-3e88799aa68da9fe147b",
+      "label": "Venezuela-related Designations",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251231",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2026-01-15T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-fbf1ed37f8bca2b3ed0e",
+      "event_id": "gse-auto-event-4855f654ade115dfd94c",
+      "label": "Non-Proliferation and Iran-related Designations; Cyber-related and Russia-related Designations Removals",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251230",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-12-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-beda180db11592bd9745",
+      "event_id": "gse-auto-event-b6a061012fab35bfebe9",
+      "label": "Iran-related Designations; International Criminal Court-related Designations; Russia-related Designations Removals; Foreign Sanctions Evaders Determination Removal; Issuance of Iran-related and International Criminal Court-related General Licenses",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251218",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-12-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-6207d84a71921dd13f06",
+      "event_id": "gse-auto-event-c20f9d178f6809bad3e3",
+      "label": "Counter Narcotics Designations; Venezuela-related Designations; Non-Proliferation Designation Updates",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251211",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-12-12T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-87ddaa9fd7157faaf8d1",
+      "event_id": "gse-auto-event-ed2c5ab02d78e14bc62a",
+      "label": "Iran-related Designations; Counter Terrorism Designations, Updates, and Removals; Balkans-related Designation Removal",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251120",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-12-11T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-1c013a0df11448fe8899",
+      "event_id": "gse-auto-event-a29a26007e0a6afa2c27",
+      "label": "Cyber-related Designations; CAATSA - Russia-related Designations; Issuance of Russia-related Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251119",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-11-13T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-5e23e3847230898e7031",
+      "event_id": "gse-auto-event-1a5b4bb5eae9a4643007",
+      "label": "Counter Terrorism Designations; Burma-related Designations; Cyber-related Designations; Non-Proliferation Designations and Designation Updates; Iran-related Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251112",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-11-13T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3227a4afe0b95767c9ed",
+      "event_id": "gse-auto-event-322bc469cffd6706a977",
+      "label": "Cyber-related Designations; North Korea Designations and Designation Update; Belarus Designations Removals; Issuance of Belarus General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251104",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-11-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4dfd461664c6668a44bd",
+      "event_id": "gse-auto-event-5493bb86d9828ccddbf2",
+      "label": "Russia-related Designations; Issuance of New and Amended Russia-related General Licenses",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251022",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-10-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-d5811269c03b93fb2c40",
+      "event_id": "gse-auto-event-7dbccaeec34b1bc71e9c",
+      "label": "Iran-related Designations; Russia-related Designation Removal",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20251009",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-09-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f4cd90cdddfdb857a442",
+      "event_id": "gse-auto-event-c58a1388391365e6ef47",
+      "label": "Counter Terrorism Designations; Issuance of Belarus General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250911",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-09-12T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-53143dcd2173043041d6",
+      "event_id": "gse-auto-event-34df4a236324c60b9dd3",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250902",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-09-11T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-410f7eab84c3d576614d",
+      "event_id": "gse-auto-event-4a109c83cb2741bc3ea0",
+      "label": "North Korea Designations; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250827",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-08-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-5922aae6f610aa08f755",
+      "event_id": "gse-auto-event-331460f09fa196f0d845",
+      "label": "Counter Narcotics Designations and Designation Removal; Counter Terrorism, Global Magnitsky, and Russia-related Designation Updates",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250818",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-08-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ac2787d9a75f623096cd",
+      "event_id": "gse-auto-event-f2d478b9d6c8a7ca32b0",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250807",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-07-30T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b90cbd54e74c9dcfdc7f",
+      "event_id": "gse-auto-event-ff82f275f634151d3f00",
+      "label": "Iran-related Designations; Issuance of Iran-related General License",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250730_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-07-22T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-05b4b313cf2037ad90a4",
+      "event_id": "gse-auto-event-b9e31d1b94cf0f18765a",
+      "label": "Counter Terrorism Designations; Iran-related Designations; Counter Narcotics Designations Removals",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250703",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-06-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-fa9ddf2c0f385f56c9d2",
+      "event_id": "gse-auto-event-f3eae7d96f65b2c3bd97",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250606",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-05-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ab38cbb5644b63fe5a7b",
+      "event_id": "gse-auto-event-8678cb5767ea50f4ed20",
+      "label": "Counter Terrorism Designations; Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250513",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-05-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-732a2449770cc1943a38",
+      "event_id": "gse-auto-event-4354a3b02e98ad1b49a8",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250508",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-04-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3b733b11d0ca64d44da6",
+      "event_id": "gse-auto-event-adf5601b486e34142857",
+      "label": "Counter Terrorism Designations and Designation Update; Iran-related Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "grain_export_disruption",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250428",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-04-22T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-bb7c629547a0b4d48885",
+      "event_id": "gse-auto-event-45c48b88ee1d3100e291",
+      "label": "Counter Narcotics, Non-Proliferation, and Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250409",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-04-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-c58ec1c777cc1006d27b",
+      "event_id": "gse-auto-event-3514b94f21e8ad955160",
+      "label": "Counter Terrorism Designations; Counter Narcotics Designations; Hong Kong-related Designations",
+      "scenario_types": [
+        "china_taiwan_trade_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250331",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-04-01T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-8bfd18fb140de5015408",
+      "event_id": "gse-auto-event-9b0463b2a30b32bf1ef1",
+      "label": "Iran-related Designations; Publication of Final Rule to Extend Recordkeeping Requirements",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250320",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-03-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-661cd8fc6b2488558e85",
+      "event_id": "gse-auto-event-54c5263d4b2d764f70e7",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250313",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-03-05T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-7eb1009c12b26e0ec352",
+      "event_id": "gse-auto-event-be7d6ac0d6fb541bf8ca",
+      "label": "Counter Narcotics Designation; Issuance of Venezuela-related General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250304",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-03-05T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-5398ca6b97a2a391dc33",
+      "event_id": "gse-auto-event-f3254c0961913fcf2923",
+      "label": "Non-Proliferation Designations; Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250226",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-01-31T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-7851973498eb87d7e27e",
+      "event_id": "gse-auto-event-f34a912832691746915b",
+      "label": "Counter Terrorism Designations; Iran-related Designations; RSS Feed Retirement",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250206",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-01-15T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3a4f2dcab07e17aef358",
+      "event_id": "gse-auto-event-41dcfec569d084c6dafb",
+      "label": "Russia-related, Iran-related, Cyber-related, and Foreign Interference in U.S. Election Designations; Global Magnitsky Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241231",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-01-13T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-6842d07cde1af103c981",
+      "event_id": "gse-auto-event-30e0394b779be2993b89",
+      "label": "Russia-related Designations; Issuance of Russia-related and Russia-/Ukraine-related General Licenses; Implementation of the Federal Civil Penalties Inflation Adjustment Act",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250115",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-01-10T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a3f54485d1ac7481314b",
+      "event_id": "gse-auto-event-b0bf56e98dfc37e61734",
+      "label": "Russia-related and Russia-/Ukraine-related Designations; Venezuela-related Designations; Publication of Russia-related Determinations; Issuance of Russia-related General Licenses and Frequently Asked Questions",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20250110",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2025-01-07T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3fea9f546f165ffd93b2",
+      "event_id": "gse-auto-event-57560bb5f5e6f8daeb4d",
+      "label": "Balkans-related, Iran-related, Non-Proliferation, and Russia-related Designations; Issuance of Russia-related General Licenses and Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "red_sea_shipping_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241218",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-12-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4ec03e895e02c240edda",
+      "event_id": "gse-auto-event-8810db9b989a767bbf60",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241203",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-12-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-789499da1299523027e0",
+      "event_id": "gse-auto-event-aa6108066e7517e29a7e",
+      "label": "Russia-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241204",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-12-10T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-dd1cf0140d1e16a1b98e",
+      "event_id": "gse-auto-event-825815091c3d34f2d3fa",
+      "label": "Venezuela-related Designations",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241127",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-11-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-107f17ca23907d24ca49",
+      "event_id": "gse-auto-event-65cec8a1c0870d4cd35d",
+      "label": "Russia-related Designations and Updates; Issuance of Russia-related General Licenses and Frequently Asked Questions; Publication of Russia-related OFAC Alert",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241121",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-11-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-9b51b7f0226f39903797",
+      "event_id": "gse-auto-event-ad078d72fe6f08e66761",
+      "label": "Russia-related Designations; Counter Terrorism Designations and Removal; Iran-related Designation Removal",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "red_sea_shipping_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241017",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-10-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-009675ba9ecf744b985d",
+      "event_id": "gse-auto-event-978588ce68711bf724de",
+      "label": "Iran-related Designations; Publication of Iran-related Determination",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "grain_export_disruption",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241011",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-10-15T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3966cf0be84447e520a1",
+      "event_id": "gse-auto-event-c03aef1c9cc709151f80",
+      "label": "Cyber-related, Russia-related, and West Bank-related Designations; Counter Narcotics and Russia-related Designations Removals",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20241001",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-10-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f5be75e55a17386803c3",
+      "event_id": "gse-auto-event-e7fe0d6e53b2a4112359",
+      "label": "Iran-related Designation; Foreign Interference in U.S. Election Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240927",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-10-07T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-7ca3a441fa4d4bf67609",
+      "event_id": "gse-auto-event-9812f1140550e1dd9acd",
+      "label": "Russia-related Designations; Cyber-related Designation",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240926",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-25T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-c38b80690ee060f43815",
+      "event_id": "gse-auto-event-39a95df86e8cfe2a3882",
+      "label": "North Korea Designations and Designations Updates; Russia-related Designations and Designations Updates; Non-Proliferation Designation Update; Syria Designation Update",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240919",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-25T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-2e0e33e1228d539c1023",
+      "event_id": "gse-auto-event-af0d9a7ea6834b43bcc1",
+      "label": "Iran-related Designations; Counter Terrorism Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240918",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-24T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-07977a3433b94e114451",
+      "event_id": "gse-auto-event-af28df99ab89b3d8ffa6",
+      "label": "Global Magnitsky, Non-Proliferation, and Venezuela-related Designations; Issuance of Global Magnitsky General License; Issuance of New and Amended Frequently Asked Questions",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240912",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4f29522012df79dd11d0",
+      "event_id": "gse-auto-event-bf6c33e4e24b6cd40380",
+      "label": "Russia-related, Iran-related, Counterterrorism, Non-Proliferation, and Counter Narcotics Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240910",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-cc1db79ff0d8b5be1ef6",
+      "event_id": "gse-auto-event-31b02f8641b7e06806f2",
+      "label": "Russia-related Designations; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240905",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-09-13T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-c88b520425256de8bb1a",
+      "event_id": "gse-auto-event-4fcee24b9e1f16c45336",
+      "label": "Russia-related Designations; Issuance of Russia-related General Licenses and Amended FAQ; Publication of BPI Regulatory Amendment; Reminder to File the 2024 Annual Report of Blocked Property",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240913",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-08-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a5fbef4076f7a7852203",
+      "event_id": "gse-auto-event-8e638e411a8873a9311e",
+      "label": "Russia-related Designations and Designations Updates; Issuance of Russia-related General Licenses; Issuance and Amendment of Russia-related Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240823",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-08-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-6f22fe47d0042b8ac84d",
+      "event_id": "gse-auto-event-90c630b10f0f34d571d6",
+      "label": "Non-Proliferation Designations; Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240730",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-08-13T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-69c14e3732b26e3b24ba",
+      "event_id": "gse-auto-event-0db2aa3e63f671ddc5cd",
+      "label": "Belarus Designations; Issuance of Venezuela-related General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240415",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-08-09T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f112f76281d9d32041e7",
+      "event_id": "gse-auto-event-e39370347866336ee6cf",
+      "label": "Belarus Designations and Designation Update; Russia-related Designations and Designation Removal; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240809",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-07-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4caf84ba89a94401e394",
+      "event_id": "gse-auto-event-f3823bf2ac981327f607",
+      "label": "Iran-related Designation; Non-Proliferation Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240712",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-07-03T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f9d2107b3e0cfb543a73",
+      "event_id": "gse-auto-event-32460d1d14ef9a3abb82",
+      "label": "Russia-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240621",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-07-03T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3b8cba60e3386b41a61b",
+      "event_id": "gse-auto-event-633a070370d3845e0212",
+      "label": "Counter Terrorism and Iran-related Designations; Counter Narcotics Designations Removals",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240625",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-06-12T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-09574add745b3be59e7f",
+      "event_id": "gse-auto-event-ee1acb7c9634a99af290",
+      "label": "Russia-related Designations; Publication of Russia-related Determination; Issuance of Russia-related General Licenses and Frequently Asked Questions",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240612",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-06-11T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ab6f4b01fef39c64c794",
+      "event_id": "gse-auto-event-b40f5e6f584a6482c78e",
+      "label": "Iran-related Designations; Non-Proliferation Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240531",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-06-10T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4b6bdbf19265cea67869",
+      "event_id": "gse-auto-event-42877c6054b0153b10dc",
+      "label": "Sudan Designations; Cyber-related Designation Update; Ukraine-related Designation Update; Foreign Interference in U.S. Election Designation Update",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231204",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-06-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-976895b7a4022e872ffd",
+      "event_id": "gse-auto-event-bc2ea3385f896e158648",
+      "label": "North Korea Designations; Amendment to the Iranian Transactions and Sanctions Regulations; Issuance of Iran-Related Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240516",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-05-23T00:00:00Z",
+      "event_cluster_id": "taiwan_joint_sword_2024a_may",
+      "event_id": "taiwan_joint_sword_2024a_2024_05_23",
+      "label": "Joint Sword-2024A military exercise around Taiwan",
+      "scenario_types": [
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "Taiwan Ministry of National Defense",
+      "source_ref": "https://www.mnd.gov.tw/en/Publication/83008",
+      "source_reliability": 0.96
+    },
+    {
+      "event_at": "2024-05-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3c4df050a8e914410c08",
+      "event_id": "gse-auto-event-2696f8bb7fba555aa15c",
+      "label": "Counter Terrorism Designations; Iran-related Designations; Non-Proliferation Designations; Russia-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240425",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-05-01T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a05986b8582e81ed9ad8",
+      "event_id": "gse-auto-event-f9f2ba22625bc7049915",
+      "label": "Non-Proliferation Designations; West Bank-related Designations; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240419",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-04-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-58f46e8e5ce8c4682b25",
+      "event_id": "gse-auto-event-c6558dc6bd7b0906fcac",
+      "label": "Counter Terrorism Designations and Designation Update; Iran-related Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240404",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-04-13T00:00:00Z",
+      "event_cluster_id": "iran_israel_direct_escalation_2024_april",
+      "event_id": "iran_direct_attack_israel_2024_04_13",
+      "label": "Large-scale direct Iranian attack on Israel",
+      "scenario_types": [
+        "middle_east_energy_escalation"
+      ],
+      "source": "United Nations",
+      "source_ref": "https://www.un.org/sg/en/content/sg/statements/2024-04-13/statement-the-secretary-general-regarding-attacks-the-islamic-republic-of-iran-targeting-israel",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-04-04T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b1410adf8487eeb38884",
+      "event_id": "gse-auto-event-546bd88b6a58386b6b36",
+      "label": "Russia-related Designations; Cyber-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240325",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-03-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-eec813b09ae92fd3704f",
+      "event_id": "gse-auto-event-5563690f3ca658e5f360",
+      "label": "West Bank-related Designations; Russia-related Designation; Counter Narcotics Designation and Designations Updates; Transnational Criminal Organizations Designation Update",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240314",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-03-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-650ee43bdcf4ebd30360",
+      "event_id": "gse-auto-event-dc59a910c808789c6d65",
+      "label": "Iran-related Designations; Non-Proliferation Designations; Russia-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240320",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-03-04T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-09d4838bf230165d3321",
+      "event_id": "gse-auto-event-ad35eba19da0339023bf",
+      "label": "Counter Terrorism Designations; Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "red_sea_shipping_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240227",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-02-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b2668102912a3860b5c3",
+      "event_id": "gse-auto-event-622f39ef556a42f900ed",
+      "label": "Counter Terrorism Designation; Issuance of Counter Terrorism General License; Sanctions Compliance Guidance for the Provision of Humanitarian-Related Assistance and Critical Commodities to the Yemeni People",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "red_sea_shipping_disruption",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240216",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-02-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-c79d909f39a26263e908",
+      "event_id": "gse-auto-event-678e820301b419962b44",
+      "label": "Russia-related Designations; Issuance of Russia-related General Licenses and new and amended Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240223",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-02-23T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-10a0260a62c87d7a0d25",
+      "event_id": "gse-auto-event-da7191fcbaa336adcdd3",
+      "label": "Counter Terrorism Designations; Iran-related Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240214",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-02-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b83fb3f6919042c61f94",
+      "event_id": "gse-auto-event-a15a72dfa3affa2f2e0b",
+      "label": "Russia-related Designations; Publication of Russia-related Determinations; Issuance of Russia-related General License",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240208",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-02-07T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-0d6df7d71fd52cafa075",
+      "event_id": "gse-auto-event-f16afd7530e3e4fd07b0",
+      "label": "Counter Terrorism Designations; Iran-related Designation; Burma-related Designations; Sudan Designations; Russia-related Designation Removal; Issuance of Burma-related General License",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240131",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-01-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-0d833c0e48966510d3fe",
+      "event_id": "gse-auto-event-dfbcb54dd349b5e80f0d",
+      "label": "Russia-related Designations and Designation Update; Counter Terrorism Designation Update; Issuance of Russia-related General Licenses and Amended Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20240118",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-01-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3598bfaeef613217490a",
+      "event_id": "gse-auto-event-22e62bba74ba57567156",
+      "label": "Iran-related Designations; Non-Proliferation Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231219",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2024-01-12T00:00:00Z",
+      "event_cluster_id": "red_sea_strikes_2024_january",
+      "event_id": "red_sea_houthi_strikes_2024_01_12",
+      "label": "U.S. and partner strikes on Houthi military targets after Red Sea shipping attacks",
+      "scenario_types": [
+        "red_sea_shipping_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "U.S. Department of Defense",
+      "source_ref": "https://www.defense.gov/News/News-Stories/Article/Article/3644027/us-partners-forces-strike-houthi-military-targets-in-yemen/",
+      "source_reliability": 0.97
+    },
+    {
+      "event_at": "2023-12-21T00:00:00Z",
+      "event_cluster_id": "red_sea_shipping_crisis_2023_december",
+      "event_id": "red_sea_shipping_crisis_2023_12_21",
+      "label": "Pentagon details multinational response to continuing Houthi attacks on Red Sea shipping",
+      "scenario_types": [
+        "red_sea_shipping_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "U.S. Department of Defense",
+      "source_ref": "https://www.defense.gov/News/News-Stories/Article/article/3624836/ryder-gives-more-detail-on-how-operation-prosperity-guardian-will-work/",
+      "source_reliability": 0.96
+    },
+    {
+      "event_at": "2023-12-12T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-8c8742203fa1c29bc934",
+      "event_id": "gse-auto-event-84ce6ba95e1436ae6bc8",
+      "label": "Russia-related Designations and Designations Updates; Issuance of Russia-related General Licenses",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231212",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-12-04T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-83685fb9771db5d76ccc",
+      "event_id": "gse-auto-event-d9e6479946b136613f78",
+      "label": "Counter Terrorism Designations; Iran-related Designations; Cyber-related Designation; North Korea Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231129",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-12-01T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-24abfb5b61819e416158",
+      "event_id": "gse-auto-event-34d2de232b565ada8bf9",
+      "label": "Russia-related Designations; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231201",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-11-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-abc8563c7a1568a2184b",
+      "event_id": "gse-auto-event-d0efa37e5393f8c48f84",
+      "label": "Balkans-related Designations; Russia-related Designations and Designation Update; Issuance of Russia-related General License, Balkans-related General Licenses, and Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231116",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-11-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ccab0b8e0a83cd8e5d0c",
+      "event_id": "gse-auto-event-38a2eceeddcca9ba308c",
+      "label": "Russia-related Designations, Updates and Removal; Counter Terrorism Designation Update; Issuance of Russia-related General Licenses",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231102",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-10-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-27e5237682c893b1fac7",
+      "event_id": "gse-auto-event-ad7f365357b68335546b",
+      "label": "Balkans-related Designation; Counter Narcotics Designations; Issuance of Venezuela-related General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230719",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-10-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-9c77d33c59939430fe42",
+      "event_id": "gse-auto-event-26a0c6f957c3137de5a3",
+      "label": "Russia-related Designations; Publication of Maritime Oil Industry Advisory; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231012",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-10-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-fd66e3ec7b3ad8d40d9f",
+      "event_id": "gse-auto-event-a95dbd30f201f332e76f",
+      "label": "Iran-related Designations; Non-Proliferation Designations; Russia-related Designation Update; North Korea Designation Removal; Publication of Iran Ballistic Missile Procurement Advisory",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20231018_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-10-03T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-04d15efefef8ce622b37",
+      "event_id": "gse-auto-event-327b54a33b788dfd492d",
+      "label": "Iran-related Designations and Designation Update; Non-Proliferation Designations and Designation Update; Counter Terrorism Designations Removals",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230919",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-09-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-0f776259ed91d91ed4b7",
+      "event_id": "gse-auto-event-e287e2d23e3e4d8f899d",
+      "label": "Iran-related Designation and Designation update; Hostages and Wrongfully Detained U.S. Nationals Designations; Publication of Iran-related Frequently Asked Questions",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230918",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-09-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-120d61c7fa98b35caf88",
+      "event_id": "gse-auto-event-ab36b9d97237ee008d41",
+      "label": "Russia-related Designations Updates and Designation Removal; Burma-related Designation Removal; Iran-related Designation Update; Non-Proliferation Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230925",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-09-12T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f15001a0184e63332098",
+      "event_id": "gse-auto-event-dd10e7e856d80580ab54",
+      "label": "Democratic Republic of the Congo-related Designations; Russia-related Designations; Global Magnitsky Designation Update",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230824",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-08-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-973154290aea69061cfb",
+      "event_id": "gse-auto-event-0bd0366eef0c7d6f290d",
+      "label": "Russia-related Designations; Publication of Russia-related Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230811",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-08-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-534a7627d1731d4c7839",
+      "event_id": "gse-auto-event-3d336b11aeb8f6402fc9",
+      "label": "Counter Terrorism Designation Update; Iran-related Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230815",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-08-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-6beedd81e92bb1d9d476",
+      "event_id": "gse-auto-event-4573d9cd1fa7494a3ca1",
+      "label": "Counter Narcotics Designations; Belarus Designations; Issuance of Belarus General Licenses",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230809",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-08-09T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-18f882d4a54a7da7cd92",
+      "event_id": "gse-auto-event-6b38d1d4b760376c782b",
+      "label": "Russia-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230724",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-07-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-05e3967c3d0d3766a05f",
+      "event_id": "gse-auto-event-75f2b722f25b42ab741e",
+      "label": "Iran-related Designations and Designation Update; Non-Proliferation Designations and Designation Update; Nicaragua-related Designations; Issuance of Venezuela-related General License and related Amended Frequently Asked Question",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230419",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-07-19T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-f937b3e729c32acf0425",
+      "event_id": "gse-auto-event-4485a4c7db1f9ae8fa9a",
+      "label": "Russia-related Designations; Ukraine-related Designation Update; Russia-related Designations Removals; Issuance of Russia-related General Licenses",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230720",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-07-17T00:00:00Z",
+      "event_cluster_id": "black_sea_grain_termination_2023_july",
+      "event_id": "black_sea_grain_initiative_termination_2023_07_17",
+      "label": "Termination of the Black Sea Grain Initiative",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "United Nations",
+      "source_ref": "https://www.un.org/en/node/207702",
+      "source_reliability": 0.97
+    },
+    {
+      "event_at": "2023-06-18T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-d197664350207db079d6",
+      "event_id": "gse-auto-event-40aa939b77ee703273d3",
+      "label": "Russia-related Designations; Issuance of Amended Russia-related Directive 4, Russia-related General Licenses; Publication of Russia-related Determinations; and New and Amended Frequently Asked Questions",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230519",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-06-15T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-d87c86b7073e4fefa42a",
+      "event_id": "gse-auto-event-1b58502daa4cb92c0558",
+      "label": "Counter Terrorism Designations; Iran-related Designations Updates; Non-Proliferation Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230608",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-06-15T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-4ab5aa3fa31f0f66a3fd",
+      "event_id": "gse-auto-event-d7e519655ee3624605bb",
+      "label": "Russia-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230605",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-06-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-8351e83157b49168e5fe",
+      "event_id": "gse-auto-event-f17cbc8d7fb36fa1a061",
+      "label": "Russia-related Designation; Counter Narcotics Designations Removals",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230525",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-06-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ad3551f1df27721a41c7",
+      "event_id": "gse-auto-event-01467417b51ed209cb6c",
+      "label": "North Korea Designations; Issuance of Venezuela-related General License",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230523",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-05-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-bf25ff15b13f588ad023",
+      "event_id": "gse-auto-event-8376cc1f0f56305408a6",
+      "label": "Iran-related Designations; North Korea Designations; Non-Proliferation Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230424",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-05-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a5b497656e4ddb7dd74a",
+      "event_id": "gse-auto-event-7ec146b87b24261439cb",
+      "label": "Counter Narcotics Designations; Russia-related Designations Updates",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230414",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-04-04T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-40b0e07fbbff3e4b6f11",
+      "event_id": "gse-auto-event-3e7eae34197f0240a048",
+      "label": "Iran-related Designations; Non-Proliferation Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230321",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-03-27T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-9fb0676e39315086fced",
+      "event_id": "gse-auto-event-07084b162639a2698534",
+      "label": "Burma-related Designations; Belarus Designations and Designation Update; Publication of Belarus Sanctions Regulations; Publication of Jet Fuel Alert",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230324",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-03-09T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b1bb03820abb6c5aa608",
+      "event_id": "gse-auto-event-0739a1dfd3d40971544f",
+      "label": "Global Magnitsky Designations; Russia-related Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230303",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-03-09T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-27db7c7152ba5f8cbbf4",
+      "event_id": "gse-auto-event-faa44e778b414be215e4",
+      "label": "Counter Narcotics and Iran-related Designations; Russia-related Designations Updates; Issuance of Iran-related General License and Guidance; Publication of Fraud Alert",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230302",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-03-01T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-c2c2f50f4e4c195294f3",
+      "event_id": "gse-auto-event-e24d49a8309dfdd9b16d",
+      "label": "Cyber-related Designations; Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230209",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-02-24T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a1d0d713511a155412cd",
+      "event_id": "gse-auto-event-69b15c2216b8755a2dbe",
+      "label": "Russia-related Designations and Designations Updates; Belarus Designations; Publication of Russia-related Determination; Issuance of Russia-related General Licenses and Associated Frequently Asked Questions",
+      "scenario_types": [
+        "grain_export_disruption",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230224",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-02-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-553830e2d64a611733c3",
+      "event_id": "gse-auto-event-2827351dddbfd893b33f",
+      "label": "Russia-related Designations and Designation Update; Central African Republic Designations; Transnational Criminal Organizations Designation; Global Magnitsky Designations; Issuance of Global Magnitsky General Licenses and Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230126",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-02-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-26048aebfba3466de301",
+      "event_id": "gse-auto-event-72940c92bd97f20e5805",
+      "label": "Iran-related Designations and Designation Update; Non-Proliferation Designations; Counter Terrorism Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230203",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-01-30T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-8339d29e1e00ee75680b",
+      "event_id": "gse-auto-event-0ccedf97ee30ec6acf33",
+      "label": "Iran-related Designations and Designation Update; Non-Proliferation Designations and Designation Update; Russia-related Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20230106",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-01-05T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-e4617889b57329fcd4d0",
+      "event_id": "gse-auto-event-0b30f57b1ddf885eafc4",
+      "label": "Russia-related Designations and Designations Updates; Issuance of Russia-related General Licenses; Publication of Russia-related Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221215",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2023-01-05T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ce5aea5e7aaf9947df31",
+      "event_id": "gse-auto-event-bd923630502b3a8eb245",
+      "label": "Iran-related Designations; Nicaragua-related Designation Removal; Venezuela-related Designation Removal; Counter Terrorism Designations Updates; Publication of Russia-related Frequently Asked Question",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221221",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-12-16T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-07a6f98c7ca8fe4a5c8f",
+      "event_id": "gse-auto-event-8d89e42254e9bf06047a",
+      "label": "Global Magnitsky Designations; North Korea Designations; Iran-related Designations; Russia-related Designations and Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221209_33",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-12-08T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-375011beeba155ee174f",
+      "event_id": "gse-auto-event-581f6b7fbf110c837a0c",
+      "label": "Iran-related Designations and Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221123",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-11-30T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3c05bbf850bbc79672a4",
+      "event_id": "gse-auto-event-e927343194bd14f99adf",
+      "label": "Russia-related Designations and Designation Update; Iran-related Designation and Designations Updates; Issuance of Counter Terrorism General License and related Frequently Asked Question",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221115",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-11-07T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-b89b9c5cf5de289f0f7a",
+      "event_id": "gse-auto-event-310d46fe7ff8a4ee74ee",
+      "label": "Iran-related Designations; Russia-related Designations; Global Magnitsky Designation",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221026",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-10-19T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-bc1ab9ffaba4f3210594",
+      "event_id": "gse-auto-event-8594bad80fe5d4590438",
+      "label": "Counter Terrorism Designations and Designation Update; Libya Designation Removal; Issuance of Russia-related General License",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation",
+        "red_sea_shipping_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221017",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-10-17T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-6c05ab8574b738b6b62f",
+      "event_id": "gse-auto-event-011ae660516a6117e5ab",
+      "label": "Iran-related Designations and Designation Update; Non-Proliferation Designation Update; Burma-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20221006",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-10-06T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ae8f6bf93f0c7b7cfc19",
+      "event_id": "gse-auto-event-e9650e6ca8c3c057f6dd",
+      "label": "Iran-related Designations and Designation Update; Cyber-related Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220922",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-10-03T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-9424d7b19b3fde05e7c9",
+      "event_id": "gse-auto-event-5d098e190cc1b2e9ca12",
+      "label": "Russia-related Designations; Issuance of Russia-related General License and Frequently Asked Questions; Zimbabwe-related Designation, Removals and Update; Libya-related Designation Update",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220915",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-09-14T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-2ce611479c4fa1f70718",
+      "event_id": "gse-auto-event-c2f5924e5c504d74e26f",
+      "label": "Iran-related Designations; Non-Proliferation Designations; Russia-related Designation; Issuance of Russia-related General License 13B",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220908",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-09-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-5d90275c0e8c532035a3",
+      "event_id": "gse-auto-event-416847ca0f87c9691702",
+      "label": "Iran-related Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220801",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-08-04T00:00:00Z",
+      "event_cluster_id": "taiwan_strait_escalation_2022_august",
+      "event_id": "taiwan_live_fire_exercises_2022_08_04",
+      "label": "PLA live-fire exercise and ballistic missile launches around Taiwan",
+      "scenario_types": [
+        "china_taiwan_trade_escalation"
+      ],
+      "source": "Taiwan Ministry of National Defense",
+      "source_ref": "https://www.mnd.gov.tw/en/Publication/80261",
+      "source_reliability": 0.96
+    },
+    {
+      "event_at": "2022-07-29T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-305a5fc51f14dc38a7a5",
+      "event_id": "gse-auto-event-4ffcb78188a8b768929c",
+      "label": "Iran-related Designations; Belarus Designation Update",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220706",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-07-29T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-157d4976b106d8bd57fb",
+      "event_id": "gse-auto-event-7ca711b468f1b9f67bea",
+      "label": "Russia-Related Designations and Designations Updates; Issuance of Russia-Related General Licenses and Related Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220628",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-06-02T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-fbe40ab32b0440514657",
+      "event_id": "gse-auto-event-a8338ba9e0729a30c64b",
+      "label": "North Korea Designation; Non-Proliferation Designations; Counter Narcotics Designations Removals; Issuance of Venezuela-related General License 8J",
+      "scenario_types": [
+        "sanctions_escalation",
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220527",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-05-25T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-99752e06d609802d62f4",
+      "event_id": "gse-auto-event-c253ae40cfee3bceab6e",
+      "label": "Russia-related Designations and Designations Updates; Issuance of Russia-related General Licenses, Publication of Russia-related Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220508",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-04-20T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-626e0e176b2e5b5b5f9d",
+      "event_id": "gse-auto-event-336da51e1822096ee6be",
+      "label": "Russia-related Designations and Designations Updates; Issuance of Russia-related General Licenses",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220406",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-04-11T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-a4089bd3f500a687d85f",
+      "event_id": "gse-auto-event-08389c10cc2ab8cac767",
+      "label": "Russia-related Designation; Cyber-related Designation",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220405",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-03-31T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-7dfeb0a6427086f2690c",
+      "event_id": "gse-auto-event-3c77ada2404e9f1fe805",
+      "label": "Iran-related Designations; Non-proliferation Designations",
+      "scenario_types": [
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220330",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-03-31T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-58f970a0a3535213c00b",
+      "event_id": "gse-auto-event-9deb29ff6143fd60d8da",
+      "label": "Russia-related Designations; Publication of new Frequently Asked Question",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220324",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-03-24T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-76da257e7c72e866c131",
+      "event_id": "gse-auto-event-e769cbbd97372850101c",
+      "label": "Issuance of new Russia-related Executive Order and related General Licenses; Publication of new and amended Frequently Asked Questions; Russia-related Designations; North Korea Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220311",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-02-28T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-267841a34ce278a6b48f",
+      "event_id": "gse-auto-event-a1cf91aca88fff1b5449",
+      "label": "Russia-related Designations; Belarus Designations; Issuance of Russia-related Directive 2 and 3; Issuance of Russia-related and Belarus General Licenses; Publication of new and updated Frequently Asked Questions",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220224",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-02-24T00:00:00Z",
+      "event_cluster_id": "ukraine_full_scale_invasion_2022_february",
+      "event_id": "russia_financial_sanctions_2022_02_24",
+      "label": "Expansion of U.S. financial sanctions after Russia's invasion",
+      "scenario_types": [
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "U.S. Department of the Treasury",
+      "source_ref": "https://home.treasury.gov/news/press-releases/jy0608",
+      "source_reliability": 0.97
+    },
+    {
+      "event_at": "2022-02-24T00:00:00Z",
+      "event_cluster_id": "ukraine_full_scale_invasion_2022_february",
+      "event_id": "ukraine_full_scale_invasion_2022_02_24",
+      "label": "Russian full-scale military operation inside Ukraine",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "grain_export_disruption"
+      ],
+      "source": "United Nations",
+      "source_ref": "https://ukraine.un.org/en/173250-statement-secretary-general-%E2%80%93-ukraine",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2022-02-10T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-29803ce79cf5d9bd8a7f",
+      "event_id": "gse-auto-event-369f4f8fdf56d9bb3f7c",
+      "label": "Russian Harmful Foreign Activities Designations",
+      "scenario_types": [
+        "russia_ukraine_black_sea_escalation",
+        "sanctions_escalation",
+        "grain_export_disruption",
+        "middle_east_energy_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20220120",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2021-12-21T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-3768782095220cbfe215",
+      "event_id": "gse-auto-event-84ebd590c5bd06468594",
+      "label": "Global Magnitsky Designations; North Korea Designations; Burma-related Designations; Non-SDN Chinese Military-Industrial Complex Companies (NS-CMIC) List Update",
+      "scenario_types": [
+        "china_taiwan_trade_escalation",
+        "middle_east_energy_escalation",
+        "sanctions_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20211210",
+      "source_reliability": 0.98
+    },
+    {
+      "event_at": "2021-12-07T00:00:00Z",
+      "event_cluster_id": "gse-auto-cluster-ab7a460b4430754a230e",
+      "event_id": "gse-auto-event-e3460176fa4ae2768d5d",
+      "label": "Belarus Designations; Publication of Belarus Directive 1 and related Frequently Asked Questions; Issuance of Belarus General License 5",
+      "scenario_types": [
+        "sanctions_escalation",
+        "middle_east_energy_escalation",
+        "russia_ukraine_black_sea_escalation"
+      ],
+      "source": "OFAC Sanctions List Updates",
+      "source_ref": "https://ofac.treasury.gov/recent-actions/20211202",
+      "source_reliability": 0.98
+    }
+  ],
+  "generated_at": "2026-08-26T11:30:52.801205Z",
+  "historical_overall": {
+    "baseline_brier": 0.271702,
+    "baseline_log_loss": 0.740314,
+    "brier_improvement_pct": 5.2915,
+    "calibration_bias": -0.042237,
+    "hit_rate": 0.485816,
+    "log_loss_improvement_pct": 4.2984,
+    "regime_brier": 0.257325,
+    "regime_log_loss": 0.708492
+  },
+  "horizons": [
+    {
+      "baseline_brier": 0.280674,
+      "baseline_log_loss": 0.756524,
+      "best": false,
+      "brier_improvement_pct": 4.3057,
+      "calibration_bias": -0.018057,
+      "hit_rate": 0.382979,
+      "hours": 24,
+      "label": "24h",
+      "n": 94,
+      "regime_brier": 0.268589,
+      "regime_log_loss": 0.730744
+    },
+    {
+      "baseline_brier": 0.274493,
+      "baseline_log_loss": 0.746321,
+      "best": false,
+      "brier_improvement_pct": 4.3502,
+      "calibration_bias": -0.059103,
+      "hit_rate": 0.478723,
+      "hours": 168,
+      "label": "7d",
+      "n": 94,
+      "regime_brier": 0.262552,
+      "regime_log_loss": 0.719716
+    },
+    {
+      "baseline_brier": 0.25994,
+      "baseline_log_loss": 0.718098,
+      "best": true,
+      "brier_improvement_pct": 7.3502,
+      "calibration_bias": -0.04955,
+      "hit_rate": 0.595745,
+      "hours": 720,
+      "label": "30d",
+      "n": 94,
+      "regime_brier": 0.240834,
+      "regime_log_loss": 0.675016
+    }
   ],
   "learning_timeline": [
-    {"recorded_at":"2026-08-23T13:27:00Z","candidates_added":96,"verifications_added":24,"record_hash":"seed-1"},
-    {"recorded_at":"2026-08-23T18:00:00Z","candidates_added":24,"verifications_added":0,"record_hash":"seed-2"},
-    {"recorded_at":"2026-08-23T20:43:00Z","candidates_added":0,"verifications_added":8,"record_hash":"seed-3"}
+    {
+      "candidates_added": 0,
+      "record_hash": "97450fc5f7873ddef9bc63b9af984cbcf67f503f1a3af5cc048a42637f46a5ae",
+      "recorded_at": "2026-08-26T11:30:51.503837Z",
+      "verifications_added": 8
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "51b79fcc6dfcd7a60597435194c117c978635a0d942ef0f2c0d9042bf9c1fcc3",
+      "recorded_at": "2026-08-24T19:48:26.385951Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "27bec42b08d7c9a3cd9bdc78fe0525cf19b1c580b958a28edd2d65ef3eba3240",
+      "recorded_at": "2026-08-24T19:04:10.800861Z",
+      "verifications_added": 8
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "1d36f232cf91b669cc1cce5eebdd89fc340e89f1883def7b5c37f94c3617963a",
+      "recorded_at": "2026-08-24T17:50:01.614512Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "c56d9049f93ef1ace0784ca7a31ec5b1d49c2a5cc53a2a00f1cf93c38f264f73",
+      "recorded_at": "2026-08-24T16:58:13.513939Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "81f40d7bfc8fc94f9f89a202a3d6047500245a5bcf706e933e2a7fa3984ef865",
+      "recorded_at": "2026-08-24T15:59:06.344334Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "df5a8bc571af91d9aa49a422223bbb6c8ceb64dcd0dc759faf8b5ae5d76fcc97",
+      "recorded_at": "2026-08-24T15:04:18.631123Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "5610fcc48e3353898a40bd6e1f1e7430090f76e6ad75c9ca505d9201a63ede72",
+      "recorded_at": "2026-08-24T14:08:40.269712Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "2428a5e939a73a8b1fa915bdd0987e6bd7dd4961185e10a41fd99892a4785c2e",
+      "recorded_at": "2026-08-24T13:17:25.232345Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "9ea64db9cba303e891bf483dce4272c8b146b9c29a4d3f3323a02914d45fbb73",
+      "recorded_at": "2026-08-24T11:47:34.914171Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "2c206c5d073be44f9ed0729680c01311fbbdfd7f5b6924377af088076346d94d",
+      "recorded_at": "2026-08-24T10:57:00.663711Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "3934cd5ea1381014c844a3de896631106a98b65cf6f342dd80b004290f445661",
+      "recorded_at": "2026-08-24T10:07:20.530568Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "e610a15f934a2948710762a69366894c381d92f48a6432557475ac12b8859b43",
+      "recorded_at": "2026-08-24T09:08:04.278278Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "6bb9a15161250026e20c5de26baae65410141f0bd56d4928da3f66d229143508",
+      "recorded_at": "2026-08-24T07:32:28.526315Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "84296d2fda8a0d4d41afadbb6b489429bd1e5087e51a026ef138a7b8965d57dd",
+      "recorded_at": "2026-08-24T05:56:57.304736Z",
+      "verifications_added": 0
+    },
+    {
+      "candidates_added": 0,
+      "record_hash": "d14fddec0063487390bfaee9a58d1c031d89be5e7aaa442e88b3a64a741405e0",
+      "recorded_at": "2026-08-24T05:05:11.975399Z",
+      "verifications_added": 0
+    }
   ],
+  "prospective": {
+    "calibration_bias_v2": 0.2296,
+    "delta_brier_v2_minus_v1": -5.4e-05,
+    "delta_log_loss_v2_minus_v1": -0.000411,
+    "mean_brier_v1": 0.294521,
+    "mean_brier_v2": 0.294468,
+    "mean_log_loss_v1": 0.791104,
+    "mean_log_loss_v2": 0.790693,
+    "paired_n": 48
+  },
   "public_boundary": {
-    "read_only_projection": true,
-    "raw_evidence_exposed": false,
+    "belief_writeback": false,
     "private_forecasts_exposed": false,
-    "trade_execution": false,
-    "belief_writeback": false
+    "raw_evidence_exposed": false,
+    "read_only_projection": true,
+    "trade_execution": false
+  },
+  "readiness": {
+    "automatic_promotion": false,
+    "reasons": [
+      "prospective_brier_improvement_below_gate",
+      "prospective_calibration_bias_above_0_10"
+    ],
+    "status": "shadow_learning"
+  },
+  "scenario_catalog_counts": {
+    "china_taiwan_trade_escalation": 67,
+    "grain_export_disruption": 79,
+    "middle_east_energy_escalation": 155,
+    "red_sea_shipping_disruption": 12,
+    "russia_ukraine_black_sea_escalation": 155,
+    "sanctions_escalation": 153
+  },
+  "scenarios": [
+    {
+      "baseline_brier": 0.275393,
+      "brier_improvement_pct": 5.1632,
+      "hit_rate": 0.453704,
+      "n": 108,
+      "regime_brier": 0.261174,
+      "scenario_type": "russia_ukraine_black_sea_escalation"
+    },
+    {
+      "baseline_brier": 0.263762,
+      "brier_improvement_pct": 5.1281,
+      "hit_rate": 0.555556,
+      "n": 90,
+      "regime_brier": 0.250236,
+      "scenario_type": "middle_east_energy_escalation"
+    },
+    {
+      "baseline_brier": 0.275465,
+      "brier_improvement_pct": 5.6247,
+      "hit_rate": 0.452381,
+      "n": 84,
+      "regime_brier": 0.259971,
+      "scenario_type": "sanctions_escalation"
+    }
+  ],
+  "schema_version": "gse-v2-public-lab-v2",
+  "summary": {
+    "catalog_events": 160,
+    "historical_response_rows": 16991,
+    "learning_cycles": 32,
+    "prospective_paired_n": 48,
+    "scenario_family_count": 6,
+    "target_verified_clusters": 100,
+    "verified_clusters": 297,
+    "walk_forward_n": 282
   }
 }
