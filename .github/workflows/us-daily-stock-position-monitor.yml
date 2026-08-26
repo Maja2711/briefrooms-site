@@ -2,6 +2,14 @@ name: Monitor US Daily Stock Position
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/us-daily-stock-position-monitor.yml"
+      - "scripts/daily_stock_trade_timestamp_normalizer.py"
+      - "scripts/us_daily_stock_position_monitor.py"
+      - "scripts/daily-stock-position-ux.js"
+      - "tests/test_daily_stock_trade_timestamps.py"
   schedule:
     # Broad UTC window covers 09:30-16:00 New York in both EDT and EST.
     # Python session gating prevents work outside the regular US session.
@@ -36,12 +44,14 @@ jobs:
       - name: Validate one-position lifecycle
         run: |
           set -euo pipefail
-          python -m unittest tests.test_us_daily_stock_position_lifecycle -v
+          python -m unittest tests.test_us_daily_stock_position_lifecycle tests.test_daily_stock_trade_timestamps -v
           python -m py_compile \
+            scripts/daily_stock_trade_timestamp_normalizer.py \
             scripts/us_daily_stock_position_lifecycle.py \
             scripts/us_daily_stock_position_monitor.py \
             scripts/us_daily_stock_runtime.py \
             scripts/build_daily_stock_history_index.py
+          node --check scripts/daily-stock-position-ux.js
 
       - name: Reconcile open US position
         run: |
