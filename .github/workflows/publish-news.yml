@@ -96,7 +96,7 @@ jobs:
           python -m unittest tests.test_homepage_static -v
 
           for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
-            grep -F '/scripts/news-live.js?v=4' "$path"
+            grep -F '/scripts/news-live.js?v=5' "$path"
             grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
           done
 
@@ -147,7 +147,7 @@ jobs:
           base = 'https://briefrooms.com'
           json_paths = ('/data/news/pl.json', '/data/news/en.json')
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/4.0', 'Cache-Control': 'no-cache'}
+          headers = {'User-Agent': 'BriefRooms production verifier/5.0', 'Cache-Control': 'no-cache'}
           last = []
           for attempt in range(48):
               last = []
@@ -187,7 +187,7 @@ jobs:
                       req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
                       with urllib.request.urlopen(req, timeout=15) as response:
                           body = response.read().decode('utf-8', 'replace')
-                      if '/scripts/news-live.js?v=4' not in body:
+                      if '/scripts/news-live.js?v=5' not in body:
                           last.append(f'{path}: runtime missing')
                       if f'name="briefrooms-live-news-marker" content="{marker}"' not in body:
                           last.append(f'{path}: static marker mismatch')
