@@ -142,7 +142,8 @@ def _weekly_vol(closes: List[float], lookback: int) -> Optional[float]:
 
 def weekly_candle_signal(cfg: Dict[str, Any], policy_cfg: Dict[str, Any]) -> Dict[str, Any]:
     rules = policy_cfg.get("weekly_candle_model") if isinstance(policy_cfg.get("weekly_candle_model"), dict) else {}
-    weekly = _weekly_frame(str(cfg.get("symbol") or ""))
+    symbol = v2.canonical_yahoo_symbol(str(cfg.get("id") or ""), str(cfg.get("symbol") or ""))
+    weekly = _weekly_frame(symbol)
     minimum = int(rules.get("minimum_weekly_bars") or 40)
     if weekly is None or len(weekly) < minimum:
         return {"data_quality": "failed", "score": 0, "regime": "unknown", "reason": "weekly_history_unavailable"}
@@ -486,7 +487,8 @@ def ensure_exposure() -> Dict[str, Any]:
     weekly = weekly_candle_signal(cfg, policy_cfg)
     state = rebuild_adaptive_state(policy_cfg, instrument_id)
     decision = choose_direction(fresh, weekly, state, policy_cfg)
-    point = last_completed_5m_bar(str(cfg.get("symbol") or item.get("symbol") or ""), now)
+    symbol = v2.canonical_yahoo_symbol(instrument_id, str(cfg.get("symbol") or item.get("symbol") or ""))
+    point = last_completed_5m_bar(symbol, now)
     if point is None:
         report["reason"] = "completed_5m_entry_bar_unavailable"
         report["status"] = "deferred"
