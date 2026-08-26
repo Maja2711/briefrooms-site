@@ -24,6 +24,9 @@
 
   var QUALITY_STATUS = 'passed_strict_v7';
   var CARD_LIMIT = 12;
+  var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+  var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
+  var TOPIC_ORDER = ['politics', 'economy', 'health'];
   var CONFIG = {
     pl: {
       feed: '/pl/home_brief.json',
@@ -67,6 +70,42 @@
     return configFor(lang).briefPath.test(path) ? path : '';
   }
 
+  function timestamp(value) {
+    var parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function isFresh(item, nowMs) {
+    var published = timestamp(item && item.published_at);
+    if (!published) return false;
+    var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    var age = now - published;
+    return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
+  }
+
+  function normalizedCategory(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function topicForCategory(value) {
+    var category = normalizedCategory(value);
+    if (!category) return '';
+    if (
+      /\b(polityka|polityczny|geopolityka|politics|political|geopolitics|geopolitical)\b/.test(category) ||
+      /\b(world news|europe|middle east|asia pacific)\b/.test(category)
+    ) return 'politics';
+    if (/\b(ekonomia|gospodarka|biznes|rynki|finanse|economy|economic|business|markets|finance|financial)\b/.test(category)) {
+      return 'economy';
+    }
+    if (/\b(zdrowie|medycyna|health|medicine|medical)\b/.test(category)) return 'health';
+    return '';
+  }
+
   function isApproved(item) {
     return Boolean(
       item &&
@@ -79,15 +118,34 @@
     );
   }
 
-  function selectApproved(items, lang) {
+  function selectApproved(items, lang, nowMs) {
     var seen = new Set();
-    return (Array.isArray(items) ? items : []).filter(function (item) {
-      if (!isApproved(item) || !safePermalink(item.permalink, lang)) return false;
+    var fresh = (Array.isArray(items) ? items : []).filter(function (item) {
+      if (!isApproved(item) || !safePermalink(item.permalink, lang) || !isFresh(item, nowMs)) return false;
       var identity = String(item.link || item.title || '');
       if (!identity || seen.has(identity)) return false;
       seen.add(identity);
       return true;
-    }).slice(0, CARD_LIMIT);
+    }).sort(function (a, b) {
+      return timestamp(b.published_at) - timestamp(a.published_at);
+    });
+
+    var selected = [];
+    var selectedIds = new Set();
+    function add(item) {
+      if (!item) return;
+      var identity = String(item.link || item.title || '');
+      if (!identity || selectedIds.has(identity)) return;
+      selectedIds.add(identity);
+      selected.push(item);
+    }
+
+    TOPIC_ORDER.forEach(function (topic) {
+      add(fresh.find(function (item) { return topicForCategory(item.category) === topic; }));
+    });
+    fresh.filter(function (item) { return Boolean(topicForCategory(item.category)); }).forEach(add);
+    fresh.forEach(add);
+    return selected.slice(0, CARD_LIMIT);
   }
 
   function fallbackLabel(category) {
@@ -105,6 +163,7 @@
     var cfg = configFor(lang);
     var card = element(document, 'a', 'brief-card');
     card.href = safePermalink(item.permalink, lang) || cfg.fallback;
+    if (timestamp(item.published_at)) card.dataset.homePublishedAt = String(item.published_at);
 
     var imageUrl = safeHttpUrl(item.image);
     var thumb = element(document, 'div', imageUrl ? 'thumb has-image' : 'thumb');
@@ -136,21 +195,18 @@
     return card;
   }
 
-  function renderBriefs(document, items, lang) {
+  function renderBriefs(document, items, lang, nowMs) {
     var container = document.getElementById('latest-briefs');
-    var approved = selectApproved(items, lang);
+    var approved = selectApproved(items, lang, nowMs);
     if (!container || !approved.length) return false;
     var fragment = document.createDocumentFragment();
     approved.forEach(function (item) {
       fragment.appendChild(createCard(document, item, lang));
     });
     container.replaceChildren(fragment);
+    container.dataset.homeFreshnessPolicy = 'max-72h-v1';
+    container.dataset.homePriority = 'politics-economy-health';
     return true;
-  }
-
-  function timestamp(value) {
-    var parsed = Date.parse(String(value || ''));
-    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   function updateLabel(node, updatedAt, lang) {
@@ -180,31 +236,35 @@
       if (!response || !response.ok) throw new Error('homepage feed request failed');
       var data = await response.json();
       var feedTimestamp = timestamp(data && data.updated_at);
+      var nowMs = Date.now();
       var items = selectApproved([
         ...(Array.isArray(data && data.latest) ? data.latest : []),
         ...(Array.isArray(data && data.radar) ? data.radar : [])
-      ], lang);
+      ], lang, nowMs);
       if (!items.length || !feedTimestamp || feedTimestamp <= staticTimestamp) return false;
-      if (!renderer(document, items, lang)) return false;
+      if (!renderer(document, items, lang, nowMs)) return false;
       container.dataset.homeUpdatedAt = String(data.updated_at);
       updateLabel(label, data.updated_at, lang);
       return true;
     } catch (error) {
-      logger.warn('BriefRooms homepage feed could not be refreshed; static briefs remain visible.', error);
+      logger.warn('BriefRooms homepage feed could not be refreshed; only static cards within the 72-hour policy may remain visible.', error);
       return false;
     }
   }
 
   return {
     CARD_LIMIT: CARD_LIMIT,
+    HOME_MAX_AGE_MS: HOME_MAX_AGE_MS,
     QUALITY_STATUS: QUALITY_STATUS,
     createCard: createCard,
     isApproved: isApproved,
+    isFresh: isFresh,
     loadHome: loadHome,
     renderBriefs: renderBriefs,
     safeHttpUrl: safeHttpUrl,
     safePermalink: safePermalink,
     selectApproved: selectApproved,
-    timestamp: timestamp
+    timestamp: timestamp,
+    topicForCategory: topicForCategory
   };
 });

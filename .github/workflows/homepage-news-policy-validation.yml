@@ -1,0 +1,41 @@
+name: Homepage News Policy Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/news-live.js"
+      - "scripts/home-briefs.js"
+      - "scripts/install_news_live_runtime.py"
+      - "tests/home_briefs_policy.test.js"
+      - "tests/test_install_news_live_runtime.py"
+      - ".github/workflows/homepage-news-policy-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate homepage policy code
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/install_news_live_runtime.py
+          python -m unittest tests.test_install_news_live_runtime -v
+          node --check scripts/news-live.js
+          node --check scripts/home-briefs.js
+          node --test tests/home_briefs_policy.test.js
+          grep -F 'max-72h-v1' scripts/news-live.js
+          grep -F 'politics-economy-health' scripts/news-live.js
