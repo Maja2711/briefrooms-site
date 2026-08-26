@@ -1,15 +1,15 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-08-26T02:07:08Z",
-  "direction": "LONG",
-  "score": 63.74,
-  "confidence": 0.275,
-  "entry": 1.16754,
-  "stop": 1.16439,
-  "target": 1.17322,
+  "timestamp": "2026-08-26T03:13:04Z",
+  "direction": "FLAT",
+  "score": 50.55,
+  "confidence": 0.0,
+  "entry": null,
+  "stop": null,
+  "target": null,
   "horizon": "intraday_to_27h",
   "engine_version": "eurusd-daily-spot-v1.4.0",
-  "status": "OPEN",
+  "status": "CLOSED_TIME",
   "decision_mode": "WITHOUT",
   "metadata": {
     "market": "FX_SPOT",
@@ -23,7 +23,7 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.0196,
+      "trend": -0.0659,
       "broad_usd_environment": 0.0117,
       "us_rates_pressure_proxy": 0.2165
     },
@@ -34,26 +34,26 @@
     },
     "candidate": {
       "direction": "FLAT",
-      "score": 51.81,
+      "score": 50.55,
       "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
         "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 56.8,
-      "stretch_atr": 0.1619,
+      "previous_score": 55.28,
+      "stretch_atr": 1.3314,
       "shock_ratio": 0.0
     },
     "learning": {
-      "total_closed": 4,
+      "total_closed": 5,
       "wins": 1,
-      "losses": 3,
-      "win_rate_percent": 25.0,
-      "average_r": -0.3361,
-      "consecutive_losses": 1,
+      "losses": 4,
+      "win_rate_percent": 20.0,
+      "average_r": -0.3033,
+      "consecutive_losses": 2,
       "direction_loss_streak": {
-        "LONG": 2,
+        "LONG": 3,
         "SHORT": 1
       },
       "adaptive_weights": {
@@ -120,16 +120,22 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
-    "position": {
-      "schema_version": "eurusd-daily-position-v1",
+    "position": null,
+    "last_trade": {
       "trade_id": "eurusd:20260825T135833Z:LONG",
-      "status": "OPEN",
+      "instrument": "EUR/USD",
       "direction": "LONG",
       "opened_at": "2026-08-25T13:58:33Z",
-      "expires_at": "2026-08-26T16:58:33Z",
+      "closed_at": "2026-08-26T03:13:04Z",
       "entry": 1.16754,
       "stop": 1.16439,
       "target": 1.17322,
+      "exit_price": 1.167,
+      "exit_reason": "DYNAMIC_RISK_EXIT",
+      "result_percent": -0.04648,
+      "return_fraction": -0.00046481,
+      "r_multiple": -0.1723,
+      "outcome": "LOSS",
       "entry_score": 63.74,
       "entry_confidence": 0.275,
       "entry_components": {},
@@ -139,26 +145,36 @@
         "us_rates_pressure_proxy": 0.203109
       },
       "engine_version": "eurusd-daily-spot-v1.4.0",
-      "legacy_bootstrap": false,
-      "soft_expires_at": "2026-08-26T13:58:33Z",
-      "dynamic_exit_policy": "R_PACE_V1",
-      "soft_horizon_hours": 24.0,
-      "hard_horizon_hours": 27.0,
-      "mark_price": 1.16754,
-      "unrealized_percent": 0.0002
-    },
-    "candidate_at_refresh": {
-      "direction": "FLAT",
-      "score": 51.81,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral",
-        "entry_disabled_this_cycle"
-      ],
-      "previous_score": 56.8,
-      "stretch_atr": 0.1619,
-      "shock_ratio": 0.0
+      "monitor": {
+        "source": "Yahoo Finance EURUSD=X 1m OHLC",
+        "conservative_same_bar": false,
+        "bar_timestamp": "2026-08-26T03:13:04Z",
+        "bar_open": 1.1669973134994507,
+        "bar_high": 1.1669973134994507,
+        "bar_low": 1.1669973134994507,
+        "bar_close": 1.1669973134994507,
+        "dynamic_exit": {
+          "policy": "R_PACE_V1",
+          "age_hours": 13.242,
+          "soft_horizon_reached": false,
+          "hard_horizon_reached": false,
+          "remaining_hard_hours": 13.758,
+          "current_r": -0.1723,
+          "target_r": 1.8032,
+          "remaining_r_to_target": 1.9755,
+          "mfe_r": 0.4774,
+          "giveback_r": 0.6496,
+          "velocity_1h_rph": -0.1728,
+          "velocity_3h_rph": -0.0865,
+          "blended_velocity_rph": -0.1426,
+          "required_velocity_rph": 0.1436,
+          "tp_feasibility_ratio": 0.0,
+          "projected_hours_to_target": null,
+          "hold_score": -0.708,
+          "mark_price": 1.167,
+          "bar_timestamp": "2026-08-26T03:13:04Z"
+        }
+      }
     }
   },
   "schema_version": "daily-engine-output-v1"
