@@ -7,7 +7,7 @@
   const T = lang === 'pl' ? {
     status:'Stan kontroli', champion:'Metoda sterująca', challenger:'Silnik BRACE',
     risk:'Ryzyko', target:'Cel 10% rocznie', remaining:'Bramki nadal monitorowane', candidates:'Najwyżej ocenieni kandydaci',
-    pending:'Decyzja do wykonania (paper)', recommendations:'Ocena każdej pozycji', history:'Historia kontroli',
+    pending:'Decyzje BRACE (paper)', recommendations:'Ocena każdej pozycji', history:'Historia kontroli',
     noCandidates:'Lista kandydatów pojawi się po pełnym cyklu analizy.', noDecisions:'Brak zmiany spełniającej wszystkie limity wykonania.',
     noRecommendations:'Brak ocen pozycji.', noHistory:'Brak wcześniejszych zmian kontrolera.', loadError:'Nie udało się pobrać publicznego statusu BRACE.',
     fallback:'Powód trybu bezpiecznego', safe:'Tryb bezpieczny', monitored:'Limity monitorowane',
@@ -16,7 +16,7 @@
   } : {
     status:'Control state', champion:'Controlling methodology', challenger:'BRACE engine',
     risk:'Risk', target:'10% annual target', remaining:'Gates still monitored', candidates:'Top-ranked candidates',
-    pending:'Decision awaiting paper execution', recommendations:'Position-by-position assessment',
+    pending:'BRACE decisions (paper)', recommendations:'Position-by-position assessment',
     history:'Control history', noCandidates:'Candidates will appear after the full analysis cycle.', noDecisions:'No change currently passes all execution limits.',
     noRecommendations:'No position assessments are available.', noHistory:'No previous controller changes.', loadError:'The public BRACE status could not be loaded.',
     fallback:'Safe-mode reason', safe:'Safe mode', monitored:'Limits monitored', confidence:'Confidence',
@@ -52,8 +52,17 @@
     return `<div class="control-list">${[...items].sort((a,b)=>(num(b.final_score)??-Infinity)-(num(a.final_score)??-Infinity)).slice(0,5).map(item=>`<article><div><b>${esc(item.broker_symbol||item.instrument_id)}</b><span>${esc(item.label||'')}</span></div><strong>${num(item.final_score)===null?'—':num(item.final_score).toFixed(1)+'/100'}</strong></article>`).join('')}</div>`;
   }
   function decisions(items){
-    if(!items?.length)return `<p class="brace-empty">${esc(T.noDecisions)}</p>`;
-    return `<div class="control-list">${items.slice(0,5).map(item=>`<article><div><b>${esc(actionLabel(item.action))}${item.instrument?' · '+esc(item.instrument):''}</b><span>${esc(lang==='pl'?item.rationale_pl:item.rationale_en)}</span></div><strong>${esc(T.confidence)} ${pct(item.confidence)}</strong></article>`).join('')}</div>`;
+    const visible=(items||[]).filter(item=>['PENDING','EXECUTED','ALREADY_APPLIED'].includes(String(item.execution_status||'')));
+    if(!visible.length)return `<p class="brace-empty">${esc(T.noDecisions)}</p>`;
+    return `<div class="control-list">${visible.slice(0,6).map(item=>{
+      const source=item.instrument||item.instrument_id||'';
+      const replacement=item.replacement_instrument||item.replacement_instrument_id||'';
+      const route=String(item.action||'')==='REPLACE'&&replacement?`${source} → ${replacement}`:source;
+      const done=['EXECUTED','ALREADY_APPLIED'].includes(String(item.execution_status||''));
+      const state=done?(lang==='pl'?'WYKONANE':'EXECUTED'):(lang==='pl'?'OCZEKUJE':'PENDING');
+      const note=String(item.execution_status||'')==='ALREADY_APPLIED'?(lang==='pl'?'Stan portfela już odzwierciedla tę zmianę.':'The current portfolio state already reflects this change.'):'';
+      return `<article data-execution-status="${esc(item.execution_status||'')}"><div><b>${esc(actionLabel(item.action))}${route?' · '+esc(route):''}</b><span>${esc(lang==='pl'?item.rationale_pl:item.rationale_en)}${note?' '+esc(note):''}</span></div><strong>${esc(state)} · ${esc(T.confidence)} ${pct(item.confidence)}</strong></article>`;
+    }).join('')}</div>`;
   }
   function recommendations(items){
     if(!items?.length)return `<p class="brace-empty">${esc(T.noRecommendations)}</p>`;
@@ -67,6 +76,8 @@
     const progress=data.promotion_progress||{}, risk=data.risk||{}, target=data.target||{}, remaining=(progress.remaining||[]).slice(0,10);
     const summary=lang==='pl'?data.control_summary_pl:data.control_summary_en;
     const loop=data.learning_loop||{};
+    const activeIds=new Set((data.active_portfolio_ids||[]).map(value=>String(value||'').toLowerCase()));
+    const positionRecommendations=(data.position_recommendations||[]).filter(item=>!activeIds.size||activeIds.has(String(item.instrument||item.instrument_id||'').toLowerCase()));
     const lastLearning=loop.last_review_at||data.last_research_run||data.last_incremental_learning;
     const nextLearning=loop.next_scheduled_review_at||weeklyLearningSchedule().toISOString();
     document.getElementById('brace-control-updated').textContent=dateTime(data.generated_at);
@@ -75,7 +86,7 @@
       <div class="control-metrics">${metric(T.champion,`${data.champion?.methodology_id||'—'} ${data.champion?.version||''}`,data.champion?.status||'')}${metric(T.challenger,`${data.challenger?.methodology_id||'—'} ${data.challenger?.version||''}`,data.challenger?.status||'')}${metric(T.risk,risk.safe_mode?T.safe:T.monitored,risk.status||'')}${metric(T.target,targetLabel(target.status),`P: ${pct(target.probability_of_reaching_target)}`)}</div>
       <section class="control-learning"><h3>${esc(T.learning)}</h3><div>${metric(T.lastLearning,dateTime(lastLearning),'')}${metric(T.nextAnalysis,dateTime(nextLearning),lang==='pl'?'niedziela · 08:40 UTC':'Sunday · 08:40 UTC')}</div></section>
       ${data.fallback_reason?`<div class="control-alert"><b>${esc(T.fallback)}</b><span>${esc(data.fallback_reason)}</span></div>`:''}
-      <section class="control-recommendations-wrap"><h3>${esc(T.recommendations)}</h3>${recommendations(data.position_recommendations)}</section>
+      <section class="control-recommendations-wrap"><h3>${esc(T.recommendations)}</h3>${recommendations(positionRecommendations)}</section>
       <div class="control-columns"><section><h3>${esc(T.remaining)}</h3>${remaining.length?`<ul>${remaining.map(item=>`<li>${esc(gateLabel(item))}</li>`).join('')}</ul>`:'<p>—</p>'}</section><section><h3>${esc(T.candidates)}</h3>${candidates(data.candidates)}</section><section><h3>${esc(T.pending)}</h3>${decisions(data.pending_decisions)}</section></div>
       <section class="control-history-wrap"><h3>${esc(T.history)}</h3>${history(data.promotion_history)}</section><p class="brace-method">${esc(lang==='pl'?data.disclaimer_pl:data.disclaimer_en)}</p>`;
   }

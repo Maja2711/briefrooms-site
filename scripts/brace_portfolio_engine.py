@@ -32,6 +32,7 @@ from brace_portfolio_optimizer import optimize
 from brace_portfolio_promotion_controller import evaluate_and_apply
 from brace_portfolio_publish import build_public_snapshot, publish
 from brace_portfolio_scoring import score_instrument
+from brace_portfolio_state_sync import live_analysis_portfolio
 
 REGISTRY_PATH = ENGINE_DATA_ROOT / "methodology_registry.json"
 UNIVERSE_PATH = ENGINE_DATA_ROOT / "universe.json"
@@ -470,6 +471,12 @@ def run_cycle(
     baseline_before = read_json(BASELINE_PORTFOLIO_PATH)
     baseline_copy = copy.deepcopy(baseline_before)
     registry = read_json(REGISTRY_PATH)
+    paper_portfolio = read_json(PAPER_PATH)
+    analysis_portfolio = (
+        baseline_before
+        if mode == "research"
+        else live_analysis_portfolio(registry, baseline_before, paper_portfolio)
+    )
     universe = read_json(UNIVERSE_PATH)
     previous_analysis = read_json(ANALYSIS_PATH)
     freshness = data_freshness_report(
@@ -512,7 +519,7 @@ def run_cycle(
         if not market.get("instruments"):
             raise ValueError("Market cache is empty; a data provider is required")
         analysis, optimization = _analysis_from_market(
-            baseline_before, universe, market, config, now
+            analysis_portfolio, universe, market, config, now
         )
         analysis["last_incremental_learning"] = (
             now.isoformat(timespec="seconds") if mode == "daily" else previous_analysis.get(
@@ -549,7 +556,7 @@ def run_cycle(
                 ],
             )
             write_json_atomic(PENDING_PATH, pending)
-            record = shadow_record(pending, baseline_before.get("positions") or [], now)
+            record = shadow_record(pending, analysis_portfolio.get("positions") or [], now)
             prices = {
                 item.get("instrument_id"): item.get("current_price")
                 for item in analysis.get("positions", [])

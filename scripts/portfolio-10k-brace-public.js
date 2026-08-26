@@ -187,14 +187,22 @@
   async function load() {
     const positions = document.getElementById('brace-positions');
     if (positions) positions.innerHTML = `<div class="loading">${esc(T.loading)}</div>`;
-    const [live, backtest] = await Promise.allSettled([
+    const [live, backtest, control] = await Promise.allSettled([
       json('/data/investments/portfolio_10k_brace.json'),
-      json('/data/investments/portfolio_10k_brace_backtest.json')
+      json('/data/investments/portfolio_10k_brace_backtest.json'),
+      json('/data/portfolio10k/public/brace_engine_public.json')
     ]);
+    const controlled = control.status === 'fulfilled' && ['PROBATIONARY_CONTROL','ACTIVE_PAPER_CONTROL','ACTIVE_CONTROL'].includes(String(control.value?.controller_status || ''));
     if (live.status === 'fulfilled') {
       renderSummary(live.value);
       renderLearning(live.value);
-      renderPositions(live.value);
+      if (controlled && positions) {
+        positions.hidden = true;
+        const heading = positions.previousElementSibling;
+        if (heading?.classList?.contains('brace-section-title')) heading.hidden = true;
+      } else {
+        renderPositions(live.value);
+      }
     } else if (positions) {
       positions.innerHTML = `<div class="error">${esc(T.unavailable)}</div>`;
     }

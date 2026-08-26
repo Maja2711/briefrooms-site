@@ -15,12 +15,18 @@ from brace_portfolio_config import load_config
 from brace_portfolio_data import BASELINE_PORTFOLIO_PATH, ENGINE_DATA_ROOT, read_json, write_json_atomic
 from brace_portfolio_execution import initialize_paper_portfolio
 from brace_portfolio_publish import build_public_snapshot, publish
+from brace_portfolio_state_sync import (
+    active_position_ids,
+    filter_position_recommendations,
+    reconcile_public_decisions,
+)
 
 AUTH = ENGINE_DATA_ROOT / "control_authorization.json"
 REGISTRY = ENGINE_DATA_ROOT / "methodology_registry.json"
 PAPER = ENGINE_DATA_ROOT / "paper_portfolio.json"
 ANALYSIS = ENGINE_DATA_ROOT / "analysis.json"
 PENDING = ENGINE_DATA_ROOT / "pending_decisions.json"
+ORDERS = ENGINE_DATA_ROOT / "paper_orders.json"
 SHADOW = ENGINE_DATA_ROOT / "shadow_log.json"
 HISTORY = ENGINE_DATA_ROOT / "promotion_history.json"
 OPERATIONAL = ENGINE_DATA_ROOT / "operational_state.json"
@@ -147,12 +153,21 @@ def learning_public_state(now: datetime | None = None) -> dict[str, Any]:
 def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: datetime) -> dict[str, Any]:
     config, _ = load_config()
     pending = read_json(PENDING)
+    paper = read_json(PAPER)
+    orders = read_json(ORDERS)
     snapshot = build_public_snapshot(
         registry, read_json(ANALYSIS), pending, read_json(SHADOW), read_json(HISTORY),
         read_json(OPERATIONAL), config, now, PAPER.exists(),
     )
     snapshot["control_authorization"] = deepcopy(dict(auth))
-    snapshot["position_recommendations"] = deepcopy((pending.get("recommendations") or [])[:20])
+    snapshot["active_portfolio_ids"] = sorted(active_position_ids(paper))
+    snapshot["portfolio_state_source"] = "data/portfolio10k/paper_portfolio.json"
+    snapshot["position_recommendations"] = filter_position_recommendations(
+        pending.get("recommendations") or [], paper
+    )[:20]
+    snapshot["pending_decisions"] = reconcile_public_decisions(
+        pending.get("decisions") or [], paper, orders, limit=10
+    )
     snapshot["learning_loop"] = learning_public_state(now)
     snapshot["display_status"] = "BRACE_PROBATIONARY_PAPER_CONTROL"
     snapshot["control_summary_pl"] = (
