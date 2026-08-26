@@ -2,8 +2,8 @@
 """Monitor all selected GPW daily paper trades until target/stop/expiry.
 
 Unlike the old expiry-only settlement, this monitor can resolve a trade on the
-same session when TP or SL is reached.  It preserves every selected stock in a
-durable history index and uses 5-minute Yahoo bars after activation.  If both TP
+same session when TP or SL is reached. It preserves every selected stock in a
+durable history index and uses 5-minute Yahoo bars after activation. If both TP
 and SL occur in the same unresolved bar, stop wins conservatively.
 """
 from __future__ import annotations
@@ -17,8 +17,10 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 try:
+    from scripts import daily_stock_trade_timestamp_normalizer as timestamp_normalizer
     from scripts import gpw_daily_pick as gpw
 except ModuleNotFoundError:
+    import daily_stock_trade_timestamp_normalizer as timestamp_normalizer
     import gpw_daily_pick as gpw
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -163,6 +165,36 @@ def resolve_pending(payload: dict[str, Any], now: datetime) -> bool:
             return True
 
     if now.astimezone(WARSAW).date() > expiry:
+        # Prefer the actual last 5-minute bar on/before the expiry session so
+        # horizon exits get a real market timestamp rather than a guessed time.
+        expiry_bars = [
+            bar for bar in eligible
+            if bar["timestamp"].astimezone(WARSAW).date() <= expiry
+        ]
+        if expiry_bars:
+            exit_bar = expiry_bars[-1]
+            exit_price = exit_bar["close"]
+            gross = (exit_price / entry - 1.0) * 100.0
+            payload["outcome"] = {
+                "status": "RESOLVED",
+                "activated": True,
+                "activated_at": activated_at.astimezone(WARSAW).isoformat(timespec="seconds"),
+                "activation_evidence": evidence,
+                "entry_price": gpw.round2(entry),
+                "exit_price": gpw.round2(exit_price),
+                "exit_reason": "koniec_horyzontu",
+                "exit_bar_at": exit_bar["timestamp"].astimezone(WARSAW).isoformat(timespec="seconds"),
+                "return_percent": round(gross - COST_PERCENT, 3),
+                "gross_return_percent": round(gross, 3),
+                "r_multiple": round((exit_price - entry) / risk, 3),
+                "cost_assumption_percent": COST_PERCENT,
+                "settlement_policy": "expiry_last_observed_5m_close",
+                "resolved_at": now.astimezone(WARSAW).isoformat(timespec="seconds"),
+            }
+            return True
+
+        # Legacy fallback keeps the price if exact intraday timestamp evidence is
+        # unavailable. The timestamp is deliberately omitted rather than guessed.
         daily = gpw.fetch_yahoo_bars(str(selection.get("symbol")), range_value="3mo")
         eligible_daily = [row for row in daily if row.day <= expiry and row.day >= datetime.fromisoformat(payload["date"]).date()]
         if eligible_daily:
@@ -180,7 +212,7 @@ def resolve_pending(payload: dict[str, Any], now: datetime) -> bool:
                 "gross_return_percent": round(gross, 3),
                 "r_multiple": round((exit_price - entry) / risk, 3),
                 "cost_assumption_percent": COST_PERCENT,
-                "settlement_policy": "expiry_close",
+                "settlement_policy": "expiry_close_without_exact_timestamp",
                 "resolved_at": now.astimezone(WARSAW).isoformat(timespec="seconds"),
             }
             return True
@@ -243,6 +275,10 @@ def main() -> None:
             outcome["last_checked_at"] = now.astimezone(WARSAW).isoformat(timespec="seconds")
             payload["outcome"] = outcome
             atomic(path, payload)
+
+    # Future GPW trades fail closed if an activated entry or resolved exit lacks
+    # its durable timestamp. Legacy records remain untouched when evidence is absent.
+    timestamp_normalizer.validate_gpw_history(gpw.HISTORY_DIR)
 
     history = gpw.all_history()
     metrics = gpw.metric_summary(history)

@@ -12,11 +12,13 @@ from typing import Mapping
 
 try:
     from scripts import build_daily_stock_history_index as shared_history
+    from scripts import daily_stock_trade_timestamp_normalizer as timestamp_normalizer
     from scripts import us_daily_stock as us
     from scripts import us_daily_stock_position_lifecycle as lifecycle
     from scripts import us_daily_stock_runtime as runtime
 except ModuleNotFoundError:
     import build_daily_stock_history_index as shared_history
+    import daily_stock_trade_timestamp_normalizer as timestamp_normalizer
     import us_daily_stock as us
     import us_daily_stock_position_lifecycle as lifecycle
     import us_daily_stock_runtime as runtime
@@ -26,6 +28,9 @@ SESSION_END = clock_time(16, 2)
 
 
 def _refresh_indexes(now) -> None:
+    # Normalize canonical source history first so both dedicated and shared
+    # indexes expose the same trustworthy entry/exit timestamp contract.
+    timestamp_normalizer.normalize_us_history(us.HISTORY_DIR, runtime.BOOK_PATH)
     runtime.build_history_index()
     payload = shared_history.build(now.astimezone(timezone.utc))
     shared_history.atomic(shared_history.OUT, payload)
