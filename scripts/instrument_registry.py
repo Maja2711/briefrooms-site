@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_METHODOLOGY_PATH = ROOT / "data" / "investments" / "methodology.json"
 DEFAULT_POLICY_PATH = ROOT / "data" / "investments" / "multi_instrument_exposure_policy.json"
+REGISTRY_SCHEMA_VERSION = "1.0.0"
 
 _INSTRUMENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 _CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
@@ -283,6 +284,32 @@ DEFAULT_INSTRUMENTS: tuple[InstrumentSpec, ...] = (
 DEFAULT_REGISTRY = InstrumentRegistry(DEFAULT_INSTRUMENTS)
 
 
+def canonical_vendor_symbol(
+    instrument_id_or_alias: str,
+    provider: str,
+    *,
+    configured_symbol: Optional[str] = None,
+    registry: InstrumentRegistry = DEFAULT_REGISTRY,
+) -> str:
+    """Return the canonical provider symbol and reject configuration drift.
+
+    Runtime consumers should call this before requesting market data.  When a
+    legacy/configured symbol is supplied it is treated only as a drift assertion;
+    the registry remains the source of truth.  A mismatch fails closed instead
+    of silently reading a different market.
+    """
+    spec = registry.get(instrument_id_or_alias)
+    expected = spec.vendor_symbol(provider)
+    if configured_symbol is not None:
+        configured = str(configured_symbol).strip()
+        if configured != expected:
+            raise InstrumentRegistryError(
+                f"{spec.instrument_id}: configured {provider} symbol {configured!r} "
+                f"does not match canonical {expected!r}"
+            )
+    return expected
+
+
 def _read_json(path: Path) -> Mapping[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -320,8 +347,13 @@ def validate_wes_configuration(
 
         symbol = str(row.get("symbol") or "")
         try:
-            expected_symbol = spec.vendor_symbol("yahoo")
-        except UnknownInstrumentError as exc:
+            expected_symbol = canonical_vendor_symbol(
+                instrument_id,
+                "yahoo",
+                configured_symbol=symbol,
+                registry=registry,
+            )
+        except InstrumentRegistryError as exc:
             errors.append(f"methodology {instrument_id}: {exc}")
         else:
             if symbol != expected_symbol:
@@ -352,14 +384,23 @@ def validate_wes_configuration(
 
     macro = policy.get("macro_context") or {}
     if isinstance(macro, dict) and macro.get("enabled") is True:
-        for field_name in ("oil_symbol", "us10y_symbol"):
+        expected_macro = {
+            "oil_symbol": "wti_futures",
+            "us10y_symbol": "us10y_yield",
+        }
+        for field_name, instrument_id in expected_macro.items():
             symbol = str(macro.get(field_name) or "")
             if not symbol:
                 errors.append(f"policy.macro_context.{field_name} is empty")
                 continue
             try:
-                registry.find_by_vendor_symbol("yahoo", symbol)
-            except UnknownInstrumentError as exc:
+                canonical_vendor_symbol(
+                    instrument_id,
+                    "yahoo",
+                    configured_symbol=symbol,
+                    registry=registry,
+                )
+            except InstrumentRegistryError as exc:
                 errors.append(f"policy.macro_context.{field_name}: {exc}")
 
     return errors
