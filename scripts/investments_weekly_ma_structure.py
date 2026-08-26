@@ -14,7 +14,10 @@ from typing import Any, Dict, Optional
 import pandas as pd
 import yfinance as yf
 
-SYMBOL = "EURUSD=X"
+from instrument_registry import canonical_vendor_symbol
+
+INSTRUMENT_ID = "eurusd"
+SYMBOL = canonical_vendor_symbol(INSTRUMENT_ID, "yahoo")
 TZ = "Europe/Warsaw"
 WINDOWS = (30, 60, 100, 200)
 
@@ -85,11 +88,11 @@ def _snapshot(df: pd.DataFrame, before: pd.Timestamp) -> Optional[Dict[str, Any]
 
 def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[str, Any]:
     cfg = _cfg(policy)
-    if instrument_id != "eurusd" or not cfg.get("enabled", False):
+    if instrument_id != INSTRUMENT_ID or not cfg.get("enabled", False):
         return {"enabled": False, "instrument_id": instrument_id, "data_quality": "not_applicable", "score": 0.0}
     try:
         h1 = _clean(yf.download(SYMBOL, period="60d", interval="1h", progress=False, auto_adjust=False, prepost=True, threads=False))
-        d1 = _clean(yf.download(SYMBOL, period="5y", interval="1d", progress=False, auto_adjust=False, threads=False))
+        d1 = _clean(yf.download(SYMBOL, period="5y", interval="1d", progress=False, auto_adjust=False, prepost=True, threads=False))
         if h1.empty or d1.empty:
             raise RuntimeError("required_price_history_unavailable")
         ts = pd.Timestamp(now)
@@ -139,7 +142,7 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
 
 def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]], ma_context: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     rows = {key: dict(value) for key, value in candidates.items()}
-    if instrument_id != "eurusd" or ma_context.get("data_quality") != "passed":
+    if instrument_id != INSTRUMENT_ID or ma_context.get("data_quality") != "passed":
         return rows
     cfg = _cfg(policy)
     cap = abs(float(ma_context.get("score_cap") or cfg.get("score_cap") or 4.0)) or 4.0
