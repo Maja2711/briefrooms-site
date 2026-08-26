@@ -12,11 +12,13 @@ on:
       - "scripts/news_quality.py"
       - "scripts/render_live_news_static.py"
       - "scripts/generate_permanent_briefs.py"
+      - "scripts/homepage_news_policy.py"
       - "scripts/news-live.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
       - "tests/test_news_quality.py"
       - "tests/test_homepage_static.py"
+      - "tests/test_homepage_news_policy.py"
       - ".github/workflows/publish-news.yml"
 
 permissions:
@@ -56,10 +58,12 @@ jobs:
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
             scripts/generate_permanent_briefs.py \
+            scripts/homepage_news_policy.py \
             scripts/install_news_live_runtime.py
           python -m unittest \
             tests.test_publish_live_news \
-            tests.test_news_quality -v
+            tests.test_news_quality \
+            tests.test_homepage_news_policy -v
           node --check scripts/news-live.js
 
       - name: Build fresh PL and EN news data and pages
@@ -69,15 +73,23 @@ jobs:
           marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
 
-          # Live/source-only news and the SEO/editorial homepage are separate layers.
-          # The live publisher may create compatibility home feeds, but those are not
-          # allowed to replace the last strictly reviewed homepage brief set.
+          # Preserve the last strictly reviewed homepage set before the live/source-only
+          # publisher writes its compatibility home_brief files.
+          python scripts/homepage_news_policy.py --snapshot-last-good
+
+          # Build the complete live feed, then apply the homepage-only policy:
+          # strategic category promotion + a hard 72-hour source-published age limit.
           python scripts/publish_live_news_filtered.py --marker "${marker}"
+          python scripts/homepage_news_policy.py --apply-live
           python scripts/render_live_news_static.py
 
+          # Restore reviewed permanent-brief input, apply the same 72-hour gate and
+          # category priority, then generate the SEO/static fallback.
           cp .cache/home_brief_pl_last_good.json pl/home_brief.json
           cp .cache/home_brief_en_last_good.json en/home_brief.json
+          python scripts/homepage_news_policy.py --apply-home-brief
           python scripts/generate_permanent_briefs.py
+          python scripts/homepage_news_policy.py --enforce-static
 
           python scripts/install_news_live_runtime.py
           python scripts/publish_live_news_filtered.py --validate --max-age-minutes 10
@@ -87,6 +99,30 @@ jobs:
             grep -F '/scripts/news-live.js?v=3' "$path"
             grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
           done
+
+          # Fail closed if the publisher ever reintroduces an expired/undated story to
+          # the live homepage list.
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          now = datetime.now(timezone.utc)
+          for lang in ('pl', 'en'):
+              payload = json.loads(Path(f'data/news/{lang}.json').read_text(encoding='utf-8'))
+              policy = payload.get('homepage_policy') or {}
+              if policy.get('version') != 'homepage-priority-72h-v1' or policy.get('max_age_hours') != 72:
+                  raise SystemExit(f'{lang}: homepage policy missing')
+              for story in payload.get('home') or []:
+                  raw = story.get('published_at')
+                  if not raw:
+                      raise SystemExit(f'{lang}: homepage item missing published_at')
+                  published = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+                  if published.tzinfo is None:
+                      raise SystemExit(f'{lang}: naive homepage timestamp')
+                  age = now - published.astimezone(timezone.utc)
+                  if age > timedelta(days=3) or age < -timedelta(minutes=10):
+                      raise SystemExit(f'{lang}: homepage item outside 72h gate: {raw}')
+          PY
 
       - name: Commit one atomic news publication
         run: |
@@ -153,6 +189,18 @@ jobs:
                           last.append(f'{path}: schema mismatch')
                       if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v2':
                           last.append(f'{path}: editorial policy v2 missing')
+                      home_policy = payload.get('homepage_policy') or {}
+                      if home_policy.get('version') != 'homepage-priority-72h-v1' or home_policy.get('max_age_hours') != 72:
+                          last.append(f'{path}: homepage 72h policy missing')
+                      now = datetime.now(timezone.utc)
+                      for story in payload.get('home') or []:
+                          try:
+                              published = datetime.fromisoformat(str(story['published_at']).replace('Z', '+00:00')).astimezone(timezone.utc)
+                          except Exception:
+                              last.append(f'{path}: homepage timestamp missing/invalid')
+                              continue
+                          if now - published > timedelta(days=3):
+                              last.append(f'{path}: expired homepage story')
                       if any(len(items) < 4 for items in payload.get('sections', {}).values()):
                           last.append(f'{path}: incomplete section')
                   except Exception as exc:
@@ -169,7 +217,7 @@ jobs:
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news are current and use editorial value filter v2.')
+                  print('Production PL and EN news are current and homepage policy 72h is active.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))
