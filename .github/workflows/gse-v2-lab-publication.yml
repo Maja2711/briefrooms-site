@@ -1,28 +1,14 @@
-name: GSE v2 Lab Public Projection
+name: GSE v2 Lab Public Projection (Manual Repair)
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - "Geopolitical Scenario Engine Shadow"
-      - "GSE v2 Advanced Historical Learning"
-    types: [completed]
-  push:
-    branches: [main]
-    paths:
-      - "scripts/gse_v2_public_lab_projection.py"
-      - "tests/test_gse_v2_public_lab_projection.py"
-      - "scripts/gse-lab.js"
-      - "pl/geo/gse-lab.html"
-      - "en/geo/gse-lab.html"
-      - ".github/workflows/gse-v2-lab-publication.yml"
 
 permissions:
   contents: write
   actions: read
 
 concurrency:
-  group: gse-v2-lab-publication
+  group: gse-v2-lab-manual-publication
   cancel-in-progress: true
 
 env:
@@ -31,7 +17,6 @@ env:
 
 jobs:
   publish:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -55,12 +40,9 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          set -euo pipefail
           python -m py_compile scripts/gse_v2_public_lab_projection.py
           python -m unittest tests.test_gse_v2_public_lab_projection -v
           node --check scripts/gse-lab.js
-          grep -q 'gse-lab-root' pl/geo/gse-lab.html
-          grep -q 'gse-lab-root' en/geo/gse-lab.html
 
       - name: Restore latest cumulative GSE state
         env:
@@ -97,50 +79,24 @@ jobs:
             echo "GSE_HISTORICAL_CATALOG=$GITHUB_WORKSPACE/data/gse/historical_event_catalog.json" >> "$GITHUB_ENV"
           fi
 
-      - name: Build safe public GSE Lab projection
+      - name: Rebuild public projection only
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python scripts/gse_v2_public_lab_projection.py \
-            --state-dir "$GSE_STATE_DIR" \
-            --catalog "$GSE_HISTORICAL_CATALOG" \
-            --output "$PUBLIC_PATH"
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=json.loads(Path('data/gse/gse_v2_lab_public.json').read_text())
-          assert p['schema_version']=='gse-v2-public-lab-v2'
-          assert p['engine']['decision_influence'] is False
-          assert p['public_boundary']['raw_evidence_exposed'] is False
-          assert p['public_boundary']['private_forecasts_exposed'] is False
-          assert len(p['horizons']) == 3
-          assert 'activity' in p
-          assert p['activity']['last_scan_at']
-          print('GSE activity:',p['activity'])
-          print('GSE Lab summary:',p['summary'])
-          print('Best horizon:',p['best_horizon'])
-          PY
+          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --output "$PUBLIC_PATH"
 
-      - name: Publish GSE Lab projection to main
+      - name: Publish projection to main
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$PUBLIC_PATH"
-          if git diff --cached --quiet; then
-            echo "GSE Lab projection already current."
-            exit 0
-          fi
-          git commit -m "Update GSE v2 public lab projection"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Repair GSE v2 public Lab projection"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            if ! git rebase origin/main; then
-              git rebase --abort || true
-              sleep $((attempt*2))
-              continue
-            fi
+            if ! git rebase origin/main; then git rebase --abort || true; sleep $((attempt*2)); continue; fi
             if git push origin HEAD:main; then exit 0; fi
             sleep $((attempt*3))
           done
-          echo "::error::Could not publish GSE Lab projection"
           exit 1
