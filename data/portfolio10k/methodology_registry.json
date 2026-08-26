@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-26T07:54:53+00:00",
+  "generated_at": "2026-08-26T08:20:45+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -31,8 +31,8 @@
         "status": "production_baseline",
         "history_preserved": true,
         "entry_history_sha256": "cdefa8db1f5824ae3eac75fab7f99ed59bc8c3a6cf4ba222d539368555d5f348",
-        "source_snapshot_sha256": "40d6a7e3794a0f11d24502343f66b77f8b05d2f7f4392280bdf85ec20afa40dc",
-        "validated_at": "2026-08-26T07:28:22+00:00"
+        "source_snapshot_sha256": "dd014a1be20a39a9ff5d17e87b18aff71e262d441b15e5889ce386d7494b3b00",
+        "validated_at": "2026-08-26T08:20:45+00:00"
       }
     },
     {
@@ -56,9 +56,32 @@
         "automatic_activation_allowed_only_by_controller": true,
         "active_paper_control": false,
         "latest_gate_evaluation": {
-          "evaluated_at": "2026-08-26T07:28:22+00:00",
-          "current_status": "FALLBACK_BASELINE",
-          "conditions": {},
+          "evaluated_at": "2026-08-26T08:20:45+00:00",
+          "current_status": "PROBATIONARY_CONTROL",
+          "conditions": {
+            "probation": {
+              "minimum_calendar_days": false,
+              "daily_rotation_limit": false,
+              "weekly_change_limit": false,
+              "weekly_turnover_limit": false,
+              "new_position_limit": false,
+              "minimum_confidence": false,
+              "no_full_portfolio_replacement": true,
+              "transaction_cost_buffer_applied": false,
+              "cooldown_applied": false,
+              "material_advantage_required": false,
+              "no_fallback_trigger": true
+            },
+            "operational": {
+              "no_critical_data_errors": true,
+              "decisions_reproducible": true,
+              "entry_history_unchanged": true,
+              "timestamps_complete": true,
+              "workflow_stable": true,
+              "public_internal_consistent": true,
+              "integrity_tests_pass": true
+            }
+          },
           "reason": "No status change; promotion gates remain incomplete."
         },
         "user_authorized_paper_control": {
