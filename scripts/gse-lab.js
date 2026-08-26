@@ -18,6 +18,7 @@
       challenger:'Challenger i kalibracja',prospective:'Walidacja live',active:'Aktywna polityka pozostaje bez zmian',
       status:'Status',paired:'Pary',v1:'Brier v1',v2:'Brier v2',delta:'Δ Brier',bias:'Bias kalibracji',
       readiness:'Gotowość do promocji',learning:'Historia uczenia GSE v2',learningSub:'Najnowsze cykle z Learning Ledger. Data oznacza wykonanie pętli uczenia, a nie skan źródeł geopolitycznych.',
+      learningShow:'Pokaż historię uczenia',learningHide:'Ukryj historię uczenia',
       candidates:'nowi kandydaci',verifications:'nowe weryfikacje',method:'Jak GSE się uczy',
       methodSteps:['Discovery zdarzeń','Clustering kryzysów','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
       unavailable:'Brak aktualnych danych GSE Lab.',automatic:'Brak automatycznej promocji · brak wpływu na decyzje'
@@ -36,6 +37,7 @@
       challenger:'Challenger and calibration',prospective:'Prospective validation',active:'The active policy remains unchanged',
       status:'Status',paired:'Pairs',v1:'Brier v1',v2:'Brier v2',delta:'Δ Brier',bias:'Calibration bias',
       readiness:'Promotion readiness',learning:'GSE v2 learning history',learningSub:'Newest cycles from the Learning Ledger. The timestamp is a learning-loop execution time, not a geopolitical source scan.',
+      learningShow:'Show learning history',learningHide:'Hide learning history',
       candidates:'new candidates',verifications:'new verifications',method:'How GSE learns',
       methodSteps:['Event discovery','Crisis clustering','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
       unavailable:'Current GSE Lab data unavailable.',automatic:'No automatic promotion · no decision influence'
@@ -79,7 +81,10 @@
 
     const ep=el('section','gse-section');const eh=el('div','gse-section-head');const ecopy=el('div');ecopy.append(el('h2','',t.history),el('p','',t.historySub));eh.append(ecopy);ep.append(eh);const epgrid=el('div','gse-episodes');const episodes=data.episodes||[];episodes.forEach((x,i)=>{const a=el('article','gse-episode');if(i>=8)a.hidden=true;a.dataset.extra=i>=8?'1':'0';a.append(el('time','',date(x.event_at)),el('h3','',x.label||x.event_id||'Event'),el('p','',`${scenarioLabel((x.scenario_types||[]).join(' · '))} · ${t.source}: ${x.source||'—'}`));if(x.source_ref){const link=el('a','',lang==='pl'?'Źródło pierwotne →':'Primary source →');link.href=x.source_ref;link.target='_blank';link.rel='noopener noreferrer external';a.append(link)}epgrid.append(a)});ep.append(epgrid);if(episodes.length>8){const more=el('div','gse-more');const b=el('button','',t.more);b.type='button';b.setAttribute('aria-expanded','false');b.addEventListener('click',()=>{const open=b.getAttribute('aria-expanded')==='true';epgrid.querySelectorAll('[data-extra="1"]').forEach(n=>n.hidden=open);b.setAttribute('aria-expanded',String(!open));b.textContent=open?t.more:t.less});more.append(b);ep.append(more)}frag.append(ep);
 
-    const learn=el('section','gse-section');const lh=el('div','gse-section-head');const lcopy=el('div');lcopy.append(el('h2','',t.learning),el('p','',t.learningSub));lh.append(lcopy);learn.append(lh);const timeline=el('div','gse-timeline');const timelineRows=(data.learning_timeline||[]).slice().sort((a,b)=>new Date(b.recorded_at||0)-new Date(a.recorded_at||0));timelineRows.forEach(x=>{const r=el('div','gse-timeline-row');r.append(el('time','',dateTime(x.recorded_at)),el('span','',`${x.candidates_added??0} ${t.candidates}`),el('span','',`${x.verifications_added??0} ${t.verifications}`));timeline.append(r)});if(!timelineRows.length)timeline.append(el('div','gse-loading','—'));learn.append(timeline);frag.append(learn);
+    const learn=el('section','gse-section');const lh=el('div','gse-section-head');const lcopy=el('div');lcopy.append(el('h2','',t.learning),el('p','',t.learningSub));lh.append(lcopy);learn.append(lh);
+    const timeline=el('div','gse-timeline');timeline.id='gse-learning-timeline';timeline.hidden=true;
+    const timelineRows=(data.learning_timeline||[]).slice().sort((a,b)=>new Date(b.recorded_at||0)-new Date(a.recorded_at||0));timelineRows.forEach(x=>{const r=el('div','gse-timeline-row');r.append(el('time','',dateTime(x.recorded_at)),el('span','',`${x.candidates_added??0} ${t.candidates}`),el('span','',`${x.verifications_added??0} ${t.verifications}`));timeline.append(r)});if(!timelineRows.length)timeline.append(el('div','gse-loading','—'));
+    const learningMore=el('div','gse-more');const learningToggle=el('button','',`${t.learningShow} (${timelineRows.length})`);learningToggle.type='button';learningToggle.setAttribute('aria-expanded','false');learningToggle.setAttribute('aria-controls',timeline.id);learningToggle.addEventListener('click',()=>{const open=learningToggle.getAttribute('aria-expanded')==='true';timeline.hidden=open;learningToggle.setAttribute('aria-expanded',String(!open));learningToggle.textContent=open?`${t.learningShow} (${timelineRows.length})`:t.learningHide});learningMore.append(learningToggle);learn.append(learningMore,timeline);frag.append(learn);
 
     const method=el('section','gse-section');const mh=el('div','gse-section-head');const mhcopy=el('div');mhcopy.append(el('h2','',t.method));mh.append(mhcopy);method.append(mh);const flow=el('div','gse-method');t.methodSteps.forEach((x,i)=>flow.append(el('div','',`${i+1}. ${x}`)));method.append(flow,el('p','gse-footnote',`${t.panelGenerated}: ${dateTime(activity.projection_generated_at||data.generated_at)} · ${t.automatic}`));frag.append(method);
     root.replaceChildren(frag);
