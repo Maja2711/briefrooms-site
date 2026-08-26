@@ -7,6 +7,8 @@
     pl:{
       intro:'GSE bada, jak zweryfikowane zdarzenia geopolityczne przekładają się na rynki. Łączy podobieństwo wydarzeń z reżimem rynku, a wyniki sprawdza historycznie i live.',
       clusters:'zweryfikowane klastry',responses:'reakcje historyczne',walk:'walk-forward',live:'pary live',
+      activity:'Aktywność silnika',activitySub:'Każda data oznacza inny etap pracy. Skan źródeł nie jest tym samym co cykl uczenia ani weryfikacja wcześniejszej prognozy.',
+      lastScan:'ostatni skan GSE',lastLearning:'ostatnie uczenie GSE v2',lastVerification:'ostatnia weryfikacja prognozy',panelGenerated:'dane panelu wygenerowane',
       best:'Najlepszy horyzont historyczny',bestBody:'Najniższy Brier w modelu regime-aware',
       horizons:'Wyniki według horyzontu',horizonsSub:'Porównanie modelu regime-aware z prostą bazą analogii historycznych.',
       horizon:'Horyzont',sample:'N',regime:'Brier GSE',base:'Brier baza',improvement:'Poprawa',hit:'Hit-rate',
@@ -15,14 +17,16 @@
       source:'Źródło',more:'Pokaż więcej historii',less:'Pokaż mniej',
       challenger:'Challenger i kalibracja',prospective:'Walidacja live',active:'Aktywna polityka pozostaje bez zmian',
       status:'Status',paired:'Pary',v1:'Brier v1',v2:'Brier v2',delta:'Δ Brier',bias:'Bias kalibracji',
-      readiness:'Gotowość do promocji',learning:'Historia uczenia',learningSub:'Kolejne cykle zapisywane w Learning Ledger.',
+      readiness:'Gotowość do promocji',learning:'Historia uczenia GSE v2',learningSub:'Najnowsze cykle z Learning Ledger. Data oznacza wykonanie pętli uczenia, a nie skan źródeł geopolitycznych.',
       candidates:'nowi kandydaci',verifications:'nowe weryfikacje',method:'Jak GSE się uczy',
       methodSteps:['Discovery zdarzeń','Clustering kryzysów','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
-      unavailable:'Brak aktualnych danych GSE Lab.',updated:'Aktualizacja',automatic:'Brak automatycznej promocji · brak wpływu na decyzje'
+      unavailable:'Brak aktualnych danych GSE Lab.',automatic:'Brak automatycznej promocji · brak wpływu na decyzje'
     },
     en:{
       intro:'GSE studies how verified geopolitical events transmit into markets. It combines event similarity with market regime similarity, then validates results historically and prospectively.',
       clusters:'verified clusters',responses:'historical responses',walk:'walk-forward',live:'live pairs',
+      activity:'Engine activity',activitySub:'Each timestamp represents a different stage. A source scan is not the same event as a learning cycle or verification of an earlier forecast.',
+      lastScan:'last GSE scan',lastLearning:'last GSE v2 learning',lastVerification:'last forecast verification',panelGenerated:'panel data generated',
       best:'Best historical horizon',bestBody:'Lowest Brier in the regime-aware model',
       horizons:'Results by horizon',horizonsSub:'Regime-aware model versus the simple historical-analogue baseline.',
       horizon:'Horizon',sample:'N',regime:'GSE Brier',base:'Baseline Brier',improvement:'Improvement',hit:'Hit rate',
@@ -31,10 +35,10 @@
       source:'Source',more:'Show more history',less:'Show less',
       challenger:'Challenger and calibration',prospective:'Prospective validation',active:'The active policy remains unchanged',
       status:'Status',paired:'Pairs',v1:'Brier v1',v2:'Brier v2',delta:'Δ Brier',bias:'Calibration bias',
-      readiness:'Promotion readiness',learning:'Learning history',learningSub:'Successive cycles recorded in the Learning Ledger.',
+      readiness:'Promotion readiness',learning:'GSE v2 learning history',learningSub:'Newest cycles from the Learning Ledger. The timestamp is a learning-loop execution time, not a geopolitical source scan.',
       candidates:'new candidates',verifications:'new verifications',method:'How GSE learns',
       methodSteps:['Event discovery','Crisis clustering','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
-      unavailable:'Current GSE Lab data unavailable.',updated:'Updated',automatic:'No automatic promotion · no decision influence'
+      unavailable:'Current GSE Lab data unavailable.',automatic:'No automatic promotion · no decision influence'
     }
   }[lang];
   const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
@@ -43,8 +47,8 @@
   const pct=(v,d=1)=>valid(v)?`${Number(v).toFixed(d)}%`:'—';
   const ratio=v=>valid(v)?`${Math.round(Number(v)*100)}%`:'—';
   const signed=(v,d=6)=>valid(v)?`${Number(v)>=0?'+':''}${Number(v).toFixed(d)}`:'—';
-  const date=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{year:'numeric',month:'short',day:'2-digit'}).format(d)};
-  const dateTime=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d)};
+  const date=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'short',day:'2-digit'}).format(d)};
+  const dateTime=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}).format(d)};
   const scenarioLabel=s=>String(s||'').replaceAll('_',' ');
   function metric(label,value){const box=el('div','gse-kpi');box.append(el('strong','',String(value??'—')),el('span','',label));return box}
   function row(label,value,kind=''){const r=el('div','gse-metric-row');r.append(el('span','',label),el('strong',kind,value));return r}
@@ -55,6 +59,11 @@
     hero.append(el('span','gse-kicker','GSE v2 · Research Lab'),el('h1','gse-title','GSE v2'),el('p','gse-full-name',data.engine?.full_name||'Geopolitical Scenario Engine'),el('p','gse-intro',t.intro));
     const badges=el('div','gse-badges');badges.append(el('span','gse-badge good',String(data.engine?.mode||'shadow').toUpperCase()),el('span','gse-badge warn',t.automatic));hero.append(badges);
     const grid=el('div','gse-grid');const s=data.summary||{};grid.append(metric(t.clusters,`${s.verified_clusters??'—'} / ${s.target_verified_clusters??100}+`),metric(t.responses,s.historical_response_rows??'—'),metric(t.walk,s.walk_forward_n??'—'),metric(t.live,s.prospective_paired_n??'—'));hero.append(grid);frag.append(hero);
+
+    const activity=data.activity||{};
+    const activitySection=el('section','gse-section');
+    const ah=el('div','gse-section-head');const acopy=el('div');acopy.append(el('h2','',t.activity),el('p','',t.activitySub));ah.append(acopy);activitySection.append(ah);
+    const activityGrid=el('div','gse-grid');activityGrid.append(metric(t.lastScan,dateTime(activity.last_scan_at)),metric(t.lastLearning,dateTime(activity.last_learning_at)),metric(t.lastVerification,dateTime(activity.last_verification_at)),metric(t.panelGenerated,dateTime(activity.projection_generated_at||data.generated_at)));activitySection.append(activityGrid);frag.append(activitySection);
 
     const best=data.best_horizon||{};
     const highlight=el('section','gse-section');const hi=el('div','gse-highlight');hi.append(el('strong','',`${t.best}: ${best.label||'—'}`),el('p','',`${t.bestBody}. Brier ${num(best.regime_brier)} vs ${num(best.baseline_brier)} · ${t.improvement}: ${pct(best.brier_improvement_pct)} · N=${best.n??'—'}`));highlight.append(hi);frag.append(highlight);
@@ -70,9 +79,9 @@
 
     const ep=el('section','gse-section');const eh=el('div','gse-section-head');const ecopy=el('div');ecopy.append(el('h2','',t.history),el('p','',t.historySub));eh.append(ecopy);ep.append(eh);const epgrid=el('div','gse-episodes');const episodes=data.episodes||[];episodes.forEach((x,i)=>{const a=el('article','gse-episode');if(i>=8)a.hidden=true;a.dataset.extra=i>=8?'1':'0';a.append(el('time','',date(x.event_at)),el('h3','',x.label||x.event_id||'Event'),el('p','',`${scenarioLabel((x.scenario_types||[]).join(' · '))} · ${t.source}: ${x.source||'—'}`));if(x.source_ref){const link=el('a','',lang==='pl'?'Źródło pierwotne →':'Primary source →');link.href=x.source_ref;link.target='_blank';link.rel='noopener noreferrer external';a.append(link)}epgrid.append(a)});ep.append(epgrid);if(episodes.length>8){const more=el('div','gse-more');const b=el('button','',t.more);b.type='button';b.setAttribute('aria-expanded','false');b.addEventListener('click',()=>{const open=b.getAttribute('aria-expanded')==='true';epgrid.querySelectorAll('[data-extra="1"]').forEach(n=>n.hidden=open);b.setAttribute('aria-expanded',String(!open));b.textContent=open?t.more:t.less});more.append(b);ep.append(more)}frag.append(ep);
 
-    const learn=el('section','gse-section');const lh=el('div','gse-section-head');const lcopy=el('div');lcopy.append(el('h2','',t.learning),el('p','',t.learningSub));lh.append(lcopy);learn.append(lh);const timeline=el('div','gse-timeline');(data.learning_timeline||[]).slice().reverse().forEach(x=>{const r=el('div','gse-timeline-row');r.append(el('time','',dateTime(x.recorded_at)),el('span','',`${x.candidates_added??0} ${t.candidates}`),el('span','',`${x.verifications_added??0} ${t.verifications}`));timeline.append(r)});learn.append(timeline);frag.append(learn);
+    const learn=el('section','gse-section');const lh=el('div','gse-section-head');const lcopy=el('div');lcopy.append(el('h2','',t.learning),el('p','',t.learningSub));lh.append(lcopy);learn.append(lh);const timeline=el('div','gse-timeline');const timelineRows=(data.learning_timeline||[]).slice().sort((a,b)=>new Date(b.recorded_at||0)-new Date(a.recorded_at||0));timelineRows.forEach(x=>{const r=el('div','gse-timeline-row');r.append(el('time','',dateTime(x.recorded_at)),el('span','',`${x.candidates_added??0} ${t.candidates}`),el('span','',`${x.verifications_added??0} ${t.verifications}`));timeline.append(r)});if(!timelineRows.length)timeline.append(el('div','gse-loading','—'));learn.append(timeline);frag.append(learn);
 
-    const method=el('section','gse-section');const mh=el('div','gse-section-head');const mhcopy=el('div');mhcopy.append(el('h2','',t.method));mh.append(mhcopy);method.append(mh);const flow=el('div','gse-method');t.methodSteps.forEach((x,i)=>flow.append(el('div','',`${i+1}. ${x}`)));method.append(flow,el('p','gse-footnote',`${t.updated}: ${dateTime(data.generated_at)} · ${t.automatic}`));frag.append(method);
+    const method=el('section','gse-section');const mh=el('div','gse-section-head');const mhcopy=el('div');mhcopy.append(el('h2','',t.method));mh.append(mhcopy);method.append(mh);const flow=el('div','gse-method');t.methodSteps.forEach((x,i)=>flow.append(el('div','',`${i+1}. ${x}`)));method.append(flow,el('p','gse-footnote',`${t.panelGenerated}: ${dateTime(activity.projection_generated_at||data.generated_at)} · ${t.automatic}`));frag.append(method);
     root.replaceChildren(frag);
   }
 

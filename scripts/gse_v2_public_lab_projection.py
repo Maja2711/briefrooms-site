@@ -6,9 +6,9 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
-SCHEMA_VERSION = "gse-v2-public-lab-v1"
+SCHEMA_VERSION = "gse-v2-public-lab-v2"
 HORIZON_LABELS = {24: "24h", 168: "7d", 720: "30d"}
 
 
@@ -43,6 +43,31 @@ def _num(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return value
+
+
+def _parse_time(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def latest_timestamp(values: Iterable[Any]) -> str | None:
+    parsed = [(dt, str(value)) for value in values if (dt := _parse_time(value)) is not None]
+    if not parsed:
+        return None
+    dt, _ = max(parsed, key=lambda item: item[0])
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 def improvement_pct(baseline: Any, challenger: Any) -> float | None:
@@ -123,8 +148,10 @@ def public_episodes(catalog: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def learning_timeline(ledger: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid = [row for row in ledger if _parse_time(row.get("recorded_at")) is not None]
+    valid.sort(key=lambda row: _parse_time(row.get("recorded_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     out: list[dict[str, Any]] = []
-    for row in ledger[-16:]:
+    for row in valid[:16]:
         out.append(
             {
                 "recorded_at": row.get("recorded_at"),
@@ -138,12 +165,15 @@ def learning_timeline(ledger: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
     state = read_json(state_dir / "gse_v2_learning_state.json", {})
+    gse_state = read_json(state_dir / "gse_state.json", {})
     historical = read_json(state_dir / "gse_v2_historical_walkforward.json", {})
     policy = read_json(state_dir / "gse_v2_policy_proposal.json", {})
     calibration = read_json(state_dir / "gse_v2_regime_calibration.json", {})
     enriched = read_json(state_dir / "gse_v2_enriched_library.json", {})
     discovery = read_json(state_dir / "gse_historical_discovery_state.json", {})
     ledger = read_jsonl(state_dir / "gse_v2_learning_ledger.jsonl")
+    base_verifications = read_jsonl(state_dir / "gse_verifications.jsonl")
+    v2_verifications = read_jsonl(state_dir / "gse_v2_regime_verifications.jsonl")
     catalog = read_json(catalog_path, {})
 
     episodes = public_episodes(catalog)
@@ -157,11 +187,29 @@ def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
     horizons = horizon_rows(historical)
     best_horizon = next((row for row in horizons if row.get("best")), None)
     readiness = state.get("readiness") or {}
+    timeline = learning_timeline(ledger)
 
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    last_learning_at = latest_timestamp(row.get("recorded_at") for row in ledger)
+    last_base_verification_at = latest_timestamp(row.get("verified_at") for row in base_verifications)
+    last_v2_verification_at = latest_timestamp(row.get("verified_at") for row in v2_verifications)
+    last_verification_at = latest_timestamp((last_base_verification_at, last_v2_verification_at))
+    last_scan_at = latest_timestamp((gse_state.get("last_run_at"),))
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
+        "activity": {
+            "last_scan_at": last_scan_at,
+            "last_learning_at": last_learning_at,
+            "last_verification_at": last_verification_at,
+            "last_base_verification_at": last_base_verification_at,
+            "last_v2_verification_at": last_v2_verification_at,
+            "projection_generated_at": generated_at,
+            "scan_cadence": "hourly",
+            "learning_cadence": "after_successful_gse_shadow_run",
+            "verification_cadence": "hourly_when_due",
+        },
         "engine": {
             "short_name": "GSE v2",
             "full_name": "Geopolitical Scenario Engine",
@@ -223,7 +271,7 @@ def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
             "effective_verified_cluster_n": discovery.get("effective_verified_cluster_n"),
         },
         "episodes": episodes,
-        "learning_timeline": learning_timeline(ledger),
+        "learning_timeline": timeline,
         "public_boundary": {
             "read_only_projection": True,
             "raw_evidence_exposed": False,
@@ -243,7 +291,7 @@ def main() -> int:
     payload = build_projection(args.state_dir, args.catalog)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({"generated_at": payload["generated_at"], "summary": payload["summary"], "best_horizon": payload["best_horizon"]}, ensure_ascii=False))
+    print(json.dumps({"generated_at": payload["generated_at"], "activity": payload["activity"], "summary": payload["summary"], "best_horizon": payload["best_horizon"]}, ensure_ascii=False))
     return 0
 
 

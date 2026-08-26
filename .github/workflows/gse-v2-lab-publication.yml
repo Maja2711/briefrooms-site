@@ -3,13 +3,18 @@ name: GSE v2 Lab Public Projection
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["GSE v2 Advanced Historical Learning"]
+    workflows:
+      - "Geopolitical Scenario Engine Shadow"
+      - "GSE v2 Advanced Historical Learning"
     types: [completed]
   push:
     branches: [main]
     paths:
       - "scripts/gse_v2_public_lab_projection.py"
       - "tests/test_gse_v2_public_lab_projection.py"
+      - "scripts/gse-lab.js"
+      - "pl/geo/gse-lab.html"
+      - "en/geo/gse-lab.html"
       - ".github/workflows/gse-v2-lab-publication.yml"
 
 permissions:
@@ -41,13 +46,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate projection
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate projection and frontend
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
           python -m py_compile scripts/gse_v2_public_lab_projection.py
           python -m unittest tests.test_gse_v2_public_lab_projection -v
+          node --check scripts/gse-lab.js
+          grep -q 'gse-lab-root' pl/geo/gse-lab.html
+          grep -q 'gse-lab-root' en/geo/gse-lab.html
 
       - name: Restore latest cumulative GSE state
         env:
@@ -74,6 +87,7 @@ jobs:
           test -f "$RUNNER_TEMP/gse-artifact/gse-state.tgz"
           tar -xzf "$RUNNER_TEMP/gse-artifact/gse-state.tgz" -C "$GSE_STATE_DIR"
           test -f "$GSE_STATE_DIR/gse_v2_learning_state.json"
+          test -f "$GSE_STATE_DIR/gse_state.json"
 
       - name: Resolve effective catalogue
         run: |
@@ -95,10 +109,14 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('data/gse/gse_v2_lab_public.json').read_text())
+          assert p['schema_version']=='gse-v2-public-lab-v2'
           assert p['engine']['decision_influence'] is False
           assert p['public_boundary']['raw_evidence_exposed'] is False
           assert p['public_boundary']['private_forecasts_exposed'] is False
           assert len(p['horizons']) == 3
+          assert 'activity' in p
+          assert p['activity']['last_scan_at']
+          print('GSE activity:',p['activity'])
           print('GSE Lab summary:',p['summary'])
           print('Best horizon:',p['best_horizon'])
           PY

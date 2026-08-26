@@ -12,9 +12,12 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(improvement_pct(0.25, 0.20), 20.0)
         self.assertIsNone(improvement_pct(None, 0.20))
 
-    def test_projection_is_safe_and_marks_best_horizon(self):
+    def test_projection_is_safe_marks_best_horizon_and_exposes_truthful_activity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / "gse_state.json").write_text(json.dumps({
+                "mode":"shadow","last_run_at":"2026-01-04T12:17:00Z"
+            }))
             (root / "gse_v2_learning_state.json").write_text(json.dumps({
                 "mode":"shadow","readiness":{"status":"shadow_learning","reasons":["prospective_paired_n_below_30"]},"prospective":{"paired_n":4}
             }))
@@ -32,17 +35,33 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
             (root / "gse_v2_regime_calibration.json").write_text(json.dumps({"overall":{"paired_n":4,"mean_brier_v1":0.31,"mean_brier_v2_regime":0.30}}))
             (root / "gse_v2_enriched_library.json").write_text(json.dumps({"coverage":{"response_rows":90}}))
             (root / "gse_historical_discovery_state.json").write_text(json.dumps({"effective_verified_cluster_n":12,"target_verified_clusters":100,"target_met":False}))
-            (root / "gse_v2_learning_ledger.jsonl").write_text(json.dumps({"recorded_at":"2026-01-01T00:00:00Z","candidates_added":4,"verifications_added":2,"record_hash":"abc"})+"\n")
+            ledger_rows = [
+                {"recorded_at":"2026-01-03T09:00:00Z","candidates_added":1,"verifications_added":0,"record_hash":"old"},
+                {"recorded_at":"2026-01-03T11:00:00Z","candidates_added":4,"verifications_added":2,"record_hash":"new"},
+                {"recorded_at":"2026-01-03T10:00:00Z","candidates_added":2,"verifications_added":1,"record_hash":"mid"},
+            ]
+            (root / "gse_v2_learning_ledger.jsonl").write_text("\n".join(json.dumps(row) for row in ledger_rows)+"\n")
+            (root / "gse_verifications.jsonl").write_text(json.dumps({"forecast_id":"f1","verified_at":"2026-01-04T10:00:00Z"})+"\n")
+            (root / "gse_v2_regime_verifications.jsonl").write_text(json.dumps({"candidate_id":"c1","verified_at":"2026-01-04T11:00:00Z"})+"\n")
             catalog = root / "catalog.json"
             catalog.write_text(json.dumps({"events":[{"event_id":"e1","event_cluster_id":"c1","event_at":"2024-01-01T00:00:00Z","label":"Event","scenario_types":["sanctions_escalation"],"source":"Primary","source_ref":"https://example.com","source_reliability":0.9}]}))
             out = build_projection(root, catalog)
+            self.assertEqual(out["schema_version"], "gse-v2-public-lab-v2")
             self.assertEqual(out["engine"]["full_name"], "Geopolitical Scenario Engine")
             self.assertEqual(out["summary"]["verified_clusters"], 12)
             self.assertEqual(out["best_horizon"]["label"], "30d")
+            self.assertEqual(out["activity"]["last_scan_at"], "2026-01-04T12:17:00Z")
+            self.assertEqual(out["activity"]["last_learning_at"], "2026-01-03T11:00:00Z")
+            self.assertEqual(out["activity"]["last_verification_at"], "2026-01-04T11:00:00Z")
+            self.assertEqual(out["activity"]["last_base_verification_at"], "2026-01-04T10:00:00Z")
+            self.assertEqual(out["activity"]["last_v2_verification_at"], "2026-01-04T11:00:00Z")
+            self.assertEqual(out["learning_timeline"][0]["record_hash"], "new")
+            self.assertEqual(out["learning_timeline"][1]["record_hash"], "mid")
+            self.assertEqual(out["learning_timeline"][2]["record_hash"], "old")
             self.assertFalse(out["engine"]["decision_influence"])
             self.assertFalse(out["public_boundary"]["raw_evidence_exposed"])
             self.assertNotIn("evidence", out)
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     unittest.main()
