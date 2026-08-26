@@ -41,12 +41,15 @@ jobs:
             scripts/us_daily_stock_position_lifecycle.py \
             scripts/us_daily_stock_position_monitor.py \
             scripts/us_daily_stock_runtime.py \
+            scripts/daily_stock_timestamp_integrity.py \
             scripts/build_daily_stock_history_index.py
 
       - name: Reconcile open US position
         run: |
           set -euo pipefail
           python scripts/us_daily_stock_position_monitor.py
+          python scripts/daily_stock_timestamp_integrity.py --market us
+          python scripts/build_daily_stock_history_index.py
           python -m json.tool data/investments/us_daily_stock.json >/dev/null
           if [[ -f data/investments/us_daily_stock_position.json ]]; then
             python -m json.tool data/investments/us_daily_stock_position.json >/dev/null
