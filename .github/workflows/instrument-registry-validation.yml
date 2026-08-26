@@ -7,14 +7,18 @@ on:
       - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v3.py"
       - "scripts/investments_weekly_v4.py"
+      - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_macro.py"
       - "scripts/investments_weekly_ma_structure.py"
+      - "scripts/investments_wes.py"
+      - "scripts/investments_wes_runner.py"
       - "tests/test_instrument_registry.py"
       - "tests/test_instrument_registry_wes_integration.py"
       - "docs/CANONICAL_INSTRUMENT_REGISTRY.md"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/instrument-registry-validation.yml"
+      - ".github/workflows/investments-wes.yml"
   workflow_dispatch:
 
 permissions:
@@ -40,8 +44,11 @@ jobs:
             scripts/investments_weekly_v2.py \
             scripts/investments_weekly_v3.py \
             scripts/investments_weekly_v4.py \
+            scripts/investments_weekly_v5.py \
             scripts/investments_weekly_macro.py \
-            scripts/investments_weekly_ma_structure.py
+            scripts/investments_weekly_ma_structure.py \
+            scripts/investments_wes.py \
+            scripts/investments_wes_runner.py
       - name: Run registry unit and WES integration tests
         run: |
           python -m unittest tests.test_instrument_registry -v
