@@ -11,40 +11,14 @@
   };
 
   const T = lang === "pl" ? {
-    status: "W TOKU",
-    eyebrow: "AKTYWNA POZYCJA",
-    entry: "Cena wejścia",
-    stop: "SL",
-    target: "TP",
-    validUntil: "Ważna do",
-    history: "Historia transakcji",
-    historyGpw: "Rynek polski (GPW)",
-    historyUs: "Rynek amerykański (USA)",
-    closed: "zamkniętych",
-    entryShort: "WEJŚCIE",
-    exitShort: "WYJŚCIE",
-    notActivated: "NIE AKTYWOWANO",
-    targetHit: "CEL",
-    stopHit: "STOP",
-    horizon: "KONIEC HORYZONTU",
+    status: "W TOKU", eyebrow: "AKTYWNA POZYCJA", entry: "Cena wejścia", stop: "SL", target: "TP", validUntil: "Ważna do",
+    history: "Historia transakcji", historyGpw: "Rynek polski (GPW)", historyUs: "Rynek amerykański (USA)", closed: "zamkniętych",
+    entryShort: "WEJŚCIE", exitShort: "WYJŚCIE", notActivated: "NIE AKTYWOWANO", targetHit: "CEL", stopHit: "STOP", horizon: "KONIEC HORYZONTU",
     copy: (ticker, entry, target, stop) => `Pozycja ${ticker} pozostaje aktywna. Wejście: ${entry}. TP: ${target}. SL: ${stop}.`,
   } : {
-    status: "OPEN",
-    eyebrow: "ACTIVE POSITION",
-    entry: "Entry price",
-    stop: "SL",
-    target: "TP",
-    validUntil: "Valid through",
-    history: "Trade history",
-    historyGpw: "Polish market (GPW)",
-    historyUs: "US market",
-    closed: "closed",
-    entryShort: "ENTRY",
-    exitShort: "EXIT",
-    notActivated: "NOT ACTIVATED",
-    targetHit: "TARGET",
-    stopHit: "STOP",
-    horizon: "HORIZON END",
+    status: "OPEN", eyebrow: "ACTIVE POSITION", entry: "Entry price", stop: "SL", target: "TP", validUntil: "Valid through",
+    history: "Trade history", historyGpw: "Polish market (GPW)", historyUs: "US market", closed: "closed",
+    entryShort: "ENTRY", exitShort: "EXIT", notActivated: "NOT ACTIVATED", targetHit: "TARGET", stopHit: "STOP", horizon: "HORIZON END",
     copy: (ticker, entry, target, stop) => `${ticker} remains open. Entry: ${entry}. TP: ${target}. SL: ${stop}.`,
   };
 
@@ -57,30 +31,26 @@
       const response = await fetch(`${url}?v=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
       if (!response.ok) return null;
       return await response.json();
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   };
 
   const money = (value, market) => {
     if (!Number.isFinite(Number(value))) return "—";
     return Number(value).toLocaleString(lang === "pl" ? "pl-PL" : "en-US", {
-      style: "currency",
-      currency: market === "gpw" ? "PLN" : "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      style: "currency", currency: market === "gpw" ? "PLN" : "USD", minimumFractionDigits: 2, maximumFractionDigits: 2
     });
   };
 
   const dateText = (value) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return String(value || "—");
     const [y, m, d] = String(value).split("-").map(Number);
-    return new Intl.DateTimeFormat(lang === "pl" ? "pl-PL" : "en-GB", {
-      day: "2-digit", month: "2-digit", year: "numeric"
-    }).format(new Date(Date.UTC(y, m - 1, d, 12)));
+    return new Intl.DateTimeFormat(lang === "pl" ? "pl-PL" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
+      .format(new Date(Date.UTC(y, m - 1, d, 12)));
   };
 
-  const entryAtText = (value) => {
+  // Preserve the market-local clock encoded in the canonical ISO timestamp.
+  // Do not synthesize a time from trade date, publication time or settlement time.
+  const tradeAtText = (value) => {
     const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     if (!match) return "";
     const [, y, m, d, hh, mm] = match;
@@ -131,16 +101,13 @@
     const ticker = tickerOf(trade) || "—";
     const name = String(trade?.name || "").trim();
     const entry = entryText(trade, market);
-    const entryAt = entryAtText(trade?.outcome?.activated_at);
+    const entryAt = tradeAtText(trade?.outcome?.activated_at);
     const stop = money(trade?.stop, market);
     const target = money(trade?.target, market);
     const deadline = dateText(trade?.valid_until);
 
     const status = card.querySelector(".dsm-status");
-    if (status) {
-      status.className = "dsm-status open-position";
-      status.textContent = T.status;
-    }
+    if (status) { status.className = "dsm-status open-position"; status.textContent = T.status; }
 
     const panel = document.createElement("div");
     panel.className = "dsm-open-position";
@@ -150,7 +117,7 @@
         <b>${escapeHtml(T.validUntil)}: ${escapeHtml(deadline)}</b>
       </div>
       <div class="dsm-open-position-levels">
-        <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b>${entryAt ? `<small>${escapeHtml(entryAt)}</small>` : ""}</div>
+        <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b><small>${escapeHtml(entryAt)}</small></div>
         <div><small>${escapeHtml(T.stop)}</small><b>${escapeHtml(stop)}</b></div>
         <div><small>${escapeHtml(T.target)}</small><b>${escapeHtml(target)}</b></div>
       </div>
@@ -172,10 +139,7 @@
     const reason = outcome.exit_reason === "target" ? T.targetHit : outcome.exit_reason === "stop" ? T.stopHit : T.horizon;
     const result = Number(outcome.return_percent || 0);
     const r = Number(outcome.r_multiple || 0);
-    return {
-      text: `${reason} · ${result >= 0 ? "+" : ""}${result.toFixed(2)}% · ${r.toFixed(2)}R`,
-      cls: result > 0 ? "positive" : result < 0 ? "negative" : ""
-    };
+    return { text: `${reason} · ${result >= 0 ? "+" : ""}${result.toFixed(2)}% · ${r.toFixed(2)}R`, cls: result > 0 ? "positive" : result < 0 ? "negative" : "" };
   };
 
   const closedMarket = (market, rows) => {
@@ -185,14 +149,15 @@
     return `<section class="dsm-history-market"><h4>${escapeHtml(title)}</h4><p class="dsm-history-summary">${closed.length} ${escapeHtml(T.closed)}</p>${closed.map((row) => {
       const outcome = row?.outcome || {};
       const result = outcomeLabel(row);
-      const entryAt = entryAtText(outcome.activated_at);
+      const entryAt = tradeAtText(outcome.activated_at);
+      const exitAt = tradeAtText(outcome.exit_at || outcome.exit_bar_at || outcome.closed_at);
       return `<div class="dsm-history-row dsm-history-row-closed">
         <span class="dsm-history-date">${escapeHtml(row.date || "—")}</span>
         <b>${escapeHtml(row.ticker || row.symbol || "—")}</b>
         <span class="dsm-history-name">${escapeHtml(row.name || row.sector || "")}</span>
         <span class="dsm-history-prices">
-          <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(outcome.entry_price, market))}</b>${entryAt ? `<small>${escapeHtml(entryAt)}</small>` : ""}</span>
-          <span><small>${escapeHtml(T.exitShort)}</small><b>${escapeHtml(money(outcome.exit_price, market))}</b></span>
+          <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(outcome.entry_price, market))}</b><small>${escapeHtml(entryAt)}</small></span>
+          <span><small>${escapeHtml(T.exitShort)}</small><b>${escapeHtml(money(outcome.exit_price, market))}</b><small>${escapeHtml(exitAt)}</small></span>
         </span>
         <span class="dsm-history-result ${result.cls}">${escapeHtml(result.text)}</span>
       </div>`;
@@ -227,9 +192,7 @@
         if (usActive) renderActive(usActive, "us");
         renderClosedHistory(gpwRows, usRows);
         window.clearInterval(timer);
-      } else if (attempts >= 80) {
-        window.clearInterval(timer);
-      }
+      } else if (attempts >= 80) window.clearInterval(timer);
     }, 250);
   };
 
