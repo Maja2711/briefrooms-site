@@ -8,6 +8,7 @@ on:
       - ".github/workflows/gpw-daily-outcome-monitor.yml"
       - "scripts/gpw_daily_outcome_monitor.py"
       - "scripts/gpw_daily_apply_manual_evidence.py"
+      - "scripts/daily_stock_timestamp_integrity.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/daily-stock-markets-public.js"
       - "tests/test_gpw_daily_outcome_monitor.py"
@@ -44,7 +45,7 @@ jobs:
 
       - name: Validate outcome monitor contract
         run: |
-          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_apply_manual_evidence.py scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py scripts/build_daily_stock_history_index.py
+          python -m py_compile scripts/gpw_daily_outcome_monitor.py scripts/gpw_daily_apply_manual_evidence.py scripts/gpw_daily_pick.py scripts/gpw_daily_control_loop.py scripts/daily_stock_timestamp_integrity.py scripts/build_daily_stock_history_index.py
           python -m unittest tests.test_gpw_daily_outcome_monitor -v
           node --check scripts/gpw-daily-pick-public.js
           node --check scripts/daily-stock-markets-public.js
@@ -53,7 +54,9 @@ jobs:
         run: python scripts/gpw_daily_apply_manual_evidence.py
 
       - name: Resolve pending GPW trades and rebuild durable history
-        run: python scripts/gpw_daily_outcome_monitor.py
+        run: |
+          python scripts/gpw_daily_outcome_monitor.py
+          python scripts/daily_stock_timestamp_integrity.py --market gpw
 
       - name: Refresh bounded learning snapshot from settled history immediately
         run: |
