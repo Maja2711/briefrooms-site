@@ -6,6 +6,7 @@
   const HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   const HOME_LIMIT = 10;
+  const HOME_POLICY = 'max-72h-first-display-v1';
   const TOPIC_ORDER = ['politics', 'economy', 'health'];
   const text = lang === 'pl' ? {
     source: 'Źródło',
@@ -42,6 +43,12 @@
     return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
   }
 
+  function isFreshHomepageStory(story, now = Date.now()) {
+    if (!story || !isFreshTimestamp(story.published_at, now)) return false;
+    if (!story.homepage_first_seen_at) return true; // rollout/backward-compatible fallback
+    return isFreshTimestamp(story.homepage_first_seen_at, now);
+  }
+
   function normalizedCategory(value) {
     return String(value || '')
       .normalize('NFD')
@@ -73,7 +80,7 @@
     const seen = new Set();
     const fresh = (Array.isArray(stories) ? stories : [])
       .filter(story => {
-        if (!story || !story.title || !isFreshTimestamp(story.published_at, now)) return false;
+        if (!story || !story.title || !isFreshHomepageStory(story, now)) return false;
         const identity = storyIdentity(story);
         if (!identity || seen.has(identity)) return false;
         seen.add(identity);
@@ -108,8 +115,10 @@
     const link = safeHttp(story.link);
     const image = safeHttp(story.image);
     const publishedAt = timestamp(story.published_at) ? String(story.published_at) : '';
+    const firstSeenAt = timestamp(story.homepage_first_seen_at) ? String(story.homepage_first_seen_at) : '';
     if (!link || !image || !story.title || !publishedAt) return '';
-    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"><div class="thumb has-image"><div class="fallback-art" aria-hidden="true">BR</div><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
+    const firstSeenAttr = firstSeenAt ? ` data-home-first-seen-at="${esc(firstSeenAt)}"` : '';
+    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}><div class="thumb has-image"><div class="fallback-art" aria-hidden="true">BR</div><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
   }
 
   function formatTime(value) {
@@ -159,9 +168,11 @@
   function pruneStaticHomepage(now = Date.now()) {
     const container = document.getElementById('latest-briefs');
     if (!container) return;
-    container.dataset.homeFreshnessPolicy = 'max-72h-v1';
+    container.dataset.homeFreshnessPolicy = HOME_POLICY;
     container.querySelectorAll('.brief-card').forEach(card => {
-      if (isFreshTimestamp(card.dataset.homePublishedAt, now)) {
+      const sourceFresh = isFreshTimestamp(card.dataset.homePublishedAt, now);
+      const exposureFresh = !card.dataset.homeFirstSeenAt || isFreshTimestamp(card.dataset.homeFirstSeenAt, now);
+      if (sourceFresh && exposureFresh) {
         card.hidden = false;
         card.removeAttribute('aria-hidden');
         delete card.dataset.homeStale;
@@ -178,7 +189,7 @@
     if (!container || !Array.isArray(data.home)) return false;
     const stories = selectHomepageStories(data.home);
     const cards = stories.map(homeCard).filter(Boolean).join('');
-    container.dataset.homeFreshnessPolicy = 'max-72h-v1';
+    container.dataset.homeFreshnessPolicy = HOME_POLICY;
     container.dataset.homePriority = 'politics-economy-health';
     if (!cards) {
       container.replaceChildren();
@@ -212,7 +223,7 @@
     } catch (error) {
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; only homepage cards newer than 72 hours may remain visible.', error);
+      console.warn('BriefRooms live news refresh failed; only homepage cards within the 72-hour publication and first-display policy may remain visible.', error);
       return false;
     }
   }
