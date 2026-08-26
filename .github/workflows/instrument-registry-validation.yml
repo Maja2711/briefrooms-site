@@ -1,0 +1,33 @@
+name: Canonical Instrument Registry validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/instrument_registry.py"
+      - "tests/test_instrument_registry.py"
+      - "docs/CANONICAL_INSTRUMENT_REGISTRY.md"
+      - "data/investments/methodology.json"
+      - "data/investments/multi_instrument_exposure_policy.json"
+      - ".github/workflows/instrument-registry-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile registry
+        run: python -m py_compile scripts/instrument_registry.py
+      - name: Run registry unit tests
+        run: python -m unittest tests.test_instrument_registry -v
+      - name: Validate governed WES metadata against registry
+        run: python scripts/instrument_registry.py --validate-wes
