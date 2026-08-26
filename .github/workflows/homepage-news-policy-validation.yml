@@ -8,6 +8,7 @@ on:
       - "scripts/install_news_live_runtime.py"
       - "tests/home_briefs_policy.test.js"
       - "tests/test_install_news_live_runtime.py"
+      - "tests/test_homepage_static.py"
       - ".github/workflows/homepage-news-policy-validation.yml"
   workflow_dispatch:
 
@@ -33,7 +34,9 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/install_news_live_runtime.py
-          python -m unittest tests.test_install_news_live_runtime -v
+          python -m unittest \
+            tests.test_install_news_live_runtime \
+            tests.test_homepage_static -v
           node --check scripts/news-live.js
           node --check scripts/home-briefs.js
           node --test tests/home_briefs_policy.test.js

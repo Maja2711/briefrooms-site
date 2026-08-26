@@ -87,7 +87,11 @@ class HomepageStaticTests(unittest.TestCase):
             page = ROOT / lang / "index.html"
             source = page.read_text(encoding="utf-8")
             block = marker_block(source)
-            hrefs = re.findall(r'<a class="brief-card" href="([^"]+)">', block)
+            hrefs = re.findall(
+                r'<a\b(?=[^>]*\bclass="[^"]*\bbrief-card\b[^"]*")[^>]*\bhref="([^"]+)"[^>]*>',
+                block,
+                flags=re.IGNORECASE,
+            )
             self.assertGreaterEqual(len(hrefs), 1, lang)
             self.assertLessEqual(len(hrefs), permanent.HOME_CARD_LIMIT, lang)
             self.assertEqual(block.count('class="brief-title"'), len(hrefs), lang)
