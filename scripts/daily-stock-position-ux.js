@@ -80,6 +80,13 @@
     }).format(new Date(Date.UTC(y, m - 1, d, 12)));
   };
 
+  const entryAtText = (value) => {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!match) return "";
+    const [, y, m, d, hh, mm] = match;
+    return lang === "pl" ? `${d}.${m}.${y}, ${hh}:${mm}` : `${d}/${m}/${y}, ${hh}:${mm}`;
+  };
+
   const tickerOf = (row) => String(row?.ticker || row?.symbol || "").trim().toUpperCase();
   const isResolved = (row) => String(row?.outcome?.status || "").toUpperCase() === "RESOLVED";
   const isActive = (row) => !isResolved(row) && row?.outcome?.activated === true;
@@ -124,6 +131,7 @@
     const ticker = tickerOf(trade) || "—";
     const name = String(trade?.name || "").trim();
     const entry = entryText(trade, market);
+    const entryAt = entryAtText(trade?.outcome?.activated_at);
     const stop = money(trade?.stop, market);
     const target = money(trade?.target, market);
     const deadline = dateText(trade?.valid_until);
@@ -142,7 +150,7 @@
         <b>${escapeHtml(T.validUntil)}: ${escapeHtml(deadline)}</b>
       </div>
       <div class="dsm-open-position-levels">
-        <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b></div>
+        <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b>${entryAt ? `<small>${escapeHtml(entryAt)}</small>` : ""}</div>
         <div><small>${escapeHtml(T.stop)}</small><b>${escapeHtml(stop)}</b></div>
         <div><small>${escapeHtml(T.target)}</small><b>${escapeHtml(target)}</b></div>
       </div>
@@ -177,12 +185,13 @@
     return `<section class="dsm-history-market"><h4>${escapeHtml(title)}</h4><p class="dsm-history-summary">${closed.length} ${escapeHtml(T.closed)}</p>${closed.map((row) => {
       const outcome = row?.outcome || {};
       const result = outcomeLabel(row);
+      const entryAt = entryAtText(outcome.activated_at);
       return `<div class="dsm-history-row dsm-history-row-closed">
         <span class="dsm-history-date">${escapeHtml(row.date || "—")}</span>
         <b>${escapeHtml(row.ticker || row.symbol || "—")}</b>
         <span class="dsm-history-name">${escapeHtml(row.name || row.sector || "")}</span>
         <span class="dsm-history-prices">
-          <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(outcome.entry_price, market))}</b></span>
+          <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(outcome.entry_price, market))}</b>${entryAt ? `<small>${escapeHtml(entryAt)}</small>` : ""}</span>
           <span><small>${escapeHtml(T.exitShort)}</small><b>${escapeHtml(money(outcome.exit_price, market))}</b></span>
         </span>
         <span class="dsm-history-result ${result.cls}">${escapeHtml(result.text)}</span>
