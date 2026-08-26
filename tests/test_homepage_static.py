@@ -82,13 +82,15 @@ class HomepageStaticTests(unittest.TestCase):
         self.assertIn('href="/pl/"', source)
         self.assertIn('href="/en/"', source)
 
-    def test_repository_homepages_contain_real_static_briefs(self) -> None:
+    def test_repository_homepages_contain_only_safe_static_briefs(self) -> None:
         for lang, directory in (("pl", "briefy"), ("en", "briefs")):
             page = ROOT / lang / "index.html"
             source = page.read_text(encoding="utf-8")
             block = marker_block(source)
             hrefs = re.findall(r'<a class="brief-card" href="([^"]+)">', block)
-            self.assertGreaterEqual(len(hrefs), 1, lang)
+            # The static fallback may intentionally be empty when every reviewed brief
+            # exceeded the hard 72-hour homepage age limit. Live news then populates the
+            # grid client-side; retaining an expired static card is not allowed.
             self.assertLessEqual(len(hrefs), permanent.HOME_CARD_LIMIT, lang)
             self.assertEqual(block.count('class="brief-title"'), len(hrefs), lang)
             self.assertEqual(block.count('class="brief-desc"'), len(hrefs), lang)
