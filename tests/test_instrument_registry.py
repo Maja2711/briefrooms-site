@@ -21,6 +21,7 @@ from instrument_registry import (  # noqa: E402
     InstrumentType,
     UnknownInstrumentError,
     VendorSymbol,
+    canonical_vendor_symbol,
     validate_wes_configuration,
 )
 
@@ -50,6 +51,16 @@ class InstrumentRegistryTest(unittest.TestCase):
         self.assertEqual(DEFAULT_REGISTRY.get_vendor_symbol("eurusd", "yahoo"), "EURUSD=X")
         self.assertEqual(DEFAULT_REGISTRY.get_vendor_symbol("sp500_futures", "YAHOO"), "ES=F")
         self.assertEqual(DEFAULT_REGISTRY.get_vendor_symbol("btcusd", "yahoo"), "BTC-USD")
+
+    def test_runtime_symbol_guard_returns_registry_value_when_config_matches(self):
+        self.assertEqual(
+            canonical_vendor_symbol("sp500_futures", "yahoo", configured_symbol="ES=F"),
+            "ES=F",
+        )
+
+    def test_runtime_symbol_guard_rejects_config_drift(self):
+        with self.assertRaises(InstrumentRegistryError):
+            canonical_vendor_symbol("sp500_futures", "yahoo", configured_symbol="SPY")
 
     def test_macro_reference_symbols_are_registered(self):
         self.assertEqual(DEFAULT_REGISTRY.find_by_vendor_symbol("yahoo", "CL=F").instrument_id, "wti_futures")
@@ -132,7 +143,7 @@ class InstrumentRegistryTest(unittest.TestCase):
             policy_path.write_text(json.dumps(policy), encoding="utf-8")
             errors = validate_wes_configuration(method_path, policy_path)
 
-        self.assertTrue(any("Yahoo symbol" in error for error in errors))
+        self.assertTrue(any("configured yahoo symbol" in error.lower() for error in errors))
 
     def test_wes_validator_detects_unknown_policy_instrument(self):
         methodology = json.loads(DEFAULT_METHODOLOGY_PATH.read_text(encoding="utf-8"))
@@ -147,6 +158,20 @@ class InstrumentRegistryTest(unittest.TestCase):
             errors = validate_wes_configuration(method_path, policy_path)
 
         self.assertTrue(any("unknown instrument" in error for error in errors))
+
+    def test_wes_validator_detects_macro_symbol_drift(self):
+        methodology = json.loads(DEFAULT_METHODOLOGY_PATH.read_text(encoding="utf-8"))
+        policy = json.loads(DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
+        policy["macro_context"]["oil_symbol"] = "BZ=F"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            method_path = Path(tmp) / "methodology.json"
+            policy_path = Path(tmp) / "policy.json"
+            method_path.write_text(json.dumps(methodology), encoding="utf-8")
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+            errors = validate_wes_configuration(method_path, policy_path)
+
+        self.assertTrue(any("oil_symbol" in error for error in errors))
 
 
 if __name__ == "__main__":
