@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """Preserve explicit entry/exit timestamps for GPW and US paper trades.
 
-Never fabricates timestamps. US entry time may be recovered only from the
-selection market snapshot when its observed price is inside the published entry
-zone. Exit time is copied only from an explicit execution/closure timestamp.
+No timestamp is invented. US entry time may be recovered only from the market
+snapshot that actually activated the trade. GPW horizon exit time may be
+recovered only when the final 5-minute bar on the expiry session reproduces the
+persisted exit price. Otherwise the timestamp remains absent and the UI is blank.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import tempfile
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 INV = ROOT / "data/investments"
@@ -19,6 +24,7 @@ US_DIR = INV / "us_daily_stock_history"
 GPW_DIR = INV / "gpw_daily_pick_history"
 US_INDEX = US_DIR / "index.json"
 GPW_INDEX = INV / "gpw_daily_pick_history_index.json"
+WARSAW = ZoneInfo("Europe/Warsaw")
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -54,6 +60,51 @@ def explicit_us_activation(payload: dict[str, Any]) -> str | None:
     return str(observed_at)
 
 
+def explicit_gpw_horizon_exit(payload: dict[str, Any]) -> str | None:
+    selection = payload.get("selection") or {}
+    outcome = payload.get("outcome") or {}
+    if str(outcome.get("exit_reason") or "") != "koniec_horyzontu":
+        return None
+    symbol = str(selection.get("symbol") or "")
+    expiry = str(selection.get("valid_until") or "")
+    try:
+        expected = float(outcome["exit_price"])
+        expiry_date = datetime.fromisoformat(expiry).date()
+    except (KeyError, TypeError, ValueError):
+        return None
+    params = urllib.parse.urlencode({"range": "5d", "interval": "5m", "events": "history", "includeAdjustedClose": "true"})
+    encoded = urllib.parse.quote(symbol, safe="")
+    for host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com"):
+        try:
+            req = urllib.request.Request(
+                f"https://{host}/v8/finance/chart/{encoded}?{params}",
+                headers={"User-Agent": "Mozilla/5.0 BriefRooms/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=12) as response:
+                doc = json.loads(response.read().decode("utf-8"))
+            result = (doc.get("chart", {}).get("result") or [None])[0]
+            if not result:
+                continue
+            stamps = result.get("timestamp") or []
+            quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+            closes = quote.get("close") or []
+            candidates: list[tuple[datetime, float]] = []
+            for i, stamp in enumerate(stamps):
+                if i >= len(closes) or closes[i] is None:
+                    continue
+                dt = datetime.fromtimestamp(int(stamp), timezone.utc).astimezone(WARSAW)
+                if dt.date() == expiry_date:
+                    candidates.append((dt, float(closes[i])))
+            if not candidates:
+                continue
+            dt, close = candidates[-1]
+            if round(close, 2) == round(expected, 2):
+                return dt.isoformat(timespec="seconds")
+        except Exception:
+            continue
+    return None
+
+
 def enrich_payload(payload: dict[str, Any], market: str) -> bool:
     if str(payload.get("decision") or "") not in ({"TRADE"} if market == "us" else {"TRANSAKCJA"}):
         return False
@@ -70,6 +121,12 @@ def enrich_payload(payload: dict[str, Any], market: str) -> bool:
             outcome["activated_at"] = observed_at
             if outcome.get("entry_price") is None and snapshot.get("last") is not None:
                 outcome["entry_price"] = snapshot.get("last")
+            changed = True
+
+    if market == "gpw" and outcome.get("activated") is True and not outcome.get("exit_bar_at"):
+        recovered = explicit_gpw_horizon_exit(payload)
+        if recovered:
+            outcome["exit_bar_at"] = recovered
             changed = True
 
     if outcome.get("activated") is True and not outcome.get("exit_at"):
