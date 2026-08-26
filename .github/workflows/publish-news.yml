@@ -9,6 +9,7 @@ on:
     paths:
       - "scripts/publish_live_news.py"
       - "scripts/publish_live_news_filtered.py"
+      - "scripts/enforce_homepage_max_age.py"
       - "scripts/news_quality.py"
       - "scripts/render_live_news_static.py"
       - "scripts/generate_permanent_briefs.py"
@@ -16,6 +17,7 @@ on:
       - "scripts/home-briefs.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
+      - "tests/test_homepage_max_age.py"
       - "tests/test_news_quality.py"
       - "tests/test_homepage_static.py"
       - "tests/test_install_news_live_runtime.py"
@@ -56,12 +58,14 @@ jobs:
           python -m py_compile \
             scripts/publish_live_news.py \
             scripts/publish_live_news_filtered.py \
+            scripts/enforce_homepage_max_age.py \
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
             scripts/generate_permanent_briefs.py \
             scripts/install_news_live_runtime.py
           python -m unittest \
             tests.test_publish_live_news \
+            tests.test_homepage_max_age \
             tests.test_news_quality \
             tests.test_install_news_live_runtime -v
           node --check scripts/news-live.js
@@ -79,6 +83,7 @@ jobs:
           # The live publisher may create compatibility home feeds, but those are not
           # allowed to replace the last strictly reviewed homepage brief set.
           python scripts/publish_live_news_filtered.py --marker "${marker}"
+          python scripts/enforce_homepage_max_age.py
           python scripts/render_live_news_static.py
 
           cp .cache/home_brief_pl_last_good.json pl/home_brief.json
@@ -87,6 +92,7 @@ jobs:
 
           python scripts/install_news_live_runtime.py
           python scripts/publish_live_news_filtered.py --validate --max-age-minutes 10
+          python scripts/enforce_homepage_max_age.py --validate
           python -m unittest tests.test_homepage_static -v
 
           for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
@@ -101,6 +107,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             data/news/pl.json data/news/en.json data/news/status.json \
+            data/news/homepage_exposure.json \
             data/news_publication_status.json \
             data/permanent_briefs_pl.json data/permanent_briefs_en.json \
             pl/home_brief.json en/home_brief.json \
@@ -159,8 +166,20 @@ jobs:
                           last.append(f'{path}: schema mismatch')
                       if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v2':
                           last.append(f'{path}: editorial policy v2 missing')
+                      if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
+                          last.append(f'{path}: homepage 72h first-display policy missing')
                       if any(len(items) < 4 for items in payload.get('sections', {}).values()):
                           last.append(f'{path}: incomplete section')
+                      now = datetime.now(timezone.utc)
+                      for story in payload.get('home', []):
+                          first_seen_raw = story.get('homepage_first_seen_at')
+                          if not first_seen_raw:
+                              last.append(f'{path}: homepage first-seen timestamp missing')
+                              break
+                          first_seen = datetime.fromisoformat(first_seen_raw.replace('Z', '+00:00'))
+                          if now - first_seen > timedelta(days=3):
+                              last.append(f'{path}: homepage story exceeds 72h exposure cap')
+                              break
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               for path in html_paths:
@@ -175,7 +194,7 @@ jobs:
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news are current and use editorial value filter v2 plus homepage freshness policy.')
+                  print('Production PL and EN news are current and enforce the 72-hour first-display homepage cap.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))
