@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import investments_weekly_v2 as v2
 import investments_weekly_ma_structure as ma_structure
 import investments_research_bridge as research_bridge
+from instrument_registry import canonical_vendor_symbol
 
 
 def clip(value: float, low: float, high: float) -> float:
@@ -18,6 +19,21 @@ def clip(value: float, low: float, high: float) -> float:
 def _macro_cfg(policy: Dict[str, Any]) -> Dict[str, Any]:
     value = policy.get("macro_context")
     return value if isinstance(value, dict) else {}
+
+
+def _canonical_macro_symbols(cfg: Dict[str, Any]) -> Tuple[str, str]:
+    """Resolve WTI and US10Y from canonical IDs; legacy fields are drift assertions."""
+    oil_symbol = canonical_vendor_symbol(
+        "wti_futures",
+        "yahoo",
+        configured_symbol=str(cfg.get("oil_symbol") or "CL=F"),
+    )
+    yield_symbol = canonical_vendor_symbol(
+        "us10y_yield",
+        "yahoo",
+        configured_symbol=str(cfg.get("us10y_symbol") or "^TNX"),
+    )
+    return oil_symbol, yield_symbol
 
 
 def _close_series(symbol: str, period: str = "2y") -> Tuple[Optional[List[float]], Optional[str], Optional[str]]:
@@ -76,8 +92,7 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
     enabled_for = set(str(value) for value in cfg.get("applies_to") or ["eurusd"])
     if not cfg.get("enabled", True) or instrument_id not in enabled_for:
         return {"enabled": False, "instrument_id": instrument_id, "data_quality": "not_applicable", "score": 0.0, "ma_structure": ma_context}
-    oil_symbol = str(cfg.get("oil_symbol") or "CL=F")
-    yield_symbol = str(cfg.get("us10y_symbol") or "^TNX")
+    oil_symbol, yield_symbol = _canonical_macro_symbols(cfg)
     oil, oil_as_of, oil_error = _close_series(oil_symbol)
     us10y, yield_as_of, yield_error = _close_series(yield_symbol)
     require_both = bool(cfg.get("require_both_sources", True))
@@ -88,7 +103,7 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
     observations = {"oil_1w_percent": round(_return(oil, 5) * 100.0, 4), "oil_4w_percent": round(_return(oil, 20) * 100.0, 4), "us10y_1w_bps": round(_change_bps(us10y, 5), 4), "us10y_4w_bps": round(_change_bps(us10y, 20), 4)}
     scored = score_from_observations(**observations, cfg=cfg)
     score = float(scored["score"])
-    return {"enabled": True, "instrument_id": instrument_id, "data_quality": "passed", "direction": "long" if score > 0 else "short" if score < 0 else "neutral", **scored, "observations": observations, "sources": {"oil": {"symbol": oil_symbol, "as_of": oil_as_of, "error": oil_error}, "us10y": {"symbol": yield_symbol, "as_of": yield_as_of, "error": yield_error}}, "as_of": max(str(oil_as_of or ""), str(yield_as_of or "")), "evaluated_at": now.isoformat(timespec="seconds"), "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short", "rule": "Oil and US10Y are context inputs, not standalone trade triggers.", "ma_structure": ma_context}
+    return {"enabled": True, "instrument_id": instrument_id, "data_quality": "passed", "direction": "long" if score > 0 else "short" if score < 0 else "neutral", **scored, "observations": observations, "sources": {"oil": {"instrument_id": "wti_futures", "symbol": oil_symbol, "as_of": oil_as_of, "error": oil_error}, "us10y": {"instrument_id": "us10y_yield", "symbol": yield_symbol, "as_of": yield_as_of, "error": yield_error}}, "as_of": max(str(oil_as_of or ""), str(yield_as_of or "")), "evaluated_at": now.isoformat(timespec="seconds"), "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short", "rule": "Oil and US10Y are context inputs, not standalone trade triggers.", "ma_structure": ma_context}
 
 
 def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]], fresh: Dict[str, Any], weekly: Dict[str, Any], macro_context: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:

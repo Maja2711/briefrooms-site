@@ -67,7 +67,10 @@ def opposite(direction: str) -> str:
 
 
 def instrument_cfg(method: Dict[str, Any], instrument_id: str) -> Optional[Dict[str, Any]]:
-    return next((x for x in method.get("instruments") or [] if str(x.get("id")) == instrument_id), None)
+    row = next((x for x in method.get("instruments") or [] if str(x.get("id")) == instrument_id), None)
+    if row is not None:
+        v2.canonical_yahoo_symbol(instrument_id, str(row.get("symbol") or ""))
+    return row
 
 
 def policy_instruments(policy: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -88,9 +91,11 @@ def emergency_current_week(now: datetime, method: Dict[str, Any]) -> Path:
     week_id = legacy.week_id_from_date(now)
     items: List[Dict[str, Any]] = []
     for cfg in method.get("instruments") or []:
+        instrument_id = str(cfg.get("id") or "")
+        symbol = v2.canonical_yahoo_symbol(instrument_id, str(cfg.get("symbol") or ""))
         signal = v2.model_signal(cfg, method, week_id, now)
         items.append({
-            "instrument_id": cfg.get("id"), "symbol": cfg.get("symbol"),
+            "instrument_id": instrument_id, "symbol": symbol,
             "label_pl": cfg.get("label_pl"), "label_en": cfg.get("label_en"),
             **signal, "entry_price": None, "entry_captured_at": None,
             "entry_source": None, "exit_price": None, "exit_captured_at": None,
@@ -280,7 +285,8 @@ def cooldown_passed(item: Dict[str, Any], now: datetime, policy: Dict[str, Any])
 
 
 def latest_mark(cfg: Dict[str, Any], now: datetime) -> Optional[Dict[str, Any]]:
-    return v3.last_completed_5m_bar(str(cfg.get("symbol") or ""), now)
+    symbol = v2.canonical_yahoo_symbol(str(cfg.get("id") or ""), str(cfg.get("symbol") or ""))
+    return v3.last_completed_5m_bar(symbol, now)
 
 
 def analysis_row(item: Dict[str, Any], decision: Dict[str, Any], fresh: Dict[str, Any], weekly: Dict[str, Any], point: Optional[Dict[str, Any]], now: datetime, reason: str) -> Dict[str, Any]:
