@@ -15,6 +15,7 @@ on:
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
+      - "scripts/daily-eurusd-live-price.js"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
@@ -69,6 +70,7 @@ jobs:
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py
           node --check scripts/daily-eurusd-spot-public.js
+          node --check scripts/daily-eurusd-live-price.js
 
       - name: Reconcile open position with dynamic exit and learning-exploration policy
         run: |
