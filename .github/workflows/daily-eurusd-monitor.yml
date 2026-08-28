@@ -11,6 +11,7 @@ on:
       - "scripts/daily_eurusd_spot_v12.py"
       - "scripts/daily_eurusd_spot_v13.py"
       - "scripts/daily_eurusd_spot_v14.py"
+      - "scripts/daily_eurusd_spot_v15.py"
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
@@ -18,6 +19,7 @@ on:
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
       - "tests/test_daily_eurusd_dynamic_exit.py"
+      - "tests/test_daily_eurusd_learning_exploration.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
     # Independent risk monitor. Offset from round 5-minute boundaries.
@@ -47,14 +49,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate lifecycle, admission, A fallback and dynamic exits
+      - name: Validate lifecycle, admission, A fallback, dynamic exits and learning exploration
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_lifecycle \
             tests.test_daily_eurusd_direct_signal \
             tests.test_daily_eurusd_a_fallback \
-            tests.test_daily_eurusd_dynamic_exit -v
+            tests.test_daily_eurusd_dynamic_exit \
+            tests.test_daily_eurusd_learning_exploration -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
             scripts/daily_eurusd_lifecycle.py \
@@ -62,17 +65,18 @@ jobs:
             scripts/daily_eurusd_spot_v12.py \
             scripts/daily_eurusd_spot_v13.py \
             scripts/daily_eurusd_spot_v14.py \
+            scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py
           node --check scripts/daily-eurusd-spot-public.js
 
-      - name: Reconcile open position with dynamic exit policy
+      - name: Reconcile open position with dynamic exit and learning-exploration policy
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot_v14.py \
+          python scripts/daily_eurusd_spot_v15.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot_v14.py \
+          python scripts/daily_eurusd_spot_v15.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
@@ -96,15 +100,24 @@ jobs:
           }
           leaked=sorted(reasons & forbidden)
           if leaked:
-              raise SystemExit(f'legacy admission veto leaked into PR25 runtime: {leaked}')
+              raise SystemExit(f'legacy admission veto leaked into PR33 runtime: {leaked}')
           version=payload.get('engine_version')
-          if version not in {'eurusd-daily-spot-v1.4.0','eurusd-daily-spot-v1.3.0','eurusd-daily-spot-v1.2.0','eurusd-daily-spot-v1.1.0'} and payload.get('status') != 'OPEN':
+          if version not in {'eurusd-daily-spot-v1.5.0'} and payload.get('status') != 'OPEN':
               raise SystemExit(f"unexpected EUR/USD engine version: {version}")
           dynamic=(payload.get('metadata') or {}).get('dynamic_exit') or {}
-          if version == 'eurusd-daily-spot-v1.4.0' and not dynamic.get('enabled'):
-              raise SystemExit('v1.4 output missing dynamic-exit metadata')
-          source=(payload.get('metadata') or {}).get('decision_source','NATIVE_OR_FLAT')
-          print('EURUSD_DYNAMIC_EXIT_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), dynamic.get('policy'))
+          if not dynamic.get('enabled'):
+              raise SystemExit('v1.5 output missing dynamic-exit metadata')
+          metadata=payload.get('metadata') or {}
+          source=metadata.get('decision_source','NATIVE_OR_FLAT')
+          if source == 'LOW_EDGE_LEARNING_EXPLORATION':
+              exploration=metadata.get('exploration') or {}
+              if not metadata.get('learning_eligible'):
+                  raise SystemExit('learning exploration must be learning eligible')
+              if exploration.get('risk_budget_multiplier') != 0.35:
+                  raise SystemExit('learning exploration risk budget must be 0.35')
+              if payload.get('direction') not in {'LONG','SHORT'}:
+                  raise SystemExit('learning exploration must be directional')
+          print('EURUSD_V15_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), dynamic.get('policy'))
           PY
 
       - name: Persist EURUSD state and append-only outcomes
