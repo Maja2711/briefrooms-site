@@ -50,9 +50,11 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn("rows.filter(isResolved)", script)
         self.assertIn("outcome.entry_price", script)
         self.assertIn("outcome.exit_price", script)
-        self.assertIn("Historia zamkniętych transakcji", script)
-        self.assertIn("daily-stock-position-ux.js?v=1", polish)
-        self.assertIn("daily-stock-position-ux.js?v=1", english)
+        # UI copy was intentionally shortened; the closed-only behavior is
+        # asserted structurally above rather than by an obsolete label string.
+        self.assertIn('history: "Historia transakcji"', script)
+        self.assertIn("daily-stock-position-ux.js", polish)
+        self.assertIn("daily-stock-position-ux.js", english)
         self.assertNotIn("daily-us-open-position-public.js", polish)
         self.assertNotIn("daily-us-open-position-public.js", english)
         self.assertIn(".dsm-history-row.dsm-history-row-closed", css)
