@@ -8,50 +8,31 @@ on:
         required: true
         default: auto
         type: choice
-        options:
-          - auto
-          - settle
-          - validate
+        options: [auto, settle, validate]
   push:
     branches: [main]
     paths:
       - ".github/workflows/gpw-daily-pick-pl.yml"
       - "scripts/daily_stock_core.py"
-      - "scripts/daily_stock_gpw_adapter.py"
-      - "scripts/daily_stock_rejected_candidate_freeze.py"
-      - "scripts/build_daily_stock_history_index.py"
-      - "scripts/daily-stock-markets-public.js"
-      - "scripts/gpw_daily_pick.py"
-      - "scripts/gpw_daily_control_loop.py"
-      - "scripts/gpw_event_layer.py"
-      - "scripts/gpw_event_driven_loop.py"
-      - "scripts/gpw_market_data.py"
-      - "scripts/gpw_pipeline_v2.py"
-      - "scripts/gpw_provider_v2.py"
-      - "scripts/gpw_reviewer_v2.py"
+      - "scripts/gpw_*.py"
       - "scripts/gpw-daily-pick-public.js"
-      - "assets/gpw-daily-pick.css"
-      - "assets/daily-stock-markets.css"
+      - "scripts/daily-stock-markets-public.js"
       - "data/investments/gpw_daily_pick_config.json"
+      - "data/investments/gpw_mandatory_daily_config.json"
+      - "tests/test_gpw_*.py"
       - "tests/test_daily_stock_core.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
-      - "tests/test_gpw_daily_pick.py"
-      - "tests/test_gpw_daily_control_loop.py"
-      - "tests/test_gpw_event_layer.py"
-      - "tests/test_gpw_market_data.py"
-      - "tests/test_gpw_pipeline_v2.py"
-      - "tests/test_gpw_daily_pick_ui.py"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
-    - cron: "45 5 * * 1-5"
-    - cron: "0 6 * * 1-5"
-    - cron: "30 6 * * 1-5"
-    - cron: "45 6 * * 1-5"
-    - cron: "5 7 * * 1-5"
-    - cron: "10 7 * * 1-5"
+    # Multiple attempts cover CET/CEST and GitHub schedule jitter.
+    - cron: "20 7 * * 1-5"
     - cron: "45 7 * * 1-5"
-    - cron: "5 8 * * 1-5"
     - cron: "10 8 * * 1-5"
+    - cron: "20 8 * * 1-5"
+    - cron: "45 8 * * 1-5"
+    - cron: "30 9 * * 1-5"
+    - cron: "30 11 * * 1-5"
+    - cron: "30 13 * * 1-5"
     - cron: "40 16 * * 1-5"
     - cron: "40 17 * * 1-5"
 
@@ -90,27 +71,26 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Resolve control-loop mode
-        id: run
+      - name: Resolve mode
+        id: mode
         shell: bash
         env:
           REQUESTED_MODE: ${{ inputs.mode }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
-          MODE="auto"
+          MODE=auto
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             MODE="${REQUESTED_MODE:-auto}"
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             case "$EVENT_SCHEDULE" in
-              "40 16 * * 1-5"|"40 17 * * 1-5") MODE="settle" ;;
-              *) MODE="auto" ;;
+              "40 16 * * 1-5"|"40 17 * * 1-5") MODE=settle ;;
             esac
           fi
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "GPW event control mode=$MODE Warsaw=$(TZ=Europe/Warsaw date +%H:%M) schedule=${EVENT_SCHEDULE:-push}"
+          echo "value=$MODE" >> "$GITHUB_OUTPUT"
+          echo "GPW mode=$MODE Warsaw=$(TZ=Europe/Warsaw date +'%F %H:%M')"
 
-      - name: Test shared core and GPW control contracts
+      - name: Validate GPW code and contracts
         run: |
           set -euo pipefail
           python -m unittest \
@@ -121,13 +101,10 @@ jobs:
             tests.test_gpw_event_layer \
             tests.test_gpw_market_data \
             tests.test_gpw_pipeline_v2 \
+            tests.test_gpw_mandatory_daily \
             tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
             scripts/daily_stock_core.py \
-            scripts/daily_stock_gpw_adapter.py \
-            scripts/daily_stock_rejected_candidate_freeze.py \
-            scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
-            scripts/build_daily_stock_history_index.py \
             scripts/gpw_daily_pick.py \
             scripts/gpw_daily_control_loop.py \
             scripts/gpw_event_layer.py \
@@ -135,186 +112,190 @@ jobs:
             scripts/gpw_market_data.py \
             scripts/gpw_pipeline_v2.py \
             scripts/gpw_provider_v2.py \
-            scripts/gpw_reviewer_v2.py
+            scripts/gpw_reviewer_v2.py \
+            scripts/gpw_mandatory_daily.py
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
-          python -m json.tool data/investments/gpw_daily_pick.json >/dev/null
+          python -m json.tool data/investments/gpw_mandatory_daily_config.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
           node --check scripts/daily-stock-markets-public.js
 
-      - name: Audit live GPW market coverage before generation
-        if: steps.run.outputs.mode == 'auto'
+      - name: Audit market coverage
+        if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
           from scripts import gpw_event_driven_loop as runtime
           runtime.install()
-          cfg = runtime.gpw.load_config()
-          cache = runtime.provider.prefetch_market(cfg)
-          audit = runtime.provider.LAST_AUDIT
-          print(json.dumps(audit, ensure_ascii=False, indent=2))
-          minimum = int(len(cfg['universe']) * float(cfg['minimum_data_completeness']) + 0.9999)
-          if len(cache) < minimum:
-              raise SystemExit(f"GPW market coverage below minimum: received={len(cache)} minimum={minimum}")
+          cfg=runtime.gpw.load_config()
+          cache=runtime.provider.prefetch_market(cfg)
+          minimum=int(len(cfg['universe'])*float(cfg['minimum_data_completeness'])+0.9999)
+          print('GPW_COVERAGE', len(cache), '/', len(cfg['universe']), runtime.provider.LAST_AUDIT)
+          if len(cache)<minimum:
+              raise SystemExit(f'hard data failure: coverage={len(cache)} minimum={minimum}')
           PY
 
-      - name: Check Gemini endpoint without blocking fail-closed state
-        if: steps.run.outputs.mode == 'auto'
+      - name: Run primary GPW engine
+        if: steps.mode.outputs.value == 'auto'
         shell: bash
         run: |
           set +e
-          python scripts/check_ai_provider.py
+          python scripts/gpw_event_driven_loop.py --mode auto
           STATUS=$?
           set -e
-          if [[ "$STATUS" != "0" ]]; then
-            echo "Gemini preflight failed; runtime will preserve fail-closed behavior."
-          fi
+          echo "Primary GPW status=$STATUS; final selector runs regardless."
 
-      - name: Run event-driven self-healing PL GPW loop
-        shell: bash
-        env:
-          MODE: ${{ steps.run.outputs.mode }}
+      - name: Enforce final Daily GPW transaction
+        if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
-          python scripts/gpw_event_driven_loop.py --mode "$MODE"
-          if [[ "$MODE" == "auto" ]]; then
-            python - <<'PY'
+          python scripts/gpw_mandatory_daily.py
+          python - <<'PY'
           import json
-          import subprocess
-          from datetime import datetime
+          from datetime import datetime,time as clock_time
           from pathlib import Path
           from zoneinfo import ZoneInfo
-          today = datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
-          payload = json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
-          if payload.get('date') == today:
-              subprocess.run(['python', 'scripts/gpw_event_driven_loop.py', '--mode', 'validate'], check=True)
+          from scripts import gpw_daily_pick as gpw
+          now=datetime.now(ZoneInfo('Europe/Warsaw'))
+          cfg=gpw.load_config()
+          payload=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          today=now.date().isoformat()
+          if payload.get('date')!=today:
+              raise SystemExit(f'stale GPW publication: {payload.get("date")} != {today}')
+          if gpw.is_session_day(now.date(),cfg) and now.time()>=clock_time(9,15):
+              if payload.get('decision')!='TRANSAKCJA':
+                  raise SystemExit(f'GPW Daily contract violated: {payload.get("decision")}: {payload.get("reason")}')
+              s=payload.get('selection') or {}
+              required=('symbol','entry_zone','skip_above','stop','target','reward_risk','valid_until','market_snapshot')
+              missing=[k for k in required if k not in s]
+              if missing:
+                  raise SystemExit(f'missing setup fields: {missing}')
+              if (s.get('market_snapshot') or {}).get('date')!=today:
+                  raise SystemExit('execution quote is not from current GPW session')
+              print('GPW_FINAL_SELECTION_OK',s.get('ticker'),s.get('reference_price'),s.get('stop'),s.get('target'),s.get('reward_risk'))
           else:
-              raise SystemExit(f"GPW runtime did not publish current Warsaw date: {payload.get('date')} != {today}")
-          if today == '2026-08-19' and payload.get('decision') != 'TRANSAKCJA':
-              raise SystemExit(f"2026-08-19 recovery requires full TRANSAKCJA, got {payload.get('decision')}: {payload.get('reason')}")
+              gpw.validate_payload(payload,require_today=True,now=now)
           PY
-          fi
 
-      - name: Freeze PR29.1 rejected GPW candidates before commit
-        if: steps.run.outputs.mode == 'auto'
+      - name: Validate only
+        if: steps.mode.outputs.value == 'validate'
+        run: python scripts/gpw_mandatory_daily.py --validate
+
+      - name: Settle historical GPW positions
+        if: steps.mode.outputs.value == 'settle'
+        run: python scripts/gpw_event_driven_loop.py --mode settle
+
+      - name: Freeze candidates and rebuild history index
+        if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
           python scripts/daily_stock_rejected_candidate_freeze.py --market gpw
           python scripts/daily_stock_rejected_candidate_freeze.py --market gpw --verify
+          python scripts/build_daily_stock_history_index.py
 
-      - name: Rebuild shared GPW and US Daily Stock history index
-        if: steps.run.outputs.mode != 'validate'
+      - name: Rebuild history index after settlement
+        if: steps.mode.outputs.value == 'settle'
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Cache-bust the Polish Daily Stock client
-        if: steps.run.outputs.mode == 'auto'
+      - name: Cache-bust GPW client
+        if: steps.mode.outputs.value == 'auto'
         run: |
           python - <<'PY'
           import re
           from pathlib import Path
-          path = Path('pl/inwestycje/portfel-10k.html')
-          text = path.read_text(encoding='utf-8')
-          updated = re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+', '/scripts/gpw-daily-pick-public.js?v=6', text)
-          if updated != text:
-              path.write_text(updated, encoding='utf-8')
-              print('Bumped GPW Daily Stock client asset to v6.')
-          else:
-              print('GPW Daily Stock client cache version already current.')
+          p=Path('pl/inwestycje/portfel-10k.html')
+          t=p.read_text(encoding='utf-8')
+          p.write_text(re.sub(r'/scripts/gpw-daily-pick-public\.js\?v=\d+','/scripts/gpw-daily-pick-public.js?v=7',t),encoding='utf-8')
           PY
 
-      - name: Commit scoped GPW state
+      - name: Commit GPW state
         id: commit
-        if: steps.run.outputs.mode != 'validate'
+        if: steps.mode.outputs.value != 'validate'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/daily_stock_history_index.json 2>/dev/null || true
-          git add data/investments/gpw_daily_pick_history 2>/dev/null || true
-          git add data/internal/gpw_daily_pick_audit 2>/dev/null || true
-          git add pl/inwestycje/portfel-10k.html 2>/dev/null || true
+          git add data/investments/gpw_daily_pick_history data/internal/gpw_daily_pick_audit pl/inwestycje/portfel-10k.html 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No GPW publication change."
             exit 0
           fi
-          git commit -m "Publish PL GPW event-driven control state"
+          git commit -m "Publish PL GPW final daily selection state"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
               echo "changed=true" >> "$GITHUB_OUTPUT"
-              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            sleep $((attempt * 4))
+            sleep $((attempt*4))
           done
           exit 1
 
-      - name: Request fresh Pages build
+      - name: Request Pages build
         if: steps.commit.outputs.changed == 'true'
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           for attempt in $(seq 1 18); do
-            CODE="$(curl --silent --show-error --output /tmp/gpw-pages.json --write-out '%{http_code}' -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer ${GH_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
-            if [[ "$CODE" == "201" ]]; then exit 0; fi
-            if [[ "$CODE" != "409" ]]; then cat /tmp/gpw-pages.json; exit 1; fi
+            CODE=$(curl -sS -o /tmp/pages.json -w '%{http_code}' -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")
+            [[ "$CODE" == "201" ]] && exit 0
+            [[ "$CODE" != "409" ]] && { cat /tmp/pages.json; exit 1; }
             sleep 10
           done
           exit 1
 
-      - name: Verify today's PL GPW state on briefrooms.com
-        if: steps.commit.outputs.changed == 'true' && steps.run.outputs.mode == 'auto'
+      - name: Verify production GPW selection
+        if: steps.commit.outputs.changed == 'true' && steps.mode.outputs.value == 'auto'
         run: |
           python - <<'PY'
           import json,time,urllib.request
-          from datetime import datetime
+          from datetime import datetime,time as clock_time
           from zoneinfo import ZoneInfo
-          today=datetime.now(ZoneInfo('Europe/Warsaw')).date().isoformat()
-          headers={'User-Agent':'BriefRooms-GPW-production-verifier/6.0','Cache-Control':'no-cache'}
+          now=datetime.now(ZoneInfo('Europe/Warsaw'))
+          today=now.date().isoformat()
+          headers={'User-Agent':'BriefRooms-GPW-production-verifier/7.0','Cache-Control':'no-cache'}
           last=None
           for attempt in range(1,49):
               token=f'{int(time.time())}-{attempt}'
               try:
-                  with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_pick.json?v={token}',headers=headers),timeout=20) as response:
-                      payload=json.load(response)
+                  req=urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_pick.json?v={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r: payload=json.load(r)
                   last=payload
-                  expected={'TRANSAKCJA'} if today=='2026-08-19' else {'TRANSAKCJA','BRAK_TRANSAKCJI','AWARIA_DANYCH'}
-                  if payload.get('date')==today and payload.get('decision') in expected:
-                      if payload.get('decision')=='TRANSAKCJA':
-                          selection=payload.get('selection') or {}
-                          assert selection.get('symbol') and selection.get('market_snapshot',{}).get('date')==today
-                      with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/pl/inwestycje/portfel-10k.html?v={token}',headers=headers),timeout=20) as response:
-                          html=response.read().decode('utf-8',errors='replace')
-                      assert 'gpw-daily-pick-public.js?v=6' in html
-                      print(f"Production verified: {payload['decision']} {today} {(payload.get('selection') or {}).get('symbol','')}")
+                  if payload.get('date')==today:
+                      if now.time()>=clock_time(9,15):
+                          assert payload.get('decision')=='TRANSAKCJA'
+                          s=payload.get('selection') or {}
+                          assert s.get('symbol') and (s.get('market_snapshot') or {}).get('date')==today
+                      print('GPW_PRODUCTION_OK',payload.get('decision'),(payload.get('selection') or {}).get('ticker'))
                       raise SystemExit(0)
-              except Exception as error:
-                  print(f"Attempt {attempt}: {type(error).__name__}: {str(error)[:180]}")
+              except Exception as e:
+                  print('verify',attempt,type(e).__name__,str(e)[:160])
               time.sleep(10)
-          raise SystemExit(f"Production did not expose expected GPW state: {last}")
+          raise SystemExit(f'production stale or empty: {last}')
           PY
 
-      - name: Enforce scheduled post-open SLA
-        if: always() && github.event_name == 'schedule' && steps.run.outputs.mode == 'auto'
+      - name: Enforce scheduled Daily SLA
+        if: always() && github.event_name == 'schedule' && steps.mode.outputs.value == 'auto'
         run: |
           python - <<'PY'
           import json
           from datetime import datetime,time as clock_time
           from pathlib import Path
           from zoneinfo import ZoneInfo
+          from scripts import gpw_daily_pick as gpw
           now=datetime.now(ZoneInfo('Europe/Warsaw'))
-          if now.time()<clock_time(9,10):
+          cfg=gpw.load_config()
+          if now.time()<clock_time(9,15) or not gpw.is_session_day(now.date(),cfg):
               raise SystemExit(0)
-          payload=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
-          quality=payload.get('data_quality') or {}
-          attempts=int(quality.get('control_loop_attempts') or 0)
-          failed_stage=str(quality.get('failed_stage') or '')
-          operational_failure=payload.get('decision')=='AWARIA_DANYCH' and (attempts==0 or failed_stage in {'missed_cutoff_guardian','cutoff_after_retries','cutoff_after_review','opening_quote'})
-          if operational_failure:
-              raise SystemExit(f"GPW post-open SLA missed: stage={failed_stage or 'unknown'} attempts={attempts}")
-          print(f"GPW post-open SLA healthy: decision={payload.get('decision')} attempts={attempts} generated_at={payload.get('generated_at')}")
+          p=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          if p.get('date')!=now.date().isoformat() or p.get('decision')!='TRANSAKCJA':
+              raise SystemExit(f'GPW Daily SLA missed: date={p.get("date")} decision={p.get("decision")} reason={p.get("reason")}')
+          s=p.get('selection') or {}
+          print('GPW_DAILY_SLA_OK',s.get('ticker'),s.get('reference_price'),p.get('generated_at'))
           PY
