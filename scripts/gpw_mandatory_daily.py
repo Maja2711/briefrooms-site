@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Final deterministic selector for the Polish GPW Daily Trading adapter.
 
-This module is the last stage of the primary GPW pipeline. On a live GPW
-session it must publish one best *valid* candidate once the mandatory window
-opens, unless a hard data-quality or execution-price condition makes a safe
-selection impossible.
+The primary GPW engine is allowed to abstain while it performs its richer
+catalyst/reviewer process.  This module is the final stage of the SAME
+publication pipeline and enforces the product contract: after the configured
+opening window, publish one best valid GPW stock on every live session unless a
+hard market-data or execution-safety condition prevents a defensible choice.
 
-Soft conviction is never a veto here. Hard gates remain hard:
-- sufficient universe coverage,
-- at most the configured historical-feature lag,
-- minimum liquidity,
-- finite ATR/risk geometry,
-- bounded published risk,
-- a positive quote from the current GPW session.
-
-There is no random selection and no fabricated price.
+The selector is deterministic.  It never fabricates a quote and never weakens
+liquidity or risk gates merely to manufacture a trade.
 """
 from __future__ import annotations
 
@@ -49,14 +43,17 @@ def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
         "cutoff",
         "recovery_cutoff",
         "minimum_market_coverage",
+        "minimum_median_turnover_pln",
         "maximum_candidate_risk_percent",
         "maximum_published_risk_percent",
-        "reward_risk",
         "maximum_historical_lag_sessions",
+        "reward_risk",
     )
-    for key in required:
-        if key not in value:
-            raise gpw.PublicationError(f"Mandatory GPW policy missing {key}")
+    missing = [key for key in required if key not in value]
+    if missing:
+        raise gpw.PublicationError(
+            "Mandatory GPW policy missing: " + ", ".join(missing)
+        )
     return value
 
 
@@ -66,17 +63,11 @@ def _clock(value: str) -> clock_time:
 
 
 def _selector_config(config: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
-    """Relax conviction, never execution safety.
-
-    Liquidity stays at the normal GPW floor. Candidate risk cannot exceed the
-    normal configured maximum nor the published maximum. This prevents the old
-    mandatory mode from selecting illiquid names or clipping an unsafe raw stop
-    into an apparently safe published stop.
-    """
+    """Relax conviction only; keep execution safety at least as strict."""
     value = copy.deepcopy(config)
     value["minimum_median_turnover_pln"] = max(
         float(config.get("minimum_median_turnover_pln", core.GPW_PROFILE.turnover_floor)),
-        float(policy.get("minimum_median_turnover_pln", 0.0)),
+        float(policy.get("minimum_median_turnover_pln", core.GPW_PROFILE.turnover_floor)),
     )
     value["maximum_risk_percent"] = min(
         float(config.get("maximum_risk_percent", policy["maximum_published_risk_percent"])),
@@ -92,18 +83,28 @@ def _accepted_feature_day(
     config: dict[str, Any],
     maximum_lag_sessions: int,
 ) -> tuple[Any, int] | None:
-    """Return (feature_day, lag_sessions) when history is usable.
-
-    Historical features may lag the expected completed session by a small,
-    explicit number of sessions. Current-session execution price never inherits
-    this tolerance and must still be fresh.
-    """
+    """Accept 0..N completed-session lag for historical features only."""
     cursor = expected_day
     for lag in range(max(0, int(maximum_lag_sessions)) + 1):
         if latest_day == cursor:
             return cursor, lag
         cursor = gpw.previous_session(cursor, config)
     return None
+
+
+def _learning_history(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return only records that can participate in stock/sector learning.
+
+    Historical BRAK_TRANSAKCJI/AWARIA_DANYCH publications legitimately contain
+    ``selection: null``.  The legacy GPW history scorer expects a mapping.  A
+    null selection is not a trade outcome and must be ignored rather than
+    crashing the daily final selector.
+    """
+    return [
+        row
+        for row in rows
+        if isinstance(row, dict) and isinstance(row.get("selection"), dict)
+    ]
 
 
 def build_ranked_candidates(
@@ -115,14 +116,22 @@ def build_ranked_candidates(
 ) -> list[dict[str, Any]]:
     selector_config = _selector_config(config, policy)
     max_lag = int(policy["maximum_historical_lag_sessions"])
+    learning_history = _learning_history(history)
     rows: list[dict[str, Any]] = []
 
     for company in config["universe"]:
-        bars = list(cache.get(str(company["symbol"])) or [])
+        symbol = str(company["symbol"])
+        bars = list(cache.get(symbol) or [])
         completed = [bar for bar in bars if bar.day <= expected_day]
         if not completed:
             continue
-        accepted = _accepted_feature_day(completed[-1].day, expected_day, config, max_lag)
+
+        accepted = _accepted_feature_day(
+            completed[-1].day,
+            expected_day,
+            config,
+            max_lag,
+        )
         if accepted is None:
             continue
         feature_day, lag_sessions = accepted
@@ -133,11 +142,12 @@ def build_ranked_candidates(
             feature_day,
             selector_config,
             core.GPW_PROFILE,
-            history=history,
+            history=learning_history,
             history_scorer=gpw.history_expectancy_score,
         )
         if candidate is None:
             continue
+
         candidate["quant_engine"] = "daily-stock-core-v1-final-selector"
         candidate["mandatory_selection"] = True
         candidate["historical_feature_session"] = feature_day.isoformat()
@@ -145,7 +155,11 @@ def build_ranked_candidates(
         rows.append(candidate)
 
     core.normalize_cross_section(rows)
-    return sorted(rows, key=lambda row: float(row.get("quant_pre_score") or 0.0), reverse=True)
+    return sorted(
+        rows,
+        key=lambda row: float(row.get("quant_pre_score") or 0.0),
+        reverse=True,
+    )
 
 
 def _source_for(symbol: str, snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -207,11 +221,12 @@ def make_forced_payload(
     cache: dict[str, list[gpw.Bar]],
     opening_fetcher: Callable[..., dict[str, Any]] = market.opening_snapshot,
 ) -> dict[str, Any] | None:
-    if current.get("decision") == "TRANSAKCJA" and current.get("date") == now.date().isoformat():
+    today = now.date().isoformat()
+    if current.get("decision") == "TRANSAKCJA" and current.get("date") == today:
         return None
     if current.get("decision") not in {"BRAK_TRANSAKCJI", "AWARIA_DANYCH"}:
         return None
-    if current.get("date") != now.date().isoformat():
+    if current.get("date") != today:
         return None
     if not gpw.is_session_day(now.date(), config):
         return None
@@ -227,7 +242,8 @@ def make_forced_payload(
     coverage = len(cache) / max(len(config["universe"]), 1)
     if coverage < float(policy["minimum_market_coverage"]):
         raise gpw.PublicationError(
-            f"Mandatory GPW market coverage {coverage:.0%} below minimum {float(policy['minimum_market_coverage']):.0%}"
+            f"Mandatory GPW market coverage {coverage:.0%} below minimum "
+            f"{float(policy['minimum_market_coverage']):.0%}"
         )
 
     expected = gpw.previous_session(now.date(), config)
@@ -238,9 +254,10 @@ def make_forced_payload(
             "Mandatory GPW selector found no liquid candidate with finite completed-session risk geometry"
         )
 
-    selected = None
-    snapshot = None
+    selected: dict[str, Any] | None = None
+    snapshot: dict[str, Any] | None = None
     quote_errors: dict[str, str] = {}
+
     for candidate in ranked:
         symbol = str(candidate["symbol"])
         try:
@@ -249,7 +266,7 @@ def make_forced_payload(
             selected = candidate
             snapshot = candidate_snapshot
             break
-        except Exception as exc:
+        except Exception as exc:  # try the next already-valid ranked candidate
             quote_errors[symbol] = f"{type(exc).__name__}: {str(exc)[:180]}"
 
     if selected is None or snapshot is None:
@@ -262,7 +279,8 @@ def make_forced_payload(
     max_published_risk = float(policy["maximum_published_risk_percent"])
     if raw_risk <= 0.0 or raw_risk > max_published_risk:
         raise gpw.PublicationError(
-            f"Selected GPW candidate risk {raw_risk:.2%} outside published hard limit {max_published_risk:.2%}"
+            f"Selected GPW candidate risk {raw_risk:.2%} outside published hard limit "
+            f"{max_published_risk:.2%}"
         )
 
     risk_fraction = max(core.GPW_PROFILE.risk_floor_percent, raw_risk)
@@ -272,7 +290,11 @@ def make_forced_payload(
     entry_low = reference * 0.997
     entry_high = reference * 1.006
     neutral_catalyst = float(policy.get("neutral_catalyst_score", 50.0))
-    score = core.composite_score(selected, {"catalyst_score": neutral_catalyst}, config)
+    score = core.composite_score(
+        selected,
+        {"catalyst_score": neutral_catalyst},
+        config,
+    )
     source = _source_for(str(selected["symbol"]), snapshot)
     late_recovery = local_time > _clock(str(policy["cutoff"]))
 
@@ -280,8 +302,8 @@ def make_forced_payload(
     payload["generated_at"] = now.isoformat(timespec="seconds")
     payload["decision"] = "TRANSAKCJA"
     payload["reason"] = (
-        "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, "
-        "płynności, ryzyka i świeżej ceny wykonawczej."
+        "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą "
+        "twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
     )
     payload["locked"] = True
     payload["selection"] = {
@@ -295,20 +317,27 @@ def make_forced_payload(
         "reference_price": core.round2(reference),
         "entry_zone": [core.round2(entry_low), core.round2(entry_high)],
         "skip_above": core.round2(entry_high),
-        "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
+        "activation": (
+            "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia."
+        ),
         "stop": core.round2(stop),
         "target": core.round2(target),
         "risk_percent": round(risk_fraction, 4),
         "reward_risk": reward_risk,
         "valid_until": gpw.add_sessions(now.date(), 2, config).isoformat(),
         "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
-        "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
+        "early_exit": (
+            "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; "
+            "nie rozszerzać SL."
+        ),
         "thesis": (
-            f"{selected['name']} ma najwyższy ranking ilościowy wśród aktualnie poprawnych i płynnych kandydatów GPW."
+            f"{selected['name']} ma najwyższy ranking ilościowy wśród aktualnie "
+            "poprawnych i płynnych kandydatów GPW."
         ),
         "why_now": (
-            "Wybór opiera się na relatywnym momentum, kontekście rynku, płynności, geometrii ryzyka i historycznym overlayu. "
-            "Brak silnego katalizatora nie jest twardym veto dla obowiązkowego wyboru Daily."
+            "Wybór opiera się na relatywnym momentum, kontekście rynku, płynności, "
+            "geometrii ryzyka i historycznym overlayu. Brak silnego katalizatora nie "
+            "jest twardym veto dla obowiązkowego wyboru Daily."
         ),
         "risk_factors": [
             "Tryb końcowego wyboru może mieć niższe przekonanie niż standardowa selekcja katalizatorowa.",
@@ -320,7 +349,10 @@ def make_forced_payload(
         "review": {
             "approved": True,
             "mode": "mandatory_daily_final_quant_policy",
-            "reason": "Najwyższy ranking spośród kandydatów, którzy przeszli twarde bramki danych, płynności, ryzyka i bieżącej ceny.",
+            "reason": (
+                "Najwyższy ranking spośród kandydatów, którzy przeszli twarde bramki "
+                "danych, płynności, ryzyka i bieżącej ceny."
+            ),
             "supported_source_ids": [source["id"]],
         },
         "market_snapshot": snapshot,
@@ -339,7 +371,9 @@ def make_forced_payload(
         "integrated_final_stage": True,
         "trigger": "primary_not_transaction_after_not_before",
         "liquidity_role": "hard_gate_and_ranking_feature",
-        "minimum_median_turnover_pln": float(_selector_config(config, policy)["minimum_median_turnover_pln"]),
+        "minimum_median_turnover_pln": float(
+            _selector_config(config, policy)["minimum_median_turnover_pln"]
+        ),
         "maximum_published_risk_percent": max_published_risk,
         "maximum_historical_lag_sessions": int(policy["maximum_historical_lag_sessions"]),
         "opening_quote_required": True,
@@ -367,6 +401,7 @@ def make_forced_payload(
         "historical_feature_lag_sessions": selected.get("historical_feature_lag_sessions"),
         "opening_quote_failures_before_selection": quote_errors,
         "late_recovery": late_recovery,
+        "ignored_non_trade_history_records": len(history) - len(_learning_history(history)),
     }
     return payload
 
@@ -375,8 +410,8 @@ def persist(payload: dict[str, Any]) -> None:
     gpw.validate_payload(payload, require_today=False)
     history_path = gpw.HISTORY_DIR / f"{payload['date']}.json"
 
-    # The final selector intentionally upgrades a same-session BRAK/AWARIA state
-    # into TRANSAKCJA. It is the only final writer inside the primary workflow.
+    # This stage intentionally upgrades a same-session BRAK/AWARIA record into
+    # the final TRANSAKCJA and is the sole final writer of the primary workflow.
     gpw.atomic_json(history_path, payload)
     metrics = gpw.metric_summary(gpw.all_history())
     payload["metrics"] = metrics
@@ -391,7 +426,9 @@ def persist(payload: dict[str, Any]) -> None:
         "selection_mode": "MANDATORY_DAILY_FINAL",
         "symbol": (payload.get("selection") or {}).get("symbol"),
         "previous_reason": (payload.get("selection") or {}).get("forced_from_reason"),
-        "historical_feature_lag_sessions": (payload.get("selection") or {}).get("historical_feature_lag_sessions"),
+        "historical_feature_lag_sessions": (
+            payload.get("selection") or {}
+        ).get("historical_feature_lag_sessions"),
     }
     gpw.atomic_json(gpw.AUDIT_DIR / f"{payload['date']}-mandatory.json", audit)
 
@@ -444,7 +481,8 @@ def main() -> int:
             and payload.get("decision") != "TRANSAKCJA"
         ):
             raise gpw.PublicationError(
-                f"GPW final selector contract violated: expected TRANSAKCJA, got {payload.get('decision')}"
+                f"GPW final selector contract violated: expected TRANSAKCJA, "
+                f"got {payload.get('decision')}"
             )
         print(
             "GPW_MANDATORY_VALIDATE_OK",
