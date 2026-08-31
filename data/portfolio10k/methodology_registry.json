@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-31T13:34:49+00:00",
+  "generated_at": "2026-08-31T14:20:55+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -8,15 +8,15 @@
     "legacy_brace": "data/investments/portfolio_10k_brace.json",
     "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
   },
-  "controller_state": "PROBATIONARY_CONTROL",
-  "champion_methodology_id": "brace-portfolio-engine",
+  "controller_state": "FALLBACK_BASELINE",
+  "champion_methodology_id": "portfolio-10k-baseline",
   "challenger_methodology_id": "brace-portfolio-engine",
   "baseline_methodology_id": "portfolio-10k-baseline",
   "methodologies": [
     {
       "methodology_id": "portfolio-10k-baseline",
       "version": "1.0.0",
-      "status": "FALLBACK_BASELINE",
+      "status": "ACTIVE_BASELINE",
       "activated_at": "2026-07-20T12:10:00+00:00",
       "retired_at": null,
       "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
@@ -31,14 +31,14 @@
         "status": "production_baseline",
         "history_preserved": true,
         "entry_history_sha256": "cdefa8db1f5824ae3eac75fab7f99ed59bc8c3a6cf4ba222d539368555d5f348",
-        "source_snapshot_sha256": "498ff194f066b84af7aaa462122bbd8cac003694b9aab511e1c68cfb5a79e237",
-        "validated_at": "2026-08-29T03:46:05+00:00"
+        "source_snapshot_sha256": "432937662e1b3dc8ed0aea161b959b4e938ab28bef983d93f33a039c7cb3a191",
+        "validated_at": "2026-08-31T14:20:55+00:00"
       }
     },
     {
       "methodology_id": "brace-portfolio-engine",
       "version": "3.0.0",
-      "status": "PROBATIONARY_CONTROL",
+      "status": "FALLBACK_BASELINE",
       "activated_at": "2026-07-29T00:00:00+00:00",
       "retired_at": null,
       "description": "Modular BRACE challenger with candidate ranking, constrained optimization, governed promotion and paper-only execution.",
@@ -56,32 +56,9 @@
         "automatic_activation_allowed_only_by_controller": true,
         "active_paper_control": false,
         "latest_gate_evaluation": {
-          "evaluated_at": "2026-08-29T03:46:05+00:00",
-          "current_status": "PROBATIONARY_CONTROL",
-          "conditions": {
-            "probation": {
-              "minimum_calendar_days": false,
-              "daily_rotation_limit": false,
-              "weekly_change_limit": false,
-              "weekly_turnover_limit": false,
-              "new_position_limit": false,
-              "minimum_confidence": false,
-              "no_full_portfolio_replacement": true,
-              "transaction_cost_buffer_applied": false,
-              "cooldown_applied": false,
-              "material_advantage_required": false,
-              "no_fallback_trigger": true
-            },
-            "operational": {
-              "no_critical_data_errors": true,
-              "decisions_reproducible": true,
-              "entry_history_unchanged": true,
-              "timestamps_complete": true,
-              "workflow_stable": true,
-              "public_internal_consistent": true,
-              "integrity_tests_pass": true
-            }
-          },
+          "evaluated_at": "2026-08-31T14:20:55+00:00",
+          "current_status": "FALLBACK_BASELINE",
+          "conditions": {},
           "reason": "No status change; promotion gates remain incomplete."
         },
         "user_authorized_paper_control": {
