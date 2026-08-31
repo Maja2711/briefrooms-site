@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-08-28T21:11:12+02:00",
+  "updated_at": "2026-08-31T10:57:36+02:00",
   "resolved_trades": 2,
   "adaptation_active": false,
   "minimum_sample": 8,
@@ -33,12 +33,37 @@
     "return_percent": 5.092,
     "r_multiple": 1.792,
     "exit_reason": "target",
-    "lesson": "DNP: cel został osiągnięty (1.79R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
+    "lesson": "DNP: cel został osiągnięty (1.79R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii.",
+    "event_type": "earnings",
+    "event_label": "wyniki / raport okresowy"
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  }
+  },
+  "event_expectancy": [
+    {
+      "event_type": "earnings",
+      "label": "wyniki / raport okresowy",
+      "sample": 1,
+      "minimum_sample": 6,
+      "active": false,
+      "average_r": 1.792,
+      "shrunk_r": 0.0,
+      "catalyst_adjustment": 0.0
+    },
+    {
+      "event_type": "regulatory",
+      "label": "regulacja / spór prawny",
+      "sample": 1,
+      "minimum_sample": 6,
+      "active": false,
+      "average_r": 1.799,
+      "shrunk_r": 0.0,
+      "catalyst_adjustment": 0.0
+    }
+  ],
+  "event_learning_method": "event_family_bayesian_shrinkage_v1"
 }

@@ -1,65 +1,112 @@
 {
   "schema_version": "gpw-daily-pick-v1",
   "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
-  "date": "2026-08-25",
-  "generated_at": "2026-08-25T09:23:45+02:00",
+  "date": "2026-08-31",
+  "generated_at": "2026-08-31T10:57:36+02:00",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
-  "decision": "BRAK_TRANSAKCJI",
-  "reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka.",
-  "locked": false,
-  "selection": null,
+  "decision": "TRANSAKCJA",
+  "reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej.",
+  "locked": true,
+  "selection": {
+    "symbol": "DNP.WA",
+    "ticker": "DNP",
+    "name": "Dino Polska",
+    "sector": "handel",
+    "score": 69.39,
+    "quant_pre_score": 75.86,
+    "selection_mode": "MANDATORY_DAILY_FINAL",
+    "reference_price": 36.44,
+    "entry_zone": [
+      36.33,
+      36.66
+    ],
+    "skip_above": 36.66,
+    "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
+    "stop": 35.18,
+    "target": 38.7,
+    "risk_percent": 0.0345,
+    "reward_risk": 1.8,
+    "valid_until": "2026-09-02",
+    "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
+    "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
+    "thesis": "Dino Polska ma najwyższy ranking ilościowy wśród aktualnie poprawnych i płynnych kandydatów GPW.",
+    "why_now": "Wybór opiera się na relatywnym momentum, kontekście rynku, płynności, geometrii ryzyka i historycznym overlayu. Brak silnego katalizatora nie jest twardym veto dla obowiązkowego wyboru Daily.",
+    "risk_factors": [
+      "Tryb końcowego wyboru może mieć niższe przekonanie niż standardowa selekcja katalizatorowa.",
+      "Minimalna płynność i maksymalne ryzyko pozostają twardymi bramkami.",
+      "SL pozostaje nadrzędnym warunkiem wyjścia i nie może być rozszerzany po wejściu."
+    ],
+    "scores": {
+      "relative_momentum": 96.12,
+      "volume_liquidity": 100.0,
+      "market_context": 33.77,
+      "risk_reward": 84.02,
+      "historical_expectancy": 50.0,
+      "catalyst": 50.0
+    },
+    "sources": [
+      {
+        "id": "market-open:DNP.WA:2026-08-31",
+        "title": "Yahoo — bieżące kwotowanie DNP.WA",
+        "publisher": "Yahoo",
+        "url": "https://finance.yahoo.com/quote/DNP.WA",
+        "source_kind": "market_quote",
+        "channel": "Yahoo",
+        "published_at": "2026-08-31T10:42:37+02:00",
+        "age_hours": 0,
+        "materiality": 0
+      }
+    ],
+    "review": {
+      "approved": true,
+      "mode": "mandatory_daily_final_quant_policy",
+      "reason": "Najwyższy ranking spośród kandydatów, którzy przeszli twarde bramki danych, płynności, ryzyka i bieżącej ceny.",
+      "supported_source_ids": [
+        "market-open:DNP.WA:2026-08-31"
+      ]
+    },
+    "market_snapshot": {
+      "provider": "Yahoo",
+      "symbol": "DNP.WA",
+      "date": "2026-08-31",
+      "observed_at": "2026-08-31T10:42:37+02:00",
+      "open": 35.6,
+      "high": 36.56,
+      "low": 35.44,
+      "last": 36.44,
+      "volume": 828327,
+      "crosscheck": {
+        "available_providers": [
+          "Yahoo"
+        ],
+        "errors": [
+          "Stooq:PublicationError"
+        ],
+        "status": "single_source"
+      }
+    },
+    "forced_from_reason": "Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed 10:00.",
+    "quant_engine": "daily-stock-core-v1-final-selector",
+    "historical_feature_session": "2026-08-27",
+    "historical_feature_lag_sessions": 1
+  },
   "data_quality": {
     "status": "healthy",
-    "complete_ratio": 0.95,
-    "expected_session": "2026-08-24",
-    "valid_market_symbols": 38,
-    "ranked_candidates": 0,
-    "provider_failures": {
-      "CCC.WA": "PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
-      "SPL.WA": "PublicationError: Brak danych rynkowych SPL.WA w prefetch cache."
-    },
-    "screened_out": {
-      "11B.WA": "screened_by_liquidity_atr_or_risk",
-      "ACP.WA": "screened_by_liquidity_atr_or_risk",
-      "ALE.WA": "screened_by_liquidity_atr_or_risk",
-      "ALR.WA": "screened_by_liquidity_atr_or_risk",
-      "ATT.WA": "screened_by_liquidity_atr_or_risk",
-      "BDX.WA": "screened_by_liquidity_atr_or_risk",
-      "BHW.WA": "screened_by_liquidity_atr_or_risk",
-      "CAR.WA": "screened_by_liquidity_atr_or_risk",
-      "CDR.WA": "screened_by_liquidity_atr_or_risk",
-      "CPS.WA": "screened_by_liquidity_atr_or_risk",
-      "DNP.WA": "screened_by_liquidity_atr_or_risk",
-      "DOM.WA": "screened_by_liquidity_atr_or_risk",
-      "ENA.WA": "screened_by_liquidity_atr_or_risk",
-      "EUR.WA": "screened_by_liquidity_atr_or_risk",
-      "GPW.WA": "screened_by_liquidity_atr_or_risk",
-      "ING.WA": "screened_by_liquidity_atr_or_risk",
-      "JSW.WA": "screened_by_liquidity_atr_or_risk",
-      "KGH.WA": "screened_by_liquidity_atr_or_risk",
-      "KRU.WA": "screened_by_liquidity_atr_or_risk",
-      "KTY.WA": "screened_by_liquidity_atr_or_risk",
-      "LPP.WA": "screened_by_liquidity_atr_or_risk",
-      "LWB.WA": "screened_by_liquidity_atr_or_risk",
-      "MBK.WA": "screened_by_liquidity_atr_or_risk",
-      "MIL.WA": "screened_by_liquidity_atr_or_risk",
-      "NEU.WA": "screened_by_liquidity_atr_or_risk",
-      "OPL.WA": "screened_by_liquidity_atr_or_risk",
-      "PCO.WA": "screened_by_liquidity_atr_or_risk",
-      "PEO.WA": "screened_by_liquidity_atr_or_risk",
-      "PGE.WA": "screened_by_liquidity_atr_or_risk",
-      "PKN.WA": "screened_by_liquidity_atr_or_risk",
-      "PKO.WA": "screened_by_liquidity_atr_or_risk",
-      "PZU.WA": "screened_by_liquidity_atr_or_risk",
-      "RBW.WA": "screened_by_liquidity_atr_or_risk",
-      "TEN.WA": "screened_by_liquidity_atr_or_risk",
-      "TPE.WA": "screened_by_liquidity_atr_or_risk",
-      "TXT.WA": "screened_by_liquidity_atr_or_risk",
-      "WPL.WA": "screened_by_liquidity_atr_or_risk",
-      "XTB.WA": "screened_by_liquidity_atr_or_risk"
-    },
-    "control_loop_attempts": 1
+    "failed_stage": "missed_cutoff_guardian",
+    "control_loop_attempts": 0,
+    "expected_session": "2026-08-28",
+    "mandatory_selection": {
+      "applied": true,
+      "market_coverage": 0.95,
+      "ranked_candidates": 35,
+      "selected_rank": 1,
+      "historical_feature_session": "2026-08-27",
+      "historical_feature_lag_sessions": 1,
+      "opening_quote_failures_before_selection": {},
+      "late_recovery": true,
+      "ignored_non_trade_history_records": 9
+    }
   },
   "methodology": {
     "horizon": "1-2 sesje GPW",
@@ -71,19 +118,10 @@
       "risk_reward": 15,
       "historical_expectancy": 10
     },
-    "minimum_score": 72.0,
+    "minimum_score": 0.0,
     "minimum_reward_risk": 1.5,
     "universe_size": 40,
     "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
-    "target_score": 72.0,
-    "score_policy": "ranking_target_not_hard_gate",
-    "hard_admission_gates": [
-      "market_data_completeness",
-      "liquidity_and_position_risk",
-      "reward_risk",
-      "source_evidence",
-      "independent_review"
-    ],
     "learning_overlay": {
       "method": "bayesian_shrinkage_historical_overlay_v1",
       "active": false,
@@ -148,7 +186,28 @@
         "legacy_quant_fallback": true,
         "automatic_no_trade_retries": true
       }
-    }
+    },
+    "score_policy": "mandatory_daily_best_valid_ranked",
+    "mandatory_daily_selection": {
+      "enabled": true,
+      "integrated_final_stage": true,
+      "trigger": "primary_not_transaction_after_not_before",
+      "liquidity_role": "hard_gate_and_ranking_feature",
+      "minimum_median_turnover_pln": 1000000.0,
+      "maximum_published_risk_percent": 0.07,
+      "maximum_historical_lag_sessions": 1,
+      "opening_quote_required": true,
+      "recovery_cutoff": "16:30",
+      "late_recovery": true
+    },
+    "hard_admission_gates": [
+      "market_data_completeness",
+      "historical_feature_freshness_max_1_session",
+      "minimum_liquidity",
+      "finite_atr_and_price",
+      "fresh_current_session_quote",
+      "bounded_published_risk"
+    ]
   },
   "metrics": {
     "resolved_trades": 2,
@@ -172,7 +231,9 @@
       "return_percent": 5.092,
       "r_multiple": 1.792,
       "exit_reason": "target",
-      "lesson": "DNP: cel został osiągnięty (1.79R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
+      "lesson": "DNP: cel został osiągnięty (1.79R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii.",
+      "event_type": "earnings",
+      "event_label": "wyniki / raport okresowy"
     },
     "weights_frozen": true,
     "event_learning_method": "event_family_bayesian_shrinkage_v1",
@@ -180,10 +241,10 @@
       {
         "event_type": "earnings",
         "label": "wyniki / raport okresowy",
-        "sample": 0,
+        "sample": 1,
         "minimum_sample": 6,
         "active": false,
-        "average_r": null,
+        "average_r": 1.792,
         "shrunk_r": 0.0,
         "catalyst_adjustment": 0.0
       },
@@ -199,34 +260,38 @@
       }
     ]
   },
+  "outcome": {
+    "status": "PENDING",
+    "activated": null
+  },
   "counterfactual_rejected_candidate_freeze": {
     "schema_version": "daily-stock-rejected-candidate-freeze-v1",
     "market": "gpw",
-    "date": "2026-08-25",
-    "decision_at": "2026-08-25T09:23:45+02:00",
-    "frozen_at": "2026-08-25T07:56:28.992096Z",
-    "source_payload_sha256": "a23e6f78f2528eb8421cd09675cffd59f0eab6cefe3461f719564e8b3a6025ab",
+    "date": "2026-08-31",
+    "decision_at": "2026-08-31T10:57:36+02:00",
+    "frozen_at": "2026-08-31T08:58:17.337634Z",
+    "source_payload_sha256": "26494263374293db318d995f17805dffe17c753ad78dc43be43eeda827ef4f62",
     "status": "frozen",
-    "selected_symbol": null,
-    "candidate_count": 40,
+    "selected_symbol": "DNP.WA",
+    "candidate_count": 39,
     "economically_evaluable_count": 0,
     "candidates": [
       {
-        "candidate_id": "gpw:2026-08-25:11B.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:11B.WA:LONG",
         "market": "gpw",
         "symbol": "11B.WA",
         "name": "11 bit studios",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -237,14 +302,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -274,24 +339,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "e3ca03ca8f0f744d4ca33c22027fcc12b6ef6f432212b9864dc2efdca1e5ff1a"
+        "state_sha256": "381c56a05e0563f3bb051ae0e129a3f7cf10d735a0de094a583d2d2754d804e9"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ACP.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ACP.WA:LONG",
         "market": "gpw",
         "symbol": "ACP.WA",
         "name": "Asseco Poland",
         "sector": "technologia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -302,14 +367,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -339,24 +404,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "63445d5d6f9968dea13cd1695ac7d21278ff2ec40a7df1d1d1d3fdf52ab1f80a"
+        "state_sha256": "85c9a84fcf041073a47121926a1563df57d96792be34d0872a15e17434a2e2d8"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ALE.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ALE.WA:LONG",
         "market": "gpw",
         "symbol": "ALE.WA",
         "name": "Allegro",
         "sector": "handel internetowy",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -367,14 +432,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -404,24 +469,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "30fdb46b5b11f46bd8a4cb35c11e4f1efd4deb1546457fd516f6304511914317"
+        "state_sha256": "c042e70d29c971cada66c83865aa0e1bf79f7221b1dc3c717c78bdbcaf7f4169"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ALR.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ALR.WA:LONG",
         "market": "gpw",
         "symbol": "ALR.WA",
         "name": "Alior Bank",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -432,14 +497,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -469,24 +534,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "1fc9b7e671989160ef6a4e4421ac3028658469afd5dd534c7dc8e7e2b9190f24"
+        "state_sha256": "1a2603f18aa7213d1353917ad654ab2139ef60424b64cecc5ff1369315b9b662"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ATT.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ATT.WA:LONG",
         "market": "gpw",
         "symbol": "ATT.WA",
         "name": "Grupa Azoty",
         "sector": "chemia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -497,14 +562,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -534,24 +599,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "51528f399649d65637fbcdc684724eaf8494c62742140d4706db38b66914f027"
+        "state_sha256": "d1c35e8abd0dbf897c9fac7de90329cd4404c7bbc2f28e31c08f1d399ec59553"
       },
       {
-        "candidate_id": "gpw:2026-08-25:BDX.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:BDX.WA:LONG",
         "market": "gpw",
         "symbol": "BDX.WA",
         "name": "Budimex",
         "sector": "budownictwo",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -562,14 +627,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -599,24 +664,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "5bf2e05f22e99ffc9dadb34b0c90b2a04c0250adedc9023633750dca329f4f1a"
+        "state_sha256": "d36cdc5081078c5bf599dd466401457ca6caa9d0a39f3e49efe98c39e0f8e09b"
       },
       {
-        "candidate_id": "gpw:2026-08-25:BHW.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:BHW.WA:LONG",
         "market": "gpw",
         "symbol": "BHW.WA",
         "name": "Bank Handlowy",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -627,14 +692,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -664,24 +729,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "3f0a98487371040aefae9cc963226bb3e4393cefc1c248a00dee15bfc756757b"
+        "state_sha256": "ac2a32ad3f2792adf9fd48006f2f458e32fcb8619c2a464d45cd6cb78f870bb2"
       },
       {
-        "candidate_id": "gpw:2026-08-25:CAR.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:CAR.WA:LONG",
         "market": "gpw",
         "symbol": "CAR.WA",
         "name": "Inter Cars",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -692,14 +757,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -729,18 +794,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "28eefb8487c09a1f90688e3cd4ee1da50a02f7212b70a2b2f2766a1e21f6d548"
+        "state_sha256": "b690b6dd07d43833559beedeccc333d6e2fe7de604c5980b559007cf1d15d390"
       },
       {
-        "candidate_id": "gpw:2026-08-25:CCC.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:CCC.WA:LONG",
         "market": "gpw",
         "symbol": "CCC.WA",
         "name": "CCC",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
@@ -762,9 +827,9 @@
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "provider_failure:PublicationError: Brak danych rynkowych CCC.WA w prefetch cache.",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -794,24 +859,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "c6899a2dfbc78d5257107eec01a7c14cea61ddc4e260a06b60fe33c370957e0e"
+        "state_sha256": "2d60d9a86e0ba050c75c27855020a15b262a0f13ccc4c1b10e855ffeadaeccd8"
       },
       {
-        "candidate_id": "gpw:2026-08-25:CDR.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:CDR.WA:LONG",
         "market": "gpw",
         "symbol": "CDR.WA",
         "name": "CD Projekt",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -822,14 +887,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -859,24 +924,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "cf22aac9912a2a291eded4a787b5c38b66d5d302b1bb7d0a5dc7c6b15e330afd"
+        "state_sha256": "80805ab7419c8fdb53c91e316f249cb2ea06903be58e1bdf3ee3be9b39ff4415"
       },
       {
-        "candidate_id": "gpw:2026-08-25:CPS.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:CPS.WA:LONG",
         "market": "gpw",
         "symbol": "CPS.WA",
         "name": "Cyfrowy Polsat",
         "sector": "media i telekomunikacja",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -887,14 +952,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -924,89 +989,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "e535b549a55f24370c80598f3614f7c10b3d55dbb21f4e24b11746d9ba250530"
+        "state_sha256": "0fd5e84e974d14858d0db788bbf3b9465e1a2e717b80f11a81582e1dc55dfb97"
       },
       {
-        "candidate_id": "gpw:2026-08-25:DNP.WA:LONG",
-        "market": "gpw",
-        "symbol": "DNP.WA",
-        "name": "Dino Polska",
-        "sector": "handel",
-        "action": "LONG",
-        "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
-        "first_blocking_gate": {
-          "name": "market_data",
-          "passed": false,
-          "hard": true,
-          "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
-          "observed_value": null,
-          "threshold": null
-        },
-        "decision_path": {
-          "gates": [
-            {
-              "name": "market_data",
-              "passed": false,
-              "hard": true,
-              "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
-              "observed_value": null,
-              "threshold": null
-            }
-          ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
-        },
-        "score_state": {
-          "rank": null,
-          "shortlist_limit": 6,
-          "quant_pre_score": null,
-          "composite_score": null,
-          "scores": {},
-          "returns": {}
-        },
-        "market_state": {
-          "last_session": null,
-          "reference_price": null,
-          "median_turnover": null,
-          "turnover_threshold": null,
-          "risk_percent": null
-        },
-        "risk_plan": null,
-        "settlement_eligibility": {
-          "eligible": false,
-          "mode": "insufficient_counterfactual_state",
-          "reason": "market_state_insufficient"
-        },
-        "governance": {
-          "decision_influence": false,
-          "ranking_writeback": false,
-          "gate_writeback": false,
-          "historical_backfill": false,
-          "news_or_llm_rerun": false
-        },
-        "state_sha256": "2b8b8b69ad5181250379df3219fe2b2e632cb1ef9bfcaa76fd99119e5334862e"
-      },
-      {
-        "candidate_id": "gpw:2026-08-25:DOM.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:DOM.WA:LONG",
         "market": "gpw",
         "symbol": "DOM.WA",
         "name": "Dom Development",
         "sector": "deweloperzy",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1017,14 +1017,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1054,24 +1054,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "69aba6f45fda7f03d0cb3b0f4b23b7d216eaa620694c9a563bdefcff862411f4"
+        "state_sha256": "f856a06c902f22e2be164fb8ea87a8dfcf1d1a31793a10231e0218ca82456d96"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ENA.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ENA.WA:LONG",
         "market": "gpw",
         "symbol": "ENA.WA",
         "name": "Enea",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1082,14 +1082,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1119,24 +1119,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "926426cc9520a926d67ced047f9c73fd9fb804687e7b264b58cf4146d3c2f779"
+        "state_sha256": "30a9069a928c8a72d3005b60f34e05e8944d6322c22e8bc8825c442c706ce9ec"
       },
       {
-        "candidate_id": "gpw:2026-08-25:EUR.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:EUR.WA:LONG",
         "market": "gpw",
         "symbol": "EUR.WA",
         "name": "Eurocash",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1147,14 +1147,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1184,24 +1184,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "05e35c597110f0b29c5b130991c42e8eae39ffd2b209a97e1372bee55c01c24a"
+        "state_sha256": "ac556bf300c51c5f47957456d7fdde59655395c2b2b0692aa75108f493e3f519"
       },
       {
-        "candidate_id": "gpw:2026-08-25:GPW.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:GPW.WA:LONG",
         "market": "gpw",
         "symbol": "GPW.WA",
         "name": "Giełda Papierów Wartościowych",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1212,14 +1212,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1249,24 +1249,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "edcfc1faa407315609ae43b09edd32031abbab5dafbf12d88e31482654051925"
+        "state_sha256": "34325aa72ede9457ef7a99f9d6aceeba22287715dfd17c1ad054473dde9e41eb"
       },
       {
-        "candidate_id": "gpw:2026-08-25:ING.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:ING.WA:LONG",
         "market": "gpw",
         "symbol": "ING.WA",
         "name": "ING Bank Śląski",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1277,14 +1277,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1314,24 +1314,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "61b362d59ab14ac84b3b0267a37bdcae0f653be88f81fa0047a02a204ec8e2e6"
+        "state_sha256": "364a7996ff1e82ee3183e0e62e71577db3a6c0cacdb7303c0e7632edec21be56"
       },
       {
-        "candidate_id": "gpw:2026-08-25:JSW.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:JSW.WA:LONG",
         "market": "gpw",
         "symbol": "JSW.WA",
         "name": "JSW",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1342,14 +1342,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1379,24 +1379,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "3c29781eca1478973f38b25a46936dc954c3ef7dac9df69f727410875be44c36"
+        "state_sha256": "fa7c5a635bce0799a6b6a6978ab5017fcdcafc275a4479c648abec67c571cab2"
       },
       {
-        "candidate_id": "gpw:2026-08-25:KGH.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:KGH.WA:LONG",
         "market": "gpw",
         "symbol": "KGH.WA",
         "name": "KGHM",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1407,14 +1407,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1444,24 +1444,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "034a4c89c27cd1fd362f5a3868ba9ba8a711f4621e9551df3381426d5eca9f77"
+        "state_sha256": "4e28ad17bca5ee414a923f009f5178883d0cc6ff551eee99c4ad460424d6531f"
       },
       {
-        "candidate_id": "gpw:2026-08-25:KRU.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:KRU.WA:LONG",
         "market": "gpw",
         "symbol": "KRU.WA",
         "name": "Kruk",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1472,14 +1472,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1509,24 +1509,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "453ab2418c9654134750efd2a8a4776a12514ac0e62ed8a108b67d28a9bfd3c0"
+        "state_sha256": "f7c8a2d2c5e80808180c3ba5486444e9bab379840d5347198867b5622d0356bc"
       },
       {
-        "candidate_id": "gpw:2026-08-25:KTY.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:KTY.WA:LONG",
         "market": "gpw",
         "symbol": "KTY.WA",
         "name": "Grupa Kęty",
         "sector": "przemysł",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1537,14 +1537,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1574,24 +1574,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "0e15294ae939a6e35b5ced70638414e7e5b14b01e2b33fe855af34d64da7a86c"
+        "state_sha256": "93c0493b98395572eeb1b9aadb8e7bfff147b410c5fc7f2df8c0e6e9487ce162"
       },
       {
-        "candidate_id": "gpw:2026-08-25:LPP.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:LPP.WA:LONG",
         "market": "gpw",
         "symbol": "LPP.WA",
         "name": "LPP",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1602,14 +1602,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1639,24 +1639,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "9f0378b9dee9e2209690858874caab31cc8bbf5bb6fb7deb261c3a575b4bc9f4"
+        "state_sha256": "6a7ff912389aeb9878d43b44ef71aeaceb76219002568b29997c2b88419dbdad"
       },
       {
-        "candidate_id": "gpw:2026-08-25:LWB.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:LWB.WA:LONG",
         "market": "gpw",
         "symbol": "LWB.WA",
         "name": "Bogdanka",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1667,14 +1667,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1704,24 +1704,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "2518e41a442afef5c5db7243e0d56be349a057d10f313ffb087ca49884c4b1d1"
+        "state_sha256": "181b69891aa1670a4cadc82abbde005375cf8271321aa9f6aa5e1c385e5b4cd2"
       },
       {
-        "candidate_id": "gpw:2026-08-25:MBK.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:MBK.WA:LONG",
         "market": "gpw",
         "symbol": "MBK.WA",
         "name": "mBank",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1732,14 +1732,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1769,24 +1769,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "bba64713c6c0f03a3487330250c6e241d18bd4b1ec556ca73d539960a983a69a"
+        "state_sha256": "041a8f00f66d610b2d3d053ce471c749f8f93a74001a998b90835bb55e40a7a4"
       },
       {
-        "candidate_id": "gpw:2026-08-25:MIL.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:MIL.WA:LONG",
         "market": "gpw",
         "symbol": "MIL.WA",
         "name": "Bank Millennium",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1797,14 +1797,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1834,24 +1834,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "9d205d0c19c8f77c74c092144767946d840ad06f97998d6c8779979e9c4ae4f9"
+        "state_sha256": "5cd37231e19472f221b09b9b8060f667edd41595f50be48d7eeea030a0be147b"
       },
       {
-        "candidate_id": "gpw:2026-08-25:NEU.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:NEU.WA:LONG",
         "market": "gpw",
         "symbol": "NEU.WA",
         "name": "Neuca",
         "sector": "ochrona zdrowia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1862,14 +1862,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1899,24 +1899,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "f96703101758da26630e5e81d8c114f2b19a064cda46a0ded19523b044e665f2"
+        "state_sha256": "ec09b1341d26a638b58c63d2353571a15c794c7bd16f750766cbae747fde4e18"
       },
       {
-        "candidate_id": "gpw:2026-08-25:OPL.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:OPL.WA:LONG",
         "market": "gpw",
         "symbol": "OPL.WA",
         "name": "Orange Polska",
         "sector": "telekomunikacja",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1927,14 +1927,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -1964,24 +1964,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "725922a7a587a479d24122e5360a48c22b986a8ab11b0e00126d7929248444d9"
+        "state_sha256": "7fc4616bcd86b9dedc01a836c627f5b9b2ffc7b81bfc9bc18ffb437233a39101"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PCO.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PCO.WA:LONG",
         "market": "gpw",
         "symbol": "PCO.WA",
         "name": "Pepco Group",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -1992,14 +1992,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2029,24 +2029,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "df76ad76381d5de8fdb6d1b5524bbc256e3f9002e4a42c792b6a74de73be2dc6"
+        "state_sha256": "5c51a15006b8ffc1a9204347d686be234c6f5b292ef2733227c9b5f84ce474c0"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PEO.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PEO.WA:LONG",
         "market": "gpw",
         "symbol": "PEO.WA",
         "name": "Bank Pekao",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2057,14 +2057,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2094,24 +2094,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "acd6ae93bb7140d0830d3b623ccc5bfa90f9ae1f2610372ee11dc29cc70c8065"
+        "state_sha256": "c926023150f2604abdf4f92a8d8d58c6d6679e161cddc1017c4363ea830312b6"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PGE.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PGE.WA:LONG",
         "market": "gpw",
         "symbol": "PGE.WA",
         "name": "PGE",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2122,14 +2122,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2159,24 +2159,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "370522355cd638f1f4ef4d488e89f3e82624f4e77b3d32210372294c6e44e644"
+        "state_sha256": "4b4f1ee408ab5d68c9a9de8998cbc575ac84353ec5e2f30853c7bbdde1e48c0a"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PKN.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PKN.WA:LONG",
         "market": "gpw",
         "symbol": "PKN.WA",
         "name": "ORLEN",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2187,14 +2187,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2224,24 +2224,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "980452ca66fe8754f7ebfdcffac1bcd33054453319fc5b548f891f10def7b042"
+        "state_sha256": "85624b8ce7fb241de584e2517e98faeda6c7f802593d253816a9f093a64da74c"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PKO.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PKO.WA:LONG",
         "market": "gpw",
         "symbol": "PKO.WA",
         "name": "PKO BP",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2252,14 +2252,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2289,24 +2289,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "bc797caacab7075bab87647f2fab738de7ce625470d2f94e13871d4c14372d2d"
+        "state_sha256": "c58ec66fd4a5cdd94e8fb386e7758c17f0eadd05d067ed97ece3d87b29327421"
       },
       {
-        "candidate_id": "gpw:2026-08-25:PZU.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:PZU.WA:LONG",
         "market": "gpw",
         "symbol": "PZU.WA",
         "name": "PZU",
         "sector": "ubezpieczenia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2317,14 +2317,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2354,24 +2354,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "21c715bbcce19f7fad239a38fb1d19596fce5f4e111984d4383fefcd81314284"
+        "state_sha256": "7ffc532f0906d1ad776d4fb877e19ef3d58cc65b9abf744f30010d86c6900505"
       },
       {
-        "candidate_id": "gpw:2026-08-25:RBW.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:RBW.WA:LONG",
         "market": "gpw",
         "symbol": "RBW.WA",
         "name": "Rainbow Tours",
         "sector": "turystyka",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2382,14 +2382,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2419,18 +2419,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "8474769ca3f5c4cd9854c3ff09299c8b9ded14e746be3061c7bc242d2c218d5d"
+        "state_sha256": "78bb8b04ccee5d7bee98bcd5f57bf8d2aedf4fe83e8dfd588af26bf4e2d4e74e"
       },
       {
-        "candidate_id": "gpw:2026-08-25:SPL.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:SPL.WA:LONG",
         "market": "gpw",
         "symbol": "SPL.WA",
         "name": "Santander Bank Polska",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
@@ -2452,9 +2452,9 @@
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "provider_failure:PublicationError: Brak danych rynkowych SPL.WA w prefetch cache.",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2484,24 +2484,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "7731ab042b170a7d5c59b16c7b1639376f23ec39c2e781c8f1e92f1a0c0d1763"
+        "state_sha256": "9dc7bbb711fba261aed20e0818ec07c700aec53eab0f682c5512cbcd757d7d2a"
       },
       {
-        "candidate_id": "gpw:2026-08-25:TEN.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:TEN.WA:LONG",
         "market": "gpw",
         "symbol": "TEN.WA",
         "name": "Ten Square Games",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2512,14 +2512,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2549,24 +2549,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "714ae84ac4122c7d1d354082178a7eed373ba520dc556823d77126286a6dea4f"
+        "state_sha256": "5a69c8b6135e9400585e104143fef59e2dc82b1b85a0bd913429abf9f85ab073"
       },
       {
-        "candidate_id": "gpw:2026-08-25:TPE.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:TPE.WA:LONG",
         "market": "gpw",
         "symbol": "TPE.WA",
         "name": "Tauron Polska Energia",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2577,14 +2577,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2614,24 +2614,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "89a51b82ea49fb6f209910c27b56e46d3626028ae9e15f69576606785d8750dc"
+        "state_sha256": "d9910a8f95e50f80f6e545e09a263f8feca37b9ae6299cc6323b61c18050ec35"
       },
       {
-        "candidate_id": "gpw:2026-08-25:TXT.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:TXT.WA:LONG",
         "market": "gpw",
         "symbol": "TXT.WA",
         "name": "Text",
         "sector": "technologia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2642,14 +2642,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2679,24 +2679,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "3bc72374a911536728a873872dce5ea1704e9045eb19b51561519418021b969b"
+        "state_sha256": "4b66cd574692cdb7e036c59de0a98440aa54baacc3da365dae89407788f352a6"
       },
       {
-        "candidate_id": "gpw:2026-08-25:WPL.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:WPL.WA:LONG",
         "market": "gpw",
         "symbol": "WPL.WA",
         "name": "Wirtualna Polska",
         "sector": "media",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2707,14 +2707,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2744,24 +2744,24 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "249d422a38cd651e966c241e2aba34086015b4c88a1ef8b94e4aad00fd71b333"
+        "state_sha256": "cc39167d38ea2ad0f8fee557f3449faf7724d2ebc6c60b8cdacc2b59ca227fa9"
       },
       {
-        "candidate_id": "gpw:2026-08-25:XTB.WA:LONG",
+        "candidate_id": "gpw:2026-08-31:XTB.WA:LONG",
         "market": "gpw",
         "symbol": "XTB.WA",
         "name": "XTB",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-08-25T09:23:45+02:00",
-        "expected_session": "2026-08-24",
+        "decision_at": "2026-08-31T10:57:36+02:00",
+        "expected_session": "2026-08-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
           "hard": true,
           "stage": "market_data",
-          "reason": "stale_latest_session:2026-08-21",
+          "reason": "stale_latest_session:2026-08-27",
           "observed_value": null,
           "threshold": null
         },
@@ -2772,14 +2772,14 @@
               "passed": false,
               "hard": true,
               "stage": "market_data",
-              "reason": "stale_latest_session:2026-08-21",
+              "reason": "stale_latest_session:2026-08-27",
               "observed_value": null,
               "threshold": null
             }
           ],
-          "explicit_engine_rejection": "screened_by_liquidity_atr_or_risk",
-          "producer_decision": "BRAK_TRANSAKCJI",
-          "producer_reason": "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka."
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
         },
         "score_state": {
           "rank": null,
@@ -2809,7 +2809,7 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "4fc5757916ac6491c609884dcd4c205b194d6ba3d6787f732aac7b2cf3c32022"
+        "state_sha256": "ce2675c8c5cd0561838bc110497cf8a6cd7826d54201efc703b2ec9cbae12a8b"
       }
     ],
     "contract": {
@@ -2820,11 +2820,6 @@
       "decision_influence": false,
       "future_outcome_requires_preexisting_freeze": true
     },
-    "freeze_sha256": "33b4b79e1bc68c49a1fce909d58c4575e157bf39206d5a7451025b73f35b579b"
-  },
-  "history_index": {
-    "url": "/data/investments/gpw_daily_pick_history_index.json",
-    "selected_trades": 2,
-    "resolved_trades": 2
+    "freeze_sha256": "c6624348cf289293516ed264b8c4785cc94e5650115905334780ff54f98e0f78"
   }
 }

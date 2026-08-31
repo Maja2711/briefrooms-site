@@ -1,0 +1,267 @@
+{
+  "schema_version": "gpw-daily-pick-v1",
+  "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
+  "date": "2026-08-31",
+  "generated_at": "2026-08-31T10:57:36+02:00",
+  "timezone": "Europe/Warsaw",
+  "publication_cutoff": "10:00",
+  "decision": "TRANSAKCJA",
+  "reason": "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej.",
+  "locked": true,
+  "selection": {
+    "symbol": "DNP.WA",
+    "ticker": "DNP",
+    "name": "Dino Polska",
+    "sector": "handel",
+    "score": 69.39,
+    "quant_pre_score": 75.86,
+    "selection_mode": "MANDATORY_DAILY_FINAL",
+    "reference_price": 36.44,
+    "entry_zone": [
+      36.33,
+      36.66
+    ],
+    "skip_above": 36.66,
+    "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
+    "stop": 35.18,
+    "target": 38.7,
+    "risk_percent": 0.0345,
+    "reward_risk": 1.8,
+    "valid_until": "2026-09-02",
+    "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
+    "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
+    "thesis": "Dino Polska ma najwyższy ranking ilościowy wśród aktualnie poprawnych i płynnych kandydatów GPW.",
+    "why_now": "Wybór opiera się na relatywnym momentum, kontekście rynku, płynności, geometrii ryzyka i historycznym overlayu. Brak silnego katalizatora nie jest twardym veto dla obowiązkowego wyboru Daily.",
+    "risk_factors": [
+      "Tryb końcowego wyboru może mieć niższe przekonanie niż standardowa selekcja katalizatorowa.",
+      "Minimalna płynność i maksymalne ryzyko pozostają twardymi bramkami.",
+      "SL pozostaje nadrzędnym warunkiem wyjścia i nie może być rozszerzany po wejściu."
+    ],
+    "scores": {
+      "relative_momentum": 96.12,
+      "volume_liquidity": 100.0,
+      "market_context": 33.77,
+      "risk_reward": 84.02,
+      "historical_expectancy": 50.0,
+      "catalyst": 50.0
+    },
+    "sources": [
+      {
+        "id": "market-open:DNP.WA:2026-08-31",
+        "title": "Yahoo — bieżące kwotowanie DNP.WA",
+        "publisher": "Yahoo",
+        "url": "https://finance.yahoo.com/quote/DNP.WA",
+        "source_kind": "market_quote",
+        "channel": "Yahoo",
+        "published_at": "2026-08-31T10:42:37+02:00",
+        "age_hours": 0,
+        "materiality": 0
+      }
+    ],
+    "review": {
+      "approved": true,
+      "mode": "mandatory_daily_final_quant_policy",
+      "reason": "Najwyższy ranking spośród kandydatów, którzy przeszli twarde bramki danych, płynności, ryzyka i bieżącej ceny.",
+      "supported_source_ids": [
+        "market-open:DNP.WA:2026-08-31"
+      ]
+    },
+    "market_snapshot": {
+      "provider": "Yahoo",
+      "symbol": "DNP.WA",
+      "date": "2026-08-31",
+      "observed_at": "2026-08-31T10:42:37+02:00",
+      "open": 35.6,
+      "high": 36.56,
+      "low": 35.44,
+      "last": 36.44,
+      "volume": 828327,
+      "crosscheck": {
+        "available_providers": [
+          "Yahoo"
+        ],
+        "errors": [
+          "Stooq:PublicationError"
+        ],
+        "status": "single_source"
+      }
+    },
+    "forced_from_reason": "Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed 10:00.",
+    "quant_engine": "daily-stock-core-v1-final-selector",
+    "historical_feature_session": "2026-08-27",
+    "historical_feature_lag_sessions": 1
+  },
+  "data_quality": {
+    "status": "healthy",
+    "failed_stage": "missed_cutoff_guardian",
+    "control_loop_attempts": 0,
+    "expected_session": "2026-08-28",
+    "mandatory_selection": {
+      "applied": true,
+      "market_coverage": 0.95,
+      "ranked_candidates": 35,
+      "selected_rank": 1,
+      "historical_feature_session": "2026-08-27",
+      "historical_feature_lag_sessions": 1,
+      "opening_quote_failures_before_selection": {},
+      "late_recovery": true,
+      "ignored_non_trade_history_records": 9
+    }
+  },
+  "methodology": {
+    "horizon": "1-2 sesje GPW",
+    "weights": {
+      "catalyst": 25,
+      "relative_momentum": 20,
+      "volume_liquidity": 15,
+      "market_context": 15,
+      "risk_reward": 15,
+      "historical_expectancy": 10
+    },
+    "minimum_score": 0.0,
+    "minimum_reward_risk": 1.5,
+    "universe_size": 40,
+    "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "learning_overlay": {
+      "method": "bayesian_shrinkage_historical_overlay_v1",
+      "active": false,
+      "minimum_sample": 8,
+      "weights_frozen": true
+    },
+    "event_layer": {
+      "enabled": true,
+      "channels": [
+        "ESPI/EBI przez PAP",
+        "niezależne newsy"
+      ],
+      "market_reaction": "ostatnia zakończona sesja: cena, relatywny zwrot i wolumen",
+      "event_learning": "bayesian shrinkage po typie zdarzenia",
+      "weights_frozen": true
+    },
+    "market_data": {
+      "historical_provider_order": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "historical_ranking_session": "ostatnia zakończona sesja GPW",
+      "opening_quote_providers": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "opening_quote_not_before": "09:05 Europe/Warsaw",
+      "publication_cutoff": "10:00 Europe/Warsaw",
+      "crosscheck_max_deviation": 0.02
+    },
+    "daily_stock_core": {
+      "core": "daily-stock-core-v1",
+      "market": "GPW",
+      "currency": "PLN",
+      "weights": {
+        "catalyst": 25,
+        "relative_momentum": 20,
+        "volume_liquidity": 15,
+        "market_context": 15,
+        "risk_reward": 15,
+        "historical_expectancy": 10
+      },
+      "minimum_reward_risk": 1.5,
+      "maximum_risk_percent": 0.07,
+      "learning": {
+        "method": "bayesian_shrinkage_historical_overlay_v1",
+        "weights_frozen": true,
+        "market_memory_isolated": true
+      },
+      "adapter": {
+        "calendar": "GPW / Europe-Warsaw",
+        "session_confirmation": "09:05 Europe/Warsaw",
+        "currency": "PLN",
+        "official_channels": [
+          "ESPI",
+          "EBI",
+          "PAP MediaRoom",
+          "Biznes PAP"
+        ],
+        "legacy_learning_preserved": true,
+        "event_learning_preserved": true,
+        "legacy_quant_fallback": true,
+        "automatic_no_trade_retries": true
+      }
+    },
+    "score_policy": "mandatory_daily_best_valid_ranked",
+    "mandatory_daily_selection": {
+      "enabled": true,
+      "integrated_final_stage": true,
+      "trigger": "primary_not_transaction_after_not_before",
+      "liquidity_role": "hard_gate_and_ranking_feature",
+      "minimum_median_turnover_pln": 1000000.0,
+      "maximum_published_risk_percent": 0.07,
+      "maximum_historical_lag_sessions": 1,
+      "opening_quote_required": true,
+      "recovery_cutoff": "16:30",
+      "late_recovery": true
+    },
+    "hard_admission_gates": [
+      "market_data_completeness",
+      "historical_feature_freshness_max_1_session",
+      "minimum_liquidity",
+      "finite_atr_and_price",
+      "fresh_current_session_quote",
+      "bounded_published_risk"
+    ]
+  },
+  "metrics": {
+    "resolved_trades": 2,
+    "not_activated": 0,
+    "win_rate": 1.0,
+    "average_r": 1.796,
+    "average_return_percent": 4.69,
+    "automatic_weight_changes": false
+  },
+  "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+  "learning": {
+    "method": "bayesian_shrinkage_historical_overlay_v1",
+    "resolved_trades": 2,
+    "adaptation_active": false,
+    "minimum_sample": 8,
+    "recent_average_r": 1.796,
+    "last_lesson": {
+      "date": "2026-08-24",
+      "symbol": "DNP",
+      "sector": "handel",
+      "return_percent": 5.092,
+      "r_multiple": 1.792,
+      "exit_reason": "target",
+      "lesson": "DNP: cel został osiągnięty (1.79R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii.",
+      "event_type": "earnings",
+      "event_label": "wyniki / raport okresowy"
+    },
+    "weights_frozen": true,
+    "event_learning_method": "event_family_bayesian_shrinkage_v1",
+    "event_expectancy": [
+      {
+        "event_type": "earnings",
+        "label": "wyniki / raport okresowy",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.792,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      },
+      {
+        "event_type": "regulatory",
+        "label": "regulacja / spór prawny",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.799,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      }
+    ]
+  },
+  "outcome": {
+    "status": "PENDING",
+    "activated": null
+  }
+}
