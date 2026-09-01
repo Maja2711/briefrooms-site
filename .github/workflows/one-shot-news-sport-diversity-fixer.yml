@@ -1,0 +1,41 @@
+name: One-shot repair news sport diversity migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-shot-news-sport-diversity-fixer.yml"
+      - "data/news/polish_sport_watchlist.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Repair regex replacement helper and push
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/one-shot-news-sport-diversity-20260901.yml')
+          text = p.read_text(encoding='utf-8')
+          old = "              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)\n"
+          new = "              updated, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)\n"
+          if old not in text:
+              raise SystemExit('expected regex helper line not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/one-shot-news-sport-diversity-fixer.yml
+          git add .github/workflows/one-shot-news-sport-diversity-20260901.yml
+          git commit -m "fix(news): make diversity migration regex-safe"
+          git pull --rebase origin main
+          git push origin HEAD:main
