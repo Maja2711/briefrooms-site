@@ -70,6 +70,21 @@ class CuratedSourceArchitectureTests(unittest.TestCase):
         self.assertTrue({"ESA", "NASA JPL"} <= science_sources)
         self.assertIn("FDA", health_sources)
 
+    def test_optional_premium_feed_failure_is_not_required_source_failure(self) -> None:
+        required, optional = curated._split_source_errors(
+            "en",
+            [
+                "Financial Times: HTTP 403",
+                "Bloomberg Markets: timeout",
+                "BBC Business: connection reset",
+            ],
+        )
+        self.assertEqual(required, ["BBC Business: connection reset"])
+        self.assertEqual(
+            optional,
+            ["Financial Times: HTTP 403", "Bloomberg Markets: timeout"],
+        )
+
     def test_three_source_pool_targets_three_cards_per_publisher(self) -> None:
         now = datetime(2026, 9, 1, 18, 0, tzinfo=timezone.utc)
         candidates = []
