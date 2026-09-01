@@ -165,7 +165,7 @@ class GpwP035Tests(unittest.TestCase):
             )
 
         with (
-            patch.object(ranking.runtime, "install", return_value=None),
+            patch.object(ranking.core_adapter, "install", return_value=None),
             patch.object(ranking.gpw, "load_config", return_value=config),
             patch.object(ranking.gpw, "previous_session", return_value=expected),
             patch.object(ranking.gpw, "all_history", return_value=[]),
