@@ -5,36 +5,26 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+# Keep the external version stable because the live publication workflow validates it.
+# The policy is strengthened below without changing the payload contract.
 POLICY_VERSION = "news-value-filter-v4"
 
 _DEATH_NOTICE = re.compile(
-    r"\b(?:"
-    r"nie\s+żyje|zmarł(?:a|o)?|odszedł\s+od\s+nas|odeszła\s+od\s+nas|"
+    r"\b(?:nie\s+żyje|zmarł(?:a|o)?|odszedł\s+od\s+nas|odeszła\s+od\s+nas|"
     r"has\s+died|is\s+dead|died\s+aged|dies\s+aged|dead\s+at(?:\s+the\s+age\s+of)?|"
-    r"obituary|in\s+memoriam"
-    r")\b",
+    r"obituary|in\s+memoriam)\b",
     re.IGNORECASE,
 )
 
 _INTERVIEW_META = re.compile(
-    r"(?:"
-    r"\bwywiad\s+z\b|"
-    r"\brozmow(?:a|ę|y)\s+z\b|"
-    r"\b(?:będzie|bedzie)\s+gościem\b|"
+    r"(?:\bwywiad\s+z\b|\brozmow(?:a|ę|y)\s+z\b|\b(?:będzie|bedzie)\s+gościem\b|"
     r"\bgościem\s+(?:programu|poranka|radia|telewizji|tv|wydarzeń)\b|"
-    r"\bgościem\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+)+\b|"
-    r"\bgość\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
-    r"\bgościu\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
     r"\b(?:dziś|dzisiaj|jutro|wkrótce)\b.{0,60}\b(?:na\s+antenie|w\s+tv|w\s+programie)\b|"
     r"\b(?:zobacz|obejrzyj|posłuchaj|oglądaj)\b.{0,45}\b(?:wywiad|rozmow\w*|program|podcast)\b|"
-    r"\b(?:w|na)\s+(?:tvn24|polsat\s+news|tvp\s+info|radio\s+zet|rmf\s+fm|antenie|programie)\b|"
-    r"\binterview\s+with\b|"
-    r"\bin\s+conversation\s+with\b|"
-    r"\bq\s*&\s*a\s+with\b|"
+    r"\binterview\s+with\b|\bin\s+conversation\s+with\b|\bq\s*&\s*a\s+with\b|"
     r"\b(?:watch|listen\s+to)\b.{0,40}\b(?:interview|conversation|podcast)\b|"
     r"\b(?:joins\s+us|guest\s+on|will\s+appear\s+on)\b|"
-    r"\[(?:wywiad|interview|podcast|oglądaj|zobacz|watch)\]"
-    r")",
+    r"\[(?:wywiad|interview|podcast|oglądaj|zobacz|watch)\])",
     re.IGNORECASE,
 )
 
@@ -45,157 +35,133 @@ _GUEST_LISTING = re.compile(
 )
 
 _LOTTERY_TOPIC = re.compile(
-    r"\b(?:"
-    r"lotto|mini\s+lotto|lotto\s+plus|eurojackpot|eurojackpot|multi\s+multi|keno|"
-    r"gry?\s+losow(?:e|ych)|loteri(?:a|i|ę)|"
-    r"lottery|powerball|mega\s+millions|euromillions|lotto\s+6/49"
-    r")\b",
+    r"\b(?:lotto|mini\s+lotto|lotto\s+plus|eurojackpot|multi\s+multi|keno|"
+    r"gry?\s+losow(?:e|ych)|loteri(?:a|i|ę)|lottery|powerball|mega\s+millions|"
+    r"euromillions|lotto\s+6/49)\b",
     re.IGNORECASE,
 )
-
 _LOTTERY_RESULT_PROMO = re.compile(
-    r"\b(?:"
-    r"wynik(?:i|ów)?(?:\s+losowania)?|losowani(?:e|a)|wylosowan(?:o|e)|"
+    r"\b(?:wynik(?:i|ów)?(?:\s+losowania)?|losowani(?:e|a)|wylosowan(?:o|e)|"
     r"szczęśliwe\s+liczby|zwycięskie\s+liczby|numery\s+(?:losowania|wygrywające)|"
     r"kumulacj(?:a|i|ę)|do\s+wygrania|główna\s+wygrana|padła\s+wygrana|"
     r"rekordowa\s+wygrana|jackpot|rollover|winning\s+numbers|lottery\s+results?|"
-    r"draw\s+results?|numbers\s+drawn|prize\s+(?:rises|grows)|no\s+jackpot\s+winner"
-    r")\b",
+    r"draw\s+results?|numbers\s+drawn|prize\s+(?:rises|grows)|no\s+jackpot\s+winner)\b",
     re.IGNORECASE,
 )
-
 _GAMBLING_PUBLIC_INTEREST = re.compile(
-    r"\b(?:"
-    r"ustaw\w*|regulacj\w*|zakaz\w*|podatek|podatk\w*|licencj\w*|monopol\w*|"
+    r"\b(?:ustaw\w*|regulacj\w*|zakaz\w*|podatk\w*|licencj\w*|monopol\w*|"
     r"kontrol\w*|śledztw\w*|oszustw\w*|pranie\s+pieniędzy|uzależn\w*|reklam\w*|"
     r"law|regulat\w*|ban\w*|tax\w*|licen[cs]\w*|monopol\w*|investigat\w*|"
-    r"fraud\w*|money\s+laundering|addiction|advertis\w*"
-    r")\b",
+    r"fraud\w*|money\s+laundering|addiction|advertis\w*)\b",
     re.IGNORECASE,
 )
-
 _BETTING_PROMO = re.compile(
-    r"\b(?:"
-    r"bonus\s+\d+(?:[.,]\d+)?\s*(?:zł|pln|eur|usd)|"
+    r"\b(?:bonus\s+\d+(?:[.,]\d+)?\s*(?:zł|pln|eur|usd)|"
     r"(?:odbierz|zgarnij|otrzymaj)\s+bonus|kod\s+promocyjny|"
     r"zakład\s+bez\s+ryzyka|darmowy\s+zakład|free\s+bet|"
-    r"typy\s+bukmacherskie|specjalny\s+kurs"
-    r")\b",
+    r"typy\s+bukmacherskie|specjalny\s+kurs)\b",
     re.IGNORECASE,
 )
 
-_MEDIA_SELF_PROMOTION = re.compile(
-    r"(?:"
-    r"\b(?:rewelacyjne|świetne|znakomite|rekordowe|najlepsze)\b.{0,90}"
-    r"\b(?:wyniki|oglądalno\w*|zasięg\w*)\b|"
-    r"\b(?:wyniki|oglądalno\w*|zasięg\w*)\b.{0,90}"
-    r"\b(?:tvn24|fakt(?:y|ów)\s+tvn|tvn24\.pl|polsat\s+news|tvp\s+info|"
-    r"nasz(?:a|ej)\s+(?:stacj\w*|portal\w*|program\w*))\b|"
-    r"\b(?:great|excellent|record|best)\b.{0,90}\b(?:ratings?|audience|reach)\b|"
-    r"\b(?:ratings?|audience|reach)\b.{0,90}\b(?:our\s+(?:channel|show|site)|bbc|cnn)\b|"
-    r"\bdziękujemy(?:\s+widzom|\s+czytelnikom)?\b|\bthank\s+you,?\s+(?:viewers|readers)\b"
-    r")",
+# Class-level filter: reject media audience/ratings PR, not only one exact headline.
+_MEDIA_AUDIENCE_METRIC = re.compile(
+    r"\b(?:wynik\w*|oglądalno\w*|widowni\w*|zasięg\w*|udział\w*\s+w\s+rynku|"
+    r"rekord\w*\s+widowni|liczb\w*\s+widz\w*|liczb\w*\s+czytelnik\w*|odsłon\w*|"
+    r"pageviews?|audience|ratings?|reach|viewers?|readers?|circulation|market\s+share)\b",
     re.IGNORECASE,
 )
-
+_MEDIA_BRAND_OR_SELF_REFERENCE = re.compile(
+    r"\b(?:tvn(?:24)?|fakty\s+tvn|tvn24\.pl|polsat(?:\s+news)?|tvp(?:\s+info)?|"
+    r"rmf(?:\s*fm|24)?|radio\s+zet|onet|wp\.?pl|interia|gazeta\.pl|"
+    r"nasz(?:a|ej|e)\s+(?:stacj\w*|portal\w*|program\w*|serwis\w*)|"
+    r"our\s+(?:channel|show|site|network|newsroom)|bbc|cnn)\b",
+    re.IGNORECASE,
+)
+_MEDIA_CELEBRATION = re.compile(
+    r"\b(?:rewelacyjne|świetne|znakomite|rekordowe|najlepsze|lider\w*|wygrywa\w*|"
+    r"dziękujemy|great|excellent|record|best|number\s+one|thank\s+you)\b",
+    re.IGNORECASE,
+)
 _MEDIA_PUBLIC_INTEREST = re.compile(
-    r"\b(?:"
-    r"krrit|regulator\w*|koncesj\w*|kara\w*|pozew\w*|śledztw\w*|przejęci\w*|"
-    r"fuzj\w*|sprzedaż\w*|zwolnieni\w*|redukcj\w*|cenzur\w*|dezinformacj\w*|"
-    r"regulat\w*|licen[cs]\w*|fine\w*|lawsuit\w*|investigat\w*|acqui\w*|"
-    r"merger\w*|layoffs?|censorship|disinformation"
-    r")\b",
+    r"\b(?:krrit|regulator\w*|koncesj\w*|kara\w*|pozew\w*|śledztw\w*|"
+    r"przejęci\w*|fuzj\w*|sprzedaż\w*|zwolnieni\w*|redukcj\w*|cenzur\w*|"
+    r"dezinformacj\w*|prawo\w*|ustaw\w*|regulat\w*|licen[cs]\w*|fine\w*|"
+    r"lawsuit\w*|investigat\w*|acqui\w*|merger\w*|layoffs?|censorship|"
+    r"disinformation|legislation|antitrust|competition\s+authority)\b",
     re.IGNORECASE,
 )
 
 _ISOLATED_LOCAL_INCIDENT = re.compile(
-    r"(?:"
-    r"\bkonflikt\b.{0,80}\b(?:taksówkarz\w*|taxi)\b|"
-    r"\b(?:bójk\w*|bijatyk\w*|awantur\w*|sprzeczk\w*)\b|"
+    r"(?:\bkonflikt\b.{0,100}\b(?:taksówkarz\w*|taxi)\b|"
+    r"\b(?:bójk\w*|bijatyk\w*|awantur\w*|sprzeczk\w*|szarpanin\w*)\b|"
     r"\b(?:kolizj\w*|stłuczk\w*)\b|"
-    r"\bwydmuchał\b.{0,60}\bpromil\w*\b|"
-    r"\b(?:podejrzan\w*|zatrzyman\w*)\b.{0,70}\b(?:gwałt\w*|kradzież\w*|właman\w*)\b|"
-    r"\b(?:gwałt\w*|kradzież\w*|właman\w*)\b.{0,70}\b(?:podejrzan\w*|zatrzyman\w*)\b|"
-    r"\b(?:taxi\s+(?:fight|brawl)|bar\s+brawl|street\s+fight|minor\s+crash|"
-    r"drunk\s+driver|arrested\s+(?:after|for)\s+(?:an?\s+)?(?:assault|burglary|rape))\b"
-    r")",
+    r"\bwydmuchał\b.{0,70}\bpromil\w*\b|"
+    r"\b(?:podejrzan\w*|zatrzyman\w*)\b.{0,90}\b(?:gwałt\w*|kradzież\w*|właman\w*|pobic\w*)\b|"
+    r"\b(?:gwałt\w*|kradzież\w*|właman\w*|pobic\w*)\b.{0,90}\b(?:podejrzan\w*|zatrzyman\w*)\b|"
+    r"\b(?:taxi\s+(?:fight|brawl|dispute)|bar\s+brawl|street\s+fight|minor\s+crash|"
+    r"drunk\s+driver|arrested\s+(?:after|for)\s+(?:an?\s+)?(?:assault|burglary|rape))\b)",
     re.IGNORECASE,
 )
-
+_LOCAL_HUMAN_INTEREST = re.compile(
+    r"\b(?:nietypow\w*\s+interwencj\w*|policjanci\s+zatrzymali|mandat\s+za|"
+    r"sąsiedz\w*\s+spór|kłótni\w*\s+o|viral\w*\s+(?:film|nagranie)|"
+    r"internet\s+obiegło\s+nagranie|local\s+police|neighbour\s+dispute|viral\s+video)\b",
+    re.IGNORECASE,
+)
 _INCIDENT_PUBLIC_INTEREST = re.compile(
-    r"\b(?:"
-    r"zamach\w*|terror\w*|katastrof\w*|masow\w*|seryjn\w*|gang\w*|"
+    r"\b(?:zamach\w*|terror\w*|katastrof\w*|masow\w*|seryjn\w*|gang\w*|"
     r"grup\w*\s+przestępcz\w*|cyberatak\w*|infrastruktur\w*\s+krytycz\w*|"
-    r"korupcj\w*|defraudacj\w*|systemow\w*|precedens\w*|ustaw\w*|"
+    r"korupcj\w*|defraudacj\w*|systemow\w*|precedens\w*|ustaw\w*|regulacj\w*|"
     r"trybunał\w*|sąd\s+najwyższ\w*|prokuratur\w*\s+krajow\w*|"
     r"co\s+najmniej\s+\d+|dziesiątki|setki|tysiące|milion\w*|miliard\w*|"
-    r"wiele\s+osób|ofiary\w*|dane\s+(?:osobowe|medyczne)|"
-    r"terror\w*|mass\s+(?:casualty|shooting)|serial\s+(?:attacker|offender)|"
-    r"organized\s+crime|criminal\s+network|critical\s+infrastructure|"
-    r"corrupt\w*|systemic|precedent|supreme\s+court|constitutional\s+court|"
-    r"at\s+least\s+\d+|dozens|hundreds|thousands|millions?|billions?|victims?"
-    r")\b",
+    r"wiele\s+osób|ofiary\w*|dane\s+(?:osobowe|medyczne)|terror\w*|"
+    r"mass\s+(?:casualty|shooting)|serial\s+(?:attacker|offender)|organized\s+crime|"
+    r"criminal\s+network|critical\s+infrastructure|corrupt\w*|systemic|precedent|"
+    r"supreme\s+court|constitutional\s+court|regulat\w*|at\s+least\s+\d+|"
+    r"dozens|hundreds|thousands|millions?|billions?|victims?)\b",
     re.IGNORECASE,
 )
 
 _POLITICAL_THEATER = re.compile(
-    r"(?:"
-    r"\b(?:zamieścił|opublikował)\s+wpis\b|"
-    r"\bzwrócił\s+się\s+do\b|"
+    r"(?:\b(?:zamieścił|opublikował)\s+wpis\b|\bzwrócił\s+się\s+do\b|"
     r"\b(?:odpowiedział|zareagował)\s+na\s+(?:słowa|wpis)\b|"
-    r"\boburzeni\w*\s+(?:na|wśród|po)\b|"
-    r"\b(?:wywołał|wywołała)\s+burzę\b|"
-    r"\b(?:pomoże|pomożecie)\s+pan\b|"
-    r"\bposted\s+on\s+(?:social\s+media|x)\b|"
+    r"\boburzeni\w*\s+(?:na|wśród|po)\b|\b(?:wywołał|wywołała)\s+burzę\b|"
+    r"\b(?:pomoże|pomożecie)\s+pan\b|\bposted\s+on\s+(?:social\s+media|x)\b|"
     r"\b(?:hit\s+back|fired\s+back|reacted\s+to\s+(?:comments|post))\b|"
-    r"\b(?:outrage|backlash)\s+(?:over|after)\b"
-    r")",
+    r"\b(?:outrage|backlash)\s+(?:over|after)\b)",
     re.IGNORECASE,
 )
-
 _POLITICAL_SUBSTANCE = re.compile(
-    r"\b(?:"
-    r"ustaw\w*|projekt\s+ustaw\w*|głosowani\w*|wybor\w*|referend\w*|"
+    r"\b(?:ustaw\w*|projekt\s+ustaw\w*|głosowani\w*|wybor\w*|referend\w*|"
     r"decyzj\w*|porozumieni\w*|umow\w*|sankcj\w*|budżet\w*|podatek\w*|"
     r"stopy\s+procentowe|bezpieczeństw\w*|wojn\w*|atak\w*|kryzys\w*|"
     r"wyrok\w*|orzeczeni\w*|śledztw\w*|korupcj\w*|dymisj\w*|powołan\w*|"
-    r"bill\b|legislation|vote\w*|election\w*|referendum|decision\w*|"
-    r"agreement\w*|treaty|sanctions?|budget|tax\w*|interest\s+rates?|"
-    r"security|war|attack\w*|crisis|ruling|investigat\w*|corrupt\w*|"
-    r"resign\w*|appoint\w*"
-    r")\b",
+    r"bill|legislation|vote\w*|election\w*|referendum|decision\w*|agreement\w*|"
+    r"treaty|sanctions?|budget|tax\w*|interest\s+rates?|security|war|attack\w*|"
+    r"crisis|ruling|investigat\w*|corrupt\w*|resign\w*|appoint\w*)\b",
     re.IGNORECASE,
 )
 
 _SUBSTANTIVE_VERB = re.compile(
-    r"\b(?:"
-    r"zapowiada|ogłasza|ostrzega|twierdzi|mówi|ocenia|uważa|przyznaje|ujawnia|"
+    r"\b(?:zapowiada|ogłasza|ostrzega|twierdzi|mówi|ocenia|uważa|przyznaje|ujawnia|"
     r"potwierdza|wyjaśnia|apeluje|żąda|proponuje|chce|odrzuca|popiera|przewiduje|"
     r"wyklucza|podniesie|obniży|wprowadzi|zniesie|zablokuje|zagłosuje|przetrwa|"
     r"rozpadnie|upadnie|wzrośnie|spadnie|powinien|powinna|powinni|musi|muszą|"
-    r"nie\s+poprze|poprze|"
-    r"says|warns|announces|claims|reveals|confirms|explains|demands|proposes|wants|"
-    r"rejects|backs|predicts|expects|rules\s+out|calls\s+for|plans\s+to|should|must|"
-    r"will\s+(?:cut|raise|reduce|increase|introduce|block|support|reject)|"
-    r"could\s+(?:fall|rise|drop|increase)"
-    r")\b",
+    r"nie\s+poprze|poprze|says|warns|announces|claims|reveals|confirms|explains|"
+    r"demands|proposes|wants|rejects|backs|predicts|expects|rules\s+out|calls\s+for|"
+    r"plans\s+to|should|must|will\s+(?:cut|raise|reduce|increase|introduce|block|support|reject)|"
+    r"could\s+(?:fall|rise|drop|increase))\b",
     re.IGNORECASE,
 )
-
 _MEANINGFUL_NUMBER = re.compile(
-    r"(?:"
-    r"\b(?:19|20)\d{2}\b|"
-    r"\b\d+(?:[.,]\d+)?\s*(?:%|proc\.?|mld|mln|tys\.?|zł|pln|usd|eur|"
-    r"dolar(?:ów|y)?|euro|pkt|punkt(?:ów|y)?|dni|lat|months?|years?|billion|million|percent)\b"
-    r")",
+    r"(?:\b(?:19|20)\d{2}\b|\b\d+(?:[.,]\d+)?\s*(?:%|proc\.?|mld|mln|tys\.?|zł|pln|usd|eur|"
+    r"dolar(?:ów|y)?|euro|pkt|punkt(?:ów|y)?|dni|lat|months?|years?|billion|million|percent)\b)",
     re.IGNORECASE,
 )
-
 _QUOTED_CONTENT = re.compile(r"[\"“”„«]([^\"“”„»«]{18,})[\"“”»]", re.IGNORECASE)
 _PROMO_TAIL = re.compile(
     r"^(?:cał(?:y|a)\s+)?(?:wywiad|rozmowa|materiał|program|podcast)|"
-    r"^(?:zobacz|obejrzyj|posłuchaj|oglądaj)|"
-    r"^(?:o|na\s+temat|about)\s+",
+    r"^(?:zobacz|obejrzyj|posłuchaj|oglądaj)|^(?:o|na\s+temat|about)\s+",
     re.IGNORECASE,
 )
 
@@ -221,12 +187,10 @@ def has_substantive_headline(title: Any) -> bool:
         return False
     if _SUBSTANTIVE_VERB.search(value) or _MEANINGFUL_NUMBER.search(value):
         return True
-
     for match in _QUOTED_CONTENT.finditer(value):
         quote = match.group(1).strip()
         if _word_count(quote) >= 4 and not _PROMO_TAIL.search(quote):
             return True
-
     if ":" in value:
         tail = value.split(":", 1)[1].strip(" -–—")
         if _word_count(tail) >= 4 and not _PROMO_TAIL.search(tail):
@@ -234,11 +198,21 @@ def has_substantive_headline(title: Any) -> bool:
     return False
 
 
+def _is_media_self_promotion(combined: str) -> bool:
+    """Reject audience/ratings PR unless the story has a real external consequence."""
+    if _MEDIA_PUBLIC_INTEREST.search(combined):
+        return False
+    has_metric = bool(_MEDIA_AUDIENCE_METRIC.search(combined))
+    has_brand = bool(_MEDIA_BRAND_OR_SELF_REFERENCE.search(combined))
+    celebratory = bool(_MEDIA_CELEBRATION.search(combined))
+    return has_metric and (has_brand or celebratory)
+
+
 def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
-    """Apply the BriefRooms editorial value policy to one candidate story."""
+    """Apply the BriefRooms public-value gate to one candidate story."""
     headline = _text(title)
     description = _text(summary)
-    combined = f"{headline} {description[:220]}".strip()
+    combined = f"{headline} {description[:320]}".strip()
 
     if _DEATH_NOTICE.search(headline) or (
         _DEATH_NOTICE.search(combined)
@@ -261,10 +235,13 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
     if _BETTING_PROMO.search(combined) and not _GAMBLING_PUBLIC_INTEREST.search(headline):
         return NewsQualityDecision(False, "betting_promotion")
 
-    if _MEDIA_SELF_PROMOTION.search(headline) and not _MEDIA_PUBLIC_INTEREST.search(combined):
+    if _is_media_self_promotion(combined):
         return NewsQualityDecision(False, "media_self_promotion")
 
-    if _ISOLATED_LOCAL_INCIDENT.search(headline) and not _INCIDENT_PUBLIC_INTEREST.search(combined):
+    if (
+        (_ISOLATED_LOCAL_INCIDENT.search(headline) or _LOCAL_HUMAN_INTEREST.search(headline))
+        and not _INCIDENT_PUBLIC_INTEREST.search(combined)
+    ):
         return NewsQualityDecision(False, "isolated_local_incident")
 
     if _POLITICAL_THEATER.search(headline) and not _POLITICAL_SUBSTANCE.search(headline):
@@ -280,49 +257,27 @@ def is_publishable_story(title: Any, summary: Any = "") -> bool:
 def public_policy() -> dict[str, Any]:
     return {
         "version": POLICY_VERSION,
-        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym lub systemowym, a nie autopromocję wydawcy, jednostkowy incydent, komunikat personalny ani promocję hazardu.",
-        "purpose_en": "Select stories containing concrete public or systemic value rather than publisher self-promotion, isolated incidents, personal notices or gambling promotion.",
+        "purpose_pl": (
+            "Wybór wiadomości o realnym znaczeniu publicznym, gospodarczym lub systemowym. "
+            "Filtr odrzuca autopromocję wydawców, jednostkowe incydenty, komunikaty personalne "
+            "i promocję hazardu, nawet gdy są świeże lub sensacyjne."
+        ),
+        "purpose_en": (
+            "Select stories with real public, economic or systemic significance. "
+            "Publisher self-promotion, isolated incidents, personal notices and gambling promotion "
+            "are rejected even when fresh or sensational."
+        ),
         "excluded": [
-            {
-                "id": "death_notice",
-                "description_pl": "Samodzielne nekrologi i informacje, że konkretna osoba zmarła lub nie żyje.",
-                "description_en": "Standalone obituaries and notices that a named person has died.",
-            },
-            {
-                "id": "interview_promo_without_substance",
-                "description_pl": "Zapowiedzi wywiadów, gości telewizyjnych i rozmów bez konkretnej tezy w widocznym nagłówku.",
-                "description_en": "Interview, TV guest and podcast promotion without a concrete claim in the visible headline.",
-            },
-            {
-                "id": "lottery_result_or_jackpot_promo",
-                "description_pl": "Wyniki losowań, zwycięskie numery, kumulacje, jackpoty i promowanie kwot do wygrania.",
-                "description_en": "Lottery draw results, winning numbers, rollovers, jackpots and prize-pool promotion.",
-            },
-            {
-                "id": "betting_promotion",
-                "description_pl": "Reklamy bonusów bukmacherskich, darmowych zakładów, kodów promocyjnych i specjalnych kursów.",
-                "description_en": "Advertising for betting bonuses, free bets, promotional codes and special odds.",
-            },
-            {
-                "id": "media_self_promotion",
-                "description_pl": "Autopromocja wydawcy: wyniki oglądalności, zasięgi i podziękowania dla widzów lub czytelników.",
-                "description_en": "Publisher self-promotion such as audience results, reach figures and thank-you announcements.",
-            },
-            {
-                "id": "isolated_local_incident",
-                "description_pl": "Jednostkowe bójki, konflikty, drobne kolizje i podobne incydenty bez szerszego znaczenia społecznego.",
-                "description_en": "One-off fights, disputes, minor crashes and similar incidents without wider public significance.",
-            },
-            {
-                "id": "political_theater_without_public_consequence",
-                "description_pl": "Wpisy, zaczepki, oburzenie i wymiana zdań polityków bez decyzji lub mierzalnego skutku publicznego.",
-                "description_en": "Political posts, outrage and verbal sparring without a decision or measurable public consequence.",
-            },
+            {"id": "death_notice", "description_pl": "Samodzielne nekrologi i informacje o śmierci konkretnej osoby.", "description_en": "Standalone obituaries and personal death notices."},
+            {"id": "interview_promo_without_substance", "description_pl": "Zapowiedzi wywiadów i gości bez konkretnej tezy lub skutku.", "description_en": "Interview and guest promotion without a concrete claim or consequence."},
+            {"id": "lottery_result_or_jackpot_promo", "description_pl": "Wyniki losowań, jackpoty i promocja kwot do wygrania.", "description_en": "Lottery results, jackpots and prize-pool promotion."},
+            {"id": "betting_promotion", "description_pl": "Bonusy bukmacherskie i reklamy zakładów.", "description_en": "Betting bonuses and promotional offers."},
+            {"id": "media_self_promotion", "description_pl": "Autopromocja mediów: oglądalność, zasięg, widownia i podobne wewnętrzne KPI bez skutku rynkowego lub regulacyjnego.", "description_en": "Media self-promotion: ratings, reach, audience and similar internal KPIs without market or regulatory consequence."},
+            {"id": "isolated_local_incident", "description_pl": "Jednostkowe bójki, konflikty, kolizje i lokalne ciekawostki bez szerszego znaczenia.", "description_en": "One-off fights, disputes, minor crashes and local human-interest incidents without wider significance."},
+            {"id": "political_theater_without_public_consequence", "description_pl": "Wpisy i wymiana zdań polityków bez decyzji lub mierzalnego skutku.", "description_en": "Political posts and verbal sparring without a decision or measurable consequence."},
         ],
-        "interview_exception_pl": "Materiał z wywiadu może zostać opublikowany, gdy nagłówek podaje konkretną wypowiedź, decyzję, prognozę, liczbę lub skutek.",
-        "interview_exception_en": "Interview content may be published when the headline states a concrete claim, decision, forecast, number or consequence.",
-        "lottery_exception_pl": "Dopuszczalne są wiadomości o regulacjach, podatkach, oszustwach i innych skutkach publicznych rynku gier losowych, o ile nagłówek nie jest wynikiem losowania ani promocją wygranej.",
-        "lottery_exception_en": "Public-interest reporting on regulation, taxation, fraud and other societal effects of gambling may be published when the headline is not a draw result or prize promotion.",
-        "incident_exception_pl": "Incydent może zostać opublikowany, gdy ma charakter masowy lub systemowy, dotyczy bezpieczeństwa publicznego, infrastruktury krytycznej, korupcji albo ustanawia ważny precedens.",
-        "incident_exception_en": "An incident may be published when it is mass-scale or systemic, concerns public safety, critical infrastructure, corruption or an important precedent.",
+        "media_exception_pl": "Wiadomość o medium zostaje, gdy dotyczy regulacji, przejęcia, fuzji, zwolnień, cenzury, dezinformacji lub innego skutku rynkowego/publicznego.",
+        "media_exception_en": "A media story remains eligible when it concerns regulation, acquisition, merger, layoffs, censorship, disinformation or another market/public consequence.",
+        "incident_exception_pl": "Incydent zostaje, gdy jest masowy lub systemowy, dotyczy bezpieczeństwa publicznego, infrastruktury krytycznej, korupcji albo ważnego precedensu.",
+        "incident_exception_en": "An incident remains eligible when it is mass-scale or systemic, concerns public safety, critical infrastructure, corruption or an important precedent.",
     }
