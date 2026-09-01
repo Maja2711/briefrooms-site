@@ -50,8 +50,6 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn("rows.filter(isResolved)", script)
         self.assertIn("outcome.entry_price", script)
         self.assertIn("outcome.exit_price", script)
-        # UI copy was intentionally shortened; the closed-only behavior is
-        # asserted structurally above rather than by an obsolete label string.
         self.assertIn('history: "Historia transakcji"', script)
         self.assertIn("daily-stock-position-ux.js", polish)
         self.assertIn("daily-stock-position-ux.js", english)
@@ -82,6 +80,23 @@ class GpwDailyPickUiTests(unittest.TestCase):
         self.assertIn("source_summaries", adapter)
         self.assertIn("financial translator", adapter)
         self.assertIn("us.publish = _publish", adapter)
+
+    def test_gpw_expected_value_ui_is_synchronized_between_pl_and_en(self):
+        polish = (ROOT / "pl/inwestycje/daily-trading.html").read_text(encoding="utf-8")
+        english = (ROOT / "en/investing/daily-trading.html").read_text(encoding="utf-8")
+        script = (ROOT / "scripts/gpw-expected-value-public.js").read_text(encoding="utf-8")
+        css = (ROOT / "assets/gpw-expected-value.css").read_text(encoding="utf-8")
+
+        for page in (polish, english):
+            self.assertIn("/scripts/gpw-expected-value-public.js", page)
+            self.assertIn("/assets/gpw-expected-value.css", page)
+        self.assertIn('lang === "en"', script)
+        self.assertIn("Empiryczne EV · P0.2", script)
+        self.assertIn("Empirical EV · P0.2", script)
+        self.assertIn("tp_before_sl_probability", script)
+        self.assertIn("sl_before_tp_probability", script)
+        self.assertIn("conservative_ev_r", script)
+        self.assertIn(".dsm-ev-panel", css)
 
     def test_gpw_runtime_installs_shared_core_before_preserved_event_layers(self):
         workflow = (ROOT / ".github/workflows/gpw-daily-pick-pl.yml").read_text(encoding="utf-8")
