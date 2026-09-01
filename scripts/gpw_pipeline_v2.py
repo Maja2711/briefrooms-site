@@ -12,6 +12,7 @@ GPW_RECOVERY_DATE + GPW_RECOVERY_CUTOFF. The override is inert in normal runs.
 """
 from __future__ import annotations
 
+import copy
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time as clock_time
@@ -20,9 +21,11 @@ from typing import Any
 try:
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_market_data as market
+    from scripts import gpw_opening_confirmation as opening
 except ModuleNotFoundError:
     import gpw_daily_pick as gpw
     import gpw_market_data as market
+    import gpw_opening_confirmation as opening
 
 
 LAST_PREFETCH_DIAGNOSTICS: dict[str, Any] = {}
@@ -96,6 +99,95 @@ def _quality_payload(payload: dict[str, Any], *, cutoff: datetime, market_ratio:
         }
     )
     return payload
+
+
+def _opening_config(config: dict[str, Any]) -> dict[str, Any]:
+    raw = config.get("opening_confirmation") or {}
+    return {
+        "enabled": bool(raw.get("enabled", False)),
+        "engine": str(raw.get("engine") or opening.ENGINE),
+        "top_candidates": max(1, int(raw.get("top_candidates", 6))),
+        "weight": opening.bounded_weight(raw.get("weight", 0.25)),
+        "role": str(raw.get("role") or "bounded_reranking_overlay_not_hard_gate"),
+    }
+
+
+def _fresh_opening_snapshot(snapshot: dict[str, Any], now: datetime) -> None:
+    if float(snapshot.get("last") or 0.0) <= 0.0:
+        raise ValueError("non-positive current-session quote")
+    if str(snapshot.get("date") or "") != now.date().isoformat():
+        raise ValueError(f"stale execution session: {snapshot.get('date')}")
+    crosscheck = snapshot.get("crosscheck") or {}
+    if str(crosscheck.get("status") or "").lower() in {"conflict", "rejected"}:
+        raise ValueError("execution quote cross-check conflict")
+
+
+def _rerank_with_opening(
+    eligible: list[tuple[float, dict[str, Any], dict[str, Any]]],
+    *,
+    config: dict[str, Any],
+    now: datetime,
+) -> tuple[list[tuple[float, dict[str, Any], dict[str, Any]]], dict[str, Any]]:
+    """Rerank eligible primary candidates using live post-open confirmation."""
+    settings = _opening_config(config)
+    diagnostics: dict[str, Any] = {
+        **settings,
+        "base_eligible_candidates": len(eligible),
+        "evaluated_candidates": 0,
+        "failures": {},
+    }
+    if not settings["enabled"] or not eligible:
+        return eligible, diagnostics
+
+    shortlist = eligible[: int(settings["top_candidates"])]
+    assessed: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
+    failures: dict[str, str] = {}
+
+    def one(item: tuple[float, dict[str, Any], dict[str, Any]]):
+        base_score, candidate, analysis = item
+        symbol = str(candidate["symbol"])
+        snapshot = market.opening_snapshot(symbol, now=now)
+        _fresh_opening_snapshot(snapshot, now)
+        confirmation = opening.score(candidate, snapshot)
+        adjusted = opening.blend(
+            base_score,
+            float(confirmation["score"]),
+            float(settings["weight"]),
+        )
+        enriched = copy.deepcopy(candidate)
+        enriched["legacy_composite_score"] = gpw.round2(base_score)
+        enriched["opening_adjusted_score"] = adjusted
+        enriched["opening_confirmation"] = confirmation
+        enriched["opening_confirmation_engine"] = opening.ENGINE
+        enriched["opening_market_snapshot"] = snapshot
+        return adjusted, enriched, analysis
+
+    with ThreadPoolExecutor(max_workers=min(4, len(shortlist))) as pool:
+        futures = {
+            pool.submit(one, item): str(item[1]["symbol"])
+            for item in shortlist
+        }
+        for future in as_completed(futures):
+            symbol = futures[future]
+            try:
+                assessed.append(future.result())
+            except Exception as exc:
+                failures[symbol] = _detail(exc)
+
+    assessed.sort(
+        key=lambda item: (
+            float(item[0]),
+            float(item[1].get("quant_pre_score") or 0.0),
+        ),
+        reverse=True,
+    )
+    diagnostics["evaluated_candidates"] = len(assessed)
+    diagnostics["failures"] = failures
+    diagnostics["selected_symbol"] = assessed[0][1]["symbol"] if assessed else None
+    diagnostics["selected_opening_score"] = (
+        assessed[0][1]["opening_confirmation"]["score"] if assessed else None
+    )
+    return assessed, diagnostics
 
 
 def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=None) -> dict[str, Any]:
@@ -187,7 +279,14 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         return payload
 
     gpw.normalize_cross_section(candidates)
-    shortlist = sorted(candidates, key=lambda item: item["quant_pre_score"], reverse=True)[: int(config["top_candidates_for_news"])]
+    ranked_candidates = sorted(
+        candidates,
+        key=lambda item: item["quant_pre_score"],
+        reverse=True,
+    )
+    for rank, candidate in enumerate(ranked_candidates, start=1):
+        candidate["quant_rank"] = rank
+    shortlist = ranked_candidates[: int(config["top_candidates_for_news"])]
     source_errors: dict[str, str] = {}
     for candidate in shortlist:
         try:
@@ -232,8 +331,23 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         eligible.append((score, candidate, analysis))
     eligible.sort(key=lambda item: item[0], reverse=True)
 
+    base_eligible_count = len(eligible)
+    eligible, opening_diagnostics = _rerank_with_opening(
+        eligible,
+        config=config,
+        now=now,
+    )
+
     payload = gpw.common_payload(now, config, "BRAK_TRANSAKCJI", "Żaden kandydat nie przeszedł pełnego progu jakości i ryzyka.")
     payload["publication_cutoff"] = cutoff.strftime("%H:%M")
+    payload.setdefault("methodology", {})["opening_confirmation"] = {
+        "enabled": opening_diagnostics["enabled"],
+        "engine": opening_diagnostics["engine"],
+        "weight": opening_diagnostics["weight"],
+        "top_candidates": opening_diagnostics["top_candidates"],
+        "component_weights": dict(opening.COMPONENT_WEIGHTS),
+        "role": opening_diagnostics["role"],
+    }
     payload["data_quality"] = {
         "status": "healthy",
         "complete_ratio": round(market_ratio, 4),
@@ -241,18 +355,24 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         "valid_market_symbols": valid_market,
         "ranked_candidates": len(candidates),
         "reviewed_candidates": len(shortlist),
+        "base_eligible_candidates": base_eligible_count,
         "eligible_candidates": len(eligible),
+        "opening_confirmation": opening_diagnostics,
         "provider_failures": market_failures,
         "screened_out": screened_out,
         "analysis_rejections": rejected_analysis,
     }
     if not eligible:
+        if base_eligible_count and opening_diagnostics["enabled"]:
+            payload["reason"] = (
+                "Kandydaci przeszli analizę bazową, ale żaden nie miał poprawnego, "
+                "świeżego potwierdzenia bieżącej sesji."
+            )
         return payload
 
     review_rejections: list[dict[str, Any]] = []
     approved = None
-    # v1.3 reviewed only the top eligible candidate and stopped on one rejection.
-    # v2 reviews the ordered eligible list until one candidate passes or all fail.
+    # Review the Opening-Confirmation-adjusted order until one candidate passes.
     for score, candidate, analysis in eligible:
         review = gpw.gemini_review(candidate, analysis, score)
         if review.get("approved"):
@@ -275,10 +395,11 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
     valid_until = gpw.add_sessions(now.date(), 2, config)
     sources_by_id = {source["id"]: source for source in candidate["sources"]}
     approved_sources = [sources_by_id[source_id] for source_id in review["supported_source_ids"] if source_id in sources_by_id]
+    confirmation = candidate.get("opening_confirmation") or {}
     payload.update(
         {
             "decision": "TRANSAKCJA",
-            "reason": "Kandydat przeszedł ranking, bramki źródłowe, kontrolę ryzyka i niezależną recenzję Gemini.",
+            "reason": "Kandydat przeszedł ranking, Opening Confirmation, bramki źródłowe, kontrolę ryzyka i niezależną recenzję Gemini.",
             "locked": True,
             "selection": {
                 "symbol": candidate["symbol"],
@@ -286,6 +407,12 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
                 "name": candidate["name"],
                 "sector": candidate["sector"],
                 "score": score,
+                "legacy_composite_score": candidate.get("legacy_composite_score", score),
+                "quant_pre_score": candidate.get("quant_pre_score"),
+                "quant_rank": candidate.get("quant_rank"),
+                "opening_confirmation_score": confirmation.get("score"),
+                "opening_confirmation": confirmation,
+                "opening_confirmation_engine": candidate.get("opening_confirmation_engine"),
                 "reference_price": candidate["reference_price"],
                 "entry_zone": candidate["entry_zone"],
                 "activation": "Setup po otwarciu: wejście tylko w podanej strefie; powyżej górnej granicy nie gonić ceny.",
@@ -296,9 +423,14 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
                 "thesis": analysis["thesis"],
                 "why_now": analysis["why_now"],
                 "risk_factors": analysis["risk_factors"],
-                "scores": {**candidate["scores"], "catalyst": analysis["catalyst_score"]},
+                "scores": {
+                    **candidate["scores"],
+                    "catalyst": analysis["catalyst_score"],
+                    "opening_confirmation": confirmation.get("score"),
+                },
                 "sources": approved_sources,
                 "review": review,
+                "market_snapshot": candidate.get("opening_market_snapshot"),
             },
             "outcome": {"status": "PENDING", "activated": None},
         }
