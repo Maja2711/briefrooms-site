@@ -154,6 +154,38 @@ class ClaimIntelligenceTests(unittest.TestCase):
         group = next(item for item in result["claim_groups"] if item["metric"] == "policy_rate_direction")
         self.assertEqual(group["status"], "disputed")
 
+    def test_nearest_metric_separates_killed_and_injured_counts(self) -> None:
+        claims = extract_story_claims(
+            self.story("Reuters", "Attack leaves 12 killed and 30 injured in city")
+        )
+        numeric = {(item["metric"], item["normalized_value"]) for item in claims if item["claim_type"] == "numeric_metric"}
+        self.assertIn(("casualties_deaths", 12.0), numeric)
+        self.assertIn(("casualties_injured", 30.0), numeric)
+
+    def test_year_near_inflation_percentage_is_not_misread_as_percent(self) -> None:
+        claims = extract_story_claims(
+            self.story("Reuters", "Inflation forecast for 2026 is 3.2%")
+        )
+        inflation_values = [
+            item["normalized_value"]
+            for item in claims
+            if item.get("metric") == "inflation_rate"
+        ]
+        self.assertEqual(inflation_values, [3.2])
+
+    def test_basis_point_change_is_bound_to_policy_rate(self) -> None:
+        claims = extract_story_claims(
+            self.story("Reuters", "Fed cuts rates by 25 basis points")
+        )
+        self.assertTrue(
+            any(
+                item.get("metric") == "policy_rate_change"
+                and item.get("unit") == "basis_points"
+                and item.get("normalized_value") == 25.0
+                for item in claims
+            )
+        )
+
     def test_year_without_metric_is_not_comparable_numeric_claim(self) -> None:
         claims = extract_story_claims(
             self.story("BBC News", "Election campaign begins in 2026", "Parliament prepares for the vote")
