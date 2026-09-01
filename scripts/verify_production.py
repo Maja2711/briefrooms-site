@@ -44,7 +44,7 @@ def fetch(url: str, *, timeout: float) -> FetchResult:
             "Accept": "*/*",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
-            "User-Agent": "BriefRooms-production-verifier/2.0",
+            "User-Agent": "BriefRooms-production-verifier/2.1",
         },
     )
     with urlopen(request, timeout=timeout) as response:
@@ -111,11 +111,17 @@ def verify_contract(
     raise RuntimeError(f"Production contract check failed: {last_error}")
 
 
-def verify_exact_files(base_url: str, expected_sha: str, *, timeout: float) -> None:
+def _parity_mismatches(
+    base_url: str,
+    expected_sha: str,
+    *,
+    attempt: int,
+    timeout: float,
+) -> list[str]:
     mismatches: list[str] = []
     for path in PARITY_PATHS:
         expected = local_bytes(path)
-        url = cache_busted_url(base_url, f"/{path}", expected_sha, 1)
+        url = cache_busted_url(base_url, f"/{path}", expected_sha, attempt)
         try:
             result = fetch(url, timeout=timeout)
         except (HTTPError, URLError, TimeoutError) as exc:
@@ -129,10 +135,44 @@ def verify_exact_files(base_url: str, expected_sha: str, *, timeout: float) -> N
             )
             continue
         print(f"/{path} matches main exactly ({digest(expected)[:12]}).")
+    return mismatches
 
-    if mismatches:
-        formatted = "\n - ".join(mismatches)
-        raise RuntimeError(f"Production file parity failed:\n - {formatted}")
+
+def verify_exact_files(
+    base_url: str,
+    expected_sha: str,
+    *,
+    attempts: int,
+    interval: float,
+    timeout: float,
+) -> None:
+    """Wait for all public parity files to converge to the checked-out main.
+
+    GitHub Pages can expose a new build-version.json before every HTML object and
+    CDN edge has converged. A mismatch is therefore retried as a deployment state,
+    not treated as an immediate terminal failure.
+    """
+    last_mismatches: list[str] = []
+    for attempt in range(1, attempts + 1):
+        last_mismatches = _parity_mismatches(
+            base_url,
+            expected_sha,
+            attempt=attempt,
+            timeout=timeout,
+        )
+        if not last_mismatches:
+            return
+
+        formatted = "; ".join(last_mismatches)
+        if attempt < attempts:
+            print(
+                f"Parity attempt {attempt}/{attempts} not converged: {formatted}; retrying.",
+                file=sys.stderr,
+            )
+            time.sleep(interval)
+
+    formatted = "\n - ".join(last_mismatches)
+    raise RuntimeError(f"Production file parity failed after {attempts} attempts:\n - {formatted}")
 
 
 def verify_homepage_contract() -> None:
@@ -192,7 +232,13 @@ def main() -> int:
             interval=args.interval,
             timeout=args.timeout,
         )
-        verify_exact_files(args.base_url, expected_sha, timeout=args.timeout)
+        verify_exact_files(
+            args.base_url,
+            expected_sha,
+            attempts=args.attempts,
+            interval=args.interval,
+            timeout=args.timeout,
+        )
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 1
