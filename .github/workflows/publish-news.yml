@@ -118,7 +118,7 @@ jobs:
           python -m unittest tests.test_homepage_static -v
 
           for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
-            grep -F '/scripts/news-live.js?v=5' "$path"
+            grep -F '/scripts/news-live.js?v=6' "$path"
             grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
           done
 
@@ -169,7 +169,7 @@ jobs:
           base = 'https://briefrooms.com'
           json_paths = ('/data/news/pl.json', '/data/news/en.json')
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/8.0', 'Cache-Control': 'no-cache'}
+          headers = {'User-Agent': 'BriefRooms production verifier/9.0', 'Cache-Control': 'no-cache'}
           last = []
           for attempt in range(48):
               last = []
@@ -212,8 +212,17 @@ jobs:
                           last.append(f'{path}: Claim Intelligence missing')
                       if claim_policy.get('contradiction_detection_version') != 'contradiction-detection-v1':
                           last.append(f'{path}: contradiction detection missing')
-                      if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
+                      homepage_policy = payload.get('homepage_policy', {})
+                      if homepage_policy.get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
+                      if homepage_policy.get('target_story_count') != 10 or homepage_policy.get('minimum_story_count') != 10:
+                          last.append(f'{path}: homepage ten-story contract missing')
+                      home = payload.get('home') if isinstance(payload.get('home'), list) else []
+                      if len(home) != 10:
+                          last.append(f'{path}: homepage must contain exactly 10 stories, got {len(home)}')
+                      home_ids = [str(item.get('link') or item.get('title') or '') for item in home]
+                      if len(home_ids) != len(set(home_ids)):
+                          last.append(f'{path}: homepage contains duplicate stories')
                       if any(len(items) != 9 for items in payload.get('sections', {}).values()):
                           last.append(f'{path}: section does not contain exactly 9 stories')
                       for section_id, items in payload.get('sections', {}).items():
@@ -267,7 +276,7 @@ jobs:
                           if sport_policy.get('watchlist_version') != 'pl-sport-watchlist-v1':
                               last.append(f'{path}: Polish sport watchlist missing')
                       now = datetime.now(timezone.utc)
-                      for story in payload.get('home', []):
+                      for story in home:
                           first_seen_raw = story.get('homepage_first_seen_at')
                           if not first_seen_raw:
                               last.append(f'{path}: homepage first-seen timestamp missing')
@@ -283,14 +292,14 @@ jobs:
                       req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
                       with urllib.request.urlopen(req, timeout=15) as response:
                           body = response.read().decode('utf-8', 'replace')
-                      if '/scripts/news-live.js?v=5' not in body:
-                          last.append(f'{path}: runtime missing')
+                      if '/scripts/news-live.js?v=6' not in body:
+                          last.append(f'{path}: runtime v6 missing')
                       if f'name="briefrooms-live-news-marker" content="{marker}"' not in body:
                           last.append(f'{path}: static marker mismatch')
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production news use provenance, CanonicalEvent, independent corroboration and Claim Intelligence contradiction detection.')
+                  print('Production news use ten-card homepages, provenance, CanonicalEvent, independent corroboration and Claim Intelligence.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))

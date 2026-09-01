@@ -24,6 +24,14 @@ function item(lang, id, category, ageMs) {
   };
 }
 
+test('homepage card contract is exactly ten', () => {
+  const rows = Array.from({ length: 14 }, (_, index) =>
+    item('pl', String(index + 1), index % 2 ? 'Ekonomia' : 'Polityka', (index + 1) * 60 * 1000)
+  );
+  assert.equal(home.CARD_LIMIT, 10);
+  assert.equal(home.selectApproved(rows, 'pl', NOW).length, 10);
+});
+
 test('PL homepage promotes politics, economy and health ahead of other fresh news', () => {
   const rows = [
     item('pl', '1', 'Technologia', 5 * 60 * 1000),

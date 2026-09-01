@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from scripts.enforce_homepage_max_age import HOME_MAX_AGE, enforce_payload
+from scripts.enforce_homepage_max_age import HOME_LIMIT, HOME_MAX_AGE, enforce_payload
 
 
 class HomepageExposureCapTests(unittest.TestCase):
@@ -97,6 +97,27 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual([item["title"] for item in result["home"]], ["Replacement"])
         self.assertIn("homepage_first_seen_at", result["home"][0])
         self.assertIn("homepage_expires_at", result["home"][0])
+
+    def test_homepage_fills_to_exactly_ten_from_section_backfill(self) -> None:
+        now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
+        initial = [self._story(f"Home {index}", now - timedelta(minutes=index), "Politics") for index in range(6)]
+        replacements = [
+            self._story(f"Replacement {index}", now - timedelta(minutes=20 + index), "Economy")
+            for index in range(8)
+        ]
+        payload = {
+            "home": initial,
+            "sections": {"politics": initial, "economy": replacements},
+            "labels": {"politics": "Politics", "economy": "Economy"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        self.assertEqual(HOME_LIMIT, 10)
+        self.assertEqual(len(result["home"]), 10)
+        self.assertEqual(len({item["link"] for item in result["home"]}), 10)
+        self.assertEqual(result["health"]["homepage_freshness"]["status"], "ok")
+        self.assertEqual(result["homepage_policy"]["target_story_count"], 10)
 
 
 if __name__ == "__main__":
