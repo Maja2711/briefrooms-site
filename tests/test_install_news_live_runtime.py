@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import subprocess
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from scripts import install_news_live_runtime as runtime
@@ -49,6 +52,37 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             '<a class="brief-card" href="/pl/briefy/unknown-cccccccccccc.html" hidden aria-hidden="true" data-home-stale="true">',
             rendered,
         )
+
+    def test_installer_adds_exactly_one_floor_guard_after_news_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / 'page.html'
+            path.write_text(
+                '<html><body><main></main>'
+                '<script src="/scripts/news-live.js?v=5" defer></script>'
+                '<script src="/scripts/home-card-floor.js?v=old" defer></script>'
+                '</body></html>',
+                encoding='utf-8',
+            )
+            runtime.install(path)
+            rendered = path.read_text(encoding='utf-8')
+
+        self.assertEqual(rendered.count('/scripts/news-live.js?v=6'), 1)
+        self.assertEqual(rendered.count('/scripts/home-card-floor.js?v=1'), 1)
+        self.assertLess(rendered.index('/scripts/news-live.js?v=6'), rendered.index('/scripts/home-card-floor.js?v=1'))
+
+    def test_floor_guard_is_valid_javascript_and_has_hard_minimum_of_ten(self) -> None:
+        script = runtime.ROOT / 'scripts' / 'home-card-floor.js'
+        completed = subprocess.run(
+            ['node', '--check', str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        source = script.read_text(encoding='utf-8')
+        self.assertIn('var MIN_CARDS = 10;', source)
+        self.assertIn("card.dataset.brPhotoGuarded = '1';", source)
+        self.assertIn("container.dataset.homeCardFloorStatus = current.length >= MIN_CARDS ? 'met' : 'underfilled';", source)
 
 
 if __name__ == '__main__':

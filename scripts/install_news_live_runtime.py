@@ -15,8 +15,11 @@ PAGES = [
     ROOT / "en" / "index.html",
 ]
 VERSION = "6"
+FLOOR_VERSION = "1"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}" defer></script>'
+FLOOR_TAG = f'<script src="/scripts/home-card-floor.js?v={FLOOR_VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
+FLOOR_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-card-floor\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_BLOCK = re.compile(
@@ -115,16 +118,16 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
 
 def install(path: Path) -> bool:
     old = path.read_text(encoding="utf-8")
-    new = PATTERN.sub("", old)
+    new = FLOOR_PATTERN.sub("", PATTERN.sub("", old))
     if path.name == "index.html" and path.parent.name in {"pl", "en"}:
         new = apply_homepage_freshness(new, path.parent.name)
     if "</body>" not in new:
         raise RuntimeError(f"closing body tag missing: {path.relative_to(ROOT)}")
-    new = new.replace("</body>", TAG + "\n</body>", 1)
+    new = new.replace("</body>", TAG + "\n" + FLOOR_TAG + "\n</body>", 1)
     if new == old:
         return False
     path.write_text(new, encoding="utf-8", newline="\n")
-    print(f"installed live news runtime in {path.relative_to(ROOT)}")
+    print(f"installed live news runtime and homepage floor guard in {path.relative_to(ROOT)}")
     return True
 
 
