@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Final deterministic selector for the Polish GPW Daily Trading adapter.
 
-The primary GPW engine is allowed to abstain while it performs its richer
-catalyst/reviewer process.  This module is the final stage of the SAME
-publication pipeline and enforces the product contract: after the configured
-opening window, publish one best valid GPW stock on every live session unless a
-hard market-data or execution-safety condition prevents a defensible choice.
+The primary GPW engine may abstain while it performs its richer catalyst/reviewer
+process. This final stage enforces the product contract: after the configured
+opening window publish one best valid GPW stock on each live session unless a
+hard data-quality or execution-safety condition prevents a defensible choice.
 
-The selector is deterministic.  It never fabricates a quote and never weakens
-liquidity or risk gates merely to manufacture a trade.
+P0.1 adds bounded current-session Opening Confirmation. P0.2 adds an empirical,
+walk-forward Expected Value model which selects the target R/R from historical
+analogues instead of mechanically imposing 1.8 R.
 """
 from __future__ import annotations
 
@@ -22,23 +22,24 @@ from typing import Any, Callable
 try:
     from scripts import daily_stock_core as core
     from scripts import gpw_daily_pick as gpw
+    from scripts import gpw_expected_value as ev
     from scripts import gpw_market_data as market
+    from scripts import gpw_opening_confirmation as opening
     from scripts import gpw_provider_v2 as provider
 except ModuleNotFoundError:
     import daily_stock_core as core
     import gpw_daily_pick as gpw
+    import gpw_expected_value as ev
     import gpw_market_data as market
+    import gpw_opening_confirmation as opening
     import gpw_provider_v2 as provider
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "data/investments/gpw_mandatory_daily_config.json"
-OPENING_CONFIRMATION_ENGINE = "gpw-opening-confirmation-v1"
-OPENING_COMPONENT_WEIGHTS = {
-    "open_return": 0.30,
-    "intraday_position": 0.30,
-    "distance_from_high": 0.20,
-    "gap_quality": 0.20,
-}
+OPENING_CONFIRMATION_ENGINE = opening.ENGINE
+OPENING_COMPONENT_WEIGHTS = opening.COMPONENT_WEIGHTS
+# Backward-compatible public alias used by tests and audit tooling.
+opening_confirmation_score = opening.score
 
 
 def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
@@ -54,7 +55,6 @@ def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
         "maximum_candidate_risk_percent",
         "maximum_published_risk_percent",
         "maximum_historical_lag_sessions",
-        "reward_risk",
     )
     missing = [key for key in required if key not in value]
     if missing:
@@ -100,13 +100,6 @@ def _accepted_feature_day(
 
 
 def _learning_history(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return only records that can participate in stock/sector learning.
-
-    Historical BRAK_TRANSAKCJI/AWARIA_DANYCH publications legitimately contain
-    ``selection: null``.  The legacy GPW history scorer expects a mapping.  A
-    null selection is not a trade outcome and must be ignored rather than
-    crashing the daily final selector.
-    """
     return [
         row
         for row in rows
@@ -132,7 +125,6 @@ def build_ranked_candidates(
         completed = [bar for bar in bars if bar.day <= expected_day]
         if not completed:
             continue
-
         accepted = _accepted_feature_day(
             completed[-1].day,
             expected_day,
@@ -142,7 +134,6 @@ def build_ranked_candidates(
         if accepted is None:
             continue
         feature_day, lag_sessions = accepted
-
         candidate = core.build_quant_candidate(
             company,
             completed,
@@ -154,7 +145,6 @@ def build_ranked_candidates(
         )
         if candidate is None:
             continue
-
         candidate["quant_engine"] = "daily-stock-core-v1-final-selector"
         candidate["mandatory_selection"] = True
         candidate["historical_feature_session"] = feature_day.isoformat()
@@ -197,76 +187,6 @@ def _fresh_execution_snapshot(snapshot: dict[str, Any], now: datetime) -> None:
         raise ValueError("execution quote cross-check conflict")
 
 
-def _gap_quality_score(gap: float) -> float:
-    """Prefer controlled gaps; penalise both large gap-ups and large gap-downs."""
-    if -0.01 <= gap <= 0.02:
-        return 100.0
-    distance = (-0.01 - gap) if gap < -0.01 else (gap - 0.02)
-    return core.clamp(100.0 - distance * 2500.0)
-
-
-def opening_confirmation_score(
-    candidate: dict[str, Any], snapshot: dict[str, Any]
-) -> dict[str, Any]:
-    """Score whether the current GPW session confirms the completed-session setup.
-
-    The score is deliberately bounded and deterministic.  It rewards controlled
-    continuation after the open, trading near the session high and a healthy
-    intraday position, while penalising large chase-prone gaps and failed opens.
-    It is an overlay, not an admission gate.
-    """
-    previous_close = float(candidate.get("reference_price") or 0.0)
-    open_price = float(snapshot.get("open") or 0.0)
-    high = float(snapshot.get("high") or 0.0)
-    low = float(snapshot.get("low") or 0.0)
-    last = float(snapshot.get("last") or 0.0)
-    if min(previous_close, open_price, high, low, last) <= 0.0:
-        raise ValueError("opening confirmation requires positive OHLC and previous close")
-    if high < low:
-        raise ValueError("opening confirmation received invalid intraday range")
-
-    gap = open_price / previous_close - 1.0
-    open_return = last / open_price - 1.0
-    intraday_range = high - low
-    intraday_position = (
-        0.5
-        if intraday_range <= max(last * 1e-8, 1e-8)
-        else core.clamp((last - low) / intraday_range, 0.0, 1.0)
-    )
-    distance_from_high = last / high - 1.0
-
-    # Ideal continuation is around +1.5% from the open.  The score tapers to
-    # zero roughly five percentage points away from that centre, preventing
-    # extreme early moves from being interpreted as automatically superior.
-    open_return_score = core.clamp(
-        100.0 - abs(open_return - 0.015) * 2000.0
-    )
-    intraday_position_score = core.clamp(intraday_position * 100.0)
-    distance_from_high_score = core.clamp(100.0 + distance_from_high * 2500.0)
-    gap_quality_score = _gap_quality_score(gap)
-
-    components = {
-        "open_return": round(open_return_score, 2),
-        "intraday_position": round(intraday_position_score, 2),
-        "distance_from_high": round(distance_from_high_score, 2),
-        "gap_quality": round(gap_quality_score, 2),
-    }
-    total = sum(
-        components[name] * weight
-        for name, weight in OPENING_COMPONENT_WEIGHTS.items()
-    )
-    return {
-        "engine": OPENING_CONFIRMATION_ENGINE,
-        "score": round(core.clamp(total), 2),
-        "gap": round(gap, 5),
-        "open_return": round(open_return, 5),
-        "intraday_position": round(intraday_position, 5),
-        "distance_from_high": round(distance_from_high, 5),
-        "components": components,
-        "component_weights": dict(OPENING_COMPONENT_WEIGHTS),
-    }
-
-
 def _fresh_base_payload(
     current: dict[str, Any] | None,
     *,
@@ -275,7 +195,6 @@ def _fresh_base_payload(
 ) -> dict[str, Any]:
     if isinstance(current, dict) and current.get("date") == now.date().isoformat():
         return current
-
     previous = current if isinstance(current, dict) else {}
     payload = gpw.common_payload(
         now,
@@ -290,6 +209,19 @@ def _fresh_base_payload(
         "previous_decision": previous.get("decision"),
     }
     return payload
+
+
+def _opening_weight(policy: dict[str, Any]) -> float:
+    raw = float(policy.get("opening_confirmation_weight", 0.25))
+    if raw > 1.0:
+        raw /= 100.0
+    return opening.bounded_weight(raw)
+
+
+def _completed_for_ev(
+    cache: dict[str, list[gpw.Bar]], symbol: str, expected_day
+) -> list[gpw.Bar]:
+    return [bar for bar in list(cache.get(symbol) or []) if bar.day <= expected_day]
 
 
 def make_forced_payload(
@@ -335,20 +267,16 @@ def make_forced_payload(
         )
 
     neutral_catalyst = float(policy.get("neutral_catalyst_score", 50.0))
-    opening_weight = core.clamp(
-        float(policy.get("opening_confirmation_weight", 0.25)), 0.0, 0.50
-    ) / 100.0 if float(policy.get("opening_confirmation_weight", 0.25)) > 1.0 else core.clamp(
-        float(policy.get("opening_confirmation_weight", 0.25)), 0.0, 0.50
-    )
+    opening_weight = _opening_weight(policy)
     opening_top_candidates = max(
         1, int(policy.get("opening_confirmation_top_candidates", 8))
     )
+    ev_settings = ev.settings_from(config)
 
     evaluated: list[tuple[dict[str, Any], dict[str, Any]]] = []
-    quote_errors: dict[str, str] = {}
+    candidate_errors: dict[str, str] = {}
 
-    # P0.1 Opening Confirmation: fetch fresh execution snapshots for the best
-    # historical/quant candidates, score the current session and rerank them.
+    # P0.1 + P0.2: current-session confirmation first, then empirical EV.
     for candidate in ranked:
         if len(evaluated) >= opening_top_candidates:
             break
@@ -356,32 +284,54 @@ def make_forced_payload(
         try:
             candidate_snapshot = opening_fetcher(symbol, now=now)
             _fresh_execution_snapshot(candidate_snapshot, now)
-            opening = opening_confirmation_score(candidate, candidate_snapshot)
+            confirmation = opening.score(candidate, candidate_snapshot)
             legacy_score = core.composite_score(
                 candidate,
                 {"catalyst_score": neutral_catalyst},
                 config,
             )
-            adjusted_score = core.round2(
-                legacy_score * (1.0 - opening_weight)
-                + float(opening["score"]) * opening_weight
+            opening_adjusted = opening.blend(
+                legacy_score,
+                float(confirmation["score"]),
+                opening_weight,
             )
             enriched = copy.deepcopy(candidate)
-            enriched["opening_confirmation"] = opening
+            enriched["opening_confirmation"] = confirmation
             enriched["legacy_composite_score"] = legacy_score
-            enriched["opening_adjusted_score"] = adjusted_score
-            enriched["opening_confirmation_engine"] = OPENING_CONFIRMATION_ENGINE
+            enriched["opening_adjusted_score"] = opening_adjusted
+            enriched["opening_confirmation_engine"] = opening.ENGINE
+
+            if ev_settings["enabled"]:
+                model = ev.estimate(
+                    enriched,
+                    _completed_for_ev(cache, symbol, expected),
+                    config,
+                )
+                if model.get("status") != "ready":
+                    raise ValueError(
+                        f"expected value unavailable: {model.get('status')} "
+                        f"n={model.get('analogue_count', 0)}"
+                    )
+                enriched = ev.apply_dynamic_target(enriched, model)
+                final_score, ev_weight = ev.blend_score(opening_adjusted, model, config)
+                enriched["expected_value_weight"] = ev_weight
+                enriched["ev_adjusted_score"] = final_score
+            else:
+                enriched["ev_adjusted_score"] = opening_adjusted
+                enriched["expected_value_weight"] = 0.0
+
             evaluated.append((enriched, candidate_snapshot))
         except Exception as exc:
-            quote_errors[symbol] = f"{type(exc).__name__}: {str(exc)[:180]}"
+            candidate_errors[symbol] = f"{type(exc).__name__}: {str(exc)[:220]}"
 
     if not evaluated:
         raise gpw.PublicationError(
-            "Mandatory GPW selector could not confirm a current-session execution quote for any valid ranked candidate"
+            "Mandatory GPW selector could not confirm a current-session quote and empirical decision geometry for any valid ranked candidate"
         )
 
     evaluated.sort(
         key=lambda pair: (
+            float(pair[0].get("ev_adjusted_score") or 0.0),
             float(pair[0].get("opening_adjusted_score") or 0.0),
             float(pair[0].get("quant_pre_score") or 0.0),
         ),
@@ -399,14 +349,22 @@ def make_forced_payload(
         )
 
     risk_fraction = max(core.GPW_PROFILE.risk_floor_percent, raw_risk)
-    reward_risk = float(policy["reward_risk"])
+    if ev_settings["enabled"]:
+        reward_risk = float(selected["expected_value_model"]["selected_reward_risk"])
+    else:
+        reward_risk = float(
+            selected.get("reward_risk")
+            or policy.get("reward_risk")
+            or config.get("minimum_reward_risk", 1.5)
+        )
     stop = reference * (1.0 - risk_fraction)
     target = reference + (reference - stop) * reward_risk
     entry_low = reference * 0.997
     entry_high = reference * 1.006
-    score = float(selected["opening_adjusted_score"])
+    score = float(selected["ev_adjusted_score"])
     legacy_score = float(selected["legacy_composite_score"])
-    opening = selected["opening_confirmation"]
+    confirmation = selected["opening_confirmation"]
+    model = selected.get("expected_value_model") or {}
     source = _source_for(str(selected["symbol"]), snapshot)
     late_recovery = local_time > _clock(str(policy["cutoff"]))
 
@@ -414,10 +372,20 @@ def make_forced_payload(
     payload["generated_at"] = now.isoformat(timespec="seconds")
     payload["decision"] = "TRANSAKCJA"
     payload["reason"] = (
-        "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę po połączeniu "
-        "rankingu ilościowego z potwierdzeniem zachowania po dzisiejszym otwarciu."
+        "Końcowy wybór dnia: ranking ilościowy połączono z zachowaniem po otwarciu "
+        "oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
+        if ev_settings["enabled"]
+        else "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę po połączeniu rankingu ilościowego z potwierdzeniem zachowania po dzisiejszym otwarciu."
     )
     payload["locked"] = True
+    scores = {
+        **selected["scores"],
+        "catalyst": neutral_catalyst,
+        "opening_confirmation": confirmation["score"],
+    }
+    if model.get("status") == "ready":
+        scores["expected_value"] = model["score"]
+
     payload["selection"] = {
         "symbol": selected["symbol"],
         "ticker": str(selected["symbol"]).removesuffix(".WA"),
@@ -425,60 +393,66 @@ def make_forced_payload(
         "sector": selected["sector"],
         "score": core.round2(score),
         "legacy_composite_score": core.round2(legacy_score),
+        "opening_adjusted_score": core.round2(selected["opening_adjusted_score"]),
         "quant_pre_score": selected.get("quant_pre_score"),
         "quant_rank": selected.get("quant_rank"),
-        "opening_confirmation_score": opening["score"],
-        "opening_confirmation": opening,
+        "opening_confirmation_score": confirmation["score"],
+        "opening_confirmation": confirmation,
+        "expected_value_score": model.get("score"),
+        "expected_value_model": model if model else None,
+        "expected_value_weight": selected.get("expected_value_weight", 0.0),
+        "target_method": ev.ENGINE if model.get("status") == "ready" else "legacy_fallback",
         "selection_mode": "MANDATORY_DAILY_FINAL",
         "reference_price": core.round2(reference),
         "entry_zone": [core.round2(entry_low), core.round2(entry_high)],
         "skip_above": core.round2(entry_high),
-        "activation": (
-            "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia."
-        ),
+        "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
         "stop": core.round2(stop),
         "target": core.round2(target),
         "risk_percent": round(risk_fraction, 4),
         "reward_risk": reward_risk,
         "valid_until": gpw.add_sessions(now.date(), 2, config).isoformat(),
         "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
-        "early_exit": (
-            "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; "
-            "nie rozszerzać SL."
-        ),
+        "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
         "thesis": (
-            f"{selected['name']} ma najwyższy ranking po połączeniu sygnału ilościowego "
-            "z bieżącym potwierdzeniem po otwarciu wśród ocenionych kandydatów GPW."
+            f"{selected['name']} ma najwyższy ranking po połączeniu sygnału ilościowego, "
+            "bieżącego zachowania po otwarciu i empirycznej geometrii TP/SL."
+            if ev_settings["enabled"]
+            else f"{selected['name']} ma najwyższy ranking po połączeniu sygnału ilościowego z bieżącym potwierdzeniem po otwarciu wśród ocenionych kandydatów GPW."
         ),
         "why_now": (
-            "Wybór łączy relatywne momentum, kontekst rynku, płynność, geometrię ryzyka "
-            "i historię z zachowaniem bieżącej sesji: luką otwarcia, ruchem od otwarcia, "
-            "pozycją w dzisiejszym zakresie oraz odległością od maksimum sesji."
+            "Wybór łączy momentum, kontekst rynku, płynność i Opening Confirmation. "
+            "Target nie jest stałym 1,8R: wybiera go walk-forward EV na podstawie podobnych historycznych setupów, z kosztem transakcyjnym i karą za niepewność."
+            if ev_settings["enabled"]
+            else "Wybór łączy relatywne momentum, kontekst rynku, płynność, geometrię ryzyka i historię z zachowaniem bieżącej sesji."
         ),
         "risk_factors": [
             "Opening Confirmation jest krótkoterminowym overlayem i nie może dominować bazowego rankingu.",
-            "Minimalna płynność i maksymalne ryzyko pozostają twardymi bramkami.",
-            "SL pozostaje nadrzędnym warunkiem wyjścia i nie może być rozszerzany po wejściu.",
+            "Empiryczne prawdopodobieństwa TP/SL nie są skalibrowaną prognozą; wynik zależy od jakości i liczby historycznych analogów.",
+            "Dla świecy z jednoczesnym TP i SL model konserwatywnie przyjmuje SL jako pierwszy.",
+            "Minimalna płynność i maksymalne ryzyko pozostają twardymi bramkami; SL nie może być rozszerzany po wejściu.",
         ],
-        "scores": {
-            **selected["scores"],
-            "catalyst": neutral_catalyst,
-            "opening_confirmation": opening["score"],
-        },
+        "scores": scores,
         "sources": [source],
         "review": {
             "approved": True,
-            "mode": "mandatory_daily_final_quant_plus_opening_confirmation",
+            "mode": (
+                "mandatory_daily_final_quant_opening_empirical_ev"
+                if ev_settings["enabled"]
+                else "mandatory_daily_final_quant_plus_opening_confirmation"
+            ),
             "reason": (
-                "Najwyższy wynik po deterministycznym połączeniu rankingu bazowego z "
-                "potwierdzeniem bieżącej sesji; zachowane twarde bramki danych, płynności i ryzyka."
+                "Najwyższy wynik po ograniczonym połączeniu rankingu bazowego, bieżącej sesji i empirycznego EV; zachowane twarde bramki danych, płynności i ryzyka."
+                if ev_settings["enabled"]
+                else "Najwyższy wynik po deterministycznym połączeniu rankingu bazowego z potwierdzeniem bieżącej sesji; zachowane twarde bramki danych, płynności i ryzyka."
             ),
             "supported_source_ids": [source["id"]],
         },
         "market_snapshot": snapshot,
         "forced_from_reason": current.get("reason"),
         "quant_engine": selected.get("quant_engine"),
-        "opening_confirmation_engine": OPENING_CONFIRMATION_ENGINE,
+        "opening_confirmation_engine": opening.ENGINE,
+        "expected_value_engine": ev.ENGINE if model.get("status") == "ready" else None,
         "historical_feature_session": selected.get("historical_feature_session"),
         "historical_feature_lag_sessions": selected.get("historical_feature_lag_sessions"),
     }
@@ -486,7 +460,17 @@ def make_forced_payload(
 
     methodology = payload.setdefault("methodology", {})
     methodology["minimum_score"] = 0.0
-    methodology["score_policy"] = "mandatory_daily_quant_plus_opening_confirmation"
+    methodology["score_policy"] = (
+        "mandatory_daily_quant_opening_empirical_ev"
+        if ev_settings["enabled"]
+        else "mandatory_daily_quant_plus_opening_confirmation"
+    )
+    methodology["expected_value"] = {
+        **ev_settings,
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "target_selection": "maximize_uncertainty_adjusted_net_expected_R",
+    }
     methodology["mandatory_daily_selection"] = {
         "enabled": True,
         "integrated_final_stage": True,
@@ -499,11 +483,22 @@ def make_forced_payload(
         "maximum_historical_lag_sessions": int(policy["maximum_historical_lag_sessions"]),
         "opening_quote_required": True,
         "opening_confirmation": {
-            "engine": OPENING_CONFIRMATION_ENGINE,
+            "engine": opening.ENGINE,
             "weight": opening_weight,
             "top_candidates": opening_top_candidates,
-            "component_weights": dict(OPENING_COMPONENT_WEIGHTS),
+            "component_weights": dict(opening.COMPONENT_WEIGHTS),
             "role": "bounded_reranking_overlay_not_hard_gate",
+        },
+        "expected_value": {
+            "engine": ev.ENGINE,
+            "enabled": ev_settings["enabled"],
+            "base_score_weight": ev_settings["score_weight"],
+            "effective_selected_weight": selected.get("expected_value_weight", 0.0),
+            "rr_grid": ev_settings["rr_grid"],
+            "minimum_analogs": ev_settings["minimum_analogs"],
+            "maximum_analogs": ev_settings["maximum_analogs"],
+            "cost_assumption_percent": ev_settings["cost_assumption_percent"],
+            "role": ev_settings["role"],
         },
         "recovery_cutoff": str(policy["recovery_cutoff"]),
         "late_recovery": late_recovery,
@@ -516,6 +511,8 @@ def make_forced_payload(
         "fresh_current_session_quote",
         "bounded_published_risk",
     ]
+    if ev_settings["enabled"]:
+        methodology["hard_admission_gates"].append("expected_value_history_quality")
 
     quality = payload.setdefault("data_quality", {})
     quality["status"] = "healthy"
@@ -527,11 +524,19 @@ def make_forced_payload(
         "opening_candidates_evaluated": len(evaluated),
         "selected_rank": 1,
         "selected_quant_rank": selected.get("quant_rank"),
-        "opening_confirmation_score": opening["score"],
-        "opening_adjusted_score": core.round2(score),
+        "opening_confirmation_score": confirmation["score"],
+        "opening_adjusted_score": core.round2(selected["opening_adjusted_score"]),
+        "expected_value_score": model.get("score"),
+        "expected_value_r": model.get("expected_net_r"),
+        "conservative_ev_r": model.get("conservative_ev_r"),
+        "selected_reward_risk": reward_risk,
+        "tp_before_sl_probability": model.get("tp_before_sl_probability"),
+        "sl_before_tp_probability": model.get("sl_before_tp_probability"),
+        "time_exit_probability": model.get("time_exit_probability"),
+        "final_score": core.round2(score),
         "historical_feature_session": selected.get("historical_feature_session"),
         "historical_feature_lag_sessions": selected.get("historical_feature_lag_sessions"),
-        "opening_quote_failures_before_selection": quote_errors,
+        "candidate_failures_before_selection": candidate_errors,
         "late_recovery": late_recovery,
         "ignored_non_trade_history_records": len(history) - len(_learning_history(history)),
     }
@@ -541,9 +546,6 @@ def make_forced_payload(
 def persist(payload: dict[str, Any]) -> None:
     gpw.validate_payload(payload, require_today=False)
     history_path = gpw.HISTORY_DIR / f"{payload['date']}.json"
-
-    # This stage intentionally upgrades a same-session BRAK/AWARIA record into
-    # the final TRANSAKCJA and is the sole final writer of the primary workflow.
     gpw.atomic_json(history_path, payload)
     metrics = gpw.metric_summary(gpw.all_history())
     payload["metrics"] = metrics
@@ -551,21 +553,26 @@ def persist(payload: dict[str, Any]) -> None:
     gpw.atomic_json(gpw.PUBLIC_PATH, payload)
     gpw.atomic_json(gpw.METRICS_PATH, metrics)
 
+    selection = payload.get("selection") or {}
+    model = selection.get("expected_value_model") or {}
     audit = {
         "date": payload["date"],
         "generated_at": payload["generated_at"],
         "decision": payload["decision"],
         "selection_mode": "MANDATORY_DAILY_FINAL",
-        "symbol": (payload.get("selection") or {}).get("symbol"),
-        "previous_reason": (payload.get("selection") or {}).get("forced_from_reason"),
-        "historical_feature_lag_sessions": (
-            payload.get("selection") or {}
-        ).get("historical_feature_lag_sessions"),
-        "quant_rank": (payload.get("selection") or {}).get("quant_rank"),
-        "opening_confirmation_score": (
-            payload.get("selection") or {}
-        ).get("opening_confirmation_score"),
-        "opening_adjusted_score": (payload.get("selection") or {}).get("score"),
+        "symbol": selection.get("symbol"),
+        "previous_reason": selection.get("forced_from_reason"),
+        "historical_feature_lag_sessions": selection.get("historical_feature_lag_sessions"),
+        "quant_rank": selection.get("quant_rank"),
+        "opening_confirmation_score": selection.get("opening_confirmation_score"),
+        "opening_adjusted_score": selection.get("opening_adjusted_score"),
+        "expected_value_score": selection.get("expected_value_score"),
+        "expected_net_r": model.get("expected_net_r"),
+        "conservative_ev_r": model.get("conservative_ev_r"),
+        "selected_reward_risk": selection.get("reward_risk"),
+        "tp_before_sl_probability": model.get("tp_before_sl_probability"),
+        "sl_before_tp_probability": model.get("sl_before_tp_probability"),
+        "final_score": selection.get("score"),
     }
     gpw.atomic_json(gpw.AUDIT_DIR / f"{payload['date']}-mandatory.json", audit)
 
@@ -575,7 +582,6 @@ def run(*, now: datetime | None = None) -> dict[str, Any] | None:
     policy = load_policy()
     if not policy.get("enabled", False):
         return None
-
     config = gpw.load_config()
     if not gpw.is_session_day(now.date(), config):
         return None
@@ -618,8 +624,7 @@ def main() -> int:
             and payload.get("decision") != "TRANSAKCJA"
         ):
             raise gpw.PublicationError(
-                f"GPW final selector contract violated: expected TRANSAKCJA, "
-                f"got {payload.get('decision')}"
+                f"GPW final selector contract violated: expected TRANSAKCJA, got {payload.get('decision')}"
             )
         print(
             "GPW_MANDATORY_VALIDATE_OK",
@@ -634,6 +639,7 @@ def main() -> int:
         print("GPW_MANDATORY_NOOP", current.get("decision"), current.get("date"))
     else:
         selection = payload.get("selection") or {}
+        model = selection.get("expected_value_model") or {}
         print(
             "GPW_MANDATORY_SELECTED",
             selection.get("ticker"),
@@ -641,6 +647,10 @@ def main() -> int:
             selection.get("reference_price"),
             "opening=",
             selection.get("opening_confirmation_score"),
+            "ev=",
+            model.get("expected_net_r"),
+            "rr=",
+            selection.get("reward_risk"),
             "quant_rank=",
             selection.get("quant_rank"),
             "lag=",
