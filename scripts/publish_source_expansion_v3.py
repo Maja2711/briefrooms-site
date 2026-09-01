@@ -9,6 +9,14 @@ try:
     from . import publish_live_news as base
     from . import publish_live_news_filtered as filtered
     from . import publish_curated_news as curated
+    from .news_event_intelligence_v4 import (
+        CANONICAL_EVENT_VERSION,
+        EVIDENCE_MODEL_VERSION,
+        EVENT_INTELLIGENCE_VERSION,
+        cluster_events,
+        corroboration_bonus,
+        public_event_policy,
+    )
     from .news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -25,6 +33,14 @@ except ImportError:
     import publish_live_news as base
     import publish_live_news_filtered as filtered
     import publish_curated_news as curated
+    from news_event_intelligence_v4 import (
+        CANONICAL_EVENT_VERSION,
+        EVIDENCE_MODEL_VERSION,
+        EVENT_INTELLIGENCE_VERSION,
+        cluster_events,
+        corroboration_bonus,
+        public_event_policy,
+    )
     from news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -57,11 +73,13 @@ CONFIGURED_WIRE_SOURCES = {
 
 
 def source_expansion_editorial_score(story: dict[str, Any], section_id: str, now: Any) -> float:
-    """Preserve curated ranking while rewarding provenance originality."""
-    return _original_editorial_value_score(story, section_id, now) + originality_bonus(story)
+    return (
+        _original_editorial_value_score(story, section_id, now)
+        + originality_bonus(story)
+        + corroboration_bonus(story)
+    )
 
 
-# The underlying selector resolves this function from the filtered module at runtime.
 filtered.editorial_value_score = source_expansion_editorial_score
 
 
@@ -76,14 +94,15 @@ def fetch_all(config: Any, now: Any):
     return _annotate_grouped(grouped), labels, errors
 
 
-def _deduplicate_previous(previous: dict[str, Any]) -> dict[str, Any]:
+def _prepare_previous(previous: dict[str, Any]) -> dict[str, Any]:
     copy = dict(previous)
     sections = copy.get("sections") if isinstance(copy.get("sections"), dict) else {}
     new_sections: dict[str, Any] = {}
     for section_id, stories in sections.items():
         if isinstance(stories, list):
             deduped, _ = deduplicate_dispatches(stories)
-            new_sections[section_id] = deduped
+            canonical, _ = cluster_events(deduped)
+            new_sections[section_id] = canonical
         else:
             new_sections[section_id] = stories
     copy["sections"] = new_sections
@@ -96,34 +115,57 @@ def select_sections(
     previous: dict[str, Any],
     now: Any,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
-    deduplicated: dict[str, list[dict[str, Any]]] = {}
-    diagnostics: dict[str, dict[str, Any]] = {}
+    canonical: dict[str, list[dict[str, Any]]] = {}
+    dispatch_diagnostics: dict[str, dict[str, Any]] = {}
+    event_diagnostics: dict[str, dict[str, Any]] = {}
+
     for section_id, _, _ in config:
-        rows, section_diagnostics = deduplicate_dispatches(fetched.get(section_id) or [])
-        deduplicated[section_id] = rows
-        diagnostics[section_id] = section_diagnostics
+        deduped, dispatch_diag = deduplicate_dispatches(fetched.get(section_id) or [])
+        events, event_diag = cluster_events(deduped)
+        canonical[section_id] = events
+        dispatch_diagnostics[section_id] = dispatch_diag
+        event_diagnostics[section_id] = event_diag
 
     selected, health = _original_select_sections(
         config,
-        deduplicated,
-        _deduplicate_previous(previous),
+        canonical,
+        _prepare_previous(previous),
         now,
     )
 
     for section_id, rows in selected.items():
         section_health = health.setdefault(section_id, {})
-        section_diagnostics = diagnostics.get(section_id, {})
+        dispatch_diag = dispatch_diagnostics.get(section_id, {})
+        event_diag = event_diagnostics.get(section_id, {})
+        mean_score = (
+            sum(float(row.get("corroboration_score") or 0.0) for row in rows) / len(rows)
+            if rows else 0.0
+        )
         section_health.update(
             {
                 "source_expansion_version": SOURCE_EXPANSION_VERSION,
                 "origin_detection_version": ORIGIN_DETECTION_VERSION,
                 "dispatch_dedupe_version": DISPATCH_DEDUPE_VERSION,
                 "origin_mix": origin_mix(rows),
-                "raw_candidate_count": int(section_diagnostics.get("raw_count") or 0),
-                "deduplicated_candidate_count": int(section_diagnostics.get("deduplicated_count") or 0),
-                "republications_suppressed": int(section_diagnostics.get("suppressed_count") or 0),
-                "wire_dispatch_clusters": int(section_diagnostics.get("wire_dispatch_clusters") or 0),
-                "direct_original_wins": int(section_diagnostics.get("direct_original_wins") or 0),
+                "raw_candidate_count": int(dispatch_diag.get("raw_count") or 0),
+                "deduplicated_candidate_count": int(dispatch_diag.get("deduplicated_count") or 0),
+                "republications_suppressed": int(dispatch_diag.get("suppressed_count") or 0),
+                "wire_dispatch_clusters": int(dispatch_diag.get("wire_dispatch_clusters") or 0),
+                "direct_original_wins": int(dispatch_diag.get("direct_original_wins") or 0),
+                "event_intelligence_version": EVENT_INTELLIGENCE_VERSION,
+                "canonical_event_version": CANONICAL_EVENT_VERSION,
+                "evidence_model_version": EVIDENCE_MODEL_VERSION,
+                "canonical_event_candidate_count": int(event_diag.get("canonical_event_count") or 0),
+                "event_duplicates_suppressed": int(event_diag.get("event_duplicates_suppressed") or 0),
+                "multi_source_event_candidates": int(event_diag.get("multi_source_events") or 0),
+                "corroborated_event_candidates": int(event_diag.get("corroborated_events") or 0),
+                "selected_corroborated_events": sum(
+                    1 for row in rows if row.get("corroboration_status") in {"corroborated", "strong"}
+                ),
+                "selected_single_lineage_events": sum(
+                    1 for row in rows if row.get("corroboration_status") == "single_lineage"
+                ),
+                "mean_corroboration_score": round(mean_score, 1),
             }
         )
     return selected, health
@@ -170,9 +212,13 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
         "configured_wire_sources": sorted(CONFIGURED_WIRE_SOURCES),
         "wire_adapter_error_count": len(wire_errors),
     }
+    health["event_intelligence"] = {
+        "status": "active",
+        **public_event_policy(),
+    }
     selection = health.setdefault("editorial_selection", {})
     selection["mode"] = (
-        "origin_preference_then_source_authority_public_impact_recency_with_dispatch_dedupe_and_publisher_diversity"
+        "canonical_event_then_independent_corroboration_origin_authority_public_impact_recency_and_publisher_diversity"
     )
     return payload
 
@@ -190,10 +236,17 @@ def validate(max_age_minutes: int = 30) -> None:
         if expansion.get("dedupe_version") != DISPATCH_DEDUPE_VERSION:
             raise RuntimeError(f"{lang} dispatch dedupe policy missing or outdated")
 
+        event_policy = (payload.get("health") or {}).get("event_intelligence") or {}
+        if event_policy.get("version") != EVENT_INTELLIGENCE_VERSION:
+            raise RuntimeError(f"{lang} Event Intelligence v4 missing or outdated")
+        if event_policy.get("evidence_model_version") != EVIDENCE_MODEL_VERSION:
+            raise RuntimeError(f"{lang} evidence/corroboration model missing or outdated")
+
         sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
         for section_id, stories in sections.items():
             if not isinstance(stories, list):
                 continue
+            event_ids: set[str] = set()
             for story in stories:
                 if story.get("publisher_source") != story.get("source"):
                     raise RuntimeError(
@@ -207,6 +260,20 @@ def validate(max_age_minutes: int = 30) -> None:
                     raise RuntimeError(
                         f"{lang}/{section_id} story missing dispatch dedupe metadata: {story.get('title')}"
                     )
+                event_id = str(story.get("canonical_event_id") or "")
+                if not event_id or event_id in event_ids:
+                    raise RuntimeError(f"{lang}/{section_id} invalid or duplicate canonical event")
+                event_ids.add(event_id)
+                if story.get("event_intelligence_version") != EVENT_INTELLIGENCE_VERSION:
+                    raise RuntimeError(f"{lang}/{section_id} story missing Event Intelligence v4 metadata")
+                if story.get("evidence_model_version") != EVIDENCE_MODEL_VERSION:
+                    raise RuntimeError(f"{lang}/{section_id} story missing evidence metadata")
+                score = float(story.get("corroboration_score") or 0.0)
+                if not 0.0 <= score <= 100.0:
+                    raise RuntimeError(f"{lang}/{section_id} invalid corroboration score {score}")
+                roots = story.get("evidence_roots") if isinstance(story.get("evidence_roots"), list) else []
+                if int(story.get("independent_evidence_paths") or 0) != len(roots):
+                    raise RuntimeError(f"{lang}/{section_id} evidence path mismatch")
 
 
 base.fetch_all = fetch_all
