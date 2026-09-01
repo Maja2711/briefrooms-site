@@ -2,7 +2,7 @@
   "schema_version": "us-daily-stock-v1",
   "policy_version": "us-short-horizon-en-v1",
   "date": "2026-09-01",
-  "generated_at": "2026-09-01T08:25:31-04:00",
+  "generated_at": "2026-09-01T09:03:17-04:00",
   "timezone": "America/New_York",
   "decision": "DATA_ERROR",
   "reason": "Open US position could not be marked: PublicationError.",
@@ -45,6 +45,17 @@
       },
       "minimum_reward_risk": 1.5,
       "maximum_risk_percent": 0.07,
+      "relative_momentum": {
+        "enabled": false,
+        "engine": "cross-sectional-multihorizon-v2",
+        "weights": {
+          "rank_1d": 0.10000000000000002,
+          "rank_5d": 0.35000000000000003,
+          "rank_20d": 0.20000000000000004,
+          "rank_risk_adjusted_5d": 0.20000000000000004,
+          "rank_sector_5d": 0.15000000000000002
+        }
+      },
       "learning": {
         "method": "bayesian_shrinkage_historical_overlay_v1",
         "weights_frozen": true,
