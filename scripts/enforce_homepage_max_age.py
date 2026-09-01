@@ -143,11 +143,15 @@ def enforce_payload(
         "max_display_hours": 72,
         "clock": "first_display_on_briefrooms",
         "also_requires_source_age_hours_lte": 72,
+        "target_story_count": HOME_LIMIT,
+        "minimum_story_count": HOME_LIMIT,
     }
     payload.setdefault("health", {})["homepage_freshness"] = {
-        "status": "active",
+        "status": "ok" if len(selected) == HOME_LIMIT else "underfilled",
         "version": POLICY_VERSION,
         "published_count": len(selected),
+        "target_story_count": HOME_LIMIT,
+        "minimum_story_count": HOME_LIMIT,
         "expired_exposure_rejected": expired_count,
         "source_stale_rejected": source_stale_count,
     }
@@ -196,7 +200,17 @@ def validate_files() -> None:
         policy = payload.get("homepage_policy") or {}
         if policy.get("version") != POLICY_VERSION:
             raise RuntimeError(f"{lang} homepage 72-hour exposure policy missing")
-        for story in payload.get("home") or []:
+        if policy.get("target_story_count") != HOME_LIMIT or policy.get("minimum_story_count") != HOME_LIMIT:
+            raise RuntimeError(f"{lang} homepage ten-story contract missing")
+        home = payload.get("home") if isinstance(payload.get("home"), list) else []
+        if len(home) != HOME_LIMIT:
+            raise RuntimeError(f"{lang} homepage has {len(home)} stories; exactly {HOME_LIMIT} are required")
+        identities: set[str] = set()
+        for story in home:
+            identity = base.normalized_identity(story)
+            if not identity or identity in identities:
+                raise RuntimeError(f"{lang} homepage contains a duplicate or invalid story")
+            identities.add(identity)
             if not _source_is_fresh(story, now):
                 raise RuntimeError(f"{lang} homepage contains source-stale story: {story.get('title')}")
             first_seen = _parse_time(story.get("homepage_first_seen_at"))
