@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import math
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -34,7 +33,7 @@ _METRIC_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 _MONOTONIC_UPDATE_METRICS = {"casualties_deaths", "casualties_injured"}
 _RATE_ACTORS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Federal Reserve", ("federal reserve", "fed ", " fed", "fomc")),
-    ("ECB", ("european central bank", "ecb", "ebc")),
+    ("ECB", ("european central bank", "ecb")),
     ("NBP", ("narodowy bank polski", "nbp", "rada polityki pienieznej", "rpp")),
     ("Bank of England", ("bank of england", "boe")),
     ("central_bank", ("central bank", "bank centralny")),
@@ -86,12 +85,25 @@ def claim_evidence_root(story: Mapping[str, Any]) -> str:
     return source_profile(publisher).canonical_name
 
 
-def _metric_for_window(window: str) -> str | None:
+def _metric_for_window(window: str, number_offset: int) -> str | None:
+    """Bind a number to the nearest known metric phrase, not any phrase in the window."""
     folded = _fold(window)
+    best_metric: str | None = None
+    best_distance = 10_000
     for metric, keywords in _METRIC_KEYWORDS:
-        if any(keyword in folded for keyword in keywords):
-            return metric
-    return None
+        for keyword in keywords:
+            start = 0
+            while True:
+                position = folded.find(keyword, start)
+                if position < 0:
+                    break
+                keyword_center = position + len(keyword) // 2
+                distance = abs(keyword_center - number_offset)
+                if distance < best_distance:
+                    best_distance = distance
+                    best_metric = metric
+                start = position + 1
+    return best_metric if best_distance <= 75 else None
 
 
 def _parse_number(raw: str) -> float:
@@ -115,12 +127,20 @@ def _currency_unit(window: str) -> tuple[str | None, float]:
     return currency, multiplier
 
 
+def _detect_actor(text: str, candidates: tuple[tuple[str, tuple[str, ...]], ...]) -> str | None:
+    folded = f" {_fold(text)} "
+    for canonical, aliases in candidates:
+        if any(alias in folded for alias in aliases):
+            return canonical
+    return None
+
+
 def _numeric_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
     text = _story_text(story)
-    folded = _fold(text)
     root = claim_evidence_root(story)
     publisher = str(story.get("publisher_source") or story.get("source") or "unknown")
     published = _published_at(story)
+    rate_actor = _detect_actor(text, _RATE_ACTORS)
     claims: list[dict[str, Any]] = []
 
     for match in _NUMBER_RE.finditer(text):
@@ -128,18 +148,26 @@ def _numeric_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
         left = max(0, match.start() - 90)
         right = min(len(text), match.end() + 90)
         window = text[left:right]
-        folded_window = _fold(window)
-        metric = _metric_for_window(window)
+        number_offset = match.start() - left + len(match.group("value")) // 2
+        metric = _metric_for_window(window, number_offset)
+
+        # Units must be physically close to the number. A percentage elsewhere in
+        # the sentence must not turn a year/date into a comparable percentage.
+        unit_left = max(0, match.start() - 14)
+        unit_right = min(len(text), match.end() + 28)
+        unit_window = text[unit_left:unit_right]
+        has_percent = bool(_PERCENT_RE.search(unit_window))
+        has_bps = bool(_BPS_RE.search(unit_window))
+
+        if has_bps and rate_actor:
+            metric = "policy_rate_change"
         if metric is None:
             continue
 
-        has_percent = bool(_PERCENT_RE.search(window))
-        has_bps = bool(_BPS_RE.search(window))
         unit: str | None = None
         normalized_value = value
 
         if metric in {"casualties_deaths", "casualties_injured"}:
-            # A year close to a casualty word is not a casualty count.
             if 1900 <= value <= 2100:
                 continue
             unit = "count"
@@ -148,14 +176,13 @@ def _numeric_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
         elif has_percent:
             unit = "percent"
         elif metric in {"revenue", "profit"}:
-            currency, multiplier = _currency_unit(window)
+            currency_window = text[max(0, match.start() - 30):min(len(text), match.end() + 45)]
+            currency, multiplier = _currency_unit(currency_window)
             if currency is None:
                 continue
             unit = currency
             normalized_value = value * multiplier
         else:
-            # Rates, inflation, GDP and unemployment are only comparable when the
-            # unit is explicit; this avoids treating dates/years as measurements.
             continue
 
         key = f"metric:{metric}:{unit}"
@@ -175,19 +202,10 @@ def _numeric_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
             }
         )
 
-    # Remove duplicate metric/value atoms produced by the same text window.
     unique: dict[tuple[str, float], dict[str, Any]] = {}
     for claim in claims:
         unique[(claim["claim_key"], float(claim["normalized_value"]))] = claim
     return list(unique.values())
-
-
-def _detect_actor(text: str, candidates: tuple[tuple[str, tuple[str, ...]], ...]) -> str | None:
-    folded = f" {_fold(text)} "
-    for canonical, aliases in candidates:
-        if any(alias in folded for alias in aliases):
-            return canonical
-    return None
 
 
 def _categorical_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -206,7 +224,7 @@ def _categorical_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
             direction = "raise"
         elif re.search(r"\b(?:cut[st]?|lower(?:s|ed)?|reduce[sd]?|obnizyl|obnizyla|obcina|scial|sciela)\b", title_folded):
             direction = "cut"
-        elif re.search(r"\b(?:hold[sd]?|keep[st]?|leave[sd]? unchanged|unchanged|utrzymal|utrzymala|pozostawil|pozostawila|bez zmian)\b", title_folded):
+        elif re.search(r"\b(?:hold[sd]?|held|keep[st]?|leave[sd]? unchanged|unchanged|utrzymal|utrzymala|pozostawil|pozostawila|bez zmian)\b", title_folded):
             direction = "hold"
         if direction:
             claims.append(
@@ -449,6 +467,7 @@ def public_claim_policy() -> dict[str, Any]:
             "Contradictions are assessed only inside one CanonicalEvent.",
             "Republications sharing one origin count as one claim lineage, not independent confirmation.",
             "Numeric contradictions require the same metric and explicit comparable units.",
+            "A number is bound to its nearest semantic metric and to a locally adjacent unit.",
             "Monotonic casualty updates separated in time are treated as evolving reports rather than automatic contradictions.",
             "Disputed claims reduce effective corroboration but do not hide a materially important event.",
         ],
