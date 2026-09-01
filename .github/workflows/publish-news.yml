@@ -13,6 +13,8 @@ on:
       - "scripts/publish_source_expansion_v3.py"
       - "scripts/news_source_architecture.py"
       - "scripts/news_source_expansion_v3.py"
+      - "scripts/news_event_intelligence_v4.py"
+      - "scripts/news_claim_intelligence.py"
       - "data/news/polish_sport_watchlist.json"
       - "scripts/enforce_homepage_max_age.py"
       - "scripts/news_quality.py"
@@ -25,6 +27,8 @@ on:
       - "tests/test_news_sport_diversity.py"
       - "tests/test_news_source_architecture.py"
       - "tests/test_source_expansion_v3.py"
+      - "tests/test_event_intelligence_v4.py"
+      - "tests/test_claim_intelligence.py"
       - "tests/test_homepage_max_age.py"
       - "tests/test_news_quality.py"
       - "tests/test_homepage_static.py"
@@ -70,6 +74,8 @@ jobs:
             scripts/publish_source_expansion_v3.py \
             scripts/news_source_architecture.py \
             scripts/news_source_expansion_v3.py \
+            scripts/news_event_intelligence_v4.py \
+            scripts/news_claim_intelligence.py \
             scripts/enforce_homepage_max_age.py \
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
@@ -80,6 +86,8 @@ jobs:
             tests.test_news_sport_diversity \
             tests.test_news_source_architecture \
             tests.test_source_expansion_v3 \
+            tests.test_event_intelligence_v4 \
+            tests.test_claim_intelligence \
             tests.test_homepage_max_age \
             tests.test_news_quality \
             tests.test_install_news_live_runtime -v
@@ -94,8 +102,8 @@ jobs:
           marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
 
-          # Source Expansion v3 adds source-of-origin detection and cross-publisher
-          # dispatch deduplication before the existing curated source selector.
+          # Canonical publisher: provenance/dedupe v3, Event Intelligence v4,
+          # independent corroboration and claim-level contradiction detection.
           python scripts/publish_source_expansion_v3.py --marker "${marker}"
           python scripts/enforce_homepage_max_age.py
           python scripts/render_live_news_static.py
@@ -161,7 +169,7 @@ jobs:
           base = 'https://briefrooms.com'
           json_paths = ('/data/news/pl.json', '/data/news/en.json')
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/7.0', 'Cache-Control': 'no-cache'}
+          headers = {'User-Agent': 'BriefRooms production verifier/8.0', 'Cache-Control': 'no-cache'}
           last = []
           for attempt in range(48):
               last = []
@@ -194,12 +202,23 @@ jobs:
                           last.append(f'{path}: source-origin detection missing')
                       if expansion.get('dedupe_version') != 'dispatch-dedupe-v1':
                           last.append(f'{path}: dispatch dedupe missing')
+                      event_policy = payload.get('health', {}).get('event_intelligence', {})
+                      if event_policy.get('version') != 'event-intelligence-v4':
+                          last.append(f'{path}: Event Intelligence v4 missing')
+                      if event_policy.get('evidence_model_version') != 'evidence-corroboration-v1':
+                          last.append(f'{path}: evidence model missing')
+                      claim_policy = payload.get('health', {}).get('claim_intelligence', {})
+                      if claim_policy.get('version') != 'claim-intelligence-v1':
+                          last.append(f'{path}: Claim Intelligence missing')
+                      if claim_policy.get('contradiction_detection_version') != 'contradiction-detection-v1':
+                          last.append(f'{path}: contradiction detection missing')
                       if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
                       if any(len(items) != 9 for items in payload.get('sections', {}).values()):
                           last.append(f'{path}: section does not contain exactly 9 stories')
                       for section_id, items in payload.get('sections', {}).items():
                           counts = {}
+                          event_ids = set()
                           for story in items:
                               source = str(story.get('source') or 'unknown')
                               counts[source] = counts.get(source, 0) + 1
@@ -211,6 +230,32 @@ jobs:
                                   break
                               if story.get('dispatch_dedupe_version') != 'dispatch-dedupe-v1':
                                   last.append(f'{path}/{section_id}: dedupe metadata missing')
+                                  break
+                              event_id = story.get('canonical_event_id')
+                              if not event_id or event_id in event_ids:
+                                  last.append(f'{path}/{section_id}: canonical event id invalid or repeated')
+                                  break
+                              event_ids.add(event_id)
+                              if story.get('event_intelligence_version') != 'event-intelligence-v4':
+                                  last.append(f'{path}/{section_id}: Event Intelligence metadata missing')
+                                  break
+                              if story.get('claim_intelligence_version') != 'claim-intelligence-v1':
+                                  last.append(f'{path}/{section_id}: Claim Intelligence metadata missing')
+                                  break
+                              if story.get('contradiction_detection_version') != 'contradiction-detection-v1':
+                                  last.append(f'{path}/{section_id}: contradiction metadata missing')
+                                  break
+                              if story.get('claim_consistency_status') not in {'insufficient_evidence', 'consistent', 'evolving_update', 'disputed'}:
+                                  last.append(f'{path}/{section_id}: invalid claim consistency status')
+                                  break
+                              if not 0 <= float(story.get('contradiction_score') or 0) <= 100:
+                                  last.append(f'{path}/{section_id}: invalid contradiction score')
+                                  break
+                              if not 0 <= float(story.get('claim_adjusted_corroboration_score') or 0) <= 100:
+                                  last.append(f'{path}/{section_id}: invalid adjusted corroboration score')
+                                  break
+                              if not isinstance(story.get('claim_groups'), list):
+                                  last.append(f'{path}/{section_id}: claim groups missing')
                                   break
                           if counts and max(counts.values()) > 5:
                               last.append(f'{path}/{section_id}: source exceeds emergency cap: {counts}')
@@ -245,7 +290,7 @@ jobs:
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news use Source Expansion v3, origin provenance, dispatch dedupe and curated source diversity.')
+                  print('Production news use provenance, CanonicalEvent, independent corroboration and Claim Intelligence contradiction detection.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))

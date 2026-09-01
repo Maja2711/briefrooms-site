@@ -9,6 +9,11 @@ try:
     from . import publish_live_news as base
     from . import publish_live_news_filtered as filtered
     from . import publish_curated_news as curated
+    from .news_claim_intelligence import (
+        CLAIM_INTELLIGENCE_VERSION,
+        CONTRADICTION_DETECTION_VERSION,
+        public_claim_policy,
+    )
     from .news_event_intelligence_v4 import (
         CANONICAL_EVENT_VERSION,
         EVIDENCE_MODEL_VERSION,
@@ -33,6 +38,11 @@ except ImportError:
     import publish_live_news as base
     import publish_live_news_filtered as filtered
     import publish_curated_news as curated
+    from news_claim_intelligence import (
+        CLAIM_INTELLIGENCE_VERSION,
+        CONTRADICTION_DETECTION_VERSION,
+        public_claim_policy,
+    )
     from news_event_intelligence_v4 import (
         CANONICAL_EVENT_VERSION,
         EVIDENCE_MODEL_VERSION,
@@ -141,6 +151,10 @@ def select_sections(
             sum(float(row.get("corroboration_score") or 0.0) for row in rows) / len(rows)
             if rows else 0.0
         )
+        mean_adjusted_score = (
+            sum(float(row.get("claim_adjusted_corroboration_score") or 0.0) for row in rows) / len(rows)
+            if rows else 0.0
+        )
         section_health.update(
             {
                 "source_expansion_version": SOURCE_EXPANSION_VERSION,
@@ -155,17 +169,32 @@ def select_sections(
                 "event_intelligence_version": EVENT_INTELLIGENCE_VERSION,
                 "canonical_event_version": CANONICAL_EVENT_VERSION,
                 "evidence_model_version": EVIDENCE_MODEL_VERSION,
+                "claim_intelligence_version": CLAIM_INTELLIGENCE_VERSION,
+                "contradiction_detection_version": CONTRADICTION_DETECTION_VERSION,
                 "canonical_event_candidate_count": int(event_diag.get("canonical_event_count") or 0),
                 "event_duplicates_suppressed": int(event_diag.get("event_duplicates_suppressed") or 0),
                 "multi_source_event_candidates": int(event_diag.get("multi_source_events") or 0),
                 "corroborated_event_candidates": int(event_diag.get("corroborated_events") or 0),
+                "disputed_event_candidates": int(event_diag.get("disputed_events") or 0),
+                "consistent_claim_event_candidates": int(event_diag.get("consistent_claim_events") or 0),
+                "evolving_claim_event_candidates": int(event_diag.get("evolving_claim_events") or 0),
                 "selected_corroborated_events": sum(
                     1 for row in rows if row.get("corroboration_status") in {"corroborated", "strong"}
                 ),
                 "selected_single_lineage_events": sum(
                     1 for row in rows if row.get("corroboration_status") == "single_lineage"
                 ),
+                "selected_disputed_events": sum(
+                    1 for row in rows if row.get("claim_consistency_status") == "disputed"
+                ),
+                "selected_consistent_claim_events": sum(
+                    1 for row in rows if row.get("claim_consistency_status") == "consistent"
+                ),
+                "selected_evolving_claim_events": sum(
+                    1 for row in rows if row.get("claim_consistency_status") == "evolving_update"
+                ),
                 "mean_corroboration_score": round(mean_score, 1),
+                "mean_claim_adjusted_corroboration_score": round(mean_adjusted_score, 1),
             }
         )
     return selected, health
@@ -216,9 +245,13 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
         "status": "active",
         **public_event_policy(),
     }
+    health["claim_intelligence"] = {
+        "status": "active",
+        **public_claim_policy(),
+    }
     selection = health.setdefault("editorial_selection", {})
     selection["mode"] = (
-        "canonical_event_then_independent_corroboration_origin_authority_public_impact_recency_and_publisher_diversity"
+        "canonical_event_then_claim_consistency_adjusted_corroboration_origin_authority_public_impact_recency_and_publisher_diversity"
     )
     return payload
 
@@ -241,6 +274,12 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} Event Intelligence v4 missing or outdated")
         if event_policy.get("evidence_model_version") != EVIDENCE_MODEL_VERSION:
             raise RuntimeError(f"{lang} evidence/corroboration model missing or outdated")
+
+        claim_policy = (payload.get("health") or {}).get("claim_intelligence") or {}
+        if claim_policy.get("version") != CLAIM_INTELLIGENCE_VERSION:
+            raise RuntimeError(f"{lang} Claim Intelligence missing or outdated")
+        if claim_policy.get("contradiction_detection_version") != CONTRADICTION_DETECTION_VERSION:
+            raise RuntimeError(f"{lang} contradiction detection missing or outdated")
 
         sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
         for section_id, stories in sections.items():
@@ -268,9 +307,27 @@ def validate(max_age_minutes: int = 30) -> None:
                     raise RuntimeError(f"{lang}/{section_id} story missing Event Intelligence v4 metadata")
                 if story.get("evidence_model_version") != EVIDENCE_MODEL_VERSION:
                     raise RuntimeError(f"{lang}/{section_id} story missing evidence metadata")
+                if story.get("claim_intelligence_version") != CLAIM_INTELLIGENCE_VERSION:
+                    raise RuntimeError(f"{lang}/{section_id} story missing Claim Intelligence metadata")
+                if story.get("contradiction_detection_version") != CONTRADICTION_DETECTION_VERSION:
+                    raise RuntimeError(f"{lang}/{section_id} story missing contradiction metadata")
                 score = float(story.get("corroboration_score") or 0.0)
+                adjusted_score = float(story.get("claim_adjusted_corroboration_score") or 0.0)
+                contradiction_score = float(story.get("contradiction_score") or 0.0)
                 if not 0.0 <= score <= 100.0:
                     raise RuntimeError(f"{lang}/{section_id} invalid corroboration score {score}")
+                if not 0.0 <= adjusted_score <= 100.0:
+                    raise RuntimeError(f"{lang}/{section_id} invalid adjusted corroboration score {adjusted_score}")
+                if not 0.0 <= contradiction_score <= 100.0:
+                    raise RuntimeError(f"{lang}/{section_id} invalid contradiction score {contradiction_score}")
+                consistency = str(story.get("claim_consistency_status") or "")
+                if consistency not in {"insufficient_evidence", "consistent", "evolving_update", "disputed"}:
+                    raise RuntimeError(f"{lang}/{section_id} invalid claim consistency status {consistency}")
+                if consistency == "disputed" and int(story.get("disputed_claim_count") or 0) < 1:
+                    raise RuntimeError(f"{lang}/{section_id} disputed event lacks disputed claim")
+                groups = story.get("claim_groups") if isinstance(story.get("claim_groups"), list) else None
+                if groups is None:
+                    raise RuntimeError(f"{lang}/{section_id} claim groups missing")
                 roots = story.get("evidence_roots") if isinstance(story.get("evidence_roots"), list) else []
                 if int(story.get("independent_evidence_paths") or 0) != len(roots):
                     raise RuntimeError(f"{lang}/{section_id} evidence path mismatch")

@@ -3,14 +3,29 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
 
 try:
+    from .news_claim_intelligence import (
+        CLAIM_INTELLIGENCE_VERSION,
+        CONTRADICTION_DETECTION_VERSION,
+        adjusted_corroboration_score,
+        analyze_event_claims,
+        claim_ranking_adjustment,
+        extract_story_claims,
+    )
     from .news_source_architecture import source_profile, source_authority_bonus
     from .news_source_expansion_v3 import dispatch_similarity, same_dispatch
 except ImportError:
+    from news_claim_intelligence import (
+        CLAIM_INTELLIGENCE_VERSION,
+        CONTRADICTION_DETECTION_VERSION,
+        adjusted_corroboration_score,
+        analyze_event_claims,
+        claim_ranking_adjustment,
+        extract_story_claims,
+    )
     from news_source_architecture import source_profile, source_authority_bonus
     from news_source_expansion_v3 import dispatch_similarity, same_dispatch
 
@@ -120,19 +135,8 @@ def canonical_event_id(stories: Iterable[Mapping[str, Any]]) -> str:
 
 
 def extract_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Cheap deterministic claim atoms used for evidence diagnostics.
-
-    We deliberately avoid pretending to perform full semantic extraction. Numeric
-    facts and the normalized headline proposition are enough for a reliable v1
-    evidence graph and can later be replaced by a richer semantic extractor.
-    """
-    title = " ".join(str(story.get("title") or "").split())
-    claims: list[dict[str, Any]] = []
-    if title:
-        claims.append({"type": "headline_proposition", "value": title[:240]})
-    for number in sorted(_numbers(story))[:8]:
-        claims.append({"type": "numeric_fact", "value": number})
-    return claims
+    """Backward-compatible entry point backed by Claim Intelligence v1."""
+    return extract_story_claims(story)
 
 
 def _root_weight(root: str) -> float:
@@ -169,8 +173,6 @@ def corroboration(stories: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     if not weights:
         score = 0.0
     else:
-        # First path establishes the report. Extra independent roots add confidence
-        # with diminishing returns. A primary/direct path receives a modest bonus.
         score = 35.0 * weights[0]
         for index, weight in enumerate(weights[1:5], start=1):
             score += (25.0 / index) * weight
@@ -235,16 +237,35 @@ def cluster_events(stories: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str,
     representatives: list[dict[str, Any]] = []
     multi_source_events = 0
     corroborated_events = 0
+    disputed_events = 0
+    consistent_claim_events = 0
+    evolving_claim_events = 0
     suppressed = 0
+
     for cluster in clusters:
         event_id = canonical_event_id(cluster)
         evidence = corroboration(cluster)
+        claim_analysis = analyze_event_claims(cluster)
+        adjusted_score = adjusted_corroboration_score(evidence["score"], claim_analysis)
+
         if evidence["independent_evidence_paths"] >= 2:
             multi_source_events += 1
         if evidence["status"] in {"corroborated", "strong"}:
             corroborated_events += 1
+        if claim_analysis["claim_consistency_status"] == "disputed":
+            disputed_events += 1
+        elif claim_analysis["claim_consistency_status"] == "consistent":
+            consistent_claim_events += 1
+        elif claim_analysis["claim_consistency_status"] == "evolving_update":
+            evolving_claim_events += 1
+
         representative = max(cluster, key=_representative_score)
         copy = dict(representative)
+        effective_status = (
+            "disputed"
+            if claim_analysis["claim_consistency_status"] == "disputed"
+            else evidence["status"]
+        )
         copy.update(
             {
                 "canonical_event_id": event_id,
@@ -253,11 +274,23 @@ def cluster_events(stories: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str,
                 "event_publishers": sorted({str(item.get("publisher_source") or item.get("source") or "unknown") for item in cluster}),
                 "corroboration_score": evidence["score"],
                 "corroboration_status": evidence["status"],
+                "claim_adjusted_corroboration_score": adjusted_score,
+                "effective_corroboration_status": effective_status,
                 "independent_evidence_paths": evidence["independent_evidence_paths"],
                 "evidence_roots": evidence["evidence_roots"],
                 "claims": extract_claims(representative),
                 "event_intelligence_version": EVENT_INTELLIGENCE_VERSION,
                 "evidence_model_version": EVIDENCE_MODEL_VERSION,
+                "claim_intelligence_version": CLAIM_INTELLIGENCE_VERSION,
+                "contradiction_detection_version": CONTRADICTION_DETECTION_VERSION,
+                "claim_consistency_status": claim_analysis["claim_consistency_status"],
+                "contradiction_score": claim_analysis["contradiction_score"],
+                "extracted_claim_count": claim_analysis["extracted_claim_count"],
+                "comparable_claim_group_count": claim_analysis["comparable_claim_group_count"],
+                "disputed_claim_count": claim_analysis["disputed_claim_count"],
+                "consistent_claim_count": claim_analysis["consistent_claim_count"],
+                "evolving_claim_count": claim_analysis["evolving_claim_count"],
+                "claim_groups": claim_analysis["claim_groups"],
             }
         )
         representatives.append(copy)
@@ -269,14 +302,18 @@ def cluster_events(stories: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str,
         "event_duplicates_suppressed": suppressed,
         "multi_source_events": multi_source_events,
         "corroborated_events": corroborated_events,
+        "disputed_events": disputed_events,
+        "consistent_claim_events": consistent_claim_events,
+        "evolving_claim_events": evolving_claim_events,
     }
     return representatives, diagnostics
 
 
 def corroboration_bonus(story: Mapping[str, Any]) -> float:
-    score = float(story.get("corroboration_score") or 0.0)
+    score = float(story.get("claim_adjusted_corroboration_score", story.get("corroboration_score") or 0.0))
     paths = int(story.get("independent_evidence_paths") or 0)
-    return min(32.0, score * 0.22 + max(0, paths - 1) * 4.0)
+    base = min(32.0, score * 0.22 + max(0, paths - 1) * 4.0)
+    return base + claim_ranking_adjustment(story)
 
 
 def public_event_policy() -> dict[str, Any]:
@@ -284,10 +321,14 @@ def public_event_policy() -> dict[str, Any]:
         "version": EVENT_INTELLIGENCE_VERSION,
         "canonical_event_version": CANONICAL_EVENT_VERSION,
         "evidence_model_version": EVIDENCE_MODEL_VERSION,
+        "claim_intelligence_version": CLAIM_INTELLIGENCE_VERSION,
+        "contradiction_detection_version": CONTRADICTION_DETECTION_VERSION,
         "principles": [
             "One real-world event should occupy at most one card per section.",
             "Multiple republications of one wire dispatch count as one evidence lineage.",
             "Independent primary/wire/editorial roots increase corroboration.",
+            "Independent evidence is checked for claim-level agreement before corroboration is rewarded.",
+            "Disputed claims reduce effective corroboration but do not hide a materially important event.",
             "Corroboration improves ranking but never bypasses editorial quality filters.",
         ],
     }
