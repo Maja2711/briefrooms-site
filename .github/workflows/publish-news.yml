@@ -10,7 +10,9 @@ on:
       - "scripts/publish_live_news.py"
       - "scripts/publish_live_news_filtered.py"
       - "scripts/publish_curated_news.py"
+      - "scripts/publish_source_expansion_v3.py"
       - "scripts/news_source_architecture.py"
+      - "scripts/news_source_expansion_v3.py"
       - "data/news/polish_sport_watchlist.json"
       - "scripts/enforce_homepage_max_age.py"
       - "scripts/news_quality.py"
@@ -22,6 +24,7 @@ on:
       - "tests/test_publish_live_news.py"
       - "tests/test_news_sport_diversity.py"
       - "tests/test_news_source_architecture.py"
+      - "tests/test_source_expansion_v3.py"
       - "tests/test_homepage_max_age.py"
       - "tests/test_news_quality.py"
       - "tests/test_homepage_static.py"
@@ -64,7 +67,9 @@ jobs:
             scripts/publish_live_news.py \
             scripts/publish_live_news_filtered.py \
             scripts/publish_curated_news.py \
+            scripts/publish_source_expansion_v3.py \
             scripts/news_source_architecture.py \
+            scripts/news_source_expansion_v3.py \
             scripts/enforce_homepage_max_age.py \
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
@@ -74,6 +79,7 @@ jobs:
             tests.test_publish_live_news \
             tests.test_news_sport_diversity \
             tests.test_news_source_architecture \
+            tests.test_source_expansion_v3 \
             tests.test_homepage_max_age \
             tests.test_news_quality \
             tests.test_install_news_live_runtime -v
@@ -88,10 +94,9 @@ jobs:
           marker="live-news-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "marker=${marker}" >> "$GITHUB_OUTPUT"
 
-          # Live/source-only news and the SEO/editorial homepage are separate layers.
-          # The live publisher may create compatibility home feeds, but those are not
-          # allowed to replace the last strictly reviewed homepage brief set.
-          python scripts/publish_curated_news.py --marker "${marker}"
+          # Source Expansion v3 adds source-of-origin detection and cross-publisher
+          # dispatch deduplication before the existing curated source selector.
+          python scripts/publish_source_expansion_v3.py --marker "${marker}"
           python scripts/enforce_homepage_max_age.py
           python scripts/render_live_news_static.py
 
@@ -100,7 +105,7 @@ jobs:
           python scripts/generate_permanent_briefs.py
 
           python scripts/install_news_live_runtime.py
-          python scripts/publish_curated_news.py --validate --max-age-minutes 10
+          python scripts/publish_source_expansion_v3.py --validate --max-age-minutes 10
           python scripts/enforce_homepage_max_age.py --validate
           python -m unittest tests.test_homepage_static -v
 
@@ -156,7 +161,7 @@ jobs:
           base = 'https://briefrooms.com'
           json_paths = ('/data/news/pl.json', '/data/news/en.json')
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
-          headers = {'User-Agent': 'BriefRooms production verifier/6.0', 'Cache-Control': 'no-cache'}
+          headers = {'User-Agent': 'BriefRooms production verifier/7.0', 'Cache-Control': 'no-cache'}
           last = []
           for attempt in range(48):
               last = []
@@ -182,6 +187,13 @@ jobs:
                           last.append(f'{path}: curated three-card target missing')
                       if selection_policy.get('emergency_max_cards_per_source') != 5:
                           last.append(f'{path}: emergency source cap missing')
+                      expansion = payload.get('health', {}).get('source_expansion', {})
+                      if expansion.get('version') != 'source-expansion-v3':
+                          last.append(f'{path}: Source Expansion v3 missing')
+                      if expansion.get('origin_detection_version') != 'source-origin-v1':
+                          last.append(f'{path}: source-origin detection missing')
+                      if expansion.get('dedupe_version') != 'dispatch-dedupe-v1':
+                          last.append(f'{path}: dispatch dedupe missing')
                       if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
                       if any(len(items) != 9 for items in payload.get('sections', {}).values()):
@@ -191,6 +203,15 @@ jobs:
                           for story in items:
                               source = str(story.get('source') or 'unknown')
                               counts[source] = counts.get(source, 0) + 1
+                              if story.get('publisher_source') != story.get('source'):
+                                  last.append(f'{path}/{section_id}: publisher provenance mismatch')
+                                  break
+                              if 'origin_source' not in story or 'provenance_role' not in story:
+                                  last.append(f'{path}/{section_id}: provenance metadata missing')
+                                  break
+                              if story.get('dispatch_dedupe_version') != 'dispatch-dedupe-v1':
+                                  last.append(f'{path}/{section_id}: dedupe metadata missing')
+                                  break
                           if counts and max(counts.values()) > 5:
                               last.append(f'{path}/{section_id}: source exceeds emergency cap: {counts}')
                               break
@@ -224,7 +245,7 @@ jobs:
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
               if not last:
-                  print('Production PL and EN news use curated source tiers, bounded source concentration and the 72-hour homepage cap.')
+                  print('Production PL and EN news use Source Expansion v3, origin provenance, dispatch dedupe and curated source diversity.')
                   raise SystemExit(0)
               time.sleep(10)
           raise SystemExit('Production verification failed: ' + '; '.join(last))
