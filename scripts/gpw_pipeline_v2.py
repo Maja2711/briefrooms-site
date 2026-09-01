@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-"""GPW Daily v2 integrity layer.
+"""GPW Daily v2 integrity and decision layer.
 
-Fixes two failure modes of v1.3:
-1. market-data completeness is measured from valid/fresh bars, not from the
-   number of securities surviving investment screening;
-2. provider failures and screening rejections are kept separately so an
-   operational outage cannot be confused with an investment decision.
-
-It also supports an explicit, date-bound recovery cutoff through
-GPW_RECOVERY_DATE + GPW_RECOVERY_CUTOFF. The override is inert in normal runs.
+The pipeline separates provider quality from investment screening, ranks only on
+completed sessions, uses current-session Opening Confirmation (P0.1), and uses
+an empirical walk-forward Expected Value model (P0.2) to select the target R/R
+instead of publishing a mechanically fixed 1.8 R target.
 """
 from __future__ import annotations
 
@@ -20,10 +16,12 @@ from typing import Any
 
 try:
     from scripts import gpw_daily_pick as gpw
+    from scripts import gpw_expected_value as ev
     from scripts import gpw_market_data as market
     from scripts import gpw_opening_confirmation as opening
 except ModuleNotFoundError:
     import gpw_daily_pick as gpw
+    import gpw_expected_value as ev
     import gpw_market_data as market
     import gpw_opening_confirmation as opening
 
@@ -59,8 +57,7 @@ def prefetch_market(config: dict[str, Any]) -> dict[str, list[gpw.Bar]]:
         for future in as_completed(futures):
             symbol = futures[future]
             try:
-                bars = future.result()
-                result[symbol] = bars
+                result[symbol] = future.result()
             except Exception as exc:
                 failures[symbol] = _detail(exc)
     LAST_PREFETCH_DIAGNOSTICS = {
@@ -75,7 +72,13 @@ def prefetch_market(config: dict[str, Any]) -> dict[str, list[gpw.Bar]]:
     return result
 
 
-def _screen_reason(company: dict[str, str], bars: list[gpw.Bar], expected: date, config: dict[str, Any], history: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, str | None]:
+def _screen_reason(
+    company: dict[str, str],
+    bars: list[gpw.Bar],
+    expected: date,
+    config: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, str | None]:
     if not bars:
         return None, "empty_bars"
     if bars[-1].day < expected:
@@ -86,13 +89,29 @@ def _screen_reason(company: dict[str, str], bars: list[gpw.Bar], expected: date,
     return candidate, None
 
 
-def _quality_payload(payload: dict[str, Any], *, cutoff: datetime, market_ratio: float, expected: date, candidates: list[dict[str, Any]], market_failures: dict[str, str], screened_out: dict[str, str]) -> dict[str, Any]:
+def _quality_payload(
+    payload: dict[str, Any],
+    *,
+    cutoff: datetime,
+    market_ratio: float,
+    expected: date,
+    candidates: list[dict[str, Any]],
+    market_failures: dict[str, str],
+    screened_out: dict[str, str],
+) -> dict[str, Any]:
     payload["publication_cutoff"] = cutoff.strftime("%H:%M")
     payload.setdefault("data_quality", {}).update(
         {
             "complete_ratio": round(market_ratio, 4),
             "expected_session": expected.isoformat(),
-            "market_data_symbols": round(market_ratio * len(market_failures | screened_out | {c['symbol']: '' for c in candidates})),
+            "market_data_symbols": round(
+                market_ratio
+                * len(
+                    market_failures
+                    | screened_out
+                    | {candidate["symbol"]: "" for candidate in candidates}
+                )
+            ),
             "ranked_candidates": len(candidates),
             "provider_failures": market_failures,
             "screened_out": screened_out,
@@ -127,21 +146,31 @@ def _rerank_with_opening(
     *,
     config: dict[str, Any],
     now: datetime,
+    bars_by_symbol: dict[str, list[gpw.Bar]] | None = None,
 ) -> tuple[list[tuple[float, dict[str, Any], dict[str, Any]]], dict[str, Any]]:
-    """Rerank eligible primary candidates using live post-open confirmation."""
-    settings = _opening_config(config)
+    """Rerank primary candidates with Opening Confirmation and empirical EV."""
+    opening_settings = _opening_config(config)
+    ev_settings = ev.settings_from(config)
     diagnostics: dict[str, Any] = {
-        **settings,
+        **opening_settings,
         "base_eligible_candidates": len(eligible),
         "evaluated_candidates": 0,
         "failures": {},
+        "expected_value": {
+            **ev_settings,
+            "engine": ev.ENGINE,
+            "ready_candidates": 0,
+        },
     }
-    if not settings["enabled"] or not eligible:
+    if not eligible:
+        return eligible, diagnostics
+    if not opening_settings["enabled"]:
         return eligible, diagnostics
 
-    shortlist = eligible[: int(settings["top_candidates"])]
+    shortlist = eligible[: int(opening_settings["top_candidates"])]
     assessed: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
     failures: dict[str, str] = {}
+    bars_by_symbol = bars_by_symbol or {}
 
     def one(item: tuple[float, dict[str, Any], dict[str, Any]]):
         base_score, candidate, analysis = item
@@ -149,18 +178,35 @@ def _rerank_with_opening(
         snapshot = market.opening_snapshot(symbol, now=now)
         _fresh_opening_snapshot(snapshot, now)
         confirmation = opening.score(candidate, snapshot)
-        adjusted = opening.blend(
+        opening_adjusted = opening.blend(
             base_score,
             float(confirmation["score"]),
-            float(settings["weight"]),
+            float(opening_settings["weight"]),
         )
         enriched = copy.deepcopy(candidate)
         enriched["legacy_composite_score"] = gpw.round2(base_score)
-        enriched["opening_adjusted_score"] = adjusted
+        enriched["opening_adjusted_score"] = opening_adjusted
         enriched["opening_confirmation"] = confirmation
         enriched["opening_confirmation_engine"] = opening.ENGINE
         enriched["opening_market_snapshot"] = snapshot
-        return adjusted, enriched, analysis
+
+        final_score = opening_adjusted
+        if ev_settings["enabled"]:
+            model = ev.estimate(enriched, bars_by_symbol.get(symbol, []), config)
+            if model.get("status") != "ready":
+                raise ValueError(
+                    f"expected value unavailable: {model.get('status')} "
+                    f"n={model.get('analogue_count', 0)}"
+                )
+            enriched = ev.apply_dynamic_target(enriched, model)
+            if float(enriched["reward_risk"]) < float(config.get("minimum_reward_risk", 1.5)):
+                raise ValueError("EV-selected reward/risk below minimum policy")
+            final_score, ev_weight = ev.blend_score(opening_adjusted, model, config)
+            enriched["expected_value_weight"] = ev_weight
+        else:
+            enriched["expected_value_weight"] = 0.0
+        enriched["ev_adjusted_score"] = final_score
+        return final_score, enriched, analysis
 
     with ThreadPoolExecutor(max_workers=min(4, len(shortlist))) as pool:
         futures = {
@@ -177,6 +223,7 @@ def _rerank_with_opening(
     assessed.sort(
         key=lambda item: (
             float(item[0]),
+            float(item[1].get("opening_adjusted_score") or 0.0),
             float(item[1].get("quant_pre_score") or 0.0),
         ),
         reverse=True,
@@ -187,6 +234,24 @@ def _rerank_with_opening(
     diagnostics["selected_opening_score"] = (
         assessed[0][1]["opening_confirmation"]["score"] if assessed else None
     )
+    ready = [
+        item
+        for item in assessed
+        if (item[1].get("expected_value_model") or {}).get("status") == "ready"
+    ]
+    diagnostics["expected_value"]["ready_candidates"] = len(ready)
+    if assessed:
+        selected_model = assessed[0][1].get("expected_value_model") or {}
+        diagnostics["expected_value"].update(
+            {
+                "selected_score": selected_model.get("score"),
+                "selected_expected_net_r": selected_model.get("expected_net_r"),
+                "selected_conservative_ev_r": selected_model.get("conservative_ev_r"),
+                "selected_reward_risk": selected_model.get("selected_reward_risk"),
+                "selected_tp_before_sl_probability": selected_model.get("tp_before_sl_probability"),
+                "selected_sl_before_tp_probability": selected_model.get("sl_before_tp_probability"),
+            }
+        )
     return assessed, diagnostics
 
 
@@ -206,13 +271,19 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         payload["data_quality"] = {"status": "not_applicable", "complete_ratio": 1.0}
         return payload
     if now >= cutoff:
-        payload = gpw.failure_payload(now, config, f"Nie utworzono nowego sygnału przed {cutoff:%H:%M}.", "cutoff")
+        payload = gpw.failure_payload(
+            now,
+            config,
+            f"Nie utworzono nowego sygnału przed {cutoff:%H:%M}.",
+            "cutoff",
+        )
         payload["publication_cutoff"] = cutoff.strftime("%H:%M")
         return payload
 
     expected = gpw.previous_session(now.date(), config)
     history = gpw.all_history()
     candidates: list[dict[str, Any]] = []
+    bars_by_symbol: dict[str, list[gpw.Bar]] = {}
     market_failures: dict[str, str] = {}
     screened_out: dict[str, str] = {}
     valid_market = 0
@@ -220,15 +291,24 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
     for company in config["universe"]:
         symbol = str(company["symbol"])
         try:
-            bars = market_fetcher(symbol)
-            if not bars:
+            raw_bars = market_fetcher(symbol)
+            if not raw_bars:
                 raise gpw.PublicationError("empty history")
-            if bars[-1].day < expected:
+            completed = [bar for bar in raw_bars if bar.day <= expected]
+            if not completed or completed[-1].day < expected:
+                latest = completed[-1].day.isoformat() if completed else "none"
                 raise gpw.PublicationError(
-                    f"stale history: latest={bars[-1].day.isoformat()} expected={expected.isoformat()}"
+                    f"stale history: latest={latest} expected={expected.isoformat()}"
                 )
             valid_market += 1
-            candidate, reason = _screen_reason(company, bars, expected, config, history)
+            bars_by_symbol[symbol] = completed
+            candidate, reason = _screen_reason(
+                company,
+                completed,
+                expected,
+                config,
+                history,
+            )
             if candidate:
                 candidates.append(candidate)
             elif reason:
@@ -287,6 +367,7 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
     for rank, candidate in enumerate(ranked_candidates, start=1):
         candidate["quant_rank"] = rank
     shortlist = ranked_candidates[: int(config["top_candidates_for_news"])]
+
     source_errors: dict[str, str] = {}
     for candidate in shortlist:
         try:
@@ -296,7 +377,12 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             source_errors[candidate["symbol"]] = _detail(exc)
 
     if not any(candidate.get("sources") for candidate in shortlist):
-        payload = gpw.common_payload(now, config, "BRAK_TRANSAKCJI", "Brak świeżego, możliwego do zweryfikowania katalizatora dla kandydatów.")
+        payload = gpw.common_payload(
+            now,
+            config,
+            "BRAK_TRANSAKCJI",
+            "Brak świeżego, możliwego do zweryfikowania katalizatora dla kandydatów.",
+        )
         payload["publication_cutoff"] = cutoff.strftime("%H:%M")
         payload["data_quality"] = {
             "status": "healthy",
@@ -325,28 +411,41 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         if score < float(config["minimum_composite_score"]):
             rejected_analysis[candidate["symbol"]] = f"score:{score}"
             continue
-        if candidate["reward_risk"] < float(config["minimum_reward_risk"]):
-            rejected_analysis[candidate["symbol"]] = f"reward_risk:{candidate['reward_risk']}"
-            continue
+        # R/R is selected by P0.2 after Opening Confirmation; the old fixed
+        # candidate.reward_risk no longer decides eligibility here.
         eligible.append((score, candidate, analysis))
     eligible.sort(key=lambda item: item[0], reverse=True)
 
     base_eligible_count = len(eligible)
-    eligible, opening_diagnostics = _rerank_with_opening(
+    eligible, rerank_diagnostics = _rerank_with_opening(
         eligible,
         config=config,
         now=now,
+        bars_by_symbol=bars_by_symbol,
     )
 
-    payload = gpw.common_payload(now, config, "BRAK_TRANSAKCJI", "Żaden kandydat nie przeszedł pełnego progu jakości i ryzyka.")
+    payload = gpw.common_payload(
+        now,
+        config,
+        "BRAK_TRANSAKCJI",
+        "Żaden kandydat nie przeszedł pełnego progu jakości i ryzyka.",
+    )
     payload["publication_cutoff"] = cutoff.strftime("%H:%M")
     payload.setdefault("methodology", {})["opening_confirmation"] = {
-        "enabled": opening_diagnostics["enabled"],
-        "engine": opening_diagnostics["engine"],
-        "weight": opening_diagnostics["weight"],
-        "top_candidates": opening_diagnostics["top_candidates"],
+        "enabled": rerank_diagnostics["enabled"],
+        "engine": rerank_diagnostics["engine"],
+        "weight": rerank_diagnostics["weight"],
+        "top_candidates": rerank_diagnostics["top_candidates"],
         "component_weights": dict(opening.COMPONENT_WEIGHTS),
-        "role": opening_diagnostics["role"],
+        "role": rerank_diagnostics["role"],
+    }
+    ev_settings = ev.settings_from(config)
+    payload["methodology"]["expected_value"] = {
+        **ev_settings,
+        "engine": ev.ENGINE,
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "target_selection": "maximize_uncertainty_adjusted_net_expected_R",
     }
     payload["data_quality"] = {
         "status": "healthy",
@@ -357,49 +456,77 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         "reviewed_candidates": len(shortlist),
         "base_eligible_candidates": base_eligible_count,
         "eligible_candidates": len(eligible),
-        "opening_confirmation": opening_diagnostics,
+        "opening_confirmation": {
+            key: value
+            for key, value in rerank_diagnostics.items()
+            if key != "expected_value"
+        },
+        "expected_value": rerank_diagnostics["expected_value"],
         "provider_failures": market_failures,
         "screened_out": screened_out,
         "analysis_rejections": rejected_analysis,
     }
     if not eligible:
-        if base_eligible_count and opening_diagnostics["enabled"]:
+        if base_eligible_count and rerank_diagnostics["enabled"]:
             payload["reason"] = (
-                "Kandydaci przeszli analizę bazową, ale żaden nie miał poprawnego, "
-                "świeżego potwierdzenia bieżącej sesji."
+                "Kandydaci przeszli analizę bazową, ale żaden nie miał kompletnego "
+                "świeżego Opening Confirmation i empirycznego EV."
             )
         return payload
 
     review_rejections: list[dict[str, Any]] = []
     approved = None
-    # Review the Opening-Confirmation-adjusted order until one candidate passes.
     for score, candidate, analysis in eligible:
         review = gpw.gemini_review(candidate, analysis, score)
         if review.get("approved"):
             approved = (score, candidate, analysis, review)
             break
         review_rejections.append(
-            {"symbol": candidate["symbol"], "score": score, "reason": review.get("reason")}
+            {
+                "symbol": candidate["symbol"],
+                "score": score,
+                "reason": review.get("reason"),
+            }
         )
     payload["data_quality"]["review_rejections"] = review_rejections
     if approved is None:
-        payload["reason"] = "Wszyscy kandydaci spełniający progi zostali odrzuceni w niezależnej recenzji."
+        payload["reason"] = (
+            "Wszyscy kandydaci spełniający progi zostali odrzuceni w niezależnej recenzji."
+        )
         return payload
 
     if gpw.now_warsaw() >= cutoff:
-        failed = gpw.failure_payload(gpw.now_warsaw(), config, f"Analiza zakończyła się po {cutoff:%H:%M}; sygnał nie został opublikowany.", "cutoff_after_review")
+        failed = gpw.failure_payload(
+            gpw.now_warsaw(),
+            config,
+            f"Analiza zakończyła się po {cutoff:%H:%M}; sygnał nie został opublikowany.",
+            "cutoff_after_review",
+        )
         failed["publication_cutoff"] = cutoff.strftime("%H:%M")
         return failed
 
     score, candidate, analysis, review = approved
     valid_until = gpw.add_sessions(now.date(), 2, config)
     sources_by_id = {source["id"]: source for source in candidate["sources"]}
-    approved_sources = [sources_by_id[source_id] for source_id in review["supported_source_ids"] if source_id in sources_by_id]
+    approved_sources = [
+        sources_by_id[source_id]
+        for source_id in review["supported_source_ids"]
+        if source_id in sources_by_id
+    ]
     confirmation = candidate.get("opening_confirmation") or {}
+    model = candidate.get("expected_value_model") or {}
+    scores = {
+        **candidate["scores"],
+        "catalyst": analysis["catalyst_score"],
+        "opening_confirmation": confirmation.get("score"),
+    }
+    if model.get("status") == "ready":
+        scores["expected_value"] = model.get("score")
+
     payload.update(
         {
             "decision": "TRANSAKCJA",
-            "reason": "Kandydat przeszedł ranking, Opening Confirmation, bramki źródłowe, kontrolę ryzyka i niezależną recenzję Gemini.",
+            "reason": "Kandydat przeszedł ranking, Opening Confirmation, empiryczne EV, bramki źródłowe, kontrolę ryzyka i niezależną recenzję Gemini.",
             "locked": True,
             "selection": {
                 "symbol": candidate["symbol"],
@@ -408,11 +535,17 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
                 "sector": candidate["sector"],
                 "score": score,
                 "legacy_composite_score": candidate.get("legacy_composite_score", score),
+                "opening_adjusted_score": candidate.get("opening_adjusted_score", score),
                 "quant_pre_score": candidate.get("quant_pre_score"),
                 "quant_rank": candidate.get("quant_rank"),
                 "opening_confirmation_score": confirmation.get("score"),
                 "opening_confirmation": confirmation,
                 "opening_confirmation_engine": candidate.get("opening_confirmation_engine"),
+                "expected_value_score": model.get("score"),
+                "expected_value_model": model if model else None,
+                "expected_value_weight": candidate.get("expected_value_weight", 0.0),
+                "expected_value_engine": ev.ENGINE if model.get("status") == "ready" else None,
+                "target_method": candidate.get("target_method"),
                 "reference_price": candidate["reference_price"],
                 "entry_zone": candidate["entry_zone"],
                 "activation": "Setup po otwarciu: wejście tylko w podanej strefie; powyżej górnej granicy nie gonić ceny.",
@@ -423,11 +556,7 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
                 "thesis": analysis["thesis"],
                 "why_now": analysis["why_now"],
                 "risk_factors": analysis["risk_factors"],
-                "scores": {
-                    **candidate["scores"],
-                    "catalyst": analysis["catalyst_score"],
-                    "opening_confirmation": confirmation.get("score"),
-                },
+                "scores": scores,
                 "sources": approved_sources,
                 "review": review,
                 "market_snapshot": candidate.get("opening_market_snapshot"),
