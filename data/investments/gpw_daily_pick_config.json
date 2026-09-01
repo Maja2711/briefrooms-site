@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-pick-config-v1",
-  "policy_version": "gpw-short-horizon-pl-v1.4-opening-ev",
+  "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
   "minimum_data_completeness": 0.8,
@@ -16,6 +16,35 @@
     "market_context": 15,
     "risk_reward": 15,
     "historical_expectancy": 10
+  },
+  "relative_momentum": {
+    "enabled": true,
+    "engine": "cross-sectional-multihorizon-v2",
+    "weights": {
+      "rank_1d": 0.1,
+      "rank_5d": 0.35,
+      "rank_20d": 0.2,
+      "rank_risk_adjusted_5d": 0.2,
+      "rank_sector_5d": 0.15
+    },
+    "role": "robust_cross_sectional_relative_strength_not_absolute_return"
+  },
+  "data_gates": {
+    "engine": "gpw-data-gates-v1",
+    "minimum_market_coverage": 0.8,
+    "maximum_historical_lag_sessions": 1,
+    "require_current_session_quote": true,
+    "maximum_execution_quote_age_minutes": 20,
+    "maximum_future_clock_skew_minutes": 2,
+    "reject_crosscheck_statuses": ["conflict", "rejected"],
+    "role": "single_source_of_truth_for_gpw_freshness_and_data_quality"
+  },
+  "full_ranking": {
+    "enabled": true,
+    "engine": "gpw-full-ranking-v1",
+    "artifact": "data/investments/gpw_daily_candidate_ranking.json",
+    "include_rejected_universe": true,
+    "role": "canonical_pre_news_quant_ranking_for_entire_gpw_universe"
   },
   "learning": {
     "minimum_resolved_trades_for_adaptation": 8,
