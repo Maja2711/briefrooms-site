@@ -100,6 +100,57 @@ class NewsQualityTests(unittest.TestCase):
         )
         self.assertTrue(decision.accepted)
 
+    def test_rejects_exact_tvn_self_promotion_from_production(self) -> None:
+        decision = evaluate_story(
+            'Rewelacyjne wyniki TVN24, "Faktów" TVN i tvn24.pl. Dziękujemy!'
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "media_self_promotion")
+
+    def test_rejects_exact_taxi_dispute_from_production(self) -> None:
+        decision = evaluate_story(
+            "Konflikt radnej KO z taksówkarzem. Ugoda i decyzja prokuratury"
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "isolated_local_incident")
+
+    def test_rejects_minor_drunk_driver_collision(self) -> None:
+        decision = evaluate_story(
+            "Dwie kolizje w ciągu kilkunastu minut. Kierowca wydmuchał półtora promila"
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "isolated_local_incident")
+
+    def test_allows_systemic_critical_infrastructure_incident(self) -> None:
+        decision = evaluate_story(
+            "Cyberatak na infrastrukturę krytyczną. Rząd uruchamia procedury bezpieczeństwa"
+        )
+        self.assertTrue(decision.accepted)
+
+    def test_allows_media_regulator_story(self) -> None:
+        decision = evaluate_story(
+            "KRRiT nakłada karę na stację za naruszenie warunków koncesji"
+        )
+        self.assertTrue(decision.accepted)
+
+    def test_rejects_ambassador_social_post_without_consequence(self) -> None:
+        decision = evaluate_story(
+            'Ambasador USA zamieścił wpis. "Niezwykła polska odwaga"'
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "political_theater_without_public_consequence")
+
+    def test_rejects_politician_verbal_exchange_without_decision(self) -> None:
+        decision = evaluate_story('Morawiecki zwrócił się do Mentzena. "Pomoże pan?"')
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "political_theater_without_public_consequence")
+
+    def test_allows_political_reaction_when_it_changes_policy(self) -> None:
+        decision = evaluate_story(
+            "Premier zareagował na kryzys. Rząd przyjął ustawę o bezpieczeństwie"
+        )
+        self.assertTrue(decision.accepted)
+
     def test_policy_is_versioned_and_public(self) -> None:
         policy = public_policy()
         self.assertEqual(policy["version"], POLICY_VERSION)
@@ -108,6 +159,9 @@ class NewsQualityTests(unittest.TestCase):
             "interview_promo_without_substance",
             "lottery_result_or_jackpot_promo",
             "betting_promotion",
+            "media_self_promotion",
+            "isolated_local_incident",
+            "political_theater_without_public_consequence",
         })
 
 
