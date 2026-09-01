@@ -48,6 +48,8 @@ def policy():
         "maximum_historical_lag_sessions": 1,
         "reward_risk": 1.8,
         "neutral_catalyst_score": 50.0,
+        "opening_confirmation_top_candidates": 8,
+        "opening_confirmation_weight": 0.25,
     }
 
 
@@ -80,18 +82,51 @@ def current_payload(now: datetime, decision: str = "BRAK_TRANSAKCJI") -> dict:
     }
 
 
-def snapshot(symbol: str, now: datetime, price: float = 111.5) -> dict:
+def snapshot(
+    symbol: str,
+    now: datetime,
+    price: float = 111.5,
+    *,
+    open_price: float | None = None,
+    high: float | None = None,
+    low: float | None = None,
+) -> dict:
+    open_value = price - 0.5 if open_price is None else open_price
+    high_value = price + 0.5 if high is None else high
+    low_value = price - 1.0 if low is None else low
     return {
         "provider": "Yahoo",
         "symbol": symbol,
         "date": now.date().isoformat(),
         "observed_at": now.isoformat(),
-        "open": price - 0.5,
-        "high": price + 0.5,
-        "low": price - 1.0,
+        "open": open_value,
+        "high": high_value,
+        "low": low_value,
         "last": price,
         "volume": 10_000,
         "crosscheck": {"status": "confirmed"},
+    }
+
+
+def synthetic_candidate(symbol: str, score: float, rank: int) -> dict:
+    return {
+        "symbol": symbol,
+        "name": symbol.removesuffix(".WA"),
+        "sector": "test",
+        "reference_price": 100.0,
+        "risk_percent": 0.02,
+        "quant_pre_score": score,
+        "quant_rank": rank,
+        "scores": {
+            "relative_momentum": score,
+            "volume_liquidity": score,
+            "market_context": score,
+            "risk_reward": score,
+            "historical_expectancy": score,
+        },
+        "quant_engine": "test-quant",
+        "historical_feature_session": "2026-08-20",
+        "historical_feature_lag_sessions": 0,
     }
 
 
@@ -100,6 +135,93 @@ class MandatoryGpwTests(unittest.TestCase):
         selector = mandatory._selector_config(cfg(), policy())
         self.assertEqual(selector["minimum_median_turnover_pln"], 1_000_000)
         self.assertEqual(selector["maximum_risk_percent"], 0.07)
+
+    def test_opening_confirmation_rewards_controlled_continuation(self):
+        candidate = synthetic_candidate("AAA.WA", 80.0, 1)
+        now = datetime(2026, 8, 21, 9, 30, tzinfo=WARSAW)
+        healthy = snapshot(
+            "AAA.WA",
+            now,
+            price=101.9,
+            open_price=100.5,
+            high=102.0,
+            low=100.4,
+        )
+        failed_open = snapshot(
+            "AAA.WA",
+            now,
+            price=100.5,
+            open_price=104.0,
+            high=104.2,
+            low=100.0,
+        )
+
+        healthy_score = mandatory.opening_confirmation_score(candidate, healthy)
+        failed_score = mandatory.opening_confirmation_score(candidate, failed_open)
+
+        self.assertGreater(healthy_score["score"], failed_score["score"])
+        self.assertEqual(healthy_score["engine"], "gpw-opening-confirmation-v1")
+        self.assertIn("gap_quality", healthy_score["components"])
+        self.assertIn("distance_from_high", healthy_score["components"])
+
+    def test_opening_confirmation_can_rerank_quant_number_two(self):
+        now = datetime(2026, 8, 21, 9, 30, tzinfo=WARSAW)
+        current = current_payload(now)
+        candidates = [
+            synthetic_candidate("AAA.WA", 80.0, 1),
+            synthetic_candidate("BBB.WA", 76.0, 2),
+        ]
+
+        def opening_fetcher(symbol: str, *, now: datetime) -> dict:
+            if symbol == "AAA.WA":
+                return snapshot(
+                    symbol,
+                    now,
+                    price=100.5,
+                    open_price=104.0,
+                    high=104.2,
+                    low=100.0,
+                )
+            return snapshot(
+                symbol,
+                now,
+                price=101.9,
+                open_price=100.5,
+                high=102.0,
+                low=100.4,
+            )
+
+        with (
+            patch.object(gpw, "is_session_day", return_value=True),
+            patch.object(gpw, "previous_session", return_value=date(2026, 8, 20)),
+            patch.object(gpw, "all_history", return_value=[]),
+            patch.object(mandatory, "build_ranked_candidates", return_value=candidates),
+        ):
+            result = mandatory.make_forced_payload(
+                current,
+                now=now,
+                config=cfg(),
+                policy=policy(),
+                cache={"AAA.WA": [], "BBB.WA": []},
+                opening_fetcher=opening_fetcher,
+            )
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["selection"]["symbol"], "BBB.WA")
+        self.assertEqual(result["selection"]["quant_rank"], 2)
+        self.assertGreater(result["selection"]["opening_confirmation_score"], 80)
+        self.assertEqual(
+            result["selection"]["opening_confirmation_engine"],
+            "gpw-opening-confirmation-v1",
+        )
+        self.assertEqual(
+            result["methodology"]["score_policy"],
+            "mandatory_daily_quant_plus_opening_confirmation",
+        )
+        self.assertEqual(
+            result["data_quality"]["mandatory_selection"]["selected_quant_rank"], 2
+        )
 
     def test_forces_best_valid_candidate_after_preferred_cutoff(self):
         now = datetime(2026, 8, 21, 10, 45, tzinfo=WARSAW)
@@ -130,6 +252,7 @@ class MandatoryGpwTests(unittest.TestCase):
         self.assertGreater(result["selection"]["target"], result["selection"]["reference_price"])
         self.assertLess(result["selection"]["stop"], result["selection"]["reference_price"])
         self.assertGreater(result["selection"]["skip_above"], result["selection"]["reference_price"])
+        self.assertIn("opening_confirmation_score", result["selection"])
 
     def test_one_session_historical_lag_is_usable(self):
         now = datetime(2026, 8, 21, 9, 30, tzinfo=WARSAW)
