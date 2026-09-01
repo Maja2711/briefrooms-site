@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,10 @@ except ImportError:
     )
 
 ROOT = Path(__file__).resolve().parents[1]
+AUTHORITY_IMAGE_PER_SOURCE = 6
+HIGH_AUTHORITY_TIERS = {"primary", "wire", "premium"}
 
+_original_fetch_all = base.fetch_all
 _original_editorial_value_score = filtered.editorial_value_score
 _original_filtered_select_sections = filtered.select_sections
 _original_filtered_build_language = filtered.build_language
@@ -68,6 +72,50 @@ def curated_editorial_value_score(story: dict[str, Any], section_id: str, now: A
 
 # filtered.select_sections resolves this global function at runtime.
 filtered.editorial_value_score = curated_editorial_value_score
+
+
+def _authority_image_candidates(
+    grouped: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Prioritise recent image-less stories from authoritative sources.
+
+    The base publisher enriches only the first 24 stories in each section. Reserve
+    feeds can arrive later because feed requests are concurrent, so a primary or
+    premium source must not lose ranking eligibility solely due to completion order.
+    """
+    candidates: list[dict[str, Any]] = []
+    for stories in grouped.values():
+        per_source: dict[str, int] = {}
+        for story in sorted(stories, key=base.story_time, reverse=True):
+            if story.get("image"):
+                continue
+            source = str(story.get("source") or "unknown").strip() or "unknown"
+            if source_profile(source).tier not in HIGH_AUTHORITY_TIERS:
+                continue
+            if per_source.get(source, 0) >= AUTHORITY_IMAGE_PER_SOURCE:
+                continue
+            per_source[source] = per_source.get(source, 0) + 1
+            candidates.append(story)
+    return candidates
+
+
+def fetch_all(config: Any, now: Any):
+    grouped, labels, errors = _original_fetch_all(config, now)
+    candidates = _authority_image_candidates(grouped)
+    if not candidates:
+        return grouped, labels, errors
+
+    jobs: dict[Any, dict[str, Any]] = {}
+    workers = min(int(getattr(base, "MAX_WORKERS", 8) or 8), 8)
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        for story in candidates:
+            jobs[pool.submit(base.page_image, str(story.get("link") or ""))] = story
+        for future in as_completed(jobs):
+            image = future.result()
+            if image:
+                jobs[future]["image"] = image
+                jobs[future]["image_basis"] = "authority_article_metadata"
+    return grouped, labels, errors
 
 
 def _candidate_tier_mix(candidates: list[dict[str, Any]]) -> dict[str, int]:
@@ -121,7 +169,7 @@ def select_sections(
         high_authority_sources = sorted(
             source
             for source in candidate_sources
-            if source_profile(source).tier in {"primary", "wire", "premium"}
+            if source_profile(source).tier in HIGH_AUTHORITY_TIERS
         )
 
         section_health = health.setdefault(section_id, {})
@@ -208,6 +256,7 @@ def validate(max_age_minutes: int = 30) -> None:
                     raise RuntimeError(f"{lang}/{section_id} source diversity violation")
 
 
+base.fetch_all = fetch_all
 base.select_sections = select_sections
 base.build_language = build_language
 base.validate = validate
