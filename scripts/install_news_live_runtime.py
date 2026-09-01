@@ -14,9 +14,10 @@ PAGES = [
     ROOT / "pl" / "index.html",
     ROOT / "en" / "index.html",
 ]
-VERSION = "7"
+VERSION = "6"
+RUNTIME_REVISION = "image2"
 FLOOR_VERSION = "2"
-TAG = f'<script src="/scripts/news-live.js?v={VERSION}" defer></script>'
+TAG = f'<script src="/scripts/news-live.js?v={VERSION}&rev={RUNTIME_REVISION}" defer></script>'
 FLOOR_TAG = f'<script src="/scripts/home-card-floor.js?v={FLOOR_VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 FLOOR_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-card-floor\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
