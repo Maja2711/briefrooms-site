@@ -2,13 +2,15 @@
 """Shared deterministic quant/learning core for BriefRooms Daily Stock engines.
 
 Market adapters own calendars, currencies, market-data providers and official
-catalyst channels.  This module owns the common mechanics that should stay
-identical across GPW and US Daily Stock: momentum, liquidity, risk, reward/risk,
-cross-sectional context, composite scoring and bounded historical learning.
+catalyst channels. This module owns the common mechanics that should stay
+identical across Daily Stock engines unless a market explicitly enables a newer
+model through configuration.
 
-The GPW adapter intentionally preserves the existing GPW learning/event layers
-and passes their historical score into this core.  The US adapter can use the
-same bounded learning primitive against US-only history without mixing markets.
+P0.5 adds a GPW opt-in relative-momentum v2 model. Instead of a min/max-scaled
+5-session return mixed with absolute momentum, v2 uses robust cross-sectional
+percentile ranks across several horizons, sector-relative strength and a
+volatility-adjusted 5-session return. The model is opt-in so US Daily Stock is
+not silently changed by the GPW upgrade.
 """
 from __future__ import annotations
 
@@ -74,6 +76,16 @@ US_PROFILE = QuantProfile(
 )
 
 
+RELATIVE_MOMENTUM_V2 = "cross-sectional-multihorizon-v2"
+DEFAULT_RELATIVE_MOMENTUM_WEIGHTS = {
+    "rank_1d": 0.10,
+    "rank_5d": 0.35,
+    "rank_20d": 0.20,
+    "rank_risk_adjusted_5d": 0.20,
+    "rank_sector_5d": 0.15,
+}
+
+
 def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, float(value)))
 
@@ -107,6 +119,35 @@ def percentile_score(value: float, lower: float, upper: float) -> float:
     return clamp((float(value) - lower) * 100.0 / (upper - lower))
 
 
+def percentile_rank(value: float, population: Iterable[float]) -> float:
+    """Robust 0..100 mid-rank percentile; unlike min/max it resists outliers."""
+    values = sorted(float(item) for item in population)
+    if not values:
+        return 50.0
+    if len(values) == 1:
+        return 50.0
+    below = sum(item < float(value) for item in values)
+    equal = sum(item == float(value) for item in values)
+    midpoint = below + max(equal - 1, 0) / 2.0
+    return clamp(100.0 * midpoint / max(len(values) - 1, 1))
+
+
+def _relative_momentum_settings(config: dict[str, Any]) -> dict[str, Any]:
+    raw = config.get("relative_momentum") or {}
+    configured = raw.get("weights") or {}
+    weights = {
+        key: max(0.0, float(configured.get(key, default)))
+        for key, default in DEFAULT_RELATIVE_MOMENTUM_WEIGHTS.items()
+    }
+    total = sum(weights.values()) or 1.0
+    weights = {key: value / total for key, value in weights.items()}
+    return {
+        "enabled": bool(raw.get("enabled", False)),
+        "engine": str(raw.get("engine") or RELATIVE_MOMENTUM_V2),
+        "weights": weights,
+    }
+
+
 def _mean_r(rows: Iterable[dict[str, Any]]) -> float | None:
     values = [float((row.get("outcome") or {}).get("r_multiple", 0.0)) for row in rows]
     return statistics.fmean(values) if values else None
@@ -137,13 +178,7 @@ def bayesian_history_expectancy_score(
     prior_strength: float = 10.0,
     max_adjustment: float = 12.0,
 ) -> tuple[float, int]:
-    """Bounded historical overlay used by the shared core.
-
-    This deliberately mirrors the proven GPW control-loop logic: 45% global,
-    35% recent and 20% sector expectancy, each shrunk toward zero.  The result
-    can only adjust the 10% historical component and never mutates strategy
-    weights after a single trade.
-    """
+    """Bounded historical overlay used by the shared core."""
     resolved = resolved_activated(history)
     sample = len(resolved)
     if sample < int(minimum_sample):
@@ -252,11 +287,13 @@ def build_quant_candidate(
         "stop": round2(close - risk),
         "target": round2(close + risk * reward_risk),
         "risk_percent": round(risk_percent, 4),
+        "atr_percent": round(atr_percent, 5),
         "reward_risk": reward_risk,
         "returns": {"1d": round(ret_1, 5), "5d": round(ret_5, 5), "20d": round(ret_20, 5)},
         profile.turnover_output_key: round(turnover),
         "volume_ratio": round(volume_ratio, 3),
         "raw_momentum": momentum,
+        "relative_momentum_model": _relative_momentum_settings(config),
         "scores": {
             "relative_momentum": round2(momentum),
             "volume_liquidity": round2(liquidity),
@@ -271,12 +308,92 @@ def build_quant_candidate(
     return result
 
 
-def normalize_cross_section(candidates: list[dict[str, Any]]) -> None:
-    if not candidates:
-        return
+def _legacy_relative_momentum(candidates: list[dict[str, Any]]) -> None:
     returns = [float(candidate["returns"]["5d"]) for candidate in candidates]
     lower, upper = min(returns), max(returns)
     median_return = statistics.median(returns)
+    for candidate in candidates:
+        relative = float(candidate["returns"]["5d"]) - median_return
+        cross = percentile_score(float(candidate["returns"]["5d"]), lower, upper)
+        candidate["relative_5d"] = round(relative, 5)
+        candidate["scores"]["relative_momentum"] = round2(
+            0.55 * float(candidate["raw_momentum"]) + 0.45 * cross
+        )
+
+
+def _relative_momentum_v2(candidates: list[dict[str, Any]]) -> None:
+    settings = candidates[0].get("relative_momentum_model") or {}
+    weights = settings.get("weights") or DEFAULT_RELATIVE_MOMENTUM_WEIGHTS
+    market_returns = {
+        horizon: [float(candidate["returns"][horizon]) for candidate in candidates]
+        for horizon in ("1d", "5d", "20d")
+    }
+    medians = {
+        horizon: statistics.median(values)
+        for horizon, values in market_returns.items()
+    }
+    risk_adjusted = {
+        str(candidate["symbol"]): float(candidate["returns"]["5d"])
+        / max(float(candidate.get("atr_percent") or 0.0), 0.005)
+        for candidate in candidates
+    }
+    risk_population = list(risk_adjusted.values())
+    sectors = {str(candidate["sector"]) for candidate in candidates}
+    sector_returns = {
+        sector: [
+            float(candidate["returns"]["5d"])
+            for candidate in candidates
+            if str(candidate["sector"]) == sector
+        ]
+        for sector in sectors
+    }
+    sector_medians = {
+        sector: statistics.median(values)
+        for sector, values in sector_returns.items()
+    }
+    sector_relative_values = [
+        float(candidate["returns"]["5d"]) - sector_medians[str(candidate["sector"])]
+        for candidate in candidates
+    ]
+
+    for candidate in candidates:
+        symbol = str(candidate["symbol"])
+        sector = str(candidate["sector"])
+        rel = {
+            horizon: float(candidate["returns"][horizon]) - medians[horizon]
+            for horizon in ("1d", "5d", "20d")
+        }
+        sector_rel_5d = float(candidate["returns"]["5d"]) - sector_medians[sector]
+        components = {
+            "rank_1d": percentile_rank(float(candidate["returns"]["1d"]), market_returns["1d"]),
+            "rank_5d": percentile_rank(float(candidate["returns"]["5d"]), market_returns["5d"]),
+            "rank_20d": percentile_rank(float(candidate["returns"]["20d"]), market_returns["20d"]),
+            "rank_risk_adjusted_5d": percentile_rank(risk_adjusted[symbol], risk_population),
+            "rank_sector_5d": percentile_rank(sector_rel_5d, sector_relative_values),
+        }
+        score = sum(float(components[key]) * float(weights[key]) for key in weights)
+        candidate["relative_5d"] = round(rel["5d"], 5)
+        candidate["relative_momentum_detail"] = {
+            "engine": settings.get("engine") or RELATIVE_MOMENTUM_V2,
+            "relative_returns": {key: round(value, 5) for key, value in rel.items()},
+            "sector_relative_5d": round(sector_rel_5d, 5),
+            "risk_adjusted_5d": round(risk_adjusted[symbol], 4),
+            "components": {key: round2(value) for key, value in components.items()},
+            "weights": {key: round(float(value), 4) for key, value in weights.items()},
+        }
+        candidate["scores"]["relative_momentum"] = round2(score)
+
+
+def normalize_cross_section(candidates: list[dict[str, Any]]) -> None:
+    if not candidates:
+        return
+    settings = candidates[0].get("relative_momentum_model") or {}
+    if settings.get("enabled"):
+        _relative_momentum_v2(candidates)
+    else:
+        _legacy_relative_momentum(candidates)
+
+    median_return = statistics.median(float(candidate["returns"]["5d"]) for candidate in candidates)
     market_1d = statistics.median(float(candidate["returns"]["1d"]) for candidate in candidates)
     breadth = sum(float(candidate["returns"]["1d"]) > 0 for candidate in candidates) / len(candidates)
     sectors = {candidate["sector"] for candidate in candidates}
@@ -289,12 +406,6 @@ def normalize_cross_section(candidates: list[dict[str, Any]]) -> None:
         for sector in sectors
     }
     for candidate in candidates:
-        relative = float(candidate["returns"]["5d"]) - median_return
-        cross = percentile_score(float(candidate["returns"]["5d"]), lower, upper)
-        candidate["relative_5d"] = round(relative, 5)
-        candidate["scores"]["relative_momentum"] = round2(
-            0.55 * float(candidate["raw_momentum"]) + 0.45 * cross
-        )
         candidate["scores"]["market_context"] = round2(
             clamp(
                 50
@@ -334,6 +445,7 @@ def composite_score(
 
 
 def methodology_contract(profile: QuantProfile, config: dict[str, Any]) -> dict[str, Any]:
+    relative = _relative_momentum_settings(config)
     return {
         "core": "daily-stock-core-v1",
         "market": profile.market,
@@ -341,6 +453,7 @@ def methodology_contract(profile: QuantProfile, config: dict[str, Any]) -> dict[
         "weights": dict(config.get("weights") or {}),
         "minimum_reward_risk": float(config.get("minimum_reward_risk", 1.5)),
         "maximum_risk_percent": float(config.get("maximum_risk_percent", 0.07)),
+        "relative_momentum": relative,
         "learning": {
             "method": (config.get("learning") or {}).get("method", "bayesian_shrinkage_historical_overlay_v1"),
             "weights_frozen": True,
