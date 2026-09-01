@@ -7,6 +7,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from scripts import daily_stock_core as core
+from scripts import daily_stock_gpw_adapter as gpw_adapter
 from scripts import gpw_data_gates as gates
 from scripts import gpw_daily_pick as gpw
 from scripts import gpw_full_ranking as ranking
@@ -144,6 +145,16 @@ class GpwP035Tests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "stale execution quote age"):
             gates.execution_gate(stale, now=now, config=config)
+
+    def test_adapter_filters_null_selection_history_before_learning(self):
+        rows = [
+            {"date": "2026-08-18", "selection": None, "decision": "BRAK_TRANSAKCJI"},
+            {"date": "2026-08-19", "selection": {"symbol": "AAA.WA"}},
+            {"date": "2026-08-20", "decision": "AWARIA_DANYCH"},
+        ]
+        filtered = gpw_adapter._learning_history(rows)
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["selection"]["symbol"], "AAA.WA")
 
     def test_p03_full_ranking_contains_every_configured_symbol(self):
         config = cfg()
