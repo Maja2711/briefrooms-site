@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from scripts import news_source_expansion_v3 as expansion
+from tests.test_event_intelligence_v4 import EventIntelligenceV4Tests  # noqa: F401
 
 
 NOW = datetime(2026, 9, 1, 18, 0, tzinfo=timezone.utc)
