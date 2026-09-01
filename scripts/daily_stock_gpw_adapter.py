@@ -2,9 +2,14 @@
 """GPW market adapter for the shared Daily Stock Core.
 
 The adapter deliberately leaves the proven GPW event layer, ESPI/EBI evidence,
-opening cross-check, outcome monitor and control-loop learning in place.  It
+opening cross-check, outcome monitor and control-loop learning in place. It
 uses Daily Stock Core as the primary quant/composite implementation while
 retaining the proven legacy GPW quant screen as a compatibility fallback.
+
+Historical non-trade publications may legitimately contain ``selection: null``.
+Those rows are not trade outcomes and are filtered before the legacy GPW
+history scorer so P0.3/full ranking and the live primary path share the same
+safe learning input contract.
 """
 from __future__ import annotations
 
@@ -23,22 +28,34 @@ _ORIGINAL_PUBLISH = gpw.publish
 _LEGACY_BUILD_QUANT_CANDIDATE = gpw.build_quant_candidate
 
 
+def _learning_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only records with an actual selection mapping for trade learning."""
+    return [
+        row
+        for row in history
+        if isinstance(row, dict) and isinstance(row.get("selection"), dict)
+    ]
+
+
 def _history_scorer(
     history: list[dict[str, Any]], sector: str, minimum_sample: int
 ) -> tuple[float, int]:
     # Resolve dynamically so gpw_daily_control_loop can keep installing its
-    # established Bayesian shrinkage learner without losing any learned state.
-    return gpw.history_expectancy_score(history, sector, minimum_sample)
+    # established Bayesian shrinkage learner without losing learned state.
+    return gpw.history_expectancy_score(
+        _learning_history(history), sector, minimum_sample
+    )
 
 
 def _build_quant_candidate(company, bars, expected_day, config, history):
+    learning_history = _learning_history(history or [])
     candidate = core.build_quant_candidate(
         company,
         bars,
         expected_day,
         config,
         core.GPW_PROFILE,
-        history=history,
+        history=learning_history,
         history_scorer=_history_scorer,
     )
     if candidate is not None:
@@ -51,7 +68,7 @@ def _build_quant_candidate(company, bars, expected_day, config, history):
     # the exact proven GPW quant screen. Its liquidity, ATR/risk and bounded
     # historical-learning rules remain in force, so this is not a forced pick.
     candidate = _LEGACY_BUILD_QUANT_CANDIDATE(
-        company, bars, expected_day, config, history
+        company, bars, expected_day, config, learning_history
     )
     if candidate is not None:
         candidate["quant_engine"] = "gpw-legacy-compatible-fallback"
@@ -59,15 +76,7 @@ def _build_quant_candidate(company, bars, expected_day, config, history):
 
 
 def _install_control_retry() -> None:
-    """Keep BRAK_TRANSAKCJI provisional until the post-open cutoff.
-
-    The old control loop treated the first healthy NO-TRADE result as terminal
-    for the whole day. That meant a delayed/early GitHub run could prevent any
-    later automatic selection. Production calls now get up to three fresh
-    evaluation cycles in the same workflow run, and a later scheduled run may
-    evaluate again while the cutoff is still open. A valid TRANSAKCJA remains
-    terminal and all hard data/risk/evidence/reviewer gates stay unchanged.
-    """
+    """Keep BRAK_TRANSAKCJI provisional until the post-open cutoff."""
     global _CONTROL_RETRY_INSTALLED
     if _CONTROL_RETRY_INSTALLED:
         return
@@ -89,11 +98,6 @@ def _install_control_retry() -> None:
             cutoff = gpw.cutoff_for(now.date(), config)
             current = gpw.load_json(gpw.PUBLIC_PATH)
 
-            # The base loop considers every non-AWARIA current-day record
-            # terminal. Remove only a provisional BRAK_TRANSAKCJI in the local
-            # workflow checkout so the engine is allowed to perform a fresh
-            # automatic analysis. The generated state is immediately written
-            # back by the normal publisher.
             if (
                 isinstance(current, dict)
                 and current.get("date") == now.date().isoformat()
@@ -130,6 +134,7 @@ def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
         "event_learning_preserved": True,
         "legacy_quant_fallback": True,
         "automatic_no_trade_retries": True,
+        "non_trade_history_filtered": True,
     }
     return value
 
