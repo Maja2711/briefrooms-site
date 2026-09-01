@@ -167,8 +167,11 @@ jobs:
                           last.append(f'{path}: generated data is stale')
                       if payload.get('schema_version') != 'news-live-v2':
                           last.append(f'{path}: schema mismatch')
-                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v3':
-                          last.append(f'{path}: editorial policy v3 missing')
+                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v4':
+                          last.append(f'{path}: editorial policy v4 missing')
+                      selection_policy = payload.get('health', {}).get('editorial_selection', {})
+                      if selection_policy.get('version') != 'public-impact-source-diversity-v1':
+                          last.append(f'{path}: public-impact source diversity policy missing')
                       if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
                       if any(len(items) != 9 for items in payload.get('sections', {}).values()):
