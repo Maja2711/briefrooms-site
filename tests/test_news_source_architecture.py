@@ -70,6 +70,16 @@ class CuratedSourceArchitectureTests(unittest.TestCase):
         self.assertTrue({"ESA", "NASA JPL"} <= science_sources)
         self.assertIn("FDA", health_sources)
 
+    def test_authority_image_queue_prioritises_high_tier_and_is_bounded(self) -> None:
+        now = datetime(2026, 9, 1, 18, 0, tzinfo=timezone.utc)
+        candidates = [story("Reuters", i, now) for i in range(8)]
+        candidates += [story("TVN24", 20 + i, now) for i in range(3)]
+        for item in candidates:
+            item["image"] = ""
+        queued = curated._authority_image_candidates({"business": candidates})
+        self.assertEqual(len(queued), curated.AUTHORITY_IMAGE_PER_SOURCE)
+        self.assertTrue(all(item["source"] == "Reuters" for item in queued))
+
     def test_optional_premium_feed_failure_is_not_required_source_failure(self) -> None:
         required, optional = curated._split_source_errors(
             "en",
