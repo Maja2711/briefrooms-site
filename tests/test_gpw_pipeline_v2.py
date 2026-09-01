@@ -28,6 +28,13 @@ def config() -> dict:
             "historical_expectancy": 10,
         },
         "top_candidates_for_news": 2,
+        "opening_confirmation": {
+            "enabled": True,
+            "engine": "gpw-opening-confirmation-v1",
+            "top_candidates": 2,
+            "weight": 0.25,
+            "role": "bounded_reranking_overlay_not_hard_gate",
+        },
         "universe": [
             {"symbol": "AAA.WA", "name": "AAA", "sector": "x"},
             {"symbol": "BBB.WA", "name": "BBB", "sector": "x"},
@@ -42,12 +49,85 @@ def bars() -> list[gpw.Bar]:
     ]
 
 
+def candidate(symbol: str, quant_score: float) -> dict:
+    return {
+        "symbol": symbol,
+        "name": symbol.removesuffix(".WA"),
+        "sector": "x",
+        "reference_price": 100.0,
+        "quant_pre_score": quant_score,
+        "scores": {
+            "relative_momentum": quant_score,
+            "volume_liquidity": quant_score,
+            "market_context": quant_score,
+            "risk_reward": quant_score,
+            "historical_expectancy": quant_score,
+        },
+    }
+
+
+def opening_snapshot(symbol: str, now: datetime) -> dict:
+    if symbol == "AAA.WA":
+        return {
+            "provider": "Yahoo",
+            "symbol": symbol,
+            "date": now.date().isoformat(),
+            "observed_at": now.isoformat(),
+            "open": 104.0,
+            "high": 104.2,
+            "low": 100.0,
+            "last": 100.5,
+            "volume": 10000,
+            "crosscheck": {"status": "confirmed"},
+        }
+    return {
+        "provider": "Yahoo",
+        "symbol": symbol,
+        "date": now.date().isoformat(),
+        "observed_at": now.isoformat(),
+        "open": 100.5,
+        "high": 102.0,
+        "low": 100.4,
+        "last": 101.9,
+        "volume": 10000,
+        "crosscheck": {"status": "confirmed"},
+    }
+
+
 class GpwPipelineV2Tests(unittest.TestCase):
     def test_recovery_cutoff_is_date_bound(self):
         cfg = config()
         with patch.dict(os.environ, {"GPW_RECOVERY_DATE": "2026-08-19", "GPW_RECOVERY_CUTOFF": "12:30"}, clear=False):
             self.assertEqual(pipeline.cutoff_for(date(2026, 8, 19), cfg).strftime("%H:%M"), "12:30")
             self.assertEqual(pipeline.cutoff_for(date(2026, 8, 20), cfg).strftime("%H:%M"), "09:10")
+
+    def test_opening_confirmation_reranks_primary_candidates(self):
+        now = datetime(2026, 8, 19, 9, 6, tzinfo=WARSAW)
+        eligible = [
+            (80.0, candidate("AAA.WA", 80.0), {"catalyst_score": 50}),
+            (76.0, candidate("BBB.WA", 76.0), {"catalyst_score": 50}),
+        ]
+
+        with patch.object(
+            pipeline.market,
+            "opening_snapshot",
+            side_effect=lambda symbol, now: opening_snapshot(symbol, now),
+        ):
+            reranked, diagnostics = pipeline._rerank_with_opening(
+                eligible,
+                config=config(),
+                now=now,
+            )
+
+        self.assertEqual(reranked[0][1]["symbol"], "BBB.WA")
+        self.assertGreater(
+            reranked[0][1]["opening_confirmation"]["score"],
+            reranked[1][1]["opening_confirmation"]["score"],
+        )
+        self.assertEqual(reranked[0][1]["legacy_composite_score"], 76.0)
+        self.assertEqual(reranked[0][1]["opening_confirmation_engine"], "gpw-opening-confirmation-v1")
+        self.assertEqual(diagnostics["evaluated_candidates"], 2)
+        self.assertEqual(diagnostics["selected_symbol"], "BBB.WA")
 
     def test_screening_rejection_is_not_market_data_failure(self):
         now = datetime(2026, 8, 19, 9, 6, tzinfo=WARSAW)
