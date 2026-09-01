@@ -67,9 +67,11 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             runtime.install(path)
             rendered = path.read_text(encoding='utf-8')
 
-        self.assertEqual(rendered.count('/scripts/news-live.js?v=7'), 1)
-        self.assertEqual(rendered.count('/scripts/home-card-floor.js?v=2'), 1)
-        self.assertLess(rendered.index('/scripts/news-live.js?v=7'), rendered.index('/scripts/home-card-floor.js?v=2'))
+        live_url = '/scripts/news-live.js?v=6&rev=image2'
+        floor_url = '/scripts/home-card-floor.js?v=2'
+        self.assertEqual(rendered.count(live_url), 1)
+        self.assertEqual(rendered.count(floor_url), 1)
+        self.assertLess(rendered.index(live_url), rendered.index(floor_url))
 
     def test_floor_guard_requires_ten_cards_with_real_https_images(self) -> None:
         script = runtime.ROOT / 'scripts' / 'home-card-floor.js'
