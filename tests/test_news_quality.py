@@ -107,9 +107,36 @@ class NewsQualityTests(unittest.TestCase):
         self.assertFalse(decision.accepted)
         self.assertEqual(decision.reason, "media_self_promotion")
 
+    def test_rejects_generic_media_ratings_pr(self) -> None:
+        decision = evaluate_story(
+            "TVN liderem oglądalności w sierpniu. Stacja zwiększyła udział w rynku"
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "media_self_promotion")
+
+    def test_rejects_media_reach_pr_even_without_superlative(self) -> None:
+        decision = evaluate_story(
+            "Polsat News podał wyniki zasięgu. Program obejrzało 2,4 mln widzów"
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "media_self_promotion")
+
+    def test_allows_media_story_with_external_market_consequence(self) -> None:
+        decision = evaluate_story(
+            "Regulator zatwierdził sprzedaż TVN nowemu właścicielowi"
+        )
+        self.assertTrue(decision.accepted)
+
     def test_rejects_exact_taxi_dispute_from_production(self) -> None:
         decision = evaluate_story(
             "Konflikt radnej KO z taksówkarzem. Ugoda i decyzja prokuratury"
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "isolated_local_incident")
+
+    def test_rejects_generic_taxi_fight(self) -> None:
+        decision = evaluate_story(
+            "Bójka pasażera z kierowcą taksówki po kursie w centrum miasta"
         )
         self.assertFalse(decision.accepted)
         self.assertEqual(decision.reason, "isolated_local_incident")
