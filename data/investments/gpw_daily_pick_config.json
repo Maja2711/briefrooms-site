@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-daily-pick-config-v1",
-  "policy_version": "gpw-short-horizon-pl-v1.3-post-open-dual-source",
+  "policy_version": "gpw-short-horizon-pl-v1.4-opening-ev",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
   "minimum_data_completeness": 0.8,
@@ -52,6 +52,19 @@
     "top_candidates": 6,
     "weight": 0.25,
     "role": "bounded_reranking_overlay_not_hard_gate"
+  },
+  "expected_value": {
+    "enabled": true,
+    "engine": "gpw-empirical-ev-v1",
+    "horizon_sessions": 2,
+    "rr_grid": [1.5, 1.75, 2.0, 2.25, 2.5],
+    "minimum_analogs": 16,
+    "maximum_analogs": 32,
+    "confidence_sample": 28,
+    "cost_assumption_percent": 0.38,
+    "uncertainty_penalty": 0.35,
+    "score_weight": 0.2,
+    "role": "empirical_target_and_bounded_reranking_overlay"
   },
   "non_session_dates": [
     "2026-01-01",
