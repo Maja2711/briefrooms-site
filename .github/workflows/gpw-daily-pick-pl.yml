@@ -16,12 +16,16 @@ on:
       - "scripts/daily_stock_core.py"
       - "scripts/gpw_*.py"
       - "scripts/gpw-daily-pick-public.js"
+      - "scripts/gpw-expected-value-public.js"
       - "scripts/daily-stock-markets-public.js"
+      - "assets/gpw-expected-value.css"
       - "data/investments/gpw_daily_pick_config.json"
       - "data/investments/gpw_mandatory_daily_config.json"
       - "tests/test_gpw_*.py"
       - "tests/test_daily_stock_core.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
+      - "pl/inwestycje/daily-trading.html"
+      - "en/investing/daily-trading.html"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
     # Multiple attempts cover CET/CEST and GitHub schedule jitter.
@@ -109,7 +113,9 @@ jobs:
             scripts/gpw_daily_control_loop.py \
             scripts/gpw_event_layer.py \
             scripts/gpw_event_driven_loop.py \
+            scripts/gpw_expected_value.py \
             scripts/gpw_market_data.py \
+            scripts/gpw_opening_confirmation.py \
             scripts/gpw_pipeline_v2.py \
             scripts/gpw_provider_v2.py \
             scripts/gpw_reviewer_v2.py \
@@ -117,6 +123,7 @@ jobs:
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/gpw_mandatory_daily_config.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
+          node --check scripts/gpw-expected-value-public.js
           node --check scripts/daily-stock-markets-public.js
 
       - name: Audit market coverage
@@ -223,7 +230,20 @@ jobs:
           fi
           git commit -m "Publish PL GPW final daily selection state"
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin main
+            if ! git pull --rebase origin main; then
+              CONFLICTS=$(git diff --name-only --diff-filter=U || true)
+              COUNT=$(printf '%s\n' "$CONFLICTS" | sed '/^$/d' | wc -l | tr -d ' ')
+              if [[ "$COUNT" == "1" && "$CONFLICTS" == "data/investments/daily_stock_history_index.json" ]]; then
+                echo "Rebuilding derived history index to resolve concurrent publisher race."
+                python scripts/build_daily_stock_history_index.py
+                git add data/investments/daily_stock_history_index.json
+                GIT_EDITOR=true git rebase --continue
+              else
+                echo "Unresolved publication conflict: $CONFLICTS"
+                git rebase --abort || true
+                exit 1
+              fi
+            fi
             if git push origin HEAD:main; then
               echo "changed=true" >> "$GITHUB_OUTPUT"
               exit 0
