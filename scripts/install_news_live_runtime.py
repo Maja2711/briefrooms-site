@@ -122,12 +122,16 @@ def install(path: Path) -> bool:
     if path.name == "index.html" and path.parent.name in {"pl", "en"}:
         new = apply_homepage_freshness(new, path.parent.name)
     if "</body>" not in new:
-        raise RuntimeError(f"closing body tag missing: {path.relative_to(ROOT)}")
+        raise RuntimeError(f"closing body tag missing: {path}")
     new = new.replace("</body>", TAG + "\n" + FLOOR_TAG + "\n</body>", 1)
     if new == old:
         return False
     path.write_text(new, encoding="utf-8", newline="\n")
-    print(f"installed live news runtime and homepage floor guard in {path.relative_to(ROOT)}")
+    try:
+        display_path = path.relative_to(ROOT)
+    except ValueError:
+        display_path = path
+    print(f"installed live news runtime and homepage floor guard in {display_path}")
     return True
 
 
