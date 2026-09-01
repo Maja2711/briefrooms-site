@@ -166,6 +166,7 @@ class MandatoryGpwTests(unittest.TestCase):
 
     def test_opening_confirmation_can_rerank_quant_number_two(self):
         now = datetime(2026, 8, 21, 9, 30, tzinfo=WARSAW)
+        expected = date(2026, 8, 20)
         current = current_payload(now)
         candidates = [
             synthetic_candidate("AAA.WA", 80.0, 1),
@@ -193,7 +194,7 @@ class MandatoryGpwTests(unittest.TestCase):
 
         with (
             patch.object(gpw, "is_session_day", return_value=True),
-            patch.object(gpw, "previous_session", return_value=date(2026, 8, 20)),
+            patch.object(gpw, "previous_session", return_value=expected),
             patch.object(gpw, "all_history", return_value=[]),
             patch.object(mandatory, "build_ranked_candidates", return_value=candidates),
         ):
@@ -202,7 +203,10 @@ class MandatoryGpwTests(unittest.TestCase):
                 now=now,
                 config=cfg(),
                 policy=policy(),
-                cache={"AAA.WA": [], "BBB.WA": []},
+                cache={
+                    "AAA.WA": bars(expected, 100, 0.0010),
+                    "BBB.WA": bars(expected, 100, 0.0010),
+                },
                 opening_fetcher=opening_fetcher,
             )
 
@@ -217,11 +221,12 @@ class MandatoryGpwTests(unittest.TestCase):
         )
         self.assertEqual(
             result["methodology"]["score_policy"],
-            "mandatory_daily_quant_plus_opening_confirmation",
+            "mandatory_daily_p03_p04_p05_opening_empirical_ev",
         )
         self.assertEqual(
             result["data_quality"]["mandatory_selection"]["selected_quant_rank"], 2
         )
+        self.assertEqual(result["data_quality"]["data_gate_engine"], "gpw-data-gates-v1")
 
     def test_forces_best_valid_candidate_after_preferred_cutoff(self):
         now = datetime(2026, 8, 21, 10, 45, tzinfo=WARSAW)
