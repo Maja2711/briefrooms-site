@@ -10,6 +10,7 @@ try:
     from . import publish_live_news_filtered as filtered
     from .news_source_architecture import (
         EMERGENCY_MAX_SOURCE_CARDS,
+        EXTRA_FEEDS,
         SOURCE_POLICY_VERSION,
         TARGET_MAX_SOURCE_CARDS,
         diversity_status,
@@ -25,6 +26,7 @@ except ImportError:
     import publish_live_news_filtered as filtered
     from news_source_architecture import (
         EMERGENCY_MAX_SOURCE_CARDS,
+        EXTRA_FEEDS,
         SOURCE_POLICY_VERSION,
         TARGET_MAX_SOURCE_CARDS,
         diversity_status,
@@ -43,8 +45,8 @@ _original_filtered_select_sections = filtered.select_sections
 _original_filtered_build_language = filtered.build_language
 _original_filtered_validate = filtered.validate
 
-# Enrich the canonical source pool. Existing feeds remain intact and the base
-# fetcher treats reserve-feed failures as non-fatal errors.
+# Enrich the canonical source pool. Existing feeds remain intact and reserve-feed
+# failures are tracked separately from required-source failures below.
 base.PL = extend_config(base.PL, "pl")
 base.EN = extend_config(base.EN, "en")
 
@@ -76,6 +78,27 @@ def _candidate_tier_mix(candidates: list[dict[str, Any]]) -> dict[str, int]:
         source = str(story.get("source") or "unknown").strip() or "unknown"
         unique_sources.setdefault(source, {"source": source})
     return tier_mix(unique_sources.values())
+
+
+def _optional_source_names(lang: str) -> set[str]:
+    return {
+        source
+        for feeds in EXTRA_FEEDS.get(lang, {}).values()
+        for source, _ in feeds
+    }
+
+
+def _split_source_errors(lang: str, errors: list[Any]) -> tuple[list[str], list[str]]:
+    optional_names = _optional_source_names(lang)
+    optional: list[str] = []
+    required: list[str] = []
+    for raw in errors:
+        error = str(raw)
+        if any(error.startswith(f"{source}:") for source in optional_names):
+            optional.append(error)
+        else:
+            required.append(error)
+    return required, optional
 
 
 def select_sections(
@@ -125,7 +148,8 @@ def select_sections(
 
 def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, Any]:
     payload = _original_filtered_build_language(lang, config, marker, now)
-    selection = payload.setdefault("health", {}).setdefault("editorial_selection", {})
+    health = payload.setdefault("health", {})
+    selection = health.setdefault("editorial_selection", {})
     selection.update(
         {
             "status": "active",
@@ -136,6 +160,25 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
             "source_policy": public_source_policy(),
         }
     )
+
+    required_errors, optional_errors = _split_source_errors(
+        lang,
+        list(health.get("source_errors") or []),
+    )
+    health["required_source_errors"] = required_errors
+    health["optional_source_errors"] = optional_errors
+
+    # Reserve feeds improve authority and diversity but are not single points of
+    # failure. Keep their failures observable while preserving an OK status when
+    # required sources and fresh-section completeness are healthy.
+    sections_health = health.get("sections") if isinstance(health.get("sections"), dict) else {}
+    no_carry = all(
+        int(item.get("carried_count") or 0) == 0
+        for item in sections_health.values()
+        if isinstance(item, dict)
+    )
+    if not required_errors and no_carry:
+        health["status"] = "ok"
     return payload
 
 
