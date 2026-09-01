@@ -17,8 +17,10 @@ on:
       - "scripts/gpw_*.py"
       - "scripts/gpw-daily-pick-public.js"
       - "scripts/gpw-expected-value-public.js"
+      - "scripts/gpw-full-ranking-public.js"
       - "scripts/daily-stock-markets-public.js"
       - "assets/gpw-expected-value.css"
+      - "assets/gpw-full-ranking.css"
       - "data/investments/gpw_daily_pick_config.json"
       - "data/investments/gpw_mandatory_daily_config.json"
       - "tests/test_gpw_*.py"
@@ -28,7 +30,6 @@ on:
       - "en/investing/daily-trading.html"
       - "pl/inwestycje/portfel-10k.html"
   schedule:
-    # Multiple attempts cover CET/CEST and GitHub schedule jitter.
     - cron: "20 7 * * 1-5"
     - cron: "45 7 * * 1-5"
     - cron: "10 8 * * 1-5"
@@ -106,14 +107,17 @@ jobs:
             tests.test_gpw_market_data \
             tests.test_gpw_pipeline_v2 \
             tests.test_gpw_mandatory_daily \
-            tests.test_gpw_daily_pick_ui -v
+            tests.test_gpw_daily_pick_ui \
+            tests.test_gpw_ranking_gates_momentum -v
           python -m py_compile \
             scripts/daily_stock_core.py \
+            scripts/gpw_data_gates.py \
             scripts/gpw_daily_pick.py \
             scripts/gpw_daily_control_loop.py \
             scripts/gpw_event_layer.py \
             scripts/gpw_event_driven_loop.py \
             scripts/gpw_expected_value.py \
+            scripts/gpw_full_ranking.py \
             scripts/gpw_market_data.py \
             scripts/gpw_opening_confirmation.py \
             scripts/gpw_pipeline_v2.py \
@@ -124,21 +128,23 @@ jobs:
           python -m json.tool data/investments/gpw_mandatory_daily_config.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
           node --check scripts/gpw-expected-value-public.js
+          node --check scripts/gpw-full-ranking-public.js
           node --check scripts/daily-stock-markets-public.js
 
-      - name: Audit market coverage
+      - name: Build P0.3 ranking and enforce P0.4 coverage
         if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
+          python scripts/gpw_full_ranking.py
           python - <<'PY'
-          from scripts import gpw_event_driven_loop as runtime
-          runtime.install()
-          cfg=runtime.gpw.load_config()
-          cache=runtime.provider.prefetch_market(cfg)
-          minimum=int(len(cfg['universe'])*float(cfg['minimum_data_completeness'])+0.9999)
-          print('GPW_COVERAGE', len(cache), '/', len(cfg['universe']), runtime.provider.LAST_AUDIT)
-          if len(cache)<minimum:
-              raise SystemExit(f'hard data failure: coverage={len(cache)} minimum={minimum}')
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/gpw_daily_candidate_ranking.json').read_text(encoding='utf-8'))
+          assert len(p['rows']) == p['universe_size'], (len(p['rows']), p['universe_size'])
+          assert p['data_quality']['status'] == 'healthy', p['data_quality']
+          assert p['data_quality']['engine'] == 'gpw-data-gates-v1'
+          assert p['relative_momentum']['engine'] == 'cross-sectional-multihorizon-v2'
+          print('GPW_P03_P04_P05_OK',p['ranked_count'],'/',p['universe_size'],p['data_quality']['complete_ratio'])
           PY
 
       - name: Run primary GPW engine
@@ -222,7 +228,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/daily_stock_history_index.json 2>/dev/null || true
+          git add data/investments/gpw_daily_pick.json data/investments/gpw_daily_pick_metrics.json data/investments/gpw_daily_pick_learning.json data/investments/gpw_daily_candidate_ranking.json data/investments/daily_stock_history_index.json 2>/dev/null || true
           git add data/investments/gpw_daily_pick_history data/internal/gpw_daily_pick_audit pl/inwestycje/portfel-10k.html 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -270,7 +276,7 @@ jobs:
           done
           exit 1
 
-      - name: Verify production GPW selection
+      - name: Verify production GPW selection and ranking
         if: steps.commit.outputs.changed == 'true' && steps.mode.outputs.value == 'auto'
         run: |
           python - <<'PY'
@@ -279,11 +285,16 @@ jobs:
           from zoneinfo import ZoneInfo
           now=datetime.now(ZoneInfo('Europe/Warsaw'))
           today=now.date().isoformat()
-          headers={'User-Agent':'BriefRooms-GPW-production-verifier/7.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-GPW-production-verifier/8.0','Cache-Control':'no-cache'}
           last=None
           for attempt in range(1,49):
               token=f'{int(time.time())}-{attempt}'
               try:
+                  req=urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_candidate_ranking.json?v={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r: ranking=json.load(r)
+                  assert ranking.get('date')==today
+                  assert len(ranking.get('rows') or [])==ranking.get('universe_size')
+                  assert (ranking.get('data_quality') or {}).get('engine')=='gpw-data-gates-v1'
                   req=urllib.request.Request(f'https://briefrooms.com/data/investments/gpw_daily_pick.json?v={token}',headers=headers)
                   with urllib.request.urlopen(req,timeout=20) as r: payload=json.load(r)
                   last=payload
@@ -292,7 +303,7 @@ jobs:
                           assert payload.get('decision')=='TRANSAKCJA'
                           s=payload.get('selection') or {}
                           assert s.get('symbol') and (s.get('market_snapshot') or {}).get('date')==today
-                      print('GPW_PRODUCTION_OK',payload.get('decision'),(payload.get('selection') or {}).get('ticker'))
+                      print('GPW_PRODUCTION_OK',payload.get('decision'),(payload.get('selection') or {}).get('ticker'),'ranking',ranking.get('ranked_count'))
                       raise SystemExit(0)
               except Exception as e:
                   print('verify',attempt,type(e).__name__,str(e)[:160])
@@ -314,8 +325,11 @@ jobs:
           if now.time()<clock_time(9,15) or not gpw.is_session_day(now.date(),cfg):
               raise SystemExit(0)
           p=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
+          r=json.loads(Path('data/investments/gpw_daily_candidate_ranking.json').read_text(encoding='utf-8'))
           if p.get('date')!=now.date().isoformat() or p.get('decision')!='TRANSAKCJA':
               raise SystemExit(f'GPW Daily SLA missed: date={p.get("date")} decision={p.get("decision")} reason={p.get("reason")}')
+          if r.get('date')!=now.date().isoformat() or len(r.get('rows') or [])!=r.get('universe_size'):
+              raise SystemExit('GPW P0.3 ranking SLA missed')
           s=p.get('selection') or {}
-          print('GPW_DAILY_SLA_OK',s.get('ticker'),s.get('reference_price'),p.get('generated_at'))
+          print('GPW_DAILY_SLA_OK',s.get('ticker'),s.get('reference_price'),p.get('generated_at'),'ranking',r.get('ranked_count'))
           PY
