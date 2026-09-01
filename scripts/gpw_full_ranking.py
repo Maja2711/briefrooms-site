@@ -17,15 +17,15 @@ from typing import Any
 
 try:
     from scripts import daily_stock_core as core
+    from scripts import daily_stock_gpw_adapter as core_adapter
     from scripts import gpw_data_gates as gates
     from scripts import gpw_daily_pick as gpw
-    from scripts import gpw_event_driven_loop as runtime
     from scripts import gpw_provider_v2 as provider
 except ModuleNotFoundError:
     import daily_stock_core as core
+    import daily_stock_gpw_adapter as core_adapter
     import gpw_data_gates as gates
     import gpw_daily_pick as gpw
-    import gpw_event_driven_loop as runtime
     import gpw_provider_v2 as provider
 
 
@@ -90,7 +90,7 @@ def build(
     provider_failures: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     now = now or gpw.now_warsaw()
-    runtime.install()
+    core_adapter.install()
     config = gpw.load_config()
     expected = gpw.previous_session(now.date(), config)
     history = gpw.all_history()
