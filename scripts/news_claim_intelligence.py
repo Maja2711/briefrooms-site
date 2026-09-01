@@ -16,8 +16,8 @@ CONTRADICTION_DETECTION_VERSION = "contradiction-detection-v1"
 
 _SPECIAL_FOLD = str.maketrans({"ł": "l", "đ": "d", "ð": "d", "þ": "th", "æ": "ae", "œ": "oe"})
 _NUMBER_RE = re.compile(r"(?<![\w.])(?P<value>\d+(?:[.,]\d+)?)(?![\w.])")
-_PERCENT_RE = re.compile(r"(?:%|\bpercent(?:age)?\b|\bproc\.?\b)", re.I)
-_BPS_RE = re.compile(r"\b(?:bps?|basis points?|pb|punkt(?:y|ow)? bazow(?:y|ych)?)\b", re.I)
+_PERCENT_AFTER_RE = re.compile(r"^\s*(?:%|percent(?:age)?|per\s+cent|proc\.?)", re.I)
+_BPS_AFTER_RE = re.compile(r"^\s*(?:bps?|basis points?|pb|punkt(?:y|ow)? bazow(?:y|ych)?)", re.I)
 
 _METRIC_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("casualties_deaths", ("killed", "dead", "deaths", "died", "fatalities", "zgin", "zabit", "ofiar smiert", "smierc")),
@@ -151,13 +151,11 @@ def _numeric_claims(story: Mapping[str, Any]) -> list[dict[str, Any]]:
         number_offset = match.start() - left + len(match.group("value")) // 2
         metric = _metric_for_window(window, number_offset)
 
-        # Units must be physically close to the number. A percentage elsewhere in
-        # the sentence must not turn a year/date into a comparable percentage.
-        unit_left = max(0, match.start() - 14)
-        unit_right = min(len(text), match.end() + 28)
-        unit_window = text[unit_left:unit_right]
-        has_percent = bool(_PERCENT_RE.search(unit_window))
-        has_bps = bool(_BPS_RE.search(unit_window))
+        # Explicit units must start immediately after this number. This prevents a
+        # nearby 3.2% from turning the year 2026 into an inflation percentage.
+        suffix = text[match.end():min(len(text), match.end() + 32)]
+        has_percent = bool(_PERCENT_AFTER_RE.match(suffix))
+        has_bps = bool(_BPS_AFTER_RE.match(suffix))
 
         if has_bps and rate_actor:
             metric = "policy_rate_change"
@@ -467,7 +465,7 @@ def public_claim_policy() -> dict[str, Any]:
             "Contradictions are assessed only inside one CanonicalEvent.",
             "Republications sharing one origin count as one claim lineage, not independent confirmation.",
             "Numeric contradictions require the same metric and explicit comparable units.",
-            "A number is bound to its nearest semantic metric and to a locally adjacent unit.",
+            "A number is bound to its nearest semantic metric and to an immediately adjacent explicit unit.",
             "Monotonic casualty updates separated in time are treated as evolving reports rather than automatic contradictions.",
             "Disputed claims reduce effective corroboration but do not hide a materially important event.",
         ],
