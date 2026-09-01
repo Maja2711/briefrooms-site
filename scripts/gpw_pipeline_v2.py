@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""GPW Daily v2 integrity and decision layer.
+"""GPW Daily integrity and decision layer.
 
-The pipeline separates provider quality from investment screening, ranks only on
-completed sessions, uses current-session Opening Confirmation (P0.1), and uses
-an empirical walk-forward Expected Value model (P0.2) to select the target R/R
-instead of publishing a mechanically fixed 1.8 R target.
+P0.1: bounded current-session Opening Confirmation.
+P0.2: empirical walk-forward Expected Value and dynamic target R/R.
+P0.3: canonical full-universe ranking is published separately and referenced
+      from each decision payload.
+P0.4: primary and mandatory paths share gpw-data-gates-v1 for historical
+      freshness, universe coverage and execution-quote freshness.
+P0.5: GPW relative momentum is the configured robust multi-horizon model.
 """
 from __future__ import annotations
 
@@ -15,13 +18,17 @@ from datetime import date, datetime, time as clock_time
 from typing import Any
 
 try:
+    from scripts import gpw_data_gates as gates
     from scripts import gpw_daily_pick as gpw
     from scripts import gpw_expected_value as ev
+    from scripts import gpw_full_ranking as full_ranking
     from scripts import gpw_market_data as market
     from scripts import gpw_opening_confirmation as opening
 except ModuleNotFoundError:
+    import gpw_data_gates as gates
     import gpw_daily_pick as gpw
     import gpw_expected_value as ev
+    import gpw_full_ranking as full_ranking
     import gpw_market_data as market
     import gpw_opening_confirmation as opening
 
@@ -75,49 +82,16 @@ def prefetch_market(config: dict[str, Any]) -> dict[str, list[gpw.Bar]]:
 def _screen_reason(
     company: dict[str, str],
     bars: list[gpw.Bar],
-    expected: date,
+    feature_day: date,
     config: dict[str, Any],
     history: list[dict[str, Any]],
 ) -> tuple[dict[str, Any] | None, str | None]:
     if not bars:
         return None, "empty_bars"
-    if bars[-1].day < expected:
-        return None, f"stale_latest_session:{bars[-1].day.isoformat()}"
-    candidate = gpw.build_quant_candidate(company, bars, expected, config, history)
+    candidate = gpw.build_quant_candidate(company, bars, feature_day, config, history)
     if candidate is None:
         return None, "screened_by_liquidity_atr_or_risk"
     return candidate, None
-
-
-def _quality_payload(
-    payload: dict[str, Any],
-    *,
-    cutoff: datetime,
-    market_ratio: float,
-    expected: date,
-    candidates: list[dict[str, Any]],
-    market_failures: dict[str, str],
-    screened_out: dict[str, str],
-) -> dict[str, Any]:
-    payload["publication_cutoff"] = cutoff.strftime("%H:%M")
-    payload.setdefault("data_quality", {}).update(
-        {
-            "complete_ratio": round(market_ratio, 4),
-            "expected_session": expected.isoformat(),
-            "market_data_symbols": round(
-                market_ratio
-                * len(
-                    market_failures
-                    | screened_out
-                    | {candidate["symbol"]: "" for candidate in candidates}
-                )
-            ),
-            "ranked_candidates": len(candidates),
-            "provider_failures": market_failures,
-            "screened_out": screened_out,
-        }
-    )
-    return payload
 
 
 def _opening_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -131,14 +105,10 @@ def _opening_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _fresh_opening_snapshot(snapshot: dict[str, Any], now: datetime) -> None:
-    if float(snapshot.get("last") or 0.0) <= 0.0:
-        raise ValueError("non-positive current-session quote")
-    if str(snapshot.get("date") or "") != now.date().isoformat():
-        raise ValueError(f"stale execution session: {snapshot.get('date')}")
-    crosscheck = snapshot.get("crosscheck") or {}
-    if str(crosscheck.get("status") or "").lower() in {"conflict", "rejected"}:
-        raise ValueError("execution quote cross-check conflict")
+def _fresh_opening_snapshot(
+    snapshot: dict[str, Any], now: datetime, config: dict[str, Any]
+) -> dict[str, Any]:
+    return gates.execution_gate(snapshot, now=now, config=config)
 
 
 def _rerank_with_opening(
@@ -148,7 +118,7 @@ def _rerank_with_opening(
     now: datetime,
     bars_by_symbol: dict[str, list[gpw.Bar]] | None = None,
 ) -> tuple[list[tuple[float, dict[str, Any], dict[str, Any]]], dict[str, Any]]:
-    """Rerank primary candidates with Opening Confirmation and empirical EV."""
+    """Rerank primary candidates with P0.1 and P0.2 under P0.4 gates."""
     opening_settings = _opening_config(config)
     ev_settings = ev.settings_from(config)
     diagnostics: dict[str, Any] = {
@@ -156,15 +126,14 @@ def _rerank_with_opening(
         "base_eligible_candidates": len(eligible),
         "evaluated_candidates": 0,
         "failures": {},
+        "data_gate_engine": gates.ENGINE,
         "expected_value": {
             **ev_settings,
             "engine": ev.ENGINE,
             "ready_candidates": 0,
         },
     }
-    if not eligible:
-        return eligible, diagnostics
-    if not opening_settings["enabled"]:
+    if not eligible or not opening_settings["enabled"]:
         return eligible, diagnostics
 
     shortlist = eligible[: int(opening_settings["top_candidates"])]
@@ -176,7 +145,7 @@ def _rerank_with_opening(
         base_score, candidate, analysis = item
         symbol = str(candidate["symbol"])
         snapshot = market.opening_snapshot(symbol, now=now)
-        _fresh_opening_snapshot(snapshot, now)
+        execution_gate = _fresh_opening_snapshot(snapshot, now, config)
         confirmation = opening.score(candidate, snapshot)
         opening_adjusted = opening.blend(
             base_score,
@@ -189,6 +158,7 @@ def _rerank_with_opening(
         enriched["opening_confirmation"] = confirmation
         enriched["opening_confirmation_engine"] = opening.ENGINE
         enriched["opening_market_snapshot"] = snapshot
+        enriched["execution_data_gate"] = execution_gate
 
         final_score = opening_adjusted
         if ev_settings["enabled"]:
@@ -255,6 +225,35 @@ def _rerank_with_opening(
     return assessed, diagnostics
 
 
+def _ranking_reference(now: datetime) -> dict[str, Any] | None:
+    value = full_ranking.reference()
+    if value and value.get("date") == now.date().isoformat():
+        return value
+    return None
+
+
+def _base_quality(
+    report: dict[str, Any],
+    *,
+    ranked_candidates: int,
+    screened_out: dict[str, str],
+    provider_failures: dict[str, str],
+    data_rejections: dict[str, str],
+) -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "data_gate_engine": gates.ENGINE,
+        "complete_ratio": report["complete_ratio"],
+        "minimum_market_coverage": report["minimum_market_coverage"],
+        "expected_session": report["expected_session"],
+        "valid_market_symbols": report["accepted_symbols"],
+        "ranked_candidates": ranked_candidates,
+        "provider_failures": provider_failures,
+        "data_gate_rejections": data_rejections,
+        "screened_out": screened_out,
+    }
+
+
 def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=None) -> dict[str, Any]:
     now = now or gpw.now_warsaw()
     config = gpw.load_config()
@@ -283,10 +282,11 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
     expected = gpw.previous_session(now.date(), config)
     history = gpw.all_history()
     candidates: list[dict[str, Any]] = []
+    raw_cache: dict[str, list[gpw.Bar]] = {}
     bars_by_symbol: dict[str, list[gpw.Bar]] = {}
     market_failures: dict[str, str] = {}
+    data_rejections: dict[str, str] = {}
     screened_out: dict[str, str] = {}
-    valid_market = 0
 
     for company in config["universe"]:
         symbol = str(company["symbol"])
@@ -294,45 +294,62 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             raw_bars = market_fetcher(symbol)
             if not raw_bars:
                 raise gpw.PublicationError("empty history")
-            completed = [bar for bar in raw_bars if bar.day <= expected]
-            if not completed or completed[-1].day < expected:
-                latest = completed[-1].day.isoformat() if completed else "none"
-                raise gpw.PublicationError(
-                    f"stale history: latest={latest} expected={expected.isoformat()}"
-                )
-            valid_market += 1
-            bars_by_symbol[symbol] = completed
-            candidate, reason = _screen_reason(
-                company,
-                completed,
-                expected,
-                config,
-                history,
-            )
-            if candidate:
-                candidates.append(candidate)
-            elif reason:
-                screened_out[symbol] = reason
+            raw_cache[symbol] = list(raw_bars)
         except Exception as exc:
             market_failures[symbol] = _detail(exc)
+            continue
 
-    universe_size = len(config["universe"])
-    market_ratio = valid_market / max(universe_size, 1)
-    if market_ratio < float(config["minimum_data_completeness"]):
+        historical = gates.historical_gate(
+            raw_cache[symbol],
+            expected_day=expected,
+            config=config,
+        )
+        if not historical.get("accepted"):
+            data_rejections[symbol] = str(historical.get("reason") or historical.get("status"))
+            continue
+        feature_day = date.fromisoformat(str(historical["feature_session"]))
+        completed = [bar for bar in raw_cache[symbol] if bar.day <= feature_day]
+        bars_by_symbol[symbol] = completed
+        candidate, reason = _screen_reason(
+            company,
+            completed,
+            feature_day,
+            config,
+            history,
+        )
+        if candidate:
+            candidate["historical_feature_session"] = feature_day.isoformat()
+            candidate["historical_feature_lag_sessions"] = historical.get("lag_sessions")
+            candidate["historical_data_gate"] = {
+                key: value for key, value in historical.items() if key != "completed_bars"
+            }
+            candidates.append(candidate)
+        elif reason:
+            screened_out[symbol] = reason
+
+    report = gates.historical_universe_report(
+        config,
+        raw_cache,
+        expected_day=expected,
+        provider_failures=market_failures,
+    )
+    if report["status"] != "healthy":
         payload = gpw.failure_payload(
             now,
             config,
-            f"Kompletność świeżych danych rynkowych {market_ratio:.0%} jest poniżej wymaganego progu.",
+            f"Kompletność danych spełniających P0.4 wynosi {float(report['complete_ratio']):.0%} i jest poniżej wymaganego progu.",
             "market_data",
         )
         payload["publication_cutoff"] = cutoff.strftime("%H:%M")
         payload["data_quality"].update(
             {
-                "complete_ratio": round(market_ratio, 4),
+                "data_gate_engine": gates.ENGINE,
+                "complete_ratio": report["complete_ratio"],
+                "minimum_market_coverage": report["minimum_market_coverage"],
                 "expected_session": expected.isoformat(),
-                "valid_market_symbols": valid_market,
-                "failed_symbols": sorted(market_failures),
+                "valid_market_symbols": report["accepted_symbols"],
                 "provider_failures": market_failures,
+                "data_gate_rejections": data_rejections,
                 "screened_out": screened_out,
                 "prefetch": LAST_PREFETCH_DIAGNOSTICS,
             }
@@ -347,21 +364,23 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             "Dane rynkowe są kompletne, ale żaden walor nie przeszedł screeningu płynności i ryzyka.",
         )
         payload["publication_cutoff"] = cutoff.strftime("%H:%M")
-        payload["data_quality"] = {
-            "status": "healthy",
-            "complete_ratio": round(market_ratio, 4),
-            "expected_session": expected.isoformat(),
-            "valid_market_symbols": valid_market,
-            "ranked_candidates": 0,
-            "provider_failures": market_failures,
-            "screened_out": screened_out,
-        }
+        payload["data_quality"] = _base_quality(
+            report,
+            ranked_candidates=0,
+            screened_out=screened_out,
+            provider_failures=market_failures,
+            data_rejections=data_rejections,
+        )
+        payload["candidate_ranking"] = _ranking_reference(now)
         return payload
 
     gpw.normalize_cross_section(candidates)
     ranked_candidates = sorted(
         candidates,
-        key=lambda item: item["quant_pre_score"],
+        key=lambda item: (
+            float(item["quant_pre_score"]),
+            float((item.get("scores") or {}).get("relative_momentum") or 0.0),
+        ),
         reverse=True,
     )
     for rank, candidate in enumerate(ranked_candidates, start=1):
@@ -384,16 +403,17 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             "Brak świeżego, możliwego do zweryfikowania katalizatora dla kandydatów.",
         )
         payload["publication_cutoff"] = cutoff.strftime("%H:%M")
-        payload["data_quality"] = {
-            "status": "healthy",
-            "complete_ratio": round(market_ratio, 4),
-            "expected_session": expected.isoformat(),
-            "valid_market_symbols": valid_market,
-            "ranked_candidates": len(candidates),
-            "reviewed_candidates": len(shortlist),
-            "source_errors": source_errors,
-            "screened_out": screened_out,
-        }
+        payload["data_quality"] = _base_quality(
+            report,
+            ranked_candidates=len(candidates),
+            screened_out=screened_out,
+            provider_failures=market_failures,
+            data_rejections=data_rejections,
+        )
+        payload["data_quality"].update(
+            {"reviewed_candidates": len(shortlist), "source_errors": source_errors}
+        )
+        payload["candidate_ranking"] = _ranking_reference(now)
         return payload
 
     analyses = gpw.gemini_analysis(shortlist)
@@ -411,8 +431,6 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         if score < float(config["minimum_composite_score"]):
             rejected_analysis[candidate["symbol"]] = f"score:{score}"
             continue
-        # R/R is selected by P0.2 after Opening Confirmation; the old fixed
-        # candidate.reward_risk no longer decides eligibility here.
         eligible.append((score, candidate, analysis))
     eligible.sort(key=lambda item: item[0], reverse=True)
 
@@ -431,7 +449,10 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         "Żaden kandydat nie przeszedł pełnego progu jakości i ryzyka.",
     )
     payload["publication_cutoff"] = cutoff.strftime("%H:%M")
-    payload.setdefault("methodology", {})["opening_confirmation"] = {
+    payload["candidate_ranking"] = _ranking_reference(now)
+    payload.setdefault("methodology", {})["data_gates"] = gates.settings_from(config)
+    payload["methodology"]["relative_momentum"] = config.get("relative_momentum") or {}
+    payload["methodology"]["opening_confirmation"] = {
         "enabled": rerank_diagnostics["enabled"],
         "engine": rerank_diagnostics["engine"],
         "weight": rerank_diagnostics["weight"],
@@ -447,30 +468,29 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
         "entry_proxy": "next_session_open",
         "target_selection": "maximize_uncertainty_adjusted_net_expected_R",
     }
-    payload["data_quality"] = {
-        "status": "healthy",
-        "complete_ratio": round(market_ratio, 4),
-        "expected_session": expected.isoformat(),
-        "valid_market_symbols": valid_market,
-        "ranked_candidates": len(candidates),
-        "reviewed_candidates": len(shortlist),
-        "base_eligible_candidates": base_eligible_count,
-        "eligible_candidates": len(eligible),
-        "opening_confirmation": {
-            key: value
-            for key, value in rerank_diagnostics.items()
-            if key != "expected_value"
-        },
-        "expected_value": rerank_diagnostics["expected_value"],
-        "provider_failures": market_failures,
-        "screened_out": screened_out,
-        "analysis_rejections": rejected_analysis,
-    }
+    payload["data_quality"] = _base_quality(
+        report,
+        ranked_candidates=len(candidates),
+        screened_out=screened_out,
+        provider_failures=market_failures,
+        data_rejections=data_rejections,
+    )
+    payload["data_quality"].update(
+        {
+            "reviewed_candidates": len(shortlist),
+            "base_eligible_candidates": base_eligible_count,
+            "eligible_candidates": len(eligible),
+            "opening_confirmation": {
+                key: value for key, value in rerank_diagnostics.items() if key != "expected_value"
+            },
+            "expected_value": rerank_diagnostics["expected_value"],
+            "analysis_rejections": rejected_analysis,
+        }
+    )
     if not eligible:
         if base_eligible_count and rerank_diagnostics["enabled"]:
             payload["reason"] = (
-                "Kandydaci przeszli analizę bazową, ale żaden nie miał kompletnego "
-                "świeżego Opening Confirmation i empirycznego EV."
+                "Kandydaci przeszli analizę bazową, ale żaden nie miał kompletnego świeżego Opening Confirmation i empirycznego EV."
             )
         return payload
 
@@ -482,17 +502,11 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             approved = (score, candidate, analysis, review)
             break
         review_rejections.append(
-            {
-                "symbol": candidate["symbol"],
-                "score": score,
-                "reason": review.get("reason"),
-            }
+            {"symbol": candidate["symbol"], "score": score, "reason": review.get("reason")}
         )
     payload["data_quality"]["review_rejections"] = review_rejections
     if approved is None:
-        payload["reason"] = (
-            "Wszyscy kandydaci spełniający progi zostali odrzuceni w niezależnej recenzji."
-        )
+        payload["reason"] = "Wszyscy kandydaci spełniający progi zostali odrzuceni w niezależnej recenzji."
         return payload
 
     if gpw.now_warsaw() >= cutoff:
@@ -503,6 +517,7 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
             "cutoff_after_review",
         )
         failed["publication_cutoff"] = cutoff.strftime("%H:%M")
+        failed["candidate_ranking"] = _ranking_reference(now)
         return failed
 
     score, candidate, analysis, review = approved
@@ -526,7 +541,7 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
     payload.update(
         {
             "decision": "TRANSAKCJA",
-            "reason": "Kandydat przeszedł ranking, Opening Confirmation, empiryczne EV, bramki źródłowe, kontrolę ryzyka i niezależną recenzję Gemini.",
+            "reason": "Kandydat przeszedł pełny ranking P0.3, wspólne data gates P0.4, Opening Confirmation, empiryczne EV, bramki źródłowe i niezależną recenzję Gemini.",
             "locked": True,
             "selection": {
                 "symbol": candidate["symbol"],
@@ -538,6 +553,9 @@ def generate(*, now: datetime | None = None, market_fetcher=None, news_fetcher=N
                 "opening_adjusted_score": candidate.get("opening_adjusted_score", score),
                 "quant_pre_score": candidate.get("quant_pre_score"),
                 "quant_rank": candidate.get("quant_rank"),
+                "relative_momentum_detail": candidate.get("relative_momentum_detail"),
+                "historical_data_gate": candidate.get("historical_data_gate"),
+                "execution_data_gate": candidate.get("execution_data_gate"),
                 "opening_confirmation_score": confirmation.get("score"),
                 "opening_confirmation": confirmation,
                 "opening_confirmation_engine": candidate.get("opening_confirmation_engine"),
