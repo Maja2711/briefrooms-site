@@ -11,5 +11,7 @@
   "maximum_historical_lag_sessions": 1,
   "reward_risk": 1.8,
   "neutral_catalyst_score": 50.0,
-  "policy": "After 09:15 on every live GPW session, the primary pipeline must end with one best valid stock unless hard data-quality or execution-price conditions make a safe selection impossible. Historical feature data may lag by at most one completed session; current-session execution price must remain fresh."
+  "opening_confirmation_top_candidates": 8,
+  "opening_confirmation_weight": 0.25,
+  "policy": "After 09:15 on every live GPW session, the primary pipeline must end with one best valid stock unless hard data-quality or execution-price conditions make a safe selection impossible. Historical feature data may lag by at most one completed session; current-session execution price must remain fresh. The final selector reranks up to eight highest quantitative candidates with a bounded 25% Opening Confirmation overlay using gap quality, return from the open, intraday range position and distance from the session high."
 }
