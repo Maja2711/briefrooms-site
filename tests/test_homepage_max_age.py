@@ -3,15 +3,21 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from scripts.enforce_homepage_max_age import HOME_LIMIT, HOME_MAX_AGE, enforce_payload
+from scripts.enforce_homepage_max_age import (
+    HOME_LIMIT,
+    HOME_MAX_AGE,
+    IMAGE_POLICY_VERSION,
+    enforce_payload,
+)
 
 
 class HomepageExposureCapTests(unittest.TestCase):
     def _story(self, name: str, published_at: datetime, category: str = "Health") -> dict:
+        slug = name.lower().replace(" ", "-")
         return {
             "title": name,
-            "link": f"https://example.com/{name.lower().replace(' ', '-')}",
-            "image": "https://example.com/image.jpg",
+            "link": f"https://example.com/{slug}",
+            "image": f"https://images.example.com/{slug}.jpg",
             "source": "Example",
             "summary": name,
             "published_at": published_at.isoformat(),
@@ -116,8 +122,31 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(HOME_LIMIT, 10)
         self.assertEqual(len(result["home"]), 10)
         self.assertEqual(len({item["link"] for item in result["home"]}), 10)
+        self.assertTrue(all(item["image"].startswith("https://") for item in result["home"]))
         self.assertEqual(result["health"]["homepage_freshness"]["status"], "ok")
         self.assertEqual(result["homepage_policy"]["target_story_count"], 10)
+        self.assertTrue(result["homepage_policy"]["requires_https_image"])
+        self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
+
+    def test_missing_and_http_images_are_rejected_and_replaced(self) -> None:
+        now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
+        missing = dict(self._story("Missing image", now), image="")
+        insecure = dict(self._story("HTTP image", now), image="http://images.example.com/http.jpg")
+        valid = [self._story(f"Valid {index}", now - timedelta(minutes=index + 1)) for index in range(12)]
+        payload = {
+            "home": [missing, insecure] + valid[:4],
+            "sections": {"health": [missing, insecure] + valid},
+            "labels": {"health": "Health"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        self.assertEqual(len(result["home"]), 10)
+        titles = {item["title"] for item in result["home"]}
+        self.assertNotIn("Missing image", titles)
+        self.assertNotIn("HTTP image", titles)
+        self.assertTrue(all(item["image"].startswith("https://") for item in result["home"]))
+        self.assertGreaterEqual(result["health"]["homepage_freshness"]["image_rejected"], 2)
 
 
 if __name__ == "__main__":

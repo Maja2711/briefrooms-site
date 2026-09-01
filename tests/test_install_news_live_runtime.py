@@ -40,6 +40,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             rendered = runtime.apply_homepage_freshness(source, 'pl', now)
 
         self.assertIn('data-home-freshness-policy="max-72h-v1"', rendered)
+        self.assertIn('data-home-image-policy="https-image-required-v1"', rendered)
         self.assertRegex(
             rendered,
             r'<a class="brief-card" href="/pl/briefy/fresh-aaaaaaaaaaaa\.html" data-home-published-at="[^"]+">',
@@ -53,7 +54,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             rendered,
         )
 
-    def test_installer_adds_exactly_one_floor_guard_after_news_runtime(self) -> None:
+    def test_installer_adds_exactly_one_image_floor_guard_after_news_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / 'page.html'
             path.write_text(
@@ -66,11 +67,11 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             runtime.install(path)
             rendered = path.read_text(encoding='utf-8')
 
-        self.assertEqual(rendered.count('/scripts/news-live.js?v=6'), 1)
-        self.assertEqual(rendered.count('/scripts/home-card-floor.js?v=1'), 1)
-        self.assertLess(rendered.index('/scripts/news-live.js?v=6'), rendered.index('/scripts/home-card-floor.js?v=1'))
+        self.assertEqual(rendered.count('/scripts/news-live.js?v=7'), 1)
+        self.assertEqual(rendered.count('/scripts/home-card-floor.js?v=2'), 1)
+        self.assertLess(rendered.index('/scripts/news-live.js?v=7'), rendered.index('/scripts/home-card-floor.js?v=2'))
 
-    def test_floor_guard_is_valid_javascript_and_has_hard_minimum_of_ten(self) -> None:
+    def test_floor_guard_requires_ten_cards_with_real_https_images(self) -> None:
         script = runtime.ROOT / 'scripts' / 'home-card-floor.js'
         completed = subprocess.run(
             ['node', '--check', str(script)],
@@ -81,8 +82,21 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         source = script.read_text(encoding='utf-8')
         self.assertIn('var MIN_CARDS = 10;', source)
-        self.assertIn("card.dataset.brPhotoGuarded = '1';", source)
-        self.assertIn("container.dataset.homeCardFloorStatus = current.length >= MIN_CARDS ? 'met' : 'underfilled';", source)
+        self.assertIn('function safeImageUrl(value)', source)
+        self.assertIn('function makeImageCard(document, story, lang, nowMs)', source)
+        self.assertIn("image.addEventListener('error', onFailure", source)
+        self.assertIn("context.failedStoryIds.add(cardIdentity(card));", source)
+        self.assertNotIn('makeFallbackCard', source)
+        self.assertNotIn('ensureFallback', source)
+        self.assertNotIn('fallback-art', source)
+
+    def test_news_runtime_home_cards_do_not_render_br_placeholders(self) -> None:
+        script = runtime.ROOT / 'scripts' / 'news-live.js'
+        source = script.read_text(encoding='utf-8')
+        self.assertIn('const HOME_LIMIT = 10;', source)
+        self.assertIn("const HOME_IMAGE_POLICY = 'https-image-required-v1';", source)
+        self.assertIn('function safeImage(value)', source)
+        self.assertNotIn('<div class="fallback-art" aria-hidden="true">BR</div>', source)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   const HOME_LIMIT = 10;
   const HOME_POLICY = 'max-72h-first-display-v1';
+  const HOME_IMAGE_POLICY = 'https-image-required-v1';
   const TOPIC_ORDER = ['politics', 'economy', 'health'];
   const text = lang === 'pl' ? {
     source: 'Źródło',
@@ -25,7 +26,18 @@
   function safeHttp(value) {
     try {
       const url = new URL(String(value || ''), location.href);
-      return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
+      return url.href;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function safeImage(value) {
+    try {
+      const url = new URL(String(value || ''), location.href);
+      if (url.protocol !== 'https:' || url.username || url.password) return '';
+      return url.href;
     } catch (_) {
       return '';
     }
@@ -45,7 +57,7 @@
 
   function isFreshHomepageStory(story, now = Date.now()) {
     if (!story || !isFreshTimestamp(story.published_at, now)) return false;
-    if (!story.homepage_first_seen_at) return true; // rollout/backward-compatible fallback
+    if (!story.homepage_first_seen_at) return true;
     return isFreshTimestamp(story.homepage_first_seen_at, now);
   }
 
@@ -80,7 +92,7 @@
     const seen = new Set();
     const fresh = (Array.isArray(stories) ? stories : [])
       .filter(story => {
-        if (!story || !story.title || !isFreshHomepageStory(story, now)) return false;
+        if (!story || !story.title || !safeImage(story.image) || !isFreshHomepageStory(story, now)) return false;
         const identity = storyIdentity(story);
         if (!identity || seen.has(identity)) return false;
         seen.add(identity);
@@ -113,12 +125,12 @@
 
   function homeCard(story) {
     const link = safeHttp(story.link);
-    const image = safeHttp(story.image);
+    const image = safeImage(story.image);
     const publishedAt = timestamp(story.published_at) ? String(story.published_at) : '';
     const firstSeenAt = timestamp(story.homepage_first_seen_at) ? String(story.homepage_first_seen_at) : '';
     if (!link || !image || !story.title || !publishedAt) return '';
     const firstSeenAttr = firstSeenAt ? ` data-home-first-seen-at="${esc(firstSeenAt)}"` : '';
-    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}><div class="thumb has-image"><div class="fallback-art" aria-hidden="true">BR</div><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
+    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}><div class="thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
   }
 
   function formatTime(value) {
@@ -141,7 +153,10 @@
     const label = document.getElementById('updated-at');
     if (label) label.textContent = `${text.updated}: ${formatted}`;
     const container = document.getElementById('latest-briefs');
-    if (container) container.dataset.homeUpdatedAt = data.generated_at;
+    if (container) {
+      container.dataset.homeUpdatedAt = data.generated_at;
+      container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
+    }
     let meta = document.querySelector('meta[name="briefrooms-news-updated-at"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -169,18 +184,19 @@
     const container = document.getElementById('latest-briefs');
     if (!container) return;
     container.dataset.homeFreshnessPolicy = HOME_POLICY;
+    container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
     container.querySelectorAll('.brief-card').forEach(card => {
       const sourceFresh = isFreshTimestamp(card.dataset.homePublishedAt, now);
       const exposureFresh = !card.dataset.homeFirstSeenAt || isFreshTimestamp(card.dataset.homeFirstSeenAt, now);
-      if (sourceFresh && exposureFresh) {
+      const image = card.querySelector('.thumb.has-image img');
+      const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
+      if (sourceFresh && exposureFresh && imageEligible) {
         card.hidden = false;
         card.removeAttribute('aria-hidden');
         delete card.dataset.homeStale;
         return;
       }
-      card.hidden = true;
-      card.setAttribute('aria-hidden', 'true');
-      card.dataset.homeStale = 'true';
+      card.remove();
     });
   }
 
@@ -190,6 +206,7 @@
     const stories = selectHomepageStories(data.home);
     const cards = stories.map(homeCard).filter(Boolean).join('');
     container.dataset.homeFreshnessPolicy = HOME_POLICY;
+    container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
     container.dataset.homePriority = 'politics-economy-health';
     if (!cards) {
       container.replaceChildren();
@@ -223,7 +240,7 @@
     } catch (error) {
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; only homepage cards within the 72-hour publication and first-display policy may remain visible.', error);
+      console.warn('BriefRooms live news refresh failed; homepage keeps only fresh stories with HTTPS images.', error);
       return false;
     }
   }

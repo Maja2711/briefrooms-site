@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 try:
     from . import publish_live_news as base
@@ -19,6 +20,7 @@ HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 10
 POLICY_VERSION = "max-72h-first-display-v1"
+IMAGE_POLICY_VERSION = "https-image-required-v1"
 
 
 def _parse_time(value: Any) -> datetime | None:
@@ -43,8 +45,23 @@ def _source_is_fresh(story: dict[str, Any], now: datetime) -> bool:
     return -FUTURE_TOLERANCE <= age <= HOME_MAX_AGE
 
 
+def _homepage_image_url(story: dict[str, Any]) -> str:
+    raw = str(story.get("image") or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlsplit(raw)
+    except ValueError:
+        return ""
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        return ""
+    if parsed.username or parsed.password:
+        return ""
+    return raw
+
+
 def _candidate_sequence(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
-    """Keep the publisher's homepage order, then use section rows as replacements."""
+    """Keep publisher homepage order, then use section rows as image-qualified replacements."""
     seen: set[str] = set()
 
     def emit(story: Any) -> dict[str, Any] | None:
@@ -87,8 +104,6 @@ def _first_seen(
         if stored is not None:
             return stored
 
-    # Migration/new-story default: publication time is conservative. It can only
-    # shorten homepage exposure; it can never extend it beyond the 72-hour cap.
     published = _parse_time(story.get("published_at"))
     if published is None:
         return None
@@ -104,10 +119,14 @@ def enforce_payload(
     selected: list[dict[str, Any]] = []
     expired_count = 0
     source_stale_count = 0
+    image_rejected_count = 0
 
     for story in _candidate_sequence(payload):
         if len(selected) >= HOME_LIMIT:
             break
+        if not _homepage_image_url(story):
+            image_rejected_count += 1
+            continue
         if not _source_is_fresh(story, current):
             source_stale_count += 1
             continue
@@ -145,15 +164,19 @@ def enforce_payload(
         "also_requires_source_age_hours_lte": 72,
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": HOME_LIMIT,
+        "requires_https_image": True,
+        "image_policy_version": IMAGE_POLICY_VERSION,
     }
     payload.setdefault("health", {})["homepage_freshness"] = {
         "status": "ok" if len(selected) == HOME_LIMIT else "underfilled",
         "version": POLICY_VERSION,
+        "image_policy_version": IMAGE_POLICY_VERSION,
         "published_count": len(selected),
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": HOME_LIMIT,
         "expired_exposure_rejected": expired_count,
         "source_stale_rejected": source_stale_count,
+        "image_rejected": image_rejected_count,
     }
     return payload, state_lang
 
@@ -202,6 +225,9 @@ def validate_files() -> None:
             raise RuntimeError(f"{lang} homepage 72-hour exposure policy missing")
         if policy.get("target_story_count") != HOME_LIMIT or policy.get("minimum_story_count") != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage ten-story contract missing")
+        if policy.get("requires_https_image") is not True or policy.get("image_policy_version") != IMAGE_POLICY_VERSION:
+            raise RuntimeError(f"{lang} homepage HTTPS-image policy missing")
+
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
         if len(home) != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage has {len(home)} stories; exactly {HOME_LIMIT} are required")
@@ -211,6 +237,8 @@ def validate_files() -> None:
             if not identity or identity in identities:
                 raise RuntimeError(f"{lang} homepage contains a duplicate or invalid story")
             identities.add(identity)
+            if not _homepage_image_url(story):
+                raise RuntimeError(f"{lang} homepage contains story without HTTPS image: {story.get('title')}")
             if not _source_is_fresh(story, now):
                 raise RuntimeError(f"{lang} homepage contains source-stale story: {story.get('title')}")
             first_seen = _parse_time(story.get("homepage_first_seen_at"))

@@ -14,8 +14,8 @@ PAGES = [
     ROOT / "pl" / "index.html",
     ROOT / "en" / "index.html",
 ]
-VERSION = "6"
-FLOOR_VERSION = "1"
+VERSION = "7"
+FLOOR_VERSION = "2"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}" defer></script>'
 FLOOR_TAG = f'<script src="/scripts/home-card-floor.js?v={FLOOR_VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
@@ -111,7 +111,8 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
 
     def mark_container(match: re.Match[str]) -> str:
         opening = re.sub(r'\s+data-home-freshness-policy=["\'][^"\']*["\']', "", match.group(0), flags=re.I)
-        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-72h-v1">'
+        opening = re.sub(r'\s+data-home-image-policy=["\'][^"\']*["\']', "", opening, flags=re.I)
+        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-72h-v1" data-home-image-policy="https-image-required-v1">'
 
     return container_pattern.sub(mark_container, source, count=1)
 
@@ -131,7 +132,7 @@ def install(path: Path) -> bool:
         display_path = path.relative_to(ROOT)
     except ValueError:
         display_path = path
-    print(f"installed live news runtime and homepage floor guard in {display_path}")
+    print(f"installed live news runtime and image-only homepage guard in {display_path}")
     return True
 
 
