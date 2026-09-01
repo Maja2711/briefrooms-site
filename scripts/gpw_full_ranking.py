@@ -9,9 +9,9 @@ rejected by the canonical P0.4 data gates.
 """
 from __future__ import annotations
 
-import json
 import math
 import statistics
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +38,7 @@ def _detail(exc: Exception) -> str:
     return f"{type(exc).__name__}: {' '.join(str(exc).split())}"[:500]
 
 
-def _screen_reason(
-    bars: list[gpw.Bar], feature_day, config: dict[str, Any]
-) -> str:
+def _screen_reason(bars: list[gpw.Bar], feature_day, config: dict[str, Any]) -> str:
     completed = [bar for bar in bars if bar.day <= feature_day]
     if len(completed) < 60:
         return "insufficient_completed_history"
@@ -62,7 +60,6 @@ def _screen_reason(
 
 
 def _ranked_row(candidate: dict[str, Any], gate: dict[str, Any]) -> dict[str, Any]:
-    momentum = candidate.get("relative_momentum_detail") or {}
     return {
         "rank": candidate.get("quant_rank"),
         "status": "RANKED",
@@ -74,7 +71,7 @@ def _ranked_row(candidate: dict[str, Any], gate: dict[str, Any]) -> dict[str, An
         "quant_pre_score": candidate.get("quant_pre_score"),
         "scores": dict(candidate.get("scores") or {}),
         "returns": dict(candidate.get("returns") or {}),
-        "relative_momentum_detail": momentum,
+        "relative_momentum_detail": candidate.get("relative_momentum_detail") or {},
         "reference_price": candidate.get("reference_price"),
         "risk_percent": candidate.get("risk_percent"),
         "median_turnover_pln": candidate.get("median_turnover_pln"),
@@ -118,10 +115,7 @@ def build(
         gate = gate_by_symbol[symbol]
         if not gate.get("accepted"):
             continue
-        feature_day = gpw.date.fromisoformat(gate["feature_session"]) if hasattr(gpw, "date") else None
-        if feature_day is None:
-            from datetime import date
-            feature_day = date.fromisoformat(gate["feature_session"])
+        feature_day = date.fromisoformat(str(gate["feature_session"]))
         completed = [bar for bar in list(cache.get(symbol) or []) if bar.day <= feature_day]
         try:
             candidate = gpw.build_quant_candidate(company, completed, feature_day, config, history)
