@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -24,6 +25,13 @@ _original_validate = base.validate
 _original_select_sections = base.select_sections
 _original_round_robin = base.round_robin
 
+# Add dependable reserve desks so no section is driven by one publisher's ordering.
+PL_EDITORIAL_EXTRA_FEEDS = {
+    "polityka": (
+        ("Rzeczpospolita", "https://www.rp.pl/rss_main"),
+    ),
+}
+
 # The canonical PL publisher used only three sports feeds. Add major Polish sports
 # desks so a live national story is less dependent on one publisher's ordering.
 PL_SPORT_EXTRA_FEEDS = (
@@ -33,15 +41,15 @@ PL_SPORT_EXTRA_FEEDS = (
 )
 
 
-def _extend_pl_sport_feeds(config: Any) -> list[Any]:
+def _extend_pl_feeds(config: Any) -> list[Any]:
     extended = []
     for section_id, label, feeds in config:
-        if section_id != "sport":
-            extended.append((section_id, label, list(feeds)))
-            continue
         merged = list(feeds)
         seen = {url for _, url in merged}
-        for source, url in PL_SPORT_EXTRA_FEEDS:
+        additions = list(PL_EDITORIAL_EXTRA_FEEDS.get(section_id, ()))
+        if section_id == "sport":
+            additions.extend(PL_SPORT_EXTRA_FEEDS)
+        for source, url in additions:
             if url not in seen:
                 merged.append((source, url))
                 seen.add(url)
@@ -49,7 +57,68 @@ def _extend_pl_sport_feeds(config: Any) -> list[Any]:
     return extended
 
 
-base.PL = _extend_pl_sport_feeds(base.PL)
+base.PL = _extend_pl_feeds(base.PL)
+
+EDITORIAL_SELECTION_POLICY_VERSION = "public-impact-source-diversity-v1"
+MAX_SOURCE_SHARE = 5
+
+PUBLIC_IMPACT_RE = re.compile(
+    r"\b(?:"
+    r"rząd\w*|sejm\w*|senat\w*|prezydent\w*|minister\w*|parlament\w*|"
+    r"ustaw\w*|prawo\w*|regulacj\w*|wybor\w*|referend\w*|sąd\w*|trybunał\w*|"
+    r"unia\s+europejska|ue\b|nato\b|onz\b|wojn\w*|sankcj\w*|bezpieczeństw\w*|"
+    r"inflacj\w*|pkb\b|stopy\s+procentowe|budżet\w*|podatek\w*|bezroboci\w*|"
+    r"epidemi\w*|szczepion\w*|lek\w*|badani\w*|odkry\w*|klimat\w*|energi\w*|"
+    r"cyber\w*|sztuczn\w*\s+inteligencj\w*|infrastruktur\w*|konsumenc\w*|"
+    r"government|parliament|president|minister|election|referendum|law|regulat\w*|"
+    r"supreme\s+court|constitutional\s+court|european\s+union|eu\b|nato\b|un\b|"
+    r"war|sanctions?|security|inflation|gdp\b|interest\s+rates?|budget|tax\w*|"
+    r"unemployment|epidemi\w*|vaccine\w*|medicine|research|climate|energy|"
+    r"cyber\w*|artificial\s+intelligence|infrastructure|consumers?"
+    r")\b",
+    re.IGNORECASE,
+)
+GLOBAL_SCOPE_RE = re.compile(
+    r"\b(?:global\w*|świat\w*|międzynarod\w*|europ\w*|usa\b|stany\s+zjednoczone|"
+    r"chiny|rosj\w*|ukrain\w*|niemc\w*|francj\w*|wielka\s+brytania|"
+    r"global\w*|worldwide|international|europe\w*|united\s+states|china|russia|"
+    r"ukraine|germany|france|united\s+kingdom)\b",
+    re.IGNORECASE,
+)
+MEANINGFUL_SCALE_RE = re.compile(
+    r"\b\d+(?:[.,]\d+)?\s*(?:%|proc\.?|mln|mld|tys\.?|zł|pln|eur|usd|"
+    r"million|billion|percent)\b",
+    re.IGNORECASE,
+)
+TRUSTED_DESK_RE = re.compile(
+    r"\b(?:Rzeczpospolita|PAP|BBC|Guardian|Nauka w Polsce|NASA|ESA|WHO|FDA|"
+    r"Bankier\.pl|Business Insider Polska|TVP Sport)\b",
+    re.IGNORECASE,
+)
+
+
+def editorial_value_score(story: dict[str, Any], section_id: str, now: datetime) -> float:
+    """Rank a story by public impact first and recency second."""
+    published = _published_at(story)
+    age_hours = 72.0 if published is None else max(0.0, (now - published).total_seconds() / 3600.0)
+    freshness = max(-40.0, 70.0 - age_hours * 2.0)
+    text = _story_text(story)
+    score = freshness
+    if PUBLIC_IMPACT_RE.search(text):
+        score += 85.0
+    if GLOBAL_SCOPE_RE.search(text):
+        score += 45.0
+    if MEANINGFUL_SCALE_RE.search(text):
+        score += 20.0
+    if TRUSTED_DESK_RE.search(str(story.get("source") or "")):
+        score += 12.0
+    if section_id in {"zdrowie", "nauka", "science", "health"} and re.search(
+        r"\b(?:badani\w*|naukow\w*|raport\w*|research|study|scientists?|report)\b",
+        text,
+        re.IGNORECASE,
+    ):
+        score += 30.0
+    return score
 
 SPORT_LIVE_RE = re.compile(
     r"\b(?:na żywo|live|relacja live|wynik na żywo|minuta po minucie|"
@@ -281,7 +350,7 @@ def select_sections(
     previous: dict[str, Any],
     now: datetime,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
-    """Select nine stories; PL Sport additionally enforces name diversity."""
+    """Select nine high-impact stories with publisher and sports diversity."""
     selected: dict[str, list[dict[str, Any]]] = {}
     health: dict[str, Any] = {}
     previous_sections = previous.get("sections") if isinstance(previous.get("sections"), dict) else {}
@@ -299,17 +368,42 @@ def select_sections(
                 reverse=True,
             )
         else:
-            candidates = sorted(source_candidates, key=base.story_time, reverse=True)
+            candidates = sorted(
+                source_candidates,
+                key=lambda story: (
+                    editorial_value_score(story, section_id, now),
+                    base.story_time(story),
+                ),
+                reverse=True,
+            )
 
         items: list[dict[str, Any]] = []
         local_seen: set[str] = set()
+        source_counts: dict[str, int] = {}
+        active_sources = {
+            str(story.get("source") or "").strip()
+            for story in candidates
+            if story.get("image") and str(story.get("source") or "").strip()
+        }
+        if len(active_sources) >= 3:
+            preferred_source_cap = max(3, math.ceil(base.TARGET / len(active_sources)))
+        elif len(active_sources) == 2:
+            preferred_source_cap = MAX_SOURCE_SHARE
+        else:
+            preferred_source_cap = base.TARGET
         athlete_counts: dict[str, int] = {}
         entity_counts: dict[str, int] = {}
         discipline_counts: dict[str, int] = {}
         live_entities_seen: set[str] = set()
         deferred_discipline: list[dict[str, Any]] = []
+        deferred_source: list[dict[str, Any]] = []
 
-        def try_add(story: dict[str, Any], *, discipline_cap: bool) -> str:
+        def try_add(
+            story: dict[str, Any],
+            *,
+            discipline_cap: bool,
+            source_cap: int,
+        ) -> str:
             identity = base.normalized_identity(story)
             if (
                 not identity
@@ -318,6 +412,10 @@ def select_sections(
                 or not story.get("image")
             ):
                 return "skip"
+
+            source = str(story.get("source") or "").strip() or "unknown"
+            if source_counts.get(source, 0) >= source_cap:
+                return "source_cap"
 
             tracked_names: list[str] = []
             discipline = "other"
@@ -355,6 +453,7 @@ def select_sections(
             local_seen.add(identity)
             global_seen.add(identity)
             items.append(story)
+            source_counts[source] = source_counts.get(source, 0) + 1
             if sport_mode:
                 for name in tracked_names:
                     athlete_counts[name] = athlete_counts.get(name, 0) + 1
@@ -366,9 +465,15 @@ def select_sections(
             return "added"
 
         for story in candidates:
-            result = try_add(story, discipline_cap=sport_mode)
+            result = try_add(
+                story,
+                discipline_cap=sport_mode,
+                source_cap=preferred_source_cap,
+            )
             if result == "discipline_cap":
                 deferred_discipline.append(story)
+            elif result == "source_cap":
+                deferred_source.append(story)
             if len(items) >= base.TARGET:
                 break
 
@@ -376,7 +481,26 @@ def select_sections(
         # underfilled section, while the per-athlete cap remains hard.
         if sport_mode and len(items) < base.TARGET:
             for story in deferred_discipline:
-                try_add(story, discipline_cap=False)
+                result = try_add(
+                    story,
+                    discipline_cap=False,
+                    source_cap=preferred_source_cap,
+                )
+                if result == "source_cap":
+                    deferred_source.append(story)
+                if len(items) >= base.TARGET:
+                    break
+
+        # A publisher can exceed the preferred share only to prevent an otherwise
+        # incomplete section, and never occupy more than five of nine cards when at
+        # least two publishers supplied usable material.
+        if len(items) < base.TARGET and preferred_source_cap < MAX_SOURCE_SHARE:
+            for story in deferred_source:
+                try_add(
+                    story,
+                    discipline_cap=False,
+                    source_cap=MAX_SOURCE_SHARE,
+                )
                 if len(items) >= base.TARGET:
                     break
 
@@ -394,7 +518,14 @@ def select_sections(
                     continue
                 copy = dict(old)
                 copy["carried_forward"] = True
-                if try_add(copy, discipline_cap=False) == "added":
+                carry_source_cap = (
+                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                )
+                if try_add(
+                    copy,
+                    discipline_cap=False,
+                    source_cap=carry_source_cap,
+                ) == "added":
                     carried += 1
                 if len(items) >= base.TARGET:
                     break
@@ -412,6 +543,10 @@ def select_sections(
             "fresh_count": len(selected[section_id]) - carried,
             "carried_count": carried,
             "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,
+            "source_mix": source_counts,
+            "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
+            "preferred_source_cap": preferred_source_cap,
+            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET,
         }
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
@@ -546,6 +681,12 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
         "status": "active",
         "version": POLICY_VERSION,
     }
+    payload["health"]["editorial_selection"] = {
+        "status": "active",
+        "mode": "public_impact_then_recency_with_publisher_diversity",
+        "version": EDITORIAL_SELECTION_POLICY_VERSION,
+        "max_cards_per_source_when_multiple_sources_available": MAX_SOURCE_SHARE,
+    }
     if lang == "pl":
         payload["health"]["sport_hot_priority"] = {
             "status": "active",
@@ -580,6 +721,9 @@ def validate(max_age_minutes: int = 30) -> None:
         policy = payload.get("editorial_policy") or {}
         if policy.get("version") != POLICY_VERSION:
             raise RuntimeError(f"{lang} editorial policy missing or outdated")
+        editorial_selection = (payload.get("health") or {}).get("editorial_selection") or {}
+        if editorial_selection.get("version") != EDITORIAL_SELECTION_POLICY_VERSION:
+            raise RuntimeError(f"{lang} editorial selection policy missing or outdated")
         if lang == "pl":
             hot_priority = (payload.get("health") or {}).get("sport_hot_priority") or {}
             if hot_priority.get("mode") != "ranked_polish_athletes_plus_cross_source_heat_and_diversity":
@@ -610,12 +754,19 @@ def validate(max_age_minutes: int = 30) -> None:
                 }
                 if offenders:
                     raise RuntimeError(f"pl/sport violates athlete diversity cap: {offenders}")
+            source_counts: dict[str, int] = {}
             for story in stories:
+                source = str(story.get("source") or "").strip() or "unknown"
+                source_counts[source] = source_counts.get(source, 0) + 1
                 decision = evaluate_story(story.get("title"), story.get("summary"))
                 if not decision.accepted:
                     raise RuntimeError(
                         f"{lang}/{section_id} contains blocked story ({decision.reason}): {story.get('title')}"
                     )
+            if len(source_counts) >= 2 and max(source_counts.values()) > MAX_SOURCE_SHARE:
+                raise RuntimeError(
+                    f"{lang}/{section_id} violates publisher share cap: {source_counts}"
+                )
 
 
 base.fetch_feed = fetch_feed

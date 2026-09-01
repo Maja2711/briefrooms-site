@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-POLICY_VERSION = "news-value-filter-v3"
+POLICY_VERSION = "news-value-filter-v4"
 
 _DEATH_NOTICE = re.compile(
     r"\b(?:"
@@ -80,6 +80,89 @@ _BETTING_PROMO = re.compile(
     r"(?:odbierz|zgarnij|otrzymaj)\s+bonus|kod\s+promocyjny|"
     r"zakład\s+bez\s+ryzyka|darmowy\s+zakład|free\s+bet|"
     r"typy\s+bukmacherskie|specjalny\s+kurs"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_MEDIA_SELF_PROMOTION = re.compile(
+    r"(?:"
+    r"\b(?:rewelacyjne|świetne|znakomite|rekordowe|najlepsze)\b.{0,90}"
+    r"\b(?:wyniki|oglądalno\w*|zasięg\w*)\b|"
+    r"\b(?:wyniki|oglądalno\w*|zasięg\w*)\b.{0,90}"
+    r"\b(?:tvn24|fakt(?:y|ów)\s+tvn|tvn24\.pl|polsat\s+news|tvp\s+info|"
+    r"nasz(?:a|ej)\s+(?:stacj\w*|portal\w*|program\w*))\b|"
+    r"\b(?:great|excellent|record|best)\b.{0,90}\b(?:ratings?|audience|reach)\b|"
+    r"\b(?:ratings?|audience|reach)\b.{0,90}\b(?:our\s+(?:channel|show|site)|bbc|cnn)\b|"
+    r"\bdziękujemy(?:\s+widzom|\s+czytelnikom)?\b|\bthank\s+you,?\s+(?:viewers|readers)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_MEDIA_PUBLIC_INTEREST = re.compile(
+    r"\b(?:"
+    r"krrit|regulator\w*|koncesj\w*|kara\w*|pozew\w*|śledztw\w*|przejęci\w*|"
+    r"fuzj\w*|sprzedaż\w*|zwolnieni\w*|redukcj\w*|cenzur\w*|dezinformacj\w*|"
+    r"regulat\w*|licen[cs]\w*|fine\w*|lawsuit\w*|investigat\w*|acqui\w*|"
+    r"merger\w*|layoffs?|censorship|disinformation"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_ISOLATED_LOCAL_INCIDENT = re.compile(
+    r"(?:"
+    r"\bkonflikt\b.{0,80}\b(?:taksówkarz\w*|taxi)\b|"
+    r"\b(?:bójk\w*|bijatyk\w*|awantur\w*|sprzeczk\w*)\b|"
+    r"\b(?:kolizj\w*|stłuczk\w*)\b|"
+    r"\bwydmuchał\b.{0,60}\bpromil\w*\b|"
+    r"\b(?:podejrzan\w*|zatrzyman\w*)\b.{0,70}\b(?:gwałt\w*|kradzież\w*|właman\w*)\b|"
+    r"\b(?:gwałt\w*|kradzież\w*|właman\w*)\b.{0,70}\b(?:podejrzan\w*|zatrzyman\w*)\b|"
+    r"\b(?:taxi\s+(?:fight|brawl)|bar\s+brawl|street\s+fight|minor\s+crash|"
+    r"drunk\s+driver|arrested\s+(?:after|for)\s+(?:an?\s+)?(?:assault|burglary|rape))\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_INCIDENT_PUBLIC_INTEREST = re.compile(
+    r"\b(?:"
+    r"zamach\w*|terror\w*|katastrof\w*|masow\w*|seryjn\w*|gang\w*|"
+    r"grup\w*\s+przestępcz\w*|cyberatak\w*|infrastruktur\w*\s+krytycz\w*|"
+    r"korupcj\w*|defraudacj\w*|systemow\w*|precedens\w*|ustaw\w*|"
+    r"trybunał\w*|sąd\s+najwyższ\w*|prokuratur\w*\s+krajow\w*|"
+    r"co\s+najmniej\s+\d+|dziesiątki|setki|tysiące|milion\w*|miliard\w*|"
+    r"wiele\s+osób|ofiary\w*|dane\s+(?:osobowe|medyczne)|"
+    r"terror\w*|mass\s+(?:casualty|shooting)|serial\s+(?:attacker|offender)|"
+    r"organized\s+crime|criminal\s+network|critical\s+infrastructure|"
+    r"corrupt\w*|systemic|precedent|supreme\s+court|constitutional\s+court|"
+    r"at\s+least\s+\d+|dozens|hundreds|thousands|millions?|billions?|victims?"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_POLITICAL_THEATER = re.compile(
+    r"(?:"
+    r"\b(?:zamieścił|opublikował)\s+wpis\b|"
+    r"\bzwrócił\s+się\s+do\b|"
+    r"\b(?:odpowiedział|zareagował)\s+na\s+(?:słowa|wpis)\b|"
+    r"\boburzeni\w*\s+(?:na|wśród|po)\b|"
+    r"\b(?:wywołał|wywołała)\s+burzę\b|"
+    r"\b(?:pomoże|pomożecie)\s+pan\b|"
+    r"\bposted\s+on\s+(?:social\s+media|x)\b|"
+    r"\b(?:hit\s+back|fired\s+back|reacted\s+to\s+(?:comments|post))\b|"
+    r"\b(?:outrage|backlash)\s+(?:over|after)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_POLITICAL_SUBSTANCE = re.compile(
+    r"\b(?:"
+    r"ustaw\w*|projekt\s+ustaw\w*|głosowani\w*|wybor\w*|referend\w*|"
+    r"decyzj\w*|porozumieni\w*|umow\w*|sankcj\w*|budżet\w*|podatek\w*|"
+    r"stopy\s+procentowe|bezpieczeństw\w*|wojn\w*|atak\w*|kryzys\w*|"
+    r"wyrok\w*|orzeczeni\w*|śledztw\w*|korupcj\w*|dymisj\w*|powołan\w*|"
+    r"bill\b|legislation|vote\w*|election\w*|referendum|decision\w*|"
+    r"agreement\w*|treaty|sanctions?|budget|tax\w*|interest\s+rates?|"
+    r"security|war|attack\w*|crisis|ruling|investigat\w*|corrupt\w*|"
+    r"resign\w*|appoint\w*"
     r")\b",
     re.IGNORECASE,
 )
@@ -178,6 +261,15 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
     if _BETTING_PROMO.search(combined) and not _GAMBLING_PUBLIC_INTEREST.search(headline):
         return NewsQualityDecision(False, "betting_promotion")
 
+    if _MEDIA_SELF_PROMOTION.search(headline) and not _MEDIA_PUBLIC_INTEREST.search(combined):
+        return NewsQualityDecision(False, "media_self_promotion")
+
+    if _ISOLATED_LOCAL_INCIDENT.search(headline) and not _INCIDENT_PUBLIC_INTEREST.search(combined):
+        return NewsQualityDecision(False, "isolated_local_incident")
+
+    if _POLITICAL_THEATER.search(headline) and not _POLITICAL_SUBSTANCE.search(headline):
+        return NewsQualityDecision(False, "political_theater_without_public_consequence")
+
     return NewsQualityDecision(True, "publishable")
 
 
@@ -188,8 +280,8 @@ def is_publishable_story(title: Any, summary: Any = "") -> bool:
 def public_policy() -> dict[str, Any]:
     return {
         "version": POLICY_VERSION,
-        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym, a nie zapowiedź materiału, komunikat personalny ani promocję hazardu.",
-        "purpose_en": "Select stories containing concrete public-interest information rather than content promotion, personal death notices or gambling promotion.",
+        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym lub systemowym, a nie autopromocję wydawcy, jednostkowy incydent, komunikat personalny ani promocję hazardu.",
+        "purpose_en": "Select stories containing concrete public or systemic value rather than publisher self-promotion, isolated incidents, personal notices or gambling promotion.",
         "excluded": [
             {
                 "id": "death_notice",
@@ -211,9 +303,26 @@ def public_policy() -> dict[str, Any]:
                 "description_pl": "Reklamy bonusów bukmacherskich, darmowych zakładów, kodów promocyjnych i specjalnych kursów.",
                 "description_en": "Advertising for betting bonuses, free bets, promotional codes and special odds.",
             },
+            {
+                "id": "media_self_promotion",
+                "description_pl": "Autopromocja wydawcy: wyniki oglądalności, zasięgi i podziękowania dla widzów lub czytelników.",
+                "description_en": "Publisher self-promotion such as audience results, reach figures and thank-you announcements.",
+            },
+            {
+                "id": "isolated_local_incident",
+                "description_pl": "Jednostkowe bójki, konflikty, drobne kolizje i podobne incydenty bez szerszego znaczenia społecznego.",
+                "description_en": "One-off fights, disputes, minor crashes and similar incidents without wider public significance.",
+            },
+            {
+                "id": "political_theater_without_public_consequence",
+                "description_pl": "Wpisy, zaczepki, oburzenie i wymiana zdań polityków bez decyzji lub mierzalnego skutku publicznego.",
+                "description_en": "Political posts, outrage and verbal sparring without a decision or measurable public consequence.",
+            },
         ],
         "interview_exception_pl": "Materiał z wywiadu może zostać opublikowany, gdy nagłówek podaje konkretną wypowiedź, decyzję, prognozę, liczbę lub skutek.",
         "interview_exception_en": "Interview content may be published when the headline states a concrete claim, decision, forecast, number or consequence.",
         "lottery_exception_pl": "Dopuszczalne są wiadomości o regulacjach, podatkach, oszustwach i innych skutkach publicznych rynku gier losowych, o ile nagłówek nie jest wynikiem losowania ani promocją wygranej.",
         "lottery_exception_en": "Public-interest reporting on regulation, taxation, fraud and other societal effects of gambling may be published when the headline is not a draw result or prize promotion.",
+        "incident_exception_pl": "Incydent może zostać opublikowany, gdy ma charakter masowy lub systemowy, dotyczy bezpieczeństwa publicznego, infrastruktury krytycznej, korupcji albo ustanawia ważny precedens.",
+        "incident_exception_en": "An incident may be published when it is mass-scale or systemic, concerns public safety, critical infrastructure, corruption or an important precedent.",
     }

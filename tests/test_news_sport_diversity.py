@@ -7,12 +7,12 @@ from scripts import publish_live_news as base
 from scripts import publish_live_news_filtered as news
 
 
-def story(title: str, index: int, now: datetime) -> dict:
+def story(title: str, index: int, now: datetime, source: str | None = None) -> dict:
     return {
         "title": title,
         "link": f"https://example.com/sport-{index}",
         "image": f"https://example.com/sport-{index}.jpg",
-        "source": f"Source {index % 4}",
+        "source": source or f"Source {index % 4}",
         "summary": title,
         "published_at": (now - timedelta(minutes=index)).isoformat(),
         "published_at_basis": "source",
@@ -132,6 +132,40 @@ class PolishSportDiversityTests(unittest.TestCase):
         )
         self.assertEqual(len(selected["sport"]), 9)
         self.assertLessEqual(sum("Raków" in item["title"] for item in selected["sport"]), 2)
+
+    def test_public_impact_ranking_and_publisher_diversity(self) -> None:
+        now = datetime(2026, 9, 1, 16, 0, tzinfo=timezone.utc)
+        candidates = [
+            story(f"Lokalna ciekawostka numer {i}", i, now, "TVN24")
+            for i in range(12)
+        ]
+        candidates += [
+            story(f"Rząd przyjął ustawę o bezpieczeństwie numer {i}", 30 + i, now, "RMF24")
+            for i in range(3)
+        ]
+        candidates += [
+            story(f"Unia Europejska uzgodniła nowe regulacje numer {i}", 40 + i, now, "Rzeczpospolita")
+            for i in range(3)
+        ]
+
+        selected, health = news.select_sections(
+            [("polityka", "Polityka", [])],
+            {"polityka": candidates},
+            {"sections": {}},
+            now,
+        )
+
+        rows = selected["polityka"]
+        counts: dict[str, int] = {}
+        for item in rows:
+            counts[item["source"]] = counts.get(item["source"], 0) + 1
+        self.assertEqual(len(rows), 9)
+        self.assertEqual(counts, {"RMF24": 3, "Rzeczpospolita": 3, "TVN24": 3})
+        self.assertNotEqual(rows[0]["source"], "TVN24")
+        self.assertEqual(
+            health["polityka"]["source_diversity_policy"],
+            news.EDITORIAL_SELECTION_POLICY_VERSION,
+        )
 
 
 if __name__ == "__main__":
