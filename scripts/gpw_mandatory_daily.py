@@ -32,6 +32,13 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "data/investments/gpw_mandatory_daily_config.json"
+OPENING_CONFIRMATION_ENGINE = "gpw-opening-confirmation-v1"
+OPENING_COMPONENT_WEIGHTS = {
+    "open_return": 0.30,
+    "intraday_position": 0.30,
+    "distance_from_high": 0.20,
+    "gap_quality": 0.20,
+}
 
 
 def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
@@ -155,11 +162,14 @@ def build_ranked_candidates(
         rows.append(candidate)
 
     core.normalize_cross_section(rows)
-    return sorted(
+    ranked = sorted(
         rows,
         key=lambda row: float(row.get("quant_pre_score") or 0.0),
         reverse=True,
     )
+    for rank, candidate in enumerate(ranked, start=1):
+        candidate["quant_rank"] = rank
+    return ranked
 
 
 def _source_for(symbol: str, snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -185,6 +195,76 @@ def _fresh_execution_snapshot(snapshot: dict[str, Any], now: datetime) -> None:
     crosscheck = snapshot.get("crosscheck") or {}
     if str(crosscheck.get("status") or "").lower() in {"conflict", "rejected"}:
         raise ValueError("execution quote cross-check conflict")
+
+
+def _gap_quality_score(gap: float) -> float:
+    """Prefer controlled gaps; penalise both large gap-ups and large gap-downs."""
+    if -0.01 <= gap <= 0.02:
+        return 100.0
+    distance = (-0.01 - gap) if gap < -0.01 else (gap - 0.02)
+    return core.clamp(100.0 - distance * 2500.0)
+
+
+def opening_confirmation_score(
+    candidate: dict[str, Any], snapshot: dict[str, Any]
+) -> dict[str, Any]:
+    """Score whether the current GPW session confirms the completed-session setup.
+
+    The score is deliberately bounded and deterministic.  It rewards controlled
+    continuation after the open, trading near the session high and a healthy
+    intraday position, while penalising large chase-prone gaps and failed opens.
+    It is an overlay, not an admission gate.
+    """
+    previous_close = float(candidate.get("reference_price") or 0.0)
+    open_price = float(snapshot.get("open") or 0.0)
+    high = float(snapshot.get("high") or 0.0)
+    low = float(snapshot.get("low") or 0.0)
+    last = float(snapshot.get("last") or 0.0)
+    if min(previous_close, open_price, high, low, last) <= 0.0:
+        raise ValueError("opening confirmation requires positive OHLC and previous close")
+    if high < low:
+        raise ValueError("opening confirmation received invalid intraday range")
+
+    gap = open_price / previous_close - 1.0
+    open_return = last / open_price - 1.0
+    intraday_range = high - low
+    intraday_position = (
+        0.5
+        if intraday_range <= max(last * 1e-8, 1e-8)
+        else core.clamp((last - low) / intraday_range, 0.0, 1.0)
+    )
+    distance_from_high = last / high - 1.0
+
+    # Ideal continuation is around +1.5% from the open.  The score tapers to
+    # zero roughly five percentage points away from that centre, preventing
+    # extreme early moves from being interpreted as automatically superior.
+    open_return_score = core.clamp(
+        100.0 - abs(open_return - 0.015) * 2000.0
+    )
+    intraday_position_score = core.clamp(intraday_position * 100.0)
+    distance_from_high_score = core.clamp(100.0 + distance_from_high * 2500.0)
+    gap_quality_score = _gap_quality_score(gap)
+
+    components = {
+        "open_return": round(open_return_score, 2),
+        "intraday_position": round(intraday_position_score, 2),
+        "distance_from_high": round(distance_from_high_score, 2),
+        "gap_quality": round(gap_quality_score, 2),
+    }
+    total = sum(
+        components[name] * weight
+        for name, weight in OPENING_COMPONENT_WEIGHTS.items()
+    )
+    return {
+        "engine": OPENING_CONFIRMATION_ENGINE,
+        "score": round(core.clamp(total), 2),
+        "gap": round(gap, 5),
+        "open_return": round(open_return, 5),
+        "intraday_position": round(intraday_position, 5),
+        "distance_from_high": round(distance_from_high, 5),
+        "components": components,
+        "component_weights": dict(OPENING_COMPONENT_WEIGHTS),
+    }
 
 
 def _fresh_base_payload(
@@ -254,25 +334,60 @@ def make_forced_payload(
             "Mandatory GPW selector found no liquid candidate with finite completed-session risk geometry"
         )
 
-    selected: dict[str, Any] | None = None
-    snapshot: dict[str, Any] | None = None
+    neutral_catalyst = float(policy.get("neutral_catalyst_score", 50.0))
+    opening_weight = core.clamp(
+        float(policy.get("opening_confirmation_weight", 0.25)), 0.0, 0.50
+    ) / 100.0 if float(policy.get("opening_confirmation_weight", 0.25)) > 1.0 else core.clamp(
+        float(policy.get("opening_confirmation_weight", 0.25)), 0.0, 0.50
+    )
+    opening_top_candidates = max(
+        1, int(policy.get("opening_confirmation_top_candidates", 8))
+    )
+
+    evaluated: list[tuple[dict[str, Any], dict[str, Any]]] = []
     quote_errors: dict[str, str] = {}
 
+    # P0.1 Opening Confirmation: fetch fresh execution snapshots for the best
+    # historical/quant candidates, score the current session and rerank them.
     for candidate in ranked:
+        if len(evaluated) >= opening_top_candidates:
+            break
         symbol = str(candidate["symbol"])
         try:
             candidate_snapshot = opening_fetcher(symbol, now=now)
             _fresh_execution_snapshot(candidate_snapshot, now)
-            selected = candidate
-            snapshot = candidate_snapshot
-            break
-        except Exception as exc:  # try the next already-valid ranked candidate
+            opening = opening_confirmation_score(candidate, candidate_snapshot)
+            legacy_score = core.composite_score(
+                candidate,
+                {"catalyst_score": neutral_catalyst},
+                config,
+            )
+            adjusted_score = core.round2(
+                legacy_score * (1.0 - opening_weight)
+                + float(opening["score"]) * opening_weight
+            )
+            enriched = copy.deepcopy(candidate)
+            enriched["opening_confirmation"] = opening
+            enriched["legacy_composite_score"] = legacy_score
+            enriched["opening_adjusted_score"] = adjusted_score
+            enriched["opening_confirmation_engine"] = OPENING_CONFIRMATION_ENGINE
+            evaluated.append((enriched, candidate_snapshot))
+        except Exception as exc:
             quote_errors[symbol] = f"{type(exc).__name__}: {str(exc)[:180]}"
 
-    if selected is None or snapshot is None:
+    if not evaluated:
         raise gpw.PublicationError(
             "Mandatory GPW selector could not confirm a current-session execution quote for any valid ranked candidate"
         )
+
+    evaluated.sort(
+        key=lambda pair: (
+            float(pair[0].get("opening_adjusted_score") or 0.0),
+            float(pair[0].get("quant_pre_score") or 0.0),
+        ),
+        reverse=True,
+    )
+    selected, snapshot = evaluated[0]
 
     reference = float(snapshot["last"])
     raw_risk = float(selected.get("risk_percent") or 0.0)
@@ -289,12 +404,9 @@ def make_forced_payload(
     target = reference + (reference - stop) * reward_risk
     entry_low = reference * 0.997
     entry_high = reference * 1.006
-    neutral_catalyst = float(policy.get("neutral_catalyst_score", 50.0))
-    score = core.composite_score(
-        selected,
-        {"catalyst_score": neutral_catalyst},
-        config,
-    )
+    score = float(selected["opening_adjusted_score"])
+    legacy_score = float(selected["legacy_composite_score"])
+    opening = selected["opening_confirmation"]
     source = _source_for(str(selected["symbol"]), snapshot)
     late_recovery = local_time > _clock(str(policy["cutoff"]))
 
@@ -302,8 +414,8 @@ def make_forced_payload(
     payload["generated_at"] = now.isoformat(timespec="seconds")
     payload["decision"] = "TRANSAKCJA"
     payload["reason"] = (
-        "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę spełniającą "
-        "twarde warunki danych, płynności, ryzyka i świeżej ceny wykonawczej."
+        "Końcowy wybór dnia: wybrano najwyżej sklasyfikowaną spółkę po połączeniu "
+        "rankingu ilościowego z potwierdzeniem zachowania po dzisiejszym otwarciu."
     )
     payload["locked"] = True
     payload["selection"] = {
@@ -311,8 +423,12 @@ def make_forced_payload(
         "ticker": str(selected["symbol"]).removesuffix(".WA"),
         "name": selected["name"],
         "sector": selected["sector"],
-        "score": score,
+        "score": core.round2(score),
+        "legacy_composite_score": core.round2(legacy_score),
         "quant_pre_score": selected.get("quant_pre_score"),
+        "quant_rank": selected.get("quant_rank"),
+        "opening_confirmation_score": opening["score"],
+        "opening_confirmation": opening,
         "selection_mode": "MANDATORY_DAILY_FINAL",
         "reference_price": core.round2(reference),
         "entry_zone": [core.round2(entry_low), core.round2(entry_high)],
@@ -331,33 +447,38 @@ def make_forced_payload(
             "nie rozszerzać SL."
         ),
         "thesis": (
-            f"{selected['name']} ma najwyższy ranking ilościowy wśród aktualnie "
-            "poprawnych i płynnych kandydatów GPW."
+            f"{selected['name']} ma najwyższy ranking po połączeniu sygnału ilościowego "
+            "z bieżącym potwierdzeniem po otwarciu wśród ocenionych kandydatów GPW."
         ),
         "why_now": (
-            "Wybór opiera się na relatywnym momentum, kontekście rynku, płynności, "
-            "geometrii ryzyka i historycznym overlayu. Brak silnego katalizatora nie "
-            "jest twardym veto dla obowiązkowego wyboru Daily."
+            "Wybór łączy relatywne momentum, kontekst rynku, płynność, geometrię ryzyka "
+            "i historię z zachowaniem bieżącej sesji: luką otwarcia, ruchem od otwarcia, "
+            "pozycją w dzisiejszym zakresie oraz odległością od maksimum sesji."
         ),
         "risk_factors": [
-            "Tryb końcowego wyboru może mieć niższe przekonanie niż standardowa selekcja katalizatorowa.",
+            "Opening Confirmation jest krótkoterminowym overlayem i nie może dominować bazowego rankingu.",
             "Minimalna płynność i maksymalne ryzyko pozostają twardymi bramkami.",
             "SL pozostaje nadrzędnym warunkiem wyjścia i nie może być rozszerzany po wejściu.",
         ],
-        "scores": {**selected["scores"], "catalyst": neutral_catalyst},
+        "scores": {
+            **selected["scores"],
+            "catalyst": neutral_catalyst,
+            "opening_confirmation": opening["score"],
+        },
         "sources": [source],
         "review": {
             "approved": True,
-            "mode": "mandatory_daily_final_quant_policy",
+            "mode": "mandatory_daily_final_quant_plus_opening_confirmation",
             "reason": (
-                "Najwyższy ranking spośród kandydatów, którzy przeszli twarde bramki "
-                "danych, płynności, ryzyka i bieżącej ceny."
+                "Najwyższy wynik po deterministycznym połączeniu rankingu bazowego z "
+                "potwierdzeniem bieżącej sesji; zachowane twarde bramki danych, płynności i ryzyka."
             ),
             "supported_source_ids": [source["id"]],
         },
         "market_snapshot": snapshot,
         "forced_from_reason": current.get("reason"),
         "quant_engine": selected.get("quant_engine"),
+        "opening_confirmation_engine": OPENING_CONFIRMATION_ENGINE,
         "historical_feature_session": selected.get("historical_feature_session"),
         "historical_feature_lag_sessions": selected.get("historical_feature_lag_sessions"),
     }
@@ -365,7 +486,7 @@ def make_forced_payload(
 
     methodology = payload.setdefault("methodology", {})
     methodology["minimum_score"] = 0.0
-    methodology["score_policy"] = "mandatory_daily_best_valid_ranked"
+    methodology["score_policy"] = "mandatory_daily_quant_plus_opening_confirmation"
     methodology["mandatory_daily_selection"] = {
         "enabled": True,
         "integrated_final_stage": True,
@@ -377,6 +498,13 @@ def make_forced_payload(
         "maximum_published_risk_percent": max_published_risk,
         "maximum_historical_lag_sessions": int(policy["maximum_historical_lag_sessions"]),
         "opening_quote_required": True,
+        "opening_confirmation": {
+            "engine": OPENING_CONFIRMATION_ENGINE,
+            "weight": opening_weight,
+            "top_candidates": opening_top_candidates,
+            "component_weights": dict(OPENING_COMPONENT_WEIGHTS),
+            "role": "bounded_reranking_overlay_not_hard_gate",
+        },
         "recovery_cutoff": str(policy["recovery_cutoff"]),
         "late_recovery": late_recovery,
     }
@@ -396,7 +524,11 @@ def make_forced_payload(
         "applied": True,
         "market_coverage": round(coverage, 4),
         "ranked_candidates": len(ranked),
+        "opening_candidates_evaluated": len(evaluated),
         "selected_rank": 1,
+        "selected_quant_rank": selected.get("quant_rank"),
+        "opening_confirmation_score": opening["score"],
+        "opening_adjusted_score": core.round2(score),
         "historical_feature_session": selected.get("historical_feature_session"),
         "historical_feature_lag_sessions": selected.get("historical_feature_lag_sessions"),
         "opening_quote_failures_before_selection": quote_errors,
@@ -429,6 +561,11 @@ def persist(payload: dict[str, Any]) -> None:
         "historical_feature_lag_sessions": (
             payload.get("selection") or {}
         ).get("historical_feature_lag_sessions"),
+        "quant_rank": (payload.get("selection") or {}).get("quant_rank"),
+        "opening_confirmation_score": (
+            payload.get("selection") or {}
+        ).get("opening_confirmation_score"),
+        "opening_adjusted_score": (payload.get("selection") or {}).get("score"),
     }
     gpw.atomic_json(gpw.AUDIT_DIR / f"{payload['date']}-mandatory.json", audit)
 
@@ -502,6 +639,10 @@ def main() -> int:
             selection.get("ticker"),
             selection.get("score"),
             selection.get("reference_price"),
+            "opening=",
+            selection.get("opening_confirmation_score"),
+            "quant_rank=",
+            selection.get("quant_rank"),
             "lag=",
             selection.get("historical_feature_lag_sessions"),
         )
