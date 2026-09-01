@@ -4,10 +4,14 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from scripts.publish_live_news import MIN_SECTION, normalized_identity, parse_entry_time, select_sections
+from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 
 
 class LiveNewsPublisherTests(unittest.TestCase):
+    def test_every_section_targets_nine_cards(self) -> None:
+        self.assertEqual(TARGET, 9)
+        self.assertEqual(MIN_SECTION, TARGET)
+
     def test_parse_entry_time_uses_feed_timestamp(self) -> None:
         entry = SimpleNamespace(published_parsed=(2026, 8, 3, 6, 30, 0, 0, 0, 0))
         value = parse_entry_time(entry)

@@ -37,7 +37,10 @@ def write_fixture(root: Path, generated: datetime = NOW) -> None:
             "language": lang,
             "marker": MARKER,
             "generated_at": generated.isoformat(),
-            "sections": {section: [story(i) for i in range(6)] for section in config["sections"]},
+            "sections": {
+                section: [story(i) for i in range(health.MIN_SECTION)]
+                for section in config["sections"]
+            },
             "health": {"status": "ok", "source_errors": []},
         }
         path = root / config["feed"]

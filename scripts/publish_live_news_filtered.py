@@ -30,7 +30,6 @@ PL_SPORT_EXTRA_FEEDS = (
     ("Interia Sport", "https://sport.interia.pl/feed"),
     ("Przegląd Sportowy / Onet Sport", "https://przegladsportowy.onet.pl/.feed"),
     ("SportoweFakty WP", "https://sportowefakty.wp.pl/rss.xml"),
-    ("Eurosport Polska", "https://eurosport.tvn24.pl/rss.xml"),
 )
 
 
@@ -64,11 +63,98 @@ SPORT_FUTURE_RE = re.compile(
     r"zapowiedź|zapowiedz|zagra jutro|zmierzy się jutro|zmierzy sie jutro)\b",
     re.IGNORECASE,
 )
-POLISH_MARQUEE_RE = re.compile(
-    r"\b(?:Iga\s+Świątek|Świątek|Robert\s+Lewandowski|Lewandowski|"
-    r"reprezentacj(?:a|i|ę)\s+Polski|biało[- ]czerwoni|biało[- ]czerwone)\b",
-    re.IGNORECASE,
+SPORT_WATCHLIST_PATH = ROOT / "data" / "news" / "polish_sport_watchlist.json"
+SPORT_DIVERSITY_POLICY_VERSION = "pl-sport-diversity-v1"
+
+
+def _load_sport_watchlist() -> dict[str, Any]:
+    payload = json.loads(SPORT_WATCHLIST_PATH.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != "pl-sport-watchlist-v1":
+        raise RuntimeError("Polish sport watchlist schema is missing or outdated")
+    if not payload.get("athletes"):
+        raise RuntimeError("Polish sport watchlist is empty")
+    return payload
+
+
+SPORT_WATCHLIST = _load_sport_watchlist()
+TRACKED_ATHLETES = sorted(
+    SPORT_WATCHLIST.get("athletes") or [],
+    key=lambda item: int(item.get("rank") or 9999),
 )
+SPORT_SELECTION_POLICY = SPORT_WATCHLIST.get("selection_policy") or {}
+MAX_STORIES_PER_TRACKED_ATHLETE = int(
+    SPORT_SELECTION_POLICY.get("max_stories_per_tracked_athlete") or 2
+)
+MAX_STORIES_PER_REPEATED_ENTITY = int(
+    SPORT_SELECTION_POLICY.get("max_stories_per_repeated_entity") or 2
+)
+SOFT_MAX_STORIES_PER_DISCIPLINE = int(
+    SPORT_SELECTION_POLICY.get("soft_max_stories_per_discipline") or 4
+)
+
+
+def _alias_regex(aliases: list[str]) -> re.Pattern[str]:
+    escaped = [re.escape(str(alias).strip()) for alias in aliases if str(alias).strip()]
+    if not escaped:
+        return re.compile(r"(?!)")
+    return re.compile(r"(?<!\w)(?:" + "|".join(escaped) + r")(?!\w)", re.IGNORECASE)
+
+
+TRACKED_ATHLETE_PATTERNS = [
+    (athlete, _alias_regex(list(athlete.get("aliases") or [athlete.get("name")])))
+    for athlete in TRACKED_ATHLETES
+]
+_TOP_ATHLETE_ALIASES = [
+    alias
+    for athlete in TRACKED_ATHLETES
+    if int(athlete.get("rank") or 9999) <= 6
+    for alias in (athlete.get("aliases") or [athlete.get("name")])
+    if alias
+]
+POLISH_MARQUEE_RE = _alias_regex(_TOP_ATHLETE_ALIASES)
+
+SPORT_DISCIPLINE_PATTERNS = (
+    ("tennis", re.compile(r"\b(?:tenis|WTA|ATP|US Open|Wimbledon|Roland Garros|Australian Open)\b", re.IGNORECASE)),
+    ("football", re.compile(r"\b(?:piłk|pilk|Liga Mistrzów|Champions League|Barcelona|La Liga|Ekstraklasa)\b", re.IGNORECASE)),
+    ("volleyball", re.compile(r"\b(?:siatk|PlusLiga|Liga Narodów|Liga Narodow)\b", re.IGNORECASE)),
+    ("speedway", re.compile(r"\b(?:żuż|zuz|speedway|Grand Prix na żużlu|Grand Prix na zuzlu)\b", re.IGNORECASE)),
+    ("athletics", re.compile(r"\b(?:lekkoatlet|młot|mlot|400 m|800 m|1500 m)\b", re.IGNORECASE)),
+    ("sport_climbing", re.compile(r"\b(?:wspinacz|climbing)\b", re.IGNORECASE)),
+    ("ski_jumping", re.compile(r"\b(?:skok(?:i|ach|ów|ow) narciarsk|Turniej Czterech Skoczni)\b", re.IGNORECASE)),
+    ("cycling", re.compile(r"\b(?:kolar|Tour de France|Giro d.Italia|Vuelta)\b", re.IGNORECASE)),
+)
+
+
+def _matched_tracked_athletes(story: dict[str, Any]) -> list[dict[str, Any]]:
+    text = _story_text(story)
+    return [
+        athlete
+        for athlete, pattern in TRACKED_ATHLETE_PATTERNS
+        if pattern.search(text)
+    ]
+
+
+def _sport_discipline(story: dict[str, Any]) -> str:
+    tracked = _matched_tracked_athletes(story)
+    if tracked:
+        best = min(tracked, key=lambda item: int(item.get("rank") or 9999))
+        if best.get("sport"):
+            return str(best["sport"])
+    text = _story_text(story)
+    for discipline, pattern in SPORT_DISCIPLINE_PATTERNS:
+        if pattern.search(text):
+            return discipline
+    return "other"
+
+
+def _tracked_rank_bonus(story: dict[str, Any]) -> float:
+    tracked = _matched_tracked_athletes(story)
+    if not tracked:
+        return 0.0
+    rank = min(int(item.get("rank") or 9999) for item in tracked)
+    return max(20.0, 125.0 - (rank - 1) * 4.5)
+
+
 POLISH_SPORT_CONTEXT_RE = re.compile(
     r"\b(?:Polska|Polski|Polskę|Polsce|Polak|Polka|Polacy|Polki|"
     r"polski|polska|polskie|polscy|reprezentacj(?:a|i|ę)\s+Polski|"
@@ -86,6 +172,7 @@ SPORT_ENTITY_STOP = {
     "sport", "relacja", "wynik", "mecz", "trener", "turniej", "liga", "polska",
     "polski", "polskie", "polacy", "polki", "wielkie", "mistrzostwa", "europy",
     "świata", "dzisiaj", "jutro", "tenis", "finał", "półfinał", "runda",
+    "open", "puchar", "grand", "prix", "oficjalny", "komunikat", "hit", "koszmar",
 }
 HOME_HOT_SPORT_THRESHOLD = 430
 
@@ -141,12 +228,7 @@ def sport_hot_score(
     now: datetime,
     entity_support: dict[str, int] | None = None,
 ) -> float:
-    """Editorial urgency score for PL sport.
-
-    Current live events involving a top Polish name win over generic recency.
-    Repeated coverage across independent sports desks acts as a dynamic "what is hot"
-    signal, so the system is not limited to a fixed list of athletes.
-    """
+    """Rank PL sport by freshness, Polish relevance and current news heat."""
     current = now.astimezone(timezone.utc)
     published = _published_at(story)
     age_hours = 24.0 if published is None else max(0.0, (current - published).total_seconds() / 3600.0)
@@ -155,21 +237,20 @@ def sport_hot_score(
     text = _story_text(story)
     live = _is_live_sport(story)
     future = _is_future_sport(story)
-    marquee = bool(POLISH_MARQUEE_RE.search(text))
-    polish = marquee or bool(POLISH_SPORT_CONTEXT_RE.search(text))
+    tracked = _matched_tracked_athletes(story)
+    rank_bonus = _tracked_rank_bonus(story)
+    polish = bool(tracked) or bool(POLISH_SPORT_CONTEXT_RE.search(text))
     major = bool(MAJOR_SPORT_EVENT_RE.search(text))
 
     support = entity_support or {}
     max_support = max((support.get(token, 1) for token in _sport_entities(story)), default=1)
     cross_source_heat = max(0, max_support - 1)
 
-    score = freshness
+    score = freshness + rank_bonus
     if major:
         score += 35
     if polish:
         score += 35
-    if marquee:
-        score += 120
     score += min(cross_source_heat, 4) * 80
 
     # A page titled "relacja live" may be published hours before an event. Future
@@ -178,8 +259,8 @@ def sport_hot_score(
         score -= 220
     elif live:
         score += 50
-        if marquee:
-            score += 420
+        if tracked:
+            score += 180 + rank_bonus * 0.35
         elif cross_source_heat >= 1 and polish:
             score += 280
         elif cross_source_heat >= 2:
@@ -200,7 +281,7 @@ def select_sections(
     previous: dict[str, Any],
     now: datetime,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
-    """Preserve canonical selection, but rank the PL Sport section by live relevance."""
+    """Select nine stories; PL Sport additionally enforces name diversity."""
     selected: dict[str, list[dict[str, Any]]] = {}
     health: dict[str, Any] = {}
     previous_sections = previous.get("sections") if isinstance(previous.get("sections"), dict) else {}
@@ -209,7 +290,8 @@ def select_sections(
 
     for section_id, _, _ in config:
         source_candidates = list(fetched.get(section_id) or [])
-        if pl_mode and section_id == "sport":
+        sport_mode = pl_mode and section_id == "sport"
+        if sport_mode:
             support = _sport_entity_support(source_candidates)
             candidates = sorted(
                 source_candidates,
@@ -221,34 +303,87 @@ def select_sections(
 
         items: list[dict[str, Any]] = []
         local_seen: set[str] = set()
+        athlete_counts: dict[str, int] = {}
+        entity_counts: dict[str, int] = {}
+        discipline_counts: dict[str, int] = {}
         live_entities_seen: set[str] = set()
+        deferred_discipline: list[dict[str, Any]] = []
 
-        for story in candidates:
+        def try_add(story: dict[str, Any], *, discipline_cap: bool) -> str:
             identity = base.normalized_identity(story)
-            if not identity or identity in local_seen or identity in global_seen or not story.get("image"):
-                continue
+            if (
+                not identity
+                or identity in local_seen
+                or identity in global_seen
+                or not story.get("image")
+            ):
+                return "skip"
 
-            if pl_mode and section_id == "sport" and _is_live_sport(story):
+            tracked_names: list[str] = []
+            discipline = "other"
+            entities: set[str] = set()
+            if sport_mode:
+                tracked_names = [
+                    str(item.get("name") or "")
+                    for item in _matched_tracked_athletes(story)
+                    if item.get("name")
+                ]
+                if any(
+                    athlete_counts.get(name, 0) >= MAX_STORIES_PER_TRACKED_ATHLETE
+                    for name in tracked_names
+                ):
+                    return "athlete_cap"
                 entities = _sport_entities(story)
-                # Avoid filling the six cards with several publishers' live pages for
-                # exactly the same athlete/event; keep the highest-ranked one.
-                if entities and entities & live_entities_seen:
-                    continue
-                live_entities_seen.update(entities)
+                if any(
+                    support.get(entity, 0) >= 2
+                    and entity_counts.get(entity, 0) >= MAX_STORIES_PER_REPEATED_ENTITY
+                    for entity in entities
+                ):
+                    return "entity_cap"
+                discipline = _sport_discipline(story)
+                if (
+                    discipline_cap
+                    and discipline != "other"
+                    and discipline_counts.get(discipline, 0)
+                    >= SOFT_MAX_STORIES_PER_DISCIPLINE
+                ):
+                    return "discipline_cap"
+                if _is_live_sport(story):
+                    if entities and entities & live_entities_seen:
+                        return "live_duplicate"
 
             local_seen.add(identity)
             global_seen.add(identity)
             items.append(story)
+            if sport_mode:
+                for name in tracked_names:
+                    athlete_counts[name] = athlete_counts.get(name, 0) + 1
+                for entity in entities:
+                    entity_counts[entity] = entity_counts.get(entity, 0) + 1
+                discipline_counts[discipline] = discipline_counts.get(discipline, 0) + 1
+                if _is_live_sport(story):
+                    live_entities_seen.update(entities)
+            return "added"
+
+        for story in candidates:
+            result = try_add(story, discipline_cap=sport_mode)
+            if result == "discipline_cap":
+                deferred_discipline.append(story)
             if len(items) >= base.TARGET:
                 break
+
+        # Discipline diversity is a soft constraint. It may be relaxed to avoid an
+        # underfilled section, while the per-athlete cap remains hard.
+        if sport_mode and len(items) < base.TARGET:
+            for story in deferred_discipline:
+                try_add(story, discipline_cap=False)
+                if len(items) >= base.TARGET:
+                    break
 
         carried = 0
         if len(items) < base.TARGET:
             old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
             for old in old_items:
-                identity = base.normalized_identity(old)
-                if not identity or identity in local_seen or identity in global_seen or not old.get("image"):
-                    continue
                 try:
                     published = datetime.fromisoformat(str(old.get("published_at") or "").replace("Z", "+00:00"))
                     if published.tzinfo is None:
@@ -259,24 +394,30 @@ def select_sections(
                     continue
                 copy = dict(old)
                 copy["carried_forward"] = True
-                local_seen.add(identity)
-                global_seen.add(identity)
-                items.append(copy)
-                carried += 1
+                if try_add(copy, discipline_cap=False) == "added":
+                    carried += 1
                 if len(items) >= base.TARGET:
                     break
 
-        if len(items) < base.MIN_SECTION:
-            raise RuntimeError(f"section {section_id} has only {len(items)} publishable stories; minimum is {base.MIN_SECTION}")
+        if len(items) < base.TARGET:
+            raise RuntimeError(
+                f"section {section_id} has only {len(items)} publishable stories; "
+                f"target is {base.TARGET}"
+            )
 
         selected[section_id] = items[:base.TARGET]
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
-        health[section_id] = {
+        section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
             "fresh_count": len(selected[section_id]) - carried,
             "carried_count": carried,
             "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,
         }
+        if sport_mode:
+            section_health["tracked_athletes"] = athlete_counts
+            section_health["discipline_mix"] = discipline_counts
+            section_health["diversity_policy"] = SPORT_DIVERSITY_POLICY_VERSION
+        health[section_id] = section_health
 
     return selected, health
 
@@ -383,7 +524,7 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
             if story.get("image"):
                 continue
             text = _story_text(story)
-            if _is_live_sport(story) or POLISH_MARQUEE_RE.search(text):
+            if _is_live_sport(story) or _matched_tracked_athletes(story):
                 story["image"] = base.page_image(str(story.get("link") or ""))
     return accepted, error
 
@@ -408,9 +549,16 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
     if lang == "pl":
         payload["health"]["sport_hot_priority"] = {
             "status": "active",
-            "mode": "live_polish_star_plus_cross_source_heat",
+            "mode": "ranked_polish_athletes_plus_cross_source_heat_and_diversity",
             "homepage_promotion_threshold": HOME_HOT_SPORT_THRESHOLD,
             "extra_sources": [source for source, _ in PL_SPORT_EXTRA_FEEDS],
+            "watchlist_version": SPORT_WATCHLIST.get("schema_version"),
+            "watchlist_path": "/data/news/polish_sport_watchlist.json",
+            "tracked_athletes": len(TRACKED_ATHLETES),
+            "max_stories_per_tracked_athlete": MAX_STORIES_PER_TRACKED_ATHLETE,
+            "max_stories_per_repeated_entity": MAX_STORIES_PER_REPEATED_ENTITY,
+            "soft_max_stories_per_discipline": SOFT_MAX_STORIES_PER_DISCIPLINE,
+            "section_target": base.TARGET,
         }
     if lang == "en":
         refreshed, selected = _refresh_en_article_images(payload)
@@ -434,13 +582,34 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} editorial policy missing or outdated")
         if lang == "pl":
             hot_priority = (payload.get("health") or {}).get("sport_hot_priority") or {}
-            if hot_priority.get("mode") != "live_polish_star_plus_cross_source_heat":
-                raise RuntimeError("pl sports hot-priority policy missing or outdated")
+            if hot_priority.get("mode") != "ranked_polish_athletes_plus_cross_source_heat_and_diversity":
+                raise RuntimeError("pl sports diversity policy missing or outdated")
+            if hot_priority.get("watchlist_version") != "pl-sport-watchlist-v1":
+                raise RuntimeError("pl sports watchlist missing or outdated")
+            if int(hot_priority.get("section_target") or 0) != base.TARGET:
+                raise RuntimeError("pl sports section target is inconsistent")
         if lang == "en":
             image_quality = (payload.get("health") or {}).get("image_quality") or {}
             if image_quality.get("scope") != "en_only" or image_quality.get("mode") != "article_og_image_preferred":
                 raise RuntimeError("en high-resolution image policy missing or outdated")
         for section_id, stories in payload.get("sections", {}).items():
+            if len(stories) != base.TARGET:
+                raise RuntimeError(
+                    f"{lang}/{section_id} has {len(stories)} stories; expected {base.TARGET}"
+                )
+            if lang == "pl" and section_id == "sport":
+                athlete_counts: dict[str, int] = {}
+                for sport_story in stories:
+                    for athlete in _matched_tracked_athletes(sport_story):
+                        name = str(athlete.get("name") or "")
+                        athlete_counts[name] = athlete_counts.get(name, 0) + 1
+                offenders = {
+                    name: count
+                    for name, count in athlete_counts.items()
+                    if count > MAX_STORIES_PER_TRACKED_ATHLETE
+                }
+                if offenders:
+                    raise RuntimeError(f"pl/sport violates athlete diversity cap: {offenders}")
             for story in stories:
                 decision = evaluate_story(story.get("title"), story.get("summary"))
                 if not decision.accepted:

@@ -21,8 +21,8 @@ import requests
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "news"
 UA = "BriefRooms canonical news publisher/2.0"
-TARGET = 6
-MIN_SECTION = 4
+TARGET = 9
+MIN_SECTION = TARGET
 MAX_WORKERS = 10
 REQUEST_TIMEOUT = 12
 MAX_CARRY_AGE = timedelta(days=14)

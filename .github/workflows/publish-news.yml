@@ -9,6 +9,7 @@ on:
     paths:
       - "scripts/publish_live_news.py"
       - "scripts/publish_live_news_filtered.py"
+      - "data/news/polish_sport_watchlist.json"
       - "scripts/enforce_homepage_max_age.py"
       - "scripts/news_quality.py"
       - "scripts/render_live_news_static.py"
@@ -17,6 +18,7 @@ on:
       - "scripts/home-briefs.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
+      - "tests/test_news_sport_diversity.py"
       - "tests/test_homepage_max_age.py"
       - "tests/test_news_quality.py"
       - "tests/test_homepage_static.py"
@@ -65,6 +67,7 @@ jobs:
             scripts/install_news_live_runtime.py
           python -m unittest \
             tests.test_publish_live_news \
+            tests.test_news_sport_diversity \
             tests.test_homepage_max_age \
             tests.test_news_quality \
             tests.test_install_news_live_runtime -v
@@ -164,12 +167,18 @@ jobs:
                           last.append(f'{path}: generated data is stale')
                       if payload.get('schema_version') != 'news-live-v2':
                           last.append(f'{path}: schema mismatch')
-                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v2':
-                          last.append(f'{path}: editorial policy v2 missing')
+                      if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v3':
+                          last.append(f'{path}: editorial policy v3 missing')
                       if payload.get('homepage_policy', {}).get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
-                      if any(len(items) < 4 for items in payload.get('sections', {}).values()):
-                          last.append(f'{path}: incomplete section')
+                      if any(len(items) != 9 for items in payload.get('sections', {}).values()):
+                          last.append(f'{path}: section does not contain exactly 9 stories')
+                      if path.endswith('/pl.json'):
+                          sport_policy = payload.get('health', {}).get('sport_hot_priority', {})
+                          if sport_policy.get('mode') != 'ranked_polish_athletes_plus_cross_source_heat_and_diversity':
+                              last.append(f'{path}: Polish sport diversity policy missing')
+                          if sport_policy.get('watchlist_version') != 'pl-sport-watchlist-v1':
+                              last.append(f'{path}: Polish sport watchlist missing')
                       now = datetime.now(timezone.utc)
                       for story in payload.get('home', []):
                           first_seen_raw = story.get('homepage_first_seen_at')

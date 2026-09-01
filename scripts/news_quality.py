@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-POLICY_VERSION = "news-value-filter-v2"
+POLICY_VERSION = "news-value-filter-v3"
 
 _DEATH_NOTICE = re.compile(
     r"\b(?:"
@@ -22,6 +22,7 @@ _INTERVIEW_META = re.compile(
     r"\brozmow(?:a|ę|y)\s+z\b|"
     r"\b(?:będzie|bedzie)\s+gościem\b|"
     r"\bgościem\s+(?:programu|poranka|radia|telewizji|tv|wydarzeń)\b|"
+    r"\bgościem\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+)+\b|"
     r"\bgość\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
     r"\bgościu\s+(?:wydarzeń|poranka|radia|telewizji|tv)\b|"
     r"\b(?:dziś|dzisiaj|jutro|wkrótce)\b.{0,60}\b(?:na\s+antenie|w\s+tv|w\s+programie)\b|"
@@ -34,6 +35,12 @@ _INTERVIEW_META = re.compile(
     r"\b(?:joins\s+us|guest\s+on|will\s+appear\s+on)\b|"
     r"\[(?:wywiad|interview|podcast|oglądaj|zobacz|watch)\]"
     r")",
+    re.IGNORECASE,
+)
+
+_GUEST_LISTING = re.compile(
+    r"\bgościem\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+"
+    r"(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][\wĄąĆćĘęŁłŃńÓóŚśŹźŻż-]+)+\b",
     re.IGNORECASE,
 )
 
@@ -63,6 +70,16 @@ _GAMBLING_PUBLIC_INTEREST = re.compile(
     r"kontrol\w*|śledztw\w*|oszustw\w*|pranie\s+pieniędzy|uzależn\w*|reklam\w*|"
     r"law|regulat\w*|ban\w*|tax\w*|licen[cs]\w*|monopol\w*|investigat\w*|"
     r"fraud\w*|money\s+laundering|addiction|advertis\w*"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_BETTING_PROMO = re.compile(
+    r"\b(?:"
+    r"bonus\s+\d+(?:[.,]\d+)?\s*(?:zł|pln|eur|usd)|"
+    r"(?:odbierz|zgarnij|otrzymaj)\s+bonus|kod\s+promocyjny|"
+    r"zakład\s+bez\s+ryzyka|darmowy\s+zakład|free\s+bet|"
+    r"typy\s+bukmacherskie|specjalny\s+kurs"
     r")\b",
     re.IGNORECASE,
 )
@@ -146,7 +163,9 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
     ):
         return NewsQualityDecision(False, "death_notice")
 
-    if _INTERVIEW_META.search(headline) and not has_substantive_headline(headline):
+    if _GUEST_LISTING.search(headline) or (
+        _INTERVIEW_META.search(headline) and not has_substantive_headline(headline)
+    ):
         return NewsQualityDecision(False, "interview_promo_without_substance")
 
     if _LOTTERY_TOPIC.search(combined):
@@ -155,6 +174,9 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
         headline_has_public_interest = bool(_GAMBLING_PUBLIC_INTEREST.search(headline))
         if headline_is_result or (combined_is_result and not headline_has_public_interest):
             return NewsQualityDecision(False, "lottery_result_or_jackpot_promo")
+
+    if _BETTING_PROMO.search(combined) and not _GAMBLING_PUBLIC_INTEREST.search(headline):
+        return NewsQualityDecision(False, "betting_promotion")
 
     return NewsQualityDecision(True, "publishable")
 
@@ -166,8 +188,8 @@ def is_publishable_story(title: Any, summary: Any = "") -> bool:
 def public_policy() -> dict[str, Any]:
     return {
         "version": POLICY_VERSION,
-        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym, a nie zapowiedź materiału, komunikat personalny ani wynik gry losowej.",
-        "purpose_en": "Select stories containing concrete public-interest information rather than content promotion, personal death notices or lottery results.",
+        "purpose_pl": "Wybór wiadomości zawierających konkretną informację o znaczeniu publicznym, a nie zapowiedź materiału, komunikat personalny ani promocję hazardu.",
+        "purpose_en": "Select stories containing concrete public-interest information rather than content promotion, personal death notices or gambling promotion.",
         "excluded": [
             {
                 "id": "death_notice",
@@ -183,6 +205,11 @@ def public_policy() -> dict[str, Any]:
                 "id": "lottery_result_or_jackpot_promo",
                 "description_pl": "Wyniki losowań, zwycięskie numery, kumulacje, jackpoty i promowanie kwot do wygrania.",
                 "description_en": "Lottery draw results, winning numbers, rollovers, jackpots and prize-pool promotion.",
+            },
+            {
+                "id": "betting_promotion",
+                "description_pl": "Reklamy bonusów bukmacherskich, darmowych zakładów, kodów promocyjnych i specjalnych kursów.",
+                "description_en": "Advertising for betting bonuses, free bets, promotional codes and special odds.",
             },
         ],
         "interview_exception_pl": "Materiał z wywiadu może zostać opublikowany, gdy nagłówek podaje konkretną wypowiedź, decyzję, prognozę, liczbę lub skutek.",

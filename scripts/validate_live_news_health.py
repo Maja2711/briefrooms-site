@@ -30,10 +30,10 @@ LANGUAGES = {
         },
     },
 }
-RUNTIME = "/scripts/news-live.js?v=2"
+RUNTIME = "/scripts/news-live.js?v=5"
 MARKER_META = 'name="briefrooms-live-news-marker" content="{}"'
 FUTURE_TOLERANCE = timedelta(minutes=10)
-MIN_SECTION = 4
+MIN_SECTION = 9
 
 
 def parse_time(value: Any) -> datetime | None:

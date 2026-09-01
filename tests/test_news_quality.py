@@ -6,6 +6,22 @@ from scripts.news_quality import POLICY_VERSION, evaluate_story, has_substantive
 
 
 class NewsQualityTests(unittest.TestCase):
+    def test_rejects_sports_betting_bonus_ad(self) -> None:
+        decision = evaluate_story(
+            "Hit! Bonus 300 zł za gola Wisły Kraków w Pucharze Polski",
+            "Oferta bukmachera dla nowych klientów.",
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "betting_promotion")
+
+    def test_rejects_guest_listing_without_news(self) -> None:
+        decision = evaluate_story(
+            "Sportowy wieczór. Gościem Magdalena Śliwa (31.08.2026)",
+            "Zapraszamy do programu.",
+        )
+        self.assertFalse(decision.accepted)
+        self.assertEqual(decision.reason, "interview_promo_without_substance")
+
     def test_rejects_standalone_death_notice(self) -> None:
         decision = evaluate_story("Nie żyje znany aktor. Miał 74 lata")
         self.assertFalse(decision.accepted)
@@ -91,6 +107,7 @@ class NewsQualityTests(unittest.TestCase):
             "death_notice",
             "interview_promo_without_substance",
             "lottery_result_or_jackpot_promo",
+            "betting_promotion",
         })
 
 

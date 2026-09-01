@@ -16,7 +16,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 UA = "BriefRooms source-only news/2.0"
-TARGET = 6
+TARGET = 9
 HOME_TARGET = 10
 
 PL = [
