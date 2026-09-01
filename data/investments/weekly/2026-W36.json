@@ -565,13 +565,13 @@
       "wes_initial_no_trade_score": 0.0,
       "wes_status": "no_trade_monitoring_trigger",
       "wes_methodology": "WES-1.0.0",
-      "wes_last_review_at": "2026-09-01T08:48:37+02:00",
+      "wes_last_review_at": "2026-09-01T14:26:55+02:00",
       "wes_trigger_candidate": {
         "direction": "short",
         "strategy_id": "inverse_v2",
-        "raw_score": 20.0,
-        "utility": 6.377,
-        "signal_delta_from_initial": 20.0,
+        "raw_score": 16.0,
+        "utility": 6.1613,
+        "signal_delta_from_initial": 16.0,
         "confirmations": 1,
         "confirmation_sources": [
           "macro"
@@ -655,16 +655,29 @@
       "exit_source": null,
       "exit_reason": null,
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-09-01T14:26:07+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-09-01T14:26:59+02:00",
         "direction": "long",
-        "stop_loss_price": 7580.25547828,
-        "take_profit_price": 7771.37739918,
-        "stop_loss_distance": 72.49452172,
-        "take_profit_distance": 118.62739918,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 7595.8237712,
+        "take_profit_price": 7778.58436847,
+        "stop_loss_distance": 56.9262288,
+        "take_profit_distance": 125.83436847,
+        "reward_to_risk": 2.2105,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "midweek_trigger",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-09-04T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.8504,
+          "conviction_factor": 0.42,
+          "tp_multiplier": 1.0608,
+          "sl_multiplier": 0.7852,
+          "target_min_rr": 1.2,
+          "learning_count": 2,
+          "learning_mean_net_percent": -0.146836,
+          "learning_win_rate": 0.5
+        },
+        "friday_tactical_low_tp": false
       },
       "trade_status": "open",
       "result": null,
@@ -672,7 +685,7 @@
       "result_percent": null,
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
-      "entry_quality_status": "v4_same_week_reentry",
+      "entry_quality_status": "wes_midweek_trigger",
       "forecast_direction": "neutral",
       "forecast_score": 33,
       "continuous_entry_decision": {
@@ -1836,6 +1849,9 @@
     "version": "WES-1.0.0",
     "objective": "maximize_total_net_profit_with_no_forced_trades",
     "no_trade_is_active_monitoring": true,
-    "last_preflight_at": "2026-09-01T08:48:37+02:00"
+    "last_preflight_at": "2026-09-01T14:26:55+02:00",
+    "last_postflight_at": "2026-09-01T14:26:59+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
   }
 }
