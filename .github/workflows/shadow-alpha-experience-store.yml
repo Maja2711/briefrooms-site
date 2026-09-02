@@ -2,16 +2,27 @@ name: Shadow Alpha Experience Store
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/shadow_trade_experience_bridge.py"
+      - "scripts/experience_store_multi_source.py"
+      - "tests/test_shadow_trade_experience_bridge.py"
+      - ".github/workflows/shadow-alpha-experience-store.yml"
   workflow_run:
     workflows:
       - "Learning Outcome Loop"
+      - "Daily EURUSD A-B-C Live Shadow"
     types: [completed]
   pull_request:
     paths:
       - "scripts/experience_store.py"
+      - "scripts/experience_store_multi_source.py"
+      - "scripts/shadow_trade_experience_bridge.py"
       - "scripts/shadow_alpha_evaluator.py"
       - "scripts/shadow_learning_pipeline.py"
       - "tests/test_shadow_alpha_experience_store.py"
+      - "tests/test_shadow_trade_experience_bridge.py"
       - ".github/workflows/shadow-alpha-experience-store.yml"
 
 permissions:
@@ -25,16 +36,20 @@ concurrency:
 env:
   SOURCE_ARTIFACT: learning-outcome-loop-state
   SOURCE_ARCHIVE: learning-outcome-loop-state.tgz
+  ABC_SOURCE_ARTIFACT: daily-eurusd-abc-live-shadow-state
+  ABC_SOURCE_ARCHIVE: daily-eurusd-abc-live-shadow-state.tgz
   OUTPUT_ARTIFACT: shadow-alpha-experience-store
+  SHADOW_BRIDGE_BOOTSTRAP_CUTOFF_UTC: "2026-09-04T23:59:59Z"
 
 jobs:
   evaluate:
     if: >-
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       GH_TOKEN: ${{ github.token }}
@@ -49,14 +64,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate Experience Store and alpha evaluator
+      - name: Validate Experience Store and shadow bridge
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/experience_store.py \
+            scripts/experience_store_multi_source.py \
+            scripts/shadow_trade_experience_bridge.py \
             scripts/shadow_alpha_evaluator.py \
             scripts/shadow_learning_pipeline.py
           python -m unittest tests.test_shadow_alpha_experience_store -v
+          python -m unittest tests.test_shadow_trade_experience_bridge -v
 
       - name: Resolve Learning Outcome Loop run
         if: github.event_name != 'pull_request'
@@ -64,7 +82,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+          trigger_name="${{ github.event.workflow_run.name || '' }}"
+          if [[ "${{ github.event_name }}" == "workflow_run" && "$trigger_name" == "Learning Outcome Loop" ]]; then
             run_id="${{ github.event.workflow_run.id }}"
           else
             run_id="$(gh run list \
@@ -100,12 +119,126 @@ jobs:
           python scripts/learning_outcome_loop.py --state-dir "$state" --verify
           echo "SHADOW_ALPHA_STATE=$state" >> "$GITHUB_ENV"
 
-      - name: Materialize AlfaX-ready Experience Store
+      - name: Resolve latest verified EURUSD A-B-C live-shadow run
+        if: github.event_name != 'pull_request'
+        id: abc
+        shell: bash
+        run: |
+          set -euo pipefail
+          trigger_name="${{ github.event.workflow_run.name || '' }}"
+          if [[ "${{ github.event_name }}" == "workflow_run" && "$trigger_name" == "Daily EURUSD A-B-C Live Shadow" ]]; then
+            run_id="${{ github.event.workflow_run.id }}"
+          else
+            run_id="$(gh run list \
+              --workflow daily-eurusd-abc-live-shadow.yml \
+              --branch main \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')"
+          fi
+          if [[ -z "$run_id" ]]; then
+            echo "No successful Daily EURUSD A-B-C Live Shadow run is available." >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "ABC_SOURCE_RUN=$run_id"
+
+      - name: Restore verified EURUSD A-B-C live-shadow state read-only
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="$RUNNER_TEMP/abc-source-artifact"
+          state="$RUNNER_TEMP/abc-source-state"
+          mkdir -p "$artifact" "$state"
+          gh run download "${{ steps.abc.outputs.run_id }}" \
+            -n "$ABC_SOURCE_ARTIFACT" \
+            -D "$artifact"
+          archive="$artifact/$ABC_SOURCE_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$state"
+          test -s "$state/EURUSD_DAILY_ABC_STATE.json"
+          python scripts/daily_eurusd_abc_durability.py verify \
+            --layer pr20_eurusd_abc \
+            --state-dir "$state"
+          echo "ABC_SOURCE_STATE=$state" >> "$GITHUB_ENV"
+
+      - name: Restore prior shadow-trade bridge state or establish one-time activation
+        if: github.event_name != 'pull_request'
+        id: bridge_restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/shadow-trade-bridge"
+          previous="$RUNNER_TEMP/previous-shadow-alpha"
+          mkdir -p "$state" "$previous"
+
+          run_id="$(gh run list \
+            --workflow shadow-alpha-experience-store.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          restored=false
+          if [[ -n "$run_id" ]]; then
+            if gh run download "$run_id" -n "$OUTPUT_ARTIFACT" -D "$previous"; then
+              if [[ -s "$previous/shadow_trade_activation.json" && -f "$previous/shadow_trade_ledger.jsonl" ]]; then
+                cp "$previous/shadow_trade_activation.json" "$state/"
+                cp "$previous/shadow_trade_ledger.jsonl" "$state/"
+                if [[ -s "$previous/shadow_trade_bridge_status.json" ]]; then
+                  cp "$previous/shadow_trade_bridge_status.json" "$state/"
+                fi
+                python scripts/shadow_trade_experience_bridge.py --state-dir "$state" --verify
+                restored=true
+              fi
+            fi
+          fi
+
+          if [[ "$restored" == true ]]; then
+            echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+            echo "Restored durable prospective shadow-trade ledger."
+            exit 0
+          fi
+
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import os
+          cutoff=datetime.fromisoformat(os.environ['SHADOW_BRIDGE_BOOTSTRAP_CUTOFF_UTC'].replace('Z','+00:00'))
+          now=datetime.now(timezone.utc)
+          if now > cutoff:
+              raise SystemExit(f"Shadow bridge state missing after bootstrap cutoff: now={now.isoformat()} cutoff={cutoff.isoformat()}")
+          print('One-time prospective shadow bridge activation is allowed inside migration boundary.')
+          PY
+          echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+
+      - name: Copy prospective live-shadow decisions and later outcomes
+        if: github.event_name != 'pull_request'
+        env:
+          BOOTSTRAP: ${{ steps.bridge_restore.outputs.bootstrap }}
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/shadow-trade-bridge"
+          args=(
+            --state-dir "$state"
+            --abc-state "$ABC_SOURCE_STATE/EURUSD_DAILY_ABC_STATE.json"
+          )
+          if [[ "$BOOTSTRAP" == "true" ]]; then
+            args+=(--bootstrap)
+          fi
+          python scripts/shadow_trade_experience_bridge.py "${args[@]}"
+          python scripts/shadow_trade_experience_bridge.py --state-dir "$state" --verify
+          echo "SHADOW_TRADE_STATE=$state" >> "$GITHUB_ENV"
+
+      - name: Materialize AlfaX-ready multi-source Experience Store
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
-          python scripts/experience_store.py \
+          python scripts/experience_store_multi_source.py \
             --ledger "$SHADOW_ALPHA_STATE/learning_ledger.jsonl" \
+            --additional-ledger "$SHADOW_TRADE_STATE/shadow_trade_ledger.jsonl" \
             --store "$SHADOW_ALPHA_STATE/experience_store.jsonl" \
             --status "$SHADOW_ALPHA_STATE/experience_store_status.json"
 
@@ -121,12 +254,17 @@ jobs:
           import json, os
           from pathlib import Path
           root=Path(os.environ['SHADOW_ALPHA_STATE'])
+          bridge_root=Path(os.environ['SHADOW_TRADE_STATE'])
           store=json.loads((root/'experience_store_status.json').read_text(encoding='utf-8'))
           report=json.loads((root/'shadow_alpha_report.json').read_text(encoding='utf-8'))
+          bridge=json.loads((bridge_root/'shadow_trade_bridge_status.json').read_text(encoding='utf-8'))
           assert store['zero_authority'] is True
           assert report['zero_authority'] is True
+          assert all(value is False for value in bridge['zero_authority'].values())
           assert report['overall']['minimum_sample_gate'] == 30
+          assert len(store['source_ledgers']) == 2
           print('EXPERIENCE_STORE', store['experience_count'], 'settled=', store['settled_count'])
+          print('DIRECT_SHADOW_BRIDGE', 'decisions=', bridge['decisions_appended'], 'outcomes=', bridge['outcomes_appended'], 'pending=', bridge['pending_decisions'])
           print('SHADOW_ALPHA_ASSESSMENT', report['overall']['assessment'], report['overall']['assessment_basis'])
           for engine, row in sorted(report['by_engine'].items()):
               print('ENGINE', engine, row['assessment'], 'n=', row['raw_edge']['sample_size'])
@@ -142,8 +280,11 @@ jobs:
           cp "$SHADOW_ALPHA_STATE/experience_store_status.json" "$out/"
           cp "$SHADOW_ALPHA_STATE/shadow_alpha_report.json" "$out/"
           cp "$SHADOW_ALPHA_STATE/learning_loop_activation.json" "$out/"
+          cp "$SHADOW_TRADE_STATE/shadow_trade_activation.json" "$out/"
+          cp "$SHADOW_TRADE_STATE/shadow_trade_ledger.jsonl" "$out/"
+          cp "$SHADOW_TRADE_STATE/shadow_trade_bridge_status.json" "$out/"
 
-      - name: Store Experience Store and alpha report
+      - name: Store Experience Store, shadow bridge and alpha report
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
