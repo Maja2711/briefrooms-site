@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts import autonomous_policy_promotion as ap
-from scripts.policy_runtime_overlay import apply_active_policy
+from scripts.policy_runtime_overlay import PROMOTION_FREEZE_STATUS, apply_active_policy, registry_hash
 
 
 class AutonomousPolicyPromotionTests(unittest.TestCase):
@@ -112,7 +112,7 @@ class AutonomousPolicyPromotionTests(unittest.TestCase):
         self.assertEqual(candidate["promotion_gate"]["status"], "PASS")
         self.assertEqual(candidate["status"], "PROMOTED")
 
-    def test_runtime_overlay_applies_only_hash_verified_allowlisted_policy(self) -> None:
+    def test_runtime_overlay_is_frozen_without_explicit_governance_unfreeze(self) -> None:
         engine = self.registry["engines"]["gpw_daily"]
         engine.update({
             "revision": 1,
@@ -125,14 +125,24 @@ class AutonomousPolicyPromotionTests(unittest.TestCase):
         self.registry["updated_at"] = ap._iso(self.now)
         ap._atomic_json(self.state / ap.REGISTRY_FILENAME, self.registry)
         baseline = {"policy_version": "gpw-base-v1", "minimum_composite_score": 72, "minimum_reward_risk": 1.5}
-        effective = apply_active_policy("gpw_daily", baseline, registry_path=self.state / ap.REGISTRY_FILENAME)
+        frozen = apply_active_policy("gpw_daily", baseline, registry_path=self.state / ap.REGISTRY_FILENAME)
+        self.assertEqual(frozen["minimum_composite_score"], 72)
+        self.assertEqual(frozen["policy_version"], "gpw-base-v1")
+        self.assertEqual(frozen["_autonomous_policy"]["status"], PROMOTION_FREEZE_STATUS)
+
+        raw = json.loads((self.state / ap.REGISTRY_FILENAME).read_text())
+        raw["governance"] = {"production_promotion_enabled": True}
+        raw.pop("registry_sha256", None)
+        raw["registry_sha256"] = registry_hash(raw)
+        (self.state / "explicitly-unfrozen.json").write_text(json.dumps(raw), encoding="utf-8")
+        effective = apply_active_policy("gpw_daily", baseline, registry_path=self.state / "explicitly-unfrozen.json")
         self.assertEqual(effective["minimum_composite_score"], 71)
         self.assertEqual(effective["minimum_reward_risk"], 1.5)
         self.assertEqual(effective["policy_version"], "gpw-base-v1+auto1")
 
-        raw = json.loads((self.state / ap.REGISTRY_FILENAME).read_text())
-        raw["engines"]["gpw_daily"]["overrides"]["minimum_reward_risk"] = 0.1
-        (self.state / "tampered.json").write_text(json.dumps(raw), encoding="utf-8")
+        tampered = json.loads((self.state / "explicitly-unfrozen.json").read_text())
+        tampered["engines"]["gpw_daily"]["overrides"]["minimum_reward_risk"] = 0.1
+        (self.state / "tampered.json").write_text(json.dumps(tampered), encoding="utf-8")
         safe = apply_active_policy("gpw_daily", baseline, registry_path=self.state / "tampered.json")
         self.assertEqual(safe["minimum_composite_score"], 72)
         self.assertEqual(safe["policy_version"], "gpw-base-v1")

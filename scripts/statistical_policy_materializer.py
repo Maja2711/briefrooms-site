@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Fail-closed production materializer for PR36.
 
-A non-baseline autonomous policy can reach production only when the persistent
-PR36 authorization store contains a matching PASS for the exact policy id,
-version and source candidate.  Previously authorized parent policies remain
-valid rollback targets.
+PR-A freezes all autonomous GPW/US production materialization while methodology
+v2 collects fresh prospective validation and confirmation samples. Legacy PR36
+authorization verification remains available for audit/tests, but materialize()
+returns a no-op unless governance is explicitly un-frozen in a future reviewed
+change.
 """
 from __future__ import annotations
 
@@ -15,11 +16,11 @@ from typing import Any, Mapping
 
 try:
     from policy_repo_materializer import materialize as base_materialize
-    from policy_runtime_overlay import load_registry
+    from policy_runtime_overlay import load_registry, production_promotion_enabled, PROMOTION_FREEZE_STATUS
     from statistical_promotion_gate import AUTH_FILENAME, _load_authorizations
 except ModuleNotFoundError:  # pragma: no cover
     from scripts.policy_repo_materializer import materialize as base_materialize
-    from scripts.policy_runtime_overlay import load_registry
+    from scripts.policy_runtime_overlay import load_registry, production_promotion_enabled, PROMOTION_FREEZE_STATUS
     from scripts.statistical_promotion_gate import AUTH_FILENAME, _load_authorizations
 
 
@@ -49,6 +50,19 @@ def assert_statistical_authorization(registry_path: Path, authorization_path: Pa
 
 
 def materialize(registry_path: Path, authorization_path: Path, repo_root: Path) -> dict[str, Any]:
+    registry = load_registry(registry_path)
+    if registry is None:
+        raise ValueError("invalid autonomous policy registry")
+    if not production_promotion_enabled(registry):
+        governance = registry.get("governance") if isinstance(registry.get("governance"), Mapping) else {}
+        return {
+            "changed": False,
+            "status": PROMOTION_FREEZE_STATUS,
+            "production_promotion_enabled": False,
+            "promotion_methodology_version": governance.get("promotion_methodology_version"),
+            "migration_boundary_at": governance.get("migration_boundary_at"),
+            "updated": [],
+        }
     authorization = assert_statistical_authorization(registry_path, authorization_path)
     result = base_materialize(registry_path, repo_root)
     result["statistical_authorization"] = authorization

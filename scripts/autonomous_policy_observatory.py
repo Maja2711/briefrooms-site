@@ -4,6 +4,10 @@
 Consumes validated private PR35/PR36 state and emits a small sanitized public
 snapshot. It never mutates policy state. The public file changes only when a
 meaningful policy/candidate/metric state changes, avoiding timestamp-only churn.
+
+PR-A adds methodology-v2 awareness: PR36_HOLDOUT and
+PROMOTION_ELIGIBLE_BUT_FROZEN remain visible as research challengers while the
+public safety block explicitly reports that production promotion is frozen.
 """
 from __future__ import annotations
 
@@ -18,9 +22,11 @@ from typing import Any, Mapping
 try:
     import autonomous_policy_promotion as ap
     import statistical_promotion_gate as sg
+    import statistical_promotion_gate_v2 as sg2
 except ModuleNotFoundError:  # pragma: no cover
     from scripts import autonomous_policy_promotion as ap
     from scripts import statistical_promotion_gate as sg
+    from scripts import statistical_promotion_gate_v2 as sg2
 
 SCHEMA = "briefrooms-autonomous-policy-observatory-v1"
 PUBLIC_PATH = "data/public/autonomous_policy_observatory.json"
@@ -29,11 +35,18 @@ BASELINES_PATH = "data/investments/autonomous_policy_baselines.json"
 
 VISIBLE_EVENTS = {
     "candidate_created",
+    "candidate_created_methodology_v2",
+    "candidate_methodology_v2_reset",
     "policy_promoted",
     "policy_rolled_back",
     "statistical_promotion_pass",
     "statistical_promotion_hold",
     "statistical_promotion_rejected",
+    "pr35_fixed_validation_pass",
+    "pr35_fixed_validation_rejected",
+    "pr36_fresh_holdout_pass_promotion_frozen",
+    "pr36_fresh_holdout_rejected",
+    "legacy_policy_frozen_for_methodology_v2",
 }
 
 
@@ -62,7 +75,15 @@ def _write(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def _candidate_priority(candidate: Mapping[str, Any]) -> int:
-    order = {"SHADOW_VALIDATION": 0, "PROMOTED": 1, "STATISTICAL_REJECTED": 2, "ROLLED_BACK": 3, "REJECTED": 4}
+    order = {
+        "SHADOW_VALIDATION": 0,
+        "PR36_HOLDOUT": 1,
+        "PROMOTION_ELIGIBLE_BUT_FROZEN": 2,
+        "PROMOTED": 3,
+        "STATISTICAL_REJECTED": 4,
+        "ROLLED_BACK": 5,
+        "REJECTED": 6,
+    }
     return order.get(str(candidate.get("status") or ""), 9)
 
 
@@ -71,7 +92,8 @@ def _current_candidate(registry: Mapping[str, Any], engine_id: str) -> Mapping[s
         row for row in (registry.get("candidates") or {}).values()
         if isinstance(row, Mapping) and row.get("engine_id") == engine_id
     ]
-    active = [row for row in rows if row.get("status") in {"SHADOW_VALIDATION", "PROMOTED"}]
+    active_statuses = {"SHADOW_VALIDATION", "PR36_HOLDOUT", "PROMOTION_ELIGIBLE_BUT_FROZEN", "PROMOTED"}
+    active = [row for row in rows if row.get("status") in active_statuses]
     return sorted(active, key=lambda row: (_candidate_priority(row), str(row.get("created_at") or "")))[0] if active else None
 
 
@@ -81,9 +103,20 @@ def _progress(candidate: Mapping[str, Any] | None) -> dict[str, Any] | None:
     validation = candidate.get("validation") if isinstance(candidate.get("validation"), Mapping) else {}
     statistical = candidate.get("statistical_gate") if isinstance(candidate.get("statistical_gate"), Mapping) else {}
     metrics = statistical.get("metrics") if isinstance(statistical.get("metrics"), Mapping) else {}
-    paired_n = int(metrics.get("n") or validation.get("n") or 0)
-    target = 25
-    return {"paired_n": paired_n, "required_n": target, "progress_percent": min(100, round(100 * paired_n / target))}
+    if candidate.get("status") in {"PR36_HOLDOUT", "PROMOTION_ELIGIBLE_BUT_FROZEN"}:
+        observed = int(statistical.get("observed_n") or metrics.get("n") or 0)
+        target = int(statistical.get("target_n") or 30)
+        stage = "PR36_FRESH_HOLDOUT"
+    else:
+        observed = int(validation.get("n") or 0)
+        target = int(candidate.get("validation_target_n") or 25)
+        stage = "PR35_VALIDATION"
+    return {
+        "stage": stage,
+        "paired_n": observed,
+        "required_n": target,
+        "progress_percent": min(100, round(100 * observed / target)) if target else 0,
+    }
 
 
 def _engine_view(
@@ -129,6 +162,7 @@ def _engine_view(
             "parameter": candidate.get("parameter"),
             "from_value": candidate.get("from_value"),
             "to_value": candidate.get("to_value"),
+            "promotion_methodology_version": candidate.get("promotion_methodology_version"),
             "training_n": int((candidate.get("training") or {}).get("n") or 0),
             "validation_n": int(validation.get("n") or 0),
             "statistical_status": stat.get("status") or "WAITING_FOR_PR35_GATE",
@@ -163,9 +197,17 @@ def _timeline(state_dir: Path, limit: int = 12) -> list[dict[str, Any]]:
 
 def build(state_dir: Path, repo_root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     ap.verify_state(state_dir)
-    sg.verify_state(state_dir)
     registry = _read_json(state_dir / ap.REGISTRY_FILENAME, {})
-    auth = sg._load_authorizations(state_dir / sg.AUTH_FILENAME)
+    governance = registry.get("governance") if isinstance(registry.get("governance"), Mapping) else {}
+    methodology_v2 = int(governance.get("promotion_methodology_version") or 0) == 2
+    if methodology_v2:
+        sg2.verify(state_dir, repo_root)
+        auth = sg._load_authorizations(state_dir / sg.AUTH_FILENAME)
+        statistical_report = _read_json(state_dir / sg2.REPORT_FILENAME, {})
+    else:
+        sg.verify_state(state_dir)
+        auth = sg._load_authorizations(state_dir / sg.AUTH_FILENAME)
+        statistical_report = _read_json(state_dir / sg.REPORT_FILENAME, {})
     baselines = _read_json(repo_root / BASELINES_PATH, {})
     if baselines.get("schema_version") != "briefrooms-autonomous-policy-baselines-v1":
         raise ValueError("observatory baseline schema mismatch")
@@ -183,6 +225,9 @@ def build(state_dir: Path, repo_root: Path) -> tuple[dict[str, Any], dict[str, A
             "human_approval_required": False,
             "statistical_gate_required": True,
             "automatic_rollback": True,
+            "promotion_mode": governance.get("promotion_mode") or "LEGACY_PR35_PR36",
+            "production_promotion_enabled": governance.get("production_promotion_enabled", True),
+            "promotion_methodology_version": governance.get("promotion_methodology_version", 1),
         },
     }
     public_body["state_digest"] = _digest(public_body)
@@ -192,7 +237,7 @@ def build(state_dir: Path, repo_root: Path) -> tuple[dict[str, Any], dict[str, A
         "public": public_body,
         "registry": registry,
         "authorizations": auth,
-        "statistical_report": _read_json(state_dir / sg.REPORT_FILENAME, {}),
+        "statistical_report": statistical_report,
         "promotion_status": _read_json(state_dir / ap.STATUS_FILENAME, {}),
     }
     return public_body, private

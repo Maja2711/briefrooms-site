@@ -9,9 +9,26 @@ on:
   schedule:
     - cron: "27 5 * * 1-5"
     - cron: "27 17 * * 1-5"
+  pull_request:
+    paths:
+      - "scripts/autonomous_policy_promotion.py"
+      - "scripts/autonomous_policy_promotion_v2.py"
+      - "scripts/statistical_promotion_gate.py"
+      - "scripts/statistical_promotion_gate_v2.py"
+      - "scripts/policy_runtime_overlay.py"
+      - "scripts/statistical_policy_materializer.py"
+      - "scripts/autonomous_policy_observatory.py"
+      - "data/investments/statistical_promotion_gate_v2_config.json"
+      - "tests/test_autonomous_policy_promotion.py"
+      - "tests/test_statistical_promotion_gate.py"
+      - "tests/test_autonomous_policy_observatory.py"
+      - "tests/test_promotion_safety_v2.py"
+      - ".github/workflows/autonomous-policy-promotion.yml"
 
+# PR-A safety freeze: this workflow may evaluate challengers and publish a
+# read-only observatory snapshot, but it cannot write GPW/US production config.
 permissions:
-  contents: write
+  contents: read
   actions: write
 
 concurrency:
@@ -24,10 +41,47 @@ env:
   ARCHIVE_NAME: autonomous-policy-state.tgz
 
 jobs:
-  promote:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate PR-A promotion safety code
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/autonomous_policy_promotion.py \
+            scripts/autonomous_policy_promotion_v2.py \
+            scripts/statistical_promotion_gate.py \
+            scripts/statistical_promotion_gate_v2.py \
+            scripts/policy_runtime_overlay.py \
+            scripts/policy_repo_materializer.py \
+            scripts/statistical_policy_materializer.py \
+            scripts/autonomous_policy_observatory.py
+          python -m json.tool data/investments/statistical_promotion_gate_v2_config.json >/dev/null
+          python -m unittest \
+            tests.test_autonomous_policy_promotion \
+            tests.test_statistical_promotion_gate \
+            tests.test_autonomous_policy_observatory \
+            tests.test_promotion_safety_v2 -v
+
+  research:
     if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -39,30 +93,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Validate PR35-PR37 before touching durable state
-        run: |
-          set -euo pipefail
-          python -m py_compile \
-            scripts/policy_runtime_overlay.py \
-            scripts/policy_repo_materializer.py \
-            scripts/autonomous_policy_promotion.py \
-            scripts/statistical_promotion_gate.py \
-            scripts/statistical_policy_materializer.py \
-            scripts/autonomous_policy_observatory.py
-          python -m unittest \
-            tests.test_autonomous_policy_promotion \
-            tests.test_policy_repo_materializer \
-            tests.test_statistical_promotion_gate \
-            tests.test_autonomous_policy_observatory -v
-          python -m json.tool data/investments/autonomous_policy_baselines.json >/dev/null
-          python -m json.tool data/investments/statistical_promotion_gate_config.json >/dev/null
 
       - name: Prepare private runtime directories
         run: |
@@ -136,7 +172,7 @@ jobs:
             --json databaseId \
             --jq '.[0].databaseId // empty')"
           if [[ -z "$run_id" ]]; then
-            echo "No Learning Outcome Loop state yet; autonomous policy will activate with zero evidence."
+            echo "No Learning Outcome Loop state yet; PR-A will run with zero new evidence."
             exit 0
           fi
           rm -rf "$RUNNER_TEMP/learning-artifact"
@@ -152,122 +188,79 @@ jobs:
             python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
           fi
 
-      - name: Run PR35 autonomous candidate and rollback loop
+      - name: Run PR35 fixed-N prospective validation v2
         run: |
           set -euo pipefail
-          python scripts/autonomous_policy_promotion.py \
+          python scripts/autonomous_policy_promotion_v2.py \
             --state-dir "$POLICY_STATE_DIR" \
             --learning-state-dir "$LEARNING_STATE_DIR" \
             --repo-root .
-          python scripts/autonomous_policy_promotion.py \
+          python scripts/autonomous_policy_promotion_v2.py \
             --state-dir "$POLICY_STATE_DIR" \
             --verify
 
-      - name: Run PR36 Champion vs Challenger statistical gate
+      - name: Run PR36 fresh fixed-N confirmation holdout v2
         run: |
           set -euo pipefail
-          python scripts/statistical_promotion_gate.py \
+          python scripts/statistical_promotion_gate_v2.py \
             --state-dir "$POLICY_STATE_DIR" \
             --repo-root .
-          python scripts/statistical_promotion_gate.py \
+          python scripts/statistical_promotion_gate_v2.py \
             --state-dir "$POLICY_STATE_DIR" \
+            --repo-root . \
             --verify
 
-      - name: Publish PR37 Autonomous Policy Observatory
-        id: observatory
+      - name: Publish read-only observatory snapshot to private artifact only
         run: |
           set -euo pipefail
           python scripts/autonomous_policy_observatory.py \
             --state-dir "$POLICY_STATE_DIR" \
-            --repo-root . | tee "$RUNNER_TEMP/observatory.json"
+            --repo-root .
           python scripts/autonomous_policy_observatory.py \
             --state-dir "$POLICY_STATE_DIR" \
             --repo-root . \
             --verify
-          changed="$(python - <<'PY'
-          import json, os
-          from pathlib import Path
-          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'observatory.json').read_text())
-          print('true' if p.get('changed') else 'false')
-          PY
-          )"
-          echo "changed=$changed" >> "$GITHUB_OUTPUT"
-
-      - name: Materialize only statistically authorized policy
-        id: materialize
-        run: |
-          set -euo pipefail
-          python scripts/statistical_policy_materializer.py \
-            --registry "$POLICY_STATE_DIR/policy_registry.json" \
-            --authorizations "$POLICY_STATE_DIR/statistical_policy_authorizations.json" \
-            --repo-root . | tee "$RUNNER_TEMP/materialize.json"
-          changed="$(python - <<'PY'
-          import json, os
-          from pathlib import Path
-          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'materialize.json').read_text())
-          print('true' if p.get('changed') else 'false')
-          PY
-          )"
-          echo "changed=$changed" >> "$GITHUB_OUTPUT"
-
-      - name: Commit autonomous policy or observatory state to production main
-        if: steps.materialize.outputs.changed == 'true' || steps.observatory.outputs.changed == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          test -s data/public/autonomous_policy_observatory.json
+          cp data/public/autonomous_policy_observatory.json \
+            "$POLICY_STATE_DIR/autonomous_policy_observatory_public.json"
+          git diff --exit-code -- \
             data/investments/gpw_daily_pick_config.json \
-            data/investments/us_daily_stock_config.json \
-            data/public/autonomous_policy_observatory.json
-          git diff --cached --name-only
-          test "$(git diff --cached --name-only | grep -vcE '^(data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json|data/public/autonomous_policy_observatory.json)$' || true)" -eq 0
-          git diff --cached --quiet && exit 0
-          git commit -m "Update autonomous policy and observatory state"
-          for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "Autonomous production state writeback complete: $(git rev-parse HEAD)"
-              exit 0
-            fi
-            sleep $((attempt * 4))
-          done
-          exit 1
+            data/investments/us_daily_stock_config.json
 
-      - name: Assert bounded statistically gated autonomy contract
+      - name: Assert production promotion is frozen fail-closed
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, os
           from pathlib import Path
+          from policy_runtime_overlay import apply_active_policy, PROMOTION_FREEZE_STATUS
+          from statistical_policy_materializer import materialize
+
           root=Path(os.environ['POLICY_STATE_DIR'])
-          registry=json.loads((root/'policy_registry.json').read_text())
-          status=json.loads((root/'policy_promotion_status.json').read_text())
-          auth=json.loads((root/'statistical_policy_authorizations.json').read_text())
-          observatory=json.loads(Path('data/public/autonomous_policy_observatory.json').read_text())
-          controls=registry['controls']
-          assert controls['autonomous_promotion_enabled'] is True
-          assert controls['automatic_rollback_enabled'] is True
-          assert controls['code_mutation_enabled'] is False
-          assert controls['arbitrary_parameter_mutation_enabled'] is False
-          assert controls['trade_execution_enabled'] is False
-          assert controls['historical_backfill_enabled'] is False
-          assert controls['same_sample_train_and_validate_enabled'] is False
-          assert controls['multi_parameter_candidate_enabled'] is False
-          assert controls['llm_policy_mutation_enabled'] is False
-          assert set(registry['engines']) == {'gpw_daily','us_daily'}
-          assert observatory['mode']=='read_only_observatory'
-          for engine_id,state in registry['engines'].items():
-              if int(state.get('revision') or 0) > 0:
-                  row=auth['authorizations'].get(state['policy_id'])
-                  assert row and row['status']=='PASS'
-                  assert row['effective_policy_version']==state['effective_policy_version']
-                  assert row['candidate_id']==state['source_candidate_id']
-          print('PR35_PR37_BOUNDED_AUTONOMY_PASS')
-          print(json.dumps(status['active_policies'], sort_keys=True))
+          registry_path=root/'policy_registry.json'
+          registry=json.loads(registry_path.read_text())
+          governance=registry['governance']
+          assert governance['production_promotion_enabled'] is False
+          assert governance['production_materialization_enabled'] is False
+          assert governance['promotion_mode']=='FROZEN_FOR_PROSPECTIVE_VALIDATION'
+          assert governance['promotion_methodology_version']==2
+
+          baselines={
+              'gpw_daily': json.loads(Path('data/investments/gpw_daily_pick_config.json').read_text()),
+              'us_daily': json.loads(Path('data/investments/us_daily_stock_config.json').read_text()),
+          }
+          for engine_id, baseline in baselines.items():
+              effective=apply_active_policy(engine_id, baseline, registry_path=registry_path)
+              assert effective['policy_version']==baseline['policy_version']
+              assert effective['_autonomous_policy']['status']==PROMOTION_FREEZE_STATUS
+
+          result=materialize(registry_path, root/'not-required-while-frozen.json', Path('.'))
+          assert result['changed'] is False
+          assert result['status']==PROMOTION_FREEZE_STATUS
+          print('PR_A_PROMOTION_FREEZE_PASS')
           PY
 
-      - name: Pack private autonomous policy state
+      - name: Pack private autonomous policy research state
         run: |
           set -euo pipefail
           tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$POLICY_STATE_DIR" .
