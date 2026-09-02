@@ -12,9 +12,11 @@ on:
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/daily-stock-markets-public.js"
+      - "scripts/daily-stock-position-ux.js"
       - "scripts/us_daily_stock.py"
       - "scripts/us_daily_stock_runtime.py"
       - "scripts/us_daily_stock_final_selector.py"
+      - "scripts/us_daily_stock_integrity.py"
       - "scripts/us_daily_stock_position_lifecycle.py"
       - "scripts/us_daily_stock_position_monitor.py"
       - "scripts/us-daily-stock-public.js"
@@ -25,6 +27,8 @@ on:
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_us_daily_stock_final_selector.py"
+      - "tests/test_us_daily_stock_integrity.py"
+      - "tests/test_us_daily_stock_monitor_first_touch.py"
       - "tests/test_us_daily_stock_position_lifecycle.py"
       - "tests/test_gpw_daily_pick_ui.py"
   schedule:
@@ -75,7 +79,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Test US Daily core, final selector and lifecycle
+      - name: Test US Daily core, ledger, first-touch monitor and lifecycle
         run: |
           set -euo pipefail
           python -m unittest \
@@ -83,6 +87,8 @@ jobs:
             tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_us_daily_stock \
             tests.test_us_daily_stock_final_selector \
+            tests.test_us_daily_stock_integrity \
+            tests.test_us_daily_stock_monitor_first_touch \
             tests.test_us_daily_stock_position_lifecycle \
             tests.test_gpw_daily_pick_ui -v
           python -m py_compile \
@@ -94,6 +100,7 @@ jobs:
             scripts/us_daily_stock.py \
             scripts/us_daily_stock_runtime.py \
             scripts/us_daily_stock_final_selector.py \
+            scripts/us_daily_stock_integrity.py \
             scripts/us_daily_stock_position_lifecycle.py \
             scripts/us_daily_stock_position_monitor.py \
             scripts/install_us_daily_stock_en.py
@@ -101,6 +108,7 @@ jobs:
           python -m json.tool data/investments/us_daily_stock.json >/dev/null
           node --check scripts/us-daily-stock-public.js
           node --check scripts/daily-stock-markets-public.js
+          node --check scripts/daily-stock-position-ux.js
 
       - name: Install widget on English 10K page
         run: python scripts/install_us_daily_stock_en.py
@@ -145,6 +153,12 @@ jobs:
           set -euo pipefail
           python scripts/daily_stock_rejected_candidate_freeze.py --market us
           python scripts/daily_stock_rejected_candidate_freeze.py --market us --verify
+
+      - name: Repair durable US position ledger and weekly holding deadline
+        run: |
+          set -euo pipefail
+          python scripts/us_daily_stock_integrity.py
+          python scripts/us_daily_stock_integrity.py --verify
 
       - name: Rebuild shared GPW and US Daily Stock history index
         run: python scripts/build_daily_stock_history_index.py
@@ -197,7 +211,7 @@ jobs:
           import json,time,urllib.request
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/5.0','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/6.0','Cache-Control':'no-cache'}
           now=datetime.now(ZoneInfo('America/New_York'))
           today=now.date().isoformat()
           last=None
@@ -209,13 +223,16 @@ jobs:
                   last=data
                   with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers),timeout=20) as r:
                       html=r.read().decode('utf-8',errors='replace')
-                  if data.get('date') == today and 'us-daily-stock-root' in html and 'us-daily-stock-public.js?v=2' in html:
+                  position=data.get('position') or {}
+                  selection=data.get('selection') or {}
+                  current_ok=data.get('date') == today
+                  open_ok=(str(position.get('status') or '').upper() != 'OPEN') or bool(selection.get('symbol'))
+                  if current_ok and open_ok and 'us-daily-stock-root' in html and 'us-daily-stock-public.js?v=2' in html:
                       action=data.get('position_action') or data.get('decision')
-                      symbol=(data.get('selection') or {}).get('symbol')
-                      print('PRODUCTION_US_DAILY_STOCK_OK',action,symbol)
+                      print('PRODUCTION_US_DAILY_STOCK_OK',action,selection.get('symbol'),position.get('status'),selection.get('valid_until'))
                       raise SystemExit(0)
               except Exception as exc:
                   print('attempt',attempt,type(exc).__name__,str(exc)[:150])
               time.sleep(10)
-          raise SystemExit(f'Production did not expose current US Daily Stock in time: {last}')
+          raise SystemExit(f'Production did not expose current durable US Daily state in time: {last}')
           PY
