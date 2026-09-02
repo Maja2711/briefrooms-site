@@ -1,0 +1,201 @@
+name: Build Architecture Audit Package
+
+on:
+  push:
+    branches:
+      - ops/architecture-audit-package-20260902
+    paths:
+      - .github/workflows/build-architecture-audit-package.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build curated architecture package
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDITED_MAIN_SHA="dbb3f6f0f9e2851705a0182b42760382de1cb8c9"
+          OUT="briefrooms-architecture-audit"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          cat > "$OUT/AUDIT_BRIEF.md" <<'EOF'
+          # BriefRooms architecture audit package
+
+          ## Audit objective
+          Perform an adversarial architecture review of BriefRooms. Do not redesign the system by default. First identify concrete failure modes, evidence gaps, hidden coupling, data leakage, authority violations, misleading evaluation semantics, and unnecessary complexity.
+
+          Classify every finding as:
+          - P0 — critical: can invalidate results, leak future information, corrupt decisions/outcomes, create false evidence/alpha, or bypass authority/risk boundaries.
+          - P1 — important: materially weakens reliability, reproducibility, observability, evaluation or maintainability.
+          - P2 — improvement: useful but not required before the current prospective evidence collection phase.
+
+          For every finding provide: component/file, failure scenario, why it matters, evidence from code/config, and the smallest safe remediation.
+
+          ## Architecture under review
+          Intended evidence loop:
+
+          Canonical market/source data
+            -> Belief Core
+            -> EpistemicState
+            -> consumer engines (BRACE / WES / research engines)
+            -> DecisionEnvelope / per-engine RiskPolicy
+            -> shadow/paper execution
+            -> realized outcome
+            -> Learning Ledger / Experience Store
+            -> Experiment Registry / evaluators
+            -> governed promotion decision
+
+          Experience Store is append-oriented research memory and has zero production authority. Experiment Registry is read-only and has zero production authority. Frontend Lab views are observability only.
+
+          ## Current governance assumptions
+          1. No automatic challenger promotion into production.
+          2. Risk policy belongs inside each engine, not one central global trading policy.
+          3. Prospective evidence is preferred; historical backfill must not be presented as prospective evidence.
+          4. AI Tournament is intentionally excluded from the learning/Experiment Registry architecture; it is a separate entertainment/demo module.
+          5. Market benchmark semantics are asset-specific:
+             - equities: a broad index/ETF such as S&P 500/SPY may be used when economically meaningful and frozen before evaluation;
+             - EUR/USD and other FX: no invented market benchmark;
+             - Bitcoin/crypto: no invented market benchmark;
+             - forecasting/learning systems may use baselines (random, persistence, frozen model), but those are not market benchmarks.
+          6. Positive raw return must not automatically be called formal alpha.
+
+          ## Required review questions
+          1. Can future information enter any snapshot, belief, state, decision, replay, training example or outcome pairing?
+          2. Is source -> observation -> belief/state -> decision -> execution -> outcome lineage reconstructable and immutable enough for audit?
+          3. Can any BRACE/WES/lab path bypass canonical DecisionEnvelope, per-engine RiskPolicy, or governed promotion?
+          4. Can duplicate, delayed, reordered, stale or partially missing events create false Experience Store records?
+          5. Are decision_time, signal_time, execution_time and outcome_time semantically separated everywhere that matters?
+          6. Are transaction costs, spread, slippage, swaps/rolls and fill assumptions sufficiently realistic and versioned?
+          7. Can reward/evaluation logic be gamed by FLAT decisions, selective resolution, missing outcomes, survivorship, regime filtering or sample-selection bias?
+          8. Are baselines/benchmarks frozen prospectively and semantically correct for each asset class?
+          9. Are confidence, Brier, directional accuracy, PnL, raw edge and formal alpha clearly separated?
+          10. Does any research/shadow component have unintended write authority into production state?
+          11. Are workflow artifacts/state durable enough to survive skipped runs, retries, concurrency and artifact expiry?
+          12. Is Champion/Challenger promotion statistically and operationally guarded against overfitting and repeated-testing bias?
+          13. Are Belief Core / EpistemicState useful or merely adding complexity? Identify an ablation plan that can prove incremental value.
+          14. Are there dead adapters, duplicated state stores, overlapping workflows or multiple sources of truth?
+          15. What should be frozen now so the next 6–12 weeks of prospective evidence remain interpretable?
+
+          ## Output requested from auditor
+          - Executive summary: max 10 findings.
+          - P0/P1/P2 table.
+          - Data-lineage diagram inferred from code.
+          - Authority/write-path diagram.
+          - Evaluation and anti-leakage critique.
+          - State durability / GitHub Actions failure-mode critique.
+          - Complexity/dead-code findings.
+          - Minimal remediation plan, explicitly separating "fix now" from "do not change during evidence collection".
+          - List of claims that cannot be verified from this package and exactly what additional file/data would be needed.
+          EOF
+
+          cat > "$OUT/ARCHITECTURE_MAP.md" <<'EOF'
+          # Architecture map for reviewer
+
+          ## Logical layers
+          - Data and market state: canonical snapshots, instrument identity, source quality and timestamps.
+          - Belief layer: Belief Core, calibration, ARIS shadow representation, epistemic state/causal graph.
+          - Decision engines: BRACE, WES, EURUSD A/B/C, GSE, TimesFM and research strategy candidates.
+          - Governance: DecisionEnvelope conventions, per-engine risk, promotion gates and observatories.
+          - Execution/evaluation: paper/shadow execution, outcome loops, counterfactual evaluation and statistical gates.
+          - Memory: Learning Ledger, Experience Store and experiment state.
+          - Observability: Experiment Registry and Experience Store public read-only projections.
+
+          ## Important distinction
+          A market benchmark is not itself an experiment. Baselines are references used to judge an experiment. AI Tournament is not part of the learning architecture.
+          EOF
+
+          cat > "$OUT/SOURCE_COMMIT.txt" <<EOF
+          Repository: Maja2711/briefrooms-site
+          Audited production main SHA: ${AUDITED_MAIN_SHA}
+          Packaging branch: ${GITHUB_REF_NAME}
+          Packaging workflow SHA: ${GITHUB_SHA}
+          Generated UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+
+          copy_one() {
+            local f="$1"
+            [ -f "$f" ] || return 0
+            mkdir -p "$OUT/$(dirname "$f")"
+            cp "$f" "$OUT/$f"
+          }
+
+          # Core top-level context/config when present.
+          for f in README.md pyproject.toml requirements.txt requirements-dev.txt package.json; do copy_one "$f"; done
+
+          # Curated scripts and frontend observability modules.
+          SCRIPT_RE='(belief|epistemic|brace|wes|gse|timesfm|experience_store|learning_|shadow_|experiment_registry|portfolio_10k_(execution|runtime)|investments_research_lab|decision|instrument|market_snapshot|risk|execution|promotion|counterfactual|contextual|eurusd_abc)'
+          while IFS= read -r f; do copy_one "$f"; done < <(
+            find scripts -maxdepth 1 -type f \( -name '*.py' -o -name '*.js' \) -print 2>/dev/null \
+              | grep -Ei "$SCRIPT_RE" \
+              | grep -Ev '(ai_tournament|architecture_audit)' || true
+          )
+
+          # Architecture/evaluation workflows, not unrelated site publishing jobs.
+          WF_RE='(belief|epistemic|brace|wes|gse|timesfm|experience-store|learning-outcome|shadow-alpha|experiment-registry|research-lab|autonomous-policy|promotion|statistical|counterfactual|contextual|eurusd-abc|daily-eurusd|gpw-daily|us-daily|portfolio-10k)'
+          while IFS= read -r f; do copy_one "$f"; done < <(
+            find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print 2>/dev/null \
+              | grep -Ei "$WF_RE" \
+              | grep -Ev '(ai-tournament|build-architecture-audit-package)' || true
+          )
+
+          # Tests that exercise the same architecture surfaces.
+          TEST_RE='(belief|epistemic|brace|wes|gse|timesfm|experience|learning|shadow|experiment|promotion|counterfactual|contextual|eurusd|execution|risk|instrument|snapshot)'
+          while IFS= read -r f; do copy_one "$f"; done < <(
+            find tests -type f -name '*.py' -print 2>/dev/null \
+              | grep -Ei "$TEST_RE" \
+              | grep -Ev 'ai_tournament' || true
+          )
+
+          # Relevant small public/research state snapshots. Exclude caches and AI Tournament.
+          DATA_RE='(belief|epistemic|brace|wes|gse|timesfm|experience|learning|shadow|experiment|eurusd|gpw_daily|us_daily|portfolio_10k|promotion)'
+          while IFS= read -r f; do copy_one "$f"; done < <(
+            find data -type f \( -name '*.json' -o -name '*.jsonl' \) -size -800k -print 2>/dev/null \
+              | grep -Ei "$DATA_RE" \
+              | grep -Ev '(ai_tournament|/cache/|\.cache)' || true
+          )
+
+          # Frontend read-only Lab surfaces.
+          for f in assets/experiment-registry.css assets/experience-store.css; do copy_one "$f"; done
+
+          # Relevant docs, if repository has them.
+          if [ -d docs ]; then
+            while IFS= read -r f; do copy_one "$f"; done < <(
+              find docs -type f \( -name '*.md' -o -name '*.txt' \) -print \
+                | grep -Ei '(architecture|belief|epistemic|brace|wes|gse|learning|experience|experiment|risk|execution|promotion)' || true
+            )
+          fi
+
+          # Build review-friendly inventories.
+          (cd "$OUT" && find . -type f | sort) > "$OUT/MANIFEST.txt"
+          {
+            echo '# Relevant repository tree (selected architecture package)'
+            echo
+            sed 's#^#- #' "$OUT/MANIFEST.txt"
+          } > "$OUT/SELECTED_TREE.md"
+
+          echo "Selected files: $(wc -l < "$OUT/MANIFEST.txt")"
+          du -sh "$OUT"
+          zip -qr "briefrooms-architecture-audit-${AUDITED_MAIN_SHA:0:12}.zip" "$OUT"
+          sha256sum "briefrooms-architecture-audit-${AUDITED_MAIN_SHA:0:12}.zip" > "briefrooms-architecture-audit-${AUDITED_MAIN_SHA:0:12}.zip.sha256"
+          ls -lh briefrooms-architecture-audit-*.zip*
+
+      - name: Upload audit package
+        uses: actions/upload-artifact@v4
+        with:
+          name: briefrooms-architecture-audit-package
+          path: |
+            briefrooms-architecture-audit-*.zip
+            briefrooms-architecture-audit-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
