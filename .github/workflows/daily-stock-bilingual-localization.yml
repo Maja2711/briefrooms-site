@@ -2,6 +2,15 @@ name: Localize Daily Stock PL EN
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/daily-stock-bilingual-localization.yml"
+      - "scripts/daily_stock_bilingual_localization.py"
+      - "scripts/daily-stock-language-guard.js"
+      - "scripts/daily-gpw-en-public.js"
+      - "tests/test_daily_stock_bilingual_localization.py"
+      - "pl/inwestycje/daily-trading.html"
+      - "en/investing/daily-trading.html"
   push:
     branches: [main]
     paths:
@@ -26,7 +35,7 @@ permissions:
   pages: write
 
 concurrency:
-  group: daily-stock-bilingual-localization
+  group: daily-stock-bilingual-localization-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}
   cancel-in-progress: true
 
 jobs:
@@ -42,10 +51,10 @@ jobs:
       GEMINI_MIN_INTERVAL_SECONDS: "8"
 
     steps:
-      - name: Check out main
+      - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -99,6 +108,7 @@ jobs:
 
       - name: Commit localized display state
         id: commit
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -123,7 +133,7 @@ jobs:
           exit 1
 
       - name: Request fresh Pages build
-        if: steps.commit.outputs.changed == 'true' || github.event_name == 'push'
+        if: github.event_name != 'pull_request' && (steps.commit.outputs.changed == 'true' || github.event_name == 'push')
         run: |
           set -euo pipefail
           for attempt in $(seq 1 18); do
