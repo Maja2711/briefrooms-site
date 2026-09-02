@@ -5,6 +5,11 @@ The registry is a read-only research inventory. It summarizes logical experiment
 and challengers from their existing public/research state files. It does not
 change production decisions, tune models, promote challengers, or infer alpha
 from raw positive returns.
+
+Market benchmarks are comparison metadata, not an experiment category. They are
+used only where they are economically meaningful (for example broad equity
+indices/ETFs for equity strategies). FX and crypto strategies are evaluated on
+absolute/net edge and risk metrics without inventing a benchmark.
 """
 from __future__ import annotations
 
@@ -25,7 +30,7 @@ ALLOWED_STATUSES = {
     "KILL",
     "ERROR",
 }
-ALLOWED_CATEGORIES = {"trading", "forecasting", "belief", "learning", "benchmark"}
+ALLOWED_CATEGORIES = {"trading", "forecasting", "belief", "learning"}
 
 
 def _load(root: Path, relative: str) -> dict[str, Any]:
@@ -145,7 +150,10 @@ def _research_lab(root: Path) -> dict[str, Any]:
         "promotion_registry_count": _int(data.get("promotion_registry_count")),
         "governance": data.get("governance"),
     }
-    row["notes"] = ["Brak automatycznej promocji do produkcji.", "Wynik kandydata wymaga holdout, walk-forward, kosztów i stabilności reżimowej."]
+    row["notes"] = [
+        "Brak automatycznej promocji do produkcji.",
+        "Wynik kandydata wymaga holdout, walk-forward, kosztów i stabilności reżimowej.",
+    ]
     return row
 
 
@@ -192,13 +200,14 @@ def _eurusd_abc(root: Path) -> dict[str, Any]:
             "mean_signed_return_bps_1h": (sum(signed_bps) / len(signed_bps)) if signed_bps else None,
         }
     effective = min((v["resolved_1h"] for v in arm_stats.values()), default=0)
-    if effective == 0 and captures is not None:
-        effective = 0
     row["sample_count"] = effective
     row["sample_unit"] = "resolved_1h_comparisons_per_arm"
     row["last_updated"] = _iso(data.get("generated_at"))
     row["status"] = "RUNNING" if effective >= 40 else "INSUFFICIENT_DATA"
-    best = max((v.get("directional_accuracy_1h") for v in arm_stats.values() if v.get("directional_accuracy_1h") is not None), default=None)
+    best = max(
+        (v.get("directional_accuracy_1h") for v in arm_stats.values() if v.get("directional_accuracy_1h") is not None),
+        default=None,
+    )
     row["primary_metric"] = _metric(
         "Najlepsza trafność kierunku 1h",
         best,
@@ -206,7 +215,11 @@ def _eurusd_abc(root: Path) -> dict[str, Any]:
         "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
     )
     row["details"] = {"captures": captures, "arms": arm_stats, "mode": data.get("mode")}
-    row["notes"] = ["FLAT i nierozstrzygnięte obserwacje nie są sztucznie liczone jako trafienia.", "Ocena handlowa powinna docelowo pochodzić z Experience Store po kosztach."]
+    row["notes"] = [
+        "FLAT i nierozstrzygnięte obserwacje nie są sztucznie liczone jako trafienia.",
+        "EUR/USD nie ma naturalnego benchmarku rynkowego; ocena handlowa pochodzi z absolutnego wyniku po kosztach i metryk ryzyka.",
+        "Ocena handlowa powinna docelowo pochodzić z Experience Store po kosztach.",
+    ]
     return row
 
 
@@ -242,9 +255,10 @@ def _timesfm(root: Path) -> dict[str, Any]:
     row["last_updated"] = _iso(data.get("generated_at"))
     row["status"] = "RUNNING" if resolved >= 60 else "INSUFFICIENT_DATA"
     row["primary_metric"] = _metric("Trafność kierunku 1h", accuracy, "fraction", "Miara forecast skill; nie formalna alpha.")
-    row["benchmark"] = _metric("Losowy kierunek", 0.5, "fraction", "Orientacyjny baseline kierunkowy, nie benchmark PnL.")
+    row["benchmark"] = _metric("Losowy kierunek", 0.5, "fraction", "Baseline prognostyczny, nie benchmark rynkowy/PnL.")
     row["delta_vs_benchmark"] = (accuracy - 0.5) if accuracy is not None else None
     row["details"] = {"research_only": experiment.get("research_only"), "decision_influence": experiment.get("decision_influence")}
+    row["notes"] = ["Dla EUR/USD nie przypisujemy sztucznego benchmarku rynkowego."]
     return row
 
 
@@ -278,7 +292,12 @@ def _gse(root: Path) -> dict[str, Any]:
         row["status"] = "CONTINUE"
     else:
         row["status"] = "RUNNING"
-    row["primary_metric"] = _metric("Poprawa Brier score vs baseline", improvement, "percent", "Niższy Brier jest lepszy; wartość pokazuje poprawę względem zamrożonego baseline'u.")
+    row["primary_metric"] = _metric(
+        "Poprawa Brier score vs baseline",
+        improvement,
+        "percent",
+        "Niższy Brier jest lepszy; wartość pokazuje poprawę względem zamrożonego baseline'u.",
+    )
     row["benchmark"] = _metric("Baseline Brier", _float(best.get("baseline_brier")), "score")
     row["delta_vs_benchmark"] = improvement
     row["details"] = {
@@ -318,13 +337,19 @@ def _brace_spx(root: Path) -> dict[str, Any]:
         row["status"] = "PROMOTE"
     else:
         row["status"] = "RUNNING"
-    row["primary_metric"] = _metric("Postęp warm-up", (n / minimum) if n is not None and minimum else None, "fraction", "Nie jest to wynik PnL; pełna ocena następuje po wymaganej liczbie obserwacji.")
+    row["primary_metric"] = _metric(
+        "Postęp warm-up",
+        (n / minimum) if n is not None and minimum else None,
+        "fraction",
+        "Nie jest to wynik PnL; pełna ocena następuje po wymaganej liczbie obserwacji.",
+    )
     row["details"] = {
         "observations_remaining": _int(shadow.get("observations_remaining")),
         "shadow_status": shadow.get("status"),
         "strict_gate_passed": development.get("strict_gate_passed"),
         "live_orders": shadow.get("live_orders"),
     }
+    row["notes"] = ["Dla strategii akcyjnych benchmark rynkowy może być szerokim indeksem lub ETF-em, np. S&P 500 / SPY, dobranym przed eksperymentem."]
     return row
 
 
@@ -377,63 +402,21 @@ def _aris(_: Path) -> dict[str, Any]:
     row["sample_count"] = None
     row["sample_unit"] = "shadow_reports"
     row["status"] = "INSUFFICIENT_DATA"
-    row["primary_metric"] = _metric("Wartość inkrementalna", None, None, "Raport jest przechowywany jako artefakt workflow; brak kanonicznej publicznej projekcji metryk w repo.")
+    row["primary_metric"] = _metric(
+        "Wartość inkrementalna",
+        None,
+        None,
+        "Raport jest przechowywany jako artefakt workflow; brak kanonicznej publicznej projekcji metryk w repo.",
+    )
     row["notes"] = ["Zero decision influence.", "Zero Belief Core writeback.", "Zero automatic tuning/promotion."]
     return row
 
 
-def _ai_tournament(root: Path) -> dict[str, Any]:
-    src = "data/ai_tournament/public.json"
-    data = _load(root, src)
-    tournament = data.get("tournament") if isinstance(data.get("tournament"), Mapping) else {}
-    leaderboard = data.get("leaderboard") if isinstance(data.get("leaderboard"), list) else []
-    benchmark = data.get("benchmark") if isinstance(data.get("benchmark"), Mapping) else {}
-    row = _base(
-        experiment_id="ai-tournament-2026-02",
-        name=str(tournament.get("title_pl") or "AI Tournament"),
-        category="benchmark",
-        family="Portfolio10K",
-        version=str(data.get("engine_version") or "AI Tournament"),
-        started_at=str(tournament.get("start_date") or "") or None,
-        minimum_sample=20,
-        purpose="Zamrożony buy-and-hold benchmark agentów AI na identycznym kapitale, zasadach i kosztach.",
-        source=src,
-    )
-    latest = str(data.get("latest_session") or "")
-    start = str(tournament.get("start_date") or "")
-    sessions = None
-    try:
-        if start and latest:
-            d0 = datetime.fromisoformat(start).date()
-            d1 = datetime.fromisoformat(latest).date()
-            sessions = sum(1 for i in range((d1 - d0).days + 1) if (d0.fromordinal(d0.toordinal() + i)).weekday() < 5)
-    except ValueError:
-        sessions = None
-    best = None
-    if leaderboard:
-        returns = []
-        for participant in leaderboard:
-            if not isinstance(participant, Mapping):
-                continue
-            metrics = participant.get("metrics") if isinstance(participant.get("metrics"), Mapping) else {}
-            value = _float(metrics.get("alpha_pct"))
-            if value is not None:
-                returns.append(value)
-        if returns:
-            best = max(returns)
-    row["sample_count"] = sessions
-    row["sample_unit"] = "business_days_elapsed"
-    row["last_updated"] = _iso(data.get("generated_at"))
-    row["status"] = "RUNNING" if str(tournament.get("status") or "").upper() == "ACTIVE" else "CONTINUE"
-    row["primary_metric"] = _metric("Najlepsza alpha vs SPY", best, "fraction", "Publiczny benchmark kampanii; nie służy do automatycznej promocji modelu.")
-    row["benchmark"] = _metric("SPY return", _float(benchmark.get("return_pct_usd")), "fraction")
-    row["delta_vs_benchmark"] = best
-    row["details"] = {"end_date": tournament.get("end_date"), "participants": len(data.get("participants", [])) if isinstance(data.get("participants"), list) else None, "paper_trading_only": tournament.get("paper_trading_only")}
-    return row
-
-
 def build_registry(root: Path) -> dict[str, Any]:
-    builders = (_research_lab, _eurusd_abc, _timesfm, _gse, _brace_spx, _wes, _aris, _ai_tournament)
+    # AI Tournament is deliberately excluded. It is a public one-off/fun
+    # comparison of frozen LLM picks, not a learning experiment and not an
+    # input into Experience Store, promotion gates or future model training.
+    builders = (_research_lab, _eurusd_abc, _timesfm, _gse, _brace_spx, _wes, _aris)
     experiments = [builder(root) for builder in builders]
     experiments.sort(key=lambda item: (str(item.get("category")), str(item.get("name"))))
 
@@ -445,7 +428,11 @@ def build_registry(root: Path) -> dict[str, Any]:
                 parsed.append(datetime.fromisoformat(value.replace("Z", "+00:00")))
             except ValueError:
                 pass
-    generated_at = max(parsed).astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if parsed else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    generated_at = (
+        max(parsed).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        if parsed
+        else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
 
     for item in experiments:
         if item["status"] not in ALLOWED_STATUSES:
@@ -464,6 +451,26 @@ def build_registry(root: Path) -> dict[str, Any]:
             "automatic_promotion": False,
             "purpose": "one source of truth for logical BriefRooms experiments; not a workflow inventory",
         },
+        "benchmark_policy": {
+            "benchmark_is_experiment_category": False,
+            "equities": {
+                "applicability": "WHEN_ECONOMICALLY_MEANINGFUL",
+                "examples": ["broad equity index", "S&P 500", "SPY or equivalent ETF"],
+                "rule": "Choose and freeze the benchmark before evaluation; use benchmark-adjusted return only when the comparison is economically valid.",
+            },
+            "fx": {
+                "applicability": "NOT_APPLICABLE",
+                "rule": "Do not invent a market benchmark for EUR/USD or other FX pairs; evaluate net return/edge, drawdown, costs, calibration and risk-adjusted metrics.",
+            },
+            "crypto": {
+                "applicability": "NOT_APPLICABLE",
+                "rule": "Do not invent a market benchmark for Bitcoin/crypto trading; evaluate net return/edge, drawdown, costs and risk-adjusted metrics.",
+            },
+            "forecasting_and_learning": {
+                "applicability": "BASELINE_NOT_MARKET_BENCHMARK",
+                "rule": "Random, persistence or frozen-model comparisons are baselines/references, not market benchmarks.",
+            },
+        },
         "status_policy": {
             "allowed": sorted(ALLOWED_STATUSES),
             "meaning": {
@@ -471,7 +478,7 @@ def build_registry(root: Path) -> dict[str, Any]:
                 "INSUFFICIENT_DATA": "Próbka jest za mała albo brak kanonicznej metryki do decyzji.",
                 "CONTINUE": "Istnieje interesujący sygnał; wymagany dalszy shadow/holdout lub przegląd człowieka.",
                 "PROMOTE": "Spełnione zdefiniowane bramki; nadal wymagana odrębna kontrola promocji.",
-                "PARK": "Brak wystarczającej wartości obecnie; zachować kod i stan bez dalszego kosztu runtime.",
+                "PARK": "Brak wystarczającej wartości obecnie; zachować kod i stan bez dalszego kosztu runtime/API.",
                 "KILL": "Eksperyment zakończony i nie powinien dalej zużywać runtime/API.",
                 "ERROR": "Nie można wiarygodnie odczytać lub sklasyfikować eksperymentu.",
             },
