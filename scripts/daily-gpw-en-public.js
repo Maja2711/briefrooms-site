@@ -18,6 +18,15 @@
     } catch (_) { return "—"; }
   };
 
+  const englishFallback = (s) => {
+    const name = String(s?.name || s?.ticker || s?.symbol || "The selected stock");
+    return {
+      thesis: `${name} is the active GPW Daily Trade selection after the highest validated ranking among eligible Polish-market candidates.`,
+      why_now: "The selection combines relative momentum, market and sector context, liquidity, risk/reward, current-session confirmation and the strategy's historical evidence.",
+      activation: "Enter only inside the stated entry zone and do not chase the price above its upper limit."
+    };
+  };
+
   const render = (p) => {
     const decision = String(p?.decision || "");
     const isTrade = decision === "TRANSAKCJA" && p?.selection;
@@ -27,10 +36,16 @@
     if (isTrade) {
       const ticker = s.ticker || s.symbol || "—";
       const entry = Array.isArray(s.entry_zone) ? `${money(s.entry_zone[0])}–${money(s.entry_zone[1])}` : money(s.reference_price);
+      const fallback = englishFallback(s);
+      const loc = s?.localized?.en || fallback;
+      const thesis = String(loc.thesis || fallback.thesis);
+      const why = String(loc.why_now || fallback.why_now);
+      const activation = String(loc.activation || fallback.activation);
       body = `<div class="dsm-pick"><div class="dsm-symbol"><strong>${esc(ticker)}</strong><span>${esc(s.name||"")}</span></div><span class="dsm-score">Score <b>${Number(s.score||0).toFixed(1)}</b>/100</span></div>
-      <p class="dsm-thesis"><b>1–2 session thesis:</b> <span class="dsm-original-badge">PL original</span>${esc(s.thesis||"")}</p>
-      <p class="dsm-why"><b>Why now:</b> <span class="dsm-original-badge">PL original</span>${esc(s.why_now||"")}</p>
-      <div class="dsm-levels"><div class="dsm-level"><small>Entry zone</small><b>${entry}</b></div><div class="dsm-level stop"><small>Stop</small><b>${money(s.stop)}</b></div><div class="dsm-level target"><small>Target</small><b>${money(s.target)}</b></div></div>`;
+      <p class="dsm-thesis"><b>1–2 session thesis:</b> ${esc(thesis)}</p>
+      <p class="dsm-why"><b>Why now:</b> ${esc(why)}</p>
+      <div class="dsm-levels"><div class="dsm-level"><small>Entry zone</small><b>${entry}</b></div><div class="dsm-level stop"><small>Stop</small><b>${money(s.stop)}</b></div><div class="dsm-level target"><small>Target</small><b>${money(s.target)}</b></div></div>
+      <p class="dsm-activation">${esc(activation)}</p>`;
     } else {
       const reason = decision === "BRAK_TRANSAKCJI"
         ? "Market data is complete, but no stock passed the liquidity and risk screening."
