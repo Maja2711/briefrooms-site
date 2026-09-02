@@ -76,26 +76,30 @@ jobs:
           python -m unittest tests.test_shadow_alpha_experience_store -v
           python -m unittest tests.test_shadow_trade_experience_bridge -v
 
-      - name: Resolve Learning Outcome Loop run
+      - name: Resolve latest durable Learning Outcome Loop artifact
         if: github.event_name != 'pull_request'
         id: source
         shell: bash
         run: |
           set -euo pipefail
-          trigger_name="${{ github.event.workflow_run.name || '' }}"
-          if [[ "${{ github.event_name }}" == "workflow_run" && "$trigger_name" == "Learning Outcome Loop" ]]; then
-            run_id="${{ github.event.workflow_run.id }}"
-          else
-            run_id="$(gh run list \
-              --workflow learning-outcome-loop.yml \
-              --branch main \
-              --status success \
-              --limit 1 \
-              --json databaseId \
-              --jq '.[0].databaseId // empty')"
-          fi
+          run_id=""
+          mapfile -t candidate_runs < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${SOURCE_ARTIFACT}&per_page=100" \
+              --jq '.artifacts | map(select(.expired == false and .workflow_run.head_branch == "main")) | sort_by(.created_at) | reverse | .[].workflow_run.id'
+          )
+          for candidate in "${candidate_runs[@]}"; do
+            [[ -n "$candidate" ]] || continue
+            meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate}")"
+            name="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+            conclusion="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+            branch="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("head_branch", ""))')"
+            if [[ "$name" == "Learning Outcome Loop" && "$conclusion" == "success" && "$branch" == "main" ]]; then
+              run_id="$candidate"
+              break
+            fi
+          done
           if [[ -z "$run_id" ]]; then
-            echo "No successful Learning Outcome Loop run is available." >&2
+            echo "No valid durable Learning Outcome Loop artifact is available." >&2
             exit 1
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
@@ -119,26 +123,30 @@ jobs:
           python scripts/learning_outcome_loop.py --state-dir "$state" --verify
           echo "SHADOW_ALPHA_STATE=$state" >> "$GITHUB_ENV"
 
-      - name: Resolve latest verified EURUSD A-B-C live-shadow run
+      - name: Resolve latest durable EURUSD A-B-C live-shadow artifact
         if: github.event_name != 'pull_request'
         id: abc
         shell: bash
         run: |
           set -euo pipefail
-          trigger_name="${{ github.event.workflow_run.name || '' }}"
-          if [[ "${{ github.event_name }}" == "workflow_run" && "$trigger_name" == "Daily EURUSD A-B-C Live Shadow" ]]; then
-            run_id="${{ github.event.workflow_run.id }}"
-          else
-            run_id="$(gh run list \
-              --workflow daily-eurusd-abc-live-shadow.yml \
-              --branch main \
-              --status success \
-              --limit 1 \
-              --json databaseId \
-              --jq '.[0].databaseId // empty')"
-          fi
+          run_id=""
+          mapfile -t candidate_runs < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${ABC_SOURCE_ARTIFACT}&per_page=100" \
+              --jq '.artifacts | map(select(.expired == false and .workflow_run.head_branch == "main")) | sort_by(.created_at) | reverse | .[].workflow_run.id'
+          )
+          for candidate in "${candidate_runs[@]}"; do
+            [[ -n "$candidate" ]] || continue
+            meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate}")"
+            name="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+            conclusion="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+            branch="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("head_branch", ""))')"
+            if [[ "$name" == "Daily EURUSD A-B-C Live Shadow" && "$conclusion" == "success" && "$branch" == "main" ]]; then
+              run_id="$candidate"
+              break
+            fi
+          done
           if [[ -z "$run_id" ]]; then
-            echo "No successful Daily EURUSD A-B-C Live Shadow run is available." >&2
+            echo "No valid durable Daily EURUSD A-B-C Live Shadow artifact is available." >&2
             exit 1
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
