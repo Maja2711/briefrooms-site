@@ -59,6 +59,22 @@ def _weekly_text(selection: dict[str, Any], week_end: str) -> None:
     selection["holding_policy"] = "END_OF_TRADING_WEEK"
 
 
+def _weekly_methodology(payload: dict[str, Any], week_end: str) -> None:
+    methodology = payload.setdefault("methodology", {})
+    methodology["horizon"] = "through the final regular US session of the selection week"
+    methodology["holding_policy"] = "END_OF_TRADING_WEEK"
+    methodology["week_end_exit_time_et"] = "15:55"
+    methodology["current_week_final_session"] = week_end
+    methodology["holding_policy_pl"] = "do końca tygodnia handlowego"
+
+
+def _position_public_view(position: Mapping[str, Any]) -> dict[str, Any]:
+    view = runtime._position_view(position)
+    view["valid_until"] = position.get("valid_until")
+    view["holding_policy"] = "END_OF_TRADING_WEEK"
+    return view
+
+
 def _sync_open_history(
     book: dict[str, Any],
     history_dir: Path,
@@ -87,6 +103,7 @@ def _sync_open_history(
 
     updated_position = deepcopy(dict(position))
     updated_position["valid_until"] = week_end
+    updated_position["holding_policy"] = "END_OF_TRADING_WEEK"
     entry_selection = deepcopy(dict(updated_position.get("entry_selection") or {}))
     _weekly_text(entry_selection, week_end)
     updated_position["entry_selection"] = entry_selection
@@ -95,6 +112,7 @@ def _sync_open_history(
     selection = deepcopy(dict(canonical.get("selection") or {}))
     _weekly_text(selection, week_end)
     canonical["selection"] = selection
+    _weekly_methodology(canonical, week_end)
 
     opened_at = str(updated_position.get("opened_at") or canonical.get("generated_at") or "")
     entry = float(updated_position.get("entry") or selection.get("reference_price") or 0.0)
@@ -161,10 +179,12 @@ def _public_hold(
     selection = deepcopy(dict(hold.get("selection") or {}))
     if snapshot:
         selection["market_snapshot"] = snapshot
-    _weekly_text(selection, str(position.get("valid_until") or selection.get("valid_until") or ""))
+    week_end = str(position.get("valid_until") or selection.get("valid_until") or "")
+    _weekly_text(selection, week_end)
     hold["selection"] = selection
+    _weekly_methodology(hold, week_end)
     hold["position_action"] = "HOLD"
-    hold["position"] = runtime._position_view(position)
+    hold["position"] = _position_public_view(position)
     hold["outcome"] = {
         "status": "OPEN",
         "activated": True,
@@ -216,9 +236,11 @@ def repair(
     if public_has_open and regular_session:
         public = deepcopy(dict(previous_public))
         selection = deepcopy(dict(public.get("selection") or {}))
-        _weekly_text(selection, str((book.get("open_position") or {}).get("valid_until") or ""))
+        week_end = str((book.get("open_position") or {}).get("valid_until") or "")
+        _weekly_text(selection, week_end)
         public["selection"] = selection
-        public["position"] = runtime._position_view(book["open_position"])
+        _weekly_methodology(public, week_end)
+        public["position"] = _position_public_view(book["open_position"])
         public["outcome"] = {
             "status": "OPEN",
             "activated": True,
@@ -269,6 +291,8 @@ def verify(
         raise us.PublicationError("US open position is not held through the end of its trading week.")
     if str(((canonical.get("selection") or {}).get("valid_until") or "")) != expected_week_end:
         raise us.PublicationError("Canonical US trade has the wrong weekly holding deadline.")
+    if str((canonical.get("methodology") or {}).get("holding_policy") or "") != "END_OF_TRADING_WEEK":
+        raise us.PublicationError("Canonical US methodology does not expose the weekly holding policy.")
 
     public = us.load_json(public_path)
     if not isinstance(public, Mapping):
@@ -277,6 +301,8 @@ def verify(
         raise us.PublicationError("US public feed does not expose the open position symbol.")
     if str(((public.get("position") or {}).get("status") or "")).upper() != "OPEN":
         raise us.PublicationError("US public feed does not expose OPEN position state.")
+    if str((public.get("methodology") or {}).get("holding_policy") or "") != "END_OF_TRADING_WEEK":
+        raise us.PublicationError("US public feed does not expose the weekly holding policy.")
     return {"status": "OK", "open_position": True, "symbol": position.get("symbol"), "valid_until": expected_week_end}
 
 
