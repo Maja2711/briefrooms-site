@@ -3,9 +3,9 @@
 
 Contract:
 - once an activated trade is OPEN it remains visible and canonical until closed,
-- canonical history and position book must agree on the same position id/symbol,
-- open positions are held through the final regular US session of the selection week,
-- closed positions are always reflected as RESOLVED in canonical history,
+- canonical history, dedicated index and position book agree on one position,
+- open positions are held through the final regular US session of selection week,
+- closed positions are always reflected as RESOLVED in canonical history/index,
 - pre-market/overnight refreshes never turn a valid OPEN position into a data error.
 """
 from __future__ import annotations
@@ -154,6 +154,44 @@ def _sync_closed_history(book: Mapping[str, Any], history_dir: Path) -> int:
     return repaired
 
 
+def _history_row(payload: Mapping[str, Any]) -> dict[str, Any]:
+    selection = payload.get("selection") or {}
+    return {
+        "market": "us",
+        "date": payload.get("date"),
+        "generated_at": payload.get("generated_at"),
+        "ticker": selection.get("ticker") or selection.get("symbol"),
+        "symbol": selection.get("symbol"),
+        "name": selection.get("name"),
+        "sector": selection.get("sector"),
+        "score": selection.get("score"),
+        "entry_zone": selection.get("entry_zone"),
+        "stop": selection.get("stop"),
+        "target": selection.get("target"),
+        "valid_until": selection.get("valid_until"),
+        "holding_policy": selection.get("holding_policy"),
+        "outcome": payload.get("outcome") or {},
+    }
+
+
+def _rebuild_dedicated_index(history_dir: Path, *, now: datetime) -> dict[str, Any]:
+    """Rebuild the public US-only history index from canonical trade files."""
+    canonical, suppressed = lifecycle.canonical_history_payloads(history_dir)
+    trades = [_history_row(payload) for payload in reversed(canonical)]
+    index = {
+        "schema_version": "us-daily-stock-history-index-v3",
+        "updated_at": now.isoformat(timespec="seconds"),
+        "selected_trades": len(trades),
+        "resolved_trades": sum(1 for row in trades if (row.get("outcome") or {}).get("status") == "RESOLVED"),
+        "open_trades": sum(1 for row in trades if (row.get("outcome") or {}).get("status") == "OPEN"),
+        "suppressed_overlapping_signals": len(suppressed),
+        "suppressed_signals": suppressed,
+        "trades": trades,
+    }
+    us.atomic_json(history_dir / "index.json", index)
+    return index
+
+
 def _public_hold(
     canonical: Mapping[str, Any],
     book: Mapping[str, Any],
@@ -217,7 +255,13 @@ def repair(
     repaired_closed = _sync_closed_history(book, history_dir)
     position = book.get("open_position")
     if not isinstance(position, Mapping):
-        return {"status": "OK", "open_position": False, "repaired_closed": repaired_closed}
+        index = _rebuild_dedicated_index(history_dir, now=now)
+        return {
+            "status": "OK",
+            "open_position": False,
+            "repaired_closed": repaired_closed,
+            "indexed_trades": index["selected_trades"],
+        }
 
     book, canonical = _sync_open_history(book, history_dir, config=config)
     lifecycle.save_book(book_path, book, now=now)
@@ -252,6 +296,7 @@ def repair(
         public = _public_hold(canonical, book, now=now, previous_public=previous_public if isinstance(previous_public, Mapping) else None)
 
     us.atomic_json(public_path, public)
+    index = _rebuild_dedicated_index(history_dir, now=now)
     return {
         "status": "OK",
         "open_position": True,
@@ -259,6 +304,8 @@ def repair(
         "position_id": book["open_position"].get("position_id"),
         "valid_until": book["open_position"].get("valid_until"),
         "repaired_closed": repaired_closed,
+        "indexed_trades": index["selected_trades"],
+        "indexed_open_trades": index["open_trades"],
     }
 
 
@@ -303,7 +350,35 @@ def verify(
         raise us.PublicationError("US public feed does not expose OPEN position state.")
     if str((public.get("methodology") or {}).get("holding_policy") or "") != "END_OF_TRADING_WEEK":
         raise us.PublicationError("US public feed does not expose the weekly holding policy.")
-    return {"status": "OK", "open_position": True, "symbol": position.get("symbol"), "valid_until": expected_week_end}
+
+    index = us.load_json(history_dir / "index.json")
+    if not isinstance(index, Mapping):
+        raise us.PublicationError("Dedicated US history index is missing.")
+    indexed = next(
+        (
+            row for row in (index.get("trades") or [])
+            if isinstance(row, Mapping)
+            and str(row.get("date") or "") == source_date
+            and str(row.get("symbol") or "").upper() == str(position.get("symbol") or "").upper()
+        ),
+        None,
+    )
+    if not isinstance(indexed, Mapping):
+        raise us.PublicationError("Open US position is missing from the dedicated history index.")
+    if str(((indexed.get("outcome") or {}).get("status") or "")).upper() != "OPEN":
+        raise us.PublicationError("Dedicated US history index does not expose OPEN state.")
+    if (indexed.get("outcome") or {}).get("activated") is not True:
+        raise us.PublicationError("Dedicated US history index does not expose activation.")
+    if str(indexed.get("valid_until") or "") != expected_week_end:
+        raise us.PublicationError("Dedicated US history index has a stale weekly deadline.")
+
+    return {
+        "status": "OK",
+        "open_position": True,
+        "symbol": position.get("symbol"),
+        "valid_until": expected_week_end,
+        "index_schema": index.get("schema_version"),
+    }
 
 
 def main() -> int:
