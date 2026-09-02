@@ -11,17 +11,17 @@
   };
 
   const T = lang === "pl" ? {
-    status: "W TOKU", eyebrow: "AKTYWNA POZYCJA", entry: "Cena wejścia", current: "Cena teraz", stop: "SL", target: "TP",
+    status: "W TOKU", eyebrow: "AKTYWNA POZYCJA", entry: "Cena wejścia", current: "Cena teraz", lastMark: "Ostatni kurs", stop: "SL", target: "TP",
     validUntil: "Do końca tygodnia", weeklyPolicy: "Pozycję trzymamy do końca tygodnia handlowego, chyba że wcześniej zadziała TP lub SL.",
     history: "Historia transakcji", historyGpw: "Rynek polski (GPW)", historyUs: "Rynek amerykański (USA)",
-    open: "w toku", closed: "zamkniętych", entryShort: "WEJŚCIE", exitShort: "WYJŚCIE", markShort: "TERAZ",
+    open: "w toku", closed: "zamkniętych", entryShort: "WEJŚCIE", exitShort: "WYJŚCIE", markShort: "TERAZ", lastMarkShort: "OSTATNI",
     notActivated: "NIE AKTYWOWANO", targetHit: "TP", stopHit: "SL", horizon: "KONIEC TYGODNIA", rotation: "ROTACJA",
     copy: (ticker, entry, target, stop) => `Pozycja ${ticker} pozostaje aktywna. Wejście: ${entry}. TP: ${target}. SL: ${stop}.`,
   } : {
-    status: "OPEN", eyebrow: "ACTIVE POSITION", entry: "Entry price", current: "Current price", stop: "SL", target: "TP",
+    status: "OPEN", eyebrow: "ACTIVE POSITION", entry: "Entry price", current: "Current price", lastMark: "Last mark", stop: "SL", target: "TP",
     validUntil: "End of trading week", weeklyPolicy: "The position is held through the end of the trading week unless TP or SL is hit first.",
     history: "Trade history", historyGpw: "Polish market (GPW)", historyUs: "US market",
-    open: "open", closed: "closed", entryShort: "ENTRY", exitShort: "EXIT", markShort: "NOW",
+    open: "open", closed: "closed", entryShort: "ENTRY", exitShort: "EXIT", markShort: "NOW", lastMarkShort: "LAST",
     notActivated: "NOT ACTIVATED", targetHit: "TP", stopHit: "SL", horizon: "WEEK END", rotation: "ROTATION",
     copy: (ticker, entry, target, stop) => `${ticker} remains open. Entry: ${entry}. TP: ${target}. SL: ${stop}.`,
   };
@@ -43,6 +43,15 @@
     return Number(value).toLocaleString(lang === "pl" ? "pl-PL" : "en-US", {
       style: "currency", currency: market === "gpw" ? "PLN" : "USD", minimumFractionDigits: 2, maximumFractionDigits: 2
     });
+  };
+
+  const marketDate = (market) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: market === "gpw" ? "Europe/Warsaw" : "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
   };
 
   const dateText = (value) => {
@@ -87,12 +96,14 @@
     return latest;
   };
 
-  const activeFromCurrent = (rows, current) => {
+  const activeFromCurrent = (market, rows, current) => {
     const position = current?.position || {};
     if (String(position?.status || "").toUpperCase() !== "OPEN" || !tickerOf(position)) return latestHistoryActive(rows, current);
     const sourceDate = String(position.source_history_date || "");
     const base = rows.find((row) => tickerOf(row) === tickerOf(position) && (!sourceDate || String(row.date || "") === sourceDate)) || {};
     const selection = current?.selection || {};
+    const snapshot = selection?.market_snapshot || {};
+    const markIsCurrent = Boolean(snapshot?.date && String(snapshot.date) === marketDate(market));
     return {
       ...base,
       date: sourceDate || base.date,
@@ -104,6 +115,7 @@
       target: position.target ?? selection.target ?? base.target,
       valid_until: position.valid_until ?? selection.valid_until ?? base.valid_until,
       mark: position.mark,
+      mark_is_current: markIsCurrent,
       unrealized_percent: position.unrealized_percent,
       current_r: position.current_r,
       holding_policy: selection.holding_policy || "END_OF_TRADING_WEEK",
@@ -136,6 +148,7 @@
     const entry = entryText(trade, market);
     const entryAt = tradeAtText(trade?.outcome?.activated_at);
     const mark = money(trade?.mark, market);
+    const markLabel = trade?.mark_is_current ? T.current : T.lastMark;
     const stop = money(trade?.stop, market);
     const target = money(trade?.target, market);
     const deadline = dateText(trade?.valid_until);
@@ -155,7 +168,7 @@
       </div>
       <div class="dsm-open-position-levels">
         <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b><small>${escapeHtml(entryAt)}</small></div>
-        <div><small>${escapeHtml(T.current)}</small><b>${escapeHtml(mark)}</b><small>${escapeHtml([pnl, r].filter(Boolean).join(" · "))}</small></div>
+        <div><small>${escapeHtml(markLabel)}</small><b>${escapeHtml(mark)}</b><small>${escapeHtml([pnl, r].filter(Boolean).join(" · "))}</small></div>
         <div><small>${escapeHtml(T.stop)}</small><b>${escapeHtml(stop)}</b></div>
         <div><small>${escapeHtml(T.target)}</small><b>${escapeHtml(target)}</b></div>
       </div>
@@ -188,13 +201,14 @@
     if (!active) return "";
     const result = outcomeLabel(active);
     const entryAt = tradeAtText(active?.outcome?.activated_at);
+    const markLabel = active?.mark_is_current ? T.markShort : T.lastMarkShort;
     return `<div class="dsm-history-row dsm-history-row-open">
       <span class="dsm-history-date">${escapeHtml(active.date || "—")}</span>
       <b>${escapeHtml(tickerOf(active) || "—")}</b>
       <span class="dsm-history-name">${escapeHtml(active.name || active.sector || "")}</span>
       <span class="dsm-history-prices">
         <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(active?.outcome?.entry_price, market))}</b><small>${escapeHtml(entryAt)}</small></span>
-        <span><small>${escapeHtml(T.markShort)}</small><b>${escapeHtml(money(active?.mark, market))}</b></span>
+        <span><small>${escapeHtml(markLabel)}</small><b>${escapeHtml(money(active?.mark, market))}</b></span>
       </span>
       <span class="dsm-history-result ${result.cls}">${escapeHtml(result.text)}</span>
     </div>`;
@@ -242,8 +256,8 @@
     ]);
     const gpwRows = rowsFor("gpw", gpwHistory, fallback);
     const usRows = rowsFor("us", usHistory, fallback);
-    const gpwActive = activeFromCurrent(gpwRows, gpwCurrent);
-    const usActive = activeFromCurrent(usRows, usCurrent);
+    const gpwActive = activeFromCurrent("gpw", gpwRows, gpwCurrent);
+    const usActive = activeFromCurrent("us", usRows, usCurrent);
 
     if (gpwActive) renderActive(gpwActive, "gpw");
     if (usActive) renderActive(usActive, "us");
