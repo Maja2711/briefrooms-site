@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Runtime reader for PR35 autonomous policy state.
+"""Runtime reader for PR35/PR36 autonomous policy state.
 
 Production engines keep their checked-in JSON configuration as the immutable
-baseline.  PR35 may overlay only explicitly allowlisted scalar parameters from a
-private, hash-verified policy registry artifact.  Missing/invalid state always
-falls back to the checked-in baseline; arbitrary code/config mutation is not
-supported.
+baseline. Research may continue evaluating allowlisted policy candidates, but
+production materialization is explicitly frozen while promotion methodology v2
+collects fresh prospective evidence.
+
+Missing/invalid state and any registry without an explicit production-promotion
+authorization always fall back to the checked-in baseline. Arbitrary code/config
+mutation is not supported.
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ from typing import Any, Mapping
 
 REGISTRY_SCHEMA = "briefrooms-autonomous-policy-registry-v1"
 ENV_REGISTRY = "BRIEFROOMS_POLICY_REGISTRY"
+PROMOTION_FREEZE_STATUS = "FROZEN_FOR_PROSPECTIVE_VALIDATION"
 
 POLICY_ALLOWLIST: dict[str, dict[str, Any]] = {
     "gpw_daily": {
@@ -88,6 +92,16 @@ def _number(value: Any) -> float:
     return float(value)
 
 
+def production_promotion_enabled(registry: Mapping[str, Any]) -> bool:
+    """Return True only after an explicit future governance unfreeze.
+
+    Missing governance is intentionally interpreted as frozen. This makes old
+    registry artifacts safe by default during the PR-A migration.
+    """
+    governance = registry.get("governance") if isinstance(registry.get("governance"), Mapping) else {}
+    return governance.get("production_promotion_enabled") is True
+
+
 def apply_active_policy(
     engine_id: str,
     baseline_config: Mapping[str, Any],
@@ -108,6 +122,19 @@ def apply_active_policy(
     profile = POLICY_ALLOWLIST.get(engine_id)
     registry = load_registry(registry_path)
     if not profile or registry is None:
+        return config
+
+    if not production_promotion_enabled(registry):
+        governance = registry.get("governance") if isinstance(registry.get("governance"), Mapping) else {}
+        config["_autonomous_policy"] = {
+            "status": PROMOTION_FREEZE_STATUS,
+            "engine_id": engine_id,
+            "baseline_policy_version": baseline_version,
+            "effective_policy_version": baseline_version,
+            "promotion_methodology_version": governance.get("promotion_methodology_version"),
+            "migration_boundary_at": governance.get("migration_boundary_at"),
+            "overrides": {},
+        }
         return config
 
     engines = registry.get("engines") if isinstance(registry.get("engines"), Mapping) else {}
