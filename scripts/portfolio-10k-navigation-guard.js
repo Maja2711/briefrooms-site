@@ -75,7 +75,7 @@
 
     if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
     document.body.dataset.investmentActiveTab = name;
-    document.body.dataset.investmentNavigationGuard = 'active-v6';
+    document.body.dataset.investmentNavigationGuard = 'active-v2';
 
     if (name === 'agents') requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     try {
