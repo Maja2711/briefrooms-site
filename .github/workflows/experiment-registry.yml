@@ -10,7 +10,9 @@ on:
       - "scripts/experiment_registry.py"
       - "scripts/install_experiment_registry_ui.py"
       - "scripts/portfolio-10k-experiment-registry.js"
+      - "scripts/portfolio-10k-experience-store.js"
       - "assets/experiment-registry.css"
+      - "assets/experience-store.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
       - ".github/workflows/experiment-registry.yml"
@@ -20,7 +22,9 @@ on:
       - "scripts/install_experiment_registry_ui.py"
       - "tests/test_experiment_registry.py"
       - "scripts/portfolio-10k-experiment-registry.js"
+      - "scripts/portfolio-10k-experience-store.js"
       - "assets/experiment-registry.css"
+      - "assets/experience-store.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
       - ".github/workflows/experiment-registry.yml"
@@ -55,9 +59,12 @@ jobs:
           python scripts/install_experiment_registry_ui.py
           grep -q 'portfolio-10k-navigation-guard.js?v=6' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-navigation-guard.js?v=6' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-experience-store.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-experience-store.js?v=1' en/investing/portfolio-10k.html
       - name: Validate frontend JavaScript
         run: |
           node --check scripts/portfolio-10k-experiment-registry.js
+          node --check scripts/portfolio-10k-experience-store.js
           node --check scripts/portfolio-10k-navigation-guard.js
       - name: Validate canonical registry contract
         run: |
@@ -88,7 +95,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Refresh canonical registry and Portfolio10K cache key
+      - name: Refresh canonical registry and Portfolio10K Lab assets
         run: |
           python scripts/experiment_registry.py
           python scripts/install_experiment_registry_ui.py
