@@ -5,6 +5,9 @@ Provider A is Yahoo Finance. Provider B is Stooq. Historical provider recovery
 remains separate from execution data. Every returned execution snapshot is
 validated by the canonical P0.4 gpw-data-gates-v1 contract before consumers can
 use it for Opening Confirmation, repricing or final publication.
+
+P0.2 additionally attaches an immutable CanonicalMarketSnapshot with UTC
+point-in-time lineage. The legacy snapshot shape remains for compatibility.
 """
 from __future__ import annotations
 
@@ -20,9 +23,11 @@ from typing import Any
 try:
     from scripts import gpw_data_gates as gates
     from scripts import gpw_daily_pick as gpw
+    from scripts import market_snapshot_adapters as market_snapshot
 except ModuleNotFoundError:
     import gpw_data_gates as gates
     import gpw_daily_pick as gpw
+    import market_snapshot_adapters as market_snapshot
 
 
 _ORIGINAL_YAHOO_FETCHER = gpw.fetch_yahoo_bars
@@ -256,16 +261,31 @@ def opening_snapshot(symbol: str, *, now: datetime) -> dict[str, Any]:
         "volume": primary.volume,
         "crosscheck": crosscheck,
     }
+    config = gpw.load_config()
     snapshot["data_gate"] = gates.execution_gate(
         snapshot,
         now=now,
-        config=gpw.load_config(),
+        config=config,
+    )
+    settings = gates.settings_from(config)
+    policy = market_snapshot.equity_execution_policy(
+        "gpw",
+        max_age_seconds=float(settings["maximum_execution_quote_age_minutes"]) * 60.0,
+        max_future_skew_seconds=float(settings["maximum_future_clock_skew_minutes"]) * 60.0,
+    )
+    snapshot = market_snapshot.attach_equity_canonical_snapshot(
+        snapshot,
+        market="gpw",
+        received_at=now,
+        created_at=now,
+        decision_at=now,
+        policy=policy,
     )
     return snapshot
 
 
 def reprice_transaction(payload: dict[str, Any], *, now: datetime) -> dict[str, Any]:
-    """Anchor entry/SL/TP only to a P0.4-accepted current-session quote."""
+    """Anchor entry/SL/TP only to a P0.4 + P0.2 accepted current-session quote."""
     if payload.get("decision") != "TRANSAKCJA":
         return payload
     selection = payload.get("selection") or {}
@@ -289,6 +309,7 @@ def reprice_transaction(payload: dict[str, Any], *, now: datetime) -> dict[str, 
         )
         failed["data_quality"]["opening_quote_error"] = str(exc)
         failed["data_quality"]["data_gate_engine"] = gates.ENGINE
+        failed["data_quality"]["canonical_market_snapshot"] = "DATA_QUALITY_BLOCKED"
         return failed
 
     old_reference = float(selection.get("reference_price") or snapshot["last"])
@@ -308,8 +329,12 @@ def reprice_transaction(payload: dict[str, Any], *, now: datetime) -> dict[str, 
         "Setup po otwarciu: wejście tylko w podanej strefie od 09:05; powyżej górnej granicy nie gonić ceny."
     )
     selection["market_snapshot"] = snapshot
+    selection["market_snapshot_id"] = snapshot.get("market_snapshot_id")
     selection["execution_data_gate"] = execution_gate
     payload.setdefault("data_quality", {})["opening_quote"] = snapshot["crosscheck"]["status"]
     payload["data_quality"]["execution_quote_age_minutes"] = execution_gate.get("age_minutes")
     payload["data_quality"]["data_gate_engine"] = gates.ENGINE
+    payload["data_quality"]["canonical_market_snapshot"] = (
+        snapshot.get("canonical_data_quality") or {}
+    ).get("status")
     return payload
