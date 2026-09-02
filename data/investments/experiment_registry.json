@@ -6,6 +6,30 @@
     "purpose": "one source of truth for logical BriefRooms experiments; not a workflow inventory",
     "read_only": true
   },
+  "benchmark_policy": {
+    "benchmark_is_experiment_category": false,
+    "crypto": {
+      "applicability": "NOT_APPLICABLE",
+      "rule": "Do not invent a market benchmark for Bitcoin/crypto trading; evaluate net return/edge, drawdown, costs and risk-adjusted metrics."
+    },
+    "equities": {
+      "applicability": "WHEN_ECONOMICALLY_MEANINGFUL",
+      "examples": [
+        "broad equity index",
+        "S&P 500",
+        "SPY or equivalent ETF"
+      ],
+      "rule": "Choose and freeze the benchmark before evaluation; use benchmark-adjusted return only when the comparison is economically valid."
+    },
+    "forecasting_and_learning": {
+      "applicability": "BASELINE_NOT_MARKET_BENCHMARK",
+      "rule": "Random, persistence or frozen-model comparisons are baselines/references, not market benchmarks."
+    },
+    "fx": {
+      "applicability": "NOT_APPLICABLE",
+      "rule": "Do not invent a market benchmark for EUR/USD or other FX pairs; evaluate net return/edge, drawdown, costs, calibration and risk-adjusted metrics."
+    }
+  },
   "experiments": [
     {
       "automatic_promotion": false,
@@ -40,45 +64,6 @@
       "status": "INSUFFICIENT_DATA",
       "system_class": "LAB",
       "version": "ARIS Shadow"
-    },
-    {
-      "automatic_promotion": false,
-      "benchmark": {
-        "interpretation": null,
-        "label": "SPY return",
-        "unit": "fraction",
-        "value": 0.00569067
-      },
-      "category": "benchmark",
-      "delta_vs_benchmark": 0.00767492,
-      "details": {
-        "end_date": "2026-11-04",
-        "paper_trading_only": true,
-        "participants": 5
-      },
-      "family": "Portfolio10K",
-      "id": "ai-tournament-2026-02",
-      "last_updated": "2026-09-02T16:58:54+00:00",
-      "max_drawdown": null,
-      "minimum_sample": 20,
-      "name": "AI Tournament — Inwestycje 10K",
-      "notes": [],
-      "primary_metric": {
-        "interpretation": "Publiczny benchmark kampanii; nie służy do automatycznej promocji modelu.",
-        "label": "Najlepsza alpha vs SPY",
-        "unit": "fraction",
-        "value": 0.00767492
-      },
-      "production_impact": false,
-      "purpose": "Zamrożony buy-and-hold benchmark agentów AI na identycznym kapitale, zasadach i kosztach.",
-      "sample_count": 22,
-      "sample_unit": "business_days_elapsed",
-      "source": "data/ai_tournament/public.json",
-      "stage": "SHADOW",
-      "started_at": "2026-08-04",
-      "status": "RUNNING",
-      "system_class": "LAB",
-      "version": "ai-tournament-locked-buy-hold-v2"
     },
     {
       "automatic_promotion": false,
@@ -124,7 +109,7 @@
     {
       "automatic_promotion": false,
       "benchmark": {
-        "interpretation": "Orientacyjny baseline kierunkowy, nie benchmark PnL.",
+        "interpretation": "Baseline prognostyczny, nie benchmark rynkowy/PnL.",
         "label": "Losowy kierunek",
         "unit": "fraction",
         "value": 0.5
@@ -141,7 +126,9 @@
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "TimesFM Shadow Forecaster",
-      "notes": [],
+      "notes": [
+        "Dla EUR/USD nie przypisujemy sztucznego benchmarku rynkowego."
+      ],
       "primary_metric": {
         "interpretation": "Miara forecast skill; nie formalna alpha.",
         "label": "Trafność kierunku 1h",
@@ -253,7 +240,9 @@
       "max_drawdown": null,
       "minimum_sample": 70,
       "name": "BRACE-SPX Generation 6",
-      "notes": [],
+      "notes": [
+        "Dla strategii akcyjnych benchmark rynkowy może być szerokim indeksem lub ETF-em, np. S&P 500 / SPY, dobranym przed eksperymentem."
+      ],
       "primary_metric": {
         "interpretation": "Nie jest to wynik PnL; pełna ocena następuje po wymaganej liczbie obserwacji.",
         "label": "Postęp warm-up",
@@ -305,6 +294,7 @@
       "name": "EURUSD A/B/C Live Shadow",
       "notes": [
         "FLAT i nierozstrzygnięte obserwacje nie są sztucznie liczone jako trafienia.",
+        "EUR/USD nie ma naturalnego benchmarku rynkowego; ocena handlowa pochodzi z absolutnego wyniku po kosztach i metryk ryzyka.",
         "Ocena handlowa powinna docelowo pochodzić z Experience Store po kosztach."
       ],
       "primary_metric": {
@@ -342,17 +332,17 @@
       "ERROR": "Nie można wiarygodnie odczytać lub sklasyfikować eksperymentu.",
       "INSUFFICIENT_DATA": "Próbka jest za mała albo brak kanonicznej metryki do decyzji.",
       "KILL": "Eksperyment zakończony i nie powinien dalej zużywać runtime/API.",
-      "PARK": "Brak wystarczającej wartości obecnie; zachować kod i stan bez dalszego kosztu runtime.",
+      "PARK": "Brak wystarczającej wartości obecnie; zachować kod i stan bez dalszego kosztu runtime/API.",
       "PROMOTE": "Spełnione zdefiniowane bramki; nadal wymagana odrębna kontrola promocji.",
       "RUNNING": "Eksperyment ma wystarczającą próbkę do dalszej obserwacji, ale nie ma zgody na promocję."
     }
   },
   "summary": {
-    "active": 3,
+    "active": 2,
     "awaiting_evidence": 5,
     "errors": 0,
     "parked_or_killed": 0,
     "promotion_candidates": 0,
-    "total": 8
+    "total": 7
   }
 }
