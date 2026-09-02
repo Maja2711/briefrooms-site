@@ -1,0 +1,79 @@
+name: Canonical MarketSnapshot validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/canonical_market_snapshot.py"
+      - "scripts/market_snapshot_adapters.py"
+      - "scripts/gpw_market_data.py"
+      - "scripts/daily_stock_us_adapter.py"
+      - "data/investments/us_daily_stock_config.json"
+      - "tests/test_canonical_market_snapshot.py"
+      - "tests/test_gpw_market_data.py"
+      - ".github/workflows/canonical-market-snapshot-validation.yml"
+      - "docs/CANONICAL_MARKET_SNAPSHOT.md"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/canonical_market_snapshot.py"
+      - "scripts/market_snapshot_adapters.py"
+      - "scripts/gpw_market_data.py"
+      - "scripts/daily_stock_us_adapter.py"
+      - "data/investments/us_daily_stock_config.json"
+      - "tests/test_canonical_market_snapshot.py"
+      - "tests/test_gpw_market_data.py"
+      - ".github/workflows/canonical-market-snapshot-validation.yml"
+      - "docs/CANONICAL_MARKET_SNAPSHOT.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canonical-market-snapshot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile P0.2 contracts and producer adapters
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/canonical_market_snapshot.py \
+            scripts/market_snapshot_adapters.py \
+            scripts/gpw_market_data.py \
+            scripts/daily_stock_us_adapter.py
+          python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
+
+      - name: Run Canonical MarketSnapshot and producer regression tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_canonical_market_snapshot \
+            tests.test_gpw_market_data \
+            tests.test_us_daily_stock -v
+
+      - name: Assert migration coverage is explicit and fail closed
+        run: |
+          python - <<'PY'
+          from scripts.market_snapshot_adapters import coverage_report
+          report=coverage_report()
+          assert report['legacy_backfill'] is False
+          assert report['unknown_means_pass'] is False
+          assert report['components']['gpw_daily']['status'] == 'CANONICALIZED'
+          assert report['components']['us_daily']['status'] == 'CANONICALIZED'
+          assert report['components']['eurusd_daily']['status'] == 'PARTIAL'
+          assert report['components']['brace_spx']['status'] == 'NOT_YET_CANONICALIZED'
+          print('P0.2_COVERAGE_OK', report['components'])
+          PY

@@ -49,6 +49,14 @@ class GpwMarketDataTests(unittest.TestCase):
             snapshot = market.opening_snapshot("PKO.WA", now=now)
         self.assertEqual(snapshot["crosscheck"]["status"], "confirmed")
         self.assertLess(snapshot["crosscheck"]["last_price_deviation"], 0.02)
+        self.assertTrue(snapshot["market_snapshot_id"].startswith("mkt-"))
+        self.assertEqual(snapshot["canonical_market_snapshot"]["instrument_id"], "equity.pl.pko")
+        self.assertEqual(snapshot["canonical_data_quality"]["status"], "OK")
+        self.assertTrue(snapshot["canonical_market_snapshot"]["observed_at"].endswith("Z"))
+        self.assertEqual(
+            snapshot["canonical_market_snapshot"]["snapshot_hash"],
+            snapshot["market_snapshot_hash"],
+        )
 
     def test_opening_snapshot_rejects_material_provider_divergence(self):
         now = datetime(2026, 8, 18, 9, 6, tzinfo=WARSAW)

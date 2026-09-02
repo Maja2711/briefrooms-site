@@ -3,7 +3,10 @@
 
 US-specific responsibilities stay outside the core: USD execution, NYSE/Nasdaq
 calendar/session timing, Yahoo/Stooq market data and official SEC/company-release
-evidence.  Quant scoring and bounded learning are shared with GPW.
+evidence. Quant scoring and bounded learning are shared with GPW.
+
+P0.2 also wraps the existing US execution quote in the shared immutable
+CanonicalMarketSnapshot contract without changing ranking or risk geometry.
 """
 from __future__ import annotations
 
@@ -16,15 +19,18 @@ import xml.etree.ElementTree as ET
 
 try:
     from scripts import daily_stock_core as core
+    from scripts import market_snapshot_adapters as market_snapshot
     from scripts import us_daily_stock as us
 except ModuleNotFoundError:
     import daily_stock_core as core
+    import market_snapshot_adapters as market_snapshot
     import us_daily_stock as us
 
 _INSTALLED = False
 _ORIGINAL_NEWS_ITEMS = us.news_items
 _ORIGINAL_BASE_PAYLOAD = us.base_payload
 _ORIGINAL_PUBLISH = us.publish
+_ORIGINAL_OPENING_SNAPSHOT = us.opening_snapshot
 
 
 def _history() -> list[dict[str, Any]]:
@@ -154,6 +160,26 @@ def combined_news_items(company: dict[str, str], *, now: datetime, limit: int = 
     return merged
 
 
+def _canonical_opening_snapshot(symbol: str, *, now: datetime) -> dict[str, Any]:
+    """Fail closed unless the US execution quote satisfies the P0.2 contract."""
+    raw = _ORIGINAL_OPENING_SNAPSHOT(symbol, now=now)
+    config = us.load_config()
+    settings = config.get("data_gates") or {}
+    policy = market_snapshot.equity_execution_policy(
+        "us",
+        max_age_seconds=float(settings.get("maximum_execution_quote_age_minutes", 20)) * 60.0,
+        max_future_skew_seconds=float(settings.get("maximum_future_clock_skew_minutes", 2)) * 60.0,
+    )
+    return market_snapshot.attach_equity_canonical_snapshot(
+        raw,
+        market="us",
+        received_at=now,
+        created_at=now,
+        decision_at=now,
+        policy=policy,
+    )
+
+
 def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
     config = config or us.load_config()
     value = core.methodology_contract(core.US_PROFILE, config)
@@ -163,6 +189,7 @@ def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
         "currency": "USD",
         "official_channels": ["SEC 8-K", "company releases", "independent financial news"],
         "market_memory_isolated": True,
+        "canonical_market_snapshot": "briefrooms-market-snapshot-v1",
     }
     return value
 
@@ -283,6 +310,13 @@ def _polish_localization(selection: dict[str, Any]) -> dict[str, Any] | None:
 def _publish(payload: dict[str, Any]) -> None:
     if payload.get("decision") == "TRADE":
         selection = payload.get("selection") or {}
+        snapshot = selection.get("market_snapshot") or {}
+        if not snapshot.get("market_snapshot_id"):
+            raise us.PublicationError("DATA_QUALITY_BLOCKED: US trade lacks canonical MarketSnapshot")
+        selection["market_snapshot_id"] = snapshot["market_snapshot_id"]
+        payload.setdefault("data_quality", {})["canonical_market_snapshot"] = (
+            snapshot.get("canonical_data_quality") or {}
+        ).get("status")
         try:
             localized = _polish_localization(selection)
         except Exception as exc:
@@ -306,11 +340,12 @@ def install() -> None:
     us.round2 = core.round2
     us.true_range = core.true_range
     us.return_over = core.return_over
-    us.percentile = core.percentile_score
+    us.percentile_score = core.percentile_score
     us.build_candidate = _build_candidate
     us.normalize_cross_section = core.normalize_cross_section
     us.composite = core.composite_score
     us.news_items = combined_news_items
+    us.opening_snapshot = _canonical_opening_snapshot
     us.base_payload = _base_payload
     us.publish = _publish
     _INSTALLED = True
