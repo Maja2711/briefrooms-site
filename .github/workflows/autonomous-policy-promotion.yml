@@ -17,14 +17,16 @@ on:
       - "scripts/statistical_promotion_gate_v2.py"
       - "scripts/policy_runtime_overlay.py"
       - "scripts/statistical_policy_materializer.py"
+      - "scripts/autonomous_policy_observatory.py"
       - "data/investments/statistical_promotion_gate_v2_config.json"
       - "tests/test_autonomous_policy_promotion.py"
       - "tests/test_statistical_promotion_gate.py"
+      - "tests/test_autonomous_policy_observatory.py"
       - "tests/test_promotion_safety_v2.py"
       - ".github/workflows/autonomous-policy-promotion.yml"
 
-# PR-A safety freeze: this workflow may evaluate challengers, but it has no
-# repository write permission and cannot materialize GPW/US production config.
+# PR-A safety freeze: this workflow may evaluate challengers and publish a
+# read-only observatory snapshot, but it cannot write GPW/US production config.
 permissions:
   contents: read
   actions: write
@@ -65,11 +67,13 @@ jobs:
             scripts/statistical_promotion_gate_v2.py \
             scripts/policy_runtime_overlay.py \
             scripts/policy_repo_materializer.py \
-            scripts/statistical_policy_materializer.py
+            scripts/statistical_policy_materializer.py \
+            scripts/autonomous_policy_observatory.py
           python -m json.tool data/investments/statistical_promotion_gate_v2_config.json >/dev/null
           python -m unittest \
             tests.test_autonomous_policy_promotion \
             tests.test_statistical_promotion_gate \
+            tests.test_autonomous_policy_observatory \
             tests.test_promotion_safety_v2 -v
 
   research:
@@ -206,11 +210,28 @@ jobs:
             --repo-root . \
             --verify
 
+      - name: Publish read-only observatory snapshot to private artifact only
+        run: |
+          set -euo pipefail
+          python scripts/autonomous_policy_observatory.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+          python scripts/autonomous_policy_observatory.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root . \
+            --verify
+          test -s data/public/autonomous_policy_observatory.json
+          cp data/public/autonomous_policy_observatory.json \
+            "$POLICY_STATE_DIR/autonomous_policy_observatory_public.json"
+          git diff --exit-code -- \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/us_daily_stock_config.json
+
       - name: Assert production promotion is frozen fail-closed
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, tempfile
+          import json, os
           from pathlib import Path
           from policy_runtime_overlay import apply_active_policy, PROMOTION_FREEZE_STATUS
           from statistical_policy_materializer import materialize
