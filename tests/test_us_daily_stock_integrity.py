@@ -62,7 +62,7 @@ class UsDailyPositionIntegrityTests(unittest.TestCase):
         with patch.object(integrity.us, "is_session_day", side_effect=lambda d, _cfg: d.weekday() < 5 and d != holiday):
             self.assertEqual(integrity.final_session_of_week(date(2026, 8, 31), cfg), date(2026, 9, 3))
 
-    def test_repair_marks_canonical_trade_open_and_extends_to_week_end(self):
+    def test_repair_marks_canonical_trade_open_extends_week_and_rebuilds_index(self):
         now = datetime(2026, 9, 2, 5, 0, tzinfo=NY)
         cfg = {"non_session_dates": []}
         with tempfile.TemporaryDirectory() as tmp:
@@ -81,9 +81,15 @@ class UsDailyPositionIntegrityTests(unittest.TestCase):
                 result = integrity.repair(
                     now=now, book_path=book_path, history_dir=history, public_path=public_path
                 )
+                verified = integrity.verify(
+                    now=now, book_path=book_path, history_dir=history, public_path=public_path
+                )
 
             self.assertEqual(result["symbol"], "CRM")
             self.assertEqual(result["valid_until"], "2026-09-04")
+            self.assertEqual(result["indexed_open_trades"], 1)
+            self.assertEqual(verified["index_schema"], "us-daily-stock-history-index-v3")
+
             repaired = json.loads((history / "2026-08-31.json").read_text())
             self.assertEqual(repaired["outcome"]["status"], "OPEN")
             self.assertTrue(repaired["outcome"]["activated"])
@@ -99,6 +105,15 @@ class UsDailyPositionIntegrityTests(unittest.TestCase):
             self.assertEqual(public["position"]["status"], "OPEN")
             self.assertEqual(public["selection"]["symbol"], "CRM")
             self.assertEqual(public["date"], "2026-09-02")
+
+            index = json.loads((history / "index.json").read_text())
+            self.assertEqual(index["schema_version"], "us-daily-stock-history-index-v3")
+            self.assertEqual(index["open_trades"], 1)
+            crm = index["trades"][0]
+            self.assertEqual(crm["symbol"], "CRM")
+            self.assertEqual(crm["valid_until"], "2026-09-04")
+            self.assertEqual(crm["outcome"]["status"], "OPEN")
+            self.assertTrue(crm["outcome"]["activated"])
 
     def test_verify_rejects_dangling_open_position(self):
         now = datetime(2026, 9, 2, 5, 0, tzinfo=NY)
