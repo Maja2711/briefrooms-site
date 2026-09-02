@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 1;
+  const VERSION = 2;
   const TAB = 'lab';
   const DATA_URL = '/data/investments/experiment_registry.json';
   const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
@@ -14,8 +14,8 @@
     awaiting: 'Awaiting evidence',
     promotion: 'Promotion candidates',
     parked: 'Parked / killed',
-    all: 'All', trading: 'Trading', forecasting: 'Forecasting', belief: 'Belief', learning: 'Learning', benchmark: 'Benchmark',
-    experiment: 'Experiment', type: 'Type', version: 'Version', sample: 'Sample', result: 'Primary result', baseline: 'Baseline', status: 'Status',
+    all: 'All', trading: 'Trading', forecasting: 'Forecasting', belief: 'Belief', learning: 'Learning',
+    experiment: 'Experiment', type: 'Type', version: 'Version', sample: 'Sample', result: 'Primary result', baseline: 'Reference / baseline', status: 'Status',
     details: 'Experiment details', purpose: 'Purpose', family: 'Family', source: 'Canonical source', gate: 'Evidence gate', updated: 'Last update', influence: 'Production influence', autopromotion: 'Automatic promotion', notes: 'Notes', technical: 'Source details',
     none: 'No experiments match this filter.',
     loading: 'Loading Experiment Registry…',
@@ -33,8 +33,8 @@
     awaiting: 'Czekają na dane',
     promotion: 'Kandydaci do promocji',
     parked: 'Wstrzymane / zakończone',
-    all: 'Wszystkie', trading: 'Trading', forecasting: 'Prognozy', belief: 'Belief', learning: 'Uczenie', benchmark: 'Benchmark',
-    experiment: 'Eksperyment', type: 'Typ', version: 'Wersja', sample: 'Próba', result: 'Główny wynik', baseline: 'Benchmark', status: 'Status',
+    all: 'Wszystkie', trading: 'Trading', forecasting: 'Prognozy', belief: 'Belief', learning: 'Uczenie',
+    experiment: 'Eksperyment', type: 'Typ', version: 'Wersja', sample: 'Próba', result: 'Główny wynik', baseline: 'Odniesienie / baseline', status: 'Status',
     details: 'Szczegóły eksperymentu', purpose: 'Cel', family: 'Rodzina', source: 'Źródło kanoniczne', gate: 'Próg dowodowy', updated: 'Ostatnia aktualizacja', influence: 'Wpływ na produkcję', autopromotion: 'Automatyczna promocja', notes: 'Uwagi', technical: 'Dane źródłowe',
     none: 'Brak eksperymentów dla tego filtra.',
     loading: 'Ładowanie Experiment Registry…',
@@ -158,8 +158,10 @@
 
   function renderFilters() {
     const root = document.querySelector('#experiment-registry-filters');
-    if (!root) return;
-    const filters = ['all','trading','forecasting','belief','learning','benchmark'];
+    if (!root || !registry) return;
+    const present = new Set((registry.experiments || []).map(row => row.category));
+    const filters = ['all','trading','forecasting','belief','learning'].filter(key => key === 'all' || present.has(key));
+    if (!filters.includes(filter)) filter = 'all';
     root.innerHTML = filters.map(key => `<button type="button" data-experiment-filter="${key}" class="${filter === key ? 'active' : ''}">${esc(copy[key])}</button>`).join('');
     root.querySelectorAll('[data-experiment-filter]').forEach(button => button.addEventListener('click', () => {
       filter = button.dataset.experimentFilter || 'all';
