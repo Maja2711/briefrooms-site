@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts import autonomous_policy_promotion as ap
-from scripts.policy_runtime_overlay import PROMOTION_FREEZE_STATUS, apply_active_policy
+from scripts.policy_runtime_overlay import PROMOTION_FREEZE_STATUS, apply_active_policy, registry_hash
 
 
 class AutonomousPolicyPromotionTests(unittest.TestCase):
@@ -132,7 +132,9 @@ class AutonomousPolicyPromotionTests(unittest.TestCase):
 
         raw = json.loads((self.state / ap.REGISTRY_FILENAME).read_text())
         raw["governance"] = {"production_promotion_enabled": True}
-        ap._atomic_json(self.state / "explicitly-unfrozen.json", raw)
+        raw.pop("registry_sha256", None)
+        raw["registry_sha256"] = registry_hash(raw)
+        (self.state / "explicitly-unfrozen.json").write_text(json.dumps(raw), encoding="utf-8")
         effective = apply_active_policy("gpw_daily", baseline, registry_path=self.state / "explicitly-unfrozen.json")
         self.assertEqual(effective["minimum_composite_score"], 71)
         self.assertEqual(effective["minimum_reward_risk"], 1.5)
