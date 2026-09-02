@@ -1,0 +1,163 @@
+name: Experience Store Public Projection
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 */3 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/experience_store_public_projection.py"
+      - "scripts/portfolio-10k-experience-store.js"
+      - "assets/experience-store.css"
+      - "tests/test_experience_store_public_projection.py"
+      - ".github/workflows/experience-store-public.yml"
+  pull_request:
+    paths:
+      - "scripts/experience_store_public_projection.py"
+      - "scripts/portfolio-10k-experience-store.js"
+      - "assets/experience-store.css"
+      - "tests/test_experience_store_public_projection.py"
+      - "scripts/install_experiment_registry_ui.py"
+      - ".github/workflows/experiment-registry.yml"
+      - ".github/workflows/experience-store-public.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: experience-store-public-projection
+  cancel-in-progress: false
+
+env:
+  SOURCE_ARTIFACT: shadow-alpha-experience-store
+  OUTPUT_PATH: data/investments/experience_store_public.json
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate projection and frontend
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/experience_store_public_projection.py
+          python -m unittest tests.test_experience_store_public_projection -v
+          node --check scripts/portfolio-10k-experience-store.js
+          python scripts/install_experiment_registry_ui.py
+          grep -q 'portfolio-10k-experience-store.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-experience-store.js?v=1' en/investing/portfolio-10k.html
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve latest durable Experience Store artifact
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${SOURCE_ARTIFACT}&per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          python - "$RUNNER_TEMP/artifacts.json" > "$RUNNER_TEMP/candidates.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired')]
+          rows.sort(key=lambda x: x.get('created_at',''), reverse=True)
+          for row in rows:
+              wr=row.get('workflow_run') or {}
+              if wr.get('id') and wr.get('head_branch') == 'main':
+                  print(f"{row['id']}|{wr['id']}")
+          PY
+          artifact_id=""
+          run_id=""
+          while IFS='|' read -r candidate_artifact candidate_run; do
+            [[ -n "$candidate_artifact" ]] || continue
+            meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run}")"
+            name="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+            conclusion="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+            branch="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("head_branch", ""))')"
+            if [[ "$name" == "Shadow Alpha Experience Store" && "$conclusion" == "success" && "$branch" == "main" ]]; then
+              artifact_id="$candidate_artifact"
+              run_id="$candidate_run"
+              break
+            fi
+          done < "$RUNNER_TEMP/candidates.txt"
+          if [[ -z "$artifact_id" ]]; then
+            echo "No valid durable Shadow Alpha Experience Store artifact found." >&2
+            exit 1
+          fi
+          echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "EXPERIENCE_STORE_SOURCE_RUN=$run_id artifact=$artifact_id"
+
+      - name: Download and validate private source artifact
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/experience-source"
+          gh run download "${{ steps.source.outputs.run_id }}" -n "$SOURCE_ARTIFACT" -D "$RUNNER_TEMP/experience-source"
+          test -s "$RUNNER_TEMP/experience-source/experience_store.jsonl"
+          test -s "$RUNNER_TEMP/experience-source/experience_store_status.json"
+          test -s "$RUNNER_TEMP/experience-source/shadow_alpha_report.json"
+
+      - name: Build sanitized public projection
+        run: |
+          set -euo pipefail
+          python scripts/experience_store_public_projection.py \
+            --experience-store "$RUNNER_TEMP/experience-source/experience_store.jsonl" \
+            --status "$RUNNER_TEMP/experience-source/experience_store_status.json" \
+            --alpha-report "$RUNNER_TEMP/experience-source/shadow_alpha_report.json" \
+            --output "$OUTPUT_PATH"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/experience_store_public.json').read_text())
+          assert p['schema_version'] == 'briefrooms-experience-store-public-v1'
+          assert p['authority']['read_only'] is True
+          assert p['authority']['production_decision_influence'] is False
+          assert p['privacy']['raw_payloads_exposed'] is False
+          assert p['privacy']['signal_snapshots_exposed'] is False
+          print('Experience Store public:', p['summary'])
+          PY
+
+      - name: Publish only when Experience Store evidence changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OUTPUT_PATH"
+          if git diff --cached --quiet; then
+            echo "Experience Store public projection already current."
+            exit 0
+          fi
+          git commit -m "Refresh Experience Store public projection"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1
