@@ -1,0 +1,98 @@
+name: Experiment Registry
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"
+  pull_request:
+    paths:
+      - "scripts/experiment_registry.py"
+      - "tests/test_experiment_registry.py"
+      - "scripts/portfolio-10k-experiment-registry.js"
+      - "assets/experiment-registry.css"
+      - "scripts/portfolio-10k-navigation-guard.js"
+      - "data/investments/experiment_registry.json"
+      - ".github/workflows/experiment-registry.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: experiment-registry
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate registry builder
+        run: |
+          python -m py_compile scripts/experiment_registry.py
+          python -m unittest tests.test_experiment_registry -v
+      - name: Build canonical registry
+        run: python scripts/experiment_registry.py
+      - name: Validate frontend JavaScript
+        run: |
+          node --check scripts/portfolio-10k-experiment-registry.js
+          node --check scripts/portfolio-10k-navigation-guard.js
+      - name: Validate canonical registry contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/experiment_registry.json').read_text())
+          assert p['schema_version'] == 'briefrooms-experiment-registry-v1'
+          assert p['authority']['read_only'] is True
+          assert p['authority']['production_decision_influence'] is False
+          assert p['authority']['automatic_promotion'] is False
+          assert len(p['experiments']) >= 8
+          assert all(x['system_class'] == 'LAB' for x in p['experiments'])
+          assert all(x['production_impact'] is False for x in p['experiments'])
+          print('Experiment Registry:', p['summary'])
+          PY
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refresh canonical registry
+        run: python scripts/experiment_registry.py
+      - name: Publish only when source state changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/experiment_registry.json
+          if git diff --cached --quiet; then
+            echo "Experiment Registry already current."
+            exit 0
+          fi
+          git commit -m "Refresh Experiment Registry"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1
