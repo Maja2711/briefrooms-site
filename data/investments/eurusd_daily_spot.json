@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-02T17:50:53Z",
+  "timestamp": "2026-09-02T20:07:50Z",
   "direction": "SHORT",
   "score": 47.5,
   "confidence": 0.05,
@@ -23,9 +23,9 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.0154,
-      "broad_usd_environment": -0.0182,
-      "us_rates_pressure_proxy": -0.184
+      "trend": 0.0099,
+      "broad_usd_environment": -0.0404,
+      "us_rates_pressure_proxy": -0.2095
     },
     "weights": {
       "trend": 0.548389,
@@ -33,20 +33,17 @@
       "us_rates_pressure_proxy": 0.200541
     },
     "candidate": {
-      "direction": "SHORT",
-      "score": 47.5,
-      "confidence": 0.05,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "LOW_EDGE_LEARNING_EXPLORATION",
-      "native_was_flat": true,
-      "edge_points": -2.5,
-      "supporting_components": [
-        "trend",
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
+      "direction": "FLAT",
+      "score": 47.66,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
       ],
-      "directional_dominance": 1.0
+      "previous_score": 45.98,
+      "stretch_atr": 0.5557,
+      "shock_ratio": 0.0
     },
     "learning": {
       "total_closed": 12,
@@ -95,8 +92,7 @@
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
       "dynamic_exit_policy": "R_PACE_V1",
-      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path",
-      "exploration_risk_budget_multiplier": 0.35
+      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path"
     },
     "data": {
       "provider": "Yahoo Finance chart",
@@ -124,47 +120,6 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
-    "exploration": {
-      "mode": "LOW_EDGE_LEARNING_EXPLORATION",
-      "eligible": true,
-      "min_edge_points": 1.0,
-      "min_supporting_components": 2,
-      "min_directional_dominance": 0.2,
-      "cooldown_hours": 2.0,
-      "max_per_utc_day": 1,
-      "risk_budget_multiplier": 0.35,
-      "reason": "eligible",
-      "direction": "SHORT",
-      "edge_points": -2.5,
-      "supporting_components": [
-        "trend",
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
-      ],
-      "supporting_component_count": 3,
-      "directional_dominance": 1.0,
-      "market_age_minutes": 0.28,
-      "weighted_contributions": {
-        "trend": -0.008445,
-        "broad_usd_environment": -0.004569,
-        "us_rates_pressure_proxy": -0.0369
-      }
-    },
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 47.5,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 48.82,
-      "stretch_atr": 0.3881,
-      "shock_ratio": 0.0
-    },
-    "decision_source": "LOW_EDGE_LEARNING_EXPLORATION",
-    "learning_eligible": true,
-    "learning_namespace": "NATIVE_COMPONENTS_LOW_EDGE",
     "position": {
       "schema_version": "eurusd-daily-position-v1",
       "trade_id": "eurusd:20260902T175053Z:SHORT",
@@ -222,24 +177,21 @@
           "us_rates_pressure_proxy": -0.0369
         }
       },
-      "mark_price": 1.15915,
-      "unrealized_percent": -0.00013
+      "mark_price": 1.15929,
+      "unrealized_percent": -0.01171
     },
     "candidate_at_refresh": {
-      "direction": "SHORT",
-      "score": 47.5,
-      "confidence": 0.05,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "LOW_EDGE_LEARNING_EXPLORATION",
-      "native_was_flat": true,
-      "edge_points": -2.5,
-      "supporting_components": [
-        "trend",
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
+      "direction": "FLAT",
+      "score": 47.66,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
       ],
-      "directional_dominance": 1.0
+      "previous_score": 45.98,
+      "stretch_atr": 0.5557,
+      "shock_ratio": 0.0
     }
   },
   "schema_version": "daily-engine-output-v1"
