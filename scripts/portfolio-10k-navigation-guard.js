@@ -225,9 +225,9 @@
   function loadExperimentRegistryUI() {
     if (document.querySelector('script[data-experiment-registry-ui]')) return;
     const script = document.createElement('script');
-    script.src = '/scripts/portfolio-10k-experiment-registry.js?v=1';
+    script.src = '/scripts/portfolio-10k-experiment-registry.js?v=2';
     script.async = false;
-    script.dataset.experimentRegistryUi = 'v1';
+    script.dataset.experimentRegistryUi = 'v2';
     document.head.appendChild(script);
   }
 
@@ -290,7 +290,7 @@
     window.setInterval(applyCashYieldLabel, FRESHNESS_POLL_MS);
   };
 
-  window.BriefRoomsInvestmentNavigation = { activate, version: 6 };
+  window.BriefRoomsInvestmentNavigation = { activate, version: 7 };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
