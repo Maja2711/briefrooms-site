@@ -15,7 +15,7 @@ PAGES = (
     Path("pl/inwestycje/portfel-10k.html"),
     Path("en/investing/portfolio-10k.html"),
 )
-TARGET = "portfolio-10k-navigation-guard.js?v=6"
+TARGET = "portfolio-10k-navigation-guard.js?v=7"
 PATTERN = re.compile(r"portfolio-10k-navigation-guard\.js\?v=\d+")
 EXPERIENCE_SRC = "/scripts/portfolio-10k-experience-store.js?v=1"
 EXPERIENCE_TAG = f'<script src="{EXPERIENCE_SRC}" defer></script>'

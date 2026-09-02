@@ -16,9 +16,10 @@ class ExperimentRegistryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             registry = build_registry(Path(tmp))
         ids = {row["id"] for row in registry["experiments"]}
-        self.assertEqual(len(ids), 8)
+        self.assertEqual(len(ids), 7)
         self.assertIn("eurusd-abc-live-shadow", ids)
         self.assertIn("belief-aris-shadow", ids)
+        self.assertNotIn("ai-tournament-2026-02", ids)
         self.assertFalse(any("validation" in item.lower() for item in ids))
         self.assertTrue(all(row["system_class"] == "LAB" for row in registry["experiments"]))
         self.assertTrue(all(row["production_impact"] is False for row in registry["experiments"]))
@@ -31,6 +32,7 @@ class ExperimentRegistryTests(unittest.TestCase):
         rows = registry["experiments"]
         self.assertTrue(all(row["status"] in ALLOWED_STATUSES for row in rows))
         self.assertTrue(all(row["category"] in ALLOWED_CATEGORIES for row in rows))
+        self.assertNotIn("benchmark", ALLOWED_CATEGORIES)
         summary = registry["summary"]
         self.assertEqual(summary["total"], len(rows))
         self.assertEqual(
@@ -41,6 +43,16 @@ class ExperimentRegistryTests(unittest.TestCase):
             + summary["parked_or_killed"]
             + summary["errors"],
         )
+
+    def test_benchmark_policy_is_asset_specific(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = build_registry(Path(tmp))
+        policy = registry["benchmark_policy"]
+        self.assertFalse(policy["benchmark_is_experiment_category"])
+        self.assertEqual(policy["fx"]["applicability"], "NOT_APPLICABLE")
+        self.assertEqual(policy["crypto"]["applicability"], "NOT_APPLICABLE")
+        self.assertEqual(policy["equities"]["applicability"], "WHEN_ECONOMICALLY_MEANINGFUL")
+        self.assertEqual(policy["forecasting_and_learning"]["applicability"], "BASELINE_NOT_MARKET_BENCHMARK")
 
     def test_timesfm_does_not_promote_small_sample(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -69,6 +81,7 @@ class ExperimentRegistryTests(unittest.TestCase):
         self.assertAlmostEqual(row["primary_metric"]["value"], 2 / 3)
         self.assertEqual(row["status"], "INSUFFICIENT_DATA")
         self.assertNotEqual(row["status"], "PROMOTE")
+        self.assertIn("Baseline", row["benchmark"]["interpretation"])
 
     def test_gse_candidate_requires_human_review_and_stays_continue(self):
         with tempfile.TemporaryDirectory() as tmp:
