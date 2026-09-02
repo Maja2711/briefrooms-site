@@ -29,12 +29,50 @@ PR31 may calculate alternative diagnostic representations, but it may not:
 - replace `BeliefState.probability`;
 - replace `BeliefState.confidence`;
 - change evidence reliability;
-- write to Belief Core;
+- write to Belief Core or its source state;
+- export a representation into the EpistemicState consumer contract;
 - affect BRACE/WES/Daily decisions;
+- execute trades;
 - tune thresholds or policies;
 - promote an alternative representation automatically.
 
 The selected representation is a research diagnostic, not a new posterior.
+
+## PR-B hard containment
+
+PR-B turns the shadow boundary into an executable contract rather than relying on naming or convention.
+
+The authoritative Belief Core state directory is **input-only**. ARIS diagnostics must be emitted into a physically separate output directory. Running with the same directory for input and output fails closed.
+
+The runtime verifies that `state.json` is byte-for-byte unchanged after evaluation, and the GitHub workflow independently checks its SHA-256 before and after the shadow run. `aris_belief_shadow.json` is rejected if it appears in the authoritative state directory.
+
+Every report and every belief-level shadow row carries an explicit namespace:
+
+`representation_namespace = aris_shadow_only`
+
+This includes `full_representatives`. The name is retained only for longitudinal PR31 report compatibility; it is a **shadow reference candidate**, not an authoritative Belief Core representation and not a consumer-contract field.
+
+The report must also pass fail-closed authority validation. The following paths are explicitly disabled:
+
+```text
+decision_influence = false
+production_decision_influence = false
+belief_core_writeback_enabled = false
+source_writeback_enabled = false
+consumer_contract_export_enabled = false
+trade_execution_enabled = false
+automatic_promotion_enabled = false
+automatic_tuning_enabled = false
+```
+
+Two positive invariants are mandatory:
+
+```text
+belief_core_probability_remains_authoritative = true
+selected_representation_is_diagnostic_only = true
+```
+
+If any invariant is missing or relaxed, the report is invalid and persistence fails closed.
 
 ## Model + Residual
 
@@ -58,16 +96,16 @@ The residual is not treated as error to be deleted. It is first-class diagnostic
 
 ## Competing representations
 
-PR31 currently evaluates four deliberately simple representations over the same canonical representative Evidence set:
+PR31 currently evaluates four deliberately simple shadow representations over the same canonical representative Evidence set:
 
-- `full_representatives` — canonical reference set;
+- `full_representatives` — shadow reference set;
 - `fresh_signal` — evidence with material current effective mass;
 - `high_reliability` — evidence with reliability >= 0.70;
 - `primary_preferred` — primary evidence, or non-derived evidence when no primary source exists.
 
 These are research probes, not claims that any representation is economically optimal.
 
-The framework is extensible: future representations must prove prospective value before promotion.
+The framework is extensible: future representations must prove prospective value before any separately governed authority-path discussion.
 
 ## ROI search / pruning
 
@@ -104,14 +142,13 @@ PR30 remains the authoritative reversible read interface:
 
 `EpistemicState -> Belief -> Evidence -> Observation -> Source`
 
-PR31 is a research diagnostic adjacent to that interface. It can later add fields such as:
+PR31 remains outside that authority path:
 
-- selected shadow representation;
-- residual mass;
-- representation disagreement;
-- ROI diagnostics;
+`Belief Core -> EpistemicState -> Epistemic Consumer Interface -> BRACE / WES`
 
-Only after prospective validation should any such field be promoted into the stable consumer contract.
+`Belief Core -> ARIS Shadow Diagnostics` is a separate read-only research branch.
+
+PR31 fields are not eligible for direct consumer export. Any future use would require a new explicit contract, prospective validation and separate governance review.
 
 ## Runtime output
 
@@ -119,16 +156,8 @@ PR31 writes one private runtime report:
 
 `aris_belief_shadow.json`
 
-The report contains no action API and no writeback path.
+The report is stored only in the separate ARIS shadow output directory/artifact. It contains no action API and no writeback path.
 
 ## Hard safety invariants
 
-All remain false:
-
-```text
-decision_influence = false
-belief_core_writeback_enabled = false
-automatic_tuning_enabled = false
-```
-
-Belief Core probability remains authoritative at all times.
+PR31 has zero production authority. It cannot change Belief Core, EpistemicState, BRACE, WES, Daily engines, ranking, sizing, execution or production policy.
