@@ -28,8 +28,8 @@
     "target": 280.36,
     "risk_percent": 0.0446,
     "reward_risk": 1.8,
-    "valid_until": "2026-09-02",
-    "time_stop": "Maximum 2 regular US sessions from selection.",
+    "valid_until": "2026-09-04",
+    "time_stop": "Hold through the final regular US session of the selection week; exit near 15:55 ET if neither TP nor SL has fired.",
     "early_exit": "Exit at SL, setup invalidation or material execution-data deterioration; never widen the SL.",
     "activation": "Post-open setup: enter only inside the stated zone; do not chase above skip_above.",
     "thesis": "Salesforce has the highest final quantitative ranking among currently valid and executable US Daily candidates.",
@@ -80,7 +80,9 @@
       "status": "single_source"
     },
     "historical_feature_session": "2026-08-28",
-    "historical_feature_lag_sessions": 0
+    "historical_feature_lag_sessions": 0,
+    "time_stop_pl": "Trzymaj do końca tygodnia handlowego; jeżeli wcześniej nie zadziała TP ani SL, zamknij pozycję około 15:55 ET w ostatniej sesji tygodnia.",
+    "holding_policy": "END_OF_TRADING_WEEK"
   },
   "data_quality": {
     "status": "healthy",
@@ -213,7 +215,7 @@
     }
   },
   "methodology": {
-    "horizon": "1-2 US regular sessions",
+    "horizon": "through the final regular US session of the selection week",
     "weights": {
       "catalyst": 25,
       "relative_momentum": 20,
@@ -278,7 +280,11 @@
       "opening_quote_required": true,
       "final_entry_cutoff": "15:50",
       "one_open_position": true
-    }
+    },
+    "holding_policy": "END_OF_TRADING_WEEK",
+    "week_end_exit_time_et": "15:55",
+    "current_week_final_session": "2026-09-04",
+    "holding_policy_pl": "do końca tygodnia handlowego"
   },
   "metrics": {
     "resolved_trades": 1,
@@ -288,8 +294,11 @@
     "automatic_weight_changes": false
   },
   "outcome": {
-    "status": "PENDING",
-    "activated": null
+    "status": "OPEN",
+    "activated": true,
+    "activated_at": "2026-08-31T15:37:16-04:00",
+    "entry_price": 259.54,
+    "position_id": "us:2026-08-31:CRM"
   },
   "disclaimer": "Research paper-trading material, not investment advice or a promise of performance.",
   "forced_from_reason": "No validated signal was completed before 09:45 ET.",
@@ -306,5 +315,12 @@
     "mark": 259.54,
     "unrealized_percent": 0.0,
     "current_r": 0.0
+  },
+  "position_lifecycle": {
+    "status": "OPEN",
+    "position_id": "us:2026-08-31:CRM",
+    "opened_at": "2026-08-31T15:37:16-04:00",
+    "holding_policy": "END_OF_TRADING_WEEK",
+    "valid_until": "2026-09-04"
   }
 }
