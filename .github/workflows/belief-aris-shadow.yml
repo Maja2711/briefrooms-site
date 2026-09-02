@@ -49,7 +49,7 @@ jobs:
           TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/belief-state-artifact" "$RUNNER_TEMP/belief_core_state"
+          mkdir -p "$RUNNER_TEMP/belief-state-artifact" "$RUNNER_TEMP/belief_core_state" "$RUNNER_TEMP/aris_shadow_output"
           if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
             api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${TRIGGER_RUN_ID}/artifacts?per_page=100"
           else
@@ -80,26 +80,63 @@ jobs:
           test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
           echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          echo "ARIS_OUTPUT_DIR=$RUNNER_TEMP/aris_shadow_output" >> "$GITHUB_ENV"
 
-      - name: Build ARIS-inspired shadow diagnostics
+      - name: Build isolated ARIS shadow diagnostics
         run: |
-          python scripts/belief_aris_shadow_live.py --state-dir "$STATE_DIR" --print-summary
-          test -f "$STATE_DIR/aris_belief_shadow.json"
+          set -euo pipefail
+          state_hash_before=$(sha256sum "$STATE_DIR/state.json" | awk '{print $1}')
+          python scripts/belief_aris_shadow_live.py \
+            --state-dir "$STATE_DIR" \
+            --output-dir "$ARIS_OUTPUT_DIR" \
+            --print-summary
+          state_hash_after=$(sha256sum "$STATE_DIR/state.json" | awk '{print $1}')
+          test "$state_hash_before" = "$state_hash_after"
+          test ! -e "$STATE_DIR/aris_belief_shadow.json"
+          test -f "$ARIS_OUTPUT_DIR/aris_belief_shadow.json"
+
+      - name: Assert PR31 zero-authority invariants
+        run: |
           python - <<'PY'
           import json, os
           from pathlib import Path
-          report=json.loads((Path(os.environ['STATE_DIR'])/'aris_belief_shadow.json').read_text())
+          report=json.loads((Path(os.environ['ARIS_OUTPUT_DIR'])/'aris_belief_shadow.json').read_text())
           assert report['contract_version'] == 'belief-aris-shadow-v1'
           assert report['mode'] == 'research_shadow'
-          assert report['authority']['belief_core_probability_remains_authoritative'] is True
-          assert report['authority']['decision_influence'] is False
-          assert report['authority']['belief_core_writeback_enabled'] is False
-          assert report['authority']['automatic_tuning_enabled'] is False
-          print('PR31 shadow authority invariants: PASS')
+          assert report['representation_namespace'] == 'aris_shadow_only'
+          authority=report['authority']
+          assert authority['belief_core_probability_remains_authoritative'] is True
+          assert authority['selected_representation_is_diagnostic_only'] is True
+          for key in (
+              'decision_influence',
+              'production_decision_influence',
+              'belief_core_writeback_enabled',
+              'source_writeback_enabled',
+              'consumer_contract_export_enabled',
+              'trade_execution_enabled',
+              'automatic_promotion_enabled',
+              'automatic_tuning_enabled',
+          ):
+              assert authority[key] is False, key
+          for belief_id, row in report['beliefs'].items():
+              assert row['representation_namespace'] == 'aris_shadow_only', belief_id
+              assert row['authority_preserved'] is True, belief_id
+              for key in (
+                  'decision_influence',
+                  'production_decision_influence',
+                  'belief_core_writeback_enabled',
+                  'source_writeback_enabled',
+                  'consumer_contract_export_enabled',
+                  'trade_execution_enabled',
+                  'automatic_promotion_enabled',
+                  'automatic_tuning_enabled',
+              ):
+                  assert row[key] is False, (belief_id, key)
+          print('PR31 hard shadow containment invariants: PASS')
           PY
 
       - name: Pack diagnostics
-        run: tar -czf "$RUNNER_TEMP/belief-aris-shadow.tgz" -C "$STATE_DIR" aris_belief_shadow.json
+        run: tar -czf "$RUNNER_TEMP/belief-aris-shadow.tgz" -C "$ARIS_OUTPUT_DIR" aris_belief_shadow.json
 
       - name: Store private shadow diagnostics
         uses: actions/upload-artifact@v4

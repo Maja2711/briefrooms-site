@@ -8,6 +8,9 @@ This module transfers three mathematical principles only:
 
 It does NOT import ARIS code, does NOT modify Belief Core, and has zero decision authority.
 The canonical BeliefState probability remains authoritative.
+
+PR-B hardens the boundary further: authoritative Belief state is input-only and
+ARIS diagnostics must be written to a physically separate shadow output directory.
 """
 from __future__ import annotations
 
@@ -15,11 +18,73 @@ import json
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 CONTRACT_VERSION = "belief-aris-shadow-v1"
 MODE = "research_shadow"
+REPRESENTATION_NAMESPACE = "aris_shadow_only"
 UPDATE_GAIN = 1.65
+
+# This policy is deliberately redundant. The report carries these controls so a
+# downstream reader has to opt out of every authority path explicitly rather
+# than inferring safety from the word "shadow".
+SHADOW_AUTHORITY_POLICY: Dict[str, bool] = {
+    "belief_core_probability_remains_authoritative": True,
+    "selected_representation_is_diagnostic_only": True,
+    "decision_influence": False,
+    "production_decision_influence": False,
+    "belief_core_writeback_enabled": False,
+    "source_writeback_enabled": False,
+    "consumer_contract_export_enabled": False,
+    "trade_execution_enabled": False,
+    "automatic_promotion_enabled": False,
+    "automatic_tuning_enabled": False,
+}
+
+
+def validate_shadow_authority(authority: Mapping[str, Any]) -> None:
+    """Fail closed unless every PR31 authority invariant is explicit and exact."""
+    violations = [
+        key for key, expected in SHADOW_AUTHORITY_POLICY.items()
+        if authority.get(key) is not expected
+    ]
+    if violations:
+        raise ValueError(f"ARIS shadow authority invariant failed: {', '.join(sorted(violations))}")
+
+
+def validate_shadow_report(report: Mapping[str, Any]) -> None:
+    """Validate report-level and row-level isolation before diagnostics are persisted."""
+    if report.get("contract_version") != CONTRACT_VERSION:
+        raise ValueError("unsupported ARIS shadow contract")
+    if report.get("mode") != MODE:
+        raise ValueError("ARIS diagnostics must remain research_shadow")
+    if report.get("representation_namespace") != REPRESENTATION_NAMESPACE:
+        raise ValueError("ARIS representation namespace must remain shadow-only")
+    validate_shadow_authority(report.get("authority") or {})
+
+    for belief_id, row in (report.get("beliefs") or {}).items():
+        if row.get("mode") != MODE or row.get("contract_version") != CONTRACT_VERSION:
+            raise ValueError(f"ARIS shadow row contract mismatch: {belief_id}")
+        if row.get("representation_namespace") != REPRESENTATION_NAMESPACE:
+            raise ValueError(f"ARIS shadow row escaped shadow namespace: {belief_id}")
+        if row.get("authority_preserved") is not True:
+            raise ValueError(f"Belief Core authority not preserved: {belief_id}")
+        row_guards = {
+            "decision_influence": False,
+            "production_decision_influence": False,
+            "belief_core_writeback_enabled": False,
+            "source_writeback_enabled": False,
+            "consumer_contract_export_enabled": False,
+            "trade_execution_enabled": False,
+            "automatic_promotion_enabled": False,
+            "automatic_tuning_enabled": False,
+        }
+        violations = [key for key, expected in row_guards.items() if row.get(key) is not expected]
+        if violations:
+            raise ValueError(
+                f"ARIS shadow row authority invariant failed for {belief_id}: "
+                + ", ".join(sorted(violations))
+            )
 
 
 def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -79,8 +144,14 @@ class ModelResidualState:
     representations: Tuple[RepresentationScore, ...]
     authority_preserved: bool = True
     decision_influence: bool = False
+    production_decision_influence: bool = False
     belief_core_writeback_enabled: bool = False
+    source_writeback_enabled: bool = False
+    consumer_contract_export_enabled: bool = False
+    trade_execution_enabled: bool = False
+    automatic_promotion_enabled: bool = False
     automatic_tuning_enabled: bool = False
+    representation_namespace: str = REPRESENTATION_NAMESPACE
     contract_version: str = CONTRACT_VERSION
     mode: str = MODE
 
@@ -92,6 +163,8 @@ class ARISBeliefShadow:
     """Read-only competing-representation evaluator over persisted Belief Core state."""
 
     def __init__(self, state_payload: Mapping[str, Any]) -> None:
+        # Copy only the input fields required for research evaluation. No reference
+        # to the caller's mutable authoritative containers is retained.
         self.definitions = {str(x["belief_id"]): dict(x) for x in state_payload.get("definitions", [])}
         self.beliefs = {str(x["belief_id"]): dict(x) for x in state_payload.get("beliefs", [])}
         self.evidence = {str(x["evidence_id"]): dict(x) for x in state_payload.get("evidence", [])}
@@ -124,6 +197,8 @@ class ARISBeliefShadow:
         primary_preferred = [x for x in reps if x.get("source_type") == "primary"]
         if not primary_preferred:
             primary_preferred = [x for x in reps if x.get("source_type") != "derived"]
+        # Names are retained for longitudinal PR31 report compatibility. They live
+        # exclusively under REPRESENTATION_NAMESPACE and are never authority fields.
         return {
             "full_representatives": reps,
             "fresh_signal": fresh,
@@ -198,26 +273,36 @@ class ARISBeliefShadow:
         }
 
 
-def build_shadow_report(state_dir: Path) -> Dict[str, Any]:
+def build_shadow_report(state_dir: Path, output_dir: Path) -> Dict[str, Any]:
+    """Build diagnostics from authoritative input without writing into its directory."""
+    state_dir = Path(state_dir).resolve()
+    output_dir = Path(output_dir).resolve()
+    if state_dir == output_dir:
+        raise ValueError("ARIS shadow output_dir must be separate from authoritative state_dir")
+
     state_path = state_dir / "state.json"
     if not state_path.exists():
         raise FileNotFoundError(state_path)
-    payload = json.loads(state_path.read_text(encoding="utf-8"))
+
+    authoritative_bytes_before = state_path.read_bytes()
+    payload = json.loads(authoritative_bytes_before.decode("utf-8"))
     engine = ARISBeliefShadow(payload)
     rows = engine.evaluate_all()
     report = {
         "contract_version": CONTRACT_VERSION,
         "mode": MODE,
+        "representation_namespace": REPRESENTATION_NAMESPACE,
         "principles": ["model_plus_residual", "competing_representations", "roi_search_pruning"],
-        "authority": {
-            "belief_core_probability_remains_authoritative": True,
-            "selected_representation_is_diagnostic_only": True,
-            "decision_influence": False,
-            "belief_core_writeback_enabled": False,
-            "automatic_tuning_enabled": False,
-        },
+        "authority": dict(SHADOW_AUTHORITY_POLICY),
         "beliefs": {belief_id: state.to_dict() for belief_id, state in rows.items()},
     }
-    out = state_dir / "aris_belief_shadow.json"
+    validate_shadow_report(report)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out = output_dir / "aris_belief_shadow.json"
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    # Byte-for-byte check makes accidental Belief Core source writeback fail closed.
+    if state_path.read_bytes() != authoritative_bytes_before:
+        raise RuntimeError("authoritative Belief Core state changed during ARIS shadow evaluation")
     return report
