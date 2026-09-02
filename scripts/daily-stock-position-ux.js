@@ -11,14 +11,18 @@
   };
 
   const T = lang === "pl" ? {
-    status: "W TOKU", eyebrow: "AKTYWNA POZYCJA", entry: "Cena wejścia", stop: "SL", target: "TP", validUntil: "Ważna do",
-    history: "Historia transakcji", historyGpw: "Rynek polski (GPW)", historyUs: "Rynek amerykański (USA)", closed: "zamkniętych",
-    entryShort: "WEJŚCIE", exitShort: "WYJŚCIE", notActivated: "NIE AKTYWOWANO", targetHit: "CEL", stopHit: "STOP", horizon: "KONIEC HORYZONTU",
+    status: "W TOKU", eyebrow: "AKTYWNA POZYCJA", entry: "Cena wejścia", current: "Cena teraz", stop: "SL", target: "TP",
+    validUntil: "Do końca tygodnia", weeklyPolicy: "Pozycję trzymamy do końca tygodnia handlowego, chyba że wcześniej zadziała TP lub SL.",
+    history: "Historia transakcji", historyGpw: "Rynek polski (GPW)", historyUs: "Rynek amerykański (USA)",
+    open: "w toku", closed: "zamkniętych", entryShort: "WEJŚCIE", exitShort: "WYJŚCIE", markShort: "TERAZ",
+    notActivated: "NIE AKTYWOWANO", targetHit: "TP", stopHit: "SL", horizon: "KONIEC TYGODNIA", rotation: "ROTACJA",
     copy: (ticker, entry, target, stop) => `Pozycja ${ticker} pozostaje aktywna. Wejście: ${entry}. TP: ${target}. SL: ${stop}.`,
   } : {
-    status: "OPEN", eyebrow: "ACTIVE POSITION", entry: "Entry price", stop: "SL", target: "TP", validUntil: "Valid through",
-    history: "Trade history", historyGpw: "Polish market (GPW)", historyUs: "US market", closed: "closed",
-    entryShort: "ENTRY", exitShort: "EXIT", notActivated: "NOT ACTIVATED", targetHit: "TARGET", stopHit: "STOP", horizon: "HORIZON END",
+    status: "OPEN", eyebrow: "ACTIVE POSITION", entry: "Entry price", current: "Current price", stop: "SL", target: "TP",
+    validUntil: "End of trading week", weeklyPolicy: "The position is held through the end of the trading week unless TP or SL is hit first.",
+    history: "Trade history", historyGpw: "Polish market (GPW)", historyUs: "US market",
+    open: "open", closed: "closed", entryShort: "ENTRY", exitShort: "EXIT", markShort: "NOW",
+    notActivated: "NOT ACTIVATED", targetHit: "TP", stopHit: "SL", horizon: "WEEK END", rotation: "ROTATION",
     copy: (ticker, entry, target, stop) => `${ticker} remains open. Entry: ${entry}. TP: ${target}. SL: ${stop}.`,
   };
 
@@ -48,8 +52,6 @@
       .format(new Date(Date.UTC(y, m - 1, d, 12)));
   };
 
-  // Preserve the market-local clock encoded in the canonical ISO timestamp.
-  // Do not synthesize a time from trade date, publication time or settlement time.
   const tradeAtText = (value) => {
     const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     if (!match) return "";
@@ -67,7 +69,7 @@
     return Array.isArray(block?.trades) ? block.trades : [];
   };
 
-  const latestActive = (rows, current) => {
+  const latestHistoryActive = (rows, current) => {
     const active = rows.filter(isActive).slice().sort((a, b) =>
       String(b.valid_until || b.date || "").localeCompare(String(a.valid_until || a.date || "")) ||
       String(b.date || "").localeCompare(String(a.date || ""))
@@ -83,6 +85,37 @@
       latest.valid_until = selection.valid_until ?? latest.valid_until;
     }
     return latest;
+  };
+
+  const activeFromCurrent = (rows, current) => {
+    const position = current?.position || {};
+    if (String(position?.status || "").toUpperCase() !== "OPEN" || !tickerOf(position)) return latestHistoryActive(rows, current);
+    const sourceDate = String(position.source_history_date || "");
+    const base = rows.find((row) => tickerOf(row) === tickerOf(position) && (!sourceDate || String(row.date || "") === sourceDate)) || {};
+    const selection = current?.selection || {};
+    return {
+      ...base,
+      date: sourceDate || base.date,
+      ticker: tickerOf(position),
+      symbol: tickerOf(position),
+      name: selection.name ?? position.name ?? base.name,
+      sector: selection.sector ?? position.sector ?? base.sector,
+      stop: position.stop ?? selection.stop ?? base.stop,
+      target: position.target ?? selection.target ?? base.target,
+      valid_until: position.valid_until ?? selection.valid_until ?? base.valid_until,
+      mark: position.mark,
+      unrealized_percent: position.unrealized_percent,
+      current_r: position.current_r,
+      holding_policy: selection.holding_policy || "END_OF_TRADING_WEEK",
+      outcome: {
+        ...(base.outcome || {}),
+        status: "OPEN",
+        activated: true,
+        activated_at: position.opened_at || base?.outcome?.activated_at,
+        entry_price: position.entry ?? base?.outcome?.entry_price,
+        position_id: position.position_id || base?.outcome?.position_id,
+      }
+    };
   };
 
   const entryText = (trade, market) => {
@@ -102,12 +135,16 @@
     const name = String(trade?.name || "").trim();
     const entry = entryText(trade, market);
     const entryAt = tradeAtText(trade?.outcome?.activated_at);
+    const mark = money(trade?.mark, market);
     const stop = money(trade?.stop, market);
     const target = money(trade?.target, market);
     const deadline = dateText(trade?.valid_until);
+    const pnl = Number.isFinite(Number(trade?.unrealized_percent)) ? `${Number(trade.unrealized_percent) >= 0 ? "+" : ""}${Number(trade.unrealized_percent).toFixed(2)}%` : "";
+    const r = Number.isFinite(Number(trade?.current_r)) ? `${Number(trade.current_r) >= 0 ? "+" : ""}${Number(trade.current_r).toFixed(2)}R` : "";
 
     const status = card.querySelector(".dsm-status");
     if (status) { status.className = "dsm-status open-position"; status.textContent = T.status; }
+    card.querySelector(".dsm-pick")?.remove();
 
     const panel = document.createElement("div");
     panel.className = "dsm-open-position";
@@ -118,10 +155,11 @@
       </div>
       <div class="dsm-open-position-levels">
         <div><small>${escapeHtml(T.entry)}</small><b>${escapeHtml(entry)}</b><small>${escapeHtml(entryAt)}</small></div>
+        <div><small>${escapeHtml(T.current)}</small><b>${escapeHtml(mark)}</b><small>${escapeHtml([pnl, r].filter(Boolean).join(" · "))}</small></div>
         <div><small>${escapeHtml(T.stop)}</small><b>${escapeHtml(stop)}</b></div>
         <div><small>${escapeHtml(T.target)}</small><b>${escapeHtml(target)}</b></div>
       </div>
-      <p>${escapeHtml(T.copy(ticker, entry, target, stop))}</p>`;
+      <p>${escapeHtml(T.copy(ticker, entry, target, stop))} ${escapeHtml(T.weeklyPolicy)}</p>`;
 
     const existing = card.querySelector(".dsm-open-position");
     if (existing) existing.replaceWith(panel);
@@ -135,18 +173,40 @@
 
   const outcomeLabel = (row) => {
     const outcome = row?.outcome || {};
+    if (!isResolved(row)) return outcome.activated === true ? { text: T.status, cls: "" } : { text: T.notActivated, cls: "" };
     if (!outcome.activated) return { text: T.notActivated, cls: "" };
-    const reason = outcome.exit_reason === "target" ? T.targetHit : outcome.exit_reason === "stop" ? T.stopHit : T.horizon;
+    const reason = outcome.exit_reason === "target" ? T.targetHit
+      : outcome.exit_reason === "stop" ? T.stopHit
+      : outcome.exit_reason === "rotation" ? T.rotation
+      : T.horizon;
     const result = Number(outcome.return_percent || 0);
     const r = Number(outcome.r_multiple || 0);
     return { text: `${reason} · ${result >= 0 ? "+" : ""}${result.toFixed(2)}% · ${r.toFixed(2)}R`, cls: result > 0 ? "positive" : result < 0 ? "negative" : "" };
   };
 
-  const closedMarket = (market, rows) => {
+  const openHistoryRow = (market, active) => {
+    if (!active) return "";
+    const result = outcomeLabel(active);
+    const entryAt = tradeAtText(active?.outcome?.activated_at);
+    return `<div class="dsm-history-row dsm-history-row-open">
+      <span class="dsm-history-date">${escapeHtml(active.date || "—")}</span>
+      <b>${escapeHtml(tickerOf(active) || "—")}</b>
+      <span class="dsm-history-name">${escapeHtml(active.name || active.sector || "")}</span>
+      <span class="dsm-history-prices">
+        <span><small>${escapeHtml(T.entryShort)}</small><b>${escapeHtml(money(active?.outcome?.entry_price, market))}</b><small>${escapeHtml(entryAt)}</small></span>
+        <span><small>${escapeHtml(T.markShort)}</small><b>${escapeHtml(money(active?.mark, market))}</b></span>
+      </span>
+      <span class="dsm-history-result ${result.cls}">${escapeHtml(result.text)}</span>
+    </div>`;
+  };
+
+  const marketHistory = (market, rows, active) => {
     const closed = rows.filter(isResolved).slice(0, 12);
     const title = market === "gpw" ? T.historyGpw : T.historyUs;
-    if (!closed.length) return `<section class="dsm-history-market"><h4>${escapeHtml(title)}</h4><p class="dsm-history-summary">0 ${escapeHtml(T.closed)}</p></section>`;
-    return `<section class="dsm-history-market"><h4>${escapeHtml(title)}</h4><p class="dsm-history-summary">${closed.length} ${escapeHtml(T.closed)}</p>${closed.map((row) => {
+    const openCount = active ? 1 : 0;
+    const summary = `${openCount} ${escapeHtml(T.open)} · ${closed.length} ${escapeHtml(T.closed)}`;
+    const openRow = openHistoryRow(market, active);
+    const closedRows = closed.map((row) => {
       const outcome = row?.outcome || {};
       const result = outcomeLabel(row);
       const entryAt = tradeAtText(outcome.activated_at);
@@ -161,40 +221,47 @@
         </span>
         <span class="dsm-history-result ${result.cls}">${escapeHtml(result.text)}</span>
       </div>`;
-    }).join("")}</section>`;
+    }).join("");
+    return `<section class="dsm-history-market"><h4>${escapeHtml(title)}</h4><p class="dsm-history-summary">${summary}</p>${openRow}${closedRows}</section>`;
   };
 
-  const renderClosedHistory = (gpwRows, usRows) => {
+  const renderHistory = (gpwRows, usRows, gpwActive, usActive) => {
     const holder = document.querySelector("[data-dsm-history]");
     if (!holder) return false;
     const wasOpen = Boolean(holder.querySelector("details.dsm-history")?.open);
-    const body = lang === "pl" ? `${closedMarket("gpw", gpwRows)}${closedMarket("us", usRows)}` : closedMarket("us", usRows);
+    const body = lang === "pl"
+      ? `${marketHistory("gpw", gpwRows, gpwActive)}${marketHistory("us", usRows, usActive)}`
+      : marketHistory("us", usRows, usActive);
     holder.innerHTML = `<details class="dsm-history"${wasOpen ? " open" : ""}><summary>${escapeHtml(T.history)}</summary><div class="dsm-history-body">${body}</div></details>`;
     return true;
   };
 
-  const apply = async () => {
+  const applyOnce = async () => {
     const [gpwCurrent, gpwHistory, usCurrent, usHistory, fallback] = await Promise.all([
       fetchJson(URLS.gpwCurrent), fetchJson(URLS.gpwHistory), fetchJson(URLS.usCurrent), fetchJson(URLS.usHistory), fetchJson(URLS.fallback)
     ]);
     const gpwRows = rowsFor("gpw", gpwHistory, fallback);
     const usRows = rowsFor("us", usHistory, fallback);
-    const gpwActive = latestActive(gpwRows, gpwCurrent);
-    const usActive = latestActive(usRows, usCurrent);
+    const gpwActive = activeFromCurrent(gpwRows, gpwCurrent);
+    const usActive = activeFromCurrent(usRows, usCurrent);
 
+    if (gpwActive) renderActive(gpwActive, "gpw");
+    if (usActive) renderActive(usActive, "us");
+    renderHistory(gpwRows, usRows, gpwActive, usActive);
+  };
+
+  const boot = () => {
     let attempts = 0;
     const timer = window.setInterval(() => {
       attempts += 1;
       const requiredCardsReady = lang === "pl" ? Boolean(marketCard("gpw") && marketCard("us")) : Boolean(marketCard("us"));
-      const historyReady = Boolean(document.querySelector("[data-dsm-history]"));
-      if (requiredCardsReady && historyReady) {
-        if (gpwActive) renderActive(gpwActive, "gpw");
-        if (usActive) renderActive(usActive, "us");
-        renderClosedHistory(gpwRows, usRows);
+      if (requiredCardsReady && document.querySelector("[data-dsm-history]")) {
         window.clearInterval(timer);
+        applyOnce();
+        window.setInterval(applyOnce, 60000);
       } else if (attempts >= 80) window.clearInterval(timer);
     }, 250);
   };
 
-  apply();
+  boot();
 })();
