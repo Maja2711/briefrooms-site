@@ -1,0 +1,29 @@
+{
+  "schema_version": "briefrooms-statistical-promotion-gate-config-v2",
+  "promotion_methodology_version": 2,
+  "production_promotion_enabled": false,
+  "fixed_paired_n": 30,
+  "confidence_level": 0.9,
+  "bootstrap_samples": 4000,
+  "minimum_net_incremental_return_percent": 0.1,
+  "minimum_net_positive_rate": 0.55,
+  "minimum_unique_symbols": 5,
+  "minimum_span_days": 10,
+  "maximum_single_positive_contribution_share": 0.5,
+  "engines": {
+    "gpw_daily": {
+      "round_trip_cost_stress_percent": 0.2
+    },
+    "us_daily": {
+      "round_trip_cost_stress_percent": 0.1
+    }
+  },
+  "notes": {
+    "design": "Fixed-N single-look confirmation on a fresh holdout that begins only after PR35 passes its own fixed-N validation.",
+    "sample_reuse": "PR35 validation observations are forbidden from the PR36 confirmation sample.",
+    "freeze": "A PR36 PASS is research eligibility only while production_promotion_enabled=false; it cannot change GPW/US production policy.",
+    "costs": "Conservative promotion stress allowance, not a broker fee quote.",
+    "comparison": "Champion is FLAT on the exact marginal candidates blocked only by the current score gate; challenger takes the prospectively frozen LONG plan.",
+    "confidence": "Deterministic bootstrap over paired net incremental returns at one pre-registered formal look."
+  }
+}
