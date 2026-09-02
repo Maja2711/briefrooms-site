@@ -1,0 +1,153 @@
+name: Shadow Alpha Experience Store
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Learning Outcome Loop"
+    types: [completed]
+  pull_request:
+    paths:
+      - "scripts/experience_store.py"
+      - "scripts/shadow_alpha_evaluator.py"
+      - "scripts/shadow_learning_pipeline.py"
+      - "tests/test_shadow_alpha_experience_store.py"
+      - ".github/workflows/shadow-alpha-experience-store.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: shadow-alpha-experience-store
+  cancel-in-progress: false
+
+env:
+  SOURCE_ARTIFACT: learning-outcome-loop-state
+  SOURCE_ARCHIVE: learning-outcome-loop-state.tgz
+  OUTPUT_ARTIFACT: shadow-alpha-experience-store
+
+jobs:
+  evaluate:
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Experience Store and alpha evaluator
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/experience_store.py \
+            scripts/shadow_alpha_evaluator.py \
+            scripts/shadow_learning_pipeline.py
+          python -m unittest tests.test_shadow_alpha_experience_store -v
+
+      - name: Resolve Learning Outcome Loop run
+        if: github.event_name != 'pull_request'
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            run_id="${{ github.event.workflow_run.id }}"
+          else
+            run_id="$(gh run list \
+              --workflow learning-outcome-loop.yml \
+              --branch main \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')"
+          fi
+          if [[ -z "$run_id" ]]; then
+            echo "No successful Learning Outcome Loop run is available." >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "LEARNING_SOURCE_RUN=$run_id"
+
+      - name: Restore cumulative prospective Learning Ledger
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$RUNNER_TEMP/shadow-alpha-state"
+          artifact="$RUNNER_TEMP/shadow-alpha-source"
+          mkdir -p "$state" "$artifact"
+          gh run download "${{ steps.source.outputs.run_id }}" \
+            -n "$SOURCE_ARTIFACT" \
+            -D "$artifact"
+          archive="$artifact/$SOURCE_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$state"
+          test -s "$state/learning_ledger.jsonl"
+          python scripts/learning_outcome_loop.py --state-dir "$state" --verify
+          echo "SHADOW_ALPHA_STATE=$state" >> "$GITHUB_ENV"
+
+      - name: Materialize AlfaX-ready Experience Store
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          python scripts/experience_store.py \
+            --ledger "$SHADOW_ALPHA_STATE/learning_ledger.jsonl" \
+            --store "$SHADOW_ALPHA_STATE/experience_store.jsonl" \
+            --status "$SHADOW_ALPHA_STATE/experience_store_status.json"
+
+      - name: Evaluate current shadow evidence
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          python scripts/shadow_alpha_evaluator.py \
+            --store "$SHADOW_ALPHA_STATE/experience_store.jsonl" \
+            --report "$SHADOW_ALPHA_STATE/shadow_alpha_report.json" \
+            --minimum-sample 30
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['SHADOW_ALPHA_STATE'])
+          store=json.loads((root/'experience_store_status.json').read_text(encoding='utf-8'))
+          report=json.loads((root/'shadow_alpha_report.json').read_text(encoding='utf-8'))
+          assert store['zero_authority'] is True
+          assert report['zero_authority'] is True
+          assert report['overall']['minimum_sample_gate'] == 30
+          print('EXPERIENCE_STORE', store['experience_count'], 'settled=', store['settled_count'])
+          print('SHADOW_ALPHA_ASSESSMENT', report['overall']['assessment'], report['overall']['assessment_basis'])
+          for engine, row in sorted(report['by_engine'].items()):
+              print('ENGINE', engine, row['assessment'], 'n=', row['raw_edge']['sample_size'])
+          PY
+
+      - name: Pack research artifact
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/shadow-alpha-output"
+          mkdir -p "$out"
+          cp "$SHADOW_ALPHA_STATE/experience_store.jsonl" "$out/"
+          cp "$SHADOW_ALPHA_STATE/experience_store_status.json" "$out/"
+          cp "$SHADOW_ALPHA_STATE/shadow_alpha_report.json" "$out/"
+          cp "$SHADOW_ALPHA_STATE/learning_loop_activation.json" "$out/"
+
+      - name: Store Experience Store and alpha report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-alpha-experience-store
+          path: ${{ runner.temp }}/shadow-alpha-output/
+          if-no-files-found: error
+          retention-days: 180
