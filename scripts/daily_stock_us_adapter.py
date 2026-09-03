@@ -7,6 +7,9 @@ evidence. Quant scoring and bounded learning are shared with GPW.
 
 P0.2 also wraps the existing US execution quote in the shared immutable
 CanonicalMarketSnapshot contract without changing ranking or risk geometry.
+
+PR-C installs the US Daily persistence-boundary DecisionEnvelope/RiskPolicy
+guard. Risk limits remain owned by the US engine config.
 """
 from __future__ import annotations
 
@@ -19,10 +22,12 @@ import xml.etree.ElementTree as ET
 
 try:
     from scripts import daily_stock_core as core
+    from scripts import decision_envelope_adapters as decision_contract
     from scripts import market_snapshot_adapters as market_snapshot
     from scripts import us_daily_stock as us
 except ModuleNotFoundError:
     import daily_stock_core as core
+    import decision_envelope_adapters as decision_contract
     import market_snapshot_adapters as market_snapshot
     import us_daily_stock as us
 
@@ -190,6 +195,8 @@ def methodology(config: dict[str, Any] | None = None) -> dict[str, Any]:
         "official_channels": ["SEC 8-K", "company releases", "independent financial news"],
         "market_memory_isolated": True,
         "canonical_market_snapshot": "briefrooms-market-snapshot-v1",
+        "canonical_decision_envelope": "briefrooms-decision-envelope-v1",
+        "risk_policy_ownership": "US_ENGINE",
     }
     return value
 
@@ -348,6 +355,7 @@ def install() -> None:
     us.opening_snapshot = _canonical_opening_snapshot
     us.base_payload = _base_payload
     us.publish = _publish
+    decision_contract.install_us_persistence_guard(us)
     _INSTALLED = True
 
 
