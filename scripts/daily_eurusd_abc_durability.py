@@ -3,7 +3,9 @@
 
 This wrapper reuses the PR19.2 research_state_durability implementation and
 registers the PR20 A/B/C layer without changing the canonical registry used by
-older research layers.
+older research layers. The shared A/B/C learning state/report are sealed in the
+same artifact so learning memory cannot drift away from the decisions/outcomes
+that produced it.
 """
 from __future__ import annotations
 
@@ -24,6 +26,8 @@ def register_layer() -> None:
         (
             "EURUSD_DAILY_ABC_STATE.json",
             "EURUSD_DAILY_ABC_REPORT.json",
+            "EURUSD_DAILY_ABC_LEARNING.json",
+            "EURUSD_DAILY_ABC_LEARNING_REPORT.json",
         ),
     )
 
