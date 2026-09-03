@@ -13,7 +13,10 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from experiment_registry import DEFAULT_OUTPUT, build_registry as build_base_registry
+try:
+    from experiment_registry import DEFAULT_OUTPUT, build_registry as build_base_registry
+except ModuleNotFoundError:
+    from scripts.experiment_registry import DEFAULT_OUTPUT, build_registry as build_base_registry
 
 
 def _load(root: Path, relative: str) -> dict[str, Any]:
