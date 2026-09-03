@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.daily_eurusd_abc_learning_public import attach_projection, validate
+from scripts.daily_eurusd_abc_learning_public import build_public_learning, validate
 
 
 class DailyEURUSDABCLearningPublicTests(unittest.TestCase):
-    def test_only_aggregate_learning_evidence_is_attached(self):
-        projection = {"schema_version": "eurusd-abc-public-pl-v2", "history": []}
+    def test_only_aggregate_learning_evidence_is_published(self):
         report = {
+            "generated_at": "2026-09-03T09:00:00Z",
             "shared_contract": "briefrooms-learning-episode-v1",
             "authority": {"decision_influence": False, "automatic_policy_mutation": False},
             "sample": {"episodes": 12},
@@ -44,13 +44,13 @@ class DailyEURUSDABCLearningPublicTests(unittest.TestCase):
                 for arm in ("A", "B", "C")
             },
         }
-        payload = attach_projection(projection, report)
+        payload = build_public_learning(report)
         validate(payload)
-        self.assertEqual(payload["learning"]["episode_count"], 12)
-        self.assertEqual(set(payload["learning"]["arms"]), {"A", "B", "C"})
-        self.assertNotIn("episodes", payload["learning"])
-        self.assertFalse(payload["learning"]["automatic_policy_mutation"])
-        self.assertFalse(payload["learning"]["decision_influence"])
+        self.assertEqual(payload["episode_count"], 12)
+        self.assertEqual(set(payload["arms"]), {"A", "B", "C"})
+        self.assertNotIn("episodes", payload)
+        self.assertFalse(payload["automatic_policy_mutation"])
+        self.assertFalse(payload["decision_influence"])
 
 
 if __name__ == "__main__":
