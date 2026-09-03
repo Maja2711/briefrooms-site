@@ -8,6 +8,10 @@ use it for Opening Confirmation, repricing or final publication.
 
 P0.2 additionally attaches an immutable CanonicalMarketSnapshot with UTC
 point-in-time lineage. The legacy snapshot shape remains for compatibility.
+
+PR-C installs the GPW persistence-boundary DecisionEnvelope/RiskPolicy guard.
+That guard is shared by the primary and mandatory GPW publication paths and
+therefore blocks persistence rather than changing ranking or trade geometry.
 """
 from __future__ import annotations
 
@@ -21,10 +25,12 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 try:
+    from scripts import decision_envelope_adapters as decision_contract
     from scripts import gpw_data_gates as gates
     from scripts import gpw_daily_pick as gpw
     from scripts import market_snapshot_adapters as market_snapshot
 except ModuleNotFoundError:
+    import decision_envelope_adapters as decision_contract
     import gpw_data_gates as gates
     import gpw_daily_pick as gpw
     import market_snapshot_adapters as market_snapshot
@@ -32,6 +38,10 @@ except ModuleNotFoundError:
 
 _ORIGINAL_YAHOO_FETCHER = gpw.fetch_yahoo_bars
 MAX_OPENING_CROSSCHECK_DEVIATION = 0.02
+
+# gpw_mandatory_daily imports this module too, so the guard protects both GPW
+# producer paths without duplicating risk-policy code inside either selector.
+decision_contract.install_gpw_persistence_guard(gpw)
 
 
 @dataclass(frozen=True)
