@@ -41,6 +41,13 @@ _LINEAGE_KEYS = (
     "instrument_id",
 )
 
+_SELECTION_LINEAGE_KEYS = (
+    "decision_envelope_id",
+    "risk_assessment_id",
+    "market_snapshot_id",
+    "instrument_id",
+)
+
 
 def _position_plan(selection: Mapping[str, Any]) -> dict[str, Any]:
     return {
@@ -87,8 +94,8 @@ def _strip_deferred_lineage(payload: dict[str, Any], reason: str) -> dict[str, A
         payload.pop(key, None)
     selection = payload.get("selection")
     if isinstance(selection, dict):
-        selection.pop("decision_envelope_id", None)
-        selection.pop("risk_assessment_id", None)
+        for key in _SELECTION_LINEAGE_KEYS:
+            selection.pop(key, None)
     payload["decision_envelope_coverage"] = COVERAGE_PARTIAL
     payload.setdefault("data_quality", {})["decision_envelope"] = reason
     return payload
