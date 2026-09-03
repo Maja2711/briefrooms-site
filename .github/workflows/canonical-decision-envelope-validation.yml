@@ -1,0 +1,96 @@
+name: Canonical DecisionEnvelope validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/decision_envelope.py"
+      - "scripts/decision_envelope_adapters.py"
+      - "scripts/risk_policy_contract.py"
+      - "scripts/gpw_daily_risk_policy.py"
+      - "scripts/us_daily_stock_risk_policy.py"
+      - "scripts/gpw_market_data.py"
+      - "scripts/daily_stock_us_adapter.py"
+      - "scripts/canonical_market_snapshot.py"
+      - "scripts/market_snapshot_adapters.py"
+      - "tests/test_decision_envelope.py"
+      - "tests/test_canonical_market_snapshot.py"
+      - "tests/test_gpw_market_data.py"
+      - "tests/test_us_daily_stock.py"
+      - "docs/CANONICAL_DECISION_ENVELOPE.md"
+      - ".github/workflows/canonical-decision-envelope-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/decision_envelope.py"
+      - "scripts/decision_envelope_adapters.py"
+      - "scripts/risk_policy_contract.py"
+      - "scripts/gpw_daily_risk_policy.py"
+      - "scripts/us_daily_stock_risk_policy.py"
+      - "scripts/gpw_market_data.py"
+      - "scripts/daily_stock_us_adapter.py"
+      - "tests/test_decision_envelope.py"
+      - ".github/workflows/canonical-decision-envelope-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canonical-decision-envelope-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile PR-C contracts and producer adapters
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/risk_policy_contract.py \
+            scripts/gpw_daily_risk_policy.py \
+            scripts/us_daily_stock_risk_policy.py \
+            scripts/decision_envelope.py \
+            scripts/decision_envelope_adapters.py \
+            scripts/gpw_market_data.py \
+            scripts/daily_stock_us_adapter.py
+
+      - name: Run PR-C and P0.2 regression tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_decision_envelope \
+            tests.test_canonical_market_snapshot \
+            tests.test_gpw_market_data \
+            tests.test_us_daily_stock -v
+
+      - name: Assert ownership and migration boundaries
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from scripts import decision_envelope_adapters as adapters
+          from scripts import gpw_daily_risk_policy as gpw
+          from scripts import us_daily_stock_risk_policy as us
+
+          report = adapters.coverage_report()
+          assert report['centralized_risk_limits'] is False
+          assert report['legacy_backfill'] is False
+          assert report['unknown_means_pass'] is False
+          assert gpw.POLICY_ID != us.POLICY_ID
+          assert report['components']['gpw_daily_final_decisions']['status'] == 'CANONICALIZED'
+          assert report['components']['us_daily_new_entry_and_flat']['status'] == 'CANONICALIZED'
+          assert report['components']['us_position_hold_close']['status'] == 'PARTIAL'
+          print('PRC_COVERAGE_OK', report)
+          PY
