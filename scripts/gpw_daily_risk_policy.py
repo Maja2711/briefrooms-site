@@ -3,6 +3,9 @@
 
 The thresholds remain GPW-owned and are read from the existing GPW configs.
 The shared risk-policy contract standardizes only the assessment output.
+
+The mandatory-final-selector policy is deliberately scoped to decisions tagged
+``MANDATORY_DAILY_FINAL``. It must never silently tighten the primary GPW path.
 """
 from __future__ import annotations
 
@@ -36,10 +39,10 @@ def _mandatory_policy() -> dict[str, Any]:
         return {}
 
 
-def _limits(config: Mapping[str, Any]) -> dict[str, Any]:
-    mandatory = _mandatory_policy()
+def _limits(config: Mapping[str, Any], *, include_mandatory: bool) -> dict[str, Any]:
     max_risk_values = [float(config.get("maximum_risk_percent", 0.07))]
-    if mandatory.get("enabled"):
+    mandatory = _mandatory_policy() if include_mandatory else {}
+    if include_mandatory and mandatory.get("enabled"):
         for key in ("maximum_candidate_risk_percent", "maximum_published_risk_percent"):
             if mandatory.get(key) is not None:
                 max_risk_values.append(float(mandatory[key]))
@@ -48,7 +51,8 @@ def _limits(config: Mapping[str, Any]) -> dict[str, Any]:
         "maximum_risk_percent": min(max_risk_values),
         "direction": "LONG_ONLY",
         "horizon": "1-2 GPW sessions",
-        "mandatory_policy_schema": mandatory.get("schema_version"),
+        "mandatory_final_selector": bool(include_mandatory),
+        "mandatory_policy_schema": mandatory.get("schema_version") if include_mandatory else None,
     }
 
 
@@ -60,7 +64,9 @@ def evaluate(
 ) -> RiskAssessment:
     decision = str(payload.get("decision") or "").upper()
     action = "LONG" if decision == "TRANSAKCJA" else "FLAT" if decision == "BRAK_TRANSAKCJI" else decision
-    limits = _limits(config)
+    selection = payload.get("selection") if isinstance(payload.get("selection"), Mapping) else {}
+    include_mandatory = str(selection.get("selection_mode") or "").upper() == "MANDATORY_DAILY_FINAL"
+    limits = _limits(config, include_mandatory=include_mandatory)
     policy_version = f"{config.get('policy_version') or 'gpw-policy-unknown'}|risk-v1"
     if action == "FLAT":
         return build_assessment(
@@ -73,7 +79,6 @@ def evaluate(
             checks=(),
         )
 
-    selection = payload.get("selection") if isinstance(payload.get("selection"), Mapping) else {}
     ref = _float(selection.get("reference_price"))
     stop = _float(selection.get("stop"))
     target = _float(selection.get("target"))
