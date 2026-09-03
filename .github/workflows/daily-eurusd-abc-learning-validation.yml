@@ -1,0 +1,85 @@
+name: Validate Daily EURUSD A-B-C Learning Loop
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_abc_learning.py"
+      - "scripts/daily_eurusd_abc_learning_public.py"
+      - "scripts/experiment_registry_learning_extension.py"
+      - "tests/test_daily_eurusd_abc_learning.py"
+      - "tests/test_daily_eurusd_abc_learning_public.py"
+      - "tests/test_experiment_registry_abc_learning.py"
+      - ".github/workflows/daily-eurusd-abc-learning-loop.yml"
+      - ".github/workflows/daily-eurusd-abc-learning-validation.yml"
+      - ".github/workflows/experiment-registry.yml"
+  push:
+    branches-ignore: [main]
+    paths:
+      - "scripts/daily_eurusd_abc_learning.py"
+      - "scripts/daily_eurusd_abc_learning_public.py"
+      - "scripts/experiment_registry_learning_extension.py"
+      - "tests/test_daily_eurusd_abc_learning.py"
+      - "tests/test_daily_eurusd_abc_learning_public.py"
+      - "tests/test_experiment_registry_abc_learning.py"
+      - ".github/workflows/daily-eurusd-abc-learning-loop.yml"
+      - ".github/workflows/daily-eurusd-abc-learning-validation.yml"
+      - ".github/workflows/experiment-registry.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile shared learning and registry adapters
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_eurusd_abc_learning.py \
+            scripts/daily_eurusd_abc_learning_public.py \
+            scripts/experiment_registry.py \
+            scripts/experiment_registry_learning_extension.py
+
+      - name: Run learning, isolation, anti-hindsight and registry tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_daily_eurusd_abc_learning \
+            tests.test_daily_eurusd_abc_learning_public \
+            tests.test_experiment_registry \
+            tests.test_experiment_registry_abc_learning -v
+
+      - name: Assert one learner, zero new shadow traders and zero auto-mutation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          import daily_eurusd_abc_learning as learner
+
+          assert learner.ARMS == ('A','B','C')
+          assert learner.LEARNING_EPISODE_SCHEMA == 'briefrooms-learning-episode-v1'
+          controls=learner.safety_controls()
+          assert all(value is False for value in controls.values())
+          workflow=Path('.github/workflows/daily-eurusd-abc-learning-loop.yml').read_text(encoding='utf-8')
+          assert 'Daily EURUSD A-B-C Live Shadow' in workflow
+          assert 'workflow_run:' in workflow
+          assert 'schedule:' not in workflow
+          assert 'daily-eurusd-abc-learning-state' in workflow
+          assert 'EURUSD_DAILY_ABC_STATE.json' in workflow
+          assert 'automatic_policy_mutation' in workflow
+          assert 'single_trade_can_change_policy' in workflow
+          assert 'data/investments/eurusd_abc_learning_public.json' in workflow
+          print('ABC_SHARED_LEARNING_ARCHITECTURE_PASS')
+          PY
