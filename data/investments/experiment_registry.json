@@ -84,7 +84,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-09-03T16:29:05.219238Z",
+      "last_updated": "2026-09-03T19:52:25.317177Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -115,14 +115,14 @@
         "value": 0.5
       },
       "category": "forecasting",
-      "delta_vs_benchmark": -0.05555555555555558,
+      "delta_vs_benchmark": 0.0,
       "details": {
         "decision_influence": false,
         "research_only": true
       },
       "family": "EURUSD",
       "id": "timesfm-shadow",
-      "last_updated": "2026-09-03T12:50:53.445525Z",
+      "last_updated": "2026-09-03T19:18:57.881167Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "TimesFM Shadow Forecaster",
@@ -133,11 +133,11 @@
         "interpretation": "Miara forecast skill; nie formalna alpha.",
         "label": "Trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.4444444444444444
+        "value": 0.5
       },
       "production_impact": false,
       "purpose": "Sprawdzenie, czy TimesFM daje prospektywną przewagę prognostyczną względem prostych baseline'ów.",
-      "sample_count": 9,
+      "sample_count": 10,
       "sample_unit": "resolved_1h_forecasts",
       "source": "data/investments/timesfm_shadow_public_pl.json",
       "stage": "SHADOW",
@@ -157,7 +157,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-09-03T14:05:57+02:00",
+      "last_updated": "2026-09-03T19:02:37+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -173,7 +173,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 96,
+      "sample_count": 97,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -268,22 +268,22 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.56,
-            "mean_signed_return_bps_1h": 0.5207571428571428,
-            "resolved_1h": 25
+            "directional_accuracy_1h": 0.5555555555555556,
+            "mean_signed_return_bps_1h": 0.7104755102040816,
+            "resolved_1h": 27
           },
           "B": {
-            "directional_accuracy_1h": 0.4583333333333333,
-            "mean_signed_return_bps_1h": -0.11754693877551019,
-            "resolved_1h": 24
+            "directional_accuracy_1h": 0.44,
+            "mean_signed_return_bps_1h": -0.4025877551020408,
+            "resolved_1h": 25
           },
           "C": {
             "directional_accuracy_1h": 0.5,
-            "mean_signed_return_bps_1h": 0.0003142857142857029,
-            "resolved_1h": 12
+            "mean_signed_return_bps_1h": 0.1900326530612245,
+            "resolved_1h": 14
           }
         },
-        "captures": 86,
+        "captures": 88,
         "learning_loop": {
           "arms": {
             "A": {
@@ -304,10 +304,10 @@
               "recent_vs_prior_mean_r_delta": null
             },
             "B": {
-              "dominant_error": null,
-              "episode_count": 0,
-              "error_recurrence_rate": null,
-              "hit_rate": null,
+              "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
+              "episode_count": 1,
+              "error_recurrence_rate": 1.0,
+              "hit_rate": 0.0,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -316,7 +316,7 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": null,
+              "mean_r": -0.997309,
               "policy_stability": 1.0,
               "recent_vs_prior_mean_r_delta": null
             },
@@ -342,7 +342,7 @@
           "available": true,
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 0,
+          "episode_count": 1,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -352,7 +352,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-09-03T14:33:54.624309Z",
+      "last_updated": "2026-09-03T21:01:42.445681Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -366,11 +366,11 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.56
+        "value": 0.5555555555555556
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
-      "sample_count": 12,
+      "sample_count": 14,
       "sample_unit": "resolved_1h_comparisons_per_arm",
       "source": "data/investments/eurusd_abc_public_pl.json",
       "stage": "SHADOW",
@@ -380,7 +380,7 @@
       "version": "eurusd-daily-abc-v1.3.0"
     }
   ],
-  "generated_at": "2026-09-03T16:29:05.219238Z",
+  "generated_at": "2026-09-03T21:01:42.445681Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
