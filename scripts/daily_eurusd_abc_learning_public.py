@@ -3,7 +3,8 @@
 
 Only aggregate evidence leaves the private research artifact. LearningEpisode
 entry theses, component snapshots, decision fingerprints and episode IDs remain
-private.
+private. The projection is content-stable when no new episode is learned so the
+source workflow cannot create timestamp-only repository churn.
 """
 from __future__ import annotations
 
@@ -66,9 +67,10 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
     if governance.get("single_trade_can_change_policy") is not False:
         raise ValueError("single-trade mutation must remain disabled")
     arms = report.get("arms") if isinstance(report.get("arms"), Mapping) else {}
+    episode_count = int((report.get("sample") or {}).get("episodes") or 0)
     payload = {
         "schema_version": PUBLIC_LEARNING_SCHEMA,
-        "generated_at": report.get("generated_at"),
+        "evidence_revision": episode_count,
         "experiment_id": "eurusd-abc-live-shadow",
         "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
         "shared_learning_episode_contract": str(report.get("shared_contract") or ""),
@@ -77,7 +79,7 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
         "decision_influence": False,
         "automatic_policy_mutation": False,
         "cross_arm_writeback": False,
-        "episode_count": int((report.get("sample") or {}).get("episodes") or 0),
+        "episode_count": episode_count,
         "arms": {arm: _arm(arms.get(arm) if isinstance(arms, Mapping) else None) for arm in ARMS},
         "governance": {
             "minimum_episodes_for_lesson": int(governance.get("minimum_episodes_for_lesson") or 0),
@@ -97,6 +99,8 @@ def validate(payload: Mapping[str, Any]) -> None:
         raise ValueError("unexpected A/B/C public learning schema")
     if payload.get("experiment_id") != "eurusd-abc-live-shadow":
         raise ValueError("public learning evidence must bind to the existing A/B/C experiment")
+    if int(payload.get("evidence_revision") or 0) != int(payload.get("episode_count") or 0):
+        raise ValueError("public learning evidence revision must equal episode count")
     for key in ("historical_backfill", "decision_influence", "automatic_policy_mutation", "cross_arm_writeback"):
         if payload.get(key) is not False:
             raise ValueError(f"learning public boundary violated: {key}")
