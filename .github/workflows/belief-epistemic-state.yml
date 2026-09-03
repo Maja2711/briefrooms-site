@@ -9,9 +9,14 @@ on:
     paths:
       - "scripts/belief_epistemic_state.py"
       - "scripts/belief_epistemic_live.py"
+      - "scripts/canonical_epistemic_state.py"
+      - "scripts/canonical_epistemic_state_builder.py"
       - "tests/test_belief_epistemic_state.py"
+      - "tests/test_canonical_epistemic_state.py"
       - ".github/workflows/belief-epistemic-state.yml"
       - "docs/BELIEF_EPISTEMIC_STATE.md"
+      - "docs/PR32A_CANONICAL_EPISTEMIC_STATE_EN.md"
+      - "docs/PR32A_CANONICAL_EPISTEMIC_STATE_PL.md"
 
 permissions:
   contents: read
@@ -26,6 +31,8 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
       - name: Checkout authoritative main code after live run
         if: github.event_name == 'workflow_run'
@@ -42,10 +49,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate Epistemic State contract
+      - name: Validate Epistemic State contracts
         run: |
-          python -m py_compile scripts/belief_epistemic_state.py scripts/belief_epistemic_live.py
-          python -m unittest tests/test_belief_epistemic_state.py -v
+          set -euo pipefail
+          python -m py_compile \
+            scripts/belief_epistemic_state.py \
+            scripts/belief_epistemic_live.py \
+            scripts/canonical_epistemic_state.py \
+            scripts/canonical_epistemic_state_builder.py
+          python -m unittest \
+            tests.test_belief_epistemic_state \
+            tests.test_canonical_epistemic_state -v
 
       - name: Restore triggering Belief Core state
         if: github.event_name == 'workflow_run'
@@ -124,6 +138,7 @@ jobs:
       - name: Build authoritative Epistemic State projection
         if: github.event_name == 'workflow_run'
         run: |
+          set -euo pipefail
           python scripts/belief_epistemic_live.py --state-dir "$STATE_DIR" --print-summary
           test -f "$STATE_DIR/epistemic_state.json"
           test -f "$STATE_DIR/epistemic_state_history.jsonl"
@@ -144,11 +159,38 @@ jobs:
           print('Epistemic history rows:', len(history))
           PY
 
+      - name: Build PR32A canonical EpistemicState
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -euo pipefail
+          python scripts/canonical_epistemic_state_builder.py --state-dir "$STATE_DIR" --print-summary
+          test -s "$STATE_DIR/canonical_epistemic_state.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          state=json.loads((root/'canonical_epistemic_state.json').read_text(encoding='utf-8'))
+          assert state['contract_version'] == 'briefrooms-epistemic-state-v1'
+          assert state['state_id'].startswith('eps-')
+          assert len(state['state_hash']) == 64
+          assert state['provenance_path'] == 'state->belief->evidence->observation->source'
+          assert state['authority']['decision_authority'] is False
+          assert state['authority']['risk_limit_authority'] is False
+          assert state['authority']['trade_execution_authority'] is False
+          assert state['authority']['belief_core_writeback_enabled'] is False
+          assert state['authority']['automatic_tuning_enabled'] is False
+          print('PR32A_CANONICAL_EPISTEMIC_STATE_PASS', state['state_id'])
+          PY
+
       - name: Pack cumulative Epistemic State runtime artifact
         if: github.event_name == 'workflow_run'
         run: |
+          set -euo pipefail
           tar -czf "$RUNNER_TEMP/belief-epistemic-state.tgz" -C "$STATE_DIR" \
-            epistemic_state.json epistemic_state_history.jsonl epistemic_drilldown_index.json
+            epistemic_state.json \
+            epistemic_state_history.jsonl \
+            epistemic_drilldown_index.json \
+            canonical_epistemic_state.json
 
       - name: Store cumulative Epistemic State outside repository
         if: github.event_name == 'workflow_run'
