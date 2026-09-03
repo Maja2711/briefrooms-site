@@ -1,0 +1,67 @@
+name: Validate Daily EURUSD Post-Trade Intelligence
+
+on:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_lifecycle.py"
+      - "scripts/daily_eurusd_spot.py"
+      - "scripts/daily_eurusd_spot_v12.py"
+      - "scripts/daily_eurusd_spot_v13.py"
+      - "scripts/daily_eurusd_spot_v14.py"
+      - "scripts/daily_eurusd_spot_v15.py"
+      - "scripts/daily_eurusd_spot_v16.py"
+      - "tests/test_daily_eurusd_lifecycle.py"
+      - "tests/test_daily_eurusd_direct_signal.py"
+      - "tests/test_daily_eurusd_a_fallback.py"
+      - "tests/test_daily_eurusd_dynamic_exit.py"
+      - "tests/test_daily_eurusd_learning_exploration.py"
+      - "tests/test_daily_eurusd_post_trade_intelligence.py"
+      - ".github/workflows/daily-eurusd-post-trade-intelligence-validation.yml"
+      - ".github/workflows/daily-eurusd-monitor.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_spot_v16.py"
+      - "tests/test_daily_eurusd_post_trade_intelligence.py"
+      - ".github/workflows/daily-eurusd-post-trade-intelligence-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run EURUSD regression and post-trade tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_direct_signal \
+            tests.test_daily_eurusd_a_fallback \
+            tests.test_daily_eurusd_dynamic_exit \
+            tests.test_daily_eurusd_learning_exploration \
+            tests.test_daily_eurusd_post_trade_intelligence -v
+
+      - name: Compile active EURUSD engine chain
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_spot.py \
+            scripts/daily_eurusd_spot_v12.py \
+            scripts/daily_eurusd_spot_v13.py \
+            scripts/daily_eurusd_spot_v14.py \
+            scripts/daily_eurusd_spot_v15.py \
+            scripts/daily_eurusd_spot_v16.py
