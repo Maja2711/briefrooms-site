@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-03T04:57:50Z",
+  "timestamp": "2026-09-03T08:10:50Z",
   "direction": "SHORT",
   "score": 47.5,
   "confidence": 0.05,
@@ -8,7 +8,7 @@
   "stop": 1.16228,
   "target": 1.15352,
   "horizon": "intraday_to_27h",
-  "engine_version": "eurusd-daily-spot-v1.5.0",
+  "engine_version": "eurusd-daily-spot-v1.6.0",
   "status": "OPEN",
   "decision_mode": "WITHOUT",
   "metadata": {
@@ -23,7 +23,7 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": 0.0767,
+      "trend": 0.1012,
       "broad_usd_environment": -0.1608,
       "us_rates_pressure_proxy": -0.2095
     },
@@ -34,15 +34,15 @@
     },
     "candidate": {
       "direction": "FLAT",
-      "score": 47.99,
+      "score": 48.65,
       "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
         "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 51.41,
-      "stretch_atr": 1.0405,
+      "previous_score": 52.91,
+      "stretch_atr": 1.328,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -120,6 +120,16 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
+    "same_thesis_reentry_guard": {
+      "enabled": true,
+      "mode": "SAME_THESIS_REENTRY_GUARD",
+      "generic_loss_cooldown": false,
+      "window_hours": 12.0,
+      "min_loss_r": -0.15,
+      "evaluated": false,
+      "blocked": false,
+      "reason": "entry_disabled_this_cycle"
+    },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
       "trade_id": "eurusd:20260902T175053Z:SHORT",
@@ -177,20 +187,40 @@
           "us_rates_pressure_proxy": -0.0369
         }
       },
-      "mark_price": 1.15982,
-      "unrealized_percent": -0.05808
+      "mark_price": 1.16063,
+      "unrealized_percent": -0.12764,
+      "entry_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "LOW_EDGE_LEARNING_EXPLORATION",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "SHORT",
+        "score": 47.5,
+        "directional_strength": 2.5,
+        "confidence": 0.05,
+        "components": {
+          "trend": -0.0154,
+          "broad_usd_environment": -0.0182,
+          "us_rates_pressure_proxy": -0.184
+        },
+        "weights": {
+          "trend": 0.548389,
+          "broad_usd_environment": 0.25107,
+          "us_rates_pressure_proxy": 0.200541
+        },
+        "legacy_reconstructed": true
+      }
     },
     "candidate_at_refresh": {
       "direction": "FLAT",
-      "score": 47.99,
+      "score": 48.65,
       "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
         "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 51.41,
-      "stretch_atr": 1.0405,
+      "previous_score": 52.91,
+      "stretch_atr": 1.328,
       "shock_ratio": 0.0
     }
   },
