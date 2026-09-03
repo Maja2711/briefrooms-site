@@ -25,8 +25,7 @@ def _load(root: Path, relative: str) -> dict[str, Any]:
         return {}
 
 
-def _learning_details(data: Mapping[str, Any]) -> dict[str, Any]:
-    learning = data.get("learning") if isinstance(data.get("learning"), Mapping) else {}
+def _learning_details(learning: Mapping[str, Any]) -> dict[str, Any]:
     if not learning:
         return {
             "available": False,
@@ -35,6 +34,8 @@ def _learning_details(data: Mapping[str, Any]) -> dict[str, Any]:
             "decision_influence": False,
             "arms": {},
         }
+    if learning.get("experiment_id") != "eurusd-abc-live-shadow":
+        raise ValueError("A/B/C learning projection is not bound to canonical experiment")
     arms = learning.get("arms") if isinstance(learning.get("arms"), Mapping) else {}
     return {
         "available": True,
@@ -64,8 +65,8 @@ def _learning_details(data: Mapping[str, Any]) -> dict[str, Any]:
 
 def build_registry(root: Path) -> dict[str, Any]:
     registry = build_base_registry(root)
-    public = _load(root, "data/investments/eurusd_abc_public_pl.json")
-    learning = _learning_details(public)
+    learning_public = _load(root, "data/investments/eurusd_abc_learning_public.json")
+    learning = _learning_details(learning_public)
     row = next((item for item in registry.get("experiments", []) if item.get("id") == "eurusd-abc-live-shadow"), None)
     if row is None:
         raise ValueError("canonical registry missing eurusd-abc-live-shadow")
