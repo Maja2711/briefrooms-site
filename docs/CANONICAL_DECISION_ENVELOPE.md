@@ -76,8 +76,9 @@ only existing constraints such as:
 - optional `skip_above` consistency,
 - bounded 1–2 session horizon metadata.
 
-The mandatory GPW policy can tighten the mandatory final-selector path, but is
-not a global BriefRooms risk policy.
+The mandatory GPW policy can tighten only decisions explicitly tagged
+`selection_mode=MANDATORY_DAILY_FINAL`. It is not applied to the primary GPW
+path and is not a global BriefRooms risk policy.
 
 ### US Daily Stock
 
@@ -110,8 +111,21 @@ PR-C does not pretend unfinished consumers are canonical.
 - WES: `PARTIAL`
 - BRACE-SPX: `NOT_YET_CANONICALIZED`
 
-A copied entry envelope is explicitly removed from a US HOLD/CLOSE publication
-rather than being misrepresented as current HOLD lineage.
+A copied entry envelope, snapshot ID and instrument ID are explicitly removed
+from a US HOLD/CLOSE publication rather than being misrepresented as current
+HOLD lineage.
+
+## Learning lineage boundary
+
+The canonical GPW/US producer records now carry the new IDs prospectively.
+The existing Learning Outcome Loop still materializes its own immutable decision
+event payload. PR-C does **not** rewrite old ledger events and does not fabricate
+lineage for Experience Store rows that predate this contract.
+
+A later narrow migration may copy already-frozen producer IDs into newly-created
+Learning Ledger decision events. That migration must preserve the permanent
+activation boundary and same-cycle anti-hindsight rules. Until then, producer
+persistence is canonical while downstream Experience Store IDs remain optional.
 
 ## Legacy policy
 
@@ -124,10 +138,6 @@ PR-C is prospective:
 - no fabricated `risk_assessment_id`,
 - legacy records remain auditable as legacy/non-canonical.
 
-Learning Ledger / Experience Store propagation of the new producer IDs should
-be done prospectively only. Existing historical experience rows must not be
-rewritten to simulate lineage they never had.
-
 ## Out of scope
 
 - centralized risk thresholds,
@@ -136,4 +146,5 @@ rewritten to simulate lineage they never had.
 - AlfaX/RL,
 - automatic promotion/tuning changes,
 - retroactive envelope generation,
-- migration of EURUSD/WES/BRACE market snapshots.
+- migration of EURUSD/WES/BRACE market snapshots,
+- retroactive Learning Ledger / Experience Store enrichment.
