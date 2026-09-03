@@ -11,12 +11,17 @@ on:
       - "scripts/belief_epistemic_live.py"
       - "scripts/canonical_epistemic_state.py"
       - "scripts/canonical_epistemic_state_builder.py"
+      - "scripts/canonical_epistemic_verification.py"
+      - "scripts/canonical_epistemic_verification_builder.py"
       - "tests/test_belief_epistemic_state.py"
       - "tests/test_canonical_epistemic_state.py"
+      - "tests/test_canonical_epistemic_verification.py"
       - ".github/workflows/belief-epistemic-state.yml"
       - "docs/BELIEF_EPISTEMIC_STATE.md"
       - "docs/PR32A_CANONICAL_EPISTEMIC_STATE_EN.md"
       - "docs/PR32A_CANONICAL_EPISTEMIC_STATE_PL.md"
+      - "docs/PR32B_CANONICAL_EPISTEMIC_VERIFICATION_EN.md"
+      - "docs/PR32B_CANONICAL_EPISTEMIC_VERIFICATION_PL.md"
 
 permissions:
   contents: read
@@ -56,10 +61,13 @@ jobs:
             scripts/belief_epistemic_state.py \
             scripts/belief_epistemic_live.py \
             scripts/canonical_epistemic_state.py \
-            scripts/canonical_epistemic_state_builder.py
+            scripts/canonical_epistemic_state_builder.py \
+            scripts/canonical_epistemic_verification.py \
+            scripts/canonical_epistemic_verification_builder.py
           python -m unittest \
             tests.test_belief_epistemic_state \
-            tests.test_canonical_epistemic_state -v
+            tests.test_canonical_epistemic_state \
+            tests.test_canonical_epistemic_verification -v
 
       - name: Restore triggering Belief Core state
         if: github.event_name == 'workflow_run'
@@ -131,9 +139,11 @@ jobs:
           test -f "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz"
           mkdir -p "$RUNNER_TEMP/prior-epistemic-state"
           tar -xzf "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz" -C "$RUNNER_TEMP/prior-epistemic-state"
-          if [ -f "$RUNNER_TEMP/prior-epistemic-state/epistemic_state_history.jsonl" ]; then
-            cp "$RUNNER_TEMP/prior-epistemic-state/epistemic_state_history.jsonl" "$STATE_DIR/epistemic_state_history.jsonl"
-          fi
+          for name in epistemic_state_history.jsonl epistemic_verification_targets.jsonl canonical_epistemic_verifications.jsonl; do
+            if [ -f "$RUNNER_TEMP/prior-epistemic-state/$name" ]; then
+              cp "$RUNNER_TEMP/prior-epistemic-state/$name" "$STATE_DIR/$name"
+            fi
+          done
 
       - name: Build authoritative Epistemic State projection
         if: github.event_name == 'workflow_run'
@@ -182,6 +192,30 @@ jobs:
           print('PR32A_CANONICAL_EPISTEMIC_STATE_PASS', state['state_id'])
           PY
 
+      - name: Build PR32B prospective verification targets
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -euo pipefail
+          python scripts/canonical_epistemic_verification_builder.py --state-dir "$STATE_DIR" --print-summary
+          test -f "$STATE_DIR/epistemic_verification_targets.jsonl"
+          test -f "$STATE_DIR/canonical_epistemic_verifications.jsonl"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['STATE_DIR'])
+          targets=[json.loads(x) for x in (root/'epistemic_verification_targets.jsonl').read_text().splitlines() if x.strip()]
+          verifications=[json.loads(x) for x in (root/'canonical_epistemic_verifications.jsonl').read_text().splitlines() if x.strip()]
+          for row in targets:
+              assert row['contract_version'] == 'briefrooms-epistemic-verification-target-v1'
+              assert row['authority']['belief_core_writeback_enabled'] is False
+              assert row['authority']['automatic_tuning_enabled'] is False
+          for row in verifications:
+              assert row['contract_version'] == 'briefrooms-epistemic-verification-v1'
+              assert row['authority']['belief_core_writeback_enabled'] is False
+              assert row['authority']['automatic_tuning_enabled'] is False
+          print('PR32B_CANONICAL_VERIFICATION_PASS targets=', len(targets), 'verifications=', len(verifications))
+          PY
+
       - name: Pack cumulative Epistemic State runtime artifact
         if: github.event_name == 'workflow_run'
         run: |
@@ -190,7 +224,9 @@ jobs:
             epistemic_state.json \
             epistemic_state_history.jsonl \
             epistemic_drilldown_index.json \
-            canonical_epistemic_state.json
+            canonical_epistemic_state.json \
+            epistemic_verification_targets.jsonl \
+            canonical_epistemic_verifications.jsonl
 
       - name: Store cumulative Epistemic State outside repository
         if: github.event_name == 'workflow_run'
