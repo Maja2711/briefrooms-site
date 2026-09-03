@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from scripts import decision_envelope as envelope_contract
@@ -141,6 +142,32 @@ class DecisionEnvelopeTests(unittest.TestCase):
         self.assertNotEqual(gpw_risk.policy_id, us_risk.policy_id)
         self.assertNotEqual(gpw_risk.policy_fingerprint, us_risk.policy_fingerprint)
 
+    def test_gpw_mandatory_limit_does_not_leak_into_primary_path(self):
+        now = datetime(2026, 9, 3, 9, 20, tzinfo=WARSAW)
+        strict_mandatory = {
+            "enabled": True,
+            "schema_version": "mandatory-test-v1",
+            "maximum_candidate_risk_percent": 0.03,
+            "maximum_published_risk_percent": 0.03,
+        }
+        primary = gpw_trade(now)
+        mandatory = gpw_trade(now)
+        mandatory["selection"]["selection_mode"] = "MANDATORY_DAILY_FINAL"
+        with patch.object(gpw_daily_risk_policy, "_mandatory_policy", return_value=strict_mandatory):
+            primary_risk = gpw_daily_risk_policy.evaluate(
+                primary,
+                assessed_at=primary["generated_at"],
+                config=gpw_config(),
+            )
+            mandatory_risk = gpw_daily_risk_policy.evaluate(
+                mandatory,
+                assessed_at=mandatory["generated_at"],
+                config=gpw_config(),
+            )
+        self.assertEqual(primary_risk.status, "APPROVED")
+        self.assertEqual(mandatory_risk.status, "BLOCKED")
+        self.assertNotEqual(primary_risk.policy_fingerprint, mandatory_risk.policy_fingerprint)
+
     def test_gpw_flat_has_no_fabricated_instrument_or_snapshot(self):
         now = datetime(2026, 9, 3, 9, 20, tzinfo=WARSAW)
         module = SimpleNamespace(load_config=gpw_config, PublicationError=RuntimeError)
@@ -189,16 +216,22 @@ class DecisionEnvelopeTests(unittest.TestCase):
             "decision_envelope_id": "dec-old",
             "risk_assessment_id": "risk-old",
             "market_snapshot_id": "mkt-old",
+            "instrument_id": "equity.us.aapl",
             "selection": {
                 "decision_envelope_id": "dec-old",
                 "risk_assessment_id": "risk-old",
                 "market_snapshot_id": "mkt-old",
+                "instrument_id": "equity.us.aapl",
             },
             "data_quality": {},
         }
         module = SimpleNamespace(load_config=us_config, PublicationError=RuntimeError)
         result = adapters.attach_us_decision_envelope(payload, module)
         self.assertNotIn("decision_envelope_id", result)
+        self.assertNotIn("market_snapshot_id", result)
+        self.assertNotIn("instrument_id", result)
+        self.assertNotIn("market_snapshot_id", result["selection"])
+        self.assertNotIn("instrument_id", result["selection"])
         self.assertEqual(result["decision_envelope_coverage"], "PARTIAL")
         self.assertEqual(result["data_quality"]["decision_envelope"], "DEFERRED_US_POSITION_MARK_LINEAGE")
 
