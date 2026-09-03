@@ -1,5 +1,27 @@
 # PR-C — Canonical DecisionEnvelope + per-engine RiskPolicy
 
+## Roadmap status
+
+- **P0.3 Canonical DecisionEnvelope:** `DONE — current scope`
+- **P0.4 per-engine RiskPolicy:** `DONE — current scope`
+
+These architecture items are closed for the current runtime scope after PR #492.
+Remaining engine canonicalization is tracked as **rollout/migration work** and does
+not reopen P0.3 or P0.4.
+
+### Decision contract rollout / migration
+
+- GPW Daily final decisions: `CANONICALIZED`
+- US Daily new-entry and FLAT decisions: `CANONICALIZED`
+- US post-entry HOLD/CLOSE marks: `PARTIAL` — post-entry mark snapshots are not yet P0.2 canonical
+- EURUSD: `PARTIAL`
+- WES: `PARTIAL`
+- BRACE-SPX: `NOT_YET_CANONICALIZED`
+
+Migration is incremental and should be completed when the corresponding engine
+path is touched. It is an integration rollout, not a redesign of the canonical
+DecisionEnvelope or per-engine RiskPolicy architecture.
+
 ## Purpose
 
 PR-C standardizes the **decision record**, not the decision logic.
@@ -101,15 +123,8 @@ symbol, entry, SL, TP or R:R.
 
 ## Explicit coverage
 
-PR-C does not pretend unfinished consumers are canonical.
-
-- GPW Daily final decisions: `CANONICALIZED`
-- US Daily new-entry and FLAT decisions: `CANONICALIZED`
-- US post-entry HOLD/CLOSE marks: `PARTIAL` because that mark path is not yet a
-  P0.2 CanonicalMarketSnapshot
-- EURUSD Daily: `PARTIAL`
-- WES: `PARTIAL`
-- BRACE-SPX: `NOT_YET_CANONICALIZED`
+PR-C does not pretend unfinished consumers are canonical. The authoritative
+rollout status is the **Decision contract rollout / migration** section above.
 
 A copied entry envelope, snapshot ID and instrument ID are explicitly removed
 from a US HOLD/CLOSE publication rather than being misrepresented as current
