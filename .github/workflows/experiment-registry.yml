@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "scripts/experiment_registry.py"
+      - "scripts/experiment_registry_learning_extension.py"
       - "scripts/install_experiment_registry_ui.py"
       - "scripts/portfolio-10k-experiment-registry.js"
       - "scripts/portfolio-10k-experience-store.js"
@@ -15,18 +16,22 @@ on:
       - "assets/experience-store.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
+      - "data/investments/eurusd_abc_learning_public.json"
       - ".github/workflows/experiment-registry.yml"
   pull_request:
     paths:
       - "scripts/experiment_registry.py"
+      - "scripts/experiment_registry_learning_extension.py"
       - "scripts/install_experiment_registry_ui.py"
       - "tests/test_experiment_registry.py"
+      - "tests/test_experiment_registry_abc_learning.py"
       - "scripts/portfolio-10k-experiment-registry.js"
       - "scripts/portfolio-10k-experience-store.js"
       - "assets/experiment-registry.css"
       - "assets/experience-store.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
+      - "data/investments/eurusd_abc_learning_public.json"
       - ".github/workflows/experiment-registry.yml"
 
 permissions:
@@ -50,10 +55,15 @@ jobs:
           python-version: "3.12"
       - name: Validate registry builder
         run: |
-          python -m py_compile scripts/experiment_registry.py scripts/install_experiment_registry_ui.py
-          python -m unittest tests.test_experiment_registry -v
+          python -m py_compile \
+            scripts/experiment_registry.py \
+            scripts/experiment_registry_learning_extension.py \
+            scripts/install_experiment_registry_ui.py
+          python -m unittest \
+            tests.test_experiment_registry \
+            tests.test_experiment_registry_abc_learning -v
       - name: Build canonical registry
-        run: python scripts/experiment_registry.py
+        run: python scripts/experiment_registry_learning_extension.py
       - name: Validate Portfolio10K UI installer
         run: |
           python scripts/install_experiment_registry_ui.py
@@ -85,7 +95,12 @@ jobs:
           assert p['benchmark_policy']['crypto']['applicability'] == 'NOT_APPLICABLE'
           assert all(x['system_class'] == 'LAB' for x in p['experiments'])
           assert all(x['production_impact'] is False for x in p['experiments'])
+          abc=next(x for x in p['experiments'] if x['id']=='eurusd-abc-live-shadow')
+          learning=(abc.get('details') or {}).get('learning_loop') or {}
+          assert learning.get('automatic_policy_mutation') is False
+          assert learning.get('decision_influence') is False
           print('Experiment Registry:', p['summary'])
+          print('EURUSD A/B/C learning:', learning.get('episode_count'), learning.get('available'))
           PY
 
   publish:
@@ -103,7 +118,7 @@ jobs:
           python-version: "3.12"
       - name: Refresh canonical registry and Portfolio10K Lab assets
         run: |
-          python scripts/experiment_registry.py
+          python scripts/experiment_registry_learning_extension.py
           python scripts/install_experiment_registry_ui.py
       - name: Publish only when source state changed
         run: |
