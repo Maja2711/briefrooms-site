@@ -1,0 +1,212 @@
+name: Daily EURUSD A-B-C Learning Loop
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Daily EURUSD A-B-C Live Shadow"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: daily-eurusd-abc-learning-loop
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+  ABC_ARTIFACT_NAME: daily-eurusd-abc-live-shadow-state
+  LEARNING_ARTIFACT_NAME: daily-eurusd-abc-learning-state
+  LEARNING_ARCHIVE: daily-eurusd-abc-learning-state.tgz
+
+jobs:
+  learn:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare private learning workspace
+        run: |
+          set -euo pipefail
+          echo "ABC_LEARNING_DIR=$RUNNER_TEMP/eurusd-abc-learning" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/eurusd-abc-learning"
+
+      - name: Restore latest verified A/B/C source state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list \
+            --workflow daily-eurusd-abc-live-shadow.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No successful A/B/C source run available." >&2
+            exit 1
+          fi
+          rm -rf "$RUNNER_TEMP/abc-source-artifact"
+          mkdir -p "$RUNNER_TEMP/abc-source-artifact"
+          gh run download "$run_id" -n "$ABC_ARTIFACT_NAME" -D "$RUNNER_TEMP/abc-source-artifact"
+          archive="$RUNNER_TEMP/abc-source-artifact/daily-eurusd-abc-live-shadow-state.tgz"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$ABC_LEARNING_DIR"
+          python scripts/daily_eurusd_abc_durability.py verify \
+            --layer pr20_eurusd_abc \
+            --state-dir "$ABC_LEARNING_DIR"
+          test -s "$ABC_LEARNING_DIR/EURUSD_DAILY_ABC_STATE.json"
+
+      - name: Restore prior learning memory or establish first prospective activation
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prior_success="$(gh run list \
+            --workflow daily-eurusd-abc-learning-loop.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          if [[ -z "$prior_success" ]]; then
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            echo "First A/B/C learning activation: pre-existing captures become the prospective cutoff."
+            exit 0
+          fi
+
+          echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+          restored=false
+          mapfile -t candidate_runs < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${LEARNING_ARTIFACT_NAME}&per_page=100" \
+              --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .workflow_run.id'
+          )
+          for run_id in "${candidate_runs[@]}"; do
+            [[ -n "$run_id" ]] || continue
+            meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+            name="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
+            result="$(printf '%s' "$meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
+            [[ "$name" == "Daily EURUSD A-B-C Learning Loop" && "$result" == "success" ]] || continue
+            rm -rf "$RUNNER_TEMP/learning-prior"
+            mkdir -p "$RUNNER_TEMP/learning-prior"
+            if ! gh run download "$run_id" -n "$LEARNING_ARTIFACT_NAME" -D "$RUNNER_TEMP/learning-prior"; then
+              continue
+            fi
+            archive="$RUNNER_TEMP/learning-prior/$LEARNING_ARCHIVE"
+            [[ -s "$archive" ]] || continue
+            tar -xzf "$archive" -C "$ABC_LEARNING_DIR"
+            if python scripts/daily_eurusd_abc_learning.py --state-dir "$ABC_LEARNING_DIR" --validate; then
+              restored=true
+              break
+            fi
+          done
+          if [[ "$restored" != true ]]; then
+            echo "Prior successful learning run exists but durable learning state cannot be restored." >&2
+            echo "FAIL_CLOSED: refusing to create a new activation boundary." >&2
+            exit 1
+          fi
+
+      - name: Validate shared learner before mutating learning memory
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_eurusd_abc_learning.py \
+            scripts/daily_eurusd_abc_learning_public.py \
+            scripts/experiment_registry_learning_extension.py
+          python -m unittest \
+            tests.test_daily_eurusd_abc_learning \
+            tests.test_daily_eurusd_abc_learning_public \
+            tests.test_experiment_registry_abc_learning -v
+
+      - name: Consume A/B/C outcomes into isolated per-arm learning memory
+        id: learn
+        run: |
+          set -euo pipefail
+          output="$(python scripts/daily_eurusd_abc_learning.py --state-dir "$ABC_LEARNING_DIR")"
+          printf '%s\n' "$output"
+          python scripts/daily_eurusd_abc_learning.py --state-dir "$ABC_LEARNING_DIR" --validate
+          changed="$(printf '%s\n' "$output" | sed -n 's/^ABC_LEARNING_STATE_CHANGED=//p' | tail -1)"
+          echo "changed=${changed:-false}" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['ABC_LEARNING_DIR'])
+          state=json.loads((root/'EURUSD_DAILY_ABC_LEARNING.json').read_text())
+          report=json.loads((root/'EURUSD_DAILY_ABC_LEARNING_REPORT.json').read_text())
+          assert state['anti_hindsight']['historical_backfill'] is False
+          assert state['authority']['decision_influence'] is False
+          assert state['authority']['automatic_policy_mutation'] is False
+          assert state['authority']['cross_arm_writeback'] is False
+          assert report['governance']['single_trade_can_change_policy'] is False
+          assert all(report['arms'][arm]['lesson_candidate']['policy_change_applied'] is False for arm in ('A','B','C'))
+          print('ABC_SHARED_LEARNING_ZERO_AUTHORITY_PASS', report['sample'])
+          PY
+
+      - name: Pack changed private learning memory
+        if: steps.learn.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$LEARNING_ARCHIVE" \
+            -C "$ABC_LEARNING_DIR" \
+            EURUSD_DAILY_ABC_LEARNING.json \
+            EURUSD_DAILY_ABC_LEARNING_REPORT.json
+          test -s "$RUNNER_TEMP/$LEARNING_ARCHIVE"
+
+      - name: Store changed private learning memory
+        if: steps.learn.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-eurusd-abc-learning-state
+          path: ${{ runner.temp }}/daily-eurusd-abc-learning-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Build sanitized learning evidence for Experiment Registry
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_abc_learning_public.py \
+            --learning-report "$ABC_LEARNING_DIR/EURUSD_DAILY_ABC_LEARNING_REPORT.json" \
+            --output data/investments/eurusd_abc_learning_public.json
+          python scripts/daily_eurusd_abc_learning_public.py \
+            --output data/investments/eurusd_abc_learning_public.json \
+            --validate
+          python -m json.tool data/investments/eurusd_abc_learning_public.json >/dev/null
+
+      - name: Publish only sanitized learning evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/eurusd_abc_learning_public.json
+          if git diff --cached --quiet; then
+            echo "A/B/C learning public evidence already current."
+            exit 0
+          fi
+          git commit -m "Publish EURUSD A-B-C learning evidence"
+          for attempt in 1 2 3 4; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          echo "Unable to publish A/B/C learning evidence" >&2
+          exit 1
