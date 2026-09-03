@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Attach a sanitized A/B/C learning summary to the existing public projection.
+"""Build sanitized public evidence for the private EUR/USD A/B/C learning loop.
 
 Only aggregate evidence leaves the private research artifact. LearningEpisode
 entry theses, component snapshots, decision fingerprints and episode IDs remain
@@ -66,8 +66,10 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
     if governance.get("single_trade_can_change_policy") is not False:
         raise ValueError("single-trade mutation must remain disabled")
     arms = report.get("arms") if isinstance(report.get("arms"), Mapping) else {}
-    return {
+    payload = {
         "schema_version": PUBLIC_LEARNING_SCHEMA,
+        "generated_at": report.get("generated_at"),
+        "experiment_id": "eurusd-abc-live-shadow",
         "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
         "shared_learning_episode_contract": str(report.get("shared_contract") or ""),
         "prospective_only": True,
@@ -86,46 +88,42 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
             ),
         },
     }
-
-
-def attach_projection(projection: Mapping[str, Any], report: Mapping[str, Any]) -> dict[str, Any]:
-    payload = json.loads(json.dumps(projection))
-    payload["learning"] = build_public_learning(report)
     validate(payload)
     return payload
 
 
 def validate(payload: Mapping[str, Any]) -> None:
-    learning = payload.get("learning") if isinstance(payload.get("learning"), Mapping) else None
-    if not learning or learning.get("schema_version") != PUBLIC_LEARNING_SCHEMA:
-        raise ValueError("A/B/C public projection missing learning contract")
+    if payload.get("schema_version") != PUBLIC_LEARNING_SCHEMA:
+        raise ValueError("unexpected A/B/C public learning schema")
+    if payload.get("experiment_id") != "eurusd-abc-live-shadow":
+        raise ValueError("public learning evidence must bind to the existing A/B/C experiment")
     for key in ("historical_backfill", "decision_influence", "automatic_policy_mutation", "cross_arm_writeback"):
-        if learning.get(key) is not False:
+        if payload.get(key) is not False:
             raise ValueError(f"learning public boundary violated: {key}")
-    if set(learning.get("arms") or {}) != set(ARMS):
+    if set(payload.get("arms") or {}) != set(ARMS):
         raise ValueError("learning summary must contain A/B/C")
     for arm in ARMS:
-        lesson = (learning["arms"][arm].get("lesson_candidate") or {})
+        lesson = (payload["arms"][arm].get("lesson_candidate") or {})
         if lesson.get("policy_change_applied") is not False:
             raise ValueError("public learning summary cannot apply policy")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Attach sanitized A/B/C learning summary")
-    parser.add_argument("--projection", required=True, type=Path)
+    parser = argparse.ArgumentParser(description="Build sanitized public A/B/C learning evidence")
     parser.add_argument("--learning-report", type=Path)
+    parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--validate", action="store_true")
     args = parser.parse_args()
-    projection = _load(args.projection)
     if args.validate:
-        validate(projection)
-        print("EURUSD_ABC_LEARNING_PUBLIC_OK", args.projection)
+        validate(_load(args.output))
+        print("EURUSD_ABC_LEARNING_PUBLIC_OK", args.output)
         return 0
     if args.learning_report is None:
         parser.error("--learning-report is required unless --validate is used")
-    payload = attach_projection(projection, _load(args.learning_report))
-    args.projection.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("EURUSD_ABC_LEARNING_PUBLIC_WRITTEN", args.projection)
+    payload = build_public_learning(_load(args.learning_report))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print("EURUSD_ABC_LEARNING_PUBLIC_WRITTEN", args.output)
     return 0
 
 
