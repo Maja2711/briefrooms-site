@@ -15,6 +15,9 @@ on:
       - "scripts/autonomous_policy_promotion_v2.py"
       - "scripts/statistical_promotion_gate.py"
       - "scripts/statistical_promotion_gate_v2.py"
+      - "scripts/validation_epoch.py"
+      - "scripts/anytime_valid_inference.py"
+      - "scripts/promotion_learning_integrity.py"
       - "scripts/policy_runtime_overlay.py"
       - "scripts/statistical_policy_materializer.py"
       - "scripts/autonomous_policy_observatory.py"
@@ -23,10 +26,11 @@ on:
       - "tests/test_statistical_promotion_gate.py"
       - "tests/test_autonomous_policy_observatory.py"
       - "tests/test_promotion_safety_v2.py"
+      - "tests/test_learning_integrity_v1.py"
       - ".github/workflows/autonomous-policy-promotion.yml"
 
-# PR-A safety freeze: this workflow may evaluate challengers and publish a
-# read-only observatory snapshot, but it cannot write GPW/US production config.
+# PR-A safety freeze remains authoritative. ValidationEpoch and anytime-valid
+# inference harden research integrity but cannot write production policy.
 permissions:
   contents: read
   actions: write
@@ -57,7 +61,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate PR-A promotion safety code
+      - name: Validate PR-A promotion safety and learning-integrity code
         run: |
           set -euo pipefail
           python -m py_compile \
@@ -65,6 +69,9 @@ jobs:
             scripts/autonomous_policy_promotion_v2.py \
             scripts/statistical_promotion_gate.py \
             scripts/statistical_promotion_gate_v2.py \
+            scripts/validation_epoch.py \
+            scripts/anytime_valid_inference.py \
+            scripts/promotion_learning_integrity.py \
             scripts/policy_runtime_overlay.py \
             scripts/policy_repo_materializer.py \
             scripts/statistical_policy_materializer.py \
@@ -74,7 +81,8 @@ jobs:
             tests.test_autonomous_policy_promotion \
             tests.test_statistical_promotion_gate \
             tests.test_autonomous_policy_observatory \
-            tests.test_promotion_safety_v2 -v
+            tests.test_promotion_safety_v2 \
+            tests.test_learning_integrity_v1 -v
 
   research:
     if: >-
@@ -188,27 +196,26 @@ jobs:
             python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
           fi
 
-      - name: Run PR35 fixed-N prospective validation v2
+      - name: Run PR35 fixed-N validation with hash-committed ValidationEpoch and shadow anytime inference
         run: |
           set -euo pipefail
-          python scripts/autonomous_policy_promotion_v2.py \
+          python scripts/promotion_learning_integrity.py pr35 \
             --state-dir "$POLICY_STATE_DIR" \
             --learning-state-dir "$LEARNING_STATE_DIR" \
             --repo-root .
-          python scripts/autonomous_policy_promotion_v2.py \
-            --state-dir "$POLICY_STATE_DIR" \
-            --verify
-
-      - name: Run PR36 fresh fixed-N confirmation holdout v2
-        run: |
-          set -euo pipefail
-          python scripts/statistical_promotion_gate_v2.py \
+          python scripts/promotion_learning_integrity.py verify \
             --state-dir "$POLICY_STATE_DIR" \
             --repo-root .
-          python scripts/statistical_promotion_gate_v2.py \
+
+      - name: Run PR36 fresh holdout with hash-committed ValidationEpoch and shadow anytime inference
+        run: |
+          set -euo pipefail
+          python scripts/promotion_learning_integrity.py pr36 \
             --state-dir "$POLICY_STATE_DIR" \
-            --repo-root . \
-            --verify
+            --repo-root .
+          python scripts/promotion_learning_integrity.py verify \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
 
       - name: Publish read-only observatory snapshot to private artifact only
         run: |
@@ -235,6 +242,7 @@ jobs:
           from pathlib import Path
           from policy_runtime_overlay import apply_active_policy, PROMOTION_FREEZE_STATUS
           from statistical_policy_materializer import materialize
+          from promotion_learning_integrity import verify as verify_integrity
 
           root=Path(os.environ['POLICY_STATE_DIR'])
           registry_path=root/'policy_registry.json'
@@ -257,7 +265,11 @@ jobs:
           result=materialize(registry_path, root/'not-required-while-frozen.json', Path('.'))
           assert result['changed'] is False
           assert result['status']==PROMOTION_FREEZE_STATUS
+          integrity=verify_integrity(root, Path('.'))
+          assert integrity['fixed_n_primary_gate_unchanged'] is True
+          assert integrity['production_promotion_enabled'] is False
           print('PR_A_PROMOTION_FREEZE_PASS')
+          print('VALIDATION_EPOCH_CHAIN', json.dumps(integrity['validation_epoch_chain'], sort_keys=True))
           PY
 
       - name: Pack private autonomous policy research state
