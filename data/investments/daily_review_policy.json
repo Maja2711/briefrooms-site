@@ -1,5 +1,5 @@
 {
-  "policy_version": "1.0.0",
+  "policy_version": "1.1.0",
   "enabled": true,
   "timezone": "Europe/Warsaw",
   "review_time_local": "23:00",
@@ -16,10 +16,24 @@
     "same_week_reentry": false,
     "sl_tp_monitoring": "Independent SL/TP checks remain active and can close earlier."
   },
+  "completeness": {
+    "schema_version": "briefrooms-daily-review-completeness-v1",
+    "invariant": "exactly_one_scheduled_review_per_open_position_session",
+    "missing_review_interpretation": "DATA_GAP_NOT_HOLD",
+    "strict_enforcement_from": "2026-09-07",
+    "historical_backfill_allowed": false,
+    "reconstructed_formal_learning_eligible": false,
+    "retry_incomplete_session": true,
+    "durable_checkpoint_before_downstream_lifecycle": true,
+    "report_path": "data/investments/daily_review_completeness.json"
+  },
   "audit": {
     "record_every_review": true,
     "record_keep_decision": true,
     "record_close_reason": true,
+    "record_session_completeness": true,
+    "missing_review_is_hold": false,
+    "historical_gaps_are_audit_only": true,
     "report_path": "data/investments/daily_review_report.json"
   }
 }
