@@ -1,0 +1,183 @@
+name: Engine-Specific Learning Loops
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+  pull_request:
+    paths:
+      - "scripts/engine_learning_framework.py"
+      - "scripts/experiment_registry.py"
+      - "data/investments/learning_engine_registry_v1.json"
+      - "data/investments/experiment_registry.json"
+      - "data/public/brace_spx_generation6_public.json"
+      - "data/investments/wes_incremental_alpha_report.json"
+      - "data/investments/timesfm_shadow_public_pl.json"
+      - "data/gse/gse_v2_lab_public.json"
+      - "data/investments/eurusd_abc_public_pl.json"
+      - "data/investments/research_lab_report.json"
+      - "tests/test_engine_learning_framework.py"
+      - ".github/workflows/engine-specific-learning-loops.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: engine-specific-learning-loops-v1
+  cancel-in-progress: false
+
+env:
+  LEARNING_ARTIFACT: engine-specific-learning-state-v1
+  LEARNING_ARCHIVE: engine-specific-learning-state-v1.tgz
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate isolated learning contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/engine_learning_framework.py \
+            scripts/experiment_registry.py
+          python -m json.tool data/investments/learning_engine_registry_v1.json >/dev/null
+          python scripts/engine_learning_framework.py \
+            --root . \
+            --registry data/investments/learning_engine_registry_v1.json \
+            --validate
+          python -m unittest tests.test_engine_learning_framework -v
+
+  research:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare isolated engine state
+        run: |
+          set -euo pipefail
+          echo "LEARNING_STATE_ROOT=$RUNNER_TEMP/engine_learning_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/engine_learning_state"
+
+      - name: Restore prior engine learning state when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${LEARNING_ARTIFACT}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No prior engine-specific learning state; initializing isolated partitions."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/engine-learning-artifact"
+          mkdir -p "$RUNNER_TEMP/engine-learning-artifact"
+          gh run download "$run_id" -n "$LEARNING_ARTIFACT" -D "$RUNNER_TEMP/engine-learning-artifact"
+          archive="$RUNNER_TEMP/engine-learning-artifact/$LEARNING_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$LEARNING_STATE_ROOT"
+
+      - name: Run every registered engine loop in its own partition
+        run: |
+          set -euo pipefail
+          python scripts/engine_learning_framework.py \
+            --root . \
+            --registry data/investments/learning_engine_registry_v1.json \
+            --state-root "$LEARNING_STATE_ROOT" \
+            --run-all
+
+      - name: Verify state isolation, knowledge boundary and zero authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import engine_learning_framework as elf
+
+          root = Path('.')
+          state = Path(os.environ['LEARNING_STATE_ROOT'])
+          registry = elf.load_learning_registry(
+              root / 'data/investments/learning_engine_registry_v1.json',
+              root=root,
+          )
+          status = elf.validate_learning_registry(registry, root=root)
+          assert status['engines'] == 9
+          assert status['public_experiments_mapped'] == 7
+          assert status['isolated_partitions'] == 9
+
+          by_engine = {row['engine_id']: row for row in registry['engines']}
+          for engine_id, entry in by_engine.items():
+              loop_state = json.loads((state / engine_id / elf.LOOP_STATE_FILENAME).read_text())
+              assert loop_state['engine_id'] == engine_id
+              assert loop_state['authority']['automatic_cross_engine_writeback'] is False
+              assert loop_state['authority']['automatic_promotion'] is False
+              assert loop_state['authority']['trade_execution'] is False
+              assert entry['state_partition'].endswith('/' + engine_id)
+
+          assert json.loads((state / 'gpw_daily' / elf.LOOP_STATE_FILENAME).read_text())['phase'] == 'DELEGATED_EXISTING_LOOP'
+          assert json.loads((state / 'us_daily' / elf.LOOP_STATE_FILENAME).read_text())['phase'] == 'DELEGATED_EXISTING_LOOP'
+
+          brace = elf._read_jsonl(state / 'brace_spx' / 'evidence.jsonl')
+          wes = elf._read_jsonl(state / 'wes' / 'evidence.jsonl')
+          assert brace and all(row['engine_id'] == 'brace_spx' for row in brace)
+          assert wes and all(row['engine_id'] == 'wes' for row in wes)
+          assert all(row['authority']['production_policy_writeback'] is False for row in brace + wes)
+
+          bus = elf._read_jsonl(state / elf.KNOWLEDGE_BUS_FILENAME)
+          for item in bus:
+              assert item['recipient_use'] == 'HYPOTHESIS_INPUT_ONLY'
+              assert item['requires_recipient_local_experiment'] is True
+              assert item['automatic_cross_engine_writeback'] is False
+
+          observatory = json.loads((state / elf.OBSERVATORY_FILENAME).read_text())
+          assert observatory['coverage']['engine_loops_total'] == 9
+          assert observatory['coverage']['public_experiments_total'] == 7
+          assert observatory['coverage']['public_experiments_mapped'] == 7
+          assert observatory['coverage']['unmapped_public_experiments'] == []
+          assert observatory['authority']['decision_authority'] is False
+          assert observatory['authority']['engine_state_writeback'] is False
+          assert observatory['authority']['engine_configuration_writeback'] is False
+          print('ENGINE_SPECIFIC_LEARNING_LOOPS_PASS', len(bus))
+          PY
+
+      - name: Pack isolated engine state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$LEARNING_ARCHIVE" -C "$LEARNING_STATE_ROOT" .
+          test -s "$RUNNER_TEMP/$LEARNING_ARCHIVE"
+
+      - name: Store engine-specific learning state
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-specific-learning-state-v1
+          path: ${{ runner.temp }}/engine-specific-learning-state-v1.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
