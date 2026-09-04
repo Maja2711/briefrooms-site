@@ -10,9 +10,11 @@ on:
     paths:
       - "scripts/lesson_hypothesis_registry.py"
       - "scripts/hypothesis_experiment_compiler.py"
+      - "scripts/experiment_result_lesson_loop.py"
       - "scripts/validation_epoch.py"
       - "data/investments/lesson_hypothesis_registry_v1.json"
       - "tests/test_lesson_hypothesis_experiment_compiler.py"
+      - "tests/test_experiment_result_lesson_loop.py"
       - ".github/workflows/hypothesis-shadow-experiments.yml"
 
 permissions:
@@ -46,17 +48,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate registry, compiler and ValidationEpoch contracts
+      - name: Validate registry, compiler, result loop and ValidationEpoch contracts
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/lesson_hypothesis_registry.py \
             scripts/hypothesis_experiment_compiler.py \
+            scripts/experiment_result_lesson_loop.py \
             scripts/validation_epoch.py
           python -m json.tool data/investments/lesson_hypothesis_registry_v1.json >/dev/null
           python scripts/lesson_hypothesis_registry.py \
             --registry data/investments/lesson_hypothesis_registry_v1.json
-          python -m unittest tests.test_lesson_hypothesis_experiment_compiler -v
+          python -m unittest \
+            tests.test_lesson_hypothesis_experiment_compiler \
+            tests.test_experiment_result_lesson_loop -v
 
   research:
     if: >-
@@ -139,7 +144,16 @@ jobs:
             --state-dir "$EXPERIMENT_STATE_DIR" \
             --launch
 
-      - name: Verify immutable ValidationEpoch bindings and zero authority
+      - name: Close Experiment to Result to Lesson loop
+        run: |
+          set -euo pipefail
+          python scripts/experiment_result_lesson_loop.py \
+            --state-dir "$EXPERIMENT_STATE_DIR"
+          python scripts/experiment_result_lesson_loop.py \
+            --state-dir "$EXPERIMENT_STATE_DIR" \
+            --verify
+
+      - name: Verify immutable lineage, ValidationEpoch bindings and zero authority
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -147,6 +161,12 @@ jobs:
           from pathlib import Path
           from hypothesis_experiment_compiler import RUNTIME_FILENAME, validate_compiled_registry
           from lesson_hypothesis_registry import load_registry
+          from experiment_result_lesson_loop import (
+              RESULTS_FILENAME,
+              LESSONS_FILENAME,
+              verify_result_ledger,
+              verify_lesson_ledger,
+          )
           import validation_epoch as ve
 
           state = Path(os.environ['EXPERIMENT_STATE_DIR'])
@@ -154,14 +174,15 @@ jobs:
           runtime = json.loads((state / RUNTIME_FILENAME).read_text(encoding='utf-8'))
           status = validate_compiled_registry(runtime)
           assert runtime['source_registry_sha256'] == source['registry_sha256']
-          assert status['running_shadow'] >= 2
+          assert status['experiments'] >= 2
           assert runtime['authority']['production_policy_writeback'] is False
           assert runtime['authority']['automatic_promotion'] is False
           assert runtime['authority']['trade_execution'] is False
 
+          terminal = {'SUPPORTED', 'REJECTED', 'INCONCLUSIVE'}
           verified = 0
           for experiment in runtime['experiments']:
-              if experiment.get('status') != 'RUNNING_SHADOW':
+              if experiment.get('status') not in ({'RUNNING_SHADOW'} | terminal):
                   continue
               event = ve.verify_epoch_reference(
                   state,
@@ -173,11 +194,33 @@ jobs:
               assert boundary['older_decisions_formally_eligible'] is False
               assert boundary['strict_decision_at_after'] == event['committed_at']
               assert event['eligibility_rule']['prospective_only'] is True
+              if experiment.get('status') in terminal:
+                  assert experiment.get('result_id')
               verified += 1
+
+          result_state = verify_result_ledger(state / RESULTS_FILENAME)
+          lesson_state = verify_lesson_ledger(state / LESSONS_FILENAME)
+          results = [] if not (state / RESULTS_FILENAME).exists() else [json.loads(x) for x in (state / RESULTS_FILENAME).read_text().splitlines() if x.strip()]
+          lessons = [] if not (state / LESSONS_FILENAME).exists() else [json.loads(x) for x in (state / LESSONS_FILENAME).read_text().splitlines() if x.strip()]
+          lesson_sources = {
+              str((row.get('lineage') or {}).get('source_result_id') or '')
+              for row in lessons
+          }
+          for result in results:
+              assert result['result_id'] in lesson_sources
+              assert result['formal_evaluation_number'] == 1
+              assert result['authority']['automatic_promotion'] is False
+              assert result['authority']['production_policy_writeback'] is False
+          for lesson in lessons:
+              assert lesson['hypothesis_input_ready'] is True
+              assert lesson['production_authority'] is False
+              assert lesson['authority']['source_registry_writeback'] is False
+
           chain = ve.verify_chain(state / ve.LEDGER_FILENAME)
           assert verified >= 2
           assert chain['events'] >= verified
-          print('HYPOTHESIS_SHADOW_EXPERIMENTS_PASS', verified, chain['events'])
+          assert result_state['events'] == lesson_state['events']
+          print('CLOSED_RESEARCH_LOOP_PASS', verified, result_state['events'], lesson_state['events'])
           PY
 
       - name: Pack private hypothesis experiment state
