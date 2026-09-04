@@ -225,7 +225,9 @@ def validate_compiled_registry(payload: Mapping[str, Any]) -> dict[str, Any]:
         candidate = row.get("candidate")
         if not isinstance(candidate, Mapping):
             raise ValueError(f"experiment candidate missing: {eid}")
-        ve.candidate_definition(candidate)
+        definition = ve.candidate_definition(candidate)
+        if not all(definition.get(key) not in ("", None) for key in ("candidate_id", "engine_id", "parameter", "gate")):
+            raise ValueError(f"experiment candidate definition incomplete: {eid}")
         if str(row.get("stage") or "") not in ve.STAGES:
             raise ValueError(f"unsupported ValidationEpoch stage: {eid}")
     if str(payload.get("registry_sha256") or "") != _runtime_hash(payload):
@@ -255,14 +257,56 @@ def launch_shadow_experiments(
 ) -> dict[str, Any]:
     """Compile and preregister all READY_FOR_SHADOW hypotheses.
 
-    ValidationEpoch is committed first. Only after a valid epoch reference exists
-    is the runtime experiment marked RUNNING_SHADOW.
+    ValidationEpoch is committed first. Existing runtime experiments are
+    idempotently rebound to their original epoch; only new contracts create a
+    new evidence boundary.
     """
-    runtime = compile_registry(source_registry)
+    desired = compile_registry(source_registry)
     rows = list(shadow_rows) if shadow_rows is not None else _read_jsonl(state_dir / POLICY_SHADOW_FILENAME)
     commit_iso = _iso(committed_at)
+    path = state_dir / RUNTIME_FILENAME
 
-    for experiment in runtime["experiments"]:
+    existing: dict[str, Any] | None = None
+    existing_by_id: dict[str, Mapping[str, Any]] = {}
+    if path.exists():
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError("existing compiled experiment registry root is not an object")
+        validate_compiled_registry(loaded)
+        existing = loaded
+        existing_by_id = {
+            str(row["experiment_id"]): row
+            for row in loaded.get("experiments", [])
+            if isinstance(row, Mapping)
+        }
+
+    launched: list[dict[str, Any]] = []
+    desired_ids: set[str] = set()
+
+    for compiled in desired["experiments"]:
+        experiment = dict(compiled)
+        eid = str(experiment["experiment_id"])
+        desired_ids.add(eid)
+        prior = existing_by_id.get(eid)
+
+        if prior is not None:
+            if prior.get("contract_sha256") != experiment.get("contract_sha256"):
+                raise RuntimeError(f"compiled experiment contract changed for existing id: {eid}")
+            reference = prior.get("validation_epoch")
+            if not isinstance(reference, Mapping):
+                raise RuntimeError(f"existing experiment has no ValidationEpoch reference: {eid}")
+            event = ve.verify_epoch_reference(
+                state_dir,
+                experiment["candidate"],
+                stage=str(experiment["stage"]),
+                reference=reference,
+            )
+            experiment["validation_epoch"] = dict(reference)
+            experiment["status"] = "RUNNING_SHADOW"
+            experiment["started_at"] = str(prior.get("started_at") or event["committed_at"])
+            launched.append(experiment)
+            continue
+
         candidate = experiment["candidate"]
         reference = ve.commit_epoch(
             state_dir,
@@ -285,18 +329,34 @@ def launch_shadow_experiments(
         experiment["validation_epoch"] = reference
         experiment["status"] = "RUNNING_SHADOW"
         experiment["started_at"] = commit_iso
+        launched.append(experiment)
 
-    runtime["summary"]["running_shadow"] = sum(
-        1 for row in runtime["experiments"] if row.get("status") == "RUNNING_SHADOW"
-    )
-    runtime["summary"]["compiled"] = sum(
-        1 for row in runtime["experiments"] if row.get("status") == "COMPILED"
-    )
-    runtime["launched_at"] = commit_iso
-    runtime["validation_epoch_ledger"] = ve.LEDGER_FILENAME
-    runtime["authority"] = dict(ZERO_AUTHORITY)
+    if existing is not None:
+        for prior in existing.get("experiments", []):
+            if not isinstance(prior, Mapping):
+                continue
+            eid = str(prior.get("experiment_id") or "")
+            if eid and eid not in desired_ids:
+                retained = dict(prior)
+                retained["source_active"] = False
+                launched.append(retained)
 
-    path = state_dir / RUNTIME_FILENAME
+    runtime = {
+        "schema_version": SCHEMA_VERSION,
+        "source_registry_sha256": source_registry["registry_sha256"],
+        "mode": "prospective_shadow_research",
+        "experiments": launched,
+        "summary": {
+            "total": len(launched),
+            "compiled": sum(1 for row in launched if row.get("status") == "COMPILED"),
+            "running_shadow": sum(1 for row in launched if row.get("status") == "RUNNING_SHADOW"),
+        },
+        "authority": dict(ZERO_AUTHORITY),
+        "launched_at": (existing or {}).get("launched_at") or commit_iso,
+        "updated_at": commit_iso,
+        "validation_epoch_ledger": ve.LEDGER_FILENAME,
+    }
+
     _write_registry(path, runtime)
     stored = json.loads(path.read_text(encoding="utf-8"))
     validate_compiled_registry(stored)
