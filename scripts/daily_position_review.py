@@ -6,6 +6,11 @@ Normal thesis review runs once per trading day after 23:00 Europe/Warsaw.
 A separately recorded material-event exit request may be processed immediately,
 using the next available completed 5-minute bar. Event exits are close-only:
 no automatic reversal and no same-week re-entry.
+
+Scheduled reviews are retry-safe per position. If a completeness gate reopens an
+incomplete session, positions that already have a scheduled review for that date
+are not reviewed a second time. Completeness metadata written by the gate is
+preserved across later runs.
 """
 from __future__ import annotations
 
@@ -158,6 +163,20 @@ def has_pending_event(data: Dict[str, Any], week: Dict[str, Any]) -> bool:
     return False
 
 
+def has_scheduled_review(item: Dict[str, Any], review_date: str) -> bool:
+    """Return True only for the once-per-session scheduled review.
+
+    Legacy rows without review_trigger predate the material-event split and are
+    treated as scheduled reviews for backwards-compatible audit semantics.
+    """
+    for row in item.get("daily_reviews") or []:
+        if not isinstance(row, dict) or str(row.get("review_date") or "") != review_date:
+            continue
+        if str(row.get("review_trigger") or "scheduled_daily_model_review") == "scheduled_daily_model_review":
+            return True
+    return False
+
+
 def safe_fresh_signal(cfg: Dict[str, Any], method: Dict[str, Any], week_id: str, now: datetime) -> Dict[str, Any]:
     try:
         return model.model_signal(cfg, method, week_id, now)
@@ -173,10 +192,11 @@ def safe_fresh_signal(cfg: Dict[str, Any], method: Dict[str, Any], week_id: str,
 
 def review() -> Dict[str, Any]:
     now = legacy.now_local()
+    today = now.date().isoformat()
     report: Dict[str, Any] = {
         "model_version": model.MODEL_VERSION,
         "reviewed_at": now.isoformat(timespec="seconds"),
-        "review_date": now.date().isoformat(),
+        "review_date": today,
         "review_hour_local": REVIEW_HOUR_LOCAL,
         "closed": [],
         "kept": [],
@@ -203,7 +223,7 @@ def review() -> Dict[str, Any]:
         return report
 
     state = week.get("daily_position_review") if isinstance(week.get("daily_position_review"), dict) else {}
-    if now.hour >= REVIEW_HOUR_LOCAL and state.get("last_review_date") == now.date().isoformat() and not event_pending:
+    if now.hour >= REVIEW_HOUR_LOCAL and state.get("last_review_date") == today and not event_pending:
         report["status"] = "skipped_already_reviewed_today"
         write(REPORT_PATH, report)
         return report
@@ -230,6 +250,14 @@ def review() -> Dict[str, Any]:
                 event_changed = True
             continue
 
+        # Completeness retries may reopen the global daily marker after a partial
+        # session. Never review a position twice: only positions missing today's
+        # scheduled review are eligible for the retry. A material event remains
+        # independently actionable even after the scheduled review.
+        if request is None and now.hour >= REVIEW_HOUR_LOCAL and has_scheduled_review(item, today):
+            report["skipped"].append({"instrument_id": inst_id, "reason": "already_reviewed_position_today"})
+            continue
+
         cfg = cfg_by_id.get(inst_id)
         if not cfg:
             report["skipped"].append({"instrument_id": inst_id, "reason": "instrument_config_missing"})
@@ -248,10 +276,15 @@ def review() -> Dict[str, Any]:
             trigger = "scheduled_daily_model_review"
 
         positive, negative = agreement(fresh)
+        position_review_key = f"{week_id}:{inst_id}:{item.get('entry_captured_at') or entry}"
         review_row: Dict[str, Any] = {
-            "review_date": now.date().isoformat(),
+            "review_date": today,
             "reviewed_at": now.isoformat(timespec="seconds"),
             "review_trigger": trigger,
+            "position_review_key": position_review_key,
+            "observation_mode": "LIVE",
+            "formal_learning_eligible": False,
+            "missing_review_is_hold": False,
             "original_direction": side,
             "fresh_direction": fresh.get("direction"),
             "fresh_score": fresh.get("score"),
@@ -311,9 +344,12 @@ def review() -> Dict[str, Any]:
         changed = True
 
     if now.hour >= REVIEW_HOUR_LOCAL:
-        week["daily_position_review"] = {
+        # Merge into the existing object instead of replacing it. The
+        # completeness gate owns session_history and data-quality metadata.
+        state = dict(state)
+        state.update({
             "enabled": True,
-            "last_review_date": now.date().isoformat(),
+            "last_review_date": today,
             "last_reviewed_at": now.isoformat(timespec="seconds"),
             "local_time": f"{REVIEW_HOUR_LOCAL:02d}:00 Europe/Warsaw",
             "exit_rules": {
@@ -327,8 +363,13 @@ def review() -> Dict[str, Any]:
                 "execution": "last_completed_5m_bar",
                 "same_week_reentry": False,
             },
-        }
+        })
+        week["daily_position_review"] = state
+        # Persist the attempted session marker even when there were zero open
+        # positions. The completeness gate decides whether it is actually PASS.
+        changed = True
     else:
+        state = dict(state)
         state["enabled"] = True
         state["last_material_event_review_at"] = now.isoformat(timespec="seconds")
         state["material_event_close_only"] = True
