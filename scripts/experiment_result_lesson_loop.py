@@ -132,12 +132,6 @@ def _extract_metric(row: Mapping[str, Any], names: Sequence[str]) -> float | Non
 
 
 def _evaluate_sample(experiment: Mapping[str, Any], sample: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Evaluate only preregistered evidence.
-
-    If rows expose explicit candidate/baseline utility, use paired deltas.
-    Otherwise fail epistemically safe with INCONCLUSIVE instead of inventing
-    an outcome metric.
-    """
     deltas: list[float] = []
     wins = losses = ties = 0
     for row in sample:
@@ -153,34 +147,11 @@ def _evaluate_sample(experiment: Mapping[str, Any], sample: Sequence[Mapping[str
             losses += 1
         else:
             ties += 1
-
     if not deltas:
-        return {
-            "verdict": "INCONCLUSIVE",
-            "reason": "eligible sample lacks paired candidate/baseline utility metrics",
-            "paired_n": 0,
-            "wins": 0,
-            "losses": 0,
-            "ties": 0,
-            "mean_delta": None,
-        }
-
+        return {"verdict":"INCONCLUSIVE","reason":"eligible sample lacks paired candidate/baseline utility metrics","paired_n":0,"wins":0,"losses":0,"ties":0,"mean_delta":None}
     mean_delta = sum(deltas) / len(deltas)
-    if wins > losses and mean_delta > 0:
-        verdict = "SUPPORTED"
-    elif losses > wins and mean_delta < 0:
-        verdict = "REJECTED"
-    else:
-        verdict = "INCONCLUSIVE"
-    return {
-        "verdict": verdict,
-        "reason": "paired prospective fixed-N comparison",
-        "paired_n": len(deltas),
-        "wins": wins,
-        "losses": losses,
-        "ties": ties,
-        "mean_delta": mean_delta,
-    }
+    verdict = "SUPPORTED" if wins > losses and mean_delta > 0 else "REJECTED" if losses > wins and mean_delta < 0 else "INCONCLUSIVE"
+    return {"verdict":verdict,"reason":"paired prospective fixed-N comparison","paired_n":len(deltas),"wins":wins,"losses":losses,"ties":ties,"mean_delta":mean_delta}
 
 
 def _result_id(experiment_id: str, epoch_id: str, sample_hash: str) -> str:
@@ -195,24 +166,7 @@ def _lesson_from_result(result: Mapping[str, Any]) -> dict[str, Any]:
     statement = f"Experiment {result['experiment_id']} finished as {verdict} on prospective fixed-N evidence."
     if isinstance(mean_delta, (int, float)):
         statement += f" Mean paired delta={mean_delta:.8g}."
-    lesson = {
-        "lesson_id": "lesson-result-" + _sha(result_id)[:20],
-        "source_type": "EXPERIMENT_RESULT",
-        "source_result_id": result_id,
-        "source_experiment_id": result["experiment_id"],
-        "source_hypothesis_id": result.get("hypothesis_id"),
-        "status": "OBSERVED",
-        "statement": statement,
-        "verdict": verdict,
-        "evidence": {
-            "validation_epoch": result["validation_epoch"],
-            "sample_n": result["sample_n"],
-            "sample_sha256": result["sample_sha256"],
-            "evaluation": result["evaluation"],
-        },
-        "authority": dict(ZERO_AUTHORITY),
-        "created_at": result["completed_at"],
-    }
+    lesson = {"lesson_id":"lesson-result-"+_sha(result_id)[:20],"source_type":"EXPERIMENT_RESULT","source_result_id":result_id,"source_experiment_id":result["experiment_id"],"source_hypothesis_id":result.get("hypothesis_id"),"status":"OBSERVED","statement":statement,"verdict":verdict,"evidence":{"validation_epoch":result["validation_epoch"],"sample_n":result["sample_n"],"sample_sha256":result["sample_sha256"],"evaluation":result["evaluation"]},"authority":dict(ZERO_AUTHORITY),"created_at":result["completed_at"]}
     lesson["lesson_sha256"] = _sha(lesson)
     return lesson
 
@@ -223,17 +177,14 @@ def run_loop(state_dir: Path, *, now: str | datetime) -> dict[str, Any]:
         raise FileNotFoundError(f"runtime experiment registry missing: {runtime_path}")
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
     hec.validate_compiled_registry(runtime)
-
     shadow_rows = _read_jsonl(state_dir / hec.POLICY_SHADOW_FILENAME)
     existing_results = _read_jsonl(state_dir / RESULTS_FILENAME)
     existing_lessons = _read_jsonl(state_dir / LESSONS_FILENAME)
     result_by_experiment = {str(r.get("experiment_id")): r for r in existing_results if r.get("experiment_id")}
     lesson_sources = {str(r.get("source_result_id")) for r in existing_lessons if r.get("source_result_id")}
-
     new_results: list[dict[str, Any]] = []
     new_lessons: list[dict[str, Any]] = []
     waiting = 0
-
     for experiment in runtime.get("experiments", []):
         if not isinstance(experiment, Mapping) or experiment.get("status") != "RUNNING_SHADOW":
             continue
@@ -245,16 +196,10 @@ def run_loop(state_dir: Path, *, now: str | datetime) -> dict[str, Any]:
             if str(prior_result.get("result_id")) not in lesson_sources:
                 new_lessons.append(_lesson_from_result(prior_result))
             continue
-
         reference = experiment.get("validation_epoch")
         if not isinstance(reference, Mapping):
             raise RuntimeError(f"experiment has no ValidationEpoch reference: {experiment_id}")
-        event = ve.verify_epoch_reference(
-            state_dir,
-            experiment["candidate"],
-            stage=str(experiment["stage"]),
-            reference=reference,
-        )
+        event = ve.verify_epoch_reference(state_dir, experiment["candidate"], stage=str(experiment["stage"]), reference=reference)
         boundary = ve.eligible_after(event)
         primary = experiment.get("primary_inference_plan")
         primary_n = primary.get("n") if isinstance(primary, Mapping) else None
@@ -266,52 +211,21 @@ def run_loop(state_dir: Path, *, now: str | datetime) -> dict[str, Any]:
         if len(eligible) < target_n:
             waiting += 1
             continue
-
         sample = eligible[:target_n]
         sample_hash = _sha(sample)
         evaluation = _evaluate_sample(experiment, sample)
         epoch_id = str(reference.get("epoch_id") or reference.get("validation_epoch_id") or "")
-        result = {
-            "schema_version": SCHEMA_VERSION,
-            "result_id": _result_id(experiment_id, epoch_id, sample_hash),
-            "experiment_id": experiment_id,
-            "hypothesis_id": experiment.get("hypothesis_id"),
-            "candidate_id": experiment.get("candidate", {}).get("candidate_id"),
-            "stage": experiment.get("stage"),
-            "validation_epoch": dict(reference),
-            "sample_n": target_n,
-            "sample_sha256": sample_hash,
-            "sample_window": {
-                "first_decision_at": _iso(_decision_time(sample[0]) or boundary),
-                "last_decision_at": _iso(_decision_time(sample[-1]) or boundary),
-            },
-            "verdict": evaluation["verdict"],
-            "evaluation": evaluation,
-            "completed_at": _iso(now),
-            "authority": dict(ZERO_AUTHORITY),
-        }
+        result = {"schema_version":SCHEMA_VERSION,"result_id":_result_id(experiment_id,epoch_id,sample_hash),"experiment_id":experiment_id,"hypothesis_id":experiment.get("hypothesis_id"),"candidate_id":experiment.get("candidate",{}).get("candidate_id"),"stage":experiment.get("stage"),"validation_epoch":dict(reference),"sample_n":target_n,"sample_sha256":sample_hash,"sample_window":{"first_decision_at":_iso(_decision_time(sample[0]) or boundary),"last_decision_at":_iso(_decision_time(sample[-1]) or boundary)},"verdict":evaluation["verdict"],"evaluation":evaluation,"completed_at":_iso(now),"authority":dict(ZERO_AUTHORITY)}
         result["result_sha256"] = _sha(result)
         new_results.append(result)
         new_lessons.append(_lesson_from_result(result))
-
     _append_jsonl(state_dir / RESULTS_FILENAME, new_results)
     _append_jsonl(state_dir / LESSONS_FILENAME, new_lessons)
-
     all_results = existing_results + new_results
     all_lessons = existing_lessons + new_lessons
-    summary = {
-        "schema_version": SCHEMA_VERSION,
-        "updated_at": _iso(now),
-        "experiments_running": sum(1 for x in runtime.get("experiments", []) if isinstance(x, Mapping) and x.get("status") == "RUNNING_SHADOW"),
-        "experiments_waiting_for_fixed_n": waiting,
-        "results_total": len(all_results),
-        "results_created": len(new_results),
-        "lessons_total": len(all_lessons),
-        "lessons_created": len(new_lessons),
-        "authority": dict(ZERO_AUTHORITY),
-    }
+    summary = {"schema_version":SCHEMA_VERSION,"updated_at":_iso(now),"experiments_running":sum(1 for x in runtime.get("experiments",[]) if isinstance(x,Mapping) and x.get("status")=="RUNNING_SHADOW"),"experiments_waiting_for_fixed_n":waiting,"results_total":len(all_results),"results_created":len(new_results),"lessons_total":len(all_lessons),"lessons_created":len(new_lessons),"authority":dict(ZERO_AUTHORITY)}
     summary["summary_sha256"] = _sha(summary)
-    (state_dir / SUMMARY_FILENAME).write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (state_dir / SUMMARY_FILENAME).write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)+"\n", encoding="utf-8")
     return summary
 
 
