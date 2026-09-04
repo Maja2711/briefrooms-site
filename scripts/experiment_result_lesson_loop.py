@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 import hypothesis_experiment_compiler as hec
-import lesson_hypothesis_registry as lhr
 import validation_epoch as ve
 
 SCHEMA_VERSION = "briefrooms-experiment-result-lesson-loop-v1"
@@ -135,9 +134,9 @@ def _extract_metric(row: Mapping[str, Any], names: Sequence[str]) -> float | Non
 def _evaluate_sample(experiment: Mapping[str, Any], sample: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Evaluate only preregistered evidence.
 
-    The first implementation intentionally uses a conservative generic decision:
-    if rows expose explicit candidate/baseline utility, use paired deltas; otherwise
-    return INCONCLUSIVE rather than inventing a metric.
+    If rows expose explicit candidate/baseline utility, use paired deltas.
+    Otherwise fail epistemically safe with INCONCLUSIVE instead of inventing
+    an outcome metric.
     """
     deltas: list[float] = []
     wins = losses = ties = 0
@@ -191,10 +190,9 @@ def _result_id(experiment_id: str, epoch_id: str, sample_hash: str) -> str:
 def _lesson_from_result(result: Mapping[str, Any]) -> dict[str, Any]:
     result_id = str(result["result_id"])
     verdict = str(result["verdict"])
-    mean_delta = result.get("evaluation", {}).get("mean_delta") if isinstance(result.get("evaluation"), Mapping) else None
-    statement = (
-        f"Experiment {result['experiment_id']} finished as {verdict} on prospective fixed-N evidence."
-    )
+    evaluation = result.get("evaluation") if isinstance(result.get("evaluation"), Mapping) else {}
+    mean_delta = evaluation.get("mean_delta")
+    statement = f"Experiment {result['experiment_id']} finished as {verdict} on prospective fixed-N evidence."
     if isinstance(mean_delta, (int, float)):
         statement += f" Mean paired delta={mean_delta:.8g}."
     lesson = {
@@ -258,7 +256,9 @@ def run_loop(state_dir: Path, *, now: str | datetime) -> dict[str, Any]:
             reference=reference,
         )
         boundary = ve.eligible_after(event)
-        target_n = int(experiment.get("validation_target_n") or experiment.get("primary_inference_plan", {}).get("n") or 0)
+        primary = experiment.get("primary_inference_plan")
+        primary_n = primary.get("n") if isinstance(primary, Mapping) else None
+        target_n = int(experiment.get("validation_target_n") or primary_n or 0)
         if target_n <= 0:
             raise RuntimeError(f"invalid fixed-N target: {experiment_id}")
         eligible = [row for row in shadow_rows if _is_eligible(row, experiment, boundary)]
