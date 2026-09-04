@@ -1,0 +1,70 @@
+name: Validate Daily Review Completeness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/daily_position_review.py"
+      - "scripts/daily_review_completeness.py"
+      - "tests/test_daily_review_completeness.py"
+      - "data/investments/daily_review_policy.json"
+      - "data/investments/weekly/2026-W35.json"
+      - ".github/workflows/investments-weekly.yml"
+      - ".github/workflows/daily-review-completeness-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate policy and syntax
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_position_review.py scripts/daily_review_completeness.py
+          python -m json.tool data/investments/daily_review_policy.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('data/investments/daily_review_policy.json').read_text())
+          c = p['completeness']
+          assert c['invariant'] == 'exactly_one_scheduled_review_per_open_position_session'
+          assert c['missing_review_interpretation'] == 'DATA_GAP_NOT_HOLD'
+          assert c['historical_backfill_allowed'] is False
+          assert c['reconstructed_formal_learning_eligible'] is False
+          assert c['retry_incomplete_session'] is True
+          assert c['durable_checkpoint_before_downstream_lifecycle'] is True
+          PY
+
+      - name: Run completeness regression suite
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m unittest tests.test_daily_review_completeness -v
+
+      - name: Confirm historical W35 gap stays audit-only
+        run: |
+          set -euo pipefail
+          python scripts/daily_review_completeness.py --audit-week data/investments/weekly/2026-W35.json > /tmp/w35-review-audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path('/tmp/w35-review-audit.json').read_text())
+          missing = {x['session_date'] for x in a['missing_reviews']}
+          assert '2026-08-26' in missing
+          assert '2026-08-27' in missing
+          assert a['historical_backfill_performed'] is False
+          assert a['formal_learning_eligible'] is False
+          print('W35_DAILY_REVIEW_GAP_CONFIRMED', sorted(missing))
+          PY
