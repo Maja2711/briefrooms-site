@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts import validation_epoch as ve
@@ -47,7 +47,7 @@ class LessonHypothesisExperimentCompilerTests(unittest.TestCase):
         self.assertTrue(all(row["automatic_promotion"] is False for row in first["experiments"]))
         self.assertTrue(validate_compiled_registry(first)["ok"])
 
-    def test_launch_commits_validation_epoch_before_formal_evidence(self) -> None:
+    def test_launch_commits_validation_epoch_before_formal_evidence_and_is_idempotent(self) -> None:
         old_shadow = {
             "shadow_outcome_id": "old-shadow-1",
             "row_sha256": "legacy-digest-only",
@@ -70,6 +70,10 @@ class LessonHypothesisExperimentCompilerTests(unittest.TestCase):
             chain = ve.verify_chain(state / ve.LEDGER_FILENAME)
             self.assertTrue(chain["ok"])
             self.assertEqual(chain["events"], 2)
+            original_refs = {
+                row["experiment_id"]: row["validation_epoch"]["epoch_id"]
+                for row in runtime["experiments"]
+            }
 
             events = ve._read_jsonl(state / ve.LEDGER_FILENAME)
             self.assertEqual(len(events), 2)
@@ -88,6 +92,24 @@ class LessonHypothesisExperimentCompilerTests(unittest.TestCase):
                 self.assertEqual(boundary["existing_shadow_count"], 1)
                 self.assertFalse(experiment["authority"]["trade_execution"])
                 self.assertFalse(experiment["authority"]["production_policy_writeback"])
+
+            rerun = launch_shadow_experiments(
+                self.source,
+                state,
+                committed_at=now + timedelta(days=1),
+                shadow_rows=[old_shadow],
+            )
+            rerun_chain = ve.verify_chain(state / ve.LEDGER_FILENAME)
+            self.assertEqual(rerun_chain["events"], 2)
+            self.assertEqual(
+                {
+                    row["experiment_id"]: row["validation_epoch"]["epoch_id"]
+                    for row in rerun["experiments"]
+                },
+                original_refs,
+            )
+            self.assertEqual(rerun["launched_at"], "2026-09-04T10:00:00Z")
+            self.assertEqual(rerun["updated_at"], "2026-09-05T10:00:00Z")
 
     def test_registry_tamper_fails_closed(self) -> None:
         tampered = copy.deepcopy(self.source)
