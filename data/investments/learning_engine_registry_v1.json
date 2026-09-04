@@ -1,0 +1,409 @@
+{
+  "engines": [
+    {
+      "adapter": {
+        "kind": "daily_policy_shadow",
+        "mode": "DELEGATED_EXISTING_LOOP",
+        "source": "private:autonomous-policy-state/policy_shadow_outcomes.jsonl"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "GPW Daily",
+      "engine_id": "gpw_daily",
+      "experiment_family": "threshold_policy",
+      "family": "GPW Daily",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/gpw_daily/evidence.jsonl",
+        "experiments": "engine_learning_state/gpw_daily/experiments.jsonl",
+        "hypotheses": "engine_learning_state/gpw_daily/hypotheses.jsonl",
+        "lessons": "engine_learning_state/gpw_daily/lessons.jsonl",
+        "results": "engine_learning_state/gpw_daily/results.jsonl",
+        "validation_epochs": "engine_learning_state/gpw_daily/validation_epochs.jsonl"
+      },
+      "loop_phase": "FORMAL_EXPERIMENT_RUNNING",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": null,
+      "runtime_owner": "hypothesis-shadow-experiments",
+      "state_partition": "engine_learning_state/gpw_daily"
+    },
+    {
+      "adapter": {
+        "kind": "daily_policy_shadow",
+        "mode": "DELEGATED_EXISTING_LOOP",
+        "source": "private:autonomous-policy-state/policy_shadow_outcomes.jsonl"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "US Daily",
+      "engine_id": "us_daily",
+      "experiment_family": "threshold_policy",
+      "family": "US Daily",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/us_daily/evidence.jsonl",
+        "experiments": "engine_learning_state/us_daily/experiments.jsonl",
+        "hypotheses": "engine_learning_state/us_daily/hypotheses.jsonl",
+        "lessons": "engine_learning_state/us_daily/lessons.jsonl",
+        "results": "engine_learning_state/us_daily/results.jsonl",
+        "validation_epochs": "engine_learning_state/us_daily/validation_epochs.jsonl"
+      },
+      "loop_phase": "FORMAL_EXPERIMENT_RUNNING",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": null,
+      "runtime_owner": "hypothesis-shadow-experiments",
+      "state_partition": "engine_learning_state/us_daily"
+    },
+    {
+      "adapter": {
+        "kind": "brace_spx_shadow_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/public/brace_spx_generation6_public.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "bootstrap_lesson": {
+        "evidence": [
+          {
+            "detail": "shadow observations, warmup_required, strict_gate_passed and live_orders are exposed independently of Daily engines.",
+            "kind": "code_contract",
+            "source": "data/public/brace_spx_generation6_public.json"
+          }
+        ],
+        "lesson_id": "lesson-brace-engine-local-evidence-contract-v1",
+        "statement": "BRACE-SPX exposes an engine-local frozen shadow contract with observation progress, strict gate state and governance flags, so BRACE hypotheses can be tested without reusing Daily evidence or granting live-order authority."
+      },
+      "display_name": "BRACE-SPX Generation 6",
+      "engine_id": "brace_spx",
+      "experiment_family": "regime_signal_validation",
+      "family": "SPX",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/brace_spx/evidence.jsonl",
+        "experiments": "engine_learning_state/brace_spx/experiments.jsonl",
+        "hypotheses": "engine_learning_state/brace_spx/hypotheses.jsonl",
+        "lessons": "engine_learning_state/brace_spx/lessons.jsonl",
+        "results": "engine_learning_state/brace_spx/results.jsonl",
+        "validation_epochs": "engine_learning_state/brace_spx/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "brace-spx-generation6",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/brace_spx"
+    },
+    {
+      "adapter": {
+        "kind": "wes_incremental_alpha_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/investments/wes_incremental_alpha_report.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "bootstrap_lesson": {
+        "evidence": [
+          {
+            "detail": "resolved counterfactual pairs, incremental alpha metrics and historical_backfill_allowed=false are exposed for WES-local evaluation.",
+            "kind": "code_contract",
+            "source": "data/investments/wes_incremental_alpha_report.json"
+          }
+        ],
+        "lesson_id": "lesson-wes-engine-local-evidence-contract-v1",
+        "statement": "WES exposes prospective counterfactual pairs against a frozen V5 baseline and explicitly forbids historical backfill, so WES can run its own incremental-value learning loop independently of BRACE and Daily."
+      },
+      "display_name": "WES Incremental Learning",
+      "engine_id": "wes",
+      "experiment_family": "incremental_decision_value",
+      "family": "WES",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/wes/evidence.jsonl",
+        "experiments": "engine_learning_state/wes/experiments.jsonl",
+        "hypotheses": "engine_learning_state/wes/hypotheses.jsonl",
+        "lessons": "engine_learning_state/wes/lessons.jsonl",
+        "results": "engine_learning_state/wes/results.jsonl",
+        "validation_epochs": "engine_learning_state/wes/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "wes-incremental-alpha",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/wes"
+    },
+    {
+      "adapter": {
+        "kind": "experiment_registry_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/investments/timesfm_shadow_public_pl.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "TimesFM Shadow Forecaster",
+      "engine_id": "timesfm",
+      "experiment_family": "forecast_skill",
+      "family": "EURUSD",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/timesfm/evidence.jsonl",
+        "experiments": "engine_learning_state/timesfm/experiments.jsonl",
+        "hypotheses": "engine_learning_state/timesfm/hypotheses.jsonl",
+        "lessons": "engine_learning_state/timesfm/lessons.jsonl",
+        "results": "engine_learning_state/timesfm/results.jsonl",
+        "validation_epochs": "engine_learning_state/timesfm/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "timesfm-shadow",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/timesfm"
+    },
+    {
+      "adapter": {
+        "kind": "experiment_registry_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/gse/gse_v2_lab_public.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "GSE v2 Learning Lab",
+      "engine_id": "gse_v2",
+      "experiment_family": "calibration",
+      "family": "Geopolitics",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/gse_v2/evidence.jsonl",
+        "experiments": "engine_learning_state/gse_v2/experiments.jsonl",
+        "hypotheses": "engine_learning_state/gse_v2/hypotheses.jsonl",
+        "lessons": "engine_learning_state/gse_v2/lessons.jsonl",
+        "results": "engine_learning_state/gse_v2/results.jsonl",
+        "validation_epochs": "engine_learning_state/gse_v2/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "gse-v2-learning-lab",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/gse_v2"
+    },
+    {
+      "adapter": {
+        "kind": "external_artifact_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "workflow artifact: belief-aris-shadow-report"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "Belief / ARIS Shadow",
+      "engine_id": "belief_aris",
+      "experiment_family": "representation_value",
+      "family": "Belief Core",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/belief_aris/evidence.jsonl",
+        "experiments": "engine_learning_state/belief_aris/experiments.jsonl",
+        "hypotheses": "engine_learning_state/belief_aris/hypotheses.jsonl",
+        "lessons": "engine_learning_state/belief_aris/lessons.jsonl",
+        "results": "engine_learning_state/belief_aris/results.jsonl",
+        "validation_epochs": "engine_learning_state/belief_aris/validation_epochs.jsonl"
+      },
+      "loop_phase": "AWAITING_EXTERNAL_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "belief-aris-shadow",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/belief_aris"
+    },
+    {
+      "adapter": {
+        "kind": "experiment_registry_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/investments/eurusd_abc_public_pl.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "EURUSD A/B/C Live Shadow",
+      "engine_id": "eurusd_abc",
+      "experiment_family": "challenger_comparison",
+      "family": "EURUSD",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/eurusd_abc/evidence.jsonl",
+        "experiments": "engine_learning_state/eurusd_abc/experiments.jsonl",
+        "hypotheses": "engine_learning_state/eurusd_abc/hypotheses.jsonl",
+        "lessons": "engine_learning_state/eurusd_abc/lessons.jsonl",
+        "results": "engine_learning_state/eurusd_abc/results.jsonl",
+        "validation_epochs": "engine_learning_state/eurusd_abc/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "eurusd-abc-live-shadow",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/eurusd_abc"
+    },
+    {
+      "adapter": {
+        "kind": "experiment_registry_snapshot",
+        "mode": "ENGINE_LOCAL",
+        "source": "data/investments/research_lab_report.json"
+      },
+      "authority": {
+        "automatic_cross_engine_writeback": false,
+        "automatic_model_tuning": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "trade_execution": false
+      },
+      "display_name": "Autonomous Strategy Research Lab",
+      "engine_id": "strategy_research_lab",
+      "experiment_family": "research_process",
+      "family": "Weekly Investments",
+      "knowledge_exchange": {
+        "automatic_cross_engine_writeback": false,
+        "consume_external_lessons_as_hypothesis_inputs_only": true,
+        "external_lesson_requires_local_experiment": true,
+        "publish_local_lessons": true
+      },
+      "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+      "local_ledgers": {
+        "evidence": "engine_learning_state/strategy_research_lab/evidence.jsonl",
+        "experiments": "engine_learning_state/strategy_research_lab/experiments.jsonl",
+        "hypotheses": "engine_learning_state/strategy_research_lab/hypotheses.jsonl",
+        "lessons": "engine_learning_state/strategy_research_lab/lessons.jsonl",
+        "results": "engine_learning_state/strategy_research_lab/results.jsonl",
+        "validation_epochs": "engine_learning_state/strategy_research_lab/validation_epochs.jsonl"
+      },
+      "loop_phase": "COLLECTING_EVIDENCE",
+      "loop_status": "ACTIVE",
+      "public_experiment_id": "strategy-research-lab",
+      "runtime_owner": "engine-specific-learning-loops-v1",
+      "state_partition": "engine_learning_state/strategy_research_lab"
+    }
+  ],
+  "governance": {
+    "automatic_cross_engine_writeback": false,
+    "automatic_model_tuning": false,
+    "automatic_promotion": false,
+    "cross_engine_lessons_require_local_revalidation": true,
+    "engine_state_isolation_required": true,
+    "meta_observatory_decision_authority": false,
+    "production_policy_writeback": false,
+    "production_ranking_writeback": false,
+    "production_sizing_writeback": false,
+    "shared_framework_only": true,
+    "trade_execution": false
+  },
+  "purpose": "One engine = one learning loop. Shared framework contracts, isolated engine state, optional lesson exchange, zero cross-engine or production writeback.",
+  "registry_sha256": "c615fce48900006b66d996925be6dd8e2283d570d6db0c2434d6f7d9d9aadeaa",
+  "registry_version": 1,
+  "schema_version": "briefrooms-learning-engine-registry-v1",
+  "shared_framework": {
+    "knowledge_bus": "research lessons only; no policy/config mutation",
+    "lifecycle": ["LESSON", "HYPOTHESIS", "EXPERIMENT", "VALIDATION_EPOCH", "EVIDENCE", "RESULT", "LESSON"],
+    "meta_learning_observatory": "read-only aggregate diagnostics",
+    "protocol": "EngineLearningLoopProtocol/v1"
+  }
+}
