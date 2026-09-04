@@ -17,6 +17,7 @@ on:
       - "scripts/investments_weekly*.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
+      - "scripts/daily_review_completeness.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/audit_weekly_model.py"
       - "scripts/audit_weekly_model_runtime.py"
@@ -26,6 +27,7 @@ on:
       - "scripts/investments-weekly-governance.js"
       - "scripts/verify_weekly_close_deadline.py"
       - "tests/test_investments_weekly*.py"
+      - "tests/test_daily_review_completeness.py"
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_investments_weekly_public.js"
       - "tests/test_audit_weekly_integrity.py"
@@ -73,6 +75,7 @@ jobs:
             scripts/investments_weekly_macro.py \
             scripts/ensure_current_week_forecast.py \
             scripts/daily_position_review.py \
+            scripts/daily_review_completeness.py \
             scripts/apply_instrument_validation_gate.py \
             scripts/audit_weekly_model_runtime.py \
             scripts/render_simple_investments.py \
@@ -84,6 +87,7 @@ jobs:
             tests/test_investments_weekly_v4.py \
             tests/test_investments_weekly_v5.py \
             tests/test_investments_weekly_macro.py \
+            tests/test_daily_review_completeness.py \
             tests/test_audit_weekly_integrity.py \
             tests/test_verify_weekly_close_deadline.py \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure \
@@ -100,9 +104,47 @@ jobs:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
         run: python scripts/investments_weekly_v5.py --mode "$MODE"
 
-      - name: Review positions and restore governed exposure
+      - name: Review open positions and compute completeness
         run: |
           python scripts/daily_position_review.py
+          python scripts/daily_review_completeness.py --current
+
+      - name: Checkpoint daily review durably
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git restore --worktree -- data/investments/live_prices.json || true
+          git add data/investments
+          if git diff --cached --quiet; then
+            echo "No daily-review state change to checkpoint."
+          else
+            git commit -m "Checkpoint daily position review"
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                pushed=1
+                break
+              fi
+              git rebase --abort || true
+              sleep $((attempt * 4))
+            done
+            if [[ "$pushed" != "1" ]]; then
+              echo "::error::Could not persist daily-review checkpoint."
+              exit 1
+            fi
+          fi
+          if ! git diff --quiet; then
+            echo "::error::Daily-review checkpoint left unstaged files; refusing downstream lifecycle."
+            git status --short
+            exit 1
+          fi
+
+      - name: Enforce daily review completeness
+        run: python scripts/daily_review_completeness.py --current --enforce --no-write
+
+      - name: Restore governed exposure
+        run: |
           python scripts/investments_weekly_v5.py --mode ensure-exposure
           python scripts/apply_instrument_validation_gate.py
 
@@ -137,6 +179,7 @@ jobs:
           git restore --worktree -- data/investments/live_prices.json
           git add data/investments/weekly \
                   data/investments/daily_review_report.json \
+                  data/investments/daily_review_completeness.json \
                   data/investments/event_exit_requests.json \
                   data/investments/model_audit.json \
                   data/investments/closed_week_manifest.json \
