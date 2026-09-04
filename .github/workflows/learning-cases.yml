@@ -1,0 +1,131 @@
+name: Learning Cases Structured Reasoning
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Shadow Alpha Experience Store"
+    types: [completed]
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/learning_cases.py"
+      - "tests/test_learning_integrity_v1.py"
+      - ".github/workflows/learning-cases.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: learning-cases-structured-reasoning
+  cancel-in-progress: false
+
+env:
+  SOURCE_ARTIFACT: shadow-alpha-experience-store
+  OUTPUT_ARTIFACT: learning-cases-structured-reasoning
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate deterministic LearningCase layer
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/learning_cases.py
+          python -m unittest tests.test_learning_integrity_v1 -v
+
+  materialize:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve source Experience Store run
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            run_id="${{ github.event.workflow_run.id }}"
+          else
+            run_id="$(gh run list \
+              --workflow shadow-alpha-experience-store.yml \
+              --branch main \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')"
+          fi
+          if [[ -z "$run_id" ]]; then
+            echo "No successful Shadow Alpha Experience Store run is available." >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Restore canonical Experience Store
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/learning-cases-source"
+          out_dir="$RUNNER_TEMP/learning-cases-output"
+          mkdir -p "$source_dir" "$out_dir"
+          gh run download "${{ steps.source.outputs.run_id }}" \
+            -n "$SOURCE_ARTIFACT" \
+            -D "$source_dir"
+          test -s "$source_dir/experience_store.jsonl"
+          test -s "$source_dir/experience_store_status.json"
+          echo "LEARNING_CASE_SOURCE=$source_dir" >> "$GITHUB_ENV"
+          echo "LEARNING_CASE_OUTPUT=$out_dir" >> "$GITHUB_ENV"
+
+      - name: Materialize LearningCase Error Attribution and Structured Reasoning
+        run: |
+          set -euo pipefail
+          python scripts/learning_cases.py \
+            --store "$LEARNING_CASE_SOURCE/experience_store.jsonl" \
+            --output "$LEARNING_CASE_OUTPUT/learning_cases.jsonl" \
+            --status "$LEARNING_CASE_OUTPUT/learning_cases_status.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['LEARNING_CASE_OUTPUT'])
+          status=json.loads((root/'learning_cases_status.json').read_text(encoding='utf-8'))
+          assert status['zero_authority'] is True
+          assert status['causal_identification_claimed'] is False
+          assert status['learning_case_count'] == status['settled_experience_count']
+          print('LEARNING_CASES_PASS', status['learning_case_count'])
+          print('ATTRIBUTION_COUNTS', json.dumps(status['attribution_counts'], sort_keys=True))
+          PY
+
+      - name: Store zero-authority LearningCase research artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: learning-cases-structured-reasoning
+          path: ${{ runner.temp }}/learning-cases-output/
+          if-no-files-found: error
+          retention-days: 180
