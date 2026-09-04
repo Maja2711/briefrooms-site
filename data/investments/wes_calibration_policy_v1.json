@@ -1,0 +1,39 @@
+{
+  "authority": {
+    "active_wes_writeback": false,
+    "automatic_cross_engine_writeback": false,
+    "automatic_model_tuning": false,
+    "automatic_promotion": false,
+    "candidate_to_production_writeback": false,
+    "production_policy_writeback": false,
+    "production_ranking_writeback": false,
+    "production_sizing_writeback": false,
+    "trade_execution": false
+  },
+  "candidate": {
+    "automatic_active_wes_writeback": false,
+    "calibration_axis": "incremental_decision_value",
+    "formal_evaluation_count": 1,
+    "historical_backfill": false,
+    "max_active_candidates": 1,
+    "mode": "SHADOW_CHALLENGER_ONLY",
+    "promotion_gate": "WES_HUMAN_GOVERNANCE",
+    "prospective_only": true,
+    "requires_new_validation_epoch": true,
+    "requires_promotion_gate": true,
+    "scope": "GLOBAL",
+    "validation_target_n": 30
+  },
+  "detector": {
+    "minimum_effective_samples": 12.0,
+    "minimum_mean_incremental_alpha_percent_exclusive": 0.0,
+    "minimum_resolved_pairs": 12,
+    "minimum_wes_better_than_v5_rate_exclusive": 0.5,
+    "require_metric_improvement": true,
+    "require_sample_growth": true
+  },
+  "engine_id": "wes",
+  "policy_sha256": "dd23525acc3d4c850cdd612da06731be473160f992e8ce8f6d0feaae8bcddd0d",
+  "purpose": "Detect sustained prospective WES incremental-value progress and create at most one frozen shadow calibration challenger; never mutate active WES.",
+  "schema_version": "briefrooms-wes-calibration-policy-v1"
+}

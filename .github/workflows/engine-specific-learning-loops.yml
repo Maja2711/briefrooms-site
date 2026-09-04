@@ -7,8 +7,10 @@ on:
   pull_request:
     paths:
       - "scripts/engine_learning_framework.py"
+      - "scripts/wes_progress_calibration.py"
       - "scripts/experiment_registry.py"
       - "data/investments/learning_engine_registry_v1.json"
+      - "data/investments/wes_calibration_policy_v1.json"
       - "data/investments/experiment_registry.json"
       - "data/public/brace_spx_generation6_public.json"
       - "data/investments/wes_incremental_alpha_report.json"
@@ -17,6 +19,7 @@ on:
       - "data/investments/eurusd_abc_public_pl.json"
       - "data/investments/research_lab_report.json"
       - "tests/test_engine_learning_framework.py"
+      - "tests/test_wes_progress_calibration.py"
       - ".github/workflows/engine-specific-learning-loops.yml"
 
 permissions:
@@ -53,13 +56,17 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/engine_learning_framework.py \
+            scripts/wes_progress_calibration.py \
             scripts/experiment_registry.py
           python -m json.tool data/investments/learning_engine_registry_v1.json >/dev/null
+          python -m json.tool data/investments/wes_calibration_policy_v1.json >/dev/null
           python scripts/engine_learning_framework.py \
             --root . \
             --registry data/investments/learning_engine_registry_v1.json \
             --validate
-          python -m unittest tests.test_engine_learning_framework -v
+          python -m unittest \
+            tests.test_engine_learning_framework \
+            tests.test_wes_progress_calibration -v
 
   research:
     if: github.event_name != 'pull_request'
@@ -113,13 +120,25 @@ jobs:
             --state-root "$LEARNING_STATE_ROOT" \
             --run-all
 
-      - name: Verify state isolation, knowledge boundary and zero authority
+      - name: Advance WES progress detector and calibration challenger
+        run: |
+          set -euo pipefail
+          python scripts/wes_progress_calibration.py \
+            --state-root "$LEARNING_STATE_ROOT" \
+            --policy data/investments/wes_calibration_policy_v1.json
+          python scripts/wes_progress_calibration.py \
+            --state-root "$LEARNING_STATE_ROOT" \
+            --policy data/investments/wes_calibration_policy_v1.json \
+            --verify
+
+      - name: Verify state isolation, WES calibration boundary and zero authority
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, os
           from pathlib import Path
           import engine_learning_framework as elf
+          import wes_progress_calibration as wpc
 
           root = Path('.')
           state = Path(os.environ['LEARNING_STATE_ROOT'])
@@ -150,6 +169,39 @@ jobs:
           assert wes and all(row['engine_id'] == 'wes' for row in wes)
           assert all(row['authority']['production_policy_writeback'] is False for row in brace + wes)
 
+          policy = wpc.load_policy(root / 'data/investments/wes_calibration_policy_v1.json')
+          assert wpc.validate_policy(policy)['zero_authority'] is True
+          wpc.verify_progress_ledger(state)
+          wpc.verify_candidate_ledger(state)
+          progress = elf._read_jsonl(state / 'wes' / wpc.PROGRESS_FILENAME)
+          candidates = elf._read_jsonl(state / 'wes' / wpc.CANDIDATE_FILENAME)
+          for signal in progress:
+              assert signal['engine_id'] == 'wes'
+              assert signal['formal_validation_authority'] is False
+              assert signal['authority']['active_wes_writeback'] is False
+              assert signal['authority']['automatic_promotion'] is False
+          epochs = {
+              row['epoch_id']: row
+              for row in elf._read_jsonl(state / 'wes' / 'validation_epochs.jsonl')
+          }
+          for candidate in candidates:
+              assert candidate['engine_id'] == 'wes'
+              assert candidate['mode'] == 'SHADOW_CHALLENGER_ONLY'
+              assert candidate['active_wes_writeback'] is False
+              assert candidate['requires_promotion_gate'] is True
+              assert candidate['automatic_promotion'] is False
+              assert candidate['authority']['candidate_to_production_writeback'] is False
+              assert candidate['validation_evidence_rule']['prospective_only'] is True
+              assert candidate['validation_evidence_rule']['historical_backfill'] is False
+              assert candidate['validation_evidence_rule']['older_evidence_formally_eligible'] is False
+              epoch = epochs[candidate['validation_epoch_id']]
+              assert epoch['evidence_boundary']['older_evidence_formally_eligible'] is False
+          calibration_status = json.loads((state / 'wes' / wpc.STATUS_FILENAME).read_text())
+          assert calibration_status['engine_id'] == 'wes'
+          assert calibration_status['calibration']['active_wes_writeback'] is False
+          assert calibration_status['calibration']['requires_promotion_gate'] is True
+          assert calibration_status['calibration']['active_candidates'] <= 1
+
           bus = elf._read_jsonl(state / elf.KNOWLEDGE_BUS_FILENAME)
           for item in bus:
               assert item['recipient_use'] == 'HYPOTHESIS_INPUT_ONLY'
@@ -164,7 +216,7 @@ jobs:
           assert observatory['authority']['decision_authority'] is False
           assert observatory['authority']['engine_state_writeback'] is False
           assert observatory['authority']['engine_configuration_writeback'] is False
-          print('ENGINE_SPECIFIC_LEARNING_LOOPS_PASS', len(bus))
+          print('ENGINE_SPECIFIC_LEARNING_LOOPS_PASS', len(bus), len(progress), len(candidates))
           PY
 
       - name: Pack isolated engine state
