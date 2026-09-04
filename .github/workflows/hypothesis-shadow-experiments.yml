@@ -1,0 +1,197 @@
+name: Hypothesis Shadow Experiments
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Autonomous Policy Promotion"
+    types: [completed]
+  pull_request:
+    paths:
+      - "scripts/lesson_hypothesis_registry.py"
+      - "scripts/hypothesis_experiment_compiler.py"
+      - "scripts/validation_epoch.py"
+      - "data/investments/lesson_hypothesis_registry_v1.json"
+      - "tests/test_lesson_hypothesis_experiment_compiler.py"
+      - ".github/workflows/hypothesis-shadow-experiments.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: hypothesis-shadow-experiments
+  cancel-in-progress: false
+
+env:
+  EXPERIMENT_ARTIFACT: hypothesis-shadow-experiment-state
+  EXPERIMENT_ARCHIVE: hypothesis-shadow-experiment-state.tgz
+  POLICY_ARTIFACT: autonomous-policy-state
+  POLICY_ARCHIVE: autonomous-policy-state.tgz
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate registry, compiler and ValidationEpoch contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/lesson_hypothesis_registry.py \
+            scripts/hypothesis_experiment_compiler.py \
+            scripts/validation_epoch.py
+          python -m json.tool data/investments/lesson_hypothesis_registry_v1.json >/dev/null
+          python scripts/lesson_hypothesis_registry.py \
+            --registry data/investments/lesson_hypothesis_registry_v1.json
+          python -m unittest tests.test_lesson_hypothesis_experiment_compiler -v
+
+  research:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare research state directories
+        run: |
+          set -euo pipefail
+          echo "EXPERIMENT_STATE_DIR=$RUNNER_TEMP/hypothesis-shadow-state" >> "$GITHUB_ENV"
+          echo "SOURCE_POLICY_DIR=$RUNNER_TEMP/autonomous-policy-readonly" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/hypothesis-shadow-state" "$RUNNER_TEMP/autonomous-policy-readonly"
+
+      - name: Restore prior hypothesis experiment state when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${EXPERIMENT_ARTIFACT}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No prior hypothesis experiment state; first ValidationEpoch activation will be created."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/hypothesis-artifact"
+          mkdir -p "$RUNNER_TEMP/hypothesis-artifact"
+          gh run download "$run_id" -n "$EXPERIMENT_ARTIFACT" -D "$RUNNER_TEMP/hypothesis-artifact"
+          archive="$RUNNER_TEMP/hypothesis-artifact/$EXPERIMENT_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$EXPERIMENT_STATE_DIR"
+
+      - name: Restore autonomous policy shadow outcomes read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${POLICY_ARTIFACT}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No autonomous-policy-state artifact is available; FAIL_CLOSED." >&2
+            exit 1
+          fi
+          rm -rf "$RUNNER_TEMP/policy-artifact" "$SOURCE_POLICY_DIR"
+          mkdir -p "$RUNNER_TEMP/policy-artifact" "$SOURCE_POLICY_DIR"
+          gh run download "$run_id" -n "$POLICY_ARTIFACT" -D "$RUNNER_TEMP/policy-artifact"
+          archive="$RUNNER_TEMP/policy-artifact/$POLICY_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$SOURCE_POLICY_DIR"
+          python scripts/autonomous_policy_promotion.py --state-dir "$SOURCE_POLICY_DIR" --verify
+          if [[ -f "$SOURCE_POLICY_DIR/policy_shadow_outcomes.jsonl" ]]; then
+            cp "$SOURCE_POLICY_DIR/policy_shadow_outcomes.jsonl" \
+              "$EXPERIMENT_STATE_DIR/policy_shadow_outcomes.jsonl"
+          else
+            : > "$EXPERIMENT_STATE_DIR/policy_shadow_outcomes.jsonl"
+          fi
+
+      - name: Launch or resume hypothesis-driven shadow experiments
+        run: |
+          set -euo pipefail
+          python scripts/lesson_hypothesis_registry.py \
+            --registry data/investments/lesson_hypothesis_registry_v1.json
+          python scripts/hypothesis_experiment_compiler.py \
+            --registry data/investments/lesson_hypothesis_registry_v1.json \
+            --state-dir "$EXPERIMENT_STATE_DIR" \
+            --launch
+
+      - name: Verify immutable ValidationEpoch bindings and zero authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from hypothesis_experiment_compiler import RUNTIME_FILENAME, validate_compiled_registry
+          from lesson_hypothesis_registry import load_registry
+          import validation_epoch as ve
+
+          state = Path(os.environ['EXPERIMENT_STATE_DIR'])
+          source = load_registry(Path('data/investments/lesson_hypothesis_registry_v1.json'))
+          runtime = json.loads((state / RUNTIME_FILENAME).read_text(encoding='utf-8'))
+          status = validate_compiled_registry(runtime)
+          assert runtime['source_registry_sha256'] == source['registry_sha256']
+          assert status['running_shadow'] >= 2
+          assert runtime['authority']['production_policy_writeback'] is False
+          assert runtime['authority']['automatic_promotion'] is False
+          assert runtime['authority']['trade_execution'] is False
+
+          verified = 0
+          for experiment in runtime['experiments']:
+              if experiment.get('status') != 'RUNNING_SHADOW':
+                  continue
+              event = ve.verify_epoch_reference(
+                  state,
+                  experiment['candidate'],
+                  stage=experiment['stage'],
+                  reference=experiment['validation_epoch'],
+              )
+              boundary = event['evidence_boundary']
+              assert boundary['older_decisions_formally_eligible'] is False
+              assert boundary['strict_decision_at_after'] == event['committed_at']
+              assert event['eligibility_rule']['prospective_only'] is True
+              verified += 1
+          chain = ve.verify_chain(state / ve.LEDGER_FILENAME)
+          assert verified >= 2
+          assert chain['events'] >= verified
+          print('HYPOTHESIS_SHADOW_EXPERIMENTS_PASS', verified, chain['events'])
+          PY
+
+      - name: Pack private hypothesis experiment state
+        run: |
+          set -euo pipefail
+          rm -f "$EXPERIMENT_STATE_DIR/policy_shadow_outcomes.jsonl"
+          tar -czf "$RUNNER_TEMP/$EXPERIMENT_ARCHIVE" -C "$EXPERIMENT_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$EXPERIMENT_ARCHIVE"
+
+      - name: Store hypothesis shadow experiment state
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypothesis-shadow-experiment-state
+          path: ${{ runner.temp }}/hypothesis-shadow-experiment-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

@@ -1,0 +1,198 @@
+{
+  "governance": {
+    "automatic_promotion": false,
+    "learning_ledger_writeback": false,
+    "production_policy_writeback": false,
+    "production_ranking_writeback": false,
+    "production_sizing_writeback": false,
+    "trade_execution": false
+  },
+  "hypotheses": [
+    {
+      "claim": "GPW Daily candidates scoring from 71 inclusive to 72 exclusive, rejected only by minimum_composite_score while all other hard gates pass, have positive prospective two-session shadow expectancy.",
+      "experiment_spec": {
+        "engine_id": "gpw_daily",
+        "from_value": 72.0,
+        "gate": "minimum_composite_score",
+        "parameter": "minimum_composite_score",
+        "promotion_methodology_version": 2,
+        "sample_unit": "prospective_marginal_shadow_outcomes",
+        "stage": "PR35",
+        "to_value": 71.0,
+        "validation_target_n": 30
+      },
+      "falsification_criteria": [
+        {
+          "metric": "mean_return_percent",
+          "operator": "<",
+          "value": 0.15
+        },
+        {
+          "metric": "positive_rate",
+          "operator": "<",
+          "value": 0.55
+        },
+        {
+          "metric": "max_drawdown_r",
+          "operator": "<",
+          "value": -3.0
+        }
+      ],
+      "hypothesis_id": "hyp-gpw-score-72-to-71-v1",
+      "inference": {
+        "fixed_n": 30,
+        "formal_test": "fixed_n_once",
+        "historical_backfill": false,
+        "repeated_looks_allowed_for_formal_decision": false,
+        "shadow_anytime_monitoring": true
+      },
+      "lesson_ids": [
+        "lesson-gpw-marginal-score-band-observable-v1"
+      ],
+      "production_authority": false,
+      "status": "READY_FOR_SHADOW",
+      "success_criteria": [
+        {
+          "metric": "mean_return_percent",
+          "operator": ">=",
+          "value": 0.15
+        },
+        {
+          "metric": "positive_rate",
+          "operator": ">=",
+          "value": 0.55
+        },
+        {
+          "metric": "mean_r",
+          "operator": ">=",
+          "value": 0.1
+        },
+        {
+          "metric": "first_half_mean_return",
+          "operator": ">",
+          "value": 0.0
+        },
+        {
+          "metric": "second_half_mean_return",
+          "operator": ">",
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "claim": "US Daily candidates scoring from 71 inclusive to 72 exclusive, rejected only by minimum_composite_score while all other hard gates pass, have positive prospective two-session shadow expectancy.",
+      "experiment_spec": {
+        "engine_id": "us_daily",
+        "from_value": 72.0,
+        "gate": "minimum_composite_score",
+        "parameter": "target_score",
+        "promotion_methodology_version": 2,
+        "sample_unit": "prospective_marginal_shadow_outcomes",
+        "stage": "PR35",
+        "to_value": 71.0,
+        "validation_target_n": 30
+      },
+      "falsification_criteria": [
+        {
+          "metric": "mean_return_percent",
+          "operator": "<",
+          "value": 0.15
+        },
+        {
+          "metric": "positive_rate",
+          "operator": "<",
+          "value": 0.55
+        },
+        {
+          "metric": "max_drawdown_r",
+          "operator": "<",
+          "value": -3.0
+        }
+      ],
+      "hypothesis_id": "hyp-us-score-72-to-71-v1",
+      "inference": {
+        "fixed_n": 30,
+        "formal_test": "fixed_n_once",
+        "historical_backfill": false,
+        "repeated_looks_allowed_for_formal_decision": false,
+        "shadow_anytime_monitoring": true
+      },
+      "lesson_ids": [
+        "lesson-us-marginal-score-band-observable-v1"
+      ],
+      "production_authority": false,
+      "status": "READY_FOR_SHADOW",
+      "success_criteria": [
+        {
+          "metric": "mean_return_percent",
+          "operator": ">=",
+          "value": 0.15
+        },
+        {
+          "metric": "positive_rate",
+          "operator": ">=",
+          "value": 0.55
+        },
+        {
+          "metric": "mean_r",
+          "operator": ">=",
+          "value": 0.1
+        },
+        {
+          "metric": "first_half_mean_return",
+          "operator": ">",
+          "value": 0.0
+        },
+        {
+          "metric": "second_half_mean_return",
+          "operator": ">",
+          "value": 0.0
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "derived_at": "2026-09-04",
+      "evidence": [
+        {
+          "detail": "policy shadow outcomes persist engine_id, candidate_score, first_blocking_gate, source_threshold, other_hard_gates_passed and realized two-session outcome.",
+          "kind": "code_contract",
+          "source": "scripts/autonomous_policy_promotion.py"
+        },
+        {
+          "detail": "minimum_composite_score is 72.",
+          "kind": "current_config",
+          "source": "data/investments/gpw_daily_pick_config.json"
+        }
+      ],
+      "lesson_id": "lesson-gpw-marginal-score-band-observable-v1",
+      "production_authority": false,
+      "statement": "GPW Daily records rejected LONG candidates and the first blocking minimum_composite_score gate, so the 71-72 marginal score band can be evaluated prospectively without changing production selection.",
+      "status": "OBSERVED"
+    },
+    {
+      "derived_at": "2026-09-04",
+      "evidence": [
+        {
+          "detail": "policy shadow outcomes persist engine_id, candidate_score, first_blocking_gate, source_threshold, other_hard_gates_passed and realized two-session outcome.",
+          "kind": "code_contract",
+          "source": "scripts/autonomous_policy_promotion.py"
+        },
+        {
+          "detail": "target_score is 72.",
+          "kind": "current_config",
+          "source": "data/investments/us_daily_stock_config.json"
+        }
+      ],
+      "lesson_id": "lesson-us-marginal-score-band-observable-v1",
+      "production_authority": false,
+      "statement": "US Daily records rejected LONG candidates and the first blocking minimum_composite_score gate, so the 71-72 marginal score band can be evaluated prospectively without changing production selection.",
+      "status": "OBSERVED"
+    }
+  ],
+  "purpose": "Convert explicit research lessons into falsifiable, prospective shadow hypotheses before any formal ValidationEpoch evidence is collected.",
+  "registry_sha256": "f9c6937b8ae905808fe739deb78eaa3a260bdf3fdefc61a9938749836a8a833a",
+  "registry_version": 1,
+  "schema_version": "briefrooms-lesson-hypothesis-registry-v1"
+}
