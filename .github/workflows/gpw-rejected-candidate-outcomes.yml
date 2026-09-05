@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - "scripts/gpw_rejected_candidate_outcomes.py"
+      - "scripts/gpw_rejection_component_value_attribution.py"
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "tests/test_gpw_rejected_candidate_outcomes.py"
+      - "tests/test_gpw_rejection_component_value_attribution.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - ".github/workflows/gpw-rejected-candidate-outcomes.yml"
   push:
     branches: [main]
     paths:
       - "scripts/gpw_rejected_candidate_outcomes.py"
+      - "scripts/gpw_rejection_component_value_attribution.py"
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "tests/test_gpw_rejected_candidate_outcomes.py"
+      - "tests/test_gpw_rejection_component_value_attribution.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - ".github/workflows/gpw-rejected-candidate-outcomes.yml"
   workflow_run:
@@ -41,21 +45,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate isolated observer contract
+      - name: Validate isolated observer and PR506 attribution contracts
         run: |
           set -euo pipefail
           python -m py_compile \
             scripts/daily_stock_rejected_candidate_freeze.py \
-            scripts/gpw_rejected_candidate_outcomes.py
+            scripts/gpw_rejected_candidate_outcomes.py \
+            scripts/gpw_rejection_component_value_attribution.py
           python -m unittest \
             tests.test_daily_stock_rejected_candidate_freeze \
-            tests.test_gpw_rejected_candidate_outcomes -v
-      - name: Enforce zero-authority and prospective-only invariants
+            tests.test_gpw_rejected_candidate_outcomes \
+            tests.test_gpw_rejection_component_value_attribution -v
+      - name: Enforce zero-authority, prospective-only and no-double-counting invariants
         run: |
           python - <<'PY'
           from pathlib import Path
-          code=Path('scripts/gpw_rejected_candidate_outcomes.py').read_text(encoding='utf-8')
-          required=[
+          outcome_code=Path('scripts/gpw_rejected_candidate_outcomes.py').read_text(encoding='utf-8')
+          attribution_code=Path('scripts/gpw_rejection_component_value_attribution.py').read_text(encoding='utf-8')
+          outcome_required=[
               '"historical_backfill": False',
               '"decision_influence": False',
               '"ranking_writeback": False',
@@ -68,9 +75,26 @@ jobs:
               'source_snapshot_sha256',
               'opportunity_candidate',
           ]
-          for marker in required:
-              assert marker in code, marker
-          print('GPW_REJECTED_OUTCOME_ZERO_AUTHORITY_PASS')
+          for marker in outcome_required:
+              assert marker in outcome_code, marker
+          attribution_required=[
+              'first_blocking_gate_only',
+              '"double_counting_allowed": False',
+              '"decision_influence": False',
+              '"ranking_writeback": False',
+              '"gate_writeback": False',
+              '"production_trade_writeback": False',
+              '"automatic_learning_writeback": False',
+              '"automatic_promotion": False',
+              '"automatic_component_removal": False',
+              '"causal_component_effect_claim": False',
+              '"historical_backfill": False',
+              'selected_relative_opportunity_cost_only_for_legal_alternatives',
+              'causal_leave_one_component_out_replay',
+          ]
+          for marker in attribution_required:
+              assert marker in attribution_code, marker
+          print('GPW_REJECTION_COMPONENT_VALUE_ATTRIBUTION_V1_CONTRACT_PASS')
           PY
 
   observe:
@@ -104,7 +128,12 @@ jobs:
           set -euo pipefail
           python scripts/gpw_rejected_candidate_outcomes.py --settle
           python scripts/gpw_rejected_candidate_outcomes.py --verify
-      - name: Commit observational outcomes only
+      - name: Build PR506 rejection component value attribution
+        run: |
+          set -euo pipefail
+          python scripts/gpw_rejection_component_value_attribution.py --build
+          python scripts/gpw_rejection_component_value_attribution.py --verify
+      - name: Commit observational outcomes and attribution only
         id: commit
         run: |
           set -euo pipefail
@@ -115,7 +144,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "Observe GPW rejected candidate outcomes"
+          git commit -m "Observe GPW rejected candidate outcomes and component value"
           for attempt in 1 2 3 4 5; do
             if ! git pull --rebase origin main; then
               git rebase --abort || true
