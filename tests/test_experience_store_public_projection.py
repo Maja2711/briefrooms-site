@@ -44,6 +44,17 @@ class ExperienceStorePublicProjectionTests(unittest.TestCase):
             "source_ledgers": [{"path": "/private/a", "head_hash": "aaa"}, {"path": "/private/b", "head_hash": "bbb"}],
             "zero_authority": True,
         })
+        trading = {
+            "status": "MEASURABLE", "n_trades": 1, "settled_with_return": 1,
+            "expectancy_return_fraction": 0.0018, "hit_rate": 1.0, "average_r_multiple": 1.8,
+            "r_multiple_coverage_fraction": 1.0, "profit_factor": "inf", "max_drawdown_fraction": 0.0,
+            "cumulative_compounded_return_fraction": 0.0018, "sharpe_per_trade": None,
+            "sortino_per_trade": None, "risk_adjusted_basis": "per_trade_non_annualized_zero_rf_mar",
+            "mean_cost_fraction": 0.0002, "sum_cost_fraction_across_trades": 0.0002,
+            "cost_coverage_fraction": 1.0, "time_in_market_fraction": 0.5,
+            "exposure_interval_coverage_fraction": 1.0, "cumulative_turnover_fraction": 2.0,
+            "mean_turnover_fraction_per_trade": 2.0, "turnover_coverage_fraction": 1.0,
+        }
         self._write_json(report, {
             "schema_version": "briefrooms-shadow-alpha-report-v1", "generated_at": "2026-09-02T13:05:00Z",
             "overall": {
@@ -52,6 +63,7 @@ class ExperienceStorePublicProjectionTests(unittest.TestCase):
                 "raw_edge": {"sample_size": 1, "mean_net_return_fraction": 0.0018, "win_rate": 1.0,
                              "max_drawdown_fraction": 0.0, "avg_mae_fraction": -0.0004, "avg_mfe_fraction": 0.0021,
                              "profit_factor": "inf"},
+                "trading_performance": trading,
                 "formal_alpha": {"available": False, "status": "NOT_MEASURABLE", "mean_excess_return_fraction": None},
             },
             "by_engine": {
@@ -61,6 +73,7 @@ class ExperienceStorePublicProjectionTests(unittest.TestCase):
                     "raw_edge": {"sample_size": 1, "mean_net_return_fraction": 0.0018, "win_rate": 1.0,
                                  "max_drawdown_fraction": 0.0, "avg_mae_fraction": -0.0004, "avg_mfe_fraction": 0.0021,
                                  "profit_factor": "inf"},
+                    "trading_performance": trading,
                     "formal_alpha": {"available": False, "status": "NOT_MEASURABLE"},
                 }
             },
@@ -101,6 +114,12 @@ class ExperienceStorePublicProjectionTests(unittest.TestCase):
         self.assertEqual(arm["actions"]["LONG"], 1)
         self.assertEqual(arm["actions"]["FLAT"], 1)
         self.assertEqual(arm["evidence"]["sample_size"], 1)
+        trading = arm["evidence"]["trading_performance"]
+        self.assertEqual(trading["n_trades"], 1)
+        self.assertAlmostEqual(trading["average_r_multiple"], 1.8)
+        self.assertEqual(trading["profit_factor"], "inf")
+        self.assertAlmostEqual(trading["time_in_market_fraction"], 0.5)
+        self.assertAlmostEqual(trading["cumulative_turnover_fraction"], 2.0)
         gpw = next(row for row in payload["engines"] if row["engine"] == "gpw")
         self.assertEqual(gpw["actions"]["OTHER"], 1)
 

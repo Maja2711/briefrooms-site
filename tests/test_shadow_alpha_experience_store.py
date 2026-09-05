@@ -24,7 +24,13 @@ class ExperienceStoreTests(unittest.TestCase):
             "subject_id": "trade-1",
             "occurred_at": "2026-09-02T08:00:00Z",
             "source_ref": "us-daily://outcome/trade-1",
-            "payload": {"return_percent": 1.5, "gross_return_percent": 1.7},
+            "payload": {
+                "return_percent": 1.5,
+                "gross_return_percent": 1.7,
+                "entry_at": "2026-09-01T09:00:00Z",
+                "exit_at": "2026-09-01T15:00:00Z",
+                "turnover_fraction": 2.0,
+            },
         }
         rows = build_experiences([decision, outcome])
         self.assertEqual(len(rows), 1)
@@ -33,6 +39,9 @@ class ExperienceStoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["action"], "LONG")
         self.assertAlmostEqual(rows[0]["outcome"]["net_return_fraction"], 0.015)
         self.assertAlmostEqual(rows[0]["outcome"]["cost_fraction"], 0.002)
+        self.assertEqual(rows[0]["outcome"]["entry_at"], "2026-09-01T09:00:00Z")
+        self.assertEqual(rows[0]["outcome"]["exit_at"], "2026-09-01T15:00:00Z")
+        self.assertEqual(rows[0]["outcome"]["turnover_fraction"], 2.0)
 
     def test_same_time_outcome_is_not_bound(self):
         events = [
@@ -87,6 +96,7 @@ class ShadowAlphaEvaluatorTests(unittest.TestCase):
                 "experience_id": f"e{i}",
                 "engine": "brace",
                 "instrument": "TEST",
+                "action": "LONG",
                 "status": "SETTLED",
                 "outcome": outcome,
             })
@@ -115,6 +125,59 @@ class ShadowAlphaEvaluatorTests(unittest.TestCase):
         self.assertIn("brace", report["by_engine"])
         self.assertIn("brace:TEST", report["by_engine_instrument"])
         self.assertTrue(report["zero_authority"])
+
+    def test_trading_performance_adds_risk_adjusted_r_cost_exposure_and_turnover_metrics(self):
+        rows = [
+            {
+                "engine": "eurusd", "instrument": "EUR/USD", "action": "LONG", "status": "SETTLED",
+                "outcome": {
+                    "net_return_fraction": 0.02, "r_multiple": 1.5, "cost_fraction": 0.001,
+                    "entry_at": "2026-09-01T08:00:00Z", "exit_at": "2026-09-01T10:00:00Z",
+                    "turnover_fraction": 2.0,
+                },
+            },
+            {
+                "engine": "eurusd", "instrument": "EUR/USD", "action": "SHORT", "status": "SETTLED",
+                "outcome": {
+                    "net_return_fraction": -0.01, "r_multiple": -0.5, "cost_fraction": 0.002,
+                    "entry_at": "2026-09-01T12:00:00Z", "exit_at": "2026-09-01T14:00:00Z",
+                    "turnover_fraction": 2.0,
+                },
+            },
+            {
+                "engine": "eurusd", "instrument": "EUR/USD", "action": "LONG", "status": "SETTLED",
+                "outcome": {
+                    "net_return_fraction": 0.01, "r_multiple": 1.0, "cost_fraction": 0.0015,
+                    "entry_at": "2026-09-01T13:00:00Z", "exit_at": "2026-09-01T16:00:00Z",
+                    "turnover_fraction": 2.0,
+                },
+            },
+            {
+                "engine": "eurusd", "instrument": "EUR/USD", "action": "FLAT", "status": "SETTLED",
+                "outcome": {"net_return_fraction": 0.5, "r_multiple": 99.0},
+            },
+        ]
+        perf = evaluate_group(rows, minimum=2)["trading_performance"]
+        self.assertEqual(perf["n_trades"], 3)
+        self.assertEqual(perf["settled_with_return"], 3)
+        self.assertAlmostEqual(perf["expectancy_return_fraction"], (0.02 - 0.01 + 0.01) / 3)
+        self.assertAlmostEqual(perf["hit_rate"], 2 / 3)
+        self.assertAlmostEqual(perf["average_r_multiple"], (1.5 - 0.5 + 1.0) / 3)
+        self.assertAlmostEqual(perf["mean_cost_fraction"], 0.0015)
+        self.assertAlmostEqual(perf["cumulative_turnover_fraction"], 6.0)
+        self.assertAlmostEqual(perf["turnover_coverage_fraction"], 1.0)
+        self.assertAlmostEqual(perf["exposure_interval_coverage_fraction"], 1.0)
+        self.assertAlmostEqual(perf["time_in_market_fraction"], 6 / 8)
+        self.assertIsNotNone(perf["sharpe_per_trade"])
+        self.assertIsNotNone(perf["sortino_per_trade"])
+        self.assertEqual(perf["risk_adjusted_basis"], "per_trade_non_annualized_zero_rf_mar")
+
+    def test_exposure_and_turnover_are_not_fabricated_when_source_metadata_missing(self):
+        perf = evaluate_group(self.experiences([0.01, -0.005]), minimum=2)["trading_performance"]
+        self.assertIsNone(perf["time_in_market_fraction"])
+        self.assertEqual(perf["exposure_interval_coverage_fraction"], 0.0)
+        self.assertIsNone(perf["cumulative_turnover_fraction"])
+        self.assertEqual(perf["turnover_coverage_fraction"], 0.0)
 
 
 if __name__ == "__main__":
