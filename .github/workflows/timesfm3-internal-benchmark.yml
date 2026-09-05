@@ -1,0 +1,163 @@
+name: TimesFM3 Internal EURUSD Benchmark
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */2 * * 1-5"
+  workflow_run:
+    workflows:
+      - "Monitor Daily EURUSD"
+      - "Weekly Engine Star"
+    types: [completed]
+  pull_request:
+    paths:
+      - "scripts/timesfm3_internal_benchmark.py"
+      - "tests/test_timesfm3_internal_benchmark.py"
+      - "docs/TIMESFM3_INTERNAL_BENCHMARK_PL.md"
+      - "docs/TIMESFM3_INTERNAL_BENCHMARK_EN.md"
+      - ".github/workflows/timesfm3-internal-benchmark.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: timesfm3-internal-eurusd-benchmark
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: timesfm3-internal-benchmark-state
+  STATE_ARCHIVE: timesfm3-internal-benchmark-state.tgz
+  TIMESFM3_RESEARCH_LICENSE_OK: ${{ vars.TIMESFM3_RESEARCH_LICENSE_OK }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate private benchmark contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/timesfm3_internal_benchmark.py
+          python -m unittest tests.test_timesfm3_internal_benchmark -v
+
+  research:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (
+        github.event_name != 'workflow_run' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      )
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Prepare private state directory
+        run: |
+          set -euo pipefail
+          echo "TIMESFM3_STATE=$RUNNER_TEMP/timesfm3-state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/timesfm3-state"
+      - name: Restore latest durable private state
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${STATE_ARTIFACT}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No prior TimesFM3 internal state; a fresh prospective activation will be created."
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/timesfm3-artifact"
+          gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/timesfm3-artifact"
+          archive="$RUNNER_TEMP/timesfm3-artifact/$STATE_ARCHIVE"
+          test -s "$archive"
+          tar -xzf "$archive" -C "$TIMESFM3_STATE"
+      - name: Prepare, settle and discover prospective benchmark pairs
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--state-dir "$TIMESFM3_STATE" --daily-spot data/investments/eurusd_daily_spot.json --daily-history data/investments/eurusd_daily_history.json --weekly-dir data/investments/weekly --prepare)
+          if [[ ! -s "$TIMESFM3_STATE/timesfm3_internal_activation.json" ]]; then args+=(--bootstrap); fi
+          if [[ "${TIMESFM3_RESEARCH_LICENSE_OK,,}" == "true" ]]; then args+=(--license-gate-enabled); fi
+          result="$(python scripts/timesfm3_internal_benchmark.py "${args[@]}")"
+          echo "$result"
+          changed="$(printf '%s' "$result" | python -c 'import json,sys; print(str(bool(json.load(sys.stdin)["changed"])).lower())')"
+          needs="$(printf '%s' "$result" | python -c 'import json,sys; print(str(bool(json.load(sys.stdin)["needs_inference"])).lower())')"
+          infer=false
+          if [[ "$needs" == "true" && "${TIMESFM3_RESEARCH_LICENSE_OK,,}" == "true" ]]; then infer=true; fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "needs=$needs" >> "$GITHUB_OUTPUT"
+          echo "infer=$infer" >> "$GITHUB_OUTPUT"
+      - name: Explain disabled TimesFM3 weight gate
+        if: steps.prepare.outputs.needs == 'true' && steps.prepare.outputs.infer != 'true'
+        run: |
+          echo "TimesFM3 benchmark request is pending, but pretrained-weight inference is fail-closed."
+          echo "Set repository Actions variable TIMESFM3_RESEARCH_LICENSE_OK=true only when the use is covered by the TimesFM3 weight license."
+      - name: Prepare Hugging Face cache
+        if: steps.prepare.outputs.infer == 'true'
+        run: |
+          echo "HF_HOME=$RUNNER_TEMP/huggingface-timesfm3" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/huggingface-timesfm3"
+      - name: Cache TimesFM3 checkpoint
+        if: steps.prepare.outputs.infer == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/huggingface-timesfm3
+          key: timesfm3-google-3.0-pytorch-${{ runner.os }}-py311-v1
+      - name: Install TimesFM3 research runtime
+        if: steps.prepare.outputs.infer == 'true'
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "timesfm[torch]==3.0.0"
+      - name: Run paired TimesFM3 inference
+        if: steps.prepare.outputs.infer == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/timesfm3_internal_benchmark.py --state-dir "$TIMESFM3_STATE" --infer --license-gate-enabled
+      - name: Verify private benchmark state
+        run: |
+          set -euo pipefail
+          python scripts/timesfm3_internal_benchmark.py --state-dir "$TIMESFM3_STATE" --verify
+      - name: Pack changed private research state
+        id: pack
+        if: steps.prepare.outputs.changed == 'true' || steps.prepare.outputs.infer == 'true'
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$TIMESFM3_STATE" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+          echo "packed=true" >> "$GITHUB_OUTPUT"
+      - name: Store private benchmark artifact
+        if: steps.pack.outputs.packed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: timesfm3-internal-benchmark-state
+          path: ${{ runner.temp }}/timesfm3-internal-benchmark-state.tgz
+          if-no-files-found: error
+          retention-days: 180
+          compression-level: 0
