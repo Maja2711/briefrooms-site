@@ -56,6 +56,12 @@ def _number(value: Any) -> float | None:
     return number if number == number and abs(number) != float("inf") else None
 
 
+def _ratio(value: Any) -> float | str | None:
+    if isinstance(value, str) and value.lower() == "inf":
+        return "inf"
+    return _number(value)
+
+
 def _action(value: Any) -> str:
     action = str(value or "").upper()
     return action if action in ALLOWED_ACTIONS else "OTHER"
@@ -80,6 +86,7 @@ def _metric_block(evidence: Mapping[str, Any] | None) -> dict[str, Any]:
     evidence = evidence if isinstance(evidence, Mapping) else {}
     raw = evidence.get("raw_edge") if isinstance(evidence.get("raw_edge"), Mapping) else {}
     formal = evidence.get("formal_alpha") if isinstance(evidence.get("formal_alpha"), Mapping) else {}
+    trading = evidence.get("trading_performance") if isinstance(evidence.get("trading_performance"), Mapping) else {}
     return {
         "assessment": evidence.get("assessment") or "INSUFFICIENT_DATA",
         "assessment_basis": evidence.get("assessment_basis"),
@@ -87,13 +94,36 @@ def _metric_block(evidence: Mapping[str, Any] | None) -> dict[str, Any]:
         "sample_size": raw.get("sample_size"),
         "mean_return_fraction": _number(raw.get("mean_net_return_fraction")),
         "win_rate": _number(raw.get("win_rate")),
-        "profit_factor": _number(raw.get("profit_factor")),
+        "profit_factor": _ratio(raw.get("profit_factor")),
         "max_drawdown_fraction": _number(raw.get("max_drawdown_fraction")),
         "avg_mae_fraction": _number(raw.get("avg_mae_fraction")),
         "avg_mfe_fraction": _number(raw.get("avg_mfe_fraction")),
         "formal_alpha_status": formal.get("status") or "NOT_MEASURABLE",
         "formal_alpha_available": bool(formal.get("available", False)),
         "mean_excess_return_fraction": _number(formal.get("mean_excess_return_fraction")),
+        "trading_performance": {
+            "status": trading.get("status") or "NOT_MEASURABLE",
+            "n_trades": int(trading.get("n_trades") or 0),
+            "settled_with_return": int(trading.get("settled_with_return") or 0),
+            "expectancy_return_fraction": _number(trading.get("expectancy_return_fraction")),
+            "hit_rate": _number(trading.get("hit_rate")),
+            "average_r_multiple": _number(trading.get("average_r_multiple")),
+            "r_multiple_coverage_fraction": _number(trading.get("r_multiple_coverage_fraction")),
+            "profit_factor": _ratio(trading.get("profit_factor")),
+            "max_drawdown_fraction": _number(trading.get("max_drawdown_fraction")),
+            "cumulative_compounded_return_fraction": _number(trading.get("cumulative_compounded_return_fraction")),
+            "sharpe_per_trade": _number(trading.get("sharpe_per_trade")),
+            "sortino_per_trade": _number(trading.get("sortino_per_trade")),
+            "risk_adjusted_basis": trading.get("risk_adjusted_basis"),
+            "mean_cost_fraction": _number(trading.get("mean_cost_fraction")),
+            "sum_cost_fraction_across_trades": _number(trading.get("sum_cost_fraction_across_trades")),
+            "cost_coverage_fraction": _number(trading.get("cost_coverage_fraction")),
+            "time_in_market_fraction": _number(trading.get("time_in_market_fraction")),
+            "exposure_interval_coverage_fraction": _number(trading.get("exposure_interval_coverage_fraction")),
+            "cumulative_turnover_fraction": _number(trading.get("cumulative_turnover_fraction")),
+            "mean_turnover_fraction_per_trade": _number(trading.get("mean_turnover_fraction_per_trade")),
+            "turnover_coverage_fraction": _number(trading.get("turnover_coverage_fraction")),
+        },
     }
 
 
