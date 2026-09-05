@@ -1,0 +1,130 @@
+name: Observe GPW Rejected Candidate Outcomes
+
+on:
+  pull_request:
+    paths:
+      - "scripts/gpw_rejected_candidate_outcomes.py"
+      - "scripts/daily_stock_rejected_candidate_freeze.py"
+      - "tests/test_gpw_rejected_candidate_outcomes.py"
+      - "tests/test_daily_stock_rejected_candidate_freeze.py"
+      - ".github/workflows/gpw-rejected-candidate-outcomes.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/gpw_rejected_candidate_outcomes.py"
+      - "scripts/daily_stock_rejected_candidate_freeze.py"
+      - "tests/test_gpw_rejected_candidate_outcomes.py"
+      - "tests/test_daily_stock_rejected_candidate_freeze.py"
+      - ".github/workflows/gpw-rejected-candidate-outcomes.yml"
+  workflow_run:
+    workflows: ["Publish PL GPW Daily Pick"]
+    types: [completed]
+  workflow_dispatch:
+  schedule:
+    # One run lands after the GPW close in both CEST and CET; the other is a
+    # harmless retry. Settlement itself refuses to finalize a live session.
+    - cron: "25 15,16 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gpw-rejected-candidate-outcomes
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate isolated observer contract
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_stock_rejected_candidate_freeze.py \
+            scripts/gpw_rejected_candidate_outcomes.py
+          python -m unittest \
+            tests.test_daily_stock_rejected_candidate_freeze \
+            tests.test_gpw_rejected_candidate_outcomes -v
+      - name: Enforce zero-authority and prospective-only invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('scripts/gpw_rejected_candidate_outcomes.py').read_text(encoding='utf-8')
+          required=[
+              '"historical_backfill": False',
+              '"decision_influence": False',
+              '"ranking_writeback": False',
+              '"gate_writeback": False',
+              '"production_trade_writeback": False',
+              '"automatic_learning_writeback": False',
+              '"automatic_promotion": False',
+              'DATA_GAP_NOT_ZERO',
+              'prospective rejected-candidate freeze is required',
+              'source_snapshot_sha256',
+              'opportunity_candidate',
+          ]
+          for marker in required:
+              assert marker in code, marker
+          print('GPW_REJECTED_OUTCOME_ZERO_AUTHORITY_PASS')
+          PY
+
+  observe:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Capture current prospective freeze when available
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          p=Path('data/investments/gpw_daily_pick.json')
+          payload=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}
+          if isinstance(payload.get('counterfactual_rejected_candidate_freeze'),dict):
+              subprocess.run(['python','scripts/gpw_rejected_candidate_outcomes.py','--capture'],check=True)
+          else:
+              print('CAPTURE_NOT_APPLICABLE: current producer payload has no prospective freeze')
+          PY
+      - name: Settle captured T+1 and T+2 observations
+        run: |
+          set -euo pipefail
+          python scripts/gpw_rejected_candidate_outcomes.py --settle
+          python scripts/gpw_rejected_candidate_outcomes.py --verify
+      - name: Commit observational outcomes only
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/rejected_candidate_outcomes/gpw 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Observe GPW rejected candidate outcomes"
+          for attempt in 1 2 3 4 5; do
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
