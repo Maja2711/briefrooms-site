@@ -4,6 +4,12 @@
 This module evaluates settled Experience Store records. It never labels raw
 positive PnL as formal alpha unless benchmark-adjusted returns are present.
 Without a benchmark it reports conservative evidence of a positive raw edge.
+
+Trading-performance metrics are calculated only for economic LONG/SHORT rows.
+Sharpe and Sortino are deliberately per-trade, non-annualized ratios with a
+zero risk-free/minimum-acceptable return. Exposure and turnover are reported
+only when the source provides sufficient real execution metadata; missing data
+remain explicitly NOT_MEASURABLE rather than being inferred.
 """
 from __future__ import annotations
 
@@ -27,6 +33,7 @@ DEFAULT_REPORT = Path("data/research/shadow_alpha_report.json")
 MIN_SAMPLE = 30
 BOOTSTRAP_SAMPLES = 2000
 BOOTSTRAP_SEED = 1337
+ECONOMIC_ACTIONS = {"LONG", "SHORT"}
 
 
 def _number(value: Any) -> float | None:
@@ -37,6 +44,21 @@ def _number(value: Any) -> float | None:
         return number if math.isfinite(number) else None
     except (TypeError, ValueError):
         return None
+
+
+def _parse_optional_time(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        return None
+    return dt.astimezone(timezone.utc)
 
 
 def _percentile(values: list[float], p: float) -> float | None:
@@ -83,6 +105,27 @@ def profit_factor(returns: list[float]) -> float | None:
     return gains / losses
 
 
+def sharpe_per_trade(returns: list[float]) -> float | None:
+    """Non-annualized per-trade Sharpe with rf=0."""
+    if len(returns) < 2:
+        return None
+    stdev = statistics.stdev(returns)
+    if stdev == 0:
+        return None
+    return statistics.fmean(returns) / stdev
+
+
+def sortino_per_trade(returns: list[float]) -> float | None:
+    """Non-annualized per-trade Sortino with MAR=0."""
+    if not returns:
+        return None
+    mean = statistics.fmean(returns)
+    downside_deviation = math.sqrt(statistics.fmean(min(value, 0.0) ** 2 for value in returns))
+    if downside_deviation == 0:
+        return None
+    return mean / downside_deviation
+
+
 def _series(rows: list[Mapping[str, Any]]) -> tuple[list[float], list[float]]:
     raw: list[float] = []
     excess: list[float] = []
@@ -96,6 +139,102 @@ def _series(rows: list[Mapping[str, Any]]) -> tuple[list[float], list[float]]:
         if benchmark is not None:
             excess.append(net - benchmark)
     return raw, excess
+
+
+def _economic_rows(rows: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    return [
+        row for row in rows
+        if str(row.get("status") or "").upper() == "SETTLED"
+        and str(row.get("action") or "").upper() in ECONOMIC_ACTIONS
+    ]
+
+
+def _time_in_market(economic_rows: list[Mapping[str, Any]]) -> tuple[float | None, float]:
+    """Union of source-provided entry/exit intervals divided by observed span."""
+    intervals: list[tuple[datetime, datetime]] = []
+    for row in economic_rows:
+        outcome = row.get("outcome") if isinstance(row.get("outcome"), Mapping) else {}
+        start = _parse_optional_time(outcome.get("entry_at"))
+        end = _parse_optional_time(outcome.get("exit_at"))
+        if start is None or end is None or end <= start:
+            continue
+        intervals.append((start, end))
+    coverage = len(intervals) / len(economic_rows) if economic_rows else 0.0
+    if not intervals:
+        return None, coverage
+    intervals.sort(key=lambda pair: pair[0])
+    merged: list[list[datetime]] = []
+    for start, end in intervals:
+        if not merged or start > merged[-1][1]:
+            merged.append([start, end])
+        elif end > merged[-1][1]:
+            merged[-1][1] = end
+    observed_start = min(pair[0] for pair in intervals)
+    observed_end = max(pair[1] for pair in intervals)
+    span = (observed_end - observed_start).total_seconds()
+    if span <= 0:
+        return None, coverage
+    active = sum((end - start).total_seconds() for start, end in merged)
+    return active / span, coverage
+
+
+def _trading_performance(settled: list[Mapping[str, Any]]) -> dict[str, Any]:
+    economic = _economic_rows(settled)
+    returns: list[float] = []
+    r_values: list[float] = []
+    costs: list[float] = []
+    turnovers: list[float] = []
+    for row in economic:
+        outcome = row.get("outcome") if isinstance(row.get("outcome"), Mapping) else {}
+        net = _number(outcome.get("net_return_fraction"))
+        if net is not None:
+            returns.append(net)
+        r_value = _number(outcome.get("r_multiple"))
+        if r_value is not None:
+            r_values.append(r_value)
+        cost = _number(outcome.get("cost_fraction"))
+        if cost is not None:
+            costs.append(cost)
+        turnover = _number(outcome.get("turnover_fraction"))
+        if turnover is not None and turnover >= 0:
+            turnovers.append(turnover)
+
+    pf = profit_factor(returns) if returns else None
+    pf_value: float | str | None = "inf" if pf is not None and math.isinf(pf) else pf
+    exposure, exposure_coverage = _time_in_market(economic)
+    trade_count = len(economic)
+    return {
+        "status": "MEASURABLE" if returns else "NOT_MEASURABLE",
+        "n_trades": trade_count,
+        "settled_with_return": len(returns),
+        "expectancy_return_fraction": statistics.fmean(returns) if returns else None,
+        "hit_rate": sum(1 for value in returns if value > 0) / len(returns) if returns else None,
+        "average_r_multiple": statistics.fmean(r_values) if r_values else None,
+        "r_multiple_coverage_fraction": len(r_values) / trade_count if trade_count else 0.0,
+        "profit_factor": pf_value,
+        "max_drawdown_fraction": max_drawdown(returns) if returns else None,
+        "cumulative_compounded_return_fraction": math.prod(1.0 + value for value in returns) - 1.0 if returns else None,
+        "sharpe_per_trade": sharpe_per_trade(returns),
+        "sortino_per_trade": sortino_per_trade(returns),
+        "risk_adjusted_basis": "per_trade_non_annualized_zero_rf_mar",
+        "mean_cost_fraction": statistics.fmean(costs) if costs else None,
+        "sum_cost_fraction_across_trades": sum(costs) if costs else None,
+        "cost_coverage_fraction": len(costs) / trade_count if trade_count else 0.0,
+        "time_in_market_fraction": exposure,
+        "exposure_interval_coverage_fraction": exposure_coverage,
+        "cumulative_turnover_fraction": sum(turnovers) if turnovers else None,
+        "mean_turnover_fraction_per_trade": statistics.fmean(turnovers) if turnovers else None,
+        "turnover_coverage_fraction": len(turnovers) / trade_count if trade_count else 0.0,
+        "measurement_policy": {
+            "economic_actions_only": sorted(ECONOMIC_ACTIONS),
+            "flat_excluded_from_trading_metrics": True,
+            "annualization": False,
+            "risk_free_rate": 0.0,
+            "minimum_acceptable_return": 0.0,
+            "exposure_requires_source_entry_exit_timestamps": True,
+            "turnover_requires_source_turnover_fraction": True,
+        },
+    }
 
 
 def _evidence_status(values: list[float], *, minimum: int) -> tuple[str, tuple[float | None, float | None]]:
@@ -166,6 +305,7 @@ def evaluate_group(rows: list[Mapping[str, Any]], *, minimum: int = MIN_SAMPLE) 
             "avg_mae_fraction": statistics.fmean(mae_values) if mae_values else None,
             "avg_mfe_fraction": statistics.fmean(mfe_values) if mfe_values else None,
         },
+        "trading_performance": _trading_performance(settled),
         "records": {
             "all_decisions": len(rows),
             "settled": len(settled),
@@ -194,6 +334,7 @@ def evaluate(experiences: list[Mapping[str, Any]], *, minimum: int = MIN_SAMPLE)
             "NO_POSITIVE_EVIDENCE": "The minimum sample exists, but current data do not support a positive mean return at this threshold.",
             "INSUFFICIENT_DATA": "Too few settled return observations to decide.",
             "formal_alpha_rule": "Formal alpha is assessed only when every evaluated return has a benchmark return; otherwise only raw edge is reported.",
+            "trading_metrics_rule": "PnL/risk metrics use settled LONG/SHORT experiences only; FLAT is excluded. Sharpe/Sortino are non-annualized per-trade ratios. Exposure and turnover remain not measurable without source execution metadata.",
         },
         "overall": evaluate_group(experiences, minimum=minimum),
         "by_engine": {key: evaluate_group(value, minimum=minimum) for key, value in sorted(groups.items())},
