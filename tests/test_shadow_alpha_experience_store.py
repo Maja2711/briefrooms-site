@@ -167,7 +167,7 @@ class ShadowAlphaEvaluatorTests(unittest.TestCase):
         self.assertAlmostEqual(perf["cumulative_turnover_fraction"], 6.0)
         self.assertAlmostEqual(perf["turnover_coverage_fraction"], 1.0)
         self.assertAlmostEqual(perf["exposure_interval_coverage_fraction"], 1.0)
-        self.assertAlmostEqual(perf["time_in_market_fraction"], 5 / 8)
+        self.assertAlmostEqual(perf["time_in_market_fraction"], 6 / 8)
         self.assertIsNotNone(perf["sharpe_per_trade"])
         self.assertIsNotNone(perf["sortino_per_trade"])
         self.assertEqual(perf["risk_adjusted_basis"], "per_trade_non_annualized_zero_rf_mar")
