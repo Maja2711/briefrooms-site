@@ -24,7 +24,7 @@ import statistics
 import tempfile
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -125,6 +125,42 @@ def _profile_for(market: str) -> core.QuantProfile:
     raise ValueError(f"unsupported market: {market}")
 
 
+def _maximum_historical_lag(config: Mapping[str, Any]) -> int:
+    gates = config.get("data_gates") if isinstance(config.get("data_gates"), Mapping) else {}
+    try:
+        return max(0, int(gates.get("maximum_historical_lag_sessions", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _session_lag(last_day: date, expected: date, config: Mapping[str, Any]) -> Optional[int]:
+    """Count configured weekday sessions between latest data and expected day.
+
+    The freeze must mirror the producer's freshness policy.  GPW explicitly
+    allows one completed-session lag through ``gpw-data-gates-v1``.  A strict
+    calendar-date equality here used to reject every counterfactual candidate
+    whenever the producer legally used that allowance.  US currently has no
+    configured lag allowance, so its behaviour remains strict.
+    """
+    if last_day > expected:
+        return None
+    if last_day == expected:
+        return 0
+    non_sessions: set[date] = set()
+    for raw in config.get("non_session_dates") or []:
+        try:
+            non_sessions.add(date.fromisoformat(str(raw)))
+        except ValueError:
+            continue
+    cursor = last_day
+    lag = 0
+    while cursor < expected:
+        cursor += timedelta(days=1)
+        if cursor.weekday() < 5 and cursor not in non_sessions:
+            lag += 1
+    return lag
+
+
 def _diagnostic_market_state(
     company: Mapping[str, Any],
     bars: Sequence[Any],
@@ -140,11 +176,32 @@ def _diagnostic_market_state(
             "gates": [_gate("market_data", False, reason="empty_completed_history", stage="market_data")],
         }
     last_day = _bar_day(completed[-1])
-    if last_day != expected:
+    if last_day is None:
+        return {
+            "market_data_ok": False,
+            "reason": "missing_latest_session",
+            "gates": [_gate("market_data", False, reason="missing_latest_session", stage="market_data")],
+        }
+    max_lag = _maximum_historical_lag(config)
+    lag_sessions = _session_lag(last_day, expected, config)
+    if lag_sessions is None or lag_sessions > max_lag:
         return {
             "market_data_ok": False,
             "reason": f"stale_latest_session:{last_day}",
-            "gates": [_gate("market_data", False, reason=f"stale_latest_session:{last_day}", stage="market_data")],
+            "last_session": last_day.isoformat(),
+            "expected_session": expected.isoformat(),
+            "historical_lag_sessions": lag_sessions,
+            "historical_data_status": "rejected_stale",
+            "gates": [
+                _gate(
+                    "market_data",
+                    False,
+                    reason=f"historical_lag_exceeds_policy:{lag_sessions}",
+                    stage="market_data",
+                    observed=lag_sessions,
+                    threshold=max_lag,
+                )
+            ],
         }
     if len(completed) < 60:
         return {
@@ -182,8 +239,16 @@ def _diagnostic_market_state(
     max_risk = float(config["maximum_risk_percent"])
     liquidity_pass = turnover >= turnover_threshold
     risk_pass = risk_percent <= max_risk
+    data_status = "fresh" if lag_sessions == 0 else "accepted_lag"
     gates = [
-        _gate("market_data", True, reason="fresh_completed_session", stage="market_data"),
+        _gate(
+            "market_data",
+            True,
+            reason="fresh_completed_session" if lag_sessions == 0 else "accepted_historical_lag",
+            stage="market_data",
+            observed=lag_sessions,
+            threshold=max_lag,
+        ),
         _gate(
             "liquidity",
             liquidity_pass,
@@ -204,7 +269,10 @@ def _diagnostic_market_state(
     return {
         "market_data_ok": True,
         "symbol": str(company.get("symbol") or ""),
-        "last_session": expected.isoformat(),
+        "last_session": last_day.isoformat(),
+        "expected_session": expected.isoformat(),
+        "historical_lag_sessions": lag_sessions,
+        "historical_data_status": data_status,
         "reference_price": round(float(close), 8),
         "entry_zone": [
             round(float(close) * profile.entry_low_multiple, 8),
@@ -403,11 +471,53 @@ def build_freeze(
         if state.get("market_data_ok") is not True:
             pass
         elif exact is None:
-            # The diagnostic plan exists, but the engine's own quant builder did
-            # not admit this symbol. Preserve the more specific deterministic
-            # liquidity/risk failure when available.
+            # GPW P0.4 can legally accept one lagged completed session.  The
+            # legacy quant builder used by this diagnostic still requires exact
+            # freshness, so do not invent a hard quant rejection solely because
+            # that older helper returned None.  We already applied the same
+            # deterministic liquidity/risk screen above and preserve any real
+            # explicit downstream rejection from the producer.
             failed = _first_failed(gates)
-            if failed is None:
+            accepted_lag_candidate = (
+                failed is None
+                and state.get("historical_data_status") == "accepted_lag"
+                and state.get("quant_screen_passed") is True
+            )
+            if accepted_lag_candidate:
+                gates.append(
+                    _gate(
+                        "quant_candidate",
+                        True,
+                        reason="diagnostic_quant_candidate_from_policy_accepted_lag",
+                        stage="quant_screen",
+                    )
+                )
+                gates.append(
+                    _gate(
+                        "shortlist_rank",
+                        False,
+                        reason="rank_unavailable_under_accepted_lag_diagnostic",
+                        stage="ranking",
+                        hard=False,
+                        observed=None,
+                        threshold=shortlist_limit,
+                    )
+                )
+                if explicit_reason:
+                    gates.append(_later_gate_from_reason(explicit_reason, config=config, review_detail=review_details.get(symbol)))
+                elif no_sources_global:
+                    gates.append(_gate("source_availability", False, reason="no_fresh_verifiable_catalyst", stage="evidence"))
+                else:
+                    gates.append(
+                        _gate(
+                            "final_selection_rank",
+                            False,
+                            reason="higher_ranked_or_approved_candidate_selected" if selected_symbol else "engine_finished_flat_without_explicit_candidate_gate",
+                            stage="decision",
+                            hard=False,
+                        )
+                    )
+            elif failed is None:
                 gates.append(_gate("quant_candidate", False, reason=explicit_reason or "engine_quant_builder_rejected", stage="quant_screen"))
         else:
             gates.append(_gate("quant_candidate", True, reason="engine_quant_candidate_created", stage="quant_screen"))
@@ -447,7 +557,12 @@ def build_freeze(
             gates.append(_gate("final_selection_rank", False, reason="not_selected", stage="decision", hard=False))
             first_block = _first_failed(gates)
 
-        plan_source = "engine_quant_candidate" if exact is not None else "diagnostic_pre_gate_same_point_in_time_rules"
+        if exact is not None:
+            plan_source = "engine_quant_candidate"
+        elif state.get("historical_data_status") == "accepted_lag":
+            plan_source = "diagnostic_accepted_lag_same_point_in_time_rules"
+        else:
+            plan_source = "diagnostic_pre_gate_same_point_in_time_rules"
         risk_plan = None
         if state.get("market_data_ok") is True:
             risk_plan = {
@@ -495,6 +610,9 @@ def build_freeze(
             },
             "market_state": {
                 "last_session": state.get("last_session"),
+                "expected_session": state.get("expected_session"),
+                "historical_lag_sessions": state.get("historical_lag_sessions"),
+                "historical_data_status": state.get("historical_data_status"),
                 "reference_price": state.get("reference_price"),
                 "median_turnover": state.get("median_turnover"),
                 "turnover_threshold": state.get("turnover_threshold"),
@@ -536,6 +654,7 @@ def build_freeze(
             "source_engine_writeback": False,
             "decision_influence": False,
             "future_outcome_requires_preexisting_freeze": True,
+            "historical_freshness_policy_aligned": True,
         },
     }
     freeze["freeze_sha256"] = _sha(freeze)

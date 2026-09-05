@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import unittest
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from scripts import counterfactual_decision_gate_diagnostics_v29_1 as bridge
 from scripts import daily_stock_rejected_candidate_freeze as freeze
@@ -37,6 +37,8 @@ def config(market: str) -> dict:
         "minimum_reward_risk": 1.5,
         "minimum_composite_score": 72.0,
         "top_candidates_for_news": 2,
+        "data_gates": {"maximum_historical_lag_sessions": 1 if market == "gpw" else 0},
+        "non_session_dates": [],
         "universe": [
             {"symbol": "AAA.WA" if market == "gpw" else "AAA", "name": "AAA", "sector": "banki"},
             {"symbol": "BBB.WA" if market == "gpw" else "BBB", "name": "BBB", "sector": "tech"},
@@ -132,6 +134,47 @@ class RejectedCandidateFreezeTests(unittest.TestCase):
         self.assertEqual(row["first_blocking_gate"]["name"], "liquidity")
         self.assertEqual(row["risk_plan"]["plan_source"], "diagnostic_pre_gate_same_point_in_time_rules")
         self.assertTrue(row["settlement_eligibility"]["eligible"])
+
+    def test_gpw_policy_accepted_one_session_lag_remains_evaluable(self):
+        cfg = config("gpw")
+        sample = bars()
+        expected = sample[-1].day + timedelta(days=1)
+        p = payload("gpw", expected.isoformat())
+        frozen = freeze.build_freeze(
+            p,
+            market="gpw",
+            config=cfg,
+            universe=cfg["universe"],
+            bar_fetcher=lambda _symbol: sample,
+            exact_builder=lambda _company, _bars: None,
+            normalizer=normalizer,
+        )
+        bbb = next(item for item in frozen["candidates"] if item["symbol"] == "BBB.WA")
+        self.assertTrue(bbb["settlement_eligibility"]["eligible"])
+        self.assertEqual(bbb["market_state"]["historical_data_status"], "accepted_lag")
+        self.assertEqual(bbb["market_state"]["historical_lag_sessions"], 1)
+        self.assertEqual(bbb["risk_plan"]["plan_source"], "diagnostic_accepted_lag_same_point_in_time_rules")
+        failed_hard = [gate for gate in bbb["decision_path"]["gates"] if gate["hard"] and not gate["passed"]]
+        self.assertEqual(failed_hard, [])
+
+    def test_gpw_lag_beyond_policy_stays_hard_data_rejection(self):
+        cfg = config("gpw")
+        sample = bars()
+        expected = sample[-1].day + timedelta(days=2)
+        p = payload("gpw", expected.isoformat())
+        frozen = freeze.build_freeze(
+            p,
+            market="gpw",
+            config=cfg,
+            universe=cfg["universe"],
+            bar_fetcher=lambda _symbol: sample,
+            exact_builder=lambda _company, _bars: None,
+            normalizer=normalizer,
+        )
+        bbb = next(item for item in frozen["candidates"] if item["symbol"] == "BBB.WA")
+        self.assertFalse(bbb["settlement_eligibility"]["eligible"])
+        self.assertEqual(bbb["first_blocking_gate"]["name"], "market_data")
+        self.assertTrue(bbb["first_blocking_gate"]["hard"])
 
     def test_existing_same_decision_freeze_is_immutable(self):
         cfg, expected, fetcher, builder = self._context("gpw")
