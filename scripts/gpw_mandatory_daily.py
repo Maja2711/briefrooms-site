@@ -305,6 +305,11 @@ def make_forced_payload(
                 opening_weight,
             )
             enriched = copy.deepcopy(candidate)
+            # Preserve the pre-EV geometry at the exact production decision point.
+            # PR507 uses this only for research replay; it never feeds production.
+            enriched["pre_ev_reward_risk"] = float(
+                candidate.get("reward_risk") or config.get("minimum_reward_risk", 1.5)
+            )
             enriched["opening_confirmation"] = confirmation
             enriched["legacy_composite_score"] = legacy_score
             enriched["opening_adjusted_score"] = opening_adjusted
@@ -526,10 +531,70 @@ def make_forced_payload(
         "late_recovery": late_recovery,
         "ignored_non_trade_history_records": len(history) - len(_learning_history(history)),
     }
+    # Exact same-run research source for PR507 LOCO.  Keep it ephemeral in
+    # memory; persist() removes it before writing the public/history payload and
+    # stores it only under data/internal.  This avoids re-fetching a moving
+    # market snapshot after the production decision.
+    quant_names = (
+        "relative_momentum",
+        "volume_liquidity",
+        "market_context",
+        "risk_reward",
+        "historical_expectancy",
+    )
+    payload["_loco_source_state"] = {
+        "schema_version": "gpw-loco-producer-state-v1",
+        "decision_date": payload["date"],
+        "producer_decision_at": payload["generated_at"],
+        "captured_at": now.isoformat(timespec="seconds"),
+        "selection_mode": "MANDATORY_DAILY_FINAL",
+        "producer_selected_symbol": selected.get("symbol"),
+        "producer_selected_score": core.round2(score),
+        "base_weights": {key: float(value) for key, value in (config.get("weights") or {}).items()},
+        "opening_weight": opening_weight,
+        "candidate_errors": copy.deepcopy(candidate_errors),
+        "candidates": [
+            {
+                "symbol": enriched.get("symbol"),
+                "name": enriched.get("name"),
+                "sector": enriched.get("sector"),
+                "quant_rank": enriched.get("quant_rank"),
+                "quant_pre_score": enriched.get("quant_pre_score"),
+                "base_scores": {
+                    "catalyst": neutral_catalyst,
+                    **{name: (enriched.get("scores") or {}).get(name) for name in quant_names},
+                },
+                "legacy_composite_score": enriched.get("legacy_composite_score"),
+                "opening_confirmation_score": (enriched.get("opening_confirmation") or {}).get("score"),
+                "opening_confirmation": copy.deepcopy(enriched.get("opening_confirmation")),
+                "opening_adjusted_score": enriched.get("opening_adjusted_score"),
+                "expected_value_score": (enriched.get("expected_value_model") or {}).get("score"),
+                "expected_value_model": copy.deepcopy(enriched.get("expected_value_model")),
+                "expected_value_weight": enriched.get("expected_value_weight", 0.0),
+                "final_score": enriched.get("ev_adjusted_score"),
+                "pre_ev_reward_risk": enriched.get("pre_ev_reward_risk"),
+                "full_reward_risk": enriched.get("reward_risk"),
+                "risk_percent": enriched.get("risk_percent"),
+                "historical_feature_session": enriched.get("historical_feature_session"),
+                "historical_feature_lag_sessions": enriched.get("historical_feature_lag_sessions"),
+                "execution_data_gate": copy.deepcopy(enriched.get("execution_data_gate")),
+                "market_snapshot": copy.deepcopy(candidate_snapshot),
+            }
+            for enriched, candidate_snapshot in evaluated
+        ],
+        "governance": {
+            "prospective_only": True,
+            "historical_backfill": False,
+            "observational_only": True,
+            "decision_influence": False,
+            "production_trade_writeback": False,
+        },
+    }
     return payload
 
 
 def persist(payload: dict[str, Any]) -> None:
+    loco_source = payload.pop("_loco_source_state", None)
     gpw.validate_payload(payload, require_today=False)
     history_path = gpw.HISTORY_DIR / f"{payload['date']}.json"
     gpw.atomic_json(history_path, payload)
@@ -559,6 +624,8 @@ def persist(payload: dict[str, Any]) -> None:
         "final_score": selection.get("score"),
     }
     gpw.atomic_json(gpw.AUDIT_DIR / f"{payload['date']}-mandatory.json", audit)
+    if isinstance(loco_source, dict):
+        gpw.atomic_json(gpw.AUDIT_DIR / f"{payload['date']}-loco-source.json", loco_source)
 
 
 def run(*, now: datetime | None = None) -> dict[str, Any] | None:

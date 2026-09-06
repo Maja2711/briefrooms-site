@@ -1,0 +1,135 @@
+name: GPW LOCO Counterfactual Replay
+
+on:
+  pull_request:
+    paths:
+      - "scripts/gpw_loco_counterfactual_replay.py"
+      - "scripts/gpw_mandatory_daily.py"
+      - "tests/test_gpw_loco_counterfactual_replay.py"
+      - "tests/test_gpw_mandatory_daily.py"
+      - ".github/workflows/gpw-loco-counterfactual-replay.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/gpw_loco_counterfactual_replay.py"
+      - "scripts/gpw_mandatory_daily.py"
+      - "tests/test_gpw_loco_counterfactual_replay.py"
+      - "tests/test_gpw_mandatory_daily.py"
+      - ".github/workflows/gpw-loco-counterfactual-replay.yml"
+  workflow_run:
+    workflows:
+      - "Publish PL GPW Daily Pick"
+      - "Observe GPW Rejected Candidate Outcomes"
+    types: [completed]
+  workflow_dispatch:
+  schedule:
+    - cron: "35 15,16 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gpw-loco-counterfactual-replay
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate PR507 LOCO contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/gpw_loco_counterfactual_replay.py \
+            scripts/gpw_mandatory_daily.py
+          python -m unittest \
+            tests.test_gpw_loco_counterfactual_replay \
+            tests.test_gpw_mandatory_daily \
+            tests.test_gpw_rejected_candidate_outcomes \
+            tests.test_daily_stock_rejected_candidate_freeze -v
+      - name: Enforce prospective zero-authority and causal-boundary invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('scripts/gpw_loco_counterfactual_replay.py').read_text(encoding='utf-8')
+          producer=Path('scripts/gpw_mandatory_daily.py').read_text(encoding='utf-8')
+          required=[
+              'utility_full_minus_utility_without_component',
+              'VALIDATED_EQUIVALENT',
+              'MAX_CAPTURE_DELAY_SECONDS',
+              'historical_backfill": False',
+              'decision_influence": False',
+              'ranking_writeback": False',
+              'gate_writeback": False',
+              'production_trade_writeback": False',
+              'automatic_learning_writeback": False',
+              'automatic_promotion": False',
+              'automatic_component_removal": False',
+              'absolute_causal_claim": False',
+              'UNSUPPORTED_COMPONENTS',
+              'MISSING_PROSPECTIVE_PRODUCER_STATE',
+              'producer_state_sha256',
+          ]
+          for marker in required:
+              assert marker in code, marker
+          for marker in [
+              '"schema_version": "gpw-loco-producer-state-v1"',
+              'payload.pop("_loco_source_state", None)',
+              "-loco-source.json",
+              '"historical_backfill": False',
+              '"decision_influence": False',
+          ]:
+              assert marker in producer, marker
+          print('GPW_LOCO_ZERO_AUTHORITY_EXACT_SOURCE_PASS')
+          PY
+
+  observe:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install runtime dependency
+        run: pip install requests
+      - name: Capture exact prospective producer state when available
+        run: |
+          set -euo pipefail
+          python scripts/gpw_loco_counterfactual_replay.py --capture
+      - name: Build and verify T+2 leave-one-component-out replay
+        run: |
+          set -euo pipefail
+          python scripts/gpw_loco_counterfactual_replay.py --build
+          python scripts/gpw_loco_counterfactual_replay.py --verify
+      - name: Commit LOCO research artifacts only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/loco/gpw 2>/dev/null || true
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Observe GPW LOCO counterfactual replay"
+          for attempt in 1 2 3 4 5; do
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          exit 1
