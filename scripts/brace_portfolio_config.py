@@ -5,13 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = ROOT / "data" / "portfolio10k" / "config.json"
 DEFAULT_ADAPTIVE_POLICY_PATH = ROOT / "data" / "portfolio10k" / "adaptive_policy.json"
+DEFAULT_PORTFOLIO_EVOLUTION_POLICY_PATH = (
+    ROOT / "data" / "portfolio10k" / "portfolio_evolution_policy.json"
+)
 
 AUTONOMY_MODES = {
     "MONITOR_ONLY",
@@ -36,11 +39,53 @@ METHODOLOGY_STATUSES = {
     "RETIRED_BASELINE",
 }
 
+# Existing gate learner. Kept separate from portfolio construction evolution so the
+# two autonomous loops cannot overwrite each other's policy state.
 ADAPTIVE_FIELDS = {
     "minimum_confidence": (0.60, 0.75),
     "minimum_score_improvement": (6.5, 10.5),
     "minimum_expected_alpha": (0.0175, 0.0400),
 }
+
+# Mutable portfolio-construction zone. These values may be changed by the
+# autonomous portfolio evolution loop, but only inside the governed bounds.
+PORTFOLIO_EVOLUTION_FIELDS = {
+    "portfolio_risk_aversion": (0.20, 0.90),
+    "portfolio_drawdown_penalty": (0.20, 1.25),
+    "portfolio_turnover_penalty": (0.10, 0.60),
+    "portfolio_diversification_penalty": (0.00, 0.40),
+    "portfolio_cash_floor": (0.00, 0.50),
+    "portfolio_rebalance_threshold": (0.005, 0.05),
+    "portfolio_max_active_positions": (2.0, 12.0),
+}
+
+# Safety Kernel: autonomous learners are never allowed to write these fields.
+IMMUTABLE_SAFETY_FIELDS = frozenset(
+    {
+        "autonomy_mode",
+        "max_single_stock_weight",
+        "max_broad_etf_weight",
+        "max_sector_weight",
+        "max_currency_weight",
+        "max_region_weight",
+        "minimum_position_weight",
+        "max_positions",
+        "max_expected_drawdown",
+        "emergency_drawdown",
+        "max_annual_turnover",
+        "max_weekly_turnover_probation",
+        "maximum_missing_instruments",
+        "monitoring_max_price_age_hours",
+        "analysis_max_price_age_hours",
+        "maximum_single_price_jump",
+        "max_probation_rotations_per_day",
+        "max_probation_position_changes_per_week",
+        "max_probation_new_position_weight",
+        "safe_mode_on_stale_data",
+        "paper_execution_enabled_after_promotion",
+        "real_broker_integration_enabled",
+    }
+)
 
 
 def _canonical_sha256(payload: Any) -> str:
@@ -89,6 +134,54 @@ def _load_adaptive_overrides(
     }
 
 
+def _load_portfolio_evolution_overrides(
+    policy_path: Path,
+    base_raw: Mapping[str, Any],
+) -> tuple[Dict[str, float], Dict[str, Any]]:
+    if not policy_path.exists():
+        return {}, {"status": "NOT_CONFIGURED", "applied": False}
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    if policy.get("schema_version") != "brace-portfolio-evolution-policy-v1":
+        raise ValueError("Unsupported BRACE portfolio evolution policy schema")
+    if policy.get("never_apply_to_real_broker") is not True:
+        raise ValueError("Portfolio evolution must explicitly prohibit real-broker use")
+    expected_base_hash = str(policy.get("base_config_sha256") or "")
+    actual_base_hash = _canonical_sha256(base_raw)
+    if expected_base_hash != actual_base_hash:
+        raise ValueError("Portfolio evolution policy was trained against a different base configuration")
+
+    stored_hash = str(policy.get("content_sha256") or "")
+    if stored_hash:
+        hash_payload = dict(policy)
+        hash_payload.pop("content_sha256", None)
+        if stored_hash != _canonical_sha256(hash_payload):
+            raise ValueError("Portfolio evolution policy integrity hash mismatch")
+
+    overrides = policy.get("active_overrides") or {}
+    unknown = set(overrides) - set(PORTFOLIO_EVOLUTION_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"Portfolio evolution contains non-whitelisted fields: {sorted(unknown)}"
+        )
+    if set(overrides) & IMMUTABLE_SAFETY_FIELDS:
+        raise ValueError("Portfolio evolution attempted to modify the immutable Safety Kernel")
+
+    clean: Dict[str, float] = {}
+    for name, value in overrides.items():
+        number = float(value)
+        low, high = PORTFOLIO_EVOLUTION_FIELDS[name]
+        if not low <= number <= high:
+            raise ValueError(f"Portfolio evolution value for {name} is outside governed bounds")
+        clean[name] = number
+    return clean, {
+        "status": str(policy.get("status") or "ACTIVE_PORTFOLIO_POLICY"),
+        "applied": bool(clean),
+        "content_sha256": policy.get("content_sha256"),
+        "generated_at": policy.get("generated_at"),
+        "scope": "BRACE portfolio construction; paper/shadow authority only",
+    }
+
+
 @dataclass(frozen=True)
 class EngineConfig:
     target_annual_return: float
@@ -127,11 +220,30 @@ class EngineConfig:
     safe_mode_on_stale_data: bool
     paper_execution_enabled_after_promotion: bool
     real_broker_integration_enabled: bool
+    # Portfolio evolution defaults preserve current behaviour until evidence promotes
+    # a challenger policy.
+    portfolio_risk_aversion: float = 0.55
+    portfolio_drawdown_penalty: float = 0.35
+    portfolio_turnover_penalty: float = 0.35
+    portfolio_diversification_penalty: float = 0.10
+    portfolio_cash_floor: float = 0.0
+    portfolio_rebalance_threshold: float = 0.01
+    portfolio_max_active_positions: int = 12
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "EngineConfig":
         policy = raw.get("policy") if "policy" in raw else raw
-        values = {field: policy[field] for field in cls.__dataclass_fields__}
+        values: Dict[str, Any] = {}
+        for name, field in cls.__dataclass_fields__.items():
+            if name in policy:
+                values[name] = policy[name]
+            elif field.default is not MISSING:
+                values[name] = field.default
+            else:
+                raise KeyError(f"Missing required BRACE policy field: {name}")
+        values["portfolio_max_active_positions"] = int(
+            round(float(values["portfolio_max_active_positions"]))
+        )
         config = cls(**values)
         config.validate()
         return config
@@ -168,21 +280,59 @@ class EngineConfig:
             raise ValueError("Broad-ETF cap cannot exceed 30%")
         if self.max_positions < 2:
             raise ValueError("max_positions is too small")
+        if not 0.20 <= self.portfolio_risk_aversion <= 0.90:
+            raise ValueError("portfolio_risk_aversion outside governed bounds")
+        if not 0.20 <= self.portfolio_drawdown_penalty <= 1.25:
+            raise ValueError("portfolio_drawdown_penalty outside governed bounds")
+        if not 0.10 <= self.portfolio_turnover_penalty <= 0.60:
+            raise ValueError("portfolio_turnover_penalty outside governed bounds")
+        if not 0.0 <= self.portfolio_diversification_penalty <= 0.40:
+            raise ValueError("portfolio_diversification_penalty outside governed bounds")
+        if not 0.0 <= self.portfolio_cash_floor <= 0.50:
+            raise ValueError("portfolio_cash_floor outside governed bounds")
+        if not 0.005 <= self.portfolio_rebalance_threshold <= 0.05:
+            raise ValueError("portfolio_rebalance_threshold outside governed bounds")
+        if not 2 <= self.portfolio_max_active_positions <= self.max_positions:
+            raise ValueError(
+                "portfolio_max_active_positions must stay within hard max_positions"
+            )
 
 
 def load_config(
     path: Path = DEFAULT_CONFIG_PATH,
     adaptive_path: Path | None = None,
+    portfolio_evolution_path: Path | None = None,
 ) -> tuple[EngineConfig, Dict[str, Any]]:
     base_raw = json.loads(path.read_text(encoding="utf-8"))
     merged = deepcopy(base_raw)
-    use_adaptive = adaptive_path is not None or path.resolve() == DEFAULT_CONFIG_PATH.resolve()
-    metadata: Dict[str, Any] = {"status": "DISABLED_FOR_NONDEFAULT_CONFIG", "applied": False}
+    use_adaptive = path.resolve() == DEFAULT_CONFIG_PATH.resolve()
+    if adaptive_path is not None or portfolio_evolution_path is not None:
+        use_adaptive = True
+
+    adaptive_metadata: Dict[str, Any] = {
+        "status": "DISABLED_FOR_NONDEFAULT_CONFIG",
+        "applied": False,
+    }
+    portfolio_metadata: Dict[str, Any] = {
+        "status": "DISABLED_FOR_NONDEFAULT_CONFIG",
+        "applied": False,
+    }
     if use_adaptive:
         selected_path = adaptive_path or DEFAULT_ADAPTIVE_POLICY_PATH
-        overrides, metadata = _load_adaptive_overrides(selected_path, base_raw)
+        overrides, adaptive_metadata = _load_adaptive_overrides(selected_path, base_raw)
         merged.setdefault("policy", {}).update(overrides)
-    merged["adaptive_policy_runtime"] = metadata
+
+        selected_portfolio_path = (
+            portfolio_evolution_path or DEFAULT_PORTFOLIO_EVOLUTION_POLICY_PATH
+        )
+        portfolio_overrides, portfolio_metadata = _load_portfolio_evolution_overrides(
+            selected_portfolio_path,
+            base_raw,
+        )
+        merged.setdefault("policy", {}).update(portfolio_overrides)
+
+    merged["adaptive_policy_runtime"] = adaptive_metadata
+    merged["portfolio_evolution_runtime"] = portfolio_metadata
     return EngineConfig.from_mapping(merged), merged
 
 
@@ -204,6 +354,13 @@ def public_policy(config: EngineConfig) -> Dict[str, Any]:
         "minimum_shadow_decisions": config.minimum_shadow_decisions,
         "minimum_shadow_completed_trades": config.minimum_shadow_completed_trades,
         "minimum_probation_calendar_days": config.minimum_probation_calendar_days,
+        "portfolio_risk_aversion": config.portfolio_risk_aversion,
+        "portfolio_drawdown_penalty": config.portfolio_drawdown_penalty,
+        "portfolio_turnover_penalty": config.portfolio_turnover_penalty,
+        "portfolio_diversification_penalty": config.portfolio_diversification_penalty,
+        "portfolio_cash_floor": config.portfolio_cash_floor,
+        "portfolio_rebalance_threshold": config.portfolio_rebalance_threshold,
+        "portfolio_max_active_positions": config.portfolio_max_active_positions,
         "paper_execution_only": True,
         "real_broker_integration": False,
     }
