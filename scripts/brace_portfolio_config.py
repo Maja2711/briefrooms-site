@@ -305,9 +305,9 @@ def load_config(
 ) -> tuple[EngineConfig, Dict[str, Any]]:
     base_raw = json.loads(path.read_text(encoding="utf-8"))
     merged = deepcopy(base_raw)
-    use_adaptive = path.resolve() == DEFAULT_CONFIG_PATH.resolve()
-    if adaptive_path is not None or portfolio_evolution_path is not None:
-        use_adaptive = True
+    is_default_config = path.resolve() == DEFAULT_CONFIG_PATH.resolve()
+    use_gate_adaptive = is_default_config or adaptive_path is not None
+    use_portfolio_evolution = is_default_config or portfolio_evolution_path is not None
 
     adaptive_metadata: Dict[str, Any] = {
         "status": "DISABLED_FOR_NONDEFAULT_CONFIG",
@@ -317,11 +317,12 @@ def load_config(
         "status": "DISABLED_FOR_NONDEFAULT_CONFIG",
         "applied": False,
     }
-    if use_adaptive:
+    if use_gate_adaptive:
         selected_path = adaptive_path or DEFAULT_ADAPTIVE_POLICY_PATH
         overrides, adaptive_metadata = _load_adaptive_overrides(selected_path, base_raw)
         merged.setdefault("policy", {}).update(overrides)
 
+    if use_portfolio_evolution:
         selected_portfolio_path = (
             portfolio_evolution_path or DEFAULT_PORTFOLIO_EVOLUTION_POLICY_PATH
         )
