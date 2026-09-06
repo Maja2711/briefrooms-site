@@ -32,6 +32,7 @@ on:
       - "scripts/portfolio-10k-control-public.js"
       - "data/portfolio10k/config.json"
       - "data/portfolio10k/adaptive_policy.json"
+      - "data/portfolio10k/portfolio_evolution_policy.json"
       - "data/portfolio10k/control_authorization.json"
       - "data/portfolio10k/universe.json"
       - "data/investments/portfolio_10k_material_reports.json"
@@ -120,6 +121,37 @@ jobs:
           assert policy['never_apply_to_real_broker'] is True
           assert set(policy.get('active_overrides', {})) <= {'minimum_confidence','minimum_score_improvement','minimum_expected_alpha'}
           print('BRACE learning state:', policy['status'])
+          PY
+      - name: Run autonomous portfolio construction evolution
+        if: >-
+          github.event_name == 'schedule' ||
+          github.event_name == 'issues' ||
+          (github.event_name == 'workflow_dispatch' && inputs.mode != 'promotion-only')
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: |
+          python scripts/brace_portfolio_autonomous_evolution.py --market-cache .cache/brace_portfolio_market.json
+          python scripts/brace_portfolio_autonomous_evolution.py --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path('data/portfolio10k/portfolio_evolution_policy.json').read_text(encoding='utf-8'))
+          allowed = {
+              'portfolio_risk_aversion',
+              'portfolio_drawdown_penalty',
+              'portfolio_turnover_penalty',
+              'portfolio_diversification_penalty',
+              'portfolio_cash_floor',
+              'portfolio_rebalance_threshold',
+              'portfolio_max_active_positions',
+          }
+          assert policy['never_apply_to_real_broker'] is True
+          assert policy['safety']['real_broker_integration'] is False
+          assert policy['safety']['trade_execution_authority'] is False
+          assert policy['safety']['safety_kernel_mutable_by_learner'] is False
+          assert set(policy.get('active_overrides', {})) <= allowed
+          assert set(policy.get('candidate_overrides', {})) <= allowed
+          print('BRACE portfolio evolution state:', policy['status'])
           PY
       - name: Report degraded research refresh
         if: steps.deep_research.outcome == 'failure'
