@@ -4,13 +4,17 @@ on:
   pull_request:
     paths:
       - "scripts/gpw_loco_counterfactual_replay.py"
+      - "scripts/gpw_mandatory_daily.py"
       - "tests/test_gpw_loco_counterfactual_replay.py"
+      - "tests/test_gpw_mandatory_daily.py"
       - ".github/workflows/gpw-loco-counterfactual-replay.yml"
   push:
     branches: [main]
     paths:
       - "scripts/gpw_loco_counterfactual_replay.py"
+      - "scripts/gpw_mandatory_daily.py"
       - "tests/test_gpw_loco_counterfactual_replay.py"
+      - "tests/test_gpw_mandatory_daily.py"
       - ".github/workflows/gpw-loco-counterfactual-replay.yml"
   workflow_run:
     workflows:
@@ -40,9 +44,12 @@ jobs:
       - name: Validate PR507 LOCO contracts
         run: |
           set -euo pipefail
-          python -m py_compile scripts/gpw_loco_counterfactual_replay.py
+          python -m py_compile \
+            scripts/gpw_loco_counterfactual_replay.py \
+            scripts/gpw_mandatory_daily.py
           python -m unittest \
             tests.test_gpw_loco_counterfactual_replay \
+            tests.test_gpw_mandatory_daily \
             tests.test_gpw_rejected_candidate_outcomes \
             tests.test_daily_stock_rejected_candidate_freeze -v
       - name: Enforce prospective zero-authority and causal-boundary invariants
@@ -50,6 +57,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           code=Path('scripts/gpw_loco_counterfactual_replay.py').read_text(encoding='utf-8')
+          producer=Path('scripts/gpw_mandatory_daily.py').read_text(encoding='utf-8')
           required=[
               'utility_full_minus_utility_without_component',
               'VALIDATED_EQUIVALENT',
@@ -64,10 +72,20 @@ jobs:
               'automatic_component_removal": False',
               'absolute_causal_claim": False',
               'UNSUPPORTED_COMPONENTS',
+              'MISSING_PROSPECTIVE_PRODUCER_STATE',
+              'producer_state_sha256',
           ]
           for marker in required:
               assert marker in code, marker
-          print('GPW_LOCO_ZERO_AUTHORITY_PROSPECTIVE_PASS')
+          for marker in [
+              '"schema_version": "gpw-loco-producer-state-v1"',
+              'payload.pop("_loco_source_state", None)',
+              "-loco-source.json",
+              '"historical_backfill": False',
+              '"decision_influence": False',
+          ]:
+              assert marker in producer, marker
+          print('GPW_LOCO_ZERO_AUTHORITY_EXACT_SOURCE_PASS')
           PY
 
   observe:
@@ -85,7 +103,7 @@ jobs:
           python-version: "3.11"
       - name: Install runtime dependency
         run: pip install requests
-      - name: Capture prospective replay state when still inside capture window
+      - name: Capture exact prospective producer state when available
         run: |
           set -euo pipefail
           python scripts/gpw_loco_counterfactual_replay.py --capture
