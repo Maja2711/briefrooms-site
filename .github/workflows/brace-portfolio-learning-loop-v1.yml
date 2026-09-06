@@ -1,0 +1,146 @@
+name: BRACE Portfolio Learning Loop v1
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "BRACE Portfolio Research and Paper Control"
+    types: [completed]
+  schedule:
+    - cron: "35 19 * * 1-5"
+    - cron: "20 10 * * 0"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/brace_portfolio_learning_loop_v1.py"
+      - "scripts/brace_portfolio_learning_promotion_v1.py"
+      - "scripts/brace_portfolio_option_market.py"
+      - "data/portfolio10k/brace_learning_envelope_v1.json"
+      - "data/portfolio10k/brace_production_learning_policy.json"
+      - "tests/test_brace_portfolio_learning_loop_v1.py"
+      - ".github/workflows/brace-portfolio-learning-loop-v1.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brace_portfolio_learning_loop_v1.py"
+      - "scripts/brace_portfolio_learning_promotion_v1.py"
+      - "scripts/brace_portfolio_option_market.py"
+      - "data/portfolio10k/brace_learning_envelope_v1.json"
+      - "data/portfolio10k/brace_production_learning_policy.json"
+      - "tests/test_brace_portfolio_learning_loop_v1.py"
+      - ".github/workflows/brace-portfolio-learning-loop-v1.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-portfolio-learning-loop-v1
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile BRACE learning modules
+        run: |
+          python -m py_compile \
+            scripts/brace_portfolio_learning_loop_v1.py \
+            scripts/brace_portfolio_learning_promotion_v1.py \
+            scripts/brace_portfolio_option_market.py
+          python -m json.tool data/portfolio10k/brace_learning_envelope_v1.json >/dev/null
+          python -m json.tool data/portfolio10k/brace_production_learning_policy.json >/dev/null
+      - name: Test FX, options, counterfactual and autonomous promotion contracts
+        run: python -m unittest tests.test_brace_portfolio_learning_loop_v1 -v
+      - name: Assert fixed authority boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          envelope=json.loads(Path('data/portfolio10k/brace_learning_envelope_v1.json').read_text())
+          policy=json.loads(Path('data/portfolio10k/brace_production_learning_policy.json').read_text())
+          assert envelope['prospective_only'] is True
+          assert envelope['historical_backfill'] is False
+          assert envelope['learner_may_expand_envelope'] is False
+          assert envelope['real_broker_integration'] is False
+          assert envelope['trade_execution_authority'] is False
+          assert policy['promotion']['automatic'] is True
+          assert policy['promotion']['manual_approval_required'] is False
+          assert policy['safety']['real_broker_integration'] is False
+          assert policy['safety']['trade_execution_authority'] is False
+          print('BRACE_PORTFOLIO_LEARNING_AUTHORITY_PASS')
+          PY
+
+  learn:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install live option-market dependency
+        run: python -m pip install --disable-pip-version-check -q yfinance pandas
+      - name: Collect real option chains and FX regime without synthetic pricing
+        run: python scripts/brace_portfolio_option_market.py
+      - name: Freeze current BRACE 10K learning state prospectively
+        run: python scripts/brace_portfolio_learning_loop_v1.py --capture
+      - name: Settle mature frozen hedge counterfactuals
+        run: python scripts/brace_portfolio_learning_loop_v1.py --settle
+      - name: Evaluate evidence-gated automatic production promotion
+        run: python scripts/brace_portfolio_learning_promotion_v1.py
+      - name: Build production PLN FX/options hedge policy target
+        run: python scripts/brace_portfolio_learning_loop_v1.py --build-production-plan
+      - name: Verify immutable evidence and bounded production authority
+        run: |
+          python scripts/brace_portfolio_option_market.py --verify
+          python scripts/brace_portfolio_learning_loop_v1.py --verify
+          python scripts/brace_portfolio_learning_promotion_v1.py --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan=json.loads(Path('data/portfolio10k/production_hedge_plan.json').read_text())
+          assert plan['base_currency']=='PLN'
+          assert plan['execution']['paper_target_only'] is True
+          assert plan['execution']['real_broker_integration'] is False
+          assert plan['execution']['trade_execution_authority'] is False
+          print('BRACE_PRODUCTION_HEDGE_PLAN_PASS', plan['production_policy_version'])
+          PY
+      - name: Commit prospective learning state and automatically promoted production policy
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/portfolio10k/brace_learning_v1 \
+            data/portfolio10k/brace_production_learning_policy.json \
+            data/portfolio10k/production_hedge_plan.json \
+            data/portfolio10k/option_market_snapshot.json
+          if git diff --cached --quiet; then
+            echo "No BRACE learning state changes."
+            exit 0
+          fi
+          git commit -m "Update BRACE portfolio learning and production hedge policy"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 5))
+          done
+          exit 1

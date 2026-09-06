@@ -1,0 +1,53 @@
+{
+  "schema_version": "brace-portfolio-learning-loop-contract-v1",
+  "engine_id": "brace_portfolio_10k",
+  "display_name": "BRACE Portfolio 10K",
+  "principle": "ONE_ENGINE_ONE_LEARNING_LOOP",
+  "lifecycle": [
+    "LESSON",
+    "HYPOTHESIS",
+    "EXPERIMENT",
+    "VALIDATION_EPOCH",
+    "EVIDENCE",
+    "RESULT",
+    "LESSON"
+  ],
+  "learning_domains": {
+    "portfolio_decisions": {
+      "runtime": "scripts/brace_portfolio_self_learning.py",
+      "actions": ["ADD", "REPLACE", "REDUCE", "EXIT"],
+      "status": "EXISTING_ENGINE_LOCAL_LOOP"
+    },
+    "fx_risk": {
+      "runtime": "scripts/brace_portfolio_learning_loop_v1.py",
+      "base_currency": "PLN",
+      "pairs": ["USDPLN", "EURPLN"],
+      "status": "ACTIVE_PROSPECTIVE"
+    },
+    "options_hedge": {
+      "runtime": "scripts/brace_portfolio_option_market.py",
+      "strategies": ["PROTECTIVE_PUT", "PUT_SPREAD", "COLLAR"],
+      "real_market_prices_required": true,
+      "synthetic_option_prices": false,
+      "status": "ACTIVE_WHEN_MARKET_AND_SIZING_ELIGIBLE"
+    },
+    "counterfactual_replay": {
+      "runtime": "scripts/brace_portfolio_learning_loop_v1.py",
+      "prospective_only": true,
+      "historical_backfill": false,
+      "status": "ACTIVE"
+    },
+    "automatic_promotion": {
+      "runtime": "scripts/brace_portfolio_learning_promotion_v1.py",
+      "manual_approval_required": false,
+      "fixed_risk_envelope_required": true,
+      "production_policy_writeback": true,
+      "trade_execution_authority": false,
+      "real_broker_integration": false,
+      "status": "ACTIVE_BOUNDED"
+    }
+  },
+  "production_policy": "data/portfolio10k/brace_production_learning_policy.json",
+  "risk_envelope": "data/portfolio10k/brace_learning_envelope_v1.json",
+  "production_hedge_plan": "data/portfolio10k/production_hedge_plan.json"
+}
