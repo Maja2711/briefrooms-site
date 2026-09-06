@@ -340,6 +340,7 @@ def build_prospective_snapshot(
         "evaluated_candidate_count": len(rows),
         "candidate_errors": deepcopy(dict(candidate_errors)),
         "ranking_sha256": ranking_hash,
+        "producer_state_sha256": None,
         "candidates": rows,
         "supported_components": list(SUPPORTED_COMPONENTS),
         "unsupported_components": deepcopy(UNSUPPORTED_COMPONENTS),
@@ -501,12 +502,25 @@ def capture_current(
     decision_at = _parse_dt(payload.get("generated_at"))
     if decision_at is None:
         return {"status": "NOT_APPLICABLE", "reason": "invalid producer timestamp"}
-    delay = (now_local.astimezone(timezone.utc) - decision_at).total_seconds()
-    if delay < -60 or delay > MAX_CAPTURE_DELAY_SECONDS:
-        return {"status": "SKIPPED_LATE_CAPTURE", "capture_delay_seconds": round(delay, 3)}
     selection = payload.get("selection") if isinstance(payload.get("selection"), Mapping) else {}
     if selection.get("selection_mode") != "MANDATORY_DAILY_FINAL":
         return {"status": "UNSUPPORTED_SELECTION_MODE", "selection_mode": selection.get("selection_mode")}
+
+    # The complete downstream candidate state must come from the same run that
+    # made the production decision.  Never recreate it from later market data.
+    producer_state_path = gpw.AUDIT_DIR / f"{payload.get('date')}-loco-source.json"
+    producer_state = gpw.load_json(producer_state_path)
+    if not isinstance(producer_state, Mapping):
+        return {"status": "MISSING_PROSPECTIVE_PRODUCER_STATE", "reason": "same-run LOCO source was not persisted"}
+    if producer_state.get("schema_version") != "gpw-loco-producer-state-v1":
+        raise ValueError("LOCO producer state schema mismatch")
+    if str(producer_state.get("producer_decision_at") or "") != str(payload.get("generated_at") or ""):
+        raise ValueError("LOCO producer state timestamp does not match public decision")
+    if str(producer_state.get("producer_selected_symbol") or "") != str(selection.get("symbol") or ""):
+        raise ValueError("LOCO producer state selected symbol does not match public decision")
+    source_capture_at = _parse_dt(producer_state.get("captured_at"))
+    if source_capture_at is None:
+        raise ValueError("LOCO producer state capture timestamp is invalid")
 
     decision_key = _sha({"decision_at": payload.get("generated_at"), "symbol": selection.get("symbol")})[:16]
     path = snapshot_dir / f"{payload.get('date')}_{decision_key}.json"
@@ -519,15 +533,8 @@ def capture_current(
 
     config = gpw.load_config()
     policy = mandatory.load_policy()
-    market_cache = dict(cache) if cache is not None else provider.prefetch_market(config)
-    evaluated, errors = _evaluate_current_state(
-        payload=payload,
-        now=now_local,
-        config=config,
-        policy=policy,
-        cache=market_cache,
-        opening_fetcher=opening_fetcher,
-    )
+    evaluated = producer_state.get("candidates") if isinstance(producer_state.get("candidates"), Sequence) else []
+    errors = producer_state.get("candidate_errors") if isinstance(producer_state.get("candidate_errors"), Mapping) else {}
     ranking = gpw.load_json(ROOT / "data/investments/gpw_daily_candidate_ranking.json", {})
     ranking_hash = _sha(ranking) if isinstance(ranking, Mapping) else None
     snapshot = build_prospective_snapshot(
@@ -536,9 +543,16 @@ def capture_current(
         config=config,
         policy=policy,
         candidate_errors=errors,
-        captured_at=now_local,
+        captured_at=source_capture_at,
         ranking_hash=ranking_hash,
     )
+    snapshot_body = dict(snapshot)
+    snapshot_body.pop("snapshot_sha256", None)
+    snapshot_body["producer_state_sha256"] = _sha(producer_state)
+    snapshot_body["persisted_at"] = now_local.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    snapshot_body["snapshot_sha256"] = _sha(snapshot_body)
+    snapshot = snapshot_body
+    verify_snapshot(snapshot)
     _atomic(path, snapshot)
     return {
         "status": "CAPTURED",
