@@ -1,0 +1,37 @@
+name: PR507 exact capture patch
+
+on:
+  push:
+    branches: [pr507-loco-counterfactual-replay-v1]
+    paths:
+      - "scripts/pr507_patch_exact_capture.py"
+      - ".github/workflows/pr507-exact-capture-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pr507-loco-counterfactual-replay-v1
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Apply deterministic source patch
+        run: python scripts/pr507_patch_exact_capture.py
+      - name: Validate patched Python
+        run: |
+          python -m py_compile scripts/gpw_mandatory_daily.py scripts/gpw_loco_counterfactual_replay.py
+      - name: Commit patch result
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/gpw_mandatory_daily.py scripts/gpw_loco_counterfactual_replay.py
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Capture exact same-run GPW state for LOCO replay"
+          git push origin HEAD:pr507-loco-counterfactual-replay-v1
