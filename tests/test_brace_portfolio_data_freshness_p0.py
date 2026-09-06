@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,14 +77,16 @@ def test_held_benchmark_inherits_closed_session_metadata_and_does_not_false_fail
     assert benchmark_row["status"] == "OK"
 
 
-def test_committed_2026_08_18_snapshot_clears_the_false_operational_alarm():
-    portfolio = json.loads(
-        (ROOT / "data" / "investments" / "portfolio_10k.json").read_text(
-            encoding="utf-8"
-        )
-    )
+def test_historical_2026_08_18_snapshot_clears_the_false_operational_alarm():
+    # Keep this historical regression deterministic. Do not read the mutable
+    # live portfolio_10k.json here: that file advances every market session and
+    # eventually becomes future-dated relative to this fixed 2026-08-18 clock.
+    historical_snapshot = {
+        "positions": [held_fwia()],
+        "benchmark": benchmark_fwia(),
+    }
     now = datetime(2026, 8, 18, 21, 50, 11, tzinfo=timezone.utc)
-    report = data.data_freshness_report(portfolio, config(), now, "monitor")
+    report = data.data_freshness_report(historical_snapshot, config(), now, "monitor")
 
     assert report["safe_mode"] is False
     assert report["reasons"] == []
