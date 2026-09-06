@@ -4,6 +4,8 @@
 A confirmation requires new settled evidence. Re-running the workflow against the
 same evidence cannot advance confirmations. Candidate identity excludes changing
 sample statistics, so a thesis can accumulate evidence without changing identity.
+A production-policy version change invalidates any confirmations accumulated for
+an older policy, preventing stale evidence from promoting a different baseline.
 """
 from __future__ import annotations
 
@@ -62,6 +64,7 @@ def _read_state() -> dict[str, Any]:
             "last_confirmed_evidence_head": None,
             "consecutive_confirmations": 0,
             "last_promotion_id": None,
+            "last_policy_version": None,
         },
     )
 
@@ -77,11 +80,16 @@ def evaluate() -> dict[str, Any]:
     signature = loop._sha(identity) if identity else None
     evidence_head = _evidence_head()
     state = _read_state()
-    confirmations = int(state.get("consecutive_confirmations") or 0)
+    current_policy_version = int(policy.get("policy_version") or 0)
+    state_policy_version = state.get("last_policy_version")
+    policy_changed = state_policy_version is not None and int(state_policy_version) != current_policy_version
+    confirmations = 0 if policy_changed else int(state.get("consecutive_confirmations") or 0)
     new_evidence = evidence_head != state.get("last_confirmed_evidence_head")
 
     if identity is None:
         confirmations = 0
+    elif policy_changed:
+        confirmations = 1 if new_evidence else 0
     elif signature != state.get("candidate_signature"):
         confirmations = 1 if new_evidence else 0
     elif new_evidence:
@@ -117,7 +125,7 @@ def evaluate() -> dict[str, Any]:
             change = {"kind": "OPTION", "regime": regime, "from": old, "to": promoted}
 
         promotion_id = f"brace10k-auto-{loop._sha({'change': change, 'evidence': evidence_head})[:20]}"
-        updated["policy_version"] = int(policy.get("policy_version") or 0) + 1
+        updated["policy_version"] = current_policy_version + 1
         updated["status"] = "AUTO_PROMOTED_BOUNDED_POLICY"
         updated["promotion"] = {
             "automatic": True,
@@ -133,6 +141,8 @@ def evaluate() -> dict[str, Any]:
             "promotion_id": promotion_id,
             "promoted_at": _now(),
             "engine_id": "brace_portfolio_10k",
+            "policy_version_before": current_policy_version,
+            "policy_version_after": updated["policy_version"],
             "change": change,
             "candidate_identity": identity,
             "candidate_statistics": candidate.get("statistics"),
@@ -145,6 +155,7 @@ def evaluate() -> dict[str, Any]:
         }
         event["row_sha256"] = loop._sha(event)
         loop._append(loop.PROMOTIONS, event)
+        current_policy_version = updated["policy_version"]
         confirmations = 0
         status = "AUTO_PROMOTED"
 
@@ -158,6 +169,7 @@ def evaluate() -> dict[str, Any]:
             "consecutive_confirmations": confirmations,
             "required_confirmations": required,
             "last_promotion_id": promotion_id or state.get("last_promotion_id"),
+            "last_policy_version": current_policy_version,
             "status": status,
         }
     )
@@ -170,6 +182,7 @@ def evaluate() -> dict[str, Any]:
         "confirmations": confirmations,
         "required_confirmations": required,
         "new_evidence": new_evidence,
+        "policy_changed_since_prior_evaluation": policy_changed,
         "evidence_head": evidence_head,
     }
 
@@ -179,12 +192,21 @@ def verify() -> dict[str, Any]:
     policy = loop._read(loop.PRODUCTION_POLICY, {})
     loop._validate_envelope(envelope)
     loop._validate_policy(policy, envelope)
+    ids: set[str] = set()
     for event in loop._jsonl(loop.PROMOTIONS):
+        promotion_id = str(event.get("promotion_id") or "")
+        if not promotion_id or promotion_id in ids:
+            raise ValueError("duplicate or empty promotion id")
+        ids.add(promotion_id)
+        body = dict(event)
+        stored = body.pop("row_sha256", None)
+        if stored != loop._sha(body):
+            raise ValueError(f"promotion hash mismatch: {promotion_id}")
         if event.get("automatic") is not True or event.get("manual_approval_required") is not False:
             raise ValueError("promotion governance mismatch")
         if event.get("trade_execution_authority") is not False or event.get("real_broker_integration") is not False:
             raise ValueError("promotion gained execution authority")
-    return {"ok": True, "promotion_events": len(loop._jsonl(loop.PROMOTIONS)), "policy_version": policy.get("policy_version")}
+    return {"ok": True, "promotion_events": len(ids), "policy_version": policy.get("policy_version")}
 
 
 def main() -> int:
