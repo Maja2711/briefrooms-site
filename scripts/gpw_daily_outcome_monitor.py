@@ -2,9 +2,14 @@
 """Monitor all selected GPW daily paper trades until target/stop/expiry.
 
 Unlike the old expiry-only settlement, this monitor can resolve a trade on the
-same session when TP or SL is reached.  It preserves every selected stock in a
-durable history index and uses 5-minute Yahoo bars after activation.  If both TP
+same session when TP or SL is reached. It preserves every selected stock in a
+durable history index and uses 5-minute Yahoo bars after activation. If both TP
 and SL occur in the same unresolved bar, stop wins conservatively.
+
+Open positions also publish a live mark from the newest available 5-minute bar,
+including mark timestamp, unrealized P/L and current R. This keeps the Daily
+Trading UI current even when today's selector publishes BRAK_TRANSAKCJI (for
+example on weekends) and the active position is reconstructed from history.
 """
 from __future__ import annotations
 
@@ -109,6 +114,29 @@ def activation_from_bars(payload: dict[str, Any], bars: list[dict[str, Any]]) ->
     return None
 
 
+def apply_live_mark(
+    outcome: dict[str, Any],
+    eligible: list[dict[str, Any]],
+    entry: float,
+    risk: float,
+    now: datetime,
+) -> None:
+    """Publish the newest available 5-minute close for an unresolved position."""
+    if not eligible:
+        return
+    latest = eligible[-1]
+    mark = float(latest["close"])
+    observed = latest["timestamp"].astimezone(WARSAW)
+    current_day = now.astimezone(WARSAW).date()
+    outcome.update({
+        "mark": gpw.round2(mark),
+        "mark_at": observed.isoformat(timespec="seconds"),
+        "mark_is_current": observed.date() == current_day,
+        "unrealized_percent": round((mark / entry - 1.0) * 100.0, 3),
+        "current_r": round((mark - entry) / risk, 3),
+    })
+
+
 def resolve_pending(payload: dict[str, Any], now: datetime) -> bool:
     if payload.get("decision") != "TRANSAKCJA" or (payload.get("outcome") or {}).get("status") == "RESOLVED":
         return False
@@ -185,6 +213,7 @@ def resolve_pending(payload: dict[str, Any], now: datetime) -> bool:
             }
             return True
 
+    apply_live_mark(outcome, eligible, entry, risk, now)
     outcome.update({
         "status": "PENDING",
         "activated": True,
@@ -215,6 +244,11 @@ def build_index(history: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
             "target": selection.get("target"),
             "score": selection.get("score"),
             "valid_until": selection.get("valid_until"),
+            "mark": outcome.get("mark"),
+            "mark_at": outcome.get("mark_at"),
+            "mark_is_current": bool(outcome.get("mark_is_current")),
+            "unrealized_percent": outcome.get("unrealized_percent"),
+            "current_r": outcome.get("current_r"),
             "outcome": outcome,
         })
     return {
@@ -260,6 +294,7 @@ def main() -> None:
             "url": "/data/investments/gpw_daily_pick_history_index.json",
             "selected_trades": index["selected_trades"],
             "resolved_trades": index["resolved_trades"],
+            "updated_at": index["updated_at"],
         }
         atomic(gpw.PUBLIC_PATH, current)
     print(json.dumps({"status": "OK", "changed_records": changed, "metrics": metrics, "history": index["selected_trades"]}, ensure_ascii=False))
