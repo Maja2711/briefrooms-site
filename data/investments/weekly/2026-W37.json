@@ -1,6 +1,6 @@
 {
   "week_id": "2026-W37",
-  "method_version": "5.0.0-experimental",
+  "method_version": "5.6.0-experimental",
   "model_status": "experimental_governed_execution_parity_paper_only",
   "forecast_created_at": "2026-09-06T00:53:50+02:00",
   "forecast_locked_at": "2026-09-06T00:53:50+02:00",
@@ -73,19 +73,32 @@
       "entry_price": 1.1629259586334229,
       "entry_captured_at": "2026-09-07T10:40:00+02:00",
       "entry_source": "Yahoo Finance:EURUSD=X:5m:first_bar_at_or_after_target",
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "trade_status": "open",
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-09-07T12:15:03+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-09-07T16:29:04+02:00",
         "direction": "short",
-        "stop_loss_price": 1.16954939,
-        "take_profit_price": 1.15208763,
-        "stop_loss_distance": 0.00662343,
-        "take_profit_distance": 0.01083833,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 1.16859965,
+        "take_profit_price": 1.15194631,
+        "stop_loss_distance": 0.00567369,
+        "take_profit_distance": 0.01097965,
+        "reward_to_risk": 1.9352,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-09-11T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9607,
+          "conviction_factor": 0.39,
+          "tp_multiplier": 1.013,
+          "sl_multiplier": 0.8566,
+          "target_min_rr": 1.2,
+          "learning_count": 6,
+          "learning_mean_net_percent": -0.873849,
+          "learning_win_rate": 0.5
+        },
+        "friday_tactical_low_tp": false
       },
       "exit_price": null,
       "exit_captured_at": null,
@@ -144,29 +157,29 @@
             },
             "D1": {
               "bar_at": "2026-09-07T02:00:00+02:00",
-              "close": 1.163603,
-              "ma30": 1.157367,
-              "ma60": 1.150146,
-              "ma100": 1.156583,
-              "ma200": 1.16332,
+              "close": 1.163467,
+              "ma30": 1.157362,
+              "ma60": 1.150143,
+              "ma100": 1.156582,
+              "ma200": 1.163319,
               "slow_trend": -1,
               "price_vs_all": 1,
               "nearest_ma": "ma200",
-              "nearest_ma_distance_atr": 0.0525,
+              "nearest_ma_distance_atr": 0.0275,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
               "bar_at": "2026-09-07T16:00:00+02:00",
-              "close": 1.163603,
-              "ma30": 1.162088,
-              "ma60": 1.162165,
-              "ma100": 1.160886,
-              "ma200": 1.162134,
+              "close": 1.163467,
+              "ma30": 1.162084,
+              "ma60": 1.162163,
+              "ma100": 1.160885,
+              "ma200": 1.162133,
               "slow_trend": -1,
               "price_vs_all": 1,
               "nearest_ma": "ma60",
-              "nearest_ma_distance_atr": 2.2909,
+              "nearest_ma_distance_atr": 2.0786,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -175,7 +188,7 @@
             "d1_above_all_ma",
             "h1_above_all_ma_timing"
           ],
-          "evaluated_at": "2026-09-07T16:28:19+02:00",
+          "evaluated_at": "2026-09-07T16:28:59+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -791,7 +804,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:EURUSD=X:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:EURUSD=X:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     },
     {
       "instrument_id": "sp500_futures",
@@ -1187,6 +1202,39 @@
           }
         },
         "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
+      },
+      "wes_initial_no_trade_score": 24.0,
+      "reentry_lock": {
+        "active": false,
+        "scope": "wes_no_trade_monitoring",
+        "released_at": "2026-09-07T16:28:57+02:00",
+        "reason": "wes_trigger_qualified"
+      },
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_entry_authorization": {
+        "authorized_at": "2026-09-07T16:28:57+02:00",
+        "expires_at": "2026-09-07T16:48:57+02:00",
+        "candidate": {
+          "direction": "long",
+          "strategy_id": "weekly_trend",
+          "raw_score": 53.0,
+          "utility": 12.9271,
+          "signal_delta_from_initial": 29.0,
+          "confirmations": 2,
+          "confirmation_sources": [
+            "daily",
+            "weekly"
+          ],
+          "entry_class": "midweek_trigger"
+        },
+        "required": {
+          "allowed": true,
+          "raw": 44.0,
+          "utility": 7.5,
+          "confirmations": 2,
+          "delta": 15.0,
+          "learning_threshold_adjustment": 0.0
+        }
       }
     },
     {
@@ -1243,19 +1291,32 @@
       "entry_price": 79420.84375,
       "entry_captured_at": "2026-09-07T10:40:00+02:00",
       "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_monday_weekly",
       "trade_status": "open",
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-09-07T12:15:05+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-09-07T16:29:04+02:00",
         "direction": "short",
-        "stop_loss_price": 82253.99241363,
-        "take_profit_price": 74784.78230043,
-        "stop_loss_distance": 2833.14866363,
-        "take_profit_distance": 4636.06144957,
-        "reward_to_risk": 1.6364,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 81805.24791967,
+        "take_profit_price": 74589.70060145,
+        "stop_loss_distance": 2384.40416967,
+        "take_profit_distance": 4831.14314855,
+        "reward_to_risk": 2.0261,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "monday_weekly",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-09-11T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9607,
+          "conviction_factor": 0.54,
+          "tp_multiplier": 1.0421,
+          "sl_multiplier": 0.8416,
+          "target_min_rr": 1.2,
+          "learning_count": 6,
+          "learning_mean_net_percent": -0.873849,
+          "learning_win_rate": 0.5
+        },
+        "friday_tactical_low_tp": false
       },
       "exit_price": null,
       "exit_captured_at": null,
@@ -1604,7 +1665,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     }
   ],
   "forecast_hash": "58e3a96726e40d9bb1756776495f260d8d7cad47224be842b7ce5817a573c029",
@@ -1639,13 +1702,29 @@
   "base_forecast_hash": "58e3a96726e40d9bb1756776495f260d8d7cad47224be842b7ce5817a573c029",
   "multi_instrument_exposure_layer": {
     "enabled": true,
-    "version": "5.0.0-experimental",
+    "version": "5.6.0-experimental",
     "common_validation_gate": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-09-07T16:28:21+02:00"
+    "last_checked_at": "2026-09-07T16:28:59+02:00"
   },
-  "governance_started_at": "2026-09-07T12:15:12+02:00"
+  "governance_started_at": "2026-09-07T12:15:12+02:00",
+  "wes": {
+    "version": "WES-1.0.0",
+    "objective": "maximize_total_net_profit_with_no_forced_trades",
+    "no_trade_is_active_monitoring": true,
+    "last_preflight_at": "2026-09-07T16:28:57+02:00",
+    "last_postflight_at": "2026-09-07T16:29:04+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
+  }
 }
