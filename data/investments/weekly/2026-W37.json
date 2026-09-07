@@ -1,6 +1,6 @@
 {
   "week_id": "2026-W37",
-  "method_version": "5.0.0-experimental",
+  "method_version": "5.6.0-experimental",
   "model_status": "experimental_governed_execution_parity_paper_only",
   "forecast_created_at": "2026-09-06T00:53:50+02:00",
   "forecast_locked_at": "2026-09-06T00:53:50+02:00",
@@ -124,7 +124,7 @@
           "enabled": true,
           "instrument_id": "eurusd",
           "data_quality": "passed",
-          "score": 0.5,
+          "score": 1.5,
           "score_cap": 4.0,
           "direction": "long",
           "components": {
@@ -144,37 +144,38 @@
             },
             "D1": {
               "bar_at": "2026-09-07T02:00:00+02:00",
-              "close": 1.162656,
-              "ma30": 1.157335,
-              "ma60": 1.15013,
-              "ma100": 1.156574,
-              "ma200": 1.163315,
-              "slow_trend": -1,
-              "price_vs_all": 0,
-              "nearest_ma": "ma200",
-              "nearest_ma_distance_atr": 0.1224,
-              "support_hold_long": false,
-              "resistance_hold_short": true
-            },
-            "H1": {
-              "bar_at": "2026-09-07T12:00:00+02:00",
-              "close": 1.162656,
-              "ma30": 1.16207,
-              "ma60": 1.161891,
-              "ma100": 1.160761,
-              "ma200": 1.162211,
+              "close": 1.163603,
+              "ma30": 1.157367,
+              "ma60": 1.150146,
+              "ma100": 1.156583,
+              "ma200": 1.16332,
               "slow_trend": -1,
               "price_vs_all": 1,
               "nearest_ma": "ma200",
-              "nearest_ma_distance_atr": 0.7689,
+              "nearest_ma_distance_atr": 0.0525,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            },
+            "H1": {
+              "bar_at": "2026-09-07T16:00:00+02:00",
+              "close": 1.163603,
+              "ma30": 1.162088,
+              "ma60": 1.162165,
+              "ma100": 1.160886,
+              "ma200": 1.162134,
+              "slow_trend": -1,
+              "price_vs_all": 1,
+              "nearest_ma": "ma60",
+              "nearest_ma_distance_atr": 2.2909,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
           },
           "reasons": [
+            "d1_above_all_ma",
             "h1_above_all_ma_timing"
           ],
-          "evaluated_at": "2026-09-07T12:15:08+02:00",
+          "evaluated_at": "2026-09-07T16:28:10+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -691,7 +692,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-09-07T10:40:00+02:00",
+      "last_risk_review_at": "2026-09-07T16:28:10+02:00",
       "entry_decision_at": "2026-09-07T10:38:49+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -1586,7 +1587,7 @@
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-09-07T10:40:00+02:00",
+      "last_risk_review_at": "2026-09-07T16:28:10+02:00",
       "entry_decision_at": "2026-09-07T10:38:49+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -1636,13 +1637,20 @@
   "base_forecast_hash": "58e3a96726e40d9bb1756776495f260d8d7cad47224be842b7ce5817a573c029",
   "multi_instrument_exposure_layer": {
     "enabled": true,
-    "version": "5.0.0-experimental",
+    "version": "5.6.0-experimental",
     "common_validation_gate": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-09-07T12:15:12+02:00"
+    "last_checked_at": "2026-09-07T16:28:10+02:00"
   },
   "governance_started_at": "2026-09-07T12:15:12+02:00"
 }
