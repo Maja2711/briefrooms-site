@@ -1,23 +1,29 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-09-06T09:23:31+02:00",
-  "resolved_trades": 5,
+  "updated_at": "2026-09-07T12:59:39+02:00",
+  "resolved_trades": 7,
   "adaptation_active": false,
   "minimum_sample": 8,
   "method": "bayesian_shrinkage_historical_overlay_v1",
   "automatic_weight_changes": false,
-  "global_average_r": 0.36,
-  "recent_average_r": 0.36,
+  "global_average_r": 0.328,
+  "recent_average_r": 0.328,
   "recent_window": 20,
-  "win_rate": 0.6,
-  "stop_rate": 0.4,
-  "target_rate": 0.4,
+  "win_rate": 0.5714,
+  "stop_rate": 0.4286,
+  "target_rate": 0.4286,
   "sector_expectancy": [
     {
       "sector": "banki",
       "sample": 1,
       "average_r": 1.799,
       "shrunk_r": 0.164
+    },
+    {
+      "sector": "chemia",
+      "sample": 1,
+      "average_r": -1.0,
+      "shrunk_r": -0.091
     },
     {
       "sector": "handel",
@@ -27,47 +33,24 @@
     },
     {
       "sector": "surowce",
-      "sample": 1,
-      "average_r": 0.21,
-      "shrunk_r": 0.019
+      "sample": 2,
+      "average_r": 0.854,
+      "shrunk_r": 0.142
     }
   ],
   "last_lesson": {
-    "date": "2026-09-02",
-    "symbol": "DNP",
-    "sector": "handel",
-    "return_percent": -3.753,
-    "r_multiple": -1.0,
-    "exit_reason": "stop",
-    "lesson": "DNP: pozycja zakończyła się stopem (-1.00R). Pojedyncza strata nie zmienia wag; dopiero zbiorcza próba obniża ocenę podobnych układów."
+    "date": "2026-09-04",
+    "symbol": "JSW",
+    "sector": "surowce",
+    "return_percent": 5.707,
+    "r_multiple": 1.497,
+    "exit_reason": "target",
+    "lesson": "JSW: cel został osiągnięty (1.50R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  },
-  "event_expectancy": [
-    {
-      "event_type": "earnings",
-      "label": "wyniki / raport okresowy",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.792,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    },
-    {
-      "event_type": "regulatory",
-      "label": "regulacja / spór prawny",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.799,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    }
-  ],
-  "event_learning_method": "event_family_bayesian_shrinkage_v1"
+  }
 }
