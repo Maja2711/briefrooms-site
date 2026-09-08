@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-rejection-component-value-attribution-v1",
-  "generated_at": "2026-09-07T20:46:44.891263Z",
+  "generated_at": "2026-09-08T12:12:36.555635Z",
   "market": "gpw",
   "method": {
     "primary_attribution": "first_blocking_gate_only",
@@ -13,11 +13,11 @@
     "shapley_attribution": false
   },
   "overall": {
-    "source_record_count": 2,
-    "evaluable_attribution_observation_count": 37,
+    "source_record_count": 3,
+    "evaluable_attribution_observation_count": 74,
     "resolved_t2_observation_count": 0,
-    "pending_or_data_gap_observation_count": 37,
-    "excluded_not_economically_evaluable_count": 41,
+    "pending_or_data_gap_observation_count": 74,
+    "excluded_not_economically_evaluable_count": 43,
     "excluded_missing_first_blocking_gate_count": 0,
     "valuable_rejection_count": 0,
     "missed_winner_count": 0,
@@ -35,10 +35,10 @@
         "quant_screen"
       ],
       "gate_type": "HARD",
-      "evaluable_rejection_count": 2,
+      "evaluable_rejection_count": 4,
       "resolved_t2_count": 0,
-      "pending_or_data_gap_count": 2,
-      "hard_blocked_count": 2,
+      "pending_or_data_gap_count": 4,
+      "hard_blocked_count": 4,
       "legal_opportunity_candidate_count": 0,
       "valuable_rejection_count": 0,
       "missed_winner_count": 0,
@@ -84,6 +84,34 @@
       "selected_relative_net_rejection_value_percent": 0,
       "mean_candidate_minus_selected_percent": null,
       "evidence_status": "OBSERVING"
+    },
+    {
+      "component": "shortlist_rank",
+      "stages": [
+        "ranking"
+      ],
+      "gate_type": "SOFT",
+      "evaluable_rejection_count": 35,
+      "resolved_t2_count": 0,
+      "pending_or_data_gap_count": 35,
+      "hard_blocked_count": 0,
+      "legal_opportunity_candidate_count": 35,
+      "valuable_rejection_count": 0,
+      "missed_winner_count": 0,
+      "neutral_rejection_count": 0,
+      "valuable_rejection_rate": null,
+      "missed_winner_rate": null,
+      "avoided_loss_percent_sum": 0,
+      "missed_upside_percent_sum": 0,
+      "net_rejection_value_vs_flat_percent": 0,
+      "mean_rejected_t2_return_percent": null,
+      "mean_signed_rejection_value_vs_flat_percent": null,
+      "selected_relative_comparable_count": 0,
+      "selected_relative_opportunity_cost_percent_sum": 0,
+      "selected_relative_selection_advantage_percent_sum": 0,
+      "selected_relative_net_rejection_value_percent": 0,
+      "mean_candidate_minus_selected_percent": null,
+      "evidence_status": "OBSERVING"
     }
   ],
   "lineage": [
@@ -96,6 +124,12 @@
     {
       "decision_date": "2026-09-07",
       "source_snapshot_sha256": "d5ea42f87540b93d59b8397fb22b146ef1a7995b7d4cf89f45f947ab609016cc",
+      "settlement_status": "PENDING",
+      "evaluable_attribution_observations": 37
+    },
+    {
+      "decision_date": "2026-09-08",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
       "settlement_status": "PENDING",
       "evaluable_attribution_observations": 37
     }
@@ -877,6 +911,783 @@
       "causal_claim": false,
       "value_status": "NOT_RESOLVED",
       "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:11B.WA:LONG:liquidity",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:11B.WA:LONG",
+      "symbol": "11B.WA",
+      "component": {
+        "name": "liquidity",
+        "stage": "quant_screen",
+        "hard": true,
+        "reason": "median_turnover_threshold"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": true,
+      "opportunity_candidate": false,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ACP.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ACP.WA:LONG",
+      "symbol": "ACP.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ALE.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ALE.WA:LONG",
+      "symbol": "ALE.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ALR.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ALR.WA:LONG",
+      "symbol": "ALR.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ATT.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ATT.WA:LONG",
+      "symbol": "ATT.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:BDX.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:BDX.WA:LONG",
+      "symbol": "BDX.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:BHW.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:BHW.WA:LONG",
+      "symbol": "BHW.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:CAR.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:CAR.WA:LONG",
+      "symbol": "CAR.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:CDR.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:CDR.WA:LONG",
+      "symbol": "CDR.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:CPS.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:CPS.WA:LONG",
+      "symbol": "CPS.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:DNP.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:DNP.WA:LONG",
+      "symbol": "DNP.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:DOM.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:DOM.WA:LONG",
+      "symbol": "DOM.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ENA.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ENA.WA:LONG",
+      "symbol": "ENA.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:EUR.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:EUR.WA:LONG",
+      "symbol": "EUR.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:GPW.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:GPW.WA:LONG",
+      "symbol": "GPW.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:ING.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:ING.WA:LONG",
+      "symbol": "ING.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:KGH.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:KGH.WA:LONG",
+      "symbol": "KGH.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:KRU.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:KRU.WA:LONG",
+      "symbol": "KRU.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:KTY.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:KTY.WA:LONG",
+      "symbol": "KTY.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:LPP.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:LPP.WA:LONG",
+      "symbol": "LPP.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:LWB.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:LWB.WA:LONG",
+      "symbol": "LWB.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:MBK.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:MBK.WA:LONG",
+      "symbol": "MBK.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:MIL.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:MIL.WA:LONG",
+      "symbol": "MIL.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:NEU.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:NEU.WA:LONG",
+      "symbol": "NEU.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:OPL.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:OPL.WA:LONG",
+      "symbol": "OPL.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PCO.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PCO.WA:LONG",
+      "symbol": "PCO.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PEO.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PEO.WA:LONG",
+      "symbol": "PEO.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PGE.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PGE.WA:LONG",
+      "symbol": "PGE.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PKN.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PKN.WA:LONG",
+      "symbol": "PKN.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PKO.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PKO.WA:LONG",
+      "symbol": "PKO.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:PZU.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:PZU.WA:LONG",
+      "symbol": "PZU.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:RBW.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:RBW.WA:LONG",
+      "symbol": "RBW.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:TEN.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:TEN.WA:LONG",
+      "symbol": "TEN.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:TPE.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:TPE.WA:LONG",
+      "symbol": "TPE.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:TXT.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:TXT.WA:LONG",
+      "symbol": "TXT.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:WPL.WA:LONG:liquidity",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:WPL.WA:LONG",
+      "symbol": "WPL.WA",
+      "component": {
+        "name": "liquidity",
+        "stage": "quant_screen",
+        "hard": true,
+        "reason": "median_turnover_threshold"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": true,
+      "opportunity_candidate": false,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
+    },
+    {
+      "observation_id": "2026-09-08:gpw:2026-09-08:XTB.WA:LONG:shortlist_rank",
+      "decision_date": "2026-09-08",
+      "candidate_id": "gpw:2026-09-08:XTB.WA:LONG",
+      "symbol": "XTB.WA",
+      "component": {
+        "name": "shortlist_rank",
+        "stage": "ranking",
+        "hard": false,
+        "reason": "rank_unavailable_under_accepted_lag_diagnostic"
+      },
+      "primary_attribution": "first_blocking_gate",
+      "double_counted": false,
+      "hard_blocked": false,
+      "opportunity_candidate": true,
+      "t2_status": "PENDING",
+      "source_snapshot_sha256": "dadf4b206e058c50595850c52dda07932f9569122fd1a52f609e621f4d262459",
+      "causal_claim": false,
+      "value_status": "NOT_RESOLVED",
+      "reason": "PENDING"
     }
   ],
   "governance": {
@@ -891,5 +1702,5 @@
     "causal_component_effect_claim": false,
     "historical_backfill": false
   },
-  "artifact_sha256": "0e07c3f80f12524802c8c239a5328159744015fe8520ddc11f702515eb6936e4"
+  "artifact_sha256": "bd7a9b21f4b37bba2d29d05e5528f0dcc2268740bf5906f3cd837da489201705"
 }
