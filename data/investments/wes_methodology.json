@@ -2,21 +2,37 @@
   "methodology": "Weekly Engine Star",
   "short_name": "WES",
   "version": "1.0.0",
+  "lifecycle_revision": "early-close-reentry-1",
   "status": "experimental_governed_paper_only",
   "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
   "principles": [
     "NO TRADE is an active monitoring state, not a terminal weekly decision.",
-    "A late-week entry requires a new qualified trigger and increasingly strong confirmation as Friday close approaches.",
-    "All positions remain subject to the frozen Friday weekly close; no weekend carry.",
-    "Friday tactical entries use a deliberately reduced TP and tighter SL because the remaining holding horizon is short.",
-    "TP and SL are adaptive to remaining holding time, signal strength and learned results by entry class.",
+    "A normal late-week entry requires a new qualified trigger and increasingly strong confirmation as Friday close approaches.",
+    "If a governed position closes on Monday or Tuesday, WES may admit one fresh replacement entry later in the same trading week when the full methodology, shared validation gate and WES trigger thresholds qualify it.",
+    "A qualified Monday/Tuesday-close replacement uses a rolling seven-calendar-day deadline measured from its actual replacement entry and may remain open through the weekend.",
+    "Material-event exits remain fail-closed and are not eligible for the early-close replacement path.",
+    "Normal weekly positions that are not early-close replacements remain subject to the frozen Friday weekly close.",
+    "Friday tactical entries use a deliberately reduced TP and tighter SL only when they still belong to the original short Friday horizon; an early-close replacement uses its full rolling seven-day horizon instead.",
+    "TP and SL are adaptive to effective remaining holding time, signal strength and learned results by entry class.",
     "Learning must improve expected net profit, not maximize trade count or win rate in isolation.",
     "No rule may force a directional position when admission gates are not met."
   ],
   "entry_classes": {
     "monday_weekly": "normal weekly horizon",
     "midweek_trigger": "NO TRADE converted to a qualified Tuesday-Thursday or late-Monday trigger",
-    "friday_tactical": "very high-conviction Friday trigger with short time-to-close and low TP"
+    "friday_tactical": "very high-conviction Friday trigger with short time-to-close and low TP",
+    "early_close_reentry": "fresh qualified replacement after a Monday/Tuesday close; seven-calendar-day rolling horizon"
+  },
+  "early_close_reentry_policy": {
+    "eligible_source_close_days": ["monday", "tuesday"],
+    "fresh_wes_signal_required": true,
+    "shared_validation_gate_required": true,
+    "forced_entry_allowed": false,
+    "entry_allowed_through_friday": true,
+    "holding_days_from_actual_entry": 7,
+    "weekend_carry_allowed": true,
+    "material_event_exit_eligible": false,
+    "normal_sl_tp_controls_remain_active": true
   },
   "friday_guardrails": {
     "minimum_minutes_to_scheduled_close": 45,
@@ -24,7 +40,8 @@
     "very_late_minimum_confirmations": 3,
     "low_tp_cap_vs_base": 0.35,
     "sl_cap_vs_base": 0.45,
-    "minimum_reward_to_risk": 1.05
+    "minimum_reward_to_risk": 1.05,
+    "applies_to_early_close_reentry": false
   },
   "learning_guardrails": {
     "minimum_observations_before_entry_threshold_learning": 6,
