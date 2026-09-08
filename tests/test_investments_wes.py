@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 import investments_wes as wes
+import investments_wes_lifecycle as lifecycle
 
 TZ = ZoneInfo('Europe/Warsaw')
 
@@ -21,10 +22,68 @@ class WesTests(unittest.TestCase):
         self.assertGreaterEqual(p['raw'], 80)
         self.assertGreaterEqual(p['confirmations'], 3)
 
-    def test_friday_too_late_blocks_entry(self):
+    def test_friday_too_late_blocks_normal_weekly_entry(self):
         now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
         p = wes.trigger_profile(now, 30)
         self.assertFalse(p['allowed'])
+
+    def test_early_reentry_uses_full_horizon_profile_even_on_friday(self):
+        now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
+        p = lifecycle.early_reentry_trigger_profile(now)
+        self.assertTrue(p['allowed'])
+        self.assertEqual('early_close_reentry', p['profile'])
+        self.assertEqual(7, p['holding_horizon_days'])
+        self.assertEqual(48.0, p['raw'])
+
+    def test_monday_or_tuesday_close_is_eligible_for_fresh_wes_reentry(self):
+        now = datetime(2026, 8, 12, 12, 0, tzinfo=TZ)  # Wednesday
+        week = {
+            'week_id': '2026-W33',
+            'market_window': {'exit_target_local': '2026-08-14T22:00:00+02:00'},
+        }
+        monday_close = {
+            'entry_price': 1.1,
+            'exit_price': 1.11,
+            'exit_captured_at': '2026-08-10T23:50:00+02:00',
+            'exit_reason': 'daily_model_confirmed_opposite_signal',
+            'risk_status': 'closed_by_daily_model_review',
+        }
+        self.assertTrue(lifecycle.early_close_reentry_candidate(monday_close, week, now))
+        tuesday_close = {**monday_close, 'exit_captured_at': '2026-08-11T12:00:00+02:00'}
+        self.assertTrue(lifecycle.early_close_reentry_candidate(tuesday_close, week, now))
+
+    def test_wednesday_close_is_not_eligible_for_same_week_reentry(self):
+        now = datetime(2026, 8, 12, 15, 0, tzinfo=TZ)
+        week = {
+            'week_id': '2026-W33',
+            'market_window': {'exit_target_local': '2026-08-14T22:00:00+02:00'},
+        }
+        item = {
+            'entry_price': 1.1,
+            'exit_price': 1.11,
+            'exit_captured_at': '2026-08-12T12:00:00+02:00',
+            'exit_reason': 'daily_model_confirmed_opposite_signal',
+        }
+        self.assertFalse(lifecycle.early_close_reentry_candidate(item, week, now))
+
+    def test_material_event_exit_remains_fail_closed(self):
+        now = datetime(2026, 8, 12, 12, 0, tzinfo=TZ)
+        week = {
+            'week_id': '2026-W33',
+            'market_window': {'exit_target_local': '2026-08-14T22:00:00+02:00'},
+        }
+        item = {
+            'entry_price': 1.1,
+            'exit_price': 1.09,
+            'exit_captured_at': '2026-08-10T12:00:00+02:00',
+            'exit_reason': 'event_review_material_event_exit_request',
+            'risk_status': 'closed_by_material_event_review',
+        }
+        self.assertFalse(lifecycle.early_close_reentry_candidate(item, week, now))
+
+    def test_rolling_deadline_is_seven_calendar_days_from_actual_entry(self):
+        entry = datetime(2026, 8, 13, 14, 25, tzinfo=TZ)
+        self.assertEqual(datetime(2026, 8, 20, 14, 25, tzinfo=TZ), lifecycle.rolling_deadline(entry))
 
     def test_friday_tactical_uses_low_tp_and_positive_rr(self):
         stats = {'classes': {}}
