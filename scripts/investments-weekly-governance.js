@@ -15,7 +15,6 @@
     layerBelief: 'Belief Core',
     layerWes: 'WES · decyzja + ryzyko',
     safetyTitle: 'Zasady bezpieczeństwa i wykonania WES',
-    expand: 'Rozwiń', collapse: 'Zwiń',
     gate: 'Wspólna bramka walidacyjna',
     gateText: 'Każda warstwa modelu podlega temu samemu dopuszczeniu instrumentu do nowych wejść.',
     timing: 'Zakaz wejść wstecznych',
@@ -39,7 +38,6 @@
     layerBelief: 'Belief Core',
     layerWes: 'WES · decision + risk',
     safetyTitle: 'WES safety & execution rules',
-    expand: 'Expand', collapse: 'Collapse',
     gate: 'Shared validation gate',
     gateText: 'Every model layer is subject to the same approval for new instrument entries.',
     timing: 'No backdated entries',
@@ -88,11 +86,11 @@
             <span class="wes-arrow">→</span>
             ${layer(copy.layerWes, 'wes')}
           </div>
+          <div class="wes-safety-inline">
+            <b>${esc(copy.safetyTitle)}</b>
+            <div class="governance-grid">${row(copy.gate, copy.gateText)}${row(copy.timing, copy.timingText)}${row(copy.lock, copy.lockText)}${row(copy.integrity, copy.integrityText)}</div>
+          </div>
         </div>
-      </details>
-      <details class="governance-details">
-        <summary><span><b>${esc(copy.safetyTitle)}</b><small>${esc(copy.methodology)}: ${esc(version)}</small></span><span class="governance-toggle"><span class="when-closed">${esc(copy.expand)}</span><span class="when-open">${esc(copy.collapse)}</span></span></summary>
-        <div class="governance-grid">${row(copy.gate, copy.gateText)}${row(copy.timing, copy.timingText)}${row(copy.lock, copy.lockText)}${row(copy.integrity, copy.integrityText)}</div>
       </details>`;
     app.prepend(section);
   }
