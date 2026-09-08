@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Prevent same-week re-entry after a governed SL/TP paper exit.
+"""Govern WES re-entry after SL/TP paper exits.
 
-The 15-minute exposure watcher runs the threshold engine first. When that
-engine records a stop-loss or take-profit exit, this script persists a lock
-through the frozen weekly close. The continuous-exposure layer must therefore
-not archive the exit and immediately reopen the same instrument.
+A Monday/Tuesday risk exit is placed into a WES trigger-monitoring lock rather
+than being permanently blocked for the rest of the week. It may reopen only
+after the production WES runner sees a fresh qualified signal. SL/TP exits from
+Wednesday onward remain blocked through the frozen weekly close.
 """
 from __future__ import annotations
 
@@ -12,9 +12,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
+TZ = ZoneInfo("Europe/Warsaw")
+EARLY_CLOSE_WEEKDAYS = {0, 1}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -31,6 +34,16 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
         encoding="utf-8",
         newline="\n",
     )
+
+
+def parse_local(value: Any) -> datetime | None:
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=TZ)
+        return dt.astimezone(TZ)
+    except Exception:
+        return None
 
 
 def current_week_path() -> Path | None:
@@ -55,6 +68,7 @@ def apply_lock() -> dict[str, Any]:
         "checked_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "changed": False,
         "locked": [],
+        "early_reentry_monitoring": [],
     }
     if path is None:
         report["status"] = "no_week_file"
@@ -75,23 +89,60 @@ def apply_lock() -> dict[str, Any]:
             continue
 
         instrument_id = str(item.get("instrument_id") or "unknown")
-        desired = {
-            "active": True,
-            "scope": "same_week",
-            "until": until,
-            "reason": reason,
-            "policy": "sl_tp_exit_blocks_same_week_reentry",
-            "created_from_exit_at": item.get("exit_captured_at"),
-        }
-        if item.get("reentry_lock") != desired:
-            item["reentry_lock"] = desired
+        exit_at = parse_local(item.get("exit_captured_at"))
+        early = exit_at is not None and exit_at.weekday() in EARLY_CLOSE_WEEKDAYS
+        if early:
+            desired = {
+                "active": True,
+                "scope": "wes_early_reentry_pending",
+                "until": until,
+                "reason": reason,
+                "policy": "early_week_risk_exit_requires_fresh_wes_signal",
+                "created_from_exit_at": item.get("exit_captured_at"),
+            }
+            if item.get("reentry_lock") != desired:
+                item["reentry_lock"] = desired
+                changed = True
+            early_updates = {
+                "wes_early_reentry_eligible": True,
+                "wes_early_reentry_source_exit_at": item.get("exit_captured_at"),
+                "wes_early_reentry_source_exit_reason": reason,
+                "wes_early_reentry_source_risk_status": item.get("risk_status"),
+                "next_entry_status": "wes_early_reentry_waiting_for_signal",
+            }
+            for key, value in early_updates.items():
+                if item.get(key) != value:
+                    item[key] = value
+                    changed = True
+            report["early_reentry_monitoring"].append({
+                "instrument_id": instrument_id,
+                "reason": reason,
+                "exit_at": item.get("exit_captured_at"),
+                "admission": "fresh_wes_signal_required",
+            })
+        else:
+            desired = {
+                "active": True,
+                "scope": "same_week",
+                "until": until,
+                "reason": reason,
+                "policy": "sl_tp_exit_blocks_same_week_reentry_from_wednesday",
+                "created_from_exit_at": item.get("exit_captured_at"),
+            }
+            if item.get("reentry_lock") != desired:
+                item["reentry_lock"] = desired
+                changed = True
+            if item.get("next_entry_status") != "blocked_after_risk_exit":
+                item["next_entry_status"] = "blocked_after_risk_exit"
+                changed = True
+            report["locked"].append({"instrument_id": instrument_id, "reason": reason, "until": until})
+
+        if item.get("continuous_exposure_active") is not False:
+            item["continuous_exposure_active"] = False
             changed = True
-        if item.get("next_entry_status") != "blocked_after_risk_exit":
-            item["next_entry_status"] = "blocked_after_risk_exit"
+        if item.get("continuous_exposure_status") != "closed_by_risk_exit":
+            item["continuous_exposure_status"] = "closed_by_risk_exit"
             changed = True
-        item["continuous_exposure_active"] = False
-        item["continuous_exposure_status"] = "closed_by_risk_exit"
-        report["locked"].append({"instrument_id": instrument_id, "reason": reason, "until": until})
 
     if changed:
         write_json(path, week)
