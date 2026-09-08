@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-07T21:58:48+00:00",
+  "generated_at": "2026-09-08T00:33:52+00:00",
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -8,15 +8,15 @@
     "legacy_brace": "data/investments/portfolio_10k_brace.json",
     "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
   },
-  "controller_state": "PROBATIONARY_CONTROL",
-  "champion_methodology_id": "brace-portfolio-engine",
+  "controller_state": "FALLBACK_BASELINE",
+  "champion_methodology_id": "portfolio-10k-baseline",
   "challenger_methodology_id": "brace-portfolio-engine",
   "baseline_methodology_id": "portfolio-10k-baseline",
   "methodologies": [
     {
       "methodology_id": "portfolio-10k-baseline",
       "version": "1.0.0",
-      "status": "FALLBACK_BASELINE",
+      "status": "ACTIVE_BASELINE",
       "activated_at": "2026-07-20T12:10:00+00:00",
       "retired_at": null,
       "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
@@ -31,14 +31,14 @@
         "status": "production_baseline",
         "history_preserved": true,
         "entry_history_sha256": "cdefa8db1f5824ae3eac75fab7f99ed59bc8c3a6cf4ba222d539368555d5f348",
-        "source_snapshot_sha256": "02a0d7680419ebf1e0c4f74fa086612a48f03fcbf4ef444863319fe7d142f557",
-        "validated_at": "2026-09-07T21:44:28+00:00"
+        "source_snapshot_sha256": "ef3121e959d0272f912fea298549ddd0d11ca9057028cec4efb1c0f126bf7e68",
+        "validated_at": "2026-09-08T00:33:52+00:00"
       }
     },
     {
       "methodology_id": "brace-portfolio-engine",
       "version": "3.0.0",
-      "status": "PROBATIONARY_CONTROL",
+      "status": "FALLBACK_BASELINE",
       "activated_at": "2026-07-29T00:00:00+00:00",
       "retired_at": null,
       "description": "Modular BRACE challenger with candidate ranking, constrained optimization, governed promotion and paper-only execution.",
@@ -56,10 +56,14 @@
         "automatic_activation_allowed_only_by_controller": true,
         "active_paper_control": false,
         "latest_gate_evaluation": {
-          "evaluated_at": "2026-09-07T21:44:28+00:00",
+          "evaluated_at": "2026-09-08T00:33:52+00:00",
           "current_status": "FALLBACK_BASELINE",
-          "conditions": {},
-          "reason": "No status change; promotion gates remain incomplete."
+          "conditions": {
+            "fallback": {
+              "STALE_DATA": true
+            }
+          },
+          "reason": "Automatic fallback: STALE_DATA"
         },
         "user_authorized_paper_control": {
           "authorized_at": "2026-08-02T22:37:00+02:00",
