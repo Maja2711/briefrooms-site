@@ -1527,7 +1527,7 @@
       "continuous_entry_regime": "trend_up:vol_normal",
       "risk_status": "stop_loss_hit",
       "continuous_exposure_active": false,
-      "continuous_exposure_status": "closed",
+      "continuous_exposure_status": "closed_by_risk_exit",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
       "last_risk_review_at": "2026-08-18T05:45:48+00:00",
@@ -1545,7 +1545,7 @@
           "score": 0.0
         }
       },
-      "next_entry_status": "closed",
+      "next_entry_status": "wes_early_reentry_waiting_for_signal",
       "last_risk_review_source": "Yahoo Finance:ES=F:5m:OHLC_threshold_audit",
       "wes_status": "open_wes_governed_position",
       "wes_methodology": "WES-1.0.0",
@@ -1604,10 +1604,10 @@
       "result_currency": "USD",
       "reentry_lock": {
         "active": true,
-        "scope": "same_week",
+        "scope": "wes_early_reentry_pending",
         "until": "2026-08-21T22:00:00+02:00",
         "reason": "stop_loss",
-        "policy": "sl_tp_exit_blocks_same_week_reentry",
+        "policy": "early_week_risk_exit_requires_fresh_wes_signal",
         "created_from_exit_at": "2026-08-18T05:35:00+00:00"
       },
       "position_legs": [
@@ -1842,7 +1842,11 @@
         }
       ],
       "continuous_last_exit_at": "2026-08-18T05:35:00+00:00",
-      "continuous_last_closed_leg_id": "1b64ca79385af1e1"
+      "continuous_last_closed_leg_id": "1b64ca79385af1e1",
+      "wes_early_reentry_eligible": true,
+      "wes_early_reentry_source_exit_at": "2026-08-18T05:35:00+00:00",
+      "wes_early_reentry_source_exit_reason": "stop_loss",
+      "wes_early_reentry_source_risk_status": "stop_loss_hit"
     },
     {
       "instrument_id": "btcusd",
