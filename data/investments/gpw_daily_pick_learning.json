@@ -1,17 +1,17 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-09-07T22:46:07+02:00",
-  "resolved_trades": 7,
-  "adaptation_active": false,
+  "updated_at": "2026-09-08T13:55:22+02:00",
+  "resolved_trades": 8,
+  "adaptation_active": true,
   "minimum_sample": 8,
   "method": "bayesian_shrinkage_historical_overlay_v1",
   "automatic_weight_changes": false,
-  "global_average_r": 0.328,
-  "recent_average_r": 0.328,
+  "global_average_r": 0.162,
+  "recent_average_r": 0.162,
   "recent_window": 20,
-  "win_rate": 0.5714,
-  "stop_rate": 0.4286,
-  "target_rate": 0.4286,
+  "win_rate": 0.5,
+  "stop_rate": 0.5,
+  "target_rate": 0.375,
   "sector_expectancy": [
     {
       "sector": "banki",
@@ -33,47 +33,24 @@
     },
     {
       "sector": "surowce",
-      "sample": 2,
-      "average_r": 0.854,
-      "shrunk_r": 0.142
+      "sample": 3,
+      "average_r": 0.236,
+      "shrunk_r": 0.054
     }
   ],
   "last_lesson": {
-    "date": "2026-09-04",
+    "date": "2026-09-07",
     "symbol": "JSW",
     "sector": "surowce",
-    "return_percent": 5.707,
-    "r_multiple": 1.497,
-    "exit_reason": "target",
-    "lesson": "JSW: cel został osiągnięty (1.50R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
+    "return_percent": -4.47,
+    "r_multiple": -1.0,
+    "exit_reason": "stop",
+    "lesson": "JSW: pozycja zakończyła się stopem (-1.00R). Pojedyncza strata nie zmienia wag; dopiero zbiorcza próba obniża ocenę podobnych układów."
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  },
-  "event_expectancy": [
-    {
-      "event_type": "earnings",
-      "label": "wyniki / raport okresowy",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.792,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    },
-    {
-      "event_type": "regulatory",
-      "label": "regulacja / spór prawny",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.799,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    }
-  ],
-  "event_learning_method": "event_family_bayesian_shrinkage_v1"
+  }
 }
