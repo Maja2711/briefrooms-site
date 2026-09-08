@@ -34,6 +34,20 @@ def row(**updates):
     return value
 
 
+def rolling_row(**updates):
+    value = row(
+        entry_price=1.15,
+        entry_captured_at="2026-08-07T16:00:00+02:00",
+        wes_early_reentry_qualified=True,
+        wes_weekend_carry_allowed=True,
+        wes_holding_policy="early_close_reentry_7_calendar_days",
+        wes_holding_deadline_local="2026-08-14T16:00:00+02:00",
+        wes_early_reentry_source_exit_at="2026-08-04T12:00:00+02:00",
+    )
+    value.update(updates)
+    return value
+
+
 def week(item, week_id="2026-W32"):
     return {
         "week_id": week_id,
@@ -54,6 +68,26 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
         errors = guard.lifecycle_errors(week(row()), now)
         self.assertTrue(any("has no numeric exit" in error for error in errors))
         self.assertTrue(any("continuous_exposure_active remains true" in error for error in errors))
+
+    def test_qualified_early_reentry_may_remain_open_over_weekend(self):
+        now = datetime(2026, 8, 9, 14, 0, tzinfo=TZ)
+        self.assertEqual([], guard.lifecycle_errors(week(rolling_row()), now))
+
+    def test_qualified_early_reentry_may_remain_open_next_week_before_rolling_deadline(self):
+        now = datetime(2026, 8, 13, 15, 59, tzinfo=TZ)
+        self.assertEqual([], guard.lifecycle_errors(week(rolling_row()), now))
+
+    def test_qualified_early_reentry_is_rejected_after_rolling_deadline(self):
+        now = datetime(2026, 8, 14, 16, 1, tzinfo=TZ)
+        errors = guard.lifecycle_errors(week(rolling_row()), now)
+        self.assertTrue(any("has no numeric exit" in error for error in errors))
+        self.assertTrue(any("2026-08-14T16:00:00" in error for error in errors))
+
+    def test_forged_weekend_carry_without_qualification_is_rejected_at_friday_deadline(self):
+        now = datetime(2026, 8, 8, 12, 0, tzinfo=TZ)
+        forged = rolling_row(wes_early_reentry_qualified=False)
+        errors = guard.lifecycle_errors(week(forged), now)
+        self.assertTrue(any("has no numeric exit" in error for error in errors))
 
     def test_placeholder_exit_is_not_treated_as_a_close(self):
         now = datetime(2026, 8, 7, 22, 1, tzinfo=TZ)
