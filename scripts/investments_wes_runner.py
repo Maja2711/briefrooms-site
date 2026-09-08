@@ -103,10 +103,29 @@ def preflight():
     report.update(status="completed",week_id=week.get("week_id")); wes.write(wes.REPORT, report); return report
 
 
+def postflight():
+    """Use rolling-plan postflight only for a newly opened replacement leg."""
+    now = legacy.now_local(); path = wes.current_week_path(now)
+    if not path.exists():
+        return wes.postflight()
+    week = wes.read(path, {})
+    for item in week.get("instruments") or []:
+        if not isinstance(item, dict):
+            continue
+        open_position = wes.sf(item.get("entry_price")) is not None and wes.sf(item.get("exit_price")) is None and str(item.get("direction") or "") in {"long", "short"}
+        if not open_position:
+            continue
+        auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
+        plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
+        if str(auth.get("authorization_type") or "") == lifecycle.AUTHORIZATION_TYPE and plan.get("model_version") != wes.VERSION:
+            return lifecycle.postflight()
+    return wes.postflight()
+
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--mode',choices=['preflight','postflight','learning'],default='preflight'); a=p.parse_args()
     if a.mode=='preflight': result=preflight()
-    elif a.mode=='postflight': result=lifecycle.postflight()
+    elif a.mode=='postflight': result=postflight()
     else: result=wes.learning_stats(); wes.write(wes.LEARNING,result)
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
