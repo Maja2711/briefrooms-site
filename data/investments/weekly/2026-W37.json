@@ -108,12 +108,14 @@
       "result_value": 4.05550003,
       "result_percent": 0.0349,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: neutralnie / obserwacja.",
         "Score 27; progi: long 35, short -35.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: neutral / observation.",
         "Score 27; thresholds: long 35, short -35.",
         "Signal strength is heuristic, not a probability of success.",
@@ -802,9 +804,9 @@
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         }
       },
-      "next_entry_status": "blocked_after_thesis_invalidation",
+      "next_entry_status": "wes_early_reentry_waiting_for_signal",
       "last_risk_review_source": "Yahoo Finance:EURUSD=X:5m:OHLC_threshold_audit",
-      "wes_status": "open_wes_governed_position",
+      "wes_status": "early_close_reentry_monitoring_trigger",
       "wes_methodology": "WES-1.0.0",
       "exit_execution_model": "last_completed_5m_bar_at_review",
       "result_units": 4.05550003,
@@ -1531,10 +1533,37 @@
       "continuous_last_closed_leg_id": "63149940b165c733",
       "reentry_lock": {
         "active": true,
-        "scope": "same_week",
+        "scope": "wes_no_trade_monitoring",
         "until": "2026-09-11T22:00:00+02:00",
-        "reason": "daily_model_confirmed_opposite_signal",
-        "policy": "thesis_or_material_event_exit_blocks_same_week_reentry"
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
+      },
+      "wes_early_reentry_eligible": true,
+      "wes_early_reentry_source_exit_at": "2026-09-07T23:50:00+02:00",
+      "wes_early_reentry_source_exit_reason": "daily_model_confirmed_opposite_signal",
+      "wes_early_reentry_source_risk_status": "closed_by_daily_model_review",
+      "wes_last_review_at": "2026-09-08T19:25:05+02:00",
+      "wes_trigger_candidate": {
+        "direction": "short",
+        "strategy_id": "inverse_v2",
+        "raw_score": 36.0,
+        "utility": 9.0027,
+        "signal_delta_from_initial": 36.0,
+        "confirmations": 1,
+        "confirmation_sources": [
+          "macro"
+        ],
+        "entry_class": "early_close_reentry"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 48.0,
+        "utility": 8.0,
+        "confirmations": 2,
+        "delta": 15.0,
+        "profile": "early_close_reentry",
+        "holding_horizon_days": 7,
+        "learning_threshold_adjustment": 0.0
       }
     },
     {
@@ -1969,7 +1998,7 @@
         }
       },
       "wes_methodology": "WES-1.0.0",
-      "wes_last_review_at": "2026-09-08T16:07:43+02:00",
+      "wes_last_review_at": "2026-09-08T19:25:05+02:00",
       "wes_trigger_candidate": {
         "direction": "long",
         "strategy_id": "weekly_trend",
@@ -2080,12 +2109,14 @@
       "result_value": 31.48870318,
       "result_percent": 0.3149,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: long / wzrost.",
         "Score 53; progi: long 45, short -45.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: long / bullish.",
         "Score 53; thresholds: long 45, short -45.",
         "Signal strength is heuristic, not a probability of success.",
@@ -2418,9 +2449,9 @@
           "score": 0.0
         }
       },
-      "next_entry_status": "blocked_after_thesis_invalidation",
+      "next_entry_status": "wes_early_reentry_waiting_for_signal",
       "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit",
-      "wes_status": "open_wes_governed_position",
+      "wes_status": "early_close_reentry_monitoring_trigger",
       "wes_methodology": "WES-1.0.0",
       "exit_execution_model": "last_completed_5m_bar_at_review",
       "result_units": 0.31488703,
@@ -2872,10 +2903,35 @@
       "continuous_last_closed_leg_id": "62c94d5977eb223c",
       "reentry_lock": {
         "active": true,
-        "scope": "same_week",
+        "scope": "wes_no_trade_monitoring",
         "until": "2026-09-11T22:00:00+02:00",
-        "reason": "daily_model_confirmed_opposite_signal",
-        "policy": "thesis_or_material_event_exit_blocks_same_week_reentry"
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
+      },
+      "wes_early_reentry_eligible": true,
+      "wes_early_reentry_source_exit_at": "2026-09-07T23:50:00+02:00",
+      "wes_early_reentry_source_exit_reason": "daily_model_confirmed_opposite_signal",
+      "wes_early_reentry_source_risk_status": "closed_by_daily_model_review",
+      "wes_last_review_at": "2026-09-08T19:25:05+02:00",
+      "wes_trigger_candidate": {
+        "direction": "short",
+        "strategy_id": "inverse_v2",
+        "raw_score": 44.0,
+        "utility": 7.4333,
+        "signal_delta_from_initial": 44.0,
+        "confirmations": 0,
+        "confirmation_sources": [],
+        "entry_class": "early_close_reentry"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 48.0,
+        "utility": 8.0,
+        "confirmations": 2,
+        "delta": 15.0,
+        "profile": "early_close_reentry",
+        "holding_horizon_days": 7,
+        "learning_threshold_adjustment": 0.0
       }
     }
   ],
@@ -2949,6 +3005,17 @@
     "version": "WES-1.0.0",
     "objective": "maximize_total_net_profit_with_no_forced_trades",
     "no_trade_is_active_monitoring": true,
-    "last_preflight_at": "2026-09-08T16:07:43+02:00"
+    "early_close_reentry": true,
+    "early_close_days": [
+      "monday",
+      "tuesday"
+    ],
+    "replacement_holding_days": 7,
+    "replacement_weekend_carry": true,
+    "material_event_reentry": false,
+    "last_preflight_at": "2026-09-08T19:25:05+02:00",
+    "last_postflight_at": "2026-09-08T19:25:10+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
   }
 }
