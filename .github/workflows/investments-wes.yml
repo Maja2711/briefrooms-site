@@ -14,6 +14,7 @@ on:
       - "scripts/investments_weekly_ma_structure.py"
       - "scripts/investments_wes.py"
       - "scripts/investments_wes_runner.py"
+      - "scripts/investments_wes_lifecycle.py"
       - "scripts/investments_wes_memory.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
       - "scripts/investments_wes_counterfactual.py"
@@ -68,6 +69,7 @@ jobs:
             scripts/investments_weekly_ma_structure.py \
             scripts/investments_wes.py \
             scripts/investments_wes_runner.py \
+            scripts/investments_wes_lifecycle.py \
             scripts/investments_wes_memory.py \
             scripts/investments_wes_spx_brace_bridge.py \
             scripts/investments_wes_counterfactual.py
@@ -84,7 +86,7 @@ jobs:
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
-        run: python scripts/investments_weekly_v5.py --mode ensure-exposure
+        run: python scripts/investments_wes_lifecycle.py --mode ensure-exposure
       - name: Read BRACE-SPX G6 shadow snapshot in read-only mode
         run: |
           set +e
@@ -114,7 +116,7 @@ jobs:
         run: |
           python scripts/investments_wes_memory.py --write
           python scripts/investments_wes_memory.py --check
-      - name: Verify no weekly exposure survives its deadline
+      - name: Verify no weekly exposure survives its effective deadline
         run: python scripts/verify_weekly_close_deadline.py
       - name: Render WES public status
         run: python scripts/render_simple_investments.py
