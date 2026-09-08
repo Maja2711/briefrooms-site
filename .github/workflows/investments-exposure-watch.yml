@@ -13,6 +13,7 @@ on:
       - "scripts/investments_weekly_v2.py"
       - "scripts/investments_weekly_v5.py"
       - "scripts/investments_weekly_v5_finalize.py"
+      - "scripts/investments_wes_lifecycle.py"
       - "scripts/verify_weekly_close_deadline.py"
       - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/apply_instrument_validation_gate.py"
@@ -67,10 +68,10 @@ jobs:
 
       # Settlement is committed before broad audits, rendering or learning.
       # A failure in any later step can no longer discard a valid close.
-      - name: Settle due weekly positions before downstream work
-        run: python scripts/investments_weekly_v5.py --mode close
+      - name: Settle due weekly or rolling WES positions before downstream work
+        run: python scripts/investments_wes_lifecycle.py --mode close
 
-      - name: Verify no weekly exposure survives its deadline
+      - name: Verify no weekly exposure survives its effective deadline
         run: python scripts/verify_weekly_close_deadline.py
 
       - name: Persist weekly exits before downstream audits
@@ -85,7 +86,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No weekly settlement change to persist."
           else
-            git commit -m "Settle weekly paper positions at frozen deadline"
+            git commit -m "Settle weekly paper positions at governed deadline"
             if ! git diff --quiet; then
               echo "::error::Settlement fast lane left unstaged files."
               git status --short
@@ -105,7 +106,7 @@ jobs:
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
-          python -m py_compile scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py
+          python -m py_compile scripts/investments_wes_lifecycle.py scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py
           python -m unittest \
             tests/test_audit_weekly_integrity.py \
             tests/test_investments_weekly_v5.py \
@@ -162,7 +163,7 @@ jobs:
             done
           fi
 
-      - name: Block same-week re-entry after SL or TP
+      - name: Govern same-week re-entry after SL or TP
         run: python scripts/enforce_weekly_risk_exit_lock.py
 
       - name: Audit ledger integrity before publication
@@ -174,8 +175,8 @@ jobs:
       - name: Process scheduled or material-event thesis review
         run: python scripts/daily_position_review.py
 
-      - name: Re-evaluate exposure with NO_TRADE and re-entry locks
-        run: python scripts/investments_weekly_v5.py --mode ensure-exposure
+      - name: Re-evaluate exposure with NO_TRADE and WES re-entry gates
+        run: python scripts/investments_wes_lifecycle.py --mode ensure-exposure
 
       - name: Re-apply shared validation gate as defense in depth
         run: python scripts/apply_instrument_validation_gate.py
