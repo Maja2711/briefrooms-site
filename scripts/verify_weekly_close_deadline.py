@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Fail closed when a governed weekly position reaches its saved deadline.
+"""Fail closed when a governed weekly position reaches its effective deadline.
 
-This verifier is intentionally independent from rendering and broad historical
-audits. It checks the current lifecycle plus the same eight-week recovery window
-used by the settlement engine. A placeholder exit value is not a close.
+Normal weekly legs use the saved Friday close. A qualified WES replacement that
+follows a Monday/Tuesday close may carry over the weekend and uses a validated
+seven-calendar-day deadline measured from its actual replacement entry. This
+verifier is independent from rendering and scans the same recovery window as
+the settlement engine. A placeholder exit value is never treated as a close.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from zoneinfo import ZoneInfo
@@ -32,6 +34,9 @@ OPEN_STATUSES = {
     "week_in_progress",
     "w_trakcie",
 }
+ROLLING_POLICY = "early_close_reentry_7_calendar_days"
+EARLY_CLOSE_WEEKDAYS = {0, 1}
+ROLLING_SECONDS = 7 * 24 * 60 * 60
 
 
 def finite_number(value: Any) -> Optional[float]:
@@ -76,6 +81,35 @@ def saved_deadline(week: Dict[str, Any]) -> Optional[datetime]:
     return deadline_from_week_id(str(week.get("week_id") or ""))
 
 
+def rolling_deadline(item: Dict[str, Any]) -> Optional[datetime]:
+    """Return a carry deadline only when all WES provenance checks agree."""
+    if item.get("wes_weekend_carry_allowed") is not True:
+        return None
+    if item.get("wes_early_reentry_qualified") is not True:
+        return None
+    if str(item.get("wes_holding_policy") or "") != ROLLING_POLICY:
+        return None
+    entry_at = parse_dt(item.get("entry_captured_at"))
+    source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
+    deadline = parse_dt(item.get("wes_holding_deadline_local"))
+    if entry_at is None or source_exit is None or deadline is None:
+        return None
+    if source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS or source_exit >= entry_at:
+        return None
+    expected = entry_at + timedelta(days=7)
+    if abs((deadline - expected).total_seconds()) > 300:
+        return None
+    if abs((deadline - entry_at).total_seconds() - ROLLING_SECONDS) > 3600:
+        # DST can shift elapsed UTC time by one hour while preserving the same
+        # local weekday/time. Anything outside that tolerance is not authentic.
+        return None
+    return deadline
+
+
+def effective_deadline(week: Dict[str, Any], item: Dict[str, Any]) -> Optional[datetime]:
+    return rolling_deadline(item) or saved_deadline(week)
+
+
 def pending_direction(item: Dict[str, Any]) -> Optional[str]:
     pending = item.get("pending_entry_decision")
     if not isinstance(pending, dict):
@@ -89,22 +123,33 @@ def pending_direction(item: Dict[str, Any]) -> Optional[str]:
 
 def lifecycle_errors(week: Dict[str, Any], now: datetime) -> List[str]:
     week_id = str(week.get("week_id") or "unknown-week")
-    deadline = saved_deadline(week)
-    if deadline is None:
+    default_deadline = saved_deadline(week)
+    if default_deadline is None:
         return [f"{week_id}: missing or invalid Friday 22:00 close deadline"]
-    if now.astimezone(TZ) < deadline:
-        return []
 
+    local_now = now.astimezone(TZ)
     errors: List[str] = []
     for item in week.get("instruments") or []:
         if not isinstance(item, dict):
-            errors.append(f"{week_id}: malformed instrument row")
+            if local_now >= default_deadline:
+                errors.append(f"{week_id}: malformed instrument row")
             continue
         instrument_id = str(item.get("instrument_id") or "unknown-instrument")
         prefix = f"{week_id}/{instrument_id}"
+        deadline = effective_deadline(week, item)
+        if deadline is None:
+            errors.append(f"{prefix}: missing effective close deadline")
+            continue
+
+        exit_price = finite_number(item.get("exit_price"))
+        if exit_price is not None and parse_dt(item.get("exit_captured_at")) is None:
+            errors.append(f"{prefix}: numeric exit has no valid capture timestamp")
+
+        if local_now < deadline:
+            continue
+
         direction = str(item.get("direction") or "").lower()
         entry = finite_number(item.get("entry_price"))
-        exit_price = finite_number(item.get("exit_price"))
         status = str(item.get("trade_status") or "").strip().lower().replace(" ", "_")
         exposure_status = (
             str(item.get("continuous_exposure_status") or "")
@@ -121,8 +166,6 @@ def lifecycle_errors(week: Dict[str, Any], now: datetime) -> List[str]:
 
         if direction in DIRECTIONAL and entry is not None and exit_price is None:
             errors.append(f"{prefix}: directional position has no numeric exit after {deadline.isoformat()}")
-        if exit_price is not None and parse_dt(item.get("exit_captured_at")) is None:
-            errors.append(f"{prefix}: numeric exit has no valid capture timestamp")
         if pending_direction(item) is not None:
             errors.append(f"{prefix}: pending directional entry remains after the close deadline")
         if status in OPEN_STATUSES:
