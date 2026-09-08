@@ -1602,12 +1602,14 @@
       "result_value": 0.0,
       "result_percent": 0.0,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: neutralnie / obserwacja.",
         "Score 24; progi: long 35, short -42.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: neutral / observation.",
         "Score 24; thresholds: long 35, short -42.",
         "Signal strength is heuristic, not a probability of success.",
@@ -1934,12 +1936,13 @@
       },
       "wes_initial_no_trade_score": 24.0,
       "reentry_lock": {
-        "active": false,
+        "active": true,
         "scope": "wes_no_trade_monitoring",
-        "released_at": "2026-09-07T23:56:37+02:00",
-        "reason": "wes_trigger_qualified"
+        "until": "2026-09-11T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
       },
-      "wes_status": "trigger_qualified_waiting_governed_v5_entry",
+      "wes_status": "no_trade_monitoring_trigger",
       "wes_entry_authorization": {
         "authorized_at": "2026-09-07T23:56:37+02:00",
         "expires_at": "2026-09-08T00:16:37+02:00",
@@ -1964,6 +1967,28 @@
           "delta": 15.0,
           "learning_threshold_adjustment": 0.0
         }
+      },
+      "wes_methodology": "WES-1.0.0",
+      "wes_last_review_at": "2026-09-08T02:05:27+02:00",
+      "wes_trigger_candidate": {
+        "direction": "long",
+        "strategy_id": "weekly_trend",
+        "raw_score": 50.0,
+        "utility": 12.4771,
+        "signal_delta_from_initial": 26.0,
+        "confirmations": 1,
+        "confirmation_sources": [
+          "weekly"
+        ],
+        "entry_class": "midweek_trigger"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 48.0,
+        "utility": 8.0,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 0.0
       }
     },
     {
@@ -2924,6 +2949,6 @@
     "version": "WES-1.0.0",
     "objective": "maximize_total_net_profit_with_no_forced_trades",
     "no_trade_is_active_monitoring": true,
-    "last_preflight_at": "2026-09-07T23:56:37+02:00"
+    "last_preflight_at": "2026-09-08T02:05:27+02:00"
   }
 }
