@@ -15,6 +15,7 @@ on:
     branches: [main]
     paths:
       - "scripts/investments_weekly*.py"
+      - "scripts/investments_wes_lifecycle.py"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "scripts/daily_review_completeness.py"
@@ -73,6 +74,7 @@ jobs:
             scripts/investments_weekly_v4.py \
             scripts/investments_weekly_v5.py \
             scripts/investments_weekly_macro.py \
+            scripts/investments_wes_lifecycle.py \
             scripts/ensure_current_week_forecast.py \
             scripts/daily_position_review.py \
             scripts/daily_review_completeness.py \
@@ -99,10 +101,10 @@ jobs:
       - name: Apply paper-trading gate
         run: python scripts/apply_instrument_validation_gate.py
 
-      - name: Run canonical governed exposure model
+      - name: Run canonical governed WES lifecycle
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-        run: python scripts/investments_weekly_v5.py --mode "$MODE"
+        run: python scripts/investments_wes_lifecycle.py --mode "$MODE"
 
       - name: Review open positions and compute completeness
         run: |
@@ -145,10 +147,10 @@ jobs:
 
       - name: Restore governed exposure
         run: |
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
+          python scripts/investments_wes_lifecycle.py --mode ensure-exposure
           python scripts/apply_instrument_validation_gate.py
 
-      - name: Verify weekly position lifecycle
+      - name: Verify weekly position lifecycle and rolling deadlines
         run: python scripts/verify_weekly_close_deadline.py
 
       - name: Verify EURUSD macro governance
