@@ -1,13 +1,14 @@
 {
   "schema_version": "1.1.0",
-  "generated_at": "2026-09-06T18:30:44+00:00",
+  "generated_at": "2026-09-08T18:34:11+00:00",
   "methodology_version": "brace-portfolio-v3.0.0",
   "data_freshness": "current",
   "source_metadata": {
     "decision_engine": "brace_portfolio_decision.py",
     "autonomy_mode": "PAPER_EXECUTION",
     "paper_only": true,
-    "economic_decision_schema": "1.0"
+    "economic_decision_schema": "1.0",
+    "cash_deployment_guardian": "portfolio_10k_guardian.py"
   },
   "safe_mode": false,
   "recommendations": [
@@ -264,6 +265,35 @@
           "googl-2026-07-28-regulatory-google-rivals-line-up-seeking-damages-after-record-1-billion"
         ]
       }
+    },
+    {
+      "decision_id": "cash-add-7e557767610ec426",
+      "generated_at": "2026-09-08T18:34:11+00:00",
+      "action": "ADD",
+      "instrument": "sxr8",
+      "replacement_instrument": null,
+      "current_weight": 0.0,
+      "proposed_weight": 0.1,
+      "expected_benefit": 0.111513,
+      "expected_risk": 0.233203,
+      "confidence": 0.925,
+      "rationale_pl": "Wolna gotówka osiągnęła 14.4% portfela. SXR8.DE jest najwyżej ocenionym świeżym kandydatem BRACE spełniającym bramki pewności, oczekiwanej stopy zwrotu, drawdown i limit nowej pozycji. Zlecenie pozostaje paper-only.",
+      "rationale_en": "Free cash reached 14.4% of the portfolio. SXR8.DE is the highest-ranked fresh BRACE candidate passing confidence, expected-return, drawdown and new-position-size gates. Execution remains paper-only.",
+      "data_timestamp": "2026-09-08T00:33:52+00:00",
+      "methodology_version": "brace-portfolio-v3.0.0",
+      "status": "PROPOSED",
+      "checks": {
+        "cash_funds_minimum_position": true,
+        "fresh_brace_analysis": true,
+        "candidate_eligible": true,
+        "confidence": true,
+        "expected_return": true,
+        "expected_drawdown": true,
+        "optimization_rules": true,
+        "paper_only": true
+      },
+      "transaction_cost_buffer": 0.01,
+      "source": "portfolio_10k_guardian_cash_deployment"
     }
   ],
   "material_reports_overlay_applied_at": "2026-09-06T18:30:44+00:00"
