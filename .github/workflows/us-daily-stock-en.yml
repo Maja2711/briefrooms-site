@@ -1,4 +1,4 @@
-name: Publish EN US Daily Stock
+name: Publish US Stock Candidate
 
 on:
   workflow_dispatch:
@@ -6,38 +6,29 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/us-daily-stock-en.yml"
-      - ".github/workflows/us-daily-stock-position-monitor.yml"
       - "scripts/daily_stock_core.py"
       - "scripts/daily_stock_us_adapter.py"
+      - "scripts/us_daily_stock.py"
+      - "scripts/us_stock_candidate.py"
+      - "scripts/stock_trading_portfolio.py"
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
+      - "scripts/us-daily-stock-public.js"
       - "scripts/daily-stock-markets-public.js"
       - "scripts/daily-stock-position-ux.js"
-      - "scripts/us_daily_stock.py"
-      - "scripts/us_daily_stock_runtime.py"
-      - "scripts/us_daily_stock_final_selector.py"
-      - "scripts/us_daily_stock_integrity.py"
-      - "scripts/us_daily_stock_position_lifecycle.py"
-      - "scripts/us_daily_stock_position_monitor.py"
-      - "scripts/us-daily-stock-public.js"
-      - "scripts/install_us_daily_stock_en.py"
-      - "assets/daily-stock-markets.css"
       - "data/investments/us_daily_stock_config.json"
+      - "data/investments/stock_trading_policy.json"
       - "tests/test_daily_stock_core.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_us_daily_stock.py"
-      - "tests/test_us_daily_stock_final_selector.py"
-      - "tests/test_us_daily_stock_integrity.py"
-      - "tests/test_us_daily_stock_monitor_first_touch.py"
-      - "tests/test_us_daily_stock_position_lifecycle.py"
-      - "tests/test_gpw_daily_pick_ui.py"
+      - "tests/test_stock_trading_portfolio.py"
+      - "en/investing/stock-trading.html"
+      - "pl/inwestycje/stock-trading.html"
   schedule:
-    # Opening attempts covering both EDT and EST.
     - cron: "36 13 * * 1-5"
     - cron: "42 13 * * 1-5"
     - cron: "36 14 * * 1-5"
     - cron: "42 14 * * 1-5"
-    # Intraday recovery attempts. Wrong-DST runs are harmless/idempotent.
     - cron: "5 15 * * 1-5"
     - cron: "5 16 * * 1-5"
     - cron: "5 17 * * 1-5"
@@ -50,7 +41,7 @@ permissions:
   pages: write
 
 concurrency:
-  group: us-daily-stock-en
+  group: us-stock-candidate
   cancel-in-progress: false
 
 jobs:
@@ -79,123 +70,103 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Test US Daily core, ledger, first-touch monitor and lifecycle
+      - name: Validate US candidate and Stock Trading contracts
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_stock_core \
             tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_us_daily_stock \
-            tests.test_us_daily_stock_final_selector \
-            tests.test_us_daily_stock_integrity \
-            tests.test_us_daily_stock_monitor_first_touch \
-            tests.test_us_daily_stock_position_lifecycle \
-            tests.test_gpw_daily_pick_ui -v
+            tests.test_stock_trading_portfolio -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_us_adapter.py \
-            scripts/daily_stock_rejected_candidate_freeze.py \
-            scripts/counterfactual_decision_gate_diagnostics_v29_1.py \
-            scripts/build_daily_stock_history_index.py \
             scripts/us_daily_stock.py \
-            scripts/us_daily_stock_runtime.py \
-            scripts/us_daily_stock_final_selector.py \
-            scripts/us_daily_stock_integrity.py \
-            scripts/us_daily_stock_position_lifecycle.py \
-            scripts/us_daily_stock_position_monitor.py \
-            scripts/install_us_daily_stock_en.py
+            scripts/us_stock_candidate.py \
+            scripts/stock_trading_portfolio.py \
+            scripts/daily_stock_rejected_candidate_freeze.py \
+            scripts/build_daily_stock_history_index.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
-          python -m json.tool data/investments/us_daily_stock.json >/dev/null
+          python -m json.tool data/investments/stock_trading_policy.json >/dev/null
           node --check scripts/us-daily-stock-public.js
           node --check scripts/daily-stock-markets-public.js
           node --check scripts/daily-stock-position-ux.js
 
-      - name: Install widget on English 10K page
-        run: python scripts/install_us_daily_stock_en.py
-
-      - name: Run primary US Daily engine
-        run: |
-          set +e
-          python scripts/us_daily_stock_runtime.py --mode auto
-          STATUS=$?
-          set -e
-          echo "Primary US Daily status=$STATUS; deterministic final selector runs regardless."
-
-      - name: Enforce final US Daily stock
+      - name: Run no-forced-trade US candidate engine
         run: |
           set -euo pipefail
-          python scripts/us_daily_stock_final_selector.py
-          python scripts/us_daily_stock_runtime.py --mode validate
+          python scripts/us_stock_candidate.py --mode auto
+          python scripts/us_stock_candidate.py --mode validate
           python - <<'PY'
           import json
-          from datetime import datetime
           from pathlib import Path
-          from zoneinfo import ZoneInfo
-          from scripts import us_daily_stock as us
-          from scripts import us_daily_stock_final_selector as final
           p=json.loads(Path('data/investments/us_daily_stock.json').read_text(encoding='utf-8'))
-          now=datetime.now(ZoneInfo('America/New_York'))
-          final.enforce_daily_contract(p,now=now,config=us.load_config())
-          action=p.get('position_action') or p.get('decision')
-          s=p.get('selection') or {}
-          if p.get('decision') == 'TRADE':
-              assert s.get('review',{}).get('approved') is True
-              assert s.get('sources')
-              assert s.get('market_snapshot',{}).get('date') == now.date().isoformat()
-              assert float(s.get('reward_risk') or 0) >= 1.5
-              print('US_DAILY_FINAL_OK',action,s.get('symbol'),s.get('score'),s.get('reference_price'),s.get('stop'),s.get('target'))
-          else:
-              print('US_DAILY_HARD_STATE',action,p.get('reason'))
+          decision=p.get('decision')
+          if decision not in {'TRADE','NO_TRADE','DATA_ERROR','PENDING'}:
+              raise SystemExit(f'Unexpected US stock decision: {decision}')
+          if decision=='TRADE':
+              s=p.get('selection') or {}
+              if float(s.get('score') or 0)<72:
+                  raise SystemExit('US Stock Trading cannot lower the 72 entry threshold')
+              if s.get('valid_until') is not None or s.get('time_stop') is not None:
+                  raise SystemExit('US Stock Trading candidate cannot have a fixed holding deadline')
+              if s.get('holding_policy')!='OPEN_ENDED_MODEL_CONTROLLED':
+                  raise SystemExit('US Stock Trading holding policy is not open-ended')
+          print('US_STOCK_CANDIDATE_OK',decision,(p.get('selection') or {}).get('symbol'))
           PY
 
-      - name: Freeze rejected US candidates before commit
+      - name: Feed canonical US Stock Trading portfolio
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_portfolio.py --mode sync-candidates --market US
+          python scripts/stock_trading_portfolio.py --mode verify
+
+      - name: Freeze rejected US candidates for research only
         run: |
           set -euo pipefail
           python scripts/daily_stock_rejected_candidate_freeze.py --market us
           python scripts/daily_stock_rejected_candidate_freeze.py --market us --verify
 
-      - name: Repair durable US position ledger and weekly holding deadline
-        run: |
-          set -euo pipefail
-          python scripts/us_daily_stock_integrity.py
-          python scripts/us_daily_stock_integrity.py --verify
-
-      - name: Rebuild shared GPW and US Daily Stock history index
+      - name: Rebuild shared candidate history index
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Commit US Daily Stock position, state and EN frontend
+      - name: Commit US candidate and canonical portfolio state
         id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/daily_stock_history_index.json en/investing/portfolio-10k.html
-          git add data/investments/us_daily_stock_position.json 2>/dev/null || true
+          git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/daily_stock_history_index.json
           git add data/investments/us_daily_stock_history 2>/dev/null || true
+          git add data/investments/stock_trading_portfolio.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "Publish EN US Daily Stock position state"
+          git commit -m "Publish US Stock Trading candidate state"
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin main
-            if git push origin HEAD:main; then
+            if git pull --rebase origin main && git push origin HEAD:main; then
               echo "changed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
             sleep $((attempt*4))
           done
           exit 1
 
       - name: Request fresh Pages build
         if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           for attempt in $(seq 1 18); do
             CODE="$(curl --silent --show-error --output /tmp/us-pages.json --write-out '%{http_code}' \
               -X POST \
               -H 'Accept: application/vnd.github+json' \
-              -H "Authorization: Bearer ${{ github.token }}" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")"
             if [[ "$CODE" == "201" ]]; then exit 0; fi
@@ -203,36 +174,3 @@ jobs:
             sleep 10
           done
           exit 1
-
-      - name: Verify production US Daily feed
-        if: steps.commit.outputs.changed == 'true'
-        run: |
-          python - <<'PY'
-          import json,time,urllib.request
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-          headers={'User-Agent':'BriefRooms-US-Daily-Stock-verifier/6.0','Cache-Control':'no-cache'}
-          now=datetime.now(ZoneInfo('America/New_York'))
-          today=now.date().isoformat()
-          last=None
-          for attempt in range(1,43):
-              token=f'{int(time.time())}-{attempt}'
-              try:
-                  with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/data/investments/us_daily_stock.json?v={token}',headers=headers),timeout=20) as r:
-                      data=json.load(r)
-                  last=data
-                  with urllib.request.urlopen(urllib.request.Request(f'https://briefrooms.com/en/investing/portfolio-10k.html?v={token}',headers=headers),timeout=20) as r:
-                      html=r.read().decode('utf-8',errors='replace')
-                  position=data.get('position') or {}
-                  selection=data.get('selection') or {}
-                  current_ok=data.get('date') == today
-                  open_ok=(str(position.get('status') or '').upper() != 'OPEN') or bool(selection.get('symbol'))
-                  if current_ok and open_ok and 'us-daily-stock-root' in html and 'us-daily-stock-public.js?v=2' in html:
-                      action=data.get('position_action') or data.get('decision')
-                      print('PRODUCTION_US_DAILY_STOCK_OK',action,selection.get('symbol'),position.get('status'),selection.get('valid_until'))
-                      raise SystemExit(0)
-              except Exception as exc:
-                  print('attempt',attempt,type(exc).__name__,str(exc)[:150])
-              time.sleep(10)
-          raise SystemExit(f'Production did not expose current durable US Daily state in time: {last}')
-          PY
