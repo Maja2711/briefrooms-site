@@ -1,17 +1,23 @@
-name: Monitor US Daily Stock Position
+name: Monitor US Stock Trading Portfolio
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/us-daily-stock-position-monitor.yml"
+      - "scripts/stock_trading_portfolio.py"
+      - "data/investments/stock_trading_policy.json"
+      - "tests/test_stock_trading_portfolio.py"
   schedule:
-    # Broad UTC window covers 09:30-16:00 New York in both EDT and EST.
-    # Python session gating prevents market work outside the regular US session.
+    # Broad UTC window covers the regular US session in EDT and EST.
     - cron: "*/5 13-21 * * 1-5"
 
 permissions:
   contents: write
 
 concurrency:
-  group: us-daily-stock-en
+  group: stock-trading-portfolio
   cancel-in-progress: false
 
 jobs:
@@ -33,55 +39,35 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate durable ledger and ordered first-touch lifecycle
+      - name: Validate canonical multi-position lifecycle
         run: |
           set -euo pipefail
-          python -m unittest \
-            tests.test_us_daily_stock_integrity \
-            tests.test_us_daily_stock_monitor_first_touch \
-            tests.test_us_daily_stock_position_lifecycle -v
-          python -m py_compile \
-            scripts/us_daily_stock_integrity.py \
-            scripts/us_daily_stock_position_lifecycle.py \
-            scripts/us_daily_stock_position_monitor.py \
-            scripts/us_daily_stock_runtime.py \
-            scripts/daily_stock_timestamp_integrity.py \
-            scripts/build_daily_stock_history_index.py
+          python -m py_compile scripts/stock_trading_portfolio.py
+          python -m unittest tests.test_stock_trading_portfolio -v
+          python -m json.tool data/investments/stock_trading_policy.json >/dev/null
 
-      - name: Reconcile open US position
+      - name: Review all open US positions
         run: |
           set -euo pipefail
-          python scripts/us_daily_stock_position_monitor.py
-          python scripts/us_daily_stock_integrity.py --verify
-          python scripts/daily_stock_timestamp_integrity.py --market us
-          python scripts/build_daily_stock_history_index.py
-          python -m json.tool data/investments/us_daily_stock.json >/dev/null
-          if [[ -f data/investments/us_daily_stock_position.json ]]; then
-            python -m json.tool data/investments/us_daily_stock_position.json >/dev/null
-          fi
-          python -m json.tool data/investments/us_daily_stock_history/index.json >/dev/null
-          python -m json.tool data/investments/daily_stock_history_index.json >/dev/null
+          python scripts/stock_trading_portfolio.py --mode run --market US
+          python scripts/stock_trading_portfolio.py --mode verify
+          python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
 
-      - name: Persist position and append-only outcome state
+      - name: Persist canonical US portfolio state
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/us_daily_stock_history/index.json data/investments/daily_stock_history_index.json
-          git add -- data/investments/us_daily_stock_position.json 2>/dev/null || true
-          # OPEN repairs and TP/SL/week-end closures mutate only the canonical
-          # originating trade; no selected position may disappear without state.
-          git add -- data/investments/us_daily_stock_history/????-??-??.json 2>/dev/null || true
+          git add -- data/investments/stock_trading_portfolio.json
           if git diff --cached --quiet; then
-            echo "No US position state change"
+            echo "No US Stock Trading portfolio state change"
             exit 0
           fi
-          git commit -m "Monitor US Daily Stock durable position"
+          git commit -m "Monitor US Stock Trading portfolio"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
               exit 0
             fi
-            echo "Push attempt ${attempt} failed; retrying"
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
