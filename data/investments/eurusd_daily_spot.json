@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-09T13:52:30Z",
+  "timestamp": "2026-09-09T17:21:30Z",
   "direction": "LONG",
   "score": 79.52,
   "confidence": 0.59,
@@ -22,21 +22,28 @@
       "bridge_ready": true,
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
-    "components": {},
+    "components": {
+      "trend": -0.0218,
+      "broad_usd_environment": 0.1978,
+      "us_rates_pressure_proxy": -0.16
+    },
     "weights": {
       "trend": 0.550464,
       "broad_usd_environment": 0.252564,
       "us_rates_pressure_proxy": 0.196972
     },
     "candidate": {
-      "direction": "LONG",
-      "score": 79.52,
-      "confidence": 0.59,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.94
+      "direction": "FLAT",
+      "score": 50.32,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 50.89,
+      "stretch_atr": 0.4527,
+      "shock_ratio": 0.0
     },
     "learning": {
       "total_closed": 18,
@@ -98,30 +105,6 @@
       "rate_differential_claimed": false,
       "ecb_policy_coverage": false
     },
-    "decision_source": "A_TECHNICAL_FALLBACK",
-    "learning_eligible": true,
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 54.29,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 57.85,
-      "stretch_atr": 1.453,
-      "shock_ratio": 0.0
-    },
-    "a_fallback": {
-      "method": "same_technical_model_as_research_arm_A_recomputed_live",
-      "research_state_consumed": false,
-      "direction": "LONG",
-      "score": 79.52,
-      "confidence": 0.59,
-      "market_observed_at": "2026-09-09T13:52:30Z",
-      "max_market_age_minutes": 90.0,
-      "risk_source": "active_daily_eurusd_current_30m_atr"
-    },
     "dynamic_exit": {
       "enabled": true,
       "policy": "R_PACE_V1",
@@ -137,38 +120,15 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
-    "learning_namespace": "A_TECHNICAL_FALLBACK",
     "same_thesis_reentry_guard": {
       "enabled": true,
       "mode": "SAME_THESIS_REENTRY_GUARD",
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": true,
+      "evaluated": false,
       "blocked": false,
-      "reason": "no_recent_meaningful_same_direction_loss",
-      "current_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "A_TECHNICAL_FALLBACK",
-        "source_family": "A_TECHNICAL_FALLBACK",
-        "direction": "LONG",
-        "score": 79.52,
-        "directional_strength": 29.52,
-        "confidence": 0.59,
-        "components": {},
-        "weights": {
-          "trend": 0.550464,
-          "broad_usd_environment": 0.252564,
-          "us_rates_pressure_proxy": 0.196972
-        },
-        "a_fallback": {
-          "method": "same_technical_model_as_research_arm_A_recomputed_live",
-          "direction": "LONG",
-          "score": 79.52,
-          "confidence": 0.59,
-          "market_observed_at": "2026-09-09T13:52:30Z"
-        }
-      }
+      "reason": "entry_disabled_this_cycle"
     },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
@@ -219,18 +179,21 @@
           "market_observed_at": "2026-09-09T13:52:30Z"
         }
       },
-      "mark_price": 1.16509,
-      "unrealized_percent": 0.00032
+      "mark_price": 1.16442,
+      "unrealized_percent": -0.05789
     },
     "candidate_at_refresh": {
-      "direction": "LONG",
-      "score": 79.52,
-      "confidence": 0.59,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 0.94
+      "direction": "FLAT",
+      "score": 50.32,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 50.89,
+      "stretch_atr": 0.4527,
+      "shock_ratio": 0.0
     }
   },
   "schema_version": "daily-engine-output-v1"
