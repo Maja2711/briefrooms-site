@@ -7,7 +7,7 @@ from datetime import timedelta
 import investments_weekly as legacy
 import investments_weekly_v4 as v4
 import investments_wes as wes
-import investments_wes_lifecycle as lifecycle
+import investments_wes_guarded_lifecycle as lifecycle
 
 
 def preflight():
