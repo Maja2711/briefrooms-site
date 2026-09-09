@@ -13,14 +13,15 @@ TZ = ZoneInfo("Europe/Warsaw")
 PAGES = {
     ROOT / "pl/inwestycje/pozycje-tygodniowe.html": {
         "lang": "pl",
-        "title": "Weekly Positions — BriefRooms",
-        "desc": "Pozycje EUR/USD, S&P 500 futures i BTC/USD wraz z historią wyników.",
+        "title": "Weekly Trading — Trading Room — BriefRooms",
+        "desc": "Weekly Trading w Trading Room BriefRooms: pozycje EUR/USD, S&P 500 futures i BTC/USD wraz z historią wyników.",
         "invest": "/pl/inwestycje.html",
         "daily": "/pl/inwestycje/daily-trading.html",
         "weekly": "/pl/inwestycje/pozycje-tygodniowe.html",
         "stock": "/pl/inwestycje/stock-trading.html",
-        "h1": "Weekly Positions",
-        "lead": "Ładowanie danych pozycji tygodniowych i historii wyników…",
+        "h1": "Trading Room",
+        "lead": "Jedno miejsce dla trzech obszarów: Daily Trading, Weekly Trading i Stock Trading. Każdy silnik zachowuje własne dane, zasady ryzyka i pamięć.",
+        "section_label": "Weekly Trading",
         "loading": "Ładowanie tygodni…",
         "back": "← Wróć do Trading Room",
         "daily_label": "Daily Trading",
@@ -30,14 +31,15 @@ PAGES = {
     },
     ROOT / "en/investing/open-weekly-positions.html": {
         "lang": "en",
-        "title": "Weekly Positions — BriefRooms",
-        "desc": "EUR/USD, S&P 500 futures and BTC/USD positions with result history.",
+        "title": "Weekly Trading — Trading Room — BriefRooms",
+        "desc": "Weekly Trading in the BriefRooms Trading Room: EUR/USD, S&P 500 futures and BTC/USD positions with result history.",
         "invest": "/en/investing.html",
         "daily": "/en/investing/daily-trading.html",
         "weekly": "/en/investing/open-weekly-positions.html",
         "stock": "/en/investing/stock-trading.html",
-        "h1": "Weekly Positions",
-        "lead": "Loading weekly positions and result history…",
+        "h1": "Trading Room",
+        "lead": "One place for three areas: Daily Trading, Weekly Trading and Stock Trading. Each engine keeps its own data, risk rules and learning memory.",
+        "section_label": "Weekly Trading",
         "loading": "Loading weeks…",
         "back": "← Back to Trading Room",
         "daily_label": "Daily Trading",
@@ -67,7 +69,7 @@ def shell_week_id() -> str:
 
 
 def page(cfg: dict) -> str:
-    return f'''<!doctype html><html lang="{cfg['lang']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{cfg['title']}</title><meta name="description" content="{cfg['desc']}"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/investments-weekly-public.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-weekly-governance.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-hub.css?v=3"><link rel="stylesheet" href="/assets/trading-room.css?v=1"><link rel="stylesheet" href="/assets/site-header.css?v={HEADER_VERSION}"><script src="/scripts/site-header.js?v={HEADER_VERSION}" defer></script></head><body><header id="site-header"></header><div class="wrap"><section class="hero"><span class="pill">EUR/USD · S&amp;P 500 · BTC/USD</span><h1>{cfg['h1']}</h1><p id="updated" class="lead">{cfg['lead']}</p></section><nav class="switcher" aria-label="Trading area"><a class="switch-daily" href="{cfg['daily']}">{cfg['daily_label']}</a><a class="switch-weekly active" aria-current="page" href="{cfg['weekly']}">{cfg['weekly_label']}</a><a class="switch-stock" href="{cfg['stock']}">{cfg['stock_label']}</a></nav><main id="app"><section class="panel"><h2>{shell_week_id()}</h2><p>{cfg['loading']}</p></section><p class="legal">{cfg['legal']}</p></main><a class="back" href="{cfg['daily']}">{cfg['back']}</a></div><footer>© BriefRooms</footer><script>window.BR_WEEKLY={{lang:'{cfg['lang']}'}};</script><script src="/scripts/investments-weekly-public.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-weekly-trade-times.js?v=1" defer></script><script src="/scripts/investments-weekly-governance.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-wes-public.js?v={ASSET_VERSION}" defer></script></body></html>\n'''
+    return f'''<!doctype html><html lang="{cfg['lang']}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{cfg['title']}</title><meta name="description" content="{cfg['desc']}"><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/investments-weekly-public.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-weekly-governance.css?v={ASSET_VERSION}"><link rel="stylesheet" href="/assets/investments-hub.css?v=3"><link rel="stylesheet" href="/assets/trading-room.css?v=1"><link rel="stylesheet" href="/assets/site-header.css?v={HEADER_VERSION}"><script src="/scripts/site-header.js?v={HEADER_VERSION}" defer></script></head><body><header id="site-header"></header><div class="wrap"><section class="hero"><span class="pill">EUR/USD · S&amp;P 500 · BTC/USD</span><h1>{cfg['h1']}</h1><p id="updated" class="lead">{cfg['lead']}</p></section><nav class="switcher" aria-label="Trading area"><a class="switch-daily" href="{cfg['daily']}">{cfg['daily_label']}</a><a class="switch-weekly active" aria-current="page" href="{cfg['weekly']}">{cfg['weekly_label']}</a><a class="switch-stock" href="{cfg['stock']}">{cfg['stock_label']}</a></nav><h2 class="section-title">{cfg['section_label']}</h2><main id="app"><section class="panel"><h2>{shell_week_id()}</h2><p>{cfg['loading']}</p></section><p class="legal">{cfg['legal']}</p></main><a class="back" href="{cfg['daily']}">{cfg['back']}</a></div><footer>© BriefRooms</footer><script>window.BR_WEEKLY={{lang:'{cfg['lang']}'}};</script><script src="/scripts/investments-weekly-public.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-weekly-trade-times.js?v=1" defer></script><script src="/scripts/investments-weekly-governance.js?v={ASSET_VERSION}" defer></script><script src="/scripts/investments-wes-public.js?v={ASSET_VERSION}" defer></script></body></html>\n'''
 
 
 def update_room_links() -> None:
