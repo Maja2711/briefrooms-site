@@ -1,0 +1,37 @@
+{
+  "schema_version": "stock-trading-policy-v1",
+  "policy_version": "stock-trading-adaptive-open-horizon-v1",
+  "objective": "maximize_net_expectancy_not_trade_frequency",
+  "forced_trade_allowed": false,
+  "cash_is_valid_position": true,
+  "fixed_holding_deadline": null,
+  "daily_risk_review": true,
+  "stop_loss_required": true,
+  "take_profit_required": true,
+  "risk_levels_may_change_after_daily_review": true,
+  "preserve_last_valid_risk_on_recalculation_failure": true,
+  "immediate_model_exit_allowed": true,
+  "same_bar_tp_sl_policy": "stop_first_conservative",
+  "markets": {
+    "GPW": {
+      "max_open_positions": 3,
+      "minimum_entry_score": 72.0,
+      "minimum_reward_risk": 1.5,
+      "maximum_risk_percent": 0.07,
+      "atr_multiple": 1.1,
+      "risk_floor_percent": 0.012,
+      "model_exit_score": 30.0,
+      "candidate_file": "data/investments/gpw_daily_pick.json"
+    },
+    "US": {
+      "max_open_positions": 3,
+      "minimum_entry_score": 72.0,
+      "minimum_reward_risk": 1.5,
+      "maximum_risk_percent": 0.07,
+      "atr_multiple": 1.05,
+      "risk_floor_percent": 0.011,
+      "model_exit_score": 30.0,
+      "candidate_file": "data/investments/us_daily_stock.json"
+    }
+  }
+}
