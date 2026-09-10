@@ -1,0 +1,91 @@
+/* BriefRooms Stock Trading — hard symmetry fix v2 */
+.str-open-grid{
+  align-items:stretch!important;
+}
+.str-open-grid>.str-market-ticket-panel{
+  display:flex!important;
+  align-self:stretch!important;
+  min-width:0!important;
+  height:auto!important;
+}
+.str-open-grid>.str-market-ticket-panel>.str-position{
+  display:flex!important;
+  flex-direction:column!important;
+  flex:1 1 auto!important;
+  width:100%!important;
+  min-height:264px!important;
+  height:auto!important;
+  box-sizing:border-box!important;
+}
+.str-open-grid>.str-market-ticket-panel>.str-position>.str-position-body{
+  flex:1 1 auto!important;
+}
+.str-open-grid .str-position-main{
+  display:flex!important;
+  flex-direction:column!important;
+  min-width:0!important;
+}
+.str-open-grid .str-position:not(.str-position-empty) .str-position-footer{
+  margin-top:auto!important;
+}
+.str-open-grid .str-position-empty .str-empty-body{
+  flex:1 1 auto!important;
+  min-height:0!important;
+}
+.str-open-grid .str-position-empty .str-empty-meta{
+  margin-top:auto!important;
+}
+
+/* Actual company mark, replacing the decorative spark-line in active stock cards. */
+.str-company-mark.br-company-logo-v2{
+  position:relative!important;
+  min-height:112px!important;
+  padding:12px!important;
+  overflow:hidden!important;
+}
+.str-company-mark.br-company-logo-v2>svg{
+  display:none!important;
+}
+.str-company-mark.br-company-logo-v2 .br-company-logo-img{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:78px!important;
+  max-height:66px!important;
+  object-fit:contain!important;
+  margin:0 auto 7px!important;
+  filter:drop-shadow(0 6px 15px rgba(0,0,0,.28));
+}
+.str-company-mark.br-company-logo-v2>strong{
+  margin-top:0!important;
+  color:#2cf1e9!important;
+  font-size:13px!important;
+  letter-spacing:.05em!important;
+}
+.str-company-mark.br-company-logo-v2 .br-company-logo-fallback{
+  display:none;
+  width:68px;
+  height:68px;
+  margin:0 auto 7px;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(69,227,234,.28);
+  border-radius:17px;
+  background:linear-gradient(180deg,rgba(17,58,84,.88),rgba(7,28,44,.98));
+  color:#65f4ef;
+  font-size:24px;
+  font-weight:900;
+  letter-spacing:-.03em;
+}
+.str-company-mark.br-company-logo-v2.is-logo-fallback .br-company-logo-img{
+  display:none!important;
+}
+.str-company-mark.br-company-logo-v2.is-logo-fallback .br-company-logo-fallback{
+  display:flex!important;
+}
+
+@media(max-width:1180px){
+  .str-open-grid>.str-market-ticket-panel>.str-position{
+    min-height:0!important;
+  }
+}
