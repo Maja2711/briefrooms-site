@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-10T13:05:33Z",
+  "timestamp": "2026-09-10T15:07:31Z",
   "direction": "SHORT",
   "score": 38.56,
   "confidence": 0.229,
@@ -8,7 +8,7 @@
   "stop": 1.16404,
   "target": 1.15526,
   "horizon": "intraday_to_27h",
-  "engine_version": "eurusd-daily-spot-v1.6.0",
+  "engine_version": "eurusd-daily-spot-v1.7.0",
   "status": "OPEN",
   "decision_mode": "WITHOUT",
   "metadata": {
@@ -23,9 +23,9 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.3511,
-      "broad_usd_environment": 0.0111,
-      "us_rates_pressure_proxy": -0.1944
+      "trend": 0.1111,
+      "broad_usd_environment": 0.0543,
+      "us_rates_pressure_proxy": -0.2705
     },
     "weights": {
       "trend": 0.550464,
@@ -33,13 +33,16 @@
       "us_rates_pressure_proxy": 0.196972
     },
     "candidate": {
-      "direction": "SHORT",
-      "score": 38.56,
-      "confidence": 0.229,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 39.97,
-      "stretch_atr": 3.7665,
+      "direction": "FLAT",
+      "score": 51.08,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 46.53,
+      "stretch_atr": 0.1811,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -100,7 +103,11 @@
       ],
       "executable_bid_ask_available": false,
       "rate_differential_claimed": false,
-      "ecb_policy_coverage": false
+      "ecb_policy_coverage": true,
+      "ecb_policy_event_active": true,
+      "ecb_policy_status": "ECB_POLICY_COVERED",
+      "ecb_policy_consensus_claimed": false,
+      "ecb_ois_repricing_claimed": false
     },
     "dynamic_exit": {
       "enabled": true,
@@ -123,28 +130,84 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": true,
+      "evaluated": false,
       "blocked": false,
-      "reason": "no_recent_meaningful_same_direction_loss",
-      "current_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "NATIVE",
-        "source_family": "NATIVE_COMPONENTS",
-        "direction": "SHORT",
-        "score": 38.56,
-        "directional_strength": 11.44,
-        "confidence": 0.229,
-        "components": {
-          "trend": -0.3511,
-          "broad_usd_environment": 0.0111,
-          "us_rates_pressure_proxy": -0.1944
-        },
-        "weights": {
-          "trend": 0.550464,
-          "broad_usd_environment": 0.252564,
-          "us_rates_pressure_proxy": 0.196972
+      "reason": "entry_disabled_this_cycle"
+    },
+    "ecb_policy": {
+      "schema_version": "eurusd-ecb-policy-context-v1",
+      "enabled": true,
+      "central_bank": "ECB",
+      "observed_at": "2026-09-10T15:07:31Z",
+      "event_active": true,
+      "coverage": true,
+      "must_block_entry": false,
+      "status": "ECB_POLICY_COVERED",
+      "calendar_source": "official_calendar_fallback",
+      "official_sources": {
+        "meeting_calendar": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+        "conference_page": "https://www.ecb.europa.eu/press/press_conference/html/index.en.html",
+        "press_rss": "https://www.ecb.europa.eu/rss/press.html"
+      },
+      "consensus": {
+        "available": false,
+        "claimed": false,
+        "note": "No reliable machine-readable consensus source is configured; no consensus is invented."
+      },
+      "guidance": {
+        "directional_score_available": false,
+        "claimed": false,
+        "note": "Guidance tone is not scored without a validated parser."
+      },
+      "ois_repricing": {
+        "available": false,
+        "claimed": false,
+        "note": "No direct EUR OIS feed is configured in v1.7."
+      },
+      "veto_threshold": 0.35,
+      "event_date": "2026-09-10",
+      "decision_time": "2026-09-10T12:15:00Z",
+      "decision_url": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp260910~314e508016.en.html",
+      "rate_decision": {
+        "parsed": true,
+        "action": "HIKE",
+        "action_score": 1.0,
+        "basis_points": 25.0,
+        "deposit_facility_rate_percent": 2.5,
+        "text_fingerprint": {
+          "explicit_rate_action_found": true,
+          "consensus_claimed": false,
+          "guidance_score_claimed": false
         }
-      }
+      },
+      "market_reaction": {
+        "available": true,
+        "baseline_at": "2026-09-10T12:00:00Z",
+        "latest_at": "2026-09-10T15:07:31Z",
+        "baseline_price": 1.16252,
+        "latest_price": 1.163061,
+        "return": 0.000465,
+        "score": 0.186097,
+        "normalizer_return": 0.0025
+      },
+      "policy_score": 0.674439,
+      "policy_score_components": {
+        "explicit_rate_action": 1.0,
+        "post_decision_eurusd_reaction": 0.186097
+      },
+      "policy_score_weights": {
+        "explicit_rate_action": 0.6,
+        "post_decision_eurusd_reaction": 0.4
+      },
+      "directional_interpretation": "EURUSD_BULLISH",
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_this_cycle"
+    },
+    "central_bank_policy": {
+      "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
+      "decision_influence": true,
+      "new_entry_veto_enabled": true,
+      "fail_closed_during_event_window": true
     },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
@@ -196,18 +259,28 @@
           "us_rates_pressure_proxy": 0.196972
         }
       },
-      "mark_price": 1.1609,
-      "unrealized_percent": -7e-05
+      "mark_price": 1.16306,
+      "unrealized_percent": -0.18583
     },
     "candidate_at_refresh": {
-      "direction": "SHORT",
-      "score": 38.56,
-      "confidence": 0.229,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 39.97,
-      "stretch_atr": 3.7665,
+      "direction": "FLAT",
+      "score": 51.08,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 46.53,
+      "stretch_atr": 0.1811,
       "shock_ratio": 0.0
+    },
+    "open_position_policy_check": {
+      "evaluated": true,
+      "direction": "SHORT",
+      "conflict": true,
+      "advisory_only": true,
+      "note": "v1.7 policy veto applies to fresh entries; existing positions remain owned by lifecycle/risk exits."
     }
   },
   "schema_version": "daily-engine-output-v1"
