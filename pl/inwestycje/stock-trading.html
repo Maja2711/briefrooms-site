@@ -1,36 +1,45 @@
 <!doctype html>
-<html lang="pl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stock Trading — Trading Room — BriefRooms</title>
-<meta name="description" content="Stock Trading w Trading Room BriefRooms: adaptacyjny portfel GPW i US Stocks, maksymalnie 3+3 pozycje, codzienny SL/TP i brak wymuszonego terminu wyjścia.">
+<meta name="description" content="Stock Trading w Trading Room BriefRooms: otwarte tikety GPW i USA, poziomy wejścia, SL i TP, bieżący wynik oraz transparentna historia zamkniętych transakcji.">
 <link rel="alternate" hreflang="en" href="https://briefrooms.com/en/investing/stock-trading.html">
 <link rel="alternate" hreflang="pl" href="https://briefrooms.com/pl/inwestycje/stock-trading.html">
 <link rel="icon" href="/assets/favicon.svg">
 <link rel="stylesheet" href="/assets/site-header.css?v=20260719-1">
 <link rel="stylesheet" href="/assets/investments-hub.css?v=3">
-<link rel="stylesheet" href="/assets/daily-trading-contrast.css?v=5">
-<link rel="stylesheet" href="/assets/gpw-expected-value.css?v=1">
-<link rel="stylesheet" href="/assets/gpw-full-ranking.css?v=1">
+<link rel="stylesheet" href="/assets/stock-trading-room.css?v=1">
 <script src="/scripts/site-header.js?v=20260806-3" defer></script>
-</head><body><header id="site-header"></header>
-<main class="investments-shell">
-<span class="eyebrow">BriefRooms Investments · Trading</span><h1 class="investments-title">Trading Room</h1>
-<p class="investments-lead">Jedno miejsce dla trzech obszarów: Daily Trading, Weekly Trading i Stock Trading. Każdy silnik zachowuje własne dane, zasady ryzyka i pamięć.</p>
-<nav class="switcher" aria-label="Obszar tradingowy"><a class="switch-daily" href="/pl/inwestycje/daily-trading.html">Daily Trading</a><a class="switch-weekly" href="/pl/inwestycje/pozycje-tygodniowe.html">Weekly Trading</a><a class="switch-stock active" aria-current="page" href="/pl/inwestycje/stock-trading.html">Stock Trading</a></nav>
-<h2 class="section-title">Stock Trading</h2>
-<section class="daily-grid daily-grid-two" aria-label="Stock Trading engines">
-<article class="engine-card"><span class="engine-chip">Engine 01 · GPW</span><h3>Stock Trading GPW</h3><p>Do 3 równoczesnych pozycji. Brak obowiązku wejścia. Każda pozycja ma SL i TP analizowane codziennie; model może zmienić poziomy albo zamknąć pozycję natychmiast.</p></article>
-<article class="engine-card"><span class="engine-chip">Engine 02 · US</span><h3>Stock Trading US</h3><p>Do 3 równoczesnych pozycji NYSE/Nasdaq. CASH jest pełnoprawnym stanem, a czas trzymania wynika z utrzymania tezy i oczekiwanej wartości, nie z kalendarza.</p></article>
-</section>
-<h2 class="section-title">Aktywny portfel</h2>
-<section class="panel"><div id="stock-trading-portfolio-root" aria-live="polite"><p>Ładowanie portfela Stock Trading…</p></div></section>
-<h2 class="section-title">Sygnał i ranking GPW</h2>
-<section class="panel"><div id="gpw-daily-pick-root" aria-live="polite"><p>Ładowanie bieżącej analizy GPW…</p></div></section>
+</head>
+<body class="stock-trading-page">
+<header id="site-header"></header>
+<main class="investments-shell stock-room-shell">
+  <section class="stock-room-hero" aria-labelledby="stock-room-title">
+    <div>
+      <span class="stock-room-kicker">BriefRooms Trading Room</span>
+      <h1 id="stock-room-title">Stock Trading — GPW + USA</h1>
+      <p>Otwarte pozycje, kontrola ryzyka i pełna historia wyników w jednym, czytelnym widoku.</p>
+    </div>
+    <aside class="stock-room-hero-aside" aria-label="Zasada Stock Trading">
+      <strong>Najpierw ryzyko. Potem wynik.</strong>
+      <span>Maksymalnie 3 pozycje na rynek. Brak wymuszonego wejścia. SL i TP są monitorowane dla każdej aktywnej pozycji.</span>
+    </aside>
+  </section>
+
+  <nav class="switcher stock-room-product-switcher" aria-label="Obszar tradingowy">
+    <a class="switch-daily" href="/pl/inwestycje/daily-trading.html">Daily Trading</a>
+    <a class="switch-weekly" href="/pl/inwestycje/pozycje-tygodniowe.html">Weekly Trading</a>
+    <a class="switch-stock active" aria-current="page" href="/pl/inwestycje/stock-trading.html">Stock Trading</a>
+  </nav>
+
+  <div id="stock-trading-portfolio-root" aria-live="polite">
+    <div class="str-loading"><span></span><p>Ładowanie Trading Room…</p></div>
+  </div>
+
+  <p class="legal stock-room-legal">Moduł badawczy / paper-trading. Dane i wyniki mają charakter informacyjny i nie stanowią rekomendacji inwestycyjnej.</p>
 </main>
-<script src="/scripts/stock-trading-public.js?v=1" defer></script>
-<script src="/scripts/gpw-daily-pick-public.js?v=7" defer></script>
-<script src="/scripts/gpw-expected-value-public.js?v=1" defer></script>
-<script src="/scripts/gpw-full-ranking-public.js?v=1" defer></script>
-<script src="/scripts/daily-stock-position-ux.js?v=3" defer></script>
-<script src="/scripts/daily-stock-language-guard.js?v=1" defer></script>
-</body></html>
+<script src="/scripts/stock-trading-public.js?v=2" defer></script>
+</body>
+</html>
