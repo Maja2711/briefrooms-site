@@ -1,0 +1,54 @@
+/* BriefRooms Stock Trading — ticket symmetry + real company logo layer */
+.str-open-grid{align-items:stretch}
+.str-market-ticket-panel{display:grid;grid-auto-rows:1fr;min-width:0;height:100%}
+.str-market-ticket-panel>.str-position{display:flex;flex-direction:column;min-height:258px;height:100%}
+.str-market-ticket-panel>.str-position .str-position-body{flex:1}
+.str-position-empty .str-empty-body{flex:1;min-height:0}
+.str-position-empty .str-empty-meta{margin-top:auto}
+.str-position:not(.str-position-empty) .str-position-footer{margin-top:auto}
+
+.str-company-mark.br-company-logo{
+  position:relative;
+  min-height:112px;
+  height:112px;
+  padding:12px;
+  overflow:hidden;
+}
+.str-company-mark.br-company-logo svg{display:none!important}
+.str-company-mark.br-company-logo .br-company-logo-img{
+  display:block;
+  max-width:78px;
+  max-height:62px;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  margin:0 auto 6px;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.22));
+}
+.str-company-mark.br-company-logo strong{
+  margin-top:0;
+  color:#2cf1e9;
+  font-size:14px;
+  letter-spacing:.05em;
+}
+.str-company-mark.br-company-logo.is-logo-fallback .br-company-logo-img{display:none}
+.str-company-mark.br-company-logo .br-company-logo-fallback{
+  display:none;
+  align-items:center;
+  justify-content:center;
+  width:64px;
+  height:64px;
+  margin:0 auto 6px;
+  border-radius:16px;
+  border:1px solid rgba(74,226,235,.28);
+  background:linear-gradient(180deg,rgba(18,56,80,.86),rgba(8,29,44,.96));
+  color:#69f3ef;
+  font-size:24px;
+  font-weight:900;
+  letter-spacing:-.03em;
+}
+.str-company-mark.br-company-logo.is-logo-fallback .br-company-logo-fallback{display:flex}
+
+@media(max-width:900px){
+  .str-market-ticket-panel>.str-position{min-height:0;height:auto}
+}
