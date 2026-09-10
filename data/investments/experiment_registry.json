@@ -84,7 +84,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-09-10T11:24:19.876026Z",
+      "last_updated": "2026-09-10T16:27:33.228500Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -115,14 +115,14 @@
         "value": 0.5
       },
       "category": "forecasting",
-      "delta_vs_benchmark": 0.05555555555555558,
+      "delta_vs_benchmark": 0.125,
       "details": {
         "decision_influence": false,
         "research_only": true
       },
       "family": "EURUSD",
       "id": "timesfm-shadow",
-      "last_updated": "2026-09-10T04:44:12.683387Z",
+      "last_updated": "2026-09-10T12:56:56.005007Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "TimesFM Shadow Forecaster",
@@ -133,11 +133,11 @@
         "interpretation": "Miara forecast skill; nie formalna alpha.",
         "label": "Trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5555555555555556
+        "value": 0.625
       },
       "production_impact": false,
       "purpose": "Sprawdzenie, czy TimesFM daje prospektywną przewagę prognostyczną względem prostych baseline'ów.",
-      "sample_count": 9,
+      "sample_count": 8,
       "sample_unit": "resolved_1h_forecasts",
       "source": "data/investments/timesfm_shadow_public_pl.json",
       "stage": "SHADOW",
@@ -157,7 +157,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-09-10T07:58:37+02:00",
+      "last_updated": "2026-09-10T14:13:32+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -173,7 +173,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 122,
+      "sample_count": 123,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -268,14 +268,14 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.5172413793103449,
-            "mean_signed_return_bps_1h": 0.6140448979591837,
-            "resolved_1h": 29
+            "directional_accuracy_1h": 0.5,
+            "mean_signed_return_bps_1h": 0.6136367346938776,
+            "resolved_1h": 28
           },
           "B": {
-            "directional_accuracy_1h": 0.5,
-            "mean_signed_return_bps_1h": -0.3328897959183673,
-            "resolved_1h": 30
+            "directional_accuracy_1h": 0.4827586206896552,
+            "mean_signed_return_bps_1h": -0.3332979591836735,
+            "resolved_1h": 29
           },
           "C": {
             "directional_accuracy_1h": 0.5,
@@ -283,25 +283,25 @@
             "resolved_1h": 18
           }
         },
-        "captures": 104,
+        "captures": 105,
         "learning_loop": {
           "arms": {
             "A": {
-              "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 8,
-              "error_recurrence_rate": 0.6,
-              "hit_rate": 0.375,
+              "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
+              "episode_count": 11,
+              "error_recurrence_rate": 0.571429,
+              "hit_rate": 0.363636,
               "lesson_candidate": {
-                "confidence": 0.42,
-                "eligible": true,
-                "error_pattern": "FOLLOW_THROUGH_FAILURE",
+                "confidence": null,
+                "eligible": false,
+                "error_pattern": null,
                 "policy_change_applied": false,
-                "policy_change_proposed": true,
-                "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
+                "policy_change_proposed": false,
+                "proposed_action": null
               },
-              "mean_r": -0.321369,
+              "mean_r": -0.411702,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": 0.077707
+              "recent_vs_prior_mean_r_delta": -0.054958
             },
             "B": {
               "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
@@ -321,10 +321,10 @@
               "recent_vs_prior_mean_r_delta": 1.106529
             },
             "C": {
-              "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 4,
-              "error_recurrence_rate": 0.666667,
-              "hit_rate": 0.25,
+              "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
+              "episode_count": 7,
+              "error_recurrence_rate": 0.6,
+              "hit_rate": 0.285714,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -333,16 +333,16 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": -0.489556,
+              "mean_r": -0.559429,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": null
+              "recent_vs_prior_mean_r_delta": 0.162546
             }
           },
           "automatic_policy_mutation": false,
           "available": true,
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 19,
+          "episode_count": 25,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -352,7 +352,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-09-10T09:42:59.234197Z",
+      "last_updated": "2026-09-10T14:25:46.478606Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -366,7 +366,7 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5172413793103449
+        "value": 0.5
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
@@ -380,7 +380,7 @@
       "version": "eurusd-daily-abc-v1.3.0"
     }
   ],
-  "generated_at": "2026-09-10T11:24:19.876026Z",
+  "generated_at": "2026-09-10T16:27:33.228500Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
