@@ -3,6 +3,7 @@
 
   const CLOSED = new Set(['zamknięta', 'zamknieta', 'closed']);
   const OPEN = new Set(['w trakcie', 'in progress', 'open']);
+  const isPl = (document.documentElement.lang || 'pl').toLowerCase().startsWith('pl');
 
   function normalized(value){
     return String(value || '').trim().toLowerCase();
@@ -17,13 +18,10 @@
     return '';
   }
 
-  function decorateCard(card){
+  function syncBadge(card){
     if (card.classList.contains('integrity-withheld')) return;
     const heading = card.querySelector('.head h3');
     if (!heading) return;
-
-    const previous = heading.querySelector('.br-weekly-position-state');
-    if (previous) previous.remove();
 
     const status = cardStatus(card);
     let type = '';
@@ -36,14 +34,48 @@
       type = 'is-closed';
       label = 'CLOSE POSITION';
     } else {
+      heading.querySelector('.br-weekly-position-state')?.remove();
       return;
     }
 
-    const badge = document.createElement('span');
-    badge.className = `br-weekly-position-state ${type}`;
-    badge.textContent = label;
-    badge.setAttribute('aria-label', label);
-    heading.appendChild(badge);
+    let badge = heading.querySelector('.br-weekly-position-state');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'br-weekly-position-state';
+      heading.appendChild(badge);
+    }
+
+    const nextClass = `br-weekly-position-state ${type}`;
+    if (badge.className !== nextClass) badge.className = nextClass;
+    if (badge.textContent !== label) badge.textContent = label;
+    if (badge.getAttribute('aria-label') !== label) badge.setAttribute('aria-label', label);
+  }
+
+  function collapseAnalysis(card){
+    const dd = card.querySelector('.cell.big.analysis dd');
+    if (!dd || dd.querySelector('.br-weekly-analysis')) return;
+
+    const text = dd.textContent.trim();
+    if (!text) return;
+
+    const details = document.createElement('details');
+    details.className = 'br-weekly-analysis';
+
+    const summary = document.createElement('summary');
+    summary.textContent = isPl ? 'Pokaż opis' : 'Show description';
+
+    const body = document.createElement('div');
+    body.className = 'br-weekly-analysis-body';
+    body.textContent = text;
+
+    details.append(summary, body);
+    dd.textContent = '';
+    dd.appendChild(details);
+  }
+
+  function decorateCard(card){
+    syncBadge(card);
+    collapseAnalysis(card);
   }
 
   function decorate(){
@@ -55,7 +87,17 @@
 
   const app = document.getElementById('app');
   if (app) {
-    const observer = new MutationObserver(decorate);
+    let scheduled = false;
+    const observer = new MutationObserver(() => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        decorate();
+      });
+    });
     observer.observe(app, { childList:true, subtree:true });
   }
+
+  decorate();
 })();
