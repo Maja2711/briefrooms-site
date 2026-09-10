@@ -1,4 +1,4 @@
-/* BriefRooms Weekly Trading — position state badge */
+/* BriefRooms Weekly Trading — position state badge + collapsed analysis */
 .card .head h3{
   display:flex;
   align-items:center;
@@ -46,6 +46,37 @@
   background:#ff4d6d;
   box-shadow:0 0 9px rgba(255,77,109,.78);
 }
+
+.br-weekly-analysis{
+  width:100%;
+  margin:0;
+}
+.br-weekly-analysis summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  cursor:pointer;
+  color:#9ffff6;
+  font-weight:900;
+  list-style:none;
+  user-select:none;
+}
+.br-weekly-analysis summary::-webkit-details-marker{display:none}
+.br-weekly-analysis summary::after{
+  content:'▾';
+  color:#67ded4;
+  font-size:14px;
+  transition:transform .18s ease;
+}
+.br-weekly-analysis[open] summary::after{transform:rotate(180deg)}
+.br-weekly-analysis-body{
+  margin-top:10px;
+  color:#dbe8f1;
+  font-weight:650;
+  line-height:1.45;
+}
+
 @media(max-width:700px){
   .br-weekly-position-state{font-size:9px;padding:0 8px;min-height:22px}
 }
