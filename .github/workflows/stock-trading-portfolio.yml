@@ -14,13 +14,17 @@ on:
     paths:
       - ".github/workflows/stock-trading-portfolio.yml"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_quote_enricher.py"
       - "data/investments/stock_trading_policy.json"
       - "data/investments/gpw_daily_pick.json"
       - "data/investments/us_daily_stock.json"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_quote_enricher.py"
   schedule:
-    # Broad weekday window covers GPW and the regular US session in CET/CEST.
-    - cron: "*/15 7-21 * * 1-5"
+    # GitHub Actions cron has a 5-minute minimum. The public page polls the
+    # canonical JSON every minute, while this job refreshes the source quote
+    # and deterministic portfolio controls at the fastest supported cadence.
+    - cron: "*/5 7-21 * * 1-5"
 
 permissions:
   contents: write
@@ -52,9 +56,9 @@ jobs:
       - name: Validate Stock Trading contract
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_portfolio.py
+          python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_portfolio -v
+          python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher -v
 
       - name: Resolve market
         id: market
@@ -66,10 +70,11 @@ jobs:
           MARKET="${REQUESTED:-all}"
           echo "value=$MARKET" >> "$GITHUB_OUTPUT"
 
-      - name: Review open positions and qualified candidates
+      - name: Review positions and refresh session-aware quotes
         run: |
           set -euo pipefail
           python scripts/stock_trading_portfolio.py --mode run --market "${{ steps.market.outputs.value }}"
+          python scripts/stock_trading_quote_enricher.py --market "${{ steps.market.outputs.value }}" --verify
           python scripts/stock_trading_portfolio.py --mode verify
           python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
 
