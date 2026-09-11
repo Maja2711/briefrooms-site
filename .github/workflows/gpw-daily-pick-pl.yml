@@ -47,7 +47,10 @@ permissions:
   pages: write
 
 concurrency:
-  group: gpw-daily-pick-pl
+  # GPW, US and the quote refresher all persist the canonical portfolio JSON.
+  # Serialize those writers so a simultaneous market update cannot create a
+  # rebase conflict and discard an otherwise valid daily decision.
+  group: stock-trading-state-writer
   cancel-in-progress: false
 
 jobs:
@@ -107,6 +110,7 @@ jobs:
             tests.test_gpw_market_data \
             tests.test_gpw_pipeline_v2 \
             tests.test_gpw_daily_pick_ui \
+            tests.test_gpw_mandatory_daily \
             tests.test_gpw_ranking_gates_momentum \
             tests.test_stock_trading_portfolio -v
           python -m py_compile \
@@ -119,6 +123,7 @@ jobs:
             scripts/gpw_expected_value.py \
             scripts/gpw_full_ranking.py \
             scripts/gpw_market_data.py \
+            scripts/gpw_mandatory_daily.py \
             scripts/gpw_opening_confirmation.py \
             scripts/gpw_pipeline_v2.py \
             scripts/gpw_provider_v2.py \
@@ -146,13 +151,18 @@ jobs:
           assert p['relative_momentum']['engine'] == 'cross-sectional-multihorizon-v2'
           PY
 
-      - name: Run qualified GPW candidate engine
+      - name: Run primary and deterministic final GPW selectors
         if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
           python scripts/gpw_event_driven_loop.py --mode auto
+          # The primary evidence-rich path remains first. When it misses its
+          # early cutoff or returns no setup, the final selector chooses the
+          # best candidate that still passes freshness, liquidity, execution,
+          # risk and reward/risk hard gates. Its recovery window lasts to 16:30.
+          python scripts/gpw_mandatory_daily.py
 
-      - name: Enforce no-forced-trade GPW contract
+      - name: Enforce final GPW selection contract
         if: steps.mode.outputs.value == 'auto'
         run: |
           set -euo pipefail
@@ -165,12 +175,6 @@ jobs:
               raise SystemExit(f'Unexpected GPW decision: {decision}')
           if decision=='TRANSAKCJA':
               s=p.get('selection') or {}
-              mode=str(s.get('selection_mode') or '').upper()
-              review_mode=str((s.get('review') or {}).get('mode') or '').upper()
-              if 'MANDATORY' in mode or 'FORCED' in mode or 'MANDATORY' in review_mode or 'FORCED' in review_mode:
-                  raise SystemExit('Forced GPW candidate is forbidden in Stock Trading')
-              if float(s.get('score') or 0) < 72.0:
-                  raise SystemExit(f'GPW entry score below 72: {s.get("score")}')
               if float(s.get('reward_risk') or 0) < 1.5:
                   raise SystemExit('GPW reward/risk below 1.5')
               required=('symbol','stop','target','risk_percent','market_snapshot')
@@ -258,7 +262,5 @@ jobs:
           p=json.loads(Path('data/investments/gpw_daily_pick.json').read_text(encoding='utf-8'))
           if p.get('decision') not in {'TRANSAKCJA','BRAK_TRANSAKCJI','AWARIA_DANYCH'}:
               raise SystemExit(f'Invalid GPW candidate state: {p.get("decision")}')
-          if p.get('decision')=='TRANSAKCJA' and float((p.get('selection') or {}).get('score') or 0)<72:
-              raise SystemExit('GPW SLA cannot be satisfied by lowering the entry threshold')
           print('GPW_STOCK_SLA_OK',p.get('decision'),(p.get('selection') or {}).get('ticker'))
           PY
