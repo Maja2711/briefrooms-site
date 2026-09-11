@@ -177,19 +177,38 @@ def _forced_candidate(payload: Mapping[str, Any]) -> bool:
     return "MANDATORY" in text or "FORCED" in text
 
 
+def _governed_gpw_final_candidate(market: str, payload: Mapping[str, Any]) -> bool:
+    """Recognize the deterministic GPW final selector as a qualified model path.
+
+    Its score is a ranking/conviction measure, not an admission veto. The
+    selector still has to publish healthy canonical data gates, a positive
+    conservative EV and the normal portfolio risk geometry below.
+    """
+    selection = payload.get("selection") or {}
+    quality = payload.get("data_quality") or {}
+    mandatory = quality.get("mandatory_selection") or {}
+    return (
+        market == "GPW"
+        and str(selection.get("selection_mode") or "").upper() == "MANDATORY_DAILY_FINAL"
+        and str(quality.get("status") or "").lower() == "healthy"
+        and mandatory.get("applied") is True
+    )
+
+
 def qualify_candidate(market: str, payload: Mapping[str, Any], policy: Mapping[str, Any] | None = None) -> tuple[bool, str]:
     market = market.upper()
     policy = policy or load_policy()
     cfg = policy["markets"][market]
     if str(payload.get("decision") or "") != DECISIONS[market]:
         return False, "no_trade_or_data_state"
-    if _forced_candidate(payload):
+    governed_final = _governed_gpw_final_candidate(market, payload)
+    if _forced_candidate(payload) and not governed_final:
         return False, "forced_daily_candidate_rejected"
     selection = payload.get("selection")
     if not isinstance(selection, Mapping):
         return False, "selection_missing"
     score = _float(selection.get("score"))
-    if score is None or score < float(cfg["minimum_entry_score"]):
+    if score is None or (score < float(cfg["minimum_entry_score"]) and not governed_final):
         return False, "entry_score_below_threshold"
     rr = _float(selection.get("reward_risk"))
     if rr is None or rr < float(cfg["minimum_reward_risk"]):
