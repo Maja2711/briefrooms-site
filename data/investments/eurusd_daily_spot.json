@@ -1,15 +1,15 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-11T06:02:29Z",
-  "direction": "FLAT",
-  "score": 46.95,
-  "confidence": 0.06099999999999994,
-  "entry": null,
-  "stop": null,
-  "target": null,
+  "timestamp": "2026-09-11T11:07:30Z",
+  "direction": "SHORT",
+  "score": 25.4,
+  "confidence": 0.492,
+  "entry": 1.15955,
+  "stop": 1.16269,
+  "target": 1.15392,
   "horizon": "intraday_to_27h",
   "engine_version": "eurusd-daily-spot-v1.7.0",
-  "status": "NO_TRADE",
+  "status": "OPEN",
   "decision_mode": "WITHOUT",
   "metadata": {
     "market": "FX_SPOT",
@@ -22,11 +22,7 @@
       "bridge_ready": true,
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
-    "components": {
-      "trend": 0.0015,
-      "broad_usd_environment": -0.0169,
-      "us_rates_pressure_proxy": -0.2921
-    },
+    "components": {},
     "weights": {
       "trend": 0.548365,
       "broad_usd_environment": 0.254445,
@@ -34,20 +30,13 @@
     },
     "candidate": {
       "direction": "SHORT",
-      "score": 46.95,
-      "confidence": 0.061,
-      "accepted": false,
-      "gate_reasons": [
-        "ecb_policy_conflict_veto"
-      ],
-      "source": "LOW_EDGE_LEARNING_EXPLORATION",
+      "score": 25.4,
+      "confidence": 0.492,
+      "accepted": true,
+      "gate_reasons": [],
+      "source": "A_TECHNICAL_FALLBACK",
       "native_was_flat": true,
-      "edge_points": -3.05,
-      "supporting_components": [
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
-      ],
-      "directional_dominance": 0.9738
+      "market_age_minutes": 0.65
     },
     "learning": {
       "total_closed": 20,
@@ -96,8 +85,7 @@
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
       "dynamic_exit_policy": "R_PACE_V1",
-      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path",
-      "exploration_risk_budget_multiplier": 0.35
+      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path"
     },
     "data": {
       "provider": "Yahoo Finance chart",
@@ -108,11 +96,35 @@
       ],
       "executable_bid_ask_available": false,
       "rate_differential_claimed": false,
-      "ecb_policy_coverage": true,
-      "ecb_policy_event_active": true,
-      "ecb_policy_status": "ECB_POLICY_COVERED",
+      "ecb_policy_coverage": false,
+      "ecb_policy_event_active": false,
+      "ecb_policy_status": "NO_ACTIVE_ECB_EVENT",
       "ecb_policy_consensus_claimed": false,
       "ecb_ois_repricing_claimed": false
+    },
+    "decision_source": "A_TECHNICAL_FALLBACK",
+    "learning_eligible": true,
+    "native_candidate": {
+      "direction": "FLAT",
+      "score": 41.57,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral"
+      ],
+      "previous_score": 40.08,
+      "stretch_atr": 1.9563,
+      "shock_ratio": 0.0
+    },
+    "a_fallback": {
+      "method": "same_technical_model_as_research_arm_A_recomputed_live",
+      "research_state_consumed": false,
+      "direction": "SHORT",
+      "score": 25.4,
+      "confidence": 0.492,
+      "market_observed_at": "2026-09-11T11:07:30Z",
+      "max_market_age_minutes": 90.0,
+      "risk_source": "active_daily_eurusd_current_30m_atr"
     },
     "dynamic_exit": {
       "enabled": true,
@@ -129,46 +141,7 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
-    "exploration": {
-      "mode": "LOW_EDGE_LEARNING_EXPLORATION",
-      "eligible": true,
-      "min_edge_points": 1.0,
-      "min_supporting_components": 2,
-      "min_directional_dominance": 0.2,
-      "cooldown_hours": 2.0,
-      "max_per_utc_day": 1,
-      "risk_budget_multiplier": 0.35,
-      "reason": "eligible",
-      "direction": "SHORT",
-      "edge_points": -3.05,
-      "supporting_components": [
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
-      ],
-      "supporting_component_count": 2,
-      "directional_dominance": 0.9738,
-      "market_age_minutes": 0.47,
-      "weighted_contributions": {
-        "trend": 0.000823,
-        "broad_usd_environment": -0.0043,
-        "us_rates_pressure_proxy": -0.057599
-      }
-    },
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 46.95,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 46.07,
-      "stretch_atr": 0.2214,
-      "shock_ratio": 0.0
-    },
-    "decision_source": "LOW_EDGE_LEARNING_EXPLORATION",
-    "learning_eligible": true,
-    "learning_namespace": "NATIVE_COMPONENTS_LOW_EDGE",
+    "learning_namespace": "A_TECHNICAL_FALLBACK",
     "same_thesis_reentry_guard": {
       "enabled": true,
       "mode": "SAME_THESIS_REENTRY_GUARD",
@@ -177,88 +150,46 @@
       "min_loss_r": -0.15,
       "evaluated": true,
       "blocked": false,
-      "reason": "material_new_evidence_detected",
-      "prior_trade_id": "eurusd:20260910T130533Z:SHORT",
-      "prior_closed_at": "2026-09-11T01:15:33Z",
-      "prior_r_multiple": -0.344,
-      "source_family": "NATIVE_COMPONENTS",
+      "reason": "recent_loss_belongs_to_different_thesis_family",
       "current_thesis": {
         "schema_version": "eurusd-entry-thesis-v1",
-        "source": "LOW_EDGE_LEARNING_EXPLORATION",
-        "source_family": "NATIVE_COMPONENTS",
+        "source": "A_TECHNICAL_FALLBACK",
+        "source_family": "A_TECHNICAL_FALLBACK",
         "direction": "SHORT",
-        "score": 46.95,
-        "directional_strength": 3.05,
-        "confidence": 0.061,
-        "components": {
-          "trend": 0.0015,
-          "broad_usd_environment": -0.0169,
-          "us_rates_pressure_proxy": -0.2921
-        },
+        "score": 25.4,
+        "directional_strength": 24.6,
+        "confidence": 0.492,
+        "components": {},
         "weights": {
           "trend": 0.548365,
           "broad_usd_environment": 0.254445,
           "us_rates_pressure_proxy": 0.19719
         },
-        "exploration": {
-          "edge_points": -3.05,
-          "supporting_components": [
-            "broad_usd_environment",
-            "us_rates_pressure_proxy"
-          ],
-          "supporting_component_count": 2,
-          "directional_dominance": 0.9738
+        "a_fallback": {
+          "method": "same_technical_model_as_research_arm_A_recomputed_live",
+          "direction": "SHORT",
+          "score": 25.4,
+          "confidence": 0.492,
+          "market_observed_at": "2026-09-11T11:07:30Z"
         }
       },
-      "prior_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "NATIVE",
-        "source_family": "NATIVE_COMPONENTS",
-        "direction": "SHORT",
-        "score": 38.56,
-        "directional_strength": 11.44,
-        "confidence": 0.229,
-        "components": {
-          "trend": -0.3511,
-          "broad_usd_environment": 0.0111,
-          "us_rates_pressure_proxy": -0.1944
-        },
-        "weights": {
-          "trend": 0.550464,
-          "broad_usd_environment": 0.252564,
-          "us_rates_pressure_proxy": 0.196972
-        }
-      },
-      "change": {
-        "material_change": true,
-        "material_change_triggers": [
-          "component_state_changed"
-        ],
-        "directional_score_strength_improvement": -8.39,
-        "confidence_improvement": -0.168,
-        "component_l1_change": 0.4783,
-        "shared_components": [
-          "broad_usd_environment",
-          "trend",
-          "us_rates_pressure_proxy"
-        ],
-        "thresholds": {
-          "score_strength_improvement": 3.0,
-          "confidence_improvement": 0.08,
-          "component_l1_change": 0.2
-        }
+      "latest_directional_loss": {
+        "trade_id": "eurusd:20260910T130533Z:SHORT",
+        "closed_at": "2026-09-11T01:15:33Z",
+        "r_multiple": -0.344,
+        "source_family": "NATIVE_COMPONENTS"
       }
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-11T06:02:29Z",
-      "event_active": true,
-      "coverage": true,
+      "observed_at": "2026-09-11T11:07:30Z",
+      "event_active": false,
+      "coverage": false,
       "must_block_entry": false,
-      "status": "ECB_POLICY_COVERED",
-      "calendar_source": "official_calendar_fallback",
+      "status": "NO_ACTIVE_ECB_EVENT",
+      "calendar_source": "no_active_event",
       "official_sources": {
         "meeting_calendar": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
         "conference_page": "https://www.ecb.europa.eu/press/press_conference/html/index.en.html",
@@ -280,66 +211,84 @@
         "note": "No direct EUR OIS feed is configured in v1.7."
       },
       "veto_threshold": 0.35,
-      "event_date": "2026-09-10",
-      "decision_time": "2026-09-10T12:15:00Z",
-      "decision_url": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp260910~314e508016.en.html",
-      "rate_decision": {
-        "parsed": true,
-        "action": "HIKE",
-        "action_score": 1.0,
-        "basis_points": 25.0,
-        "deposit_facility_rate_percent": 2.5,
-        "text_fingerprint": {
-          "explicit_rate_action_found": true,
-          "consensus_claimed": false,
-          "guidance_score_claimed": false
-        }
-      },
-      "market_reaction": {
-        "available": true,
-        "baseline_at": "2026-09-10T12:00:00Z",
-        "latest_at": "2026-09-11T06:02:29Z",
-        "baseline_price": 1.16252,
-        "latest_price": 1.161305,
-        "return": -0.001045,
-        "score": -0.418092,
-        "normalizer_return": 0.0025
-      },
-      "policy_score": 0.432763,
-      "policy_score_components": {
-        "explicit_rate_action": 1.0,
-        "post_decision_eurusd_reaction": -0.418092
-      },
-      "policy_score_weights": {
-        "explicit_rate_action": 0.6,
-        "post_decision_eurusd_reaction": 0.4
-      },
-      "directional_interpretation": "EURUSD_BULLISH",
       "gate_evaluated": true,
-      "gate_blocked": true,
-      "gate_reason": "ecb_policy_conflict_veto"
+      "gate_blocked": false,
+      "gate_reason": "ecb_policy_aligned_or_neutral"
     },
     "central_bank_policy": {
       "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
-      "decision_influence": true,
+      "decision_influence": false,
       "new_entry_veto_enabled": true,
       "fail_closed_during_event_window": true
     },
-    "policy_guarded_candidate": {
+    "position": {
+      "schema_version": "eurusd-daily-position-v1",
+      "trade_id": "eurusd:20260911T110730Z:SHORT",
+      "status": "OPEN",
       "direction": "SHORT",
-      "score": 46.95,
-      "confidence": 0.061,
+      "opened_at": "2026-09-11T11:07:30Z",
+      "expires_at": "2026-09-12T14:07:30Z",
+      "entry": 1.15955,
+      "stop": 1.16269,
+      "target": 1.15392,
+      "entry_score": 25.4,
+      "entry_confidence": 0.492,
+      "entry_components": {},
+      "entry_weights": {
+        "trend": 0.548365,
+        "broad_usd_environment": 0.254445,
+        "us_rates_pressure_proxy": 0.19719
+      },
+      "engine_version": "eurusd-daily-spot-v1.7.0",
+      "legacy_bootstrap": false,
+      "soft_expires_at": "2026-09-12T11:07:30Z",
+      "dynamic_exit_policy": "R_PACE_V1",
+      "soft_horizon_hours": 24.0,
+      "hard_horizon_hours": 27.0,
+      "decision_source": "A_TECHNICAL_FALLBACK",
+      "learning_eligible": true,
+      "learning_namespace": "A_TECHNICAL_FALLBACK",
+      "entry_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "A_TECHNICAL_FALLBACK",
+        "source_family": "A_TECHNICAL_FALLBACK",
+        "direction": "SHORT",
+        "score": 25.4,
+        "directional_strength": 24.6,
+        "confidence": 0.492,
+        "components": {},
+        "weights": {
+          "trend": 0.548365,
+          "broad_usd_environment": 0.254445,
+          "us_rates_pressure_proxy": 0.19719
+        },
+        "a_fallback": {
+          "method": "same_technical_model_as_research_arm_A_recomputed_live",
+          "direction": "SHORT",
+          "score": 25.4,
+          "confidence": 0.492,
+          "market_observed_at": "2026-09-11T11:07:30Z"
+        }
+      },
+      "mark_price": 1.15955,
+      "unrealized_percent": -0.00041
+    },
+    "candidate_at_refresh": {
+      "direction": "SHORT",
+      "score": 25.4,
+      "confidence": 0.492,
       "accepted": true,
       "gate_reasons": [],
-      "source": "LOW_EDGE_LEARNING_EXPLORATION",
+      "source": "A_TECHNICAL_FALLBACK",
       "native_was_flat": true,
-      "edge_points": -3.05,
-      "supporting_components": [
-        "broad_usd_environment",
-        "us_rates_pressure_proxy"
-      ],
-      "directional_dominance": 0.9738,
-      "effective_direction_before_policy": "SHORT"
+      "market_age_minutes": 0.65
+    },
+    "open_position_policy_check": {
+      "evaluated": false,
+      "direction": "SHORT",
+      "conflict": false,
+      "advisory_only": true,
+      "note": "v1.7 policy veto applies to fresh entries; existing positions remain owned by lifecycle/risk exits."
     }
   },
   "schema_version": "daily-engine-output-v1"
