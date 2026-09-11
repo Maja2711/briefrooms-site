@@ -40,6 +40,7 @@ SCHEMA = "stock-trading-portfolio-v1"
 USER_AGENT = "BriefRooms-Stock-Trading-Portfolio/1.0"
 MARKET_TZ = {"GPW": ZoneInfo("Europe/Warsaw"), "US": ZoneInfo("America/New_York")}
 DECISIONS = {"GPW": "TRANSAKCJA", "US": "TRADE"}
+RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold"}
 
 
 def _load(path: Path, default: Any = None) -> Any:
@@ -275,7 +276,11 @@ def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str,
     updated = deepcopy(dict(state))
     row = market_state(updated, market)
     key = candidate_key(payload)
-    if key and row.get("last_candidate_key") == key:
+    if (
+        key
+        and row.get("last_candidate_key") == key
+        and row.get("last_candidate_reason") not in RETRIABLE_POLICY_REJECTIONS
+    ):
         return updated, {"action": "candidate_already_reviewed", "market": market, "candidate_key": key}
     row["last_candidate_key"] = key
     ok, reason = qualify_candidate(market, payload, policy)
