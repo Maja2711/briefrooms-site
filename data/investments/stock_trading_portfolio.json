@@ -1,17 +1,18 @@
 {
   "schema_version": "stock-trading-portfolio-v1",
   "policy_version": "stock-trading-adaptive-open-horizon-v1",
-  "updated_at": "2026-09-11T22:26:56+00:00",
+  "updated_at": "2026-09-11T23:31:47+00:00",
   "objective": "maximize_net_expectancy_not_trade_frequency",
   "fixed_holding_deadline": null,
   "markets": {
     "GPW": {
       "max_open_positions": 3,
-      "open_positions": [
+      "open_positions": [],
+      "closed_positions": [
         {
           "position_id": "gpw:20260911T115312:PGE.WA",
           "market": "GPW",
-          "status": "OPEN",
+          "status": "CLOSED",
           "symbol": "PGE.WA",
           "ticker": "PGE",
           "name": "PGE",
@@ -54,21 +55,26 @@
           "initial_risk_amount": 0.63,
           "strategic_target_rr": 3.0,
           "peak_mark": 14.25,
-          "peak_thesis_score": 100.0
+          "peak_thesis_score": 100.0,
+          "closed_at": "2026-09-12T01:31:46+02:00",
+          "exit_price": 13.62,
+          "exit_reason": "stop_loss",
+          "return_percent": -4.42105,
+          "r_multiple": -1.0,
+          "conservative_same_bar": false
         }
       ],
-      "closed_positions": [],
       "last_candidate_key": "2026-09-11:2026-09-11T11:43:46+02:00:PGE.WA",
       "last_candidate_decision": "ADMIT",
       "last_candidate_reason": "qualified_high_expectancy_candidate",
-      "last_portfolio_review_at": "2026-09-11T23:41:01+02:00",
+      "last_portfolio_review_at": "2026-09-12T01:31:46+02:00",
       "last_candidate_reviewed_at": "2026-09-11T11:53:12+02:00",
       "quote_session": {
         "market_state": "CLOSED",
-        "state_source": "provider.currentTradingPeriod",
-        "as_of": "2026-09-11T17:04:00+02:00",
-        "received_at": "2026-09-11T21:41:01+00:00",
-        "provider": "Yahoo Finance chart",
+        "state_source": "clock_fallback",
+        "as_of": "2026-09-11T23:31:47+00:00",
+        "received_at": "2026-09-11T23:31:47+00:00",
+        "provider": null,
         "delay_status": "unverified",
         "delay_minutes": null,
         "is_realtime": false
@@ -139,13 +145,13 @@
       "last_candidate_key": "2026-09-11:2026-09-11T18:26:56-04:00:",
       "last_candidate_decision": "CASH",
       "last_candidate_reason": "no_trade_or_data_state",
-      "last_portfolio_review_at": "2026-09-11T17:46:26-04:00",
+      "last_portfolio_review_at": "2026-09-11T19:31:47-04:00",
       "last_candidate_reviewed_at": "2026-09-11T18:26:56-04:00",
       "quote_session": {
         "market_state": "POST",
         "state_source": "clock_fallback",
-        "as_of": "2026-09-11T21:41:01+00:00",
-        "received_at": "2026-09-11T21:41:01+00:00",
+        "as_of": "2026-09-11T23:31:47+00:00",
+        "received_at": "2026-09-11T23:31:47+00:00",
         "provider": null,
         "delay_status": "unverified",
         "delay_minutes": null,
@@ -153,5 +159,5 @@
       }
     }
   },
-  "quote_enriched_at": "2026-09-11T21:41:01+00:00"
+  "quote_enriched_at": "2026-09-11T23:31:47+00:00"
 }
