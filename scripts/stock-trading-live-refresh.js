@@ -8,6 +8,11 @@
   const locale = isPl ? 'pl-PL' : 'en-US';
   const POLL_MS = 60_000;
   const LIVE_MAX_AGE_MS = 150_000;
+  // A persisted quote_session is useful only while it is fresh. Scheduled
+  // publishers can be delayed, so an overnight CLOSED snapshot must never
+  // overwrite the session state calculated in the browser for the current
+  // Warsaw/New York clock.
+  const SESSION_STATE_MAX_AGE_MS = 10 * 60_000;
   let inFlight = false;
   let latestData = null;
 
@@ -243,6 +248,11 @@
     if (!session || typeof session !== 'object') return;
     const state = normalizeState(session.market_state);
     if (!state) return;
+    const stateTimestamp = new Date(session.as_of || session.received_at || 0).getTime();
+    const stateAge = Date.now() - stateTimestamp;
+    if (!Number.isFinite(stateTimestamp) || !Number.isFinite(stateAge) || stateAge < -60_000 || stateAge > SESSION_STATE_MAX_AGE_MS) {
+      return;
+    }
     const nodes = root.querySelectorAll('.str-market-statuses .str-market-status');
     const node = nodes[index];
     if (!node) return;
