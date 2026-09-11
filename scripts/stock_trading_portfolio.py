@@ -228,7 +228,7 @@ def qualify_candidate(market: str, payload: Mapping[str, Any], policy: Mapping[s
     return True, "qualified_high_expectancy_candidate"
 
 
-def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: datetime) -> dict[str, Any]:
+def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: datetime, market_cfg: Mapping[str, Any] | None = None) -> dict[str, Any]:
     market = market.upper()
     selection = payload.get("selection") or {}
     snapshot = selection.get("market_snapshot") or {}
@@ -239,7 +239,17 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
     if not symbol:
         raise ValueError("candidate symbol missing")
     risk_pct = _float(selection.get("risk_percent"))
-    rr = _float(selection.get("reward_risk"))
+    candidate_rr = _float(selection.get("reward_risk"))
+    cfg = market_cfg or load_policy()["markets"][market]
+    score = float(selection.get("score") or 0.0)
+    strategic_rr = float(cfg.get("strategic_target_reward_risk") or 3.0)
+    if score >= 80.0:
+        strategic_rr = max(strategic_rr, float(cfg.get("exceptional_thesis_target_reward_risk") or 4.0))
+    elif score >= 70.0:
+        strategic_rr = max(strategic_rr, float(cfg.get("strong_thesis_target_reward_risk") or 3.5))
+    initial_risk = float(entry) - float(selection["stop"])
+    target = max(float(selection["target"]), float(entry) + initial_risk * strategic_rr)
+    rr = max(float(candidate_rr or 0.0), strategic_rr)
     return {
         "position_id": f"{market.lower()}:{now.strftime('%Y%m%dT%H%M%S')}:{symbol}",
         "market": market,
@@ -253,7 +263,9 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
         "source_candidate_generated_at": payload.get("generated_at"),
         "entry": round(entry, 8),
         "stop": round(float(selection["stop"]), 8),
-        "target": round(float(selection["target"]), 8),
+        "target": round(target, 8),
+        "initial_risk_amount": round(initial_risk, 8),
+        "strategic_target_rr": round(strategic_rr, 4),
         "risk_percent": float(risk_pct),
         "reward_risk": float(rr),
         "entry_score": float(selection.get("score") or 0.0),
@@ -267,7 +279,30 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
         "time_stop": None,
         "thesis_status": "ACTIVE",
         "risk_reviews": [],
+        "peak_mark": round(entry, 8),
+        "peak_thesis_score": score,
     }
+
+
+def upgrade_open_position_geometry(position: Mapping[str, Any], market_cfg: Mapping[str, Any]) -> dict[str, Any]:
+    """Upgrade legacy/tight positions without ever widening their downside."""
+    updated = deepcopy(dict(position))
+    entry = float(updated["entry"])
+    stop = float(updated["stop"])
+    initial_risk = float(updated.get("initial_risk_amount") or max(entry - stop, 1e-12))
+    score = float(updated.get("entry_score") or 0.0)
+    strategic_rr = float(market_cfg.get("strategic_target_reward_risk") or 3.0)
+    if score >= 80.0:
+        strategic_rr = max(strategic_rr, float(market_cfg.get("exceptional_thesis_target_reward_risk") or 4.0))
+    elif score >= 70.0:
+        strategic_rr = max(strategic_rr, float(market_cfg.get("strong_thesis_target_reward_risk") or 3.5))
+    updated["initial_risk_amount"] = round(initial_risk, 8)
+    updated["strategic_target_rr"] = round(strategic_rr, 4)
+    updated["reward_risk"] = round(max(float(updated.get("reward_risk") or 0.0), strategic_rr), 4)
+    updated["target"] = round(max(float(updated["target"]), entry + initial_risk * strategic_rr), 8)
+    updated["peak_mark"] = round(max(float(updated.get("peak_mark") or entry), float(updated.get("last_mark") or entry)), 8)
+    updated["peak_thesis_score"] = max(float(updated.get("peak_thesis_score") or score), score)
+    return updated
 
 
 def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str, Any], *, now: datetime, policy: Mapping[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -295,7 +330,7 @@ def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str,
         return updated, {"action": "hold_existing_symbol", "market": market, "symbol": symbol}
     if available_slots(updated, market, policy) <= 0:
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
-    position = position_from_candidate(market, payload, now=now)
+    position = position_from_candidate(market, payload, now=now, market_cfg=policy["markets"][market])
     row["open_positions"] = open_positions(updated, market) + [position]
     return updated, {"action": "open", "market": market, "position_id": position["position_id"], "symbol": symbol}
 
@@ -340,14 +375,21 @@ def close_position(state: Mapping[str, Any], market: str, position_id: str, *, n
     return updated, {"action": "close", "market": market, "position_id": position_id, "reason": reason, "exit_price": exit_price}
 
 
-def recalculate_risk(position: Mapping[str, Any], *, mark: float, atr: float, now: datetime, market_cfg: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    updated = deepcopy(dict(position))
+def recalculate_risk(position: Mapping[str, Any], *, mark: float, atr: float, now: datetime, market_cfg: Mapping[str, Any], thesis_score_value: float | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    updated = upgrade_open_position_geometry(position, market_cfg)
     old_stop, old_target = updated.get("stop"), updated.get("target")
     risk = max(float(atr) * float(market_cfg["atr_multiple"]), float(mark) * float(market_cfg["risk_floor_percent"]))
+    rr = max(float(updated.get("strategic_target_rr") or 3.0), float(market_cfg.get("strategic_target_reward_risk") or 3.0))
+    if thesis_score_value is not None and thesis_score_value >= 80.0:
+        rr = max(rr, float(market_cfg.get("exceptional_thesis_target_reward_risk") or 4.0))
+    elif thesis_score_value is not None and thesis_score_value >= 70.0:
+        rr = max(rr, float(market_cfg.get("strong_thesis_target_reward_risk") or 3.5))
+    # Long-position risk ratchet: neither the stop nor the strategic target is
+    # ever moved down. The model can still close earlier on thesis invalidation.
+    new_stop = max(float(old_stop), float(mark) - risk)
+    new_target = max(float(old_target), float(mark) + risk * rr)
+    risk = float(mark) - new_stop
     risk_pct = risk / float(mark) if mark > 0 else 99.0
-    rr = max(float(updated.get("reward_risk") or market_cfg.get("minimum_reward_risk") or 1.5), float(market_cfg["minimum_reward_risk"]))
-    new_stop = float(mark) - risk
-    new_target = float(mark) + risk * rr
     valid = risk_pct <= float(market_cfg["maximum_risk_percent"]) and valid_long_risk(mark, new_stop, new_target, max_risk_percent=float(market_cfg["maximum_risk_percent"]))
     review = {
         "reviewed_at": _iso(now),
@@ -396,6 +438,7 @@ def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, A
     except (KeyError, TypeError, ValueError):
         audit = {"action": "hold_data_error", "reason": "snapshot_missing", "position_id": position.get("position_id")}
         return deepcopy(dict(position)), None, audit
+    position = upgrade_open_position_geometry(position, market_cfg)
     stop, target = float(position["stop"]), float(position["target"])
     same_bar = low <= stop and high >= target
     if same_bar or low <= stop:
@@ -409,9 +452,16 @@ def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, A
         closure = _closure(position, now=now, exit_price=last, reason="model_thesis_invalidated")
         closure["exit_model_score"] = round(score, 4)
         return None, closure, {"action": "close", "reason": "model_thesis_invalidated", "score": round(score, 4), "position_id": position.get("position_id")}
+    previous_peak_score = float(position.get("peak_thesis_score") or score or 0.0)
+    reversal = float(market_cfg.get("model_reversal_from_peak") or 22.0)
+    if score is not None and last > float(position["entry"]) and previous_peak_score >= 65.0 and score <= previous_peak_score - reversal:
+        closure = _closure(position, now=now, exit_price=last, reason="model_momentum_reversal")
+        closure["exit_model_score"] = round(score, 4)
+        closure["peak_model_score"] = round(previous_peak_score, 4)
+        return None, closure, {"action": "close", "reason": "model_momentum_reversal", "score": round(score, 4), "position_id": position.get("position_id")}
     local_date = now.date().isoformat()
     if str(position.get("risk_review_date") or "") != local_date:
-        updated, review = recalculate_risk(position, mark=last, atr=atr, now=now, market_cfg=market_cfg)
+        updated, review = recalculate_risk(position, mark=last, atr=atr, now=now, market_cfg=market_cfg, thesis_score_value=score)
         updated["thesis_score"] = round(score, 4) if score is not None else None
         updated["thesis_status"] = "ACTIVE"
         return updated, None, {"action": "hold_risk_reviewed", "risk_review": review, "thesis_score": score, "position_id": position.get("position_id")}
@@ -419,6 +469,9 @@ def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, A
     updated["last_mark"] = round(last, 8)
     updated["last_reviewed_at"] = _iso(now)
     updated["thesis_score"] = round(score, 4) if score is not None else None
+    updated["peak_mark"] = round(max(float(updated.get("peak_mark") or last), last), 8)
+    if score is not None:
+        updated["peak_thesis_score"] = round(max(float(updated.get("peak_thesis_score") or score), score), 4)
     return updated, None, {"action": "hold", "thesis_score": score, "position_id": position.get("position_id")}
 
 
