@@ -23,7 +23,7 @@ def policy():
     }
 
 
-def candidate(market='US', symbol='AAA', score=80.0, forced=False):
+def candidate(market='US', symbol='AAA', score=80.0, forced=False, governed_final=False):
     decision = 'TRADE' if market == 'US' else 'TRANSAKCJA'
     return {
         'date': '2026-09-09',
@@ -41,10 +41,14 @@ def candidate(market='US', symbol='AAA', score=80.0, forced=False):
             'target': 110.0,
             'risk_percent': 0.05,
             'reward_risk': 2.0,
-            'selection_mode': 'MANDATORY_DAILY_FINAL' if forced else 'MODEL_QUALIFIED',
+            'selection_mode': 'MANDATORY_DAILY_FINAL' if forced or governed_final else 'MODEL_QUALIFIED',
             'market_snapshot': {'last': 100.0, 'high': 101.0, 'low': 99.0},
             'expected_value_model': {'conservative_ev_r': 0.25},
         },
+        'data_quality': {
+            'status': 'healthy',
+            'mandatory_selection': {'applied': True},
+        } if governed_final else {},
     }
 
 
@@ -65,6 +69,12 @@ class StockTradingPortfolioTests(unittest.TestCase):
         ok, reason = stock.qualify_candidate('US', candidate(score=99, forced=True), self.policy)
         self.assertFalse(ok)
         self.assertEqual('forced_daily_candidate_rejected', reason)
+
+    def test_governed_gpw_final_candidate_uses_score_as_ranking_not_veto(self):
+        payload = candidate('GPW', 'PGE.WA', score=68.87, governed_final=True)
+        ok, reason = stock.qualify_candidate('GPW', payload, self.policy)
+        self.assertTrue(ok)
+        self.assertEqual('qualified_high_expectancy_candidate', reason)
 
     def test_gpw_cap_is_three(self):
         state = self.state
