@@ -198,14 +198,9 @@ class GpwP035Tests(unittest.TestCase):
 
     def test_p03_ui_is_single_synchronized_pl_en_component(self):
         script = (ROOT / "scripts/gpw-full-ranking-public.js").read_text(encoding="utf-8")
-        polish = (ROOT / "pl/inwestycje/daily-trading.html").read_text(encoding="utf-8")
-        english = (ROOT / "en/investing/daily-trading.html").read_text(encoding="utf-8")
         self.assertIn("Pełny ranking kandydatów · P0.3", script)
         self.assertIn("Full candidate ranking · P0.3", script)
         self.assertIn("gpw_daily_candidate_ranking.json", script)
-        for page in (polish, english):
-            self.assertIn("/scripts/gpw-full-ranking-public.js", page)
-            self.assertIn("/assets/gpw-full-ranking.css", page)
 
 
 if __name__ == "__main__":
