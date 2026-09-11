@@ -76,6 +76,16 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual('qualified_high_expectancy_candidate', reason)
 
+    def test_governed_candidate_is_retried_after_obsolete_policy_rejection(self):
+        payload = candidate('GPW', 'PGE.WA', score=68.87, governed_final=True)
+        key = stock.candidate_key(payload)
+        self.state['markets']['GPW']['last_candidate_key'] = key
+        self.state['markets']['GPW']['last_candidate_decision'] = 'CASH'
+        self.state['markets']['GPW']['last_candidate_reason'] = 'forced_daily_candidate_rejected'
+        updated, action = stock.admit_candidate(self.state, 'GPW', payload, now=self.now, policy=self.policy)
+        self.assertEqual('open', action['action'])
+        self.assertEqual('PGE.WA', stock.open_positions(updated, 'GPW')[0]['symbol'])
+
     def test_gpw_cap_is_three(self):
         state = self.state
         for symbol in ('AAA.WA', 'BBB.WA', 'CCC.WA'):
