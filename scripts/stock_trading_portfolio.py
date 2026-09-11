@@ -379,6 +379,7 @@ def recalculate_risk(position: Mapping[str, Any], *, mark: float, atr: float, no
     updated = upgrade_open_position_geometry(position, market_cfg)
     old_stop, old_target = updated.get("stop"), updated.get("target")
     risk = max(float(atr) * float(market_cfg["atr_multiple"]), float(mark) * float(market_cfg["risk_floor_percent"]))
+    proposed_risk_pct = risk / float(mark) if mark > 0 else 99.0
     rr = max(float(updated.get("strategic_target_rr") or 3.0), float(market_cfg.get("strategic_target_reward_risk") or 3.0))
     if thesis_score_value is not None and thesis_score_value >= 80.0:
         rr = max(rr, float(market_cfg.get("exceptional_thesis_target_reward_risk") or 4.0))
@@ -390,7 +391,7 @@ def recalculate_risk(position: Mapping[str, Any], *, mark: float, atr: float, no
     new_target = max(float(old_target), float(mark) + risk * rr)
     risk = float(mark) - new_stop
     risk_pct = risk / float(mark) if mark > 0 else 99.0
-    valid = risk_pct <= float(market_cfg["maximum_risk_percent"]) and valid_long_risk(mark, new_stop, new_target, max_risk_percent=float(market_cfg["maximum_risk_percent"]))
+    valid = proposed_risk_pct <= float(market_cfg["maximum_risk_percent"]) and risk_pct <= float(market_cfg["maximum_risk_percent"]) and valid_long_risk(mark, new_stop, new_target, max_risk_percent=float(market_cfg["maximum_risk_percent"]))
     review = {
         "reviewed_at": _iso(now),
         "mark": round(float(mark), 8),
