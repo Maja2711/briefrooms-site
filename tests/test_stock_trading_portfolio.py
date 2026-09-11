@@ -116,6 +116,28 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertIsNone(position['valid_until'])
         self.assertIsNone(position['time_stop'])
 
+    def test_open_ended_position_gets_ambitious_three_r_target(self):
+        state, _ = stock.admit_candidate(self.state, 'GPW', candidate('GPW', 'PGE.WA', score=68.87, governed_final=True), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'GPW')[0]
+        initial_risk = position['entry'] - position['stop']
+        self.assertAlmostEqual(position['target'], position['entry'] + 3.0 * initial_risk)
+        self.assertEqual(3.0, position['strategic_target_rr'])
+
+    def test_risk_review_never_moves_long_stop_or_target_down(self):
+        state, _ = stock.admit_candidate(self.state, 'GPW', candidate('GPW', 'PGE.WA'), now=self.now, policy=self.policy)
+        before = stock.open_positions(state, 'GPW')[0]
+        reviewed, _ = stock.recalculate_risk(
+            before,
+            mark=99.0,
+            atr=2.0,
+            now=self.now,
+            market_cfg=self.policy['markets']['GPW'],
+            thesis_score_value=70.0,
+        )
+        self.assertGreaterEqual(reviewed['stop'], before['stop'])
+        self.assertGreaterEqual(reviewed['target'], before['target'])
+        self.assertGreaterEqual(reviewed['reward_risk'], 3.5)
+
     def test_daily_risk_recalculation_can_change_sl_tp(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]
