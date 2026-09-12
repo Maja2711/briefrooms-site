@@ -1,0 +1,33 @@
+name: Learning Loop v2 validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/learning_loop_v2.py'
+      - 'scripts/learning_loop_v2_observer.py'
+      - 'scripts/validate_learning_loop_v2.py'
+      - '.github/workflows/learning-loop-v2-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/learning_loop_v2.py'
+      - 'scripts/learning_loop_v2_observer.py'
+      - 'scripts/validate_learning_loop_v2.py'
+      - '.github/workflows/learning-loop-v2-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python scripts/validate_learning_loop_v2.py
+      - name: Read-only repository observer smoke test
+        run: python scripts/learning_loop_v2_observer.py
