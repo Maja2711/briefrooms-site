@@ -89,11 +89,14 @@ def _model_outputs(row: Mapping[str, Any]) -> Mapping[str, Any] | None:
 
 
 def gpw_summary(root: Path) -> tuple[dict[str, Any], list[str]]:
-    rows = [row for row in _history(root) if str(row.get("decision") or "").upper() == "TRANSAKCJA"]
+    all_rows = _history(root)
+    rows = [row for row in all_rows if str(row.get("decision") or "").upper() == "TRANSAKCJA"]
     dq_rows, outcome_rows, calibration_rows, ablations, deltas = [], [], [], [], []
     previous_evidence: Mapping[str, Any] | None = None
     shadow_candidates, near_misses, path_metrics = 0, [], []
 
+    # Selected-trade diagnostics: decision/outcome separation, calibration,
+    # model ablation and evidence deltas.
     for row in rows:
         dq_rows.append({"date": row.get("date"), **_dq(row)})
         realized = _realized_return(row)
@@ -113,19 +116,24 @@ def gpw_summary(root: Path) -> tuple[dict[str, Any], list[str]]:
                 deltas.append({"date": row.get("date"), **ll.evidence_delta(previous_evidence, evidence)})
             previous_evidence = evidence
 
+    # Shadow Book must cover ALL frozen decision days, including BRAK_TRANSAKCJI.
+    # Those days are especially important for learning from false negatives.
+    for row in all_rows:
         freeze = row.get("counterfactual_rejected_candidate_freeze")
-        if isinstance(freeze, Mapping):
-            candidates = freeze.get("candidates") or freeze.get("rejected_candidates") or []
-            if isinstance(candidates, list):
-                for candidate in candidates:
-                    if not isinstance(candidate, Mapping):
-                        continue
-                    shadow_candidates += 1
-                    score = _deep(candidate, "score", "composite_score", "score_state.score", "score_state.composite_score")
-                    threshold = _deep(candidate, "threshold", "score_threshold", "first_blocking_gate.threshold", "score_state.threshold")
-                    nm = ll.near_miss_analysis(score, threshold, 3.0)
-                    if nm.get("is_near_miss"):
-                        near_misses.append({"date": row.get("date"), "candidate": candidate.get("ticker") or candidate.get("symbol"), **nm})
+        if not isinstance(freeze, Mapping):
+            continue
+        candidates = freeze.get("candidates") or freeze.get("rejected_candidates") or []
+        if not isinstance(candidates, list):
+            continue
+        for candidate in candidates:
+            if not isinstance(candidate, Mapping):
+                continue
+            shadow_candidates += 1
+            score = _deep(candidate, "score", "composite_score", "score_state.score", "score_state.composite_score")
+            threshold = _deep(candidate, "threshold", "score_threshold", "first_blocking_gate.threshold", "score_state.threshold")
+            nm = ll.near_miss_analysis(score, threshold, 3.0)
+            if nm.get("is_near_miss"):
+                near_misses.append({"date": row.get("date"), "candidate": candidate.get("ticker") or candidate.get("symbol"), **nm})
 
     # Existing rejected-candidate outcome store already carries MFE/MAE. Reuse it;
     # do not fetch/reconstruct market history a second time.
@@ -158,9 +166,11 @@ def gpw_summary(root: Path) -> tuple[dict[str, Any], list[str]]:
 
     return {
         "selected_trade_count": len(rows),
+        "history_day_count": len(all_rows),
         "decision_quality": {"principle": "ex_ante_only", "records": dq_rows[-20:]},
         "outcome_quality": {"principle": "ex_post_only", "records": outcome_rows[-20:]},
         "shadow_book": {"candidate_count": shadow_candidates, "prospective_only": True,
+                        "includes_no_trade_days": True,
                         "near_miss_count": len(near_misses), "near_misses": near_misses[-50:]},
         "mfe_mae": {"status": "ASSESSED" if path_metrics else "NOT_AVAILABLE", "records": path_metrics[-100:]},
         "confidence_calibration": calibration,
