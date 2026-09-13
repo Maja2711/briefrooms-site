@@ -1,4 +1,4 @@
-name: BRACE-SPX Generation 6
+name: BRACE-SPX Unified G6 + Adaptive
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Check out research branch
+      - name: Check out BRACE-SPX research branch
         uses: actions/checkout@v4
         with:
           ref: brace-spx-research
@@ -41,13 +41,14 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip numpy pandas yfinance pytest
 
-      - name: Validate Generation 6 code and immutable manifest
+      - name: Validate frozen G6 and adaptive code
         run: |
           python -m py_compile \
             scripts/brace_spx_architecture_v2.py \
             scripts/brace_spx_architecture_v2s.py \
             scripts/brace_spx_generation6.py \
-            scripts/brace_spx_generation6_shadow.py
+            scripts/brace_spx_generation6_shadow.py \
+            scripts/brace_spx_adaptive_research.py
           python -m pytest -q tests/test_brace_spx_generation6.py
           python - <<'PY'
           import json, sys
@@ -64,13 +65,12 @@ jobs:
           assert manifest['sealed_holdout']['must_remain_sealed'] is True
           assert manifest['governance']['parameter_mutation_after_first_run'] is False
           assert manifest['governance']['no_live_orders'] is True
-          print('Generation 6 immutable manifest validated:', g6.candidate_signature())
+          print('Frozen Generation 6 manifest validated:', g6.candidate_signature())
           PY
 
-      - name: Decide whether fixed development research is due
+      - name: Decide whether frozen development research is due
         id: precheck
         env:
-          EVENT_NAME: ${{ github.event_name }}
           RERUN_RESEARCH: ${{ github.event.inputs.rerun_research || 'false' }}
         run: |
           python - <<'PY'
@@ -78,11 +78,10 @@ jobs:
           from pathlib import Path
           report = Path('data/research/brace_spx_generation6_report.json')
           rerun = os.environ.get('RERUN_RESEARCH', 'false').lower() == 'true'
-          event = os.environ.get('EVENT_NAME', '')
-          should = (not report.exists()) or rerun or event == 'push'
+          should = (not report.exists()) or rerun
           with open('/tmp/g6_should_research', 'w') as f:
               f.write('true' if should else 'false')
-          print('research_due=', should, 'report_exists=', report.exists(), 'event=', event)
+          print('frozen_research_due=', should, 'report_exists=', report.exists(), 'manual_rerun=', rerun)
           PY
           echo "should_research=$(cat /tmp/g6_should_research)" >> "$GITHUB_OUTPUT"
 
@@ -101,8 +100,7 @@ jobs:
           done
           exit 1
 
-      - name: Validate Generation 6 development evidence
-        if: steps.precheck.outputs.should_research == 'true'
+      - name: Validate frozen G6 development evidence
         run: |
           python - <<'PY'
           import json
@@ -120,11 +118,11 @@ jobs:
           assert report['live_activation'] is False
           assert report['mandate']['orders_allowed'] is False
           assert report['mandate']['leverage_allowed'] is False
-          print('Generation 6 development status:', report['status'])
+          print('Frozen G6 status:', report['status'])
           print('Strict gate:', report['strict_gate_passed'])
           PY
 
-      - name: Run post-holdout Generation 6 shadow loop
+      - name: Run frozen post-holdout G6 shadow track
         run: |
           set -o pipefail
           for attempt in 1 2 3; do
@@ -136,7 +134,7 @@ jobs:
           done
           exit 1
 
-      - name: Validate shadow isolation
+      - name: Validate frozen shadow isolation
         run: |
           python - <<'PY'
           import json
@@ -153,10 +151,54 @@ jobs:
           else:
               assert shadow['status'] == 'warming_up'
               assert shadow['candidate_snapshots'] == []
-          print('Generation 6 shadow:', shadow['status'], shadow['observations_collected'], '/', shadow['warmup_required'])
+          print('Frozen G6 shadow:', shadow['status'], shadow['observations_collected'], '/', shadow['warmup_required'])
           PY
 
-      - name: Build sanitized public Generation 6 status
+      - name: Run adaptive research track inside BRACE-SPX
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if python scripts/brace_spx_adaptive_research.py \
+              --state data/research/brace_spx_adaptive_state.json \
+              --public data/public/brace_spx_platform_public.json; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
+
+      - name: Validate unified BRACE-SPX governance
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          import brace_spx_generation6 as g6
+
+          state = json.loads(Path('data/research/brace_spx_adaptive_state.json').read_text())
+          public = json.loads(Path('data/public/brace_spx_platform_public.json').read_text())
+          assert state['platform_id'] == 'brace-spx'
+          assert state['frozen_generation_id'] == g6.GENERATION_ID
+          assert state['frozen_candidate_signature'] == g6.candidate_signature()
+          assert state['governance']['mutate_frozen_g6'] is False
+          assert state['governance']['sealed_holdout_access'] is False
+          assert state['governance']['automatic_promotion'] is False
+          assert state['governance']['live_orders'] is False
+          assert public['platform']['architecture'] == 'ONE_PLATFORM_FROZEN_PLUS_ADAPTIVE'
+          assert public['governance']['one_platform'] is True
+          assert public['governance']['separate_engine_created'] is False
+          assert public['governance']['frozen_g6_mutation'] is False
+          assert public['governance']['sealed_holdout_accessed'] is False
+          assert public['governance']['historical_backfill_for_new_challengers'] is False
+          assert public['promotion_gate']['automatic_promotion'] is False
+          assert public['promotion_gate']['human_approval_required'] is True
+          assert public['adaptive_research']['activation_observations'] <= public['frozen_track']['observations_collected']
+          for candidate in public['adaptive_research']['challengers']:
+              assert candidate['candidate_id'].startswith('G6-R-C')
+          print('Unified BRACE-SPX governance validated')
+          PY
+
+      - name: Build backward-compatible public G6 status
         run: |
           python - <<'PY'
           import json
@@ -164,12 +206,12 @@ jobs:
           from pathlib import Path
 
           manifest = json.loads(Path('data/research/brace_spx_generation6_manifest.json').read_text())
-          report_path = Path('data/research/brace_spx_generation6_report.json')
-          report = json.loads(report_path.read_text()) if report_path.exists() else {}
+          report = json.loads(Path('data/research/brace_spx_generation6_report.json').read_text())
           shadow = json.loads(Path('data/shadow/brace_spx_generation6_shadow.json').read_text())
+          platform = json.loads(Path('data/public/brace_spx_platform_public.json').read_text())
 
           payload = {
-              'schema_version': '6.0.0',
+              'schema_version': '6.1.0',
               'model': 'BRACE-SPX Lab',
               'generation_id': 'spx-orthogonal-core-v6',
               'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
@@ -207,32 +249,38 @@ jobs:
                   'live_orders': False,
                   'autonomous_trading': False,
               },
+              'adaptive_research': platform['adaptive_research'],
+              'promotion_gate': platform['promotion_gate'],
               'governance': {
                   'orders_allowed': False,
                   'leverage_allowed': False,
                   'human_approval_required_before_holdout': True,
                   'candidate_mutation_allowed': False,
+                  'adaptive_challenger_research_allowed': True,
+                  'adaptive_can_mutate_frozen_g6': False,
+                  'automatic_promotion': False,
               },
           }
-          Path('data/public').mkdir(parents=True, exist_ok=True)
           Path('data/public/brace_spx_generation6_public.json').write_text(json.dumps(payload, indent=2) + '\n')
           PY
 
-      - name: Upload Generation 6 evidence
+      - name: Upload unified BRACE-SPX evidence
         uses: actions/upload-artifact@v4
         with:
-          name: brace-spx-generation6-${{ github.run_id }}
+          name: brace-spx-unified-${{ github.run_id }}
           retention-days: 90
           if-no-files-found: error
           path: |
             data/research/brace_spx_generation6_manifest.json
             data/research/brace_spx_generation6_report.json
             data/research/brace_spx_generation6.log
+            data/research/brace_spx_adaptive_state.json
             data/shadow/brace_spx_generation6_shadow.json
             data/public/brace_spx_generation6_public.json
+            data/public/brace_spx_platform_public.json
             /tmp/brace_spx_generation6_trace.csv
 
-      - name: Persist Generation 6 evidence on research branch
+      - name: Persist unified evidence on BRACE-SPX research branch
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -241,10 +289,12 @@ jobs:
             data/research/brace_spx_generation6_manifest.json \
             data/research/brace_spx_generation6_report.json \
             data/research/brace_spx_generation6.log \
+            data/research/brace_spx_adaptive_state.json \
             data/shadow/brace_spx_generation6_shadow.json \
-            data/public/brace_spx_generation6_public.json
+            data/public/brace_spx_generation6_public.json \
+            data/public/brace_spx_platform_public.json
           if ! git diff --cached --quiet; then
-            git commit -m "Update BRACE-SPX Generation 6 evidence"
+            git commit -m "Update unified BRACE-SPX learning evidence"
             for attempt in 1 2 3; do
               if git pull --rebase origin brace-spx-research && git push origin HEAD:brace-spx-research; then
                 break
@@ -254,17 +304,19 @@ jobs:
             done
           fi
 
-      - name: Publish sanitized Generation 6 status to main
+      - name: Publish sanitized BRACE-SPX platform status to main
         run: |
           set -euo pipefail
           cp data/public/brace_spx_generation6_public.json /tmp/brace_spx_generation6_public.json
+          cp data/public/brace_spx_platform_public.json /tmp/brace_spx_platform_public.json
           git fetch origin main
           git checkout -B main origin/main
           mkdir -p data/public
           cp /tmp/brace_spx_generation6_public.json data/public/brace_spx_generation6_public.json
-          git add data/public/brace_spx_generation6_public.json
+          cp /tmp/brace_spx_platform_public.json data/public/brace_spx_platform_public.json
+          git add data/public/brace_spx_generation6_public.json data/public/brace_spx_platform_public.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Publish BRACE-SPX Generation 6 status"
+          git commit -m "Publish unified BRACE-SPX platform status"
           for attempt in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
             sleep $((attempt * 15))
