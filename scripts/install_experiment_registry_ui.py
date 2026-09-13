@@ -5,8 +5,8 @@ The main Lab panel is injected by the shared navigation guard and Experiment
 Registry script. Experience Store is an independent read-only frontend module,
 loaded immediately after the navigation guard so it can attach a second view to
 the existing Lab without rewriting the large generated Portfolio10K pages.
-The Lab health layer is loaded after Experience Store and reports the real
-loading/success/error state of the active Lab data source.
+The Lab health layer is loaded after Experience Store and reports only the
+resolved success/error state of the active Lab data source.
 """
 from __future__ import annotations
 
@@ -21,13 +21,16 @@ TARGET = "portfolio-10k-navigation-guard.js?v=7"
 PATTERN = re.compile(r"portfolio-10k-navigation-guard\.js\?v=\d+")
 EXPERIENCE_SRC = "/scripts/portfolio-10k-experience-store.js?v=1"
 EXPERIENCE_TAG = f'<script src="{EXPERIENCE_SRC}" defer></script>'
-HEALTH_SRC = "/scripts/portfolio-10k-lab-health.js?v=1"
+HEALTH_SRC = "/scripts/portfolio-10k-lab-health.js?v=2"
 HEALTH_TAG = f'<script src="{HEALTH_SRC}" defer></script>'
 NAV_TAG_PATTERN = re.compile(
     r'(<script\s+src="/scripts/portfolio-10k-navigation-guard\.js\?v=\d+"\s+defer></script>)'
 )
 EXPERIENCE_TAG_PATTERN = re.compile(
     r'(<script\s+src="/scripts/portfolio-10k-experience-store\.js\?v=\d+"\s+defer></script>)'
+)
+HEALTH_TAG_PATTERN = re.compile(
+    r'<script\s+src="/scripts/portfolio-10k-lab-health\.js\?v=\d+"\s+defer></script>'
 )
 
 
@@ -46,11 +49,17 @@ def update_page(path: Path) -> bool:
     elif updated.count(EXPERIENCE_SRC) != 1:
         raise RuntimeError(f"Expected exactly one Experience Store frontend tag in {path}")
 
-    if HEALTH_SRC not in updated:
+    health_matches = HEALTH_TAG_PATTERN.findall(updated)
+    if len(health_matches) > 1:
+        raise RuntimeError(f"Expected at most one Lab health frontend tag in {path}, found {len(health_matches)}")
+    if health_matches:
+        updated = HEALTH_TAG_PATTERN.sub(HEALTH_TAG, updated, count=1)
+    else:
         updated, health_count = EXPERIENCE_TAG_PATTERN.subn(rf"\1{HEALTH_TAG}", updated, count=1)
         if health_count != 1:
             raise RuntimeError(f"Could not install Lab health frontend after Experience Store in {path}")
-    elif updated.count(HEALTH_SRC) != 1:
+
+    if updated.count(HEALTH_SRC) != 1:
         raise RuntimeError(f"Expected exactly one Lab health frontend tag in {path}")
 
     if updated == text:
