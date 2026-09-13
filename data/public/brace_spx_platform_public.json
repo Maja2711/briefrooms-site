@@ -1,46 +1,27 @@
 {
-  "schema_version": "6.1.0",
-  "model": "BRACE-SPX Lab",
-  "generation_id": "spx-orthogonal-core-v6",
-  "generated_at": "2026-09-13T13:33:04+00:00",
-  "research_only": true,
-  "live_activation": false,
-  "source_families": [
-    "price_trend",
-    "rates",
-    "liquidity",
-    "options_vix"
-  ],
-  "candidate_space_size": 8,
-  "candidate_signature": "671ef03a8e1a58ead80388072be6f701177222a96d60db27c7004b6fe7572638",
-  "design": {
-    "goal": "Test orthogonal information families, not a parameter grid.",
-    "shared_exposure_geometry": true,
-    "max_candidate_lookback_sessions": 63,
-    "parameter_grid": false
+  "schema_version": "1.0.0",
+  "generated_at": "2026-09-13T13:33:03+00:00",
+  "platform": {
+    "id": "brace-spx",
+    "name": "BRACE-SPX",
+    "architecture": "ONE_PLATFORM_FROZEN_PLUS_ADAPTIVE",
+    "target": "S&P 500 / SPY",
+    "research_only": true,
+    "live_orders": false
   },
-  "development": {
-    "status": "development_gate_not_passed_holdout_still_sealed",
-    "experiments_completed": 8,
+  "frozen_track": {
+    "generation_id": "spx-orthogonal-core-v6",
+    "candidate_signature": "671ef03a8e1a58ead80388072be6f701177222a96d60db27c7004b6fe7572638",
     "strict_gate_passed": false,
-    "single_champion_authorized": false
-  },
-  "sealed_holdout": {
-    "start": "2022-08-01",
-    "end": "2026-07-31",
-    "accessed": false,
-    "access_count": 0
-  },
-  "shadow": {
-    "status": "warming_up",
-    "start": "2026-08-03",
-    "updated_at": "2026-09-13T13:33:02+00:00",
+    "single_champion_authorized": false,
+    "shadow_status": "warming_up",
+    "shadow_start": "2026-08-03",
+    "latest_market_date": "2026-09-11",
     "observations_collected": 30,
     "warmup_required": 70,
     "observations_remaining": 40,
-    "latest_market_date": "2026-09-11",
-    "live_orders": false,
-    "autonomous_trading": false
+    "immutable": true,
+    "parameter_mutation_allowed": false
   },
   "adaptive_research": {
     "track_id": "brace-spx-adaptive-research-v1",
@@ -149,12 +130,12 @@
     "trend_200d_policy": "development_reference_only_until_clean_post_holdout_history_is_long_enough"
   },
   "governance": {
-    "orders_allowed": false,
-    "leverage_allowed": false,
-    "human_approval_required_before_holdout": true,
-    "candidate_mutation_allowed": false,
-    "adaptive_challenger_research_allowed": true,
-    "adaptive_can_mutate_frozen_g6": false,
-    "automatic_promotion": false
+    "one_platform": true,
+    "separate_engine_created": false,
+    "frozen_g6_mutation": false,
+    "sealed_holdout_accessed": false,
+    "historical_backfill_for_new_challengers": false,
+    "automatic_cross_engine_writeback": false,
+    "trade_execution": false
   }
 }
