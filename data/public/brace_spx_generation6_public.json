@@ -1,8 +1,8 @@
 {
-  "schema_version": "6.0.0",
+  "schema_version": "6.1.0",
   "model": "BRACE-SPX Lab",
   "generation_id": "spx-orthogonal-core-v6",
-  "generated_at": "2026-09-11T23:30:34+00:00",
+  "generated_at": "2026-09-13T13:33:04+00:00",
   "research_only": true,
   "live_activation": false,
   "source_families": [
@@ -34,7 +34,7 @@
   "shadow": {
     "status": "warming_up",
     "start": "2026-08-03",
-    "updated_at": "2026-09-11T23:30:34+00:00",
+    "updated_at": "2026-09-13T13:33:02+00:00",
     "observations_collected": 30,
     "warmup_required": 70,
     "observations_remaining": 40,
@@ -42,10 +42,119 @@
     "live_orders": false,
     "autonomous_trading": false
   },
+  "adaptive_research": {
+    "track_id": "brace-spx-adaptive-research-v1",
+    "status": "ACTIVE",
+    "activated_at": "2026-09-13T13:19:00+00:00",
+    "activation_market_date": "2026-09-11",
+    "activation_observations": 30,
+    "research_cycles": 1,
+    "feature_ready": true,
+    "feature_eligible_rows": 9,
+    "active_challengers": 4,
+    "initial_challenger_prospective_n": 0,
+    "completed_checkpoints": [],
+    "next_checkpoint_n": 20,
+    "best_challenger": null,
+    "best_challenger_metrics": null,
+    "family_information_coefficients": {
+      "price_trend": null,
+      "rates": null,
+      "liquidity": null,
+      "options_vix": null
+    },
+    "challengers": [
+      {
+        "candidate_id": "G6-R-C01",
+        "rule": "trend_anchor_macro_veto",
+        "origin": "initial_g6_diagnostic_lessons",
+        "parent_candidate_id": null,
+        "created_market_date": "2026-09-11",
+        "status": "ACTIVE_RESEARCH",
+        "prospective_n": 0,
+        "active_n": 0,
+        "cumulative_return": null,
+        "sharpe_excess": null,
+        "max_drawdown": null,
+        "hit_rate_active": null
+      },
+      {
+        "candidate_id": "G6-R-C02",
+        "rule": "balanced_orthogonal",
+        "origin": "initial_g6_diagnostic_lessons",
+        "parent_candidate_id": null,
+        "created_market_date": "2026-09-11",
+        "status": "ACTIVE_RESEARCH",
+        "prospective_n": 0,
+        "active_n": 0,
+        "cumulative_return": null,
+        "sharpe_excess": null,
+        "max_drawdown": null,
+        "hit_rate_active": null
+      },
+      {
+        "candidate_id": "G6-R-C03",
+        "rule": "robust_family_median",
+        "origin": "initial_g6_diagnostic_lessons",
+        "parent_candidate_id": null,
+        "created_market_date": "2026-09-11",
+        "status": "ACTIVE_RESEARCH",
+        "prospective_n": 0,
+        "active_n": 0,
+        "cumulative_return": null,
+        "sharpe_excess": null,
+        "max_drawdown": null,
+        "hit_rate_active": null
+      },
+      {
+        "candidate_id": "G6-R-C04",
+        "rule": "trend_credit_vol_confirmation",
+        "origin": "initial_g6_diagnostic_lessons",
+        "parent_candidate_id": null,
+        "created_market_date": "2026-09-11",
+        "status": "ACTIVE_RESEARCH",
+        "prospective_n": 0,
+        "active_n": 0,
+        "cumulative_return": null,
+        "sharpe_excess": null,
+        "max_drawdown": null,
+        "hit_rate_active": null
+      }
+    ],
+    "last_learning_event": {
+      "event_id": "L0001",
+      "event_type": "INITIALIZED_FROM_G6_FAILURE_DIAGNOSTICS",
+      "at": "2026-09-13T13:19:00+00:00",
+      "market_date": "2026-09-11",
+      "evidence": {
+        "g6_strict_gate_passed": false,
+        "median_fold_rank_correlation": 0.047619,
+        "g6_best_sharpe": 0.099713,
+        "trend_200d_sharpe": 0.600896
+      }
+    },
+    "prospective_evidence_backfill_allowed": false
+  },
+  "promotion_gate": {
+    "target_generation": "G7",
+    "status": "NOT_READY",
+    "automatic_promotion": false,
+    "human_approval_required": true,
+    "minimum_prospective_n": 70,
+    "best_challenger": null,
+    "blockers": [
+      "NO_CHALLENGER_WITH_MINIMUM_PROSPECTIVE_EVIDENCE"
+    ],
+    "prospective_buy_hold": null,
+    "trend_200d_policy": "development_reference_only_until_clean_post_holdout_history_is_long_enough"
+  },
   "governance": {
     "orders_allowed": false,
     "leverage_allowed": false,
     "human_approval_required_before_holdout": true,
-    "candidate_mutation_allowed": false
+    "candidate_mutation_allowed": false,
+    "adaptive_challenger_research_allowed": true,
+    "adaptive_can_mutate_frozen_g6": false,
+    "automatic_promotion": false
   }
 }
