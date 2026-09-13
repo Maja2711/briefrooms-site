@@ -12,8 +12,10 @@ on:
       - "scripts/install_experiment_registry_ui.py"
       - "scripts/portfolio-10k-experiment-registry.js"
       - "scripts/portfolio-10k-experience-store.js"
+      - "scripts/portfolio-10k-lab-health.js"
       - "assets/experiment-registry.css"
       - "assets/experience-store.css"
+      - "assets/portfolio-10k-lab-health.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
       - "data/investments/eurusd_abc_learning_public.json"
@@ -27,8 +29,10 @@ on:
       - "tests/test_experiment_registry_abc_learning.py"
       - "scripts/portfolio-10k-experiment-registry.js"
       - "scripts/portfolio-10k-experience-store.js"
+      - "scripts/portfolio-10k-lab-health.js"
       - "assets/experiment-registry.css"
       - "assets/experience-store.css"
+      - "assets/portfolio-10k-lab-health.css"
       - "scripts/portfolio-10k-navigation-guard.js"
       - "data/investments/experiment_registry.json"
       - "data/investments/eurusd_abc_learning_public.json"
@@ -71,10 +75,13 @@ jobs:
           grep -q 'portfolio-10k-navigation-guard.js?v=7' en/investing/portfolio-10k.html
           grep -q 'portfolio-10k-experience-store.js?v=1' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-experience-store.js?v=1' en/investing/portfolio-10k.html
+          grep -q 'portfolio-10k-lab-health.js?v=1' pl/inwestycje/portfel-10k.html
+          grep -q 'portfolio-10k-lab-health.js?v=1' en/investing/portfolio-10k.html
       - name: Validate frontend JavaScript
         run: |
           node --check scripts/portfolio-10k-experiment-registry.js
           node --check scripts/portfolio-10k-experience-store.js
+          node --check scripts/portfolio-10k-lab-health.js
           node --check scripts/portfolio-10k-navigation-guard.js
       - name: Validate canonical registry contract
         run: |
