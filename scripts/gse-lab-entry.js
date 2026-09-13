@@ -1,5 +1,28 @@
 (()=>{
   'use strict';
+
+  const injectLatestArticle=()=>{
+    const path=window.location.pathname.replace(/\/$/,'');
+    if(path!=='/pl/geopolityka'&&path!=='/pl/geopolityka.html')return;
+    const list=document.querySelector('.library .tiles');
+    if(!list||list.querySelector('[data-briefrooms-article="nato-threshold-poland"]'))return;
+
+    const item=document.createElement('li');
+    item.className='tile';
+    item.dataset.briefroomsArticle='nato-threshold-poland';
+    item.innerHTML=`
+      <a class="tile-link" href="/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html">
+        <time class="tile-date" datetime="2026-09-13">13.09.2026</time>
+        <span class="tile-body">
+          <span class="tile-title">Jak Rosja testuje próg reakcji NATO wobec Polski</span>
+          <span class="tile-desc">Szara strefa, drony, sabotaż i granica między art. 4 a art. 5. Analiza z eksperymentalnym GSE Lab — 30 Day Outlook.</span>
+        </span>
+      </a>`;
+    list.prepend(item);
+  };
+
+  injectLatestArticle();
+
   const box=document.querySelector('[data-gse-lab-entry]');
   if(!box)return;
   const lang=(document.documentElement.lang||'pl').toLowerCase().startsWith('en')?'en':'pl';
