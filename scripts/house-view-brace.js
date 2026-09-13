@@ -1,6 +1,27 @@
 (()=>{
   'use strict';
 
+  const versionXShareUrl=()=>{
+    const modified=document.querySelector('meta[property="article:modified_time"]')?.content;
+    const stamp=modified?.slice(0,10).replace(/-/g,'');
+    if(!/^\d{8}$/.test(stamp||''))return;
+
+    document.querySelectorAll('.hv-share a[href*="x.com/intent"], .hv-share a[href*="twitter.com/intent"]').forEach(link=>{
+      try{
+        const intentUrl=new URL(link.href,window.location.href);
+        const sharedValue=intentUrl.searchParams.get('url');
+        if(!sharedValue)return;
+
+        const sharedUrl=new URL(sharedValue,window.location.origin);
+        sharedUrl.searchParams.set('hv',stamp);
+        intentUrl.searchParams.set('url',sharedUrl.toString());
+        link.href=intentUrl.toString();
+      }catch(_){/* Preserve the original share link if parsing fails. */}
+    });
+  };
+
+  versionXShareUrl();
+
   const roots=[...document.querySelectorAll('[data-brace-house]')];
   if(!roots.length)return;
 
