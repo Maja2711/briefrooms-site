@@ -17,7 +17,7 @@ from typing import Any, Mapping
 SCHEMA_VERSION = "briefrooms-experience-store-public-v1"
 ALLOWED_ACTIONS = {"LONG", "SHORT", "FLAT"}
 ENGINE_LABELS = {
-    "gpw": "GPW Daily",
+    "gpw": "GPW Trading",
     "us": "US Daily",
     "without": "EURUSD Daily",
     "eurusd": "EURUSD Daily",
