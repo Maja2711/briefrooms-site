@@ -181,6 +181,29 @@ body > footer {
   box-shadow: 0 6px 16px rgba(15, 23, 42, .12), inset 0 0 0 1px rgba(15, 23, 42, .08) !important;
 }
 
+/* NATO threshold article: replace the first schematic with a geographically
+   grounded vector map. Country outlines use Natural Earth/world.geo.json;
+   every strategic point is numbered and explained in the map's side panel. */
+#mapa.intel-map {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#mapa.intel-map .intel-svg {
+  display: none !important;
+}
+
+#mapa.intel-map::after {
+  content: "";
+  display: block;
+  width: max(100%, 820px);
+  aspect-ratio: 1200 / 760;
+  margin-top: 14px;
+  border-radius: 16px;
+  background: #071827 url('/assets/geo/polska-strefa-nacisku.svg?v=20260913-2') center / contain no-repeat;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, .18);
+}
+
 @media (max-width: 640px) {
   body > header {
     padding: 24px 14px 10px !important;
@@ -199,6 +222,10 @@ body > footer {
   body > main .card {
     padding: 15px !important;
     border-radius: 13px !important;
+  }
+
+  #mapa.intel-map::after {
+    width: 820px;
   }
 }
 
