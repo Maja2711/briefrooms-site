@@ -1,30 +1,26 @@
 (() => {
   'use strict';
 
-  const VERSION = 1;
+  const VERSION = 2;
   const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
   const copy = isEn ? {
-    loading: 'DATA · LOADING',
     ok: 'DATA · OK',
     error: 'DATA · ERROR',
-    registryOk: 'Experiment Registry data loaded successfully.',
-    registryError: 'Experiment Registry data could not be loaded.',
-    experienceOk: 'Experience Store data loaded successfully.',
-    experienceError: 'Experience Store data could not be loaded.',
-    loadingTitle: 'Data is being loaded.',
+    registryOk: 'Experiment Registry data loaded successfully and passed validation.',
+    registryError: 'Experiment Registry data could not be loaded or failed validation.',
+    experienceOk: 'Experience Store data loaded successfully and passed validation.',
+    experienceError: 'Experience Store data could not be loaded or failed validation.',
     readonly: 'READ ONLY · ZERO AUTHORITY',
     filters: 'Experiment filters',
     settled: 'SETTLED',
     pending: 'PENDING'
   } : {
-    loading: 'DANE · POBIERANIE',
     ok: 'DANE · OK',
     error: 'DANE · BŁĄD',
-    registryOk: 'Dane Experiment Registry zostały pobrane poprawnie.',
-    registryError: 'Nie udało się pobrać danych Experiment Registry.',
-    experienceOk: 'Dane Experience Store zostały pobrane poprawnie.',
-    experienceError: 'Nie udało się pobrać danych Experience Store.',
-    loadingTitle: 'Trwa pobieranie danych.',
+    registryOk: 'Dane Experiment Registry zostały pobrane poprawnie i przeszły walidację.',
+    registryError: 'Nie udało się pobrać danych Experiment Registry albo dane nie przeszły walidacji.',
+    experienceOk: 'Dane Experience Store zostały pobrane poprawnie i przeszły walidację.',
+    experienceError: 'Nie udało się pobrać danych Experience Store albo dane nie przeszły walidacji.',
     readonly: 'TYLKO ODCZYT · BRAK WPŁYWU NA DECYZJE',
     filters: 'Filtry eksperymentów',
     settled: 'ROZLICZONE',
@@ -51,11 +47,11 @@
     if (source === 'experience') {
       if (document.querySelector('#experience-store-view .experience-store-error')) return 'error';
       if (document.body.dataset.experienceStore) return 'ok';
-      return 'loading';
+      return 'pending';
     }
     if (document.querySelector('#experiment-registry-content .experiment-registry-error')) return 'error';
     if (document.body.dataset.experimentRegistry) return 'ok';
-    return 'loading';
+    return 'pending';
   }
 
   function ensureHealthIndicator() {
@@ -79,7 +75,8 @@
     if (!indicator) {
       indicator = document.createElement('span');
       indicator.id = 'research-lab-data-health';
-      indicator.className = 'research-lab-data-health research-lab-data-health-loading';
+      indicator.className = 'research-lab-data-health';
+      indicator.hidden = true;
       indicator.setAttribute('role', 'status');
       indicator.setAttribute('aria-live', 'polite');
       indicator.innerHTML = '<i aria-hidden="true"></i><span></span>';
@@ -119,14 +116,22 @@
 
     const source = activeSource();
     const state = stateFor(source);
-    const label = state === 'ok' ? copy.ok : state === 'error' ? copy.error : copy.loading;
-    const title = state === 'loading'
-      ? copy.loadingTitle
-      : source === 'experience'
-        ? (state === 'ok' ? copy.experienceOk : copy.experienceError)
-        : (state === 'ok' ? copy.registryOk : copy.registryError);
+
+    if (state === 'pending') {
+      indicator.hidden = true;
+      delete document.body.dataset.researchLabDataHealth;
+      document.body.dataset.researchLabDataSource = source;
+      lastSignature = `${source}:pending`;
+      return;
+    }
+
+    const label = state === 'ok' ? copy.ok : copy.error;
+    const title = source === 'experience'
+      ? (state === 'ok' ? copy.experienceOk : copy.experienceError)
+      : (state === 'ok' ? copy.registryOk : copy.registryError);
     const signature = `${source}:${state}:${label}:${title}`;
 
+    indicator.hidden = false;
     if (signature !== lastSignature) {
       indicator.className = `research-lab-data-health research-lab-data-health-${state}`;
       const text = indicator.querySelector('span');
