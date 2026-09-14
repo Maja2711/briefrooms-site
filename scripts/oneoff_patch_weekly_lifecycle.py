@@ -215,15 +215,12 @@ def add_regression_to_workflow(path: Path) -> None:
     if module in text:
         print(f"{path}: lifecycle regression already wired.")
         return
-    marker = "tests/test_verify_weekly_close_deadline.py"
-    if marker in text:
-        text = text.replace(marker, marker + " \\\n            " + module, 1)
-    else:
-        marker = "tests/test_verify_weekly_close_deadline.py \\\n"
-        if marker not in text:
-            raise SystemExit(f"Cannot wire regression into {path}")
-        text = text.replace(marker, marker + f"            {module} \\\n", 1)
-    path.write_text(text, encoding="utf-8", newline="\n")
+    bs = chr(92)
+    needle = f"            tests/test_verify_weekly_close_deadline.py {bs}\n"
+    if needle not in text:
+        raise SystemExit(f"Cannot wire lifecycle regression into {path}")
+    replacement = needle + f"            {module} {bs}\n"
+    path.write_text(text.replace(needle, replacement, 1), encoding="utf-8", newline="\n")
     print(f"{path}: wired lifecycle regression.")
 
 
