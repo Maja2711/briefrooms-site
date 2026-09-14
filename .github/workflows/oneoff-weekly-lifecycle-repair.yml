@@ -16,6 +16,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lifecycle test dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
+
       - name: Apply lifecycle patch
         run: python scripts/oneoff_patch_weekly_lifecycle.py
 
