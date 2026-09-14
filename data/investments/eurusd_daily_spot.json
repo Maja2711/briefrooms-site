@@ -1,15 +1,15 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-13T23:21:57Z",
-  "direction": "FLAT",
-  "score": 41.59,
-  "confidence": 0.0,
-  "entry": null,
-  "stop": null,
-  "target": null,
+  "timestamp": "2026-09-14T01:13:59Z",
+  "direction": "SHORT",
+  "score": 39.02,
+  "confidence": 0.22,
+  "entry": 1.15875,
+  "stop": 1.16188,
+  "target": 1.15312,
   "horizon": "intraday_to_27h",
   "engine_version": "eurusd-daily-spot-v1.7.0",
-  "status": "CLOSED_TIME",
+  "status": "OPEN",
   "decision_mode": "WITHOUT",
   "metadata": {
     "market": "FX_SPOT",
@@ -23,7 +23,7 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.1421,
+      "trend": -0.2354,
       "broad_usd_environment": -0.0675,
       "us_rates_pressure_proxy": -0.3733
     },
@@ -33,16 +33,13 @@
       "us_rates_pressure_proxy": 0.194212
     },
     "candidate": {
-      "direction": "FLAT",
-      "score": 41.59,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral",
-        "entry_disabled_this_cycle"
-      ],
-      "previous_score": 43.84,
-      "stretch_atr": 1.4007,
+      "direction": "SHORT",
+      "score": 39.02,
+      "confidence": 0.22,
+      "accepted": true,
+      "gate_reasons": [],
+      "previous_score": 41.5,
+      "stretch_atr": 1.8336,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -130,15 +127,34 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": false,
+      "evaluated": true,
       "blocked": false,
-      "reason": "entry_disabled_this_cycle"
+      "reason": "no_recent_meaningful_same_direction_loss",
+      "current_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "SHORT",
+        "score": 39.02,
+        "directional_strength": 10.98,
+        "confidence": 0.22,
+        "components": {
+          "trend": -0.2354,
+          "broad_usd_environment": -0.0675,
+          "us_rates_pressure_proxy": -0.3733
+        },
+        "weights": {
+          "trend": 0.552296,
+          "broad_usd_environment": 0.253493,
+          "us_rates_pressure_proxy": 0.194212
+        }
+      }
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-13T23:21:57Z",
+      "observed_at": "2026-09-14T01:13:59Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -165,8 +181,9 @@
         "note": "No direct EUR OIS feed is configured in v1.7."
       },
       "veto_threshold": 0.35,
-      "gate_evaluated": false,
-      "gate_reason": "entry_disabled_this_cycle"
+      "gate_evaluated": true,
+      "gate_blocked": false,
+      "gate_reason": "ecb_policy_aligned_or_neutral"
     },
     "central_bank_policy": {
       "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
@@ -174,190 +191,75 @@
       "new_entry_veto_enabled": true,
       "fail_closed_during_event_window": true
     },
-    "position": null,
-    "last_trade": {
-      "trade_id": "eurusd:20260911T110730Z:SHORT",
-      "instrument": "EUR/USD",
+    "position": {
+      "schema_version": "eurusd-daily-position-v1",
+      "trade_id": "eurusd:20260914T011359Z:SHORT",
+      "status": "OPEN",
       "direction": "SHORT",
-      "opened_at": "2026-09-11T11:07:30Z",
-      "closed_at": "2026-09-13T23:21:57Z",
-      "entry": 1.15955,
-      "stop": 1.16269,
-      "target": 1.15392,
-      "exit_price": 1.15929,
-      "exit_reason": "TIME_EXIT_27H",
-      "result_percent": 0.02279,
-      "return_fraction": 0.00022786,
-      "r_multiple": 0.0841,
-      "outcome": "WIN",
-      "entry_score": 25.4,
-      "entry_confidence": 0.492,
-      "entry_components": {},
+      "opened_at": "2026-09-14T01:13:59Z",
+      "expires_at": "2026-09-15T04:13:59Z",
+      "entry": 1.15875,
+      "stop": 1.16188,
+      "target": 1.15312,
+      "entry_score": 39.02,
+      "entry_confidence": 0.22,
+      "entry_components": {
+        "trend": -0.2354,
+        "broad_usd_environment": -0.0675,
+        "us_rates_pressure_proxy": -0.3733
+      },
       "entry_weights": {
-        "trend": 0.548365,
-        "broad_usd_environment": 0.254445,
-        "us_rates_pressure_proxy": 0.19719
+        "trend": 0.552296,
+        "broad_usd_environment": 0.253493,
+        "us_rates_pressure_proxy": 0.194212
       },
       "engine_version": "eurusd-daily-spot-v1.7.0",
-      "monitor": {
-        "source": "Yahoo Finance EURUSD=X 1m OHLC",
-        "conservative_same_bar": false,
-        "bar_timestamp": "2026-09-13T23:21:57Z",
-        "bar_open": 1.1592857837677002,
-        "bar_high": 1.1592857837677002,
-        "bar_low": 1.1592857837677002,
-        "bar_close": 1.1592857837677002,
-        "dynamic_exit": {
-          "policy": "R_PACE_V1",
-          "age_hours": 60.241,
-          "soft_horizon_reached": true,
-          "hard_horizon_reached": true,
-          "remaining_hard_hours": 0.0,
-          "current_r": 0.0841,
-          "target_r": 1.793,
-          "remaining_r_to_target": 1.7088,
-          "mfe_r": 0.6824,
-          "giveback_r": 0.5982,
-          "velocity_1h_rph": 0.0052,
-          "velocity_3h_rph": 0.0052,
-          "blended_velocity_rph": 0.0052,
-          "required_velocity_rph": 6.8354,
-          "tp_feasibility_ratio": 0.0008,
-          "projected_hours_to_target": null,
-          "hold_score": -0.5697,
-          "mark_price": 1.15929,
-          "bar_timestamp": "2026-09-13T23:21:57Z"
-        }
-      },
-      "decision_source": "A_TECHNICAL_FALLBACK",
+      "legacy_bootstrap": false,
+      "soft_expires_at": "2026-09-15T01:13:59Z",
+      "dynamic_exit_policy": "R_PACE_V1",
+      "soft_horizon_hours": 24.0,
+      "hard_horizon_hours": 27.0,
+      "decision_source": "NATIVE",
       "learning_eligible": true,
-      "learning_namespace": "A_TECHNICAL_FALLBACK",
-      "mfe_r": 0.6824,
-      "mae_r": -0.7309,
-      "mfe_pips": 21.43,
-      "mae_pips": -22.95,
+      "learning_namespace": "NATIVE",
       "entry_thesis": {
         "schema_version": "eurusd-entry-thesis-v1",
-        "source": "A_TECHNICAL_FALLBACK",
-        "source_family": "A_TECHNICAL_FALLBACK",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
         "direction": "SHORT",
-        "score": 25.4,
-        "directional_strength": 24.6,
-        "confidence": 0.492,
-        "components": {},
-        "weights": {
-          "trend": 0.548365,
-          "broad_usd_environment": 0.254445,
-          "us_rates_pressure_proxy": 0.19719
+        "score": 39.02,
+        "directional_strength": 10.98,
+        "confidence": 0.22,
+        "components": {
+          "trend": -0.2354,
+          "broad_usd_environment": -0.0675,
+          "us_rates_pressure_proxy": -0.3733
         },
-        "a_fallback": {
-          "method": "same_technical_model_as_research_arm_A_recomputed_live",
-          "direction": "SHORT",
-          "score": 25.4,
-          "confidence": 0.492,
-          "market_observed_at": "2026-09-11T11:07:30Z"
+        "weights": {
+          "trend": 0.552296,
+          "broad_usd_environment": 0.253493,
+          "us_rates_pressure_proxy": 0.194212
         }
       },
-      "post_trade_review": {
-        "schema_version": "eurusd-post-trade-review-v1",
-        "review_mode": "DETERMINISTIC_OBSERVED_PATH",
-        "classification_basis": "observed_price_path_not_causal_proof",
-        "causal_claim": false,
-        "primary_pattern": "THESIS_CONFIRMED_PATH",
-        "evidence": {
-          "exit_reason": "TIME_EXIT_27H",
-          "r_multiple": 0.0841,
-          "mfe_r": 0.6824,
-          "mae_r": -0.7309,
-          "reached_0_25r_favorable": true,
-          "reached_0_50r_favorable": true,
-          "reached_0_75r_adverse": false,
-          "reached_1r_adverse": false,
-          "decision_source": "A_TECHNICAL_FALLBACK"
-        },
-        "error_attribution": {
-          "direction_or_entry_timing": "not_indicated",
-          "follow_through": "material_favorable_excursion_observed",
-          "exit_management": "not_indicated_by_path",
-          "risk_geometry": "unresolved_from_single_trade",
-          "macro_or_news_event": "not_evaluated_by_this_layer",
-          "data_quality": "not_inferred_from_outcome"
-        },
-        "entry_thesis": {
-          "schema_version": "eurusd-entry-thesis-v1",
-          "source": "A_TECHNICAL_FALLBACK",
-          "source_family": "A_TECHNICAL_FALLBACK",
-          "direction": "SHORT",
-          "score": 25.4,
-          "directional_strength": 24.6,
-          "confidence": 0.492,
-          "components": {},
-          "weights": {
-            "trend": 0.548365,
-            "broad_usd_environment": 0.254445,
-            "us_rates_pressure_proxy": 0.19719
-          },
-          "a_fallback": {
-            "method": "same_technical_model_as_research_arm_A_recomputed_live",
-            "direction": "SHORT",
-            "score": 25.4,
-            "confidence": 0.492,
-            "market_observed_at": "2026-09-11T11:07:30Z"
-          }
-        },
-        "learning_action": "observe_without_reentry_restriction",
-        "policy_mutation_allowed_from_single_trade": false
-      }
+      "mark_price": 1.15875,
+      "unrealized_percent": 0.00012
     },
-    "post_trade_review": {
-      "schema_version": "eurusd-post-trade-review-v1",
-      "review_mode": "DETERMINISTIC_OBSERVED_PATH",
-      "classification_basis": "observed_price_path_not_causal_proof",
-      "causal_claim": false,
-      "primary_pattern": "THESIS_CONFIRMED_PATH",
-      "evidence": {
-        "exit_reason": "TIME_EXIT_27H",
-        "r_multiple": 0.0841,
-        "mfe_r": 0.6824,
-        "mae_r": -0.7309,
-        "reached_0_25r_favorable": true,
-        "reached_0_50r_favorable": true,
-        "reached_0_75r_adverse": false,
-        "reached_1r_adverse": false,
-        "decision_source": "A_TECHNICAL_FALLBACK"
-      },
-      "error_attribution": {
-        "direction_or_entry_timing": "not_indicated",
-        "follow_through": "material_favorable_excursion_observed",
-        "exit_management": "not_indicated_by_path",
-        "risk_geometry": "unresolved_from_single_trade",
-        "macro_or_news_event": "not_evaluated_by_this_layer",
-        "data_quality": "not_inferred_from_outcome"
-      },
-      "entry_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "A_TECHNICAL_FALLBACK",
-        "source_family": "A_TECHNICAL_FALLBACK",
-        "direction": "SHORT",
-        "score": 25.4,
-        "directional_strength": 24.6,
-        "confidence": 0.492,
-        "components": {},
-        "weights": {
-          "trend": 0.548365,
-          "broad_usd_environment": 0.254445,
-          "us_rates_pressure_proxy": 0.19719
-        },
-        "a_fallback": {
-          "method": "same_technical_model_as_research_arm_A_recomputed_live",
-          "direction": "SHORT",
-          "score": 25.4,
-          "confidence": 0.492,
-          "market_observed_at": "2026-09-11T11:07:30Z"
-        }
-      },
-      "learning_action": "observe_without_reentry_restriction",
-      "policy_mutation_allowed_from_single_trade": false
+    "candidate_at_refresh": {
+      "direction": "SHORT",
+      "score": 39.02,
+      "confidence": 0.22,
+      "accepted": true,
+      "gate_reasons": [],
+      "previous_score": 41.5,
+      "stretch_atr": 1.8336,
+      "shock_ratio": 0.0
+    },
+    "open_position_policy_check": {
+      "evaluated": false,
+      "direction": "SHORT",
+      "conflict": false,
+      "advisory_only": true,
+      "note": "v1.7 policy veto applies to fresh entries; existing positions remain owned by lifecycle/risk exits."
     }
   },
   "schema_version": "daily-engine-output-v1"
