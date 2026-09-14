@@ -249,6 +249,19 @@ def settle_due_positions(now: Optional[datetime] = None) -> bool:
                 continue
             entry = sf(item.get("entry_price"))
             if entry is None:
+                # A directional decision that never obtained a valid execution
+                # must become terminal once its governed entry/holding window is
+                # over. Do not fabricate an entry, exit or P/L: record the
+                # execution outcome separately from a model-level NO TRADE.
+                if side in {"long", "short"}:
+                    item["trade_status"] = "expired_no_entry"
+                    item["entry_quality_status"] = "expired_without_execution"
+                    item["entry_expiry_reason"] = "governed_deadline_elapsed_without_entry"
+                    item["entry_expired_at"] = deadline.isoformat(timespec="seconds")
+                    item["execution_outcome"] = "no_entry"
+                    if v2.mark_exposure_closed(item):
+                        changed = True
+                    changed = True
                 continue
             if sf(item.get("exit_price")) is not None:
                 if v2.mark_exposure_closed(item):
