@@ -9,8 +9,8 @@ on:
       - "scripts/update_investment_room_quotes_v2.py"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
-    # Avoid the busiest quarter-hour boundaries, where GitHub may delay schedules.
-    - cron: "3,18,33,48 * * * *"
+    # Five-minute cadence, offset from the top of the hour to reduce scheduler contention.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
 permissions:
   contents: write
