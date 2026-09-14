@@ -1,16 +1,245 @@
 {
   "week_id": "2026-W38",
-  "decision_state": "MISSING_DECISION",
-  "public_status": "MISSING_DECISION",
-  "forecast_status": "missing_decision",
-  "model_status": "weekly_decision_missing_fail_closed",
-  "missing_decision": true,
+  "method_version": "2.0.0",
+  "model_status": "paper_trading_late_forecast_recovery",
+  "forecast_created_at": "2026-09-14T13:17:46+02:00",
+  "forecast_locked_at": "2026-09-14T13:17:46+02:00",
+  "forecast_for_week_start": "2026-09-14",
+  "forecast_for_week_end": "2026-09-18",
   "timezone": "Europe/Warsaw",
-  "expected_week_start": "2026-09-14",
-  "expected_week_end": "2026-09-18",
-  "missing_reason": "2026-W38 decision artifact was absent during durable freshness repair",
-  "generated_by": "weekly_freshness_guard_repair",
-  "public_message_pl": "Brak wygenerowanej decyzji dla tego tygodnia. System nie zastępuje jej danymi z poprzedniego tygodnia.",
-  "public_message_en": "The decision for this week has not been generated. The system does not substitute data from the previous week.",
-  "instruments": []
+  "late_forecast_recovery": true,
+  "replaced_public_placeholder": false,
+  "forecast_integrity_note": "A public placeholder contains no signal or price. It was replaced only after actual model data became available.",
+  "market_window": {
+    "entry_target_local": "2026-09-14T08:00:00+02:00",
+    "entry_latest_local": "2026-09-14T10:00:00+02:00",
+    "exit_target_local": "2026-09-18T22:00:00+02:00"
+  },
+  "execution_assumptions": {
+    "entry": "continuous exposure layer uses the first completed 5-minute bar available after recovery",
+    "scheduled_exit": "first available 5-minute bar at or after Friday 22:00 Europe/Warsaw",
+    "same_bar_sl_tp": "stop_loss_first_conservative"
+  },
+  "instruments": [
+    {
+      "instrument_id": "eurusd",
+      "symbol": "EURUSD=X",
+      "label_pl": "EUR/USD",
+      "label_en": "EUR/USD",
+      "direction": "neutral",
+      "score": -9,
+      "signal_strength": 0.09,
+      "confidence": 0.09,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 1.15486777,
+        "ema20": 1.16023337,
+        "ema50": 1.1569028,
+        "atr14": 0.00467029,
+        "ret5_pct": -0.5624,
+        "ret20_pct": -0.2183,
+        "vol20_annualized_pct": 4.6897,
+        "vol60_annualized_pct": 4.3695,
+        "volatility_regime_ratio": 1.0733,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.5629,
+        "components": {
+          "trend_ema": 9.51,
+          "trend_price": -10.0,
+          "momentum5": -8.51,
+          "momentum20": -2.2,
+          "breakout": 1.89,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 0,
+          "negative_groups": 1,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 0.00574369,
+        "take_price_distance": 0.00939877,
+        "stop_units": 57.4369,
+        "take_units": 93.9877,
+        "reward_to_risk": 1.6364
+      },
+      "entry_thresholds": {
+        "long": 35.0,
+        "short": -35.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "late_forecast_recovery_waiting_for_continuous_entry",
+      "trade_status": "no_trade",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": "no_trade",
+      "result_value": 0.0,
+      "result_percent": 0.0,
+      "rationale_pl": [
+        "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+        "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+      ],
+      "rationale_en": [
+        "Recovery forecast created during the current week because the full Sunday run was missing.",
+        "The continuous-exposure layer remains an experimental paper-trading exercise only."
+      ]
+    },
+    {
+      "instrument_id": "sp500_futures",
+      "symbol": "ES=F",
+      "label_pl": "S&P 500 futures",
+      "label_en": "S&P 500 futures",
+      "direction": "neutral",
+      "score": -22,
+      "signal_strength": 0.22,
+      "confidence": 0.22,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 7612.25,
+        "ema20": 7672.80201095,
+        "ema50": 7624.21115138,
+        "atr14": 67.89285714,
+        "ret5_pct": -1.4213,
+        "ret20_pct": -2.4696,
+        "vol20_annualized_pct": 8.8826,
+        "vol60_annualized_pct": 11.3343,
+        "volatility_regime_ratio": 0.7837,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.5538,
+        "components": {
+          "trend_ema": 9.54,
+          "trend_price": -8.92,
+          "momentum5": -11.36,
+          "momentum20": -13.16,
+          "breakout": 1.62,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 0,
+          "negative_groups": 1,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 83.49717407,
+        "take_price_distance": 136.63173938,
+        "stop_units": 83.4972,
+        "take_units": 136.6317,
+        "reward_to_risk": 1.6364
+      },
+      "entry_thresholds": {
+        "long": 35.0,
+        "short": -42.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "late_forecast_recovery_waiting_for_continuous_entry",
+      "trade_status": "no_trade",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": "no_trade",
+      "result_value": 0.0,
+      "result_percent": 0.0,
+      "rationale_pl": [
+        "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+        "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+      ],
+      "rationale_en": [
+        "Recovery forecast created during the current week because the full Sunday run was missing.",
+        "The continuous-exposure layer remains an experimental paper-trading exercise only."
+      ]
+    },
+    {
+      "instrument_id": "btcusd",
+      "symbol": "BTC-USD",
+      "label_pl": "BTC/USD",
+      "label_en": "BTC/USD",
+      "direction": "neutral",
+      "score": 29,
+      "signal_strength": 0.29,
+      "confidence": 0.29,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 77745.75,
+        "ema20": 77078.65160004,
+        "ema50": 73354.48899382,
+        "atr14": 2053.00558036,
+        "ret5_pct": -0.6565,
+        "ret20_pct": -1.0427,
+        "vol20_annualized_pct": 27.3011,
+        "vol60_annualized_pct": 31.0086,
+        "volatility_regime_ratio": 0.8804,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.8095,
+        "components": {
+          "trend_ema": 20.0,
+          "trend_price": 3.25,
+          "momentum5": -1.71,
+          "momentum20": -1.81,
+          "breakout": 9.28,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 2,
+          "negative_groups": 1,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 2721.10125,
+        "take_price_distance": 4276.01625,
+        "stop_units": 3.5,
+        "take_units": 5.5,
+        "reward_to_risk": 1.5714
+      },
+      "entry_thresholds": {
+        "long": 45.0,
+        "short": -45.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "late_forecast_recovery_waiting_for_continuous_entry",
+      "trade_status": "no_trade",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": "no_trade",
+      "result_value": 0.0,
+      "result_percent": 0.0,
+      "rationale_pl": [
+        "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+        "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+      ],
+      "rationale_en": [
+        "Recovery forecast created during the current week because the full Sunday run was missing.",
+        "The continuous-exposure layer remains an experimental paper-trading exercise only."
+      ]
+    }
+  ],
+  "forecast_hash": "e449a3baa01642b57e0475d012dfcaa2dcbe1d41c7438604d8ecfc58cd16ee03"
 }
