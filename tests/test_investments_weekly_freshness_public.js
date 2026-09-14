@@ -18,7 +18,7 @@ function load({ now, nativeFetch }) {
     BR_WEEKLY_FRESHNESS_NOW: now,
     fetch: nativeFetch,
   };
-  vm.runInContext(script, vm.createContext({ window, document, Date, console }));
+  vm.runInContext(script, vm.createContext({ window, document, Date, Intl, console, Object }));
   return { window, document, cards, listeners };
 }
 
@@ -33,6 +33,15 @@ test('Monday public target is the current ISO week', () => {
 test('Sunday public target advances to the following trading week', () => {
   const { window } = load({
     now: '2026-09-13T12:00:00+02:00',
+    nativeFetch: async () => ({ ok: true, json: async () => ({}) }),
+  });
+  assert.equal(window.BR_WEEKLY_FRESHNESS.targetWeekId, '2026-W38');
+});
+
+test('Warsaw calendar boundary is independent of viewer timezone', () => {
+  const { window } = load({
+    // This instant is still Saturday in UTC but already Sunday in Warsaw.
+    now: '2026-09-12T22:30:00Z',
     nativeFetch: async () => ({ ok: true, json: async () => ({}) }),
   });
   assert.equal(window.BR_WEEKLY_FRESHNESS.targetWeekId, '2026-W38');

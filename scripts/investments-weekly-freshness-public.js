@@ -5,22 +5,41 @@
   const nativeFetch = window.fetch.bind(window);
   const injectedNow = window.BR_WEEKLY_FRESHNESS_NOW;
   const now = injectedNow ? new Date(injectedNow) : new Date();
+  const WARSAW = 'Europe/Warsaw';
 
-  function isoWeek(date) {
-    const x = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const day = x.getUTCDay() || 7;
-    x.setUTCDate(x.getUTCDate() + 4 - day);
-    const year = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((x - year) / 86400000) + 1) / 7);
+  function warsawCalendar(date) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: WARSAW,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return {
+      year: Number(values.year),
+      month: Number(values.month),
+      day: Number(values.day),
+      weekday: values.weekday,
+    };
+  }
+
+  function isoWeekFromYmd(year, month, day) {
+    const x = new Date(Date.UTC(year, month - 1, day));
+    const isoDay = x.getUTCDay() || 7;
+    x.setUTCDate(x.getUTCDate() + 4 - isoDay);
+    const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((x - yearStart) / 86400000) + 1) / 7);
     return `${x.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
   }
 
   function publicTargetWeek(date) {
-    const target = new Date(date.getTime());
-    // Monday-Saturday: current ISO week. Sunday: governed forecast for the
-    // following trading week is due, so the next ISO week is the public target.
-    if (target.getDay() === 0) target.setDate(target.getDate() + 1);
-    return isoWeek(target);
+    const local = warsawCalendar(date);
+    const target = new Date(Date.UTC(local.year, local.month - 1, local.day));
+    // Monday-Saturday: current Warsaw ISO week. Sunday: the governed forecast
+    // for the following trading week is due, so advance one calendar day.
+    if (local.weekday === 'Sun') target.setUTCDate(target.getUTCDate() + 1);
+    return isoWeekFromYmd(target.getUTCFullYear(), target.getUTCMonth() + 1, target.getUTCDate());
   }
 
   const targetWeekId = publicTargetWeek(now);
