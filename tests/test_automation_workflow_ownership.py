@@ -174,7 +174,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
 
         exposure = sources["investments-exposure-watch.yml"]
         self.assertIn('cron: "7,37 0-6 * * 6"', exposure)
-        settle = exposure.index("Settle due weekly positions before downstream work")
+        settle = exposure.index("Settle due weekly or rolling WES positions before downstream work")
         verify = exposure.index("Verify no weekly exposure survives its deadline")
         persist = exposure.index("Persist weekly exits before downstream audits")
         broad_validation = exposure.index("Validate publication integrity code")
