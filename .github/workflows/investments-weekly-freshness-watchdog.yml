@@ -11,8 +11,10 @@ on:
       - "scripts/investments-weekly-freshness-public.js"
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/render_weekly_public_pages.py"
+      - "scripts/verify_weekly_close_deadline.py"
       - "tests/test_weekly_freshness_guard.py"
       - "tests/test_investments_weekly_freshness_public.js"
+      - "tests/test_automation_workflow_ownership.py"
       - ".github/workflows/investments-weekly-freshness-watchdog.yml"
   workflow_run:
     workflows: ["Weekly Engine Star", "Maintain Weekly Paper Positions"]
@@ -22,7 +24,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: investment-weekly-freshness
+  # This workflow writes the canonical weekly ledger, so it MUST serialize with
+  # every other weekly settlement/publisher path.
+  group: investment-weekly-positions
   cancel-in-progress: false
 
 jobs:
@@ -48,7 +52,11 @@ jobs:
 
       - name: Validate freshness guard and public fail-closed shim
         run: |
-          python -m py_compile scripts/weekly_freshness_guard.py scripts/ensure_current_week_forecast.py scripts/render_weekly_public_pages.py
+          python -m py_compile \
+            scripts/weekly_freshness_guard.py \
+            scripts/ensure_current_week_forecast.py \
+            scripts/render_weekly_public_pages.py \
+            scripts/verify_weekly_close_deadline.py
           python -m unittest tests/test_weekly_freshness_guard.py -v
           node --check scripts/investments-weekly-freshness-public.js
           node --test tests/test_investments_weekly_freshness_public.js
@@ -87,6 +95,9 @@ jobs:
 
       - name: Verify target week has a formal state and cannot silently fall back
         run: python scripts/weekly_freshness_guard.py --mode verify
+
+      - name: Verify no weekly exposure survives its deadline
+        run: python scripts/verify_weekly_close_deadline.py
 
       - name: Render PL and EN weekly public pages
         run: python scripts/render_simple_investments.py
