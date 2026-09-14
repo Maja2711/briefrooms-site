@@ -34,7 +34,18 @@ def write(path: Path, data: Any) -> None:
 
 
 def is_public_placeholder(data: Any) -> bool:
-    return isinstance(data, dict) and data.get("forecast_status") == "scheduled" and data.get("model_status") == "paper_only_waiting_for_weekly_generation"
+    if not isinstance(data, dict):
+        return False
+    legacy_placeholder = (
+        data.get("forecast_status") == "scheduled"
+        and data.get("model_status") == "paper_only_waiting_for_weekly_generation"
+    )
+    fail_closed_placeholder = (
+        data.get("decision_state") == "MISSING_DECISION"
+        or data.get("public_status") == "MISSING_DECISION"
+        or data.get("forecast_status") == "missing_decision"
+    )
+    return legacy_placeholder or fail_closed_placeholder
 
 
 def main() -> None:

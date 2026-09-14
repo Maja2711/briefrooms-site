@@ -1,0 +1,123 @@
+name: Weekly Freshness Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,37 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/weekly_freshness_guard.py"
+      - "scripts/investments-weekly-freshness-public.js"
+      - "scripts/ensure_current_week_forecast.py"
+      - "scripts/render_weekly_public_pages.py"
+      - "tests/test_weekly_freshness_guard.py"
+      - "tests/test_investments_weekly_freshness_public.js"
+      - ".github/workflows/investments-weekly-freshness-watchdog.yml"
+  workflow_run:
+    workflows: ["Weekly Engine Star", "Maintain Weekly Paper Positions"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: investment-weekly-freshness
+  cancel-in-progress: false
+
+jobs:
+  freshness-watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate freshness guard and public fail-closed shim
+        run: |
+          python -m py_compile scripts/weekly_freshness_guard.py scripts/ensure_current_week_forecast.py scripts/render_weekly_public_pages.py
+          python -m unittest tests/test_weekly_freshness_guard.py -v
+          node --check scripts/investments-weekly-freshness-public.js
+          node --test tests/test_investments_weekly_freshness_public.js
+
+      - name: Inspect real weekly decision freshness
+        id: freshness
+        shell: bash
+        run: |
+          set +e
+          python scripts/weekly_freshness_guard.py --mode check
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "needs_recovery=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_recovery=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attempt real decision recovery before fail-closed marker
+        if: steps.freshness.outputs.needs_recovery == '1'
+        shell: bash
+        run: |
+          set +e
+          python -m pip install --upgrade pip yfinance pandas numpy
+          python scripts/weekly_freshness_guard.py --mode clear-missing
+          dow="$(TZ=Europe/Warsaw date +%u)"
+          if [ "$dow" = "7" ]; then
+            python scripts/investments_wes_lifecycle.py --mode forecast
+          elif [ "$dow" -le "5" ]; then
+            python scripts/ensure_current_week_forecast.py
+          fi
+          set -e
+
+      - name: Materialize formal fail-closed state when recovery is unavailable
+        run: python scripts/weekly_freshness_guard.py --mode ensure
+
+      - name: Verify target week has a formal state and cannot silently fall back
+        run: python scripts/weekly_freshness_guard.py --mode verify
+
+      - name: Render PL and EN weekly public pages
+        run: python scripts/render_simple_investments.py
+
+      - name: Persist repaired weekly freshness state atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git restore --worktree -- data/investments/live_prices.json || true
+          git add data/investments/weekly \
+                  pl/inwestycje/pozycje-tygodniowe.html \
+                  pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/open-weekly-positions.html \
+                  en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then
+            echo "Weekly freshness already durable; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Repair weekly freshness state"
+          pushed=0
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              pushed=1
+              break
+            fi
+            git rebase --abort || true
+            sleep $((attempt * 4))
+          done
+          if [ "$pushed" != "1" ]; then
+            echo "::error::Could not persist weekly freshness repair."
+            exit 1
+          fi
