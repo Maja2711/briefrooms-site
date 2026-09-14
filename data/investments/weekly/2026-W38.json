@@ -86,10 +86,12 @@
       "result_value": 0.0,
       "result_percent": 0.0,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
         "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Recovery forecast created during the current week because the full Sunday run was missing.",
         "The continuous-exposure layer remains an experimental paper-trading exercise only."
       ],
@@ -583,7 +585,39 @@
       },
       "no_trade_reason": "directional_edge_below_threshold",
       "continuous_exposure_active": false,
-      "continuous_exposure_status": "no_trade"
+      "continuous_exposure_status": "no_trade",
+      "wes_initial_no_trade_score": 0.0,
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_methodology": "WES-1.0.0",
+      "wes_last_review_at": "2026-09-14T17:51:52+02:00",
+      "wes_trigger_candidate": {
+        "direction": "short",
+        "strategy_id": "weekly_trend",
+        "raw_score": 17.0,
+        "utility": 8.4236,
+        "signal_delta_from_initial": 17.0,
+        "confirmations": 2,
+        "confirmation_sources": [
+          "macro",
+          "weekly"
+        ],
+        "entry_class": "midweek_trigger"
+      },
+      "reentry_lock": {
+        "active": true,
+        "scope": "wes_no_trade_monitoring",
+        "until": "2026-09-18T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 44.0,
+        "utility": 7.5,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 0.0
+      }
     },
     {
       "instrument_id": "sp500_futures",
@@ -650,10 +684,12 @@
       "result_value": 0.0,
       "result_percent": 0.0,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
         "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Recovery forecast created during the current week because the full Sunday run was missing.",
         "The continuous-exposure layer remains an experimental paper-trading exercise only."
       ],
@@ -975,6 +1011,37 @@
           }
         },
         "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp"
+      },
+      "wes_initial_no_trade_score": 22.0,
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_methodology": "WES-1.0.0",
+      "wes_last_review_at": "2026-09-14T17:51:52+02:00",
+      "wes_trigger_candidate": {
+        "direction": "long",
+        "strategy_id": "weekly_trend",
+        "raw_score": 60.0,
+        "utility": 13.9771,
+        "signal_delta_from_initial": 38.0,
+        "confirmations": 1,
+        "confirmation_sources": [
+          "weekly"
+        ],
+        "entry_class": "midweek_trigger"
+      },
+      "reentry_lock": {
+        "active": true,
+        "scope": "wes_no_trade_monitoring",
+        "until": "2026-09-18T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 44.0,
+        "utility": 7.5,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 0.0
       }
     },
     {
@@ -1031,19 +1098,32 @@
       "entry_price": 78531.078125,
       "entry_captured_at": "2026-09-14T17:45:00+02:00",
       "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
-      "entry_quality_status": "v4_mandatory_monday",
+      "entry_quality_status": "wes_midweek_trigger",
       "trade_status": "open",
       "risk_plan": {
-        "model_version": "2.0.0",
-        "created_from_frozen_forecast": true,
-        "generated_at": "2026-09-14T17:49:50+02:00",
+        "model_version": "WES-1.0.0",
+        "generated_at": "2026-09-14T17:51:57+02:00",
         "direction": "short",
-        "stop_loss_price": 81274.6515625,
-        "take_profit_price": 74219.7484375,
-        "stop_loss_distance": 2743.5734375,
-        "take_profit_distance": 4311.3296875,
-        "reward_to_risk": 1.5714,
-        "same_bar_rule": "stop_loss_first_conservative"
+        "stop_loss_price": 80878.3236312,
+        "take_profit_price": 73621.29424817,
+        "stop_loss_distance": 2347.2455062,
+        "take_profit_distance": 4909.78387683,
+        "reward_to_risk": 2.0917,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "wes_entry_class": "midweek_trigger",
+        "objective": "maximize_net_expectancy_not_trade_frequency",
+        "scheduled_exit": "2026-09-18T22:00:00+02:00",
+        "adaptive_inputs": {
+          "time_factor": 0.9541,
+          "conviction_factor": 0.36,
+          "tp_multiplier": 1.1388,
+          "sl_multiplier": 0.8555,
+          "target_min_rr": 1.2,
+          "learning_count": 4,
+          "learning_mean_net_percent": 0.565665,
+          "learning_win_rate": 0.75
+        },
+        "friday_tactical_low_tp": false
       },
       "exit_price": null,
       "exit_captured_at": null,
@@ -1388,7 +1468,9 @@
         }
       },
       "next_entry_status": "open",
-      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit"
+      "last_risk_review_source": "Yahoo Finance:BTC-USD:5m:OHLC_threshold_audit",
+      "wes_status": "open_wes_governed_position",
+      "wes_methodology": "WES-1.0.0"
     }
   ],
   "forecast_hash": "e449a3baa01642b57e0475d012dfcaa2dcbe1d41c7438604d8ecfc58cd16ee03",
@@ -1431,5 +1513,22 @@
     "last_completeness_checked_at": "2026-09-14T17:49:51+02:00",
     "last_completeness_status": "NOT_DUE"
   },
-  "governance_started_at": "2026-09-14T17:49:56+02:00"
+  "governance_started_at": "2026-09-14T17:49:56+02:00",
+  "wes": {
+    "version": "WES-1.0.0",
+    "objective": "maximize_total_net_profit_with_no_forced_trades",
+    "no_trade_is_active_monitoring": true,
+    "early_close_reentry": true,
+    "early_close_days": [
+      "monday",
+      "tuesday"
+    ],
+    "replacement_holding_days": 7,
+    "replacement_weekend_carry": true,
+    "material_event_reentry": false,
+    "last_preflight_at": "2026-09-14T17:51:52+02:00",
+    "last_postflight_at": "2026-09-14T17:51:57+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
+  }
 }
