@@ -4,6 +4,7 @@ from pathlib import Path
 
 LIFECYCLE = Path("scripts/investments_wes_lifecycle.py")
 TEST = Path("tests/test_wes_lifecycle_expired_no_entry.py")
+OWNERSHIP_TEST = Path("tests/test_automation_workflow_ownership.py")
 
 OLD = '''            entry = sf(item.get("entry_price"))
             if entry is None:
@@ -95,6 +96,17 @@ def main() -> None:
 
     TEST.write_text(TEST_CONTENT, encoding="utf-8", newline="\n")
     print("Wrote regression test.")
+
+    ownership = OWNERSHIP_TEST.read_text(encoding="utf-8")
+    old_step = 'Settle due weekly positions before downstream work'
+    new_step = 'Settle due weekly or rolling WES positions before downstream work'
+    if old_step in ownership:
+        OWNERSHIP_TEST.write_text(ownership.replace(old_step, new_step, 1), encoding="utf-8", newline="\n")
+        print("Aligned ownership test with canonical exposure step.")
+    elif new_step in ownership:
+        print("Ownership test already aligned.")
+    else:
+        raise SystemExit("Expected ownership assertion not found; refusing unsafe patch")
 
 
 if __name__ == "__main__":
