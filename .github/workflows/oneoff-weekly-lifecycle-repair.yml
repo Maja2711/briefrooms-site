@@ -16,55 +16,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Patch expired no-entry lifecycle and add regression test
-        shell: bash
+      - name: Apply lifecycle patch
+        run: python scripts/oneoff_patch_weekly_lifecycle.py
+
+      - name: Compile patched files
+        run: python -m py_compile scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py
+
+      - name: Commit repair
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          lifecycle = Path('scripts/investments_wes_lifecycle.py')
-          text = lifecycle.read_text(encoding='utf-8')
-          old = '''            entry = sf(item.get("entry_price"))
-            if entry is None:
-                continue
-            if sf(item.get("exit_price")) is not None:
-'''
-          new = '''            entry = sf(item.get("entry_price"))
-            if entry is None:
-                # A directional decision that never obtained a valid execution
-                # must become terminal once its governed entry/holding window is
-                # over. Do not fabricate an entry, exit or P/L: record the
-                # execution outcome separately from a model-level NO TRADE.
-                if side in {"long", "short"}:
-                    item["trade_status"] = "expired_no_entry"
-                    item["entry_quality_status"] = "expired_without_execution"
-                    item["entry_expiry_reason"] = "governed_deadline_elapsed_without_entry"
-                    item["entry_expired_at"] = deadline.isoformat(timespec="seconds")
-                    item["execution_outcome"] = "no_entry"
-                    if v2.mark_exposure_closed(item):
-                        changed = True
-                    changed = True
-                continue
-            if sf(item.get("exit_price")) is not None:
-'''
-          if old not in text:
-              raise SystemExit('Expected lifecycle block not found; refusing unsafe patch')
-          lifecycle.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
-
-          test = Path('tests/test_wes_lifecycle_expired_no_entry.py')
-          test.write_text('''from __future__ import annotations\n\nimport json\nimport sys\nfrom datetime import datetime\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nSCRIPTS = ROOT / "scripts"\nif str(SCRIPTS) not in sys.path:\n    sys.path.insert(0, str(SCRIPTS))\n\nimport investments_wes_lifecycle as lifecycle\n\n\ndef test_directional_decision_without_entry_expires_after_deadline(tmp_path, monkeypatch):\n    week = {\n        "week_id": "2026-W37",\n        "market_window": {"exit_target_local": "2026-09-11T22:00:00+02:00"},\n        "instruments": [{\n            "instrument_id": "sp500_futures",\n            "symbol": "ES=F",\n            "direction": "short",\n            "entry_price": None,\n            "exit_price": None,\n            "trade_status": "planned",\n            "pending_entry_decision": {"decision": {"direction": "short"}},\n            "continuous_exposure_active": True,\n            "continuous_exposure_status": "open",\n            "next_entry_status": "pending",\n        }],\n    }\n    path = tmp_path / "2026-W37.json"\n    path.write_text(json.dumps(week), encoding="utf-8")\n    monkeypatch.setattr(lifecycle, "WEEKLY_DIR", tmp_path)\n\n    changed = lifecycle.settle_due_positions(datetime.fromisoformat("2026-09-14T13:00:00+02:00"))\n    saved = json.loads(path.read_text(encoding="utf-8"))\n    row = saved["instruments"][0]\n\n    assert changed is True\n    assert row["trade_status"] == "expired_no_entry"\n    assert row["execution_outcome"] == "no_entry"\n    assert row["pending_entry_decision"] is None\n    assert row["continuous_exposure_active"] is False\n    assert row["continuous_exposure_status"] == "closed"\n    assert row["entry_price"] is None\n    assert row["exit_price"] is None\n    assert row.get("result") != "no_trade"\n''', encoding='utf-8', newline='\n')
-          PY
-
-          python -m py_compile scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py
-
-      - name: Commit governed repair and remove one-off workflow
-        shell: bash
-        run: |
-          rm .github/workflows/oneoff-weekly-lifecycle-repair.yml
           git config user.name 'briefrooms-automation'
           git config user.email 'actions@users.noreply.github.com'
-          git add scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py .github/workflows/oneoff-weekly-lifecycle-repair.yml
+          git add scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py
           git commit -m 'Expire unexecuted weekly decisions after governed deadline'
           git push origin HEAD:main
-
-# one-off trigger: 2026-09-14T14:12+02:00
