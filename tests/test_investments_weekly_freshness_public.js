@@ -57,7 +57,10 @@ test('missing target fetch becomes explicit MISSING_DECISION instead of stale fa
   const data = await response.json();
   assert.equal(data.week_id, '2026-W38');
   assert.equal(data.decision_state, 'MISSING_DECISION');
-  assert.deepEqual(data.instruments, []);
+  // Arrays created inside vm.runInContext belong to a different JS realm;
+  // assert semantic emptiness instead of prototype identity.
+  assert.equal(Array.isArray(data.instruments), true);
+  assert.equal(data.instruments.length, 0);
   assert.equal(Object.hasOwn(data, 'trade_status'), false);
 });
 
