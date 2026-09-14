@@ -33,7 +33,7 @@ jobs:
             if entry is None:
                 # A directional decision that never obtained a valid execution
                 # must become terminal once its governed entry/holding window is
-                # over.  Do not fabricate an entry, exit or P/L: record the
+                # over. Do not fabricate an entry, exit or P/L: record the
                 # execution outcome separately from a model-level NO TRADE.
                 if side in {"long", "short"}:
                     item["trade_status"] = "expired_no_entry"
@@ -66,3 +66,5 @@ jobs:
           git add scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py .github/workflows/oneoff-weekly-lifecycle-repair.yml
           git commit -m 'Expire unexecuted weekly decisions after governed deadline'
           git push origin HEAD:main
+
+# one-off trigger: 2026-09-14T14:12+02:00
