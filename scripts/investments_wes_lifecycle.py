@@ -239,29 +239,56 @@ def settle_due_positions(now: Optional[datetime] = None) -> bool:
             deadline = position_deadline(week, item)
             if deadline is None or now < deadline:
                 continue
-            side = str(item.get("direction") or "neutral")
+            side = str(item.get("direction") or "neutral").lower()
+            entry = sf(item.get("entry_price"))
+            status = str(item.get("trade_status") or "").strip().lower().replace(" ", "_")
+
+            # The frozen weekly forecast may remain neutral while WES later
+            # authorizes a directional entry. If that authorization never
+            # executes, the base NO TRADE result and the execution outcome are
+            # different facts and must not be conflated.
+            execution_side = side if side in {"long", "short"} else None
+            if execution_side is None and status in {"planned", "pending"}:
+                pending = item.get("pending_entry_decision")
+                pending_decision = pending.get("decision") if isinstance(pending, dict) else None
+                pending_side = str((pending_decision or {}).get("direction") or "").lower() if isinstance(pending_decision, dict) else ""
+                auth = _authorization(item)
+                candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+                authorized_side = str(candidate.get("direction") or "").lower()
+                if pending_side in {"long", "short"}:
+                    execution_side = pending_side
+                elif authorized_side in {"long", "short"}:
+                    execution_side = authorized_side
+
+            if entry is None and execution_side in {"long", "short"}:
+                # A directional decision/authorization that never obtained a
+                # valid execution becomes terminal at its governed deadline.
+                # Never fabricate an entry, exit or P/L.
+                item["trade_status"] = "expired_no_entry"
+                item["entry_quality_status"] = "expired_without_execution"
+                item["entry_expiry_reason"] = "governed_deadline_elapsed_without_entry"
+                item["entry_expired_at"] = deadline.isoformat(timespec="seconds")
+                item["execution_outcome"] = "no_entry"
+                item["expired_entry_direction"] = execution_side
+                if v2.mark_exposure_closed(item):
+                    changed = True
+                changed = True
+                continue
+
             if side == "neutral":
                 if now >= weekly_deadline and item.get("result") != "no_trade":
-                    item.update(result="no_trade", result_value=0.0, result_percent=0.0, trade_status="no_trade")
+                    item.update(result="no_trade", result_value=0.0, result_percent=0.0)
+                    changed = True
+                # A neutral observation must also never retain an open/planned
+                # lifecycle status after the weekly deadline.
+                if now >= weekly_deadline and status in {"planned", "pending"}:
+                    item["trade_status"] = "no_trade"
                     changed = True
                 if now >= weekly_deadline and v2.mark_exposure_closed(item):
                     changed = True
                 continue
-            entry = sf(item.get("entry_price"))
+
             if entry is None:
-                # A directional decision that never obtained a valid execution
-                # must become terminal once its governed entry/holding window is
-                # over. Do not fabricate an entry, exit or P/L: record the
-                # execution outcome separately from a model-level NO TRADE.
-                if side in {"long", "short"}:
-                    item["trade_status"] = "expired_no_entry"
-                    item["entry_quality_status"] = "expired_without_execution"
-                    item["entry_expiry_reason"] = "governed_deadline_elapsed_without_entry"
-                    item["entry_expired_at"] = deadline.isoformat(timespec="seconds")
-                    item["execution_outcome"] = "no_entry"
-                    if v2.mark_exposure_closed(item):
-                        changed = True
-                    changed = True
                 continue
             if sf(item.get("exit_price")) is not None:
                 if v2.mark_exposure_closed(item):
