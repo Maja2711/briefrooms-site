@@ -129,6 +129,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             "Update 10K Model Portfolio",
             "Build Governed Investments Weekly Forecasts",
             "Governed Weekly Paper Exposure Watch",
+            "Weekly Freshness Watchdog",
             "Update Investment Room Quotes",
             "Publish EN YouTube Recommendations",
             "Audit Automation Health",
@@ -157,6 +158,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             "investments-exposure-watch.yml",
             "investments-weekly.yml",
             "investments-wes.yml",
+            "investments-weekly-freshness-watchdog.yml",
         }
         actual_owners = set(owners("git add data/investments/weekly \\"))
         self.assertEqual(expected_owners, actual_owners)
