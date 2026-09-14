@@ -20,12 +20,12 @@ jobs:
         run: python scripts/oneoff_patch_weekly_lifecycle.py
 
       - name: Compile patched files
-        run: python -m py_compile scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py
+        run: python -m py_compile scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py tests/test_automation_workflow_ownership.py
 
       - name: Commit repair
         run: |
           git config user.name 'briefrooms-automation'
           git config user.email 'actions@users.noreply.github.com'
-          git add scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py
-          git commit -m 'Expire unexecuted weekly decisions after governed deadline'
+          git add scripts/investments_wes_lifecycle.py tests/test_wes_lifecycle_expired_no_entry.py tests/test_automation_workflow_ownership.py
+          git commit -m 'Align Weekly lifecycle ownership regression'
           git push origin HEAD:main
