@@ -9,7 +9,8 @@
     lab:'BriefRooms Lab — modele, testy i wyniki',
     shareTitle:'BriefRooms Ci się przydał? Podaj dalej.',
     shareText:'Krótkie briefy, konkretne źródła i mniej informacyjnego szumu.',
-    engine:'BriefRooms Trading Engine · WEEKLY'
+    engine:'BriefRooms Trading Engine · WEEKLY',
+    thoughtLabel:'Myśl AXIOM-a'
   }:{
     eyebrow:'Latest briefs',
     heading:'What really matters today',
@@ -17,8 +18,17 @@
     lab:'BriefRooms Lab — models, tests and results',
     shareTitle:'Found BriefRooms useful? Share it.',
     shareText:'Concise briefs, concrete sources and less information noise.',
-    engine:'BriefRooms Trading Engine · WEEKLY'
+    engine:'BriefRooms Trading Engine · WEEKLY',
+    thoughtLabel:'AXIOM thought'
   };
+
+  const fallbackThought={
+    pl:'„Przyszłość rzadko zaczyna się od wielkiego przełomu — częściej od jednej decyzji, której nikt poza tobą jeszcze nie rozumie.”',
+    en:'“The future rarely begins with a great breakthrough — more often, it begins with one decision that nobody but you understands yet.”',
+    author:'AXIOM',
+    brand:'BriefRooms'
+  };
+  let thought=fallbackThought;
 
   function setText(node,value){
     if(node&&node.textContent!==value)node.textContent=value;
@@ -31,8 +41,16 @@
     style.textContent=[
       '.home-intelligence-eyebrow{display:block;margin:0 0 7px;color:#75eee5;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}',
       '.home-intelligence-promise{max-width:760px;margin:10px 0 0;color:#9fb2c8;font-size:13px;line-height:1.5}',
+      '.main-head{position:relative}',
+      '.axiom-thought{position:absolute;top:28px;right:0;width:min(440px,46%);text-align:right;pointer-events:none;z-index:2}',
+      '.axiom-thought blockquote{margin:0}',
+      '.axiom-thought__quote{margin:0;color:#dcebf6;font-size:14px;font-weight:650;line-height:1.48;font-style:italic;text-wrap:balance;text-shadow:0 1px 12px rgba(0,0,0,.18)}',
+      '.axiom-thought__signature{display:flex;justify-content:flex-end;align-items:baseline;gap:7px;margin-top:7px;font-style:normal}',
+      '.axiom-thought__signature strong{color:#8ffff6;font-size:10px;font-weight:950;letter-spacing:.08em}',
+      '.axiom-thought__signature small{color:#7f93a8;font-size:9px;letter-spacing:.02em}',
       '.br-share-strip.br-share-strip--footer{margin:30px 0 0}',
-      '@media(max-width:680px){.home-intelligence-promise{font-size:12px}.br-share-strip.br-share-strip--footer{margin-top:22px}}'
+      '@media(max-width:1240px){.axiom-thought{position:static;width:auto;max-width:680px;margin:0 0 16px auto;text-align:left}.axiom-thought__signature{justify-content:flex-start}}',
+      '@media(max-width:680px){.home-intelligence-promise{font-size:12px}.axiom-thought{margin:0 0 14px}.axiom-thought__quote{font-size:13px}.br-share-strip.br-share-strip--footer{margin-top:22px}}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -56,6 +74,31 @@
       heading.insertAdjacentElement('afterend',promise);
     }
     setText(promise,copy.promise);
+  }
+
+  function applyThought(){
+    const head=document.querySelector('.main-head');
+    if(!head)return;
+    let card=head.querySelector('.axiom-thought');
+    if(!card){
+      card=document.createElement('aside');
+      card.className='axiom-thought';
+      card.setAttribute('aria-label',copy.thoughtLabel);
+      const quote=document.createElement('blockquote');
+      const text=document.createElement('p');
+      text.className='axiom-thought__quote';
+      const cite=document.createElement('cite');
+      cite.className='axiom-thought__signature';
+      const author=document.createElement('strong');
+      const brand=document.createElement('small');
+      cite.append(author,brand);
+      quote.append(text,cite);
+      card.appendChild(quote);
+      head.appendChild(card);
+    }
+    setText(card.querySelector('.axiom-thought__quote'),thought[lang]||fallbackThought[lang]);
+    setText(card.querySelector('.axiom-thought__signature strong'),thought.author||'AXIOM');
+    setText(card.querySelector('.axiom-thought__signature small'),thought.brand||'BriefRooms');
   }
 
   function applyLabTitle(){
@@ -86,12 +129,33 @@
   function apply(){
     ensureStyles();
     applyHeading();
+    applyThought();
     applyLabTitle();
     moveShareToFooter();
     normalizeTradingSignal();
   }
 
+  async function loadThought(){
+    try{
+      const response=await fetch(`/data/home/axiom-thought.json?v=${Date.now()}`,{cache:'no-store'});
+      if(!response.ok)return;
+      const data=await response.json();
+      if(data&&typeof data==='object'){
+        thought={
+          pl:typeof data.pl==='string'&&data.pl.trim()?data.pl.trim():fallbackThought.pl,
+          en:typeof data.en==='string'&&data.en.trim()?data.en.trim():fallbackThought.en,
+          author:typeof data.author==='string'&&data.author.trim()?data.author.trim():'AXIOM',
+          brand:typeof data.brand==='string'&&data.brand.trim()?data.brand.trim():'BriefRooms'
+        };
+        applyThought();
+      }
+    }catch(_){
+      // Fail closed to the embedded first thought; the rest of the homepage remains untouched.
+    }
+  }
+
   apply();
+  loadThought();
   if(typeof MutationObserver==='function'){
     const observer=new MutationObserver(()=>apply());
     observer.observe(document.body,{childList:true,subtree:true});
