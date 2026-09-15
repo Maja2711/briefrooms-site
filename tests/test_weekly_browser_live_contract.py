@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260915-3"
-SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-1"
+SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-2"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -50,6 +50,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("['direct', 'codetabs', 'allorigins']", source)
         self.assertIn("MutationObserver", source)
         self.assertIn("· LIVE ·", source)
+        self.assertIn("nowBox.dataset.feedStatus === 'live'", source)
+        self.assertIn("nowBox.dataset.feedStatus === 'fallback'", source)
 
 
 if __name__ == "__main__":
