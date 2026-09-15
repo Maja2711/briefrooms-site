@@ -19,12 +19,12 @@ LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab\.js[^"\']*["\'
 
 COPY = {
     "pl": {
-        "title": "BriefRooms Lab",
+        "title": "BriefRooms Lab — modele, testy i wyniki",
         "desc": "Badania, uczenie i rozwój silników BriefRooms — wyniki, postęp i status przeglądów.",
         "loading": "Ładowanie wyników badań…",
     },
     "en": {
-        "title": "BriefRooms Lab",
+        "title": "BriefRooms Lab — models, tests and results",
         "desc": "Research, learning and engine development at BriefRooms — results, progress and review status.",
         "loading": "Loading research results…",
     },
@@ -96,6 +96,7 @@ def check() -> None:
             'id="home-lab-root"',
             '/assets/home-lab.css?v=1',
             '/scripts/home-lab.js?v=1',
+            COPY[lang]["title"],
         )
         for marker in required:
             if marker not in source:
