@@ -92,11 +92,11 @@ def main() -> None:
                 "result_percent": 0.0 if direction == "neutral" else None,
                 "rationale_pl": [
                     "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
-                    "Warstwa ciągłej ekspozycji jest częścią BriefRooms Trading Engine.",
+                    "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading.",
                 ],
                 "rationale_en": [
                     "Recovery forecast created during the current week because the full Sunday run was missing.",
-                    "The continuous-exposure layer is part of BriefRooms Trading Engine.",
+                    "The continuous-exposure layer remains an experimental paper-trading exercise only.",
                 ],
             }
         )
