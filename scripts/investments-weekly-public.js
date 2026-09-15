@@ -295,6 +295,22 @@
   let quarantineCache = new Map();
   let liveCache = {};
   let selectedWeekId = null;
+  let liveRefreshInFlight = false;
+
+  function updateLiveStatus(live, loadFailed = false) {
+    const updated = $('updated');
+    if (!updated) return;
+    if (loadFailed) {
+      updated.textContent = T.loadError;
+      updated.classList.add('stale');
+      updated.setAttribute('role', 'status');
+      return;
+    }
+    const stale = liveIsStale(live);
+    updated.textContent = stale ? T.stale : `${T.updated}: ${fmtTime(live.updated_at || '')}`;
+    updated.classList.toggle('stale', stale);
+    updated.setAttribute('role', 'status');
+  }
 
   function render() {
     if (!weeksCache.length) return;
@@ -339,6 +355,21 @@
   };
   window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid };
 
+  async function refreshLive() {
+    if (liveRefreshInFlight || document.hidden) return;
+    liveRefreshInFlight = true;
+    try {
+      const live = await json('/data/investments/live_prices.json');
+      liveCache = live;
+      updateLiveStatus(live);
+      render();
+    } catch (_) {
+      updateLiveStatus(liveCache, true);
+    } finally {
+      liveRefreshInFlight = false;
+    }
+  }
+
   async function main() {
     try {
       const [live, weeks, quarantine] = await Promise.all([
@@ -350,24 +381,14 @@
       weeksCache = weeks;
       quarantineCache = quarantineMap(quarantine);
       selectedWeekId = selectedWeekId || weeks[0]?.week_id || null;
-      const updated = $('updated');
-      if (updated) {
-        const stale = liveIsStale(live);
-        updated.textContent = stale ? T.stale : `${T.updated}: ${fmtTime(live.updated_at || '')}`;
-        updated.classList.toggle('stale', stale);
-      }
+      updateLiveStatus(live);
       render();
     } catch (_) {
-      const updated = $('updated');
-      if (updated) {
-        updated.textContent = T.loadError;
-        updated.classList.add('stale');
-        updated.setAttribute('role', 'status');
-      }
+      updateLiveStatus(liveCache, true);
     }
   }
 
   main();
-  setInterval(main, 15 * 60 * 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) main(); });
+  setInterval(refreshLive, 30 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLive(); });
 }());
