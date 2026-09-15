@@ -1,6 +1,6 @@
 {
   "layer_version": "5.6.0-experimental",
-  "generated_at": "2026-09-15T20:10:44+02:00",
+  "generated_at": "2026-09-15T22:28:04+02:00",
   "instruments": {
     "eurusd": {
       "validation_gate": "enabled_for_paper_trading",
@@ -127,8 +127,8 @@
         "methods": {
           "base_v2": {
             "context": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -157,8 +157,8 @@
           },
           "weekly_trend": {
             "context": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -172,8 +172,8 @@
           },
           "daily_weekly_blend": {
             "context": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -187,8 +187,8 @@
           },
           "ema_mean_reversion": {
             "context": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -206,17 +206,40 @@
         "strategy_id": "no_trade",
         "direction": "neutral",
         "raw_score": 0.0,
-        "utility": 4.2833,
+        "utility": 4.0976,
         "reason_codes": [
           "directional_edge_below_threshold",
           "selected_utility_below_threshold"
         ],
         "candidates": {
+          "ema_mean_reversion": {
+            "direction": "long",
+            "raw_score": 21.761745848989108,
+            "conviction": 3.2643,
+            "base_conviction": 3.2643,
+            "contextual_learning_context": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+            "contextual_learning_components": {
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
+              "weekly_regime": "trend_flat:vol_normal",
+              "macro_alignment": "macro_not_applicable",
+              "ma_alignment": "ma_not_applicable"
+            },
+            "contextual_learning_count": 0,
+            "contextual_candidate_observation_count": 8,
+            "contextual_learning_mean_net_percent": 0.0,
+            "contextual_learning_adjustment": 0.0,
+            "strategy_id": "ema_mean_reversion",
+            "learning_count": 8,
+            "learning_adjustment": 0.0,
+            "exploration_bonus": 0.8333,
+            "utility": 4.0976
+          },
           "inverse_v2": {
             "direction": "short",
-            "raw_score": -23.0,
-            "conviction": 3.45,
-            "base_conviction": 3.45,
+            "raw_score": -12.0,
+            "conviction": 1.8,
+            "base_conviction": 1.8,
             "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
               "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -233,17 +256,17 @@
             "learning_count": 8,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.8333,
-            "utility": 4.2833
+            "utility": 2.6333
           },
           "base_v2": {
             "direction": "long",
-            "raw_score": 23.0,
-            "conviction": 3.45,
-            "base_conviction": 3.45,
-            "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+            "raw_score": 12.0,
+            "conviction": 1.8,
+            "base_conviction": 1.8,
+            "contextual_learning_context": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -256,17 +279,17 @@
             "learning_count": 8,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.8333,
-            "utility": 4.2833
+            "utility": 2.6333
           },
           "daily_weekly_blend": {
             "direction": "long",
-            "raw_score": 20.2,
-            "conviction": 3.03,
-            "base_conviction": 3.03,
-            "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+            "raw_score": 11.6,
+            "conviction": 1.74,
+            "base_conviction": 1.74,
+            "contextual_learning_context": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -279,17 +302,17 @@
             "learning_count": 8,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.8333,
-            "utility": 3.8633
+            "utility": 2.5733
           },
           "weekly_trend": {
             "direction": "long",
-            "raw_score": 16.0,
-            "conviction": 2.4,
-            "base_conviction": 2.4,
-            "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+            "raw_score": 11.0,
+            "conviction": 1.65,
+            "base_conviction": 1.65,
+            "contextual_learning_context": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
+              "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+              "momentum": "against_aligned_down_momentum",
               "weekly_regime": "trend_flat:vol_normal",
               "macro_alignment": "macro_not_applicable",
               "ma_alignment": "ma_not_applicable"
@@ -302,30 +325,7 @@
             "learning_count": 8,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.8333,
-            "utility": 3.2333
-          },
-          "ema_mean_reversion": {
-            "direction": "long",
-            "raw_score": 4.541175951879492,
-            "conviction": 0.6812,
-            "base_conviction": 0.6812,
-            "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-            "contextual_learning_components": {
-              "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-              "momentum": "not_against_aligned_momentum",
-              "weekly_regime": "trend_flat:vol_normal",
-              "macro_alignment": "macro_not_applicable",
-              "ma_alignment": "ma_not_applicable"
-            },
-            "contextual_learning_count": 0,
-            "contextual_candidate_observation_count": 8,
-            "contextual_learning_mean_net_percent": 0.0,
-            "contextual_learning_adjustment": 0.0,
-            "strategy_id": "ema_mean_reversion",
-            "learning_count": 8,
-            "learning_adjustment": 0.0,
-            "exploration_bonus": 0.8333,
-            "utility": 1.5145
+            "utility": 2.4833
           }
         },
         "macro_context": {
@@ -347,8 +347,8 @@
           "methods": {
             "base_v2": {
               "context": {
-                "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-                "momentum": "not_against_aligned_momentum",
+                "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+                "momentum": "against_aligned_down_momentum",
                 "weekly_regime": "trend_flat:vol_normal",
                 "macro_alignment": "macro_not_applicable",
                 "ma_alignment": "ma_not_applicable"
@@ -377,8 +377,8 @@
             },
             "weekly_trend": {
               "context": {
-                "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-                "momentum": "not_against_aligned_momentum",
+                "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+                "momentum": "against_aligned_down_momentum",
                 "weekly_regime": "trend_flat:vol_normal",
                 "macro_alignment": "macro_not_applicable",
                 "ma_alignment": "ma_not_applicable"
@@ -392,8 +392,8 @@
             },
             "daily_weekly_blend": {
               "context": {
-                "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-                "momentum": "not_against_aligned_momentum",
+                "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+                "momentum": "against_aligned_down_momentum",
                 "weekly_regime": "trend_flat:vol_normal",
                 "macro_alignment": "macro_not_applicable",
                 "ma_alignment": "ma_not_applicable"
@@ -407,8 +407,8 @@
             },
             "ema_mean_reversion": {
               "context": {
-                "key": "momentum=not_against_aligned_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
-                "momentum": "not_against_aligned_momentum",
+                "key": "momentum=against_aligned_down_momentum|regime=trend_flat:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
+                "momentum": "against_aligned_down_momentum",
                 "weekly_regime": "trend_flat:vol_normal",
                 "macro_alignment": "macro_not_applicable",
                 "ma_alignment": "ma_not_applicable"
