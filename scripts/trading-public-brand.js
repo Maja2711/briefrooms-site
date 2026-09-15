@@ -2,13 +2,15 @@
   'use strict';
   const root=document.querySelector('main')||document.body;
   if(!root)return;
-  const replacement='BriefRooms Trading Engine';
-  const patterns=[/paper[\s-]*trading/gi,/paper[\s_-]*only/gi];
 
   function cleanText(value){
-    let out=String(value||'');
-    for(const pattern of patterns)out=out.replace(pattern,replacement);
-    return out;
+    return String(value||'')
+      .replace(/Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper[-\s]?trading\.?/gi,'Warstwa ciągłej ekspozycji jest częścią BriefRooms Trading Engine.')
+      .replace(/The continuous-exposure layer remains an experimental paper[-\s]?trading exercise only\.?/gi,'The continuous-exposure layer is part of BriefRooms Trading Engine.')
+      .replace(/Moduł badawczy\s*\/\s*paper[-\s]?trading/gi,'Moduł analityczny BriefRooms Trading Engine')
+      .replace(/research\s*\/\s*paper[-\s]?trading/gi,'BriefRooms Trading Engine research')
+      .replace(/paper[\s-]*trading/gi,'BriefRooms Trading Engine')
+      .replace(/paper[\s_-]*only/gi,'BriefRooms Trading Engine');
   }
 
   function sanitize(node){
