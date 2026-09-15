@@ -3,25 +3,6 @@
   const root=document.getElementById('home-lab-root');
   if(!root)return;
   const lang=(document.documentElement.lang||'pl').toLowerCase().startsWith('en')?'en':'pl';
-  const brand=lang==='pl'?{
-    eyebrow:'Najnowsze briefy',
-    headline:'Co dziś naprawdę ma znaczenie',
-    promise:'Najważniejsze wydarzenia. Własne modele. Sprawdzalne wyniki.',
-    detail:'BriefRooms filtruje informacyjny szum, analizuje konsekwencje i mierzy trafność swoich modeli.',
-    shareTitle:'BriefRooms Ci się przydał? Podaj dalej.',
-    shareText:'Pomóż innym trafić do krótkich briefów, konkretnych źródeł i własnych analiz BriefRooms.',
-    labTitle:'BriefRooms Lab — modele, testy i wyniki',
-    labText:'Własne modele BriefRooms: badania, porównania, mierzone wyniki i status rozwoju.'
-  }:{
-    eyebrow:'Latest briefs',
-    headline:'What really matters today',
-    promise:'Key events. Proprietary models. Measurable results.',
-    detail:'BriefRooms filters information noise, analyses consequences and measures the performance of its models.',
-    shareTitle:'Found BriefRooms useful? Share it.',
-    shareText:'Help others find concise briefs, concrete sources and BriefRooms original analysis.',
-    labTitle:'BriefRooms Lab — models, tests and results',
-    labText:'BriefRooms proprietary models: research, comparisons, measured results and development status.'
-  };
   const t={
     pl:{active:'aktywne badania',review:'wymaga przeglądu',auto:'auto-promocje',finding:'Wniosek',updated:'Aktualizacja',unavailable:'Brak świeżego statusu',loading:'Ładowanie wyników badań…'},
     en:{active:'active research',review:'needs review',auto:'auto-promotions',finding:'Finding',updated:'Updated',unavailable:'Fresh status unavailable',loading:'Loading research results…'}
@@ -31,51 +12,6 @@
   const pct=v=>Number.isFinite(Number(v))?`${Math.round(Number(v)*100)}%`:'—';
   const bp=v=>Number.isFinite(Number(v))?`${Number(v)>=0?'+':''}${Number(v).toFixed(2)} bp`:'—';
   const fmtTime=v=>{if(!v)return null;const d=new Date(v);if(Number.isNaN(d.getTime()))return null;return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);};
-
-  function applyBrandHierarchy(){
-    const mainHead=document.querySelector('.main-head');
-    const sectionHead=mainHead?.querySelector('.section-head > div');
-    const heading=sectionHead?.querySelector('h1');
-    if(sectionHead&&heading){
-      let eyebrow=sectionHead.querySelector('.home-intel-eyebrow');
-      if(!eyebrow){eyebrow=$('span','home-intel-eyebrow');sectionHead.insertBefore(eyebrow,heading);}
-      eyebrow.textContent=brand.eyebrow;
-      heading.textContent=brand.headline;
-      let lead=sectionHead.querySelector('.home-intel-lead');
-      if(!lead){lead=$('p','home-intel-lead');heading.insertAdjacentElement('afterend',lead);}
-      lead.replaceChildren($('strong','',brand.promise),$('span','',brand.detail));
-    }
-
-    const labTitle=document.getElementById('home-lab-title');
-    if(labTitle){
-      labTitle.textContent=brand.labTitle;
-      const copy=labTitle.parentElement?.querySelector('p');
-      if(copy)copy.textContent=brand.labText;
-    }
-
-    const share=document.querySelector('.br-share-strip');
-    const page=document.querySelector('.page');
-    const footer=page?.querySelector('footer');
-    if(share&&page&&footer){
-      const title=share.querySelector('.br-share-copy strong');
-      const text=share.querySelector('.br-share-copy span');
-      if(title)title.textContent=brand.shareTitle;
-      if(text)text.textContent=brand.shareText;
-      share.classList.add('is-footer-share');
-      if(share.nextElementSibling!==footer)page.insertBefore(share,footer);
-    }
-
-    const signal=document.getElementById('home-market-signal');
-    const kicker=signal?.querySelector('.home-market-signal__kicker');
-    if(kicker)kicker.textContent='BriefRooms Trading Engine';
-
-    if(!document.getElementById('home-intelligence-hierarchy-style')){
-      const style=$('style');
-      style.id='home-intelligence-hierarchy-style';
-      style.textContent='.home-intel-eyebrow{display:block;margin-bottom:7px;color:#75eee5;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.home-intel-lead{display:flex;flex-direction:column;gap:4px;max-width:760px;margin:12px 0 0!important;color:#9fb2c8!important;font-size:13px!important;line-height:1.45!important}.home-intel-lead strong{color:#dff7ff;font-size:14px}.home-intel-lead span{display:block}.br-share-strip.is-footer-share{margin:32px 0 0;padding:15px 17px}@media(max-width:680px){.home-intel-lead{font-size:12px!important}.home-intel-lead strong{font-size:13px}}';
-      document.head.append(style);
-    }
-  }
 
   function applyDynamic(config,gseDiscovery,gseReview,eurusd){
     const cards=(config.cards||[]).map(x=>JSON.parse(JSON.stringify(x)));
@@ -143,7 +79,6 @@
   }
 
   async function run(){
-    applyBrandHierarchy();
     root.setAttribute('aria-busy','true');
     const [config,gseDiscovery,gseReview,eurusd]=await Promise.all([
       fetchJson('/data/lab/home_lab_status.json'),
@@ -162,11 +97,6 @@
     if(latest&&Date.now()-latest.getTime()>48*3600*1000)fresh.classList.add('is-stale');
     foot.append(fresh,$('span','',lang==='pl'?'Status badawczy · bez automatycznej promocji':'Research status · no automatic promotion'));
     root.append(foot);root.removeAttribute('aria-busy');
-    applyBrandHierarchy();
   }
-
-  const observer=typeof MutationObserver==='function'?new MutationObserver(()=>applyBrandHierarchy()):null;
-  if(observer)observer.observe(document.documentElement,{childList:true,subtree:true});
-  window.addEventListener('pagehide',()=>observer?.disconnect(),{once:true});
   run();
 })();
