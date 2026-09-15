@@ -16,6 +16,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
+CACHE_DIR = ROOT / ".cache"
 HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 10
@@ -181,6 +182,24 @@ def enforce_payload(
     return payload, state_lang
 
 
+def _write_compatibility_home(lang: str, payload: dict[str, Any], now: datetime) -> None:
+    """Keep the legacy/static homepage feed aligned with the canonical live feed.
+
+    The news workflow copies these last-good files back to pl/en/home_brief.json.
+    Rebuild them from the already validated, freshness-capped canonical home list so
+    a JavaScript failure can never expose an obsolete months-old homepage.
+    """
+    home = payload.get("home") if isinstance(payload.get("home"), list) else []
+    if len(home) != HOME_LIMIT:
+        raise RuntimeError(f"{lang} compatibility homepage requires exactly {HOME_LIMIT} stories")
+    compatibility = base.compatibility_home(lang, home, now)
+    text = json.dumps(compatibility, ensure_ascii=False, indent=2) + "\n"
+    (ROOT / lang / "home_brief.json").write_text(text, encoding="utf-8")
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_name = "home_brief_pl_last_good.json" if lang == "pl" else "home_brief_en_last_good.json"
+    (CACHE_DIR / cache_name).write_text(text, encoding="utf-8")
+
+
 def _load_state() -> dict[str, Any]:
     try:
         value = json.loads(STATE_PATH.read_text(encoding="utf-8"))
@@ -212,6 +231,7 @@ def enforce_files() -> None:
             languages[lang] = state_lang
         payload, _ = enforce_payload(payload, state_lang, now)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _write_compatibility_home(lang, payload, now)
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -244,6 +264,14 @@ def validate_files() -> None:
             first_seen = _parse_time(story.get("homepage_first_seen_at"))
             if first_seen is None or now - first_seen > HOME_MAX_AGE:
                 raise RuntimeError(f"{lang} homepage contains overexposed story: {story.get('title')}")
+
+        compatibility = json.loads((ROOT / lang / "home_brief.json").read_text(encoding="utf-8"))
+        compatibility_updated = _parse_time(compatibility.get("updated_at"))
+        if compatibility_updated is None or now - compatibility_updated > timedelta(minutes=20):
+            raise RuntimeError(f"{lang} compatibility homepage feed is stale")
+        latest = compatibility.get("latest") if isinstance(compatibility.get("latest"), list) else []
+        if len(latest) != HOME_LIMIT:
+            raise RuntimeError(f"{lang} compatibility homepage must contain exactly {HOME_LIMIT} stories")
 
 
 def main() -> None:
