@@ -72,6 +72,50 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)
         self.assertLess(rendered.index(live_url), rendered.index(floor_url))
+        self.assertNotIn('/scripts/home-intelligence-layout.js', rendered)
+
+    def test_homepage_installer_adds_lab_and_intelligence_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / 'pl' / 'index.html'
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                '<html><body><main></main>'
+                '<script src="/scripts/home-lab.js?v=old" defer></script>'
+                '<script src="/scripts/home-intelligence-layout.js?v=old" defer></script>'
+                '</body></html>',
+                encoding='utf-8',
+            )
+            with patch.object(runtime, 'apply_homepage_freshness', side_effect=lambda source, lang: source):
+                runtime.install(path)
+            rendered = path.read_text(encoding='utf-8')
+
+        lab_url = '/scripts/home-lab.js?v=1'
+        intelligence_url = '/scripts/home-intelligence-layout.js?v=1'
+        live_url = '/scripts/news-live.js?v=6&rev=image2'
+        floor_url = '/scripts/home-card-floor.js?v=2'
+        self.assertEqual(rendered.count(lab_url), 1)
+        self.assertEqual(rendered.count(intelligence_url), 1)
+        self.assertEqual(rendered.count(live_url), 1)
+        self.assertEqual(rendered.count(floor_url), 1)
+        self.assertLess(rendered.index(lab_url), rendered.index(intelligence_url))
+        self.assertLess(rendered.index(intelligence_url), rendered.index(live_url))
+
+    def test_homepage_intelligence_runtime_is_syntax_valid_and_non_destructive(self) -> None:
+        script = runtime.ROOT / 'scripts' / 'home-intelligence-layout.js'
+        completed = subprocess.run(
+            ['node', '--check', str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        source = script.read_text(encoding='utf-8')
+        self.assertIn("heading:'Co dziś naprawdę ma znaczenie'", source)
+        self.assertIn("engine:'BriefRooms Trading Engine · WEEKLY'", source)
+        self.assertIn("shareTitle:'BriefRooms Ci się przydał? Podaj dalej.'", source)
+        self.assertIn("lab:'BriefRooms Lab — modele, testy i wyniki'", source)
+        self.assertNotIn('paper trading', source.lower())
+        self.assertNotIn('innerHTML=', source)
 
     def test_floor_guard_requires_ten_cards_with_real_https_images(self) -> None:
         script = runtime.ROOT / 'scripts' / 'home-card-floor.js'
