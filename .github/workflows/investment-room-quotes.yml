@@ -5,11 +5,13 @@ on:
   push:
     branches: [main]
     paths:
+      - "scripts/investments_weekly.py"
       - "scripts/update_investment_room_quotes.py"
       - "scripts/update_investment_room_quotes_v2.py"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
-    # Five-minute cadence, offset from the top of the hour to reduce scheduler contention.
+    # GitHub Actions supports a five-minute minimum cadence. Keep a small offset
+    # from the top of the hour to reduce scheduler contention.
     - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
 permissions:
@@ -17,7 +19,7 @@ permissions:
 
 concurrency:
   group: investment-room-quotes
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update-investment-room-quotes:
@@ -40,6 +42,57 @@ jobs:
       - name: Update investment room quotes
         run: python scripts/update_investment_room_quotes_v2.py
 
+      - name: Validate live quote snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("data/investments/live_prices.json")
+          if not path.exists():
+              raise SystemExit("live_prices.json was not generated")
+
+          data = json.loads(path.read_text(encoding="utf-8"))
+          raw_updated_at = data.get("updated_at")
+          if not raw_updated_at:
+              raise SystemExit("live_prices.json has no updated_at")
+
+          updated_at = datetime.fromisoformat(raw_updated_at)
+          if updated_at.tzinfo is None:
+              raise SystemExit("live_prices.json updated_at must be timezone-aware")
+
+          age_seconds = (datetime.now(timezone.utc) - updated_at.astimezone(timezone.utc)).total_seconds()
+          if age_seconds < -60 or age_seconds > 15 * 60:
+              raise SystemExit(f"live_prices.json snapshot is stale: age={age_seconds:.0f}s")
+
+          prices = data.get("prices") or {}
+          expected = {"eurusd", "sp500_futures", "btcusd"}
+          missing = sorted(expected - set(prices))
+          if missing:
+              raise SystemExit(f"live_prices.json is missing instruments: {', '.join(missing)}")
+
+          invalid = []
+          fresh = []
+          for key in sorted(expected):
+              record = prices.get(key) or {}
+              try:
+                  price = float(record.get("price"))
+              except (TypeError, ValueError):
+                  price = 0.0
+              if price <= 0:
+                  invalid.append(key)
+              if record.get("fresh") is True:
+                  fresh.append(key)
+
+          if invalid:
+              raise SystemExit(f"live_prices.json has invalid prices: {', '.join(invalid)}")
+          if not fresh:
+              raise SystemExit("No fresh live quote was obtained in this run")
+
+          print(f"Live quote snapshot OK; age={age_seconds:.0f}s; fresh={','.join(fresh)}")
+          PY
+
       - name: Commit investment room quotes
         run: |
           set -euo pipefail
@@ -51,5 +104,15 @@ jobs:
             exit 0
           fi
           git commit -m "Update investment room quotes"
-          git pull --rebase origin main
-          git push
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push; then
+              exit 0
+            fi
+            echo "Push failed (${attempt}/3); retrying..."
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to push investment room quotes after 3 attempts" >&2
+          exit 1
