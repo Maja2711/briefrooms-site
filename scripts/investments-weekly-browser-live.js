@@ -2,34 +2,67 @@
   'use strict';
 
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
-  const BTC_POLL_MS = 15_000;
-  const EUR_POLL_MS = 60_000;
+  const LOOP_MS = 15_000;
   const REQUEST_TIMEOUT_MS = 8_000;
-  const BTC_MAX_AGE_MS = 2 * 60_000;
-  const EUR_MAX_AGE_MS = 5 * 60_000;
-
-  const EUR_URL = 'https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD';
-  const BTC_TICKER_URL = 'https://api.exchange.coinbase.com/products/BTC-USD/ticker';
-  const BTC_SPOT_URL = 'https://api.coinbase.com/v2/prices/BTC-USD/spot';
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v2:';
 
   const T = isEn ? {
     asOf: 'As of',
     live: 'LIVE',
-    received: 'received',
+    fallback: 'FALLBACK',
+    stale: 'STALE',
+    lastGood: 'last good',
+    backend: 'backend snapshot',
     result: 'Result',
     points: 'pts',
   } : {
     asOf: 'Stan na',
     live: 'LIVE',
-    received: 'pobrano',
+    fallback: 'FALLBACK',
+    stale: 'STALE',
+    lastGood: 'ostatni poprawny',
+    backend: 'snapshot backendu',
     result: 'Wynik',
     points: 'pkt',
   };
 
+  const FEEDS = {
+    eurusd: {
+      pollMs: 60_000,
+      maxAgeMs: 5 * 60_000,
+      minPrice: 0.8,
+      maxPrice: 1.5,
+      sources: [
+        { name: 'FX mid-market', fetch: fetchEurUsdMidMarket },
+        { name: 'Yahoo EURUSD=X', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
+      ],
+    },
+    btcusd: {
+      pollMs: 15_000,
+      maxAgeMs: 2 * 60_000,
+      minPrice: 1_000,
+      maxPrice: 2_000_000,
+      sources: [
+        { name: 'Coinbase BTC-USD', fetch: fetchCoinbaseBtc },
+        { name: 'CoinGecko BTC/USD', fetch: fetchCoinGeckoBtc },
+      ],
+    },
+    sp500_futures: {
+      pollMs: 15_000,
+      maxAgeMs: 5 * 60_000,
+      minPrice: 500,
+      maxPrice: 100_000,
+      sources: [
+        { name: 'Yahoo ES=F', fetch: () => fetchYahooQuote('ES=F', 'codetabs') },
+        { name: 'Yahoo ES=F · backup route', fetch: () => fetchYahooQuote('ES=F', 'allorigins') },
+      ],
+    },
+  };
+
   let selectedWeek = null;
   let inFlight = false;
-  let lastEurFetchAt = 0;
-  const quotes = new Map();
+  const lastAttemptAt = new Map();
+  const states = new Map();
 
   const number = (value) => {
     const parsed = Number(value);
@@ -77,12 +110,33 @@
     });
   }
 
-  function quoteFresh(quote, maxAge) {
+  function validTimestamp(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? null : date;
+  }
+
+  function quoteFresh(quote, maxAgeMs) {
     if (!quote || positive(quote.price) === null) return false;
-    const stamp = new Date(quote.updatedAt);
-    if (Number.isNaN(stamp.valueOf())) return false;
+    const stamp = validTimestamp(quote.updatedAt);
+    if (!stamp) return false;
     const age = Date.now() - stamp.valueOf();
-    return age >= -60_000 && age <= maxAge;
+    return age >= -60_000 && age <= maxAgeMs;
+  }
+
+  function validateQuote(instrumentId, quote, sourceName) {
+    const cfg = FEEDS[instrumentId];
+    const price = positive(quote?.price);
+    const stamp = validTimestamp(quote?.updatedAt);
+    if (!cfg || price === null || price < cfg.minPrice || price > cfg.maxPrice) {
+      throw new Error(`${instrumentId}_invalid_price`);
+    }
+    if (!stamp) throw new Error(`${instrumentId}_missing_source_timestamp`);
+    return {
+      price,
+      updatedAt: stamp.toISOString(),
+      source: quote?.source || sourceName,
+      maxAge: cfg.maxAgeMs,
+    };
   }
 
   async function fetchJson(url) {
@@ -102,49 +156,124 @@
     }
   }
 
-  async function fetchEurUsd() {
-    const data = await fetchJson(EUR_URL);
+  async function fetchEurUsdMidMarket() {
+    const data = await fetchJson('https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD');
     if (!data || data.success === false) throw new Error('eurusd_api_error');
-    const price = positive(data.rate ?? data.result);
-    if (price === null || price < 0.8 || price > 1.5) throw new Error('eurusd_invalid_price');
-    const sourceTime = data.updatedAt ? new Date(data.updatedAt) : new Date();
-    if (Number.isNaN(sourceTime.valueOf())) throw new Error('eurusd_invalid_time');
-    const quote = {
-      price,
-      updatedAt: sourceTime.toISOString(),
+    const updatedAt = data.updatedAt || data.updated_at || data.timestamp || data.time;
+    if (!updatedAt) throw new Error('eurusd_source_timestamp_missing');
+    return {
+      price: data.rate ?? data.result,
+      updatedAt,
       source: 'FX mid-market',
-      maxAge: EUR_MAX_AGE_MS,
     };
-    if (!quoteFresh(quote, EUR_MAX_AGE_MS)) throw new Error('eurusd_stale');
-    return quote;
   }
 
-  async function fetchBtcUsd() {
+  async function fetchCoinbaseBtc() {
+    const data = await fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/ticker');
+    if (!data?.time) throw new Error('coinbase_source_timestamp_missing');
+    return {
+      price: data.price,
+      updatedAt: data.time,
+      source: 'Coinbase BTC-USD',
+    };
+  }
+
+  async function fetchCoinGeckoBtc() {
+    const data = await fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_last_updated_at=true');
+    const row = data?.bitcoin;
+    const stamp = number(row?.last_updated_at);
+    if (stamp === null) throw new Error('coingecko_source_timestamp_missing');
+    return {
+      price: row?.usd,
+      updatedAt: new Date(stamp * 1000).toISOString(),
+      source: 'CoinGecko BTC/USD',
+    };
+  }
+
+  async function fetchYahooQuote(symbol, route) {
+    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+    const url = route === 'allorigins'
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+    const data = await fetchJson(url);
+    const chart = data?.chart?.result?.[0];
+    if (!chart) throw new Error(`yahoo_${symbol}_missing_chart`);
+    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp.filter(Number.isFinite) : [];
+    const latestChartTime = timestamps.length ? timestamps[timestamps.length - 1] : null;
+    const metaTime = number(chart?.meta?.regularMarketTime);
+    const epochSeconds = latestChartTime !== null ? latestChartTime : metaTime;
+    if (epochSeconds === null) throw new Error(`yahoo_${symbol}_missing_timestamp`);
+    return {
+      price: chart?.meta?.regularMarketPrice,
+      updatedAt: new Date(epochSeconds * 1000).toISOString(),
+      source: symbol === 'ES=F' ? 'Yahoo ES=F' : `Yahoo ${symbol}`,
+    };
+  }
+
+  function cacheKey(instrumentId) {
+    return `${CACHE_PREFIX}${instrumentId}`;
+  }
+
+  function saveCache(instrumentId, quote) {
     try {
-      const data = await fetchJson(BTC_TICKER_URL);
-      const price = positive(data?.price);
-      const sourceTime = data?.time ? new Date(data.time) : new Date();
-      if (price === null || price < 1_000 || price > 2_000_000) throw new Error('btc_invalid_price');
-      if (Number.isNaN(sourceTime.valueOf())) throw new Error('btc_invalid_time');
-      const quote = {
-        price,
-        updatedAt: sourceTime.toISOString(),
-        source: 'Coinbase BTC-USD',
-        maxAge: BTC_MAX_AGE_MS,
-      };
-      if (!quoteFresh(quote, BTC_MAX_AGE_MS)) throw new Error('btc_stale');
-      return quote;
-    } catch (primaryError) {
-      const data = await fetchJson(BTC_SPOT_URL);
-      const price = positive(data?.data?.amount);
-      if (price === null || price < 1_000 || price > 2_000_000) throw primaryError;
-      return {
-        price,
-        updatedAt: new Date().toISOString(),
-        source: 'Coinbase BTC-USD spot',
-        maxAge: BTC_MAX_AGE_MS,
-      };
+      localStorage.setItem(cacheKey(instrumentId), JSON.stringify({
+        price: quote.price,
+        updatedAt: quote.updatedAt,
+        source: quote.source,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch (_) {
+      // Storage may be unavailable in privacy mode. The feed still works without it.
     }
+  }
+
+  function loadCache(instrumentId) {
+    try {
+      const raw = localStorage.getItem(cacheKey(instrumentId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return validateQuote(instrumentId, parsed, parsed?.source || 'cache');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function newestQuote(...quotes) {
+    return quotes.filter(Boolean).sort((a, b) => {
+      const aTime = validTimestamp(a.updatedAt)?.valueOf() || 0;
+      const bTime = validTimestamp(b.updatedAt)?.valueOf() || 0;
+      return bTime - aTime;
+    })[0] || null;
+  }
+
+  async function refreshInstrument(instrumentId) {
+    const cfg = FEEDS[instrumentId];
+    if (!cfg) return;
+
+    let bestStale = null;
+    for (let index = 0; index < cfg.sources.length; index += 1) {
+      const source = cfg.sources[index];
+      try {
+        const quote = validateQuote(instrumentId, await source.fetch(), source.name);
+        if (quoteFresh(quote, cfg.maxAgeMs)) {
+          saveCache(instrumentId, quote);
+          states.set(instrumentId, {
+            mode: index === 0 ? 'live' : 'fallback',
+            quote,
+          });
+          return;
+        }
+        bestStale = newestQuote(bestStale, quote);
+      } catch (error) {
+        console.warn(`BriefRooms Weekly ${instrumentId} source failed (${source.name}):`, error?.message || error);
+      }
+    }
+
+    const cached = loadCache(instrumentId);
+    states.set(instrumentId, {
+      mode: 'stale',
+      quote: newestQuote(bestStale, cached),
+    });
   }
 
   function direction(item) {
@@ -181,8 +310,18 @@
       String(cell.querySelector('dt')?.textContent || '').trim().toLowerCase() === T.result.toLowerCase());
   }
 
-  function patchCard(item, index, quote) {
-    if (!quoteFresh(quote, quote.maxAge)) return;
+  function setResult(item, card, mark) {
+    if (!isOpen(item) || positive(mark) === null) return;
+    const result = resultText(item, mark);
+    const resultNode = findResultCell(card)?.querySelector('dd');
+    if (!result || !resultNode) return;
+    resultNode.textContent = result.text;
+    resultNode.classList.toggle('positive', result.value > 0);
+    resultNode.classList.toggle('negative', result.value < 0);
+    resultNode.classList.toggle('neutral', Math.abs(result.value) < 0.000001);
+  }
+
+  function patchCard(item, index, state) {
     const cards = document.querySelectorAll('#app .cards > .card');
     const card = cards[index];
     if (!card || card.classList.contains('integrity-withheld')) return;
@@ -192,63 +331,80 @@
     const timeNode = nowBox?.querySelector('small');
     if (!nowBox || !priceNode || !timeNode) return;
 
-    priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
-    timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
-    timeNode.style.color = '#72f0c1';
-    nowBox.dataset.liveSource = quote.source;
-    nowBox.dataset.liveAt = quote.updatedAt;
+    const quote = state?.quote || null;
+    if (quote && positive(quote.price) !== null) {
+      priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
+      setResult(item, card, quote.price);
+    }
 
-    if (!isOpen(item)) return;
-    const result = resultText(item, quote.price);
-    const resultCell = findResultCell(card);
-    const resultNode = resultCell?.querySelector('dd');
-    if (!result || !resultNode) return;
-    resultNode.textContent = result.text;
-    resultNode.classList.toggle('positive', result.value > 0);
-    resultNode.classList.toggle('negative', result.value < 0);
-    resultNode.classList.toggle('neutral', Math.abs(result.value) < 0.000001);
+    if (state?.mode === 'live' && quote) {
+      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
+      timeNode.style.color = '#72f0c1';
+      nowBox.dataset.feedStatus = 'live';
+    } else if (state?.mode === 'fallback' && quote) {
+      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${T.fallback} · ${quote.source}`;
+      timeNode.style.color = '#9fe8ff';
+      nowBox.dataset.feedStatus = 'fallback';
+    } else if (quote) {
+      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.stale} · ${T.lastGood} · ${quote.source}`;
+      timeNode.style.color = '#ffb86b';
+      nowBox.dataset.feedStatus = 'stale';
+    } else {
+      const base = String(timeNode.textContent || '').replace(/\s*·\s*STALE.*$/i, '').trim();
+      timeNode.textContent = `${base || T.asOf} · ${T.stale} · ${T.backend}`;
+      timeNode.style.color = '#ffb86b';
+      nowBox.dataset.feedStatus = 'stale';
+    }
+
+    nowBox.dataset.liveSource = quote?.source || T.backend;
+    nowBox.dataset.liveAt = quote?.updatedAt || '';
   }
 
-  function applyCachedQuotes() {
+  function applyStates() {
     if (!selectedWeek || !Array.isArray(selectedWeek.instruments)) return;
     selectedWeek.instruments.forEach((item, index) => {
-      const quote = quotes.get(item.instrument_id);
-      if (quote) patchCard(item, index, quote);
+      if (!FEEDS[item.instrument_id]) return;
+      patchCard(item, index, states.get(item.instrument_id) || { mode: 'stale', quote: loadCache(item.instrument_id) });
     });
   }
 
-  async function refreshLive({ forceEur = false } = {}) {
+  function bootstrapCachedStates() {
+    Object.keys(FEEDS).forEach((instrumentId) => {
+      const cached = loadCache(instrumentId);
+      states.set(instrumentId, { mode: 'stale', quote: cached });
+    });
+  }
+
+  async function refreshFeeds({ forceAll = false } = {}) {
     if (document.hidden || inFlight) return;
     inFlight = true;
     try {
-      const tasks = [];
       const now = Date.now();
-      if (forceEur || now - lastEurFetchAt >= EUR_POLL_MS) {
-        lastEurFetchAt = now;
-        tasks.push(fetchEurUsd()
-          .then((quote) => quotes.set('eurusd', quote))
-          .catch((error) => console.warn('BriefRooms Weekly EUR/USD live fallback:', error?.message || error)));
-      }
-      tasks.push(fetchBtcUsd()
-        .then((quote) => quotes.set('btcusd', quote))
-        .catch((error) => console.warn('BriefRooms Weekly BTC/USD live fallback:', error?.message || error)));
-      await Promise.allSettled(tasks);
-      applyCachedQuotes();
+      const due = Object.entries(FEEDS).filter(([instrumentId, cfg]) => {
+        const last = lastAttemptAt.get(instrumentId) || 0;
+        return forceAll || now - last >= cfg.pollMs;
+      });
+      due.forEach(([instrumentId]) => lastAttemptAt.set(instrumentId, now));
+      await Promise.allSettled(due.map(([instrumentId]) => refreshInstrument(instrumentId)));
+      applyStates();
     } finally {
       inFlight = false;
     }
   }
 
+  bootstrapCachedStates();
+
   document.addEventListener('br:weekly-rendered', (event) => {
     selectedWeek = event?.detail || null;
-    applyCachedQuotes();
-    refreshLive();
+    applyStates();
+    refreshFeeds();
   });
 
-  const timer = window.setInterval(() => refreshLive(), BTC_POLL_MS);
-  window.setTimeout(() => refreshLive({ forceEur: true }), 900);
+  const timer = window.setInterval(() => refreshFeeds(), LOOP_MS);
+  window.setTimeout(() => refreshFeeds({ forceAll: true }), 700);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshLive({ forceEur: true });
+    if (!document.hidden) refreshFeeds({ forceAll: true });
   });
+  window.addEventListener('online', () => refreshFeeds({ forceAll: true }));
   window.addEventListener('pagehide', () => window.clearInterval(timer), { once: true });
 })();
