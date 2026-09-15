@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-loco-counterfactual-replay-v1",
-  "generated_at": "2026-09-14T19:55:51.810305Z",
+  "generated_at": "2026-09-15T19:09:36.760479Z",
   "market": "gpw",
   "method": {
     "name": "leave_one_component_out_counterfactual_replay_v1",
@@ -12,10 +12,10 @@
     "historical_backfill": false
   },
   "coverage": {
-    "snapshot_count": 5,
-    "validated_snapshot_count": 5,
+    "snapshot_count": 6,
+    "validated_snapshot_count": 6,
     "invalid_snapshot_count": 0,
-    "missing_outcome_record_count": 0,
+    "missing_outcome_record_count": 1,
     "resolved_decision_count": 3,
     "supported_components": [
       "catalyst",
@@ -66,8 +66,8 @@
       "neutral_count": 2,
       "beneficial_rate": 0.333333,
       "harmful_rate": 0.0,
-      "marginal_value_percent_sum": 3.4362,
-      "mean_marginal_value_percent": 1.1454,
+      "marginal_value_percent_sum": 4.3131,
+      "mean_marginal_value_percent": 1.4377,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "OBSERVING"
     },
@@ -229,8 +229,8 @@
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 1.031,
-          "without_component_t2_net_return_percent": -2.4052,
-          "marginal_value_percent": 3.4362,
+          "without_component_t2_net_return_percent": -3.2821,
+          "marginal_value_percent": 4.3131,
           "full_plan": {
             "action": "LONG",
             "symbol": "JSW.WA",
@@ -268,32 +268,25 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 1,
                 "session": "2026-09-08",
-                "activated": true,
-                "activated_at": "2026-09-08T09:10:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_below",
-                "entry_price": 36.54,
-                "exit_price": 37.37,
-                "exit_reason": "horizon_close",
-                "exit_at": null,
-                "gross_return_percent": 2.2715,
-                "net_return_percent": 1.8915,
-                "r_multiple": 0.7034,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               },
               {
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-09-09",
                 "activated": true,
-                "activated_at": "2026-09-08T09:10:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_below",
-                "entry_price": 36.54,
+                "activated_at": "2026-09-09T09:40:00+02:00",
+                "activation_evidence": "first_post_decision_5m_touch_from_above",
+                "entry_price": 36.87,
                 "exit_price": 35.8,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": -2.0252,
-                "net_return_percent": -2.4052,
-                "r_multiple": -0.6271,
+                "gross_return_percent": -2.9021,
+                "net_return_percent": -3.2821,
+                "r_multiple": -0.7086,
                 "cost_assumption_percent": 0.38
               }
             ]
@@ -928,7 +921,7 @@
                 "horizon_sessions": 1,
                 "session": "2026-09-09",
                 "activated": true,
-                "activated_at": "2026-09-08T14:30:00+02:00",
+                "activated_at": "2026-09-09T14:45:00+02:00",
                 "activation_evidence": "first_post_decision_5m_touch_from_above",
                 "entry_price": 38.59,
                 "exit_price": 38.81,
@@ -944,7 +937,7 @@
                 "horizon_sessions": 2,
                 "session": "2026-09-10",
                 "activated": true,
-                "activated_at": "2026-09-08T14:30:00+02:00",
+                "activated_at": "2026-09-09T14:45:00+02:00",
                 "activation_evidence": "first_post_decision_5m_touch_from_above",
                 "entry_price": 38.59,
                 "exit_price": 36.79,
@@ -1357,6 +1350,12 @@
       "status": "PENDING_OR_DATA_GAP",
       "reason": "t_plus_2_not_complete",
       "variants": []
+    },
+    {
+      "snapshot_id": "gpw-loco-bd93e0065736eb1c0630",
+      "decision_date": "2026-09-15",
+      "status": "PENDING_OUTCOME_RECORD",
+      "variants": []
     }
   ],
   "governance": {
@@ -1370,5 +1369,5 @@
     "automatic_component_removal": false,
     "historical_backfill": false
   },
-  "artifact_sha256": "f1832659c442455ac4c676021c39b9897c0da2349e884daf0c45ffb6a574d72d"
+  "artifact_sha256": "e4dc8af5f784fb50c3966b582cc79e171b8bfc7bc8eaefecdfd7457943a021df"
 }
