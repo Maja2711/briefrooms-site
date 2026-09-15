@@ -17,10 +17,13 @@ PAGES = [
 VERSION = "6"
 RUNTIME_REVISION = "image2"
 FLOOR_VERSION = "2"
+LAB_VERSION = "1"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}&rev={RUNTIME_REVISION}" defer></script>'
 FLOOR_TAG = f'<script src="/scripts/home-card-floor.js?v={FLOOR_VERSION}" defer></script>'
+LAB_TAG = f'<script src="/scripts/home-lab.js?v={LAB_VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 FLOOR_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-card-floor\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
+LAB_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-lab\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_BLOCK = re.compile(
@@ -120,12 +123,19 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
 
 def install(path: Path) -> bool:
     old = path.read_text(encoding="utf-8")
-    new = FLOOR_PATTERN.sub("", PATTERN.sub("", old))
-    if path.name == "index.html" and path.parent.name in {"pl", "en"}:
+    new = LAB_PATTERN.sub("", FLOOR_PATTERN.sub("", PATTERN.sub("", old)))
+    is_homepage = path.name == "index.html" and path.parent.name in {"pl", "en"}
+    if is_homepage:
         new = apply_homepage_freshness(new, path.parent.name)
     if "</body>" not in new:
         raise RuntimeError(f"closing body tag missing: {path}")
-    new = new.replace("</body>", TAG + "\n" + FLOOR_TAG + "\n</body>", 1)
+    tags = [TAG, FLOOR_TAG]
+    if is_homepage:
+        # The canonical news publisher rewrites homepage HTML. Keep the
+        # BriefRooms Lab runtime attached on every publication so the Lab
+        # cannot regress to permanent skeleton placeholders.
+        tags.insert(0, LAB_TAG)
+    new = new.replace("</body>", "\n".join(tags) + "\n</body>", 1)
     if new == old:
         return False
     path.write_text(new, encoding="utf-8", newline="\n")
