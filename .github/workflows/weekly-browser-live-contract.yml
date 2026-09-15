@@ -1,0 +1,52 @@
+name: Weekly Browser LIVE Contract
+
+on:
+  pull_request:
+    paths:
+      - "scripts/render_weekly_public_pages.py"
+      - "scripts/investments-weekly-browser-live.js"
+      - "pl/inwestycje/pozycje-tygodniowe.html"
+      - "pl/inwestycje/prognozy-tygodniowe.html"
+      - "en/investing/open-weekly-positions.html"
+      - "en/investing/weekly-forecasts.html"
+      - "tests/test_weekly_browser_live_contract.py"
+      - ".github/workflows/weekly-browser-live-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/render_weekly_public_pages.py"
+      - "scripts/investments-weekly-browser-live.js"
+      - "pl/inwestycje/pozycje-tygodniowe.html"
+      - "pl/inwestycje/prognozy-tygodniowe.html"
+      - "en/investing/open-weekly-positions.html"
+      - "en/investing/weekly-forecasts.html"
+      - "tests/test_weekly_browser_live_contract.py"
+      - ".github/workflows/weekly-browser-live-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate Weekly browser LIVE runtime
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/render_weekly_public_pages.py
+          node --check scripts/investments-weekly-browser-live.js
+          python -m unittest tests.test_weekly_browser_live_contract -v
