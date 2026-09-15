@@ -148,6 +148,12 @@
     const timeNode = nowBox?.querySelector('small');
     if (!card || !nowBox || !priceNode || !timeNode) return;
 
+    // The Stooq minute feed is a fallback. Never overwrite a quote that the
+    // primary browser-live runtime has already marked LIVE/FALLBACK. If that
+    // primary runtime later degrades to STALE, the observer below promotes
+    // the fresh Stooq quote immediately.
+    if (nowBox.dataset.feedStatus === 'live' || nowBox.dataset.feedStatus === 'fallback') return;
+
     patching = true;
     try {
       priceNode.textContent = fmtPrice(currentQuote.price);
