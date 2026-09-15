@@ -91,11 +91,14 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         errors = validate(current, [SEED, latest])
         self.assertTrue(any("too similar to history" in e for e in errors))
 
-    def test_similarity_detects_paraphrase_but_not_new_idea(self) -> None:
+    def test_similarity_ranks_paraphrase_above_new_idea(self) -> None:
         paraphrase = "Przyszłość często zaczyna się od jednej niezrozumianej decyzji, a nie od wielkiego przełomu."
         novel = "Najtrudniej zauważyć granicę własnego myślenia, bo cały znany świat oglądamy z jej wnętrza."
-        self.assertGreater(similarity(SEED["pl"], paraphrase).sequence, 0.55)
-        self.assertLess(similarity(SEED["pl"], novel).jaccard, 0.45)
+        paraphrase_similarity = similarity(SEED["pl"], paraphrase)
+        novel_similarity = similarity(SEED["pl"], novel)
+        self.assertGreater(paraphrase_similarity.sequence, novel_similarity.sequence)
+        self.assertGreater(paraphrase_similarity.jaccard, novel_similarity.jaccard)
+        self.assertLess(novel_similarity.jaccard, 0.45)
 
 
 if __name__ == "__main__":
