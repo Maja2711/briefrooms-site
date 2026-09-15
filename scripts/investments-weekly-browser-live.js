@@ -111,7 +111,11 @@
   }
 
   function validTimestamp(value) {
-    const date = new Date(value);
+    const numeric = number(value);
+    const normalized = numeric !== null && numeric > 0 && numeric < 1_000_000_000_000
+      ? numeric * 1000
+      : value;
+    const date = new Date(normalized);
     return Number.isNaN(date.valueOf()) ? null : date;
   }
 
@@ -332,7 +336,10 @@
     if (!nowBox || !priceNode || !timeNode) return;
 
     const quote = state?.quote || null;
-    if (quote && positive(quote.price) !== null) {
+    const liveMode = state?.mode === 'live' || state?.mode === 'fallback';
+    const backendHasPrice = Boolean(String(priceNode.textContent || '').trim().replace('—', ''));
+
+    if (liveMode && quote && positive(quote.price) !== null) {
       priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
       setResult(item, card, quote.price);
     }
@@ -341,23 +348,37 @@
       timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
       timeNode.style.color = '#72f0c1';
       nowBox.dataset.feedStatus = 'live';
+      nowBox.dataset.liveSource = quote.source;
+      nowBox.dataset.liveAt = quote.updatedAt;
     } else if (state?.mode === 'fallback' && quote) {
       timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${T.fallback} · ${quote.source}`;
       timeNode.style.color = '#9fe8ff';
       nowBox.dataset.feedStatus = 'fallback';
-    } else if (quote) {
+      nowBox.dataset.liveSource = quote.source;
+      nowBox.dataset.liveAt = quote.updatedAt;
+    } else if (backendHasPrice) {
+      const base = String(timeNode.textContent || '').replace(/\s*·\s*STALE.*$/i, '').trim();
+      timeNode.textContent = `${base || T.asOf} · ${T.stale} · ${T.backend}`;
+      timeNode.style.color = '#ffb86b';
+      nowBox.dataset.feedStatus = 'stale';
+      nowBox.dataset.liveSource = T.backend;
+      nowBox.dataset.liveAt = '';
+    } else if (quote && positive(quote.price) !== null) {
+      priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
+      setResult(item, card, quote.price);
       timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.stale} · ${T.lastGood} · ${quote.source}`;
       timeNode.style.color = '#ffb86b';
       nowBox.dataset.feedStatus = 'stale';
+      nowBox.dataset.liveSource = quote.source;
+      nowBox.dataset.liveAt = quote.updatedAt;
     } else {
       const base = String(timeNode.textContent || '').replace(/\s*·\s*STALE.*$/i, '').trim();
       timeNode.textContent = `${base || T.asOf} · ${T.stale} · ${T.backend}`;
       timeNode.style.color = '#ffb86b';
       nowBox.dataset.feedStatus = 'stale';
+      nowBox.dataset.liveSource = T.backend;
+      nowBox.dataset.liveAt = '';
     }
-
-    nowBox.dataset.liveSource = quote?.source || T.backend;
-    nowBox.dataset.liveAt = quote?.updatedAt || '';
   }
 
   function applyStates() {
