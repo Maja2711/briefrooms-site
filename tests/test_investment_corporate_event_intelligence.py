@@ -61,6 +61,26 @@ class CorporateEventRadarTests(unittest.TestCase):
         self.assertEqual("Jensen Huang", actor)
         self.assertTrue(corporate.has_material_signal("Jensen Huang says NVIDIA sees strong data center demand", entity))
 
+    def test_ai_policy_statement_from_tracked_ceo_is_captured_neutrally(self):
+        title = "Jensen Huang rejects calls for AI slowdown and urges pragmatic AI regulation"
+        entity = corporate.match_entity(title)
+        self.assertIsNotNone(entity)
+        self.assertEqual("nvidia", entity["key"])
+        self.assertTrue(corporate.has_material_signal(title, entity))
+        signal = corporate.classify_signal(title)
+        self.assertEqual("material_statement", signal["event_kind"])
+        self.assertEqual(0.0, signal["direct_impact"])
+
+    def test_future_inhouse_chip_deployment_is_captured_as_product_roadmap(self):
+        title = "Meta Platforms plans to deploy new in-house AI chip in 2027"
+        entity = corporate.match_entity(title)
+        self.assertIsNotNone(entity)
+        self.assertEqual("meta", entity["key"])
+        self.assertTrue(corporate.has_material_signal(title, entity))
+        signal = corporate.classify_signal(title)
+        self.assertEqual("product_roadmap", signal["event_kind"])
+        self.assertEqual(0.0, signal["direct_impact"])
+
     def test_guidance_raise_is_positive_direct_company_signal(self):
         signal = corporate.classify_signal("NVIDIA raises guidance after earnings beat")
         self.assertEqual("guidance_raise", signal["event_kind"])
