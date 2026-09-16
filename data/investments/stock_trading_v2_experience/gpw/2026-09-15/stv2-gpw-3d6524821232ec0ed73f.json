@@ -1,0 +1,92 @@
+{
+  "action": "LONG",
+  "candidate_state": {
+    "decision_path": {
+      "explicit_engine_rejection": null,
+      "gates": [
+        {
+          "hard": true,
+          "name": "market_data",
+          "observed_value": null,
+          "passed": false,
+          "reason": "freeze_fetch_failure:PublicationError",
+          "stage": "market_data",
+          "threshold": null
+        }
+      ],
+      "producer_decision": "TRANSAKCJA",
+      "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
+    },
+    "first_blocking_gate": {
+      "hard": true,
+      "name": "market_data",
+      "observed_value": null,
+      "passed": false,
+      "reason": "freeze_fetch_failure:PublicationError",
+      "stage": "market_data",
+      "threshold": null
+    },
+    "identity": {
+      "name": "Santander Bank Polska",
+      "sector": "banki"
+    },
+    "market_state": {
+      "expected_session": null,
+      "historical_data_status": null,
+      "historical_lag_sessions": null,
+      "last_session": null,
+      "median_turnover": null,
+      "reference_price": null,
+      "risk_percent": null,
+      "turnover_threshold": null
+    },
+    "risk_plan": null,
+    "score_state": {
+      "composite_score": null,
+      "quant_pre_score": null,
+      "rank": null,
+      "returns": {},
+      "scores": {},
+      "shortlist_limit": 6
+    },
+    "settlement_eligibility": {
+      "eligible": false,
+      "mode": "insufficient_counterfactual_state",
+      "reason": "market_state_insufficient"
+    },
+    "source_freeze_candidate_id": "gpw:2026-09-16:SPL.WA:LONG",
+    "source_governance": {
+      "decision_influence": false,
+      "gate_writeback": false,
+      "historical_backfill": false,
+      "news_or_llm_rerun": false,
+      "ranking_writeback": false
+    },
+    "source_state_sha256": "1605f3da99f238d60f829e5e6d75599966692527b860444bb00578f79b89ac4b"
+  },
+  "decision": "REJECTED",
+  "decision_at": "2026-09-16T14:37:01+02:00",
+  "event_id": "stv2-gpw-3d6524821232ec0ed73f",
+  "event_sha256": "6b3d60c1e139799b1b753c70ebb02db3c109a1985a3905707bb4c180be9451c9",
+  "event_type": "CANDIDATE_DECISION",
+  "governance": {
+    "automatic_policy_writeback": false,
+    "immutable": true,
+    "learning_eligible": true,
+    "phase": "v2_phase1a_shadow",
+    "production_decision_influence": false,
+    "prospective_only": true
+  },
+  "market": "GPW",
+  "recorded_at": "2026-09-16T16:11:02.035870Z",
+  "schema_version": "stock-trading-v2-experience-v1",
+  "selected": false,
+  "session_date": "2026-09-15",
+  "source": {
+    "engine": "gpw-daily-pick-v1",
+    "payload_sha256": "114012561da155fc39fd734d3b9c2a8daaaed8190ae24ce9c9de3e4aa795e242",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "schema_version": "gpw-daily-pick-v1"
+  },
+  "symbol": "SPL.WA"
+}

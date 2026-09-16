@@ -1,0 +1,98 @@
+{
+  "schema_version": "stock-trading-v2-config-v1",
+  "version": "2.0.0-phase2c-shadow-complete",
+  "enabled": true,
+  "mode": "shadow_no_production_influence",
+  "objective": "maximize_net_expectancy_with_explicit_opportunity_cost",
+  "markets": ["GPW", "US"],
+  "discovery": {
+    "enabled": true,
+    "continuous": true,
+    "dynamic_universe": true,
+    "global_selection_cutoff": null,
+    "cash_is_explicit_alternative": true,
+    "us_stage_zero_live_provider": "Nasdaq",
+    "us_stage_zero_degraded_fallback": "rotating_audited_universe_shard",
+    "gpw_universe_provider": "official_GPW_main_market"
+  },
+  "deep_evidence": {
+    "enabled": true,
+    "us_primary": "SEC_EDGAR",
+    "us_secondary": "GOOGLE_NEWS_RSS",
+    "gpw_primary": "ESPI_EBI_PAP",
+    "gpw_secondary": "INDEPENDENT_NEWS",
+    "primary_sources_are_evidence_not_trade_signals": true,
+    "provider_degradation_is_explicit": true
+  },
+  "portfolio_opportunity": {
+    "enabled": true,
+    "actions": ["BUY", "HOLD", "CASH", "REPLACE"],
+    "maximum_open_positions_per_market": 3,
+    "cash_is_valid_position": true,
+    "replacement_requires_hysteresis": true,
+    "research_actions_are_not_execution_ready": true,
+    "production_decision_influence": false
+  },
+  "experience_store": {
+    "enabled": true,
+    "root": "data/investments/stock_trading_v2_experience",
+    "prospective_only": true,
+    "immutable": true,
+    "capture_selected_candidates": true,
+    "capture_rejected_candidates": true,
+    "capture_continuous_opportunity_candidates": true,
+    "deduplicate_continuous_candidates_by_market_symbol_day_and_selection_state": true,
+    "capture_operational_failures": false,
+    "production_decision_influence": false
+  },
+  "learning": {
+    "closed_loop_enabled": true,
+    "automatic_policy_writeback": false,
+    "counterfactual_horizons_sessions": [1, 2, 5, 10, 20, 60, 120],
+    "policy_replay_required": true,
+    "opportunity_regret_required": true,
+    "champion_challenger_required": true,
+    "hold_exit_learning_enabled": true,
+    "out_of_sample_promotion_required": true,
+    "production_promotion_enabled": false
+  },
+  "immutable_safety_invariants": [
+    "no_forced_trade",
+    "stop_loss_required",
+    "freshness_required",
+    "data_integrity_required",
+    "liquidity_floor_required",
+    "maximum_position_risk_enforced",
+    "maximum_open_positions_enforced",
+    "no_look_ahead",
+    "immutable_prospective_snapshots",
+    "research_actions_are_not_execution_ready",
+    "production_promotion_requires_separate_statistical_gate"
+  ],
+  "learnable_policy": [
+    "entry_score_threshold",
+    "factor_weights",
+    "expected_value_weight",
+    "uncertainty_penalty",
+    "admission_margin",
+    "shortlist_size",
+    "regime_weighting",
+    "catalyst_weighting",
+    "rotation_threshold",
+    "hold_exit_thresholds",
+    "cash_opportunity_edge",
+    "replacement_hysteresis"
+  ],
+  "legacy_bridge": {
+    "gpw_source": "data/investments/gpw_daily_pick.json",
+    "us_source": "data/investments/us_daily_stock.json",
+    "rejected_candidate_field": "counterfactual_rejected_candidate_freeze",
+    "read_only": true
+  },
+  "promotion": {
+    "mode": "evidence_gated_only",
+    "statistical_gate_config": "data/investments/statistical_promotion_gate_v2_config.json",
+    "production_promotion_enabled": false,
+    "main_branch_untouched_by_shadow_runtime": true
+  }
+}

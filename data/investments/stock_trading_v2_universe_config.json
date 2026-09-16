@@ -1,0 +1,55 @@
+{
+  "schema_version": "stock-trading-v2-universe-config-v1",
+  "version": "2.0.0-phase1d",
+  "mode": "shadow_no_production_influence",
+  "objective": "broad_dynamic_discovery_before_expensive_analysis",
+  "markets": {
+    "US": {
+      "enabled": true,
+      "provider": "nasdaq_trader_symbol_directory",
+      "authority": "official_exchange_symbol_directory",
+      "datasets": [
+        "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt",
+        "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+      ],
+      "refresh": "daily_and_on_demand",
+      "exclude": [
+        "ETF",
+        "test_issue",
+        "Nasdaq_abnormal_financial_status",
+        "warrant",
+        "right",
+        "unit",
+        "preferred",
+        "debt",
+        "obvious_fund_instruments"
+      ],
+      "do_not_filter_by_market_cap": true,
+      "liquidity_filter_stage": "fast_scanner",
+      "history_filter_stage": "fast_scanner"
+    },
+    "GPW": {
+      "enabled": true,
+      "provider": "gpw_official_main_market_company_search",
+      "authority": "official_exchange_company_search",
+      "datasets": [
+        "https://www.gpw.pl/spolki",
+        "https://www.gpw.pl/ajaxindex.php"
+      ],
+      "refresh": "daily_and_on_demand",
+      "target": "broad_main_market_dynamic_universe",
+      "dynamic_provider_ready": true,
+      "do_not_filter_by_market_cap": true,
+      "liquidity_filter_stage": "fast_scanner",
+      "history_filter_stage": "fast_scanner"
+    }
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "full_snapshot_hash_required": true,
+    "provider_provenance_required": true,
+    "downstream_liquidity_gate_required": true,
+    "downstream_price_history_gate_required": true
+  }
+}

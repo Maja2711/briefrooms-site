@@ -1,0 +1,132 @@
+{
+  "action": "LONG",
+  "candidate_state": {
+    "decision_path": {
+      "explicit_engine_rejection": null,
+      "gates": [
+        {
+          "hard": true,
+          "name": "market_data",
+          "observed_value": 0,
+          "passed": true,
+          "reason": "fresh_completed_session",
+          "stage": "market_data",
+          "threshold": 1
+        },
+        {
+          "hard": true,
+          "name": "liquidity",
+          "observed_value": 205981280.334671,
+          "passed": true,
+          "reason": "median_turnover_threshold",
+          "stage": "quant_screen",
+          "threshold": 1000000.0
+        },
+        {
+          "hard": true,
+          "name": "position_risk",
+          "observed_value": 0.02770018,
+          "passed": true,
+          "reason": "maximum_risk_percent",
+          "stage": "quant_screen",
+          "threshold": 0.07
+        },
+        {
+          "hard": true,
+          "name": "quant_candidate",
+          "observed_value": null,
+          "passed": false,
+          "reason": "engine_quant_builder_rejected",
+          "stage": "quant_screen",
+          "threshold": null
+        }
+      ],
+      "producer_decision": "TRANSAKCJA",
+      "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
+    },
+    "first_blocking_gate": {
+      "hard": true,
+      "name": "quant_candidate",
+      "observed_value": null,
+      "passed": false,
+      "reason": "engine_quant_builder_rejected",
+      "stage": "quant_screen",
+      "threshold": null
+    },
+    "identity": {
+      "name": "ORLEN",
+      "sector": "energia"
+    },
+    "market_state": {
+      "expected_session": "2026-09-15",
+      "historical_data_status": "fresh",
+      "historical_lag_sessions": 0,
+      "last_session": "2026-09-15",
+      "median_turnover": 205981280.334671,
+      "reference_price": 158.55999756,
+      "risk_percent": 0.02770018,
+      "turnover_threshold": 1000000.0
+    },
+    "risk_plan": {
+      "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation",
+      "atr": 3.99285562,
+      "entry_zone": [
+        157.76719757,
+        160.93839752
+      ],
+      "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+      "reference_price": 158.55999756,
+      "reward_risk": 1.8,
+      "risk_percent": 0.02770018,
+      "stop": 154.16785638,
+      "target": 166.46585168
+    },
+    "score_state": {
+      "composite_score": null,
+      "quant_pre_score": null,
+      "rank": null,
+      "returns": {},
+      "scores": {},
+      "shortlist_limit": 6
+    },
+    "settlement_eligibility": {
+      "eligible": true,
+      "mode": "risk_plan",
+      "reason": "prospectively_frozen_risk_plan"
+    },
+    "source_freeze_candidate_id": "gpw:2026-09-16:PKN.WA:LONG",
+    "source_governance": {
+      "decision_influence": false,
+      "gate_writeback": false,
+      "historical_backfill": false,
+      "news_or_llm_rerun": false,
+      "ranking_writeback": false
+    },
+    "source_state_sha256": "eca8f70786b5bc1a0db42f18d0e69a2098f23470f0b311d17d7fc535a393e882"
+  },
+  "decision": "REJECTED",
+  "decision_at": "2026-09-16T14:37:01+02:00",
+  "event_id": "stv2-gpw-f53b02705d1306e72db1",
+  "event_sha256": "9e47c470569fa4593dc1368b54430721a78cb4a126fb7d402be8a2fbf55f2ffd",
+  "event_type": "CANDIDATE_DECISION",
+  "governance": {
+    "automatic_policy_writeback": false,
+    "immutable": true,
+    "learning_eligible": true,
+    "phase": "v2_phase1a_shadow",
+    "production_decision_influence": false,
+    "prospective_only": true
+  },
+  "market": "GPW",
+  "recorded_at": "2026-09-16T16:11:02.035870Z",
+  "schema_version": "stock-trading-v2-experience-v1",
+  "selected": false,
+  "session_date": "2026-09-15",
+  "source": {
+    "engine": "gpw-daily-pick-v1",
+    "payload_sha256": "114012561da155fc39fd734d3b9c2a8daaaed8190ae24ce9c9de3e4aa795e242",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "schema_version": "gpw-daily-pick-v1"
+  },
+  "symbol": "PKN.WA"
+}

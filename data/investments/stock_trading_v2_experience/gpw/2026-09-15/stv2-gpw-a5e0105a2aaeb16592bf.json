@@ -1,0 +1,132 @@
+{
+  "action": "LONG",
+  "candidate_state": {
+    "decision_path": {
+      "explicit_engine_rejection": null,
+      "gates": [
+        {
+          "hard": true,
+          "name": "market_data",
+          "observed_value": 0,
+          "passed": true,
+          "reason": "fresh_completed_session",
+          "stage": "market_data",
+          "threshold": 1
+        },
+        {
+          "hard": true,
+          "name": "liquidity",
+          "observed_value": 5511655.5,
+          "passed": true,
+          "reason": "median_turnover_threshold",
+          "stage": "quant_screen",
+          "threshold": 1000000.0
+        },
+        {
+          "hard": true,
+          "name": "position_risk",
+          "observed_value": 0.02368489,
+          "passed": true,
+          "reason": "maximum_risk_percent",
+          "stage": "quant_screen",
+          "threshold": 0.07
+        },
+        {
+          "hard": true,
+          "name": "quant_candidate",
+          "observed_value": null,
+          "passed": false,
+          "reason": "engine_quant_builder_rejected",
+          "stage": "quant_screen",
+          "threshold": null
+        }
+      ],
+      "producer_decision": "TRANSAKCJA",
+      "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
+    },
+    "first_blocking_gate": {
+      "hard": true,
+      "name": "quant_candidate",
+      "observed_value": null,
+      "passed": false,
+      "reason": "engine_quant_builder_rejected",
+      "stage": "quant_screen",
+      "threshold": null
+    },
+    "identity": {
+      "name": "ING Bank Śląski",
+      "sector": "banki"
+    },
+    "market_state": {
+      "expected_session": "2026-09-15",
+      "historical_data_status": "fresh",
+      "historical_lag_sessions": 0,
+      "last_session": "2026-09-15",
+      "median_turnover": 5511655.5,
+      "reference_price": 443.20001221,
+      "risk_percent": 0.02368489,
+      "turnover_threshold": 1000000.0
+    },
+    "risk_plan": {
+      "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation",
+      "atr": 9.54285976,
+      "entry_zone": [
+        440.98401215,
+        449.84801239
+      ],
+      "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+      "reference_price": 443.20001221,
+      "reward_risk": 1.8,
+      "risk_percent": 0.02368489,
+      "stop": 432.70286647,
+      "target": 462.09487453
+    },
+    "score_state": {
+      "composite_score": null,
+      "quant_pre_score": null,
+      "rank": null,
+      "returns": {},
+      "scores": {},
+      "shortlist_limit": 6
+    },
+    "settlement_eligibility": {
+      "eligible": true,
+      "mode": "risk_plan",
+      "reason": "prospectively_frozen_risk_plan"
+    },
+    "source_freeze_candidate_id": "gpw:2026-09-16:ING.WA:LONG",
+    "source_governance": {
+      "decision_influence": false,
+      "gate_writeback": false,
+      "historical_backfill": false,
+      "news_or_llm_rerun": false,
+      "ranking_writeback": false
+    },
+    "source_state_sha256": "5cc1442928196892bf88474016bc09b0d6c6b061d141c09f5bc0daa7194e5267"
+  },
+  "decision": "REJECTED",
+  "decision_at": "2026-09-16T14:37:01+02:00",
+  "event_id": "stv2-gpw-a5e0105a2aaeb16592bf",
+  "event_sha256": "4a023eb86effea38e2379338a80fd8018d468440992a1a65d53eff46afba8211",
+  "event_type": "CANDIDATE_DECISION",
+  "governance": {
+    "automatic_policy_writeback": false,
+    "immutable": true,
+    "learning_eligible": true,
+    "phase": "v2_phase1a_shadow",
+    "production_decision_influence": false,
+    "prospective_only": true
+  },
+  "market": "GPW",
+  "recorded_at": "2026-09-16T16:11:02.035870Z",
+  "schema_version": "stock-trading-v2-experience-v1",
+  "selected": false,
+  "session_date": "2026-09-15",
+  "source": {
+    "engine": "gpw-daily-pick-v1",
+    "payload_sha256": "114012561da155fc39fd734d3b9c2a8daaaed8190ae24ce9c9de3e4aa795e242",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "schema_version": "gpw-daily-pick-v1"
+  },
+  "symbol": "ING.WA"
+}

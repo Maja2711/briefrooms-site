@@ -1,0 +1,40 @@
+{
+  "schema_version": "stock-trading-v2-opportunity-config-v1",
+  "version": "2.0.0-phase2c",
+  "mode": "shadow_no_production_influence",
+  "objective": "compare_new_opportunities_cash_and_existing_positions_without_forced_activity",
+  "cash_utility": 50.0,
+  "minimum_new_position_edge_points": 5.0,
+  "replacement_hysteresis_points": 8.0,
+  "maximum_actions_per_market_cycle": 1,
+  "maximum_open_positions_per_market": 3,
+  "data_quality_penalties": {
+    "COMPLETE": 0.0,
+    "DEGRADED": 0.0,
+    "DATA_ERROR": 100.0
+  },
+  "held_position": {
+    "default_utility": 50.0,
+    "entry_score_weight": 0.35,
+    "thesis_score_weight": 0.50,
+    "mark_return_weight": 0.15,
+    "mark_return_scale": 120.0,
+    "mark_return_cap_points": 20.0
+  },
+  "hard_gates": {
+    "require_production_reference_liquidity": true,
+    "require_valid_research_risk_plan": true,
+    "require_non_data_error_evidence": true,
+    "require_open_ended_holding_policy": true,
+    "require_no_fixed_exit_deadline": true
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "automatic_position_replacement": false,
+    "no_forced_trade": true,
+    "one_action_per_cycle": true,
+    "shadow_buy_is_not_execution_ready": true,
+    "production_promotion_requires_separate_statistical_gate": true
+  }
+}

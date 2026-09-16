@@ -1,0 +1,69 @@
+{
+  "schema_version": "stock-trading-v2-discovery-config-v1",
+  "version": "2.0.0-phase2a",
+  "mode": "shadow_no_production_influence",
+  "objective": "continuous_broad_market_opportunity_discovery",
+  "holding_horizon": "OPEN_ENDED_MODEL_CONTROLLED",
+  "no_global_selection_cutoff": true,
+  "markets": {
+    "US": {
+      "history_range": "1y",
+      "minimum_history_sessions": 80,
+      "history_candidates_from_stage_zero": 180,
+      "frontier_size": 50,
+      "discovery_minimum_median_turnover": 5000000,
+      "production_liquidity_reference": 25000000,
+      "candidate_freshness_minutes": 75
+    },
+    "GPW": {
+      "history_range": "1y",
+      "minimum_history_sessions": 80,
+      "history_candidates_from_stage_zero": 0,
+      "frontier_size": 50,
+      "discovery_minimum_median_turnover": 250000,
+      "production_liquidity_reference": 1000000,
+      "candidate_freshness_minutes": 180
+    }
+  },
+  "weights": {
+    "relative_momentum": 30,
+    "trend_quality": 20,
+    "liquidity": 15,
+    "volume_impulse": 10,
+    "volatility_quality": 10,
+    "risk_adjusted_momentum": 10,
+    "stage_zero": 5
+  },
+  "features": {
+    "momentum_horizons_sessions": [1, 5, 20, 60],
+    "atr_sessions": 14,
+    "volatility_sessions": 20,
+    "turnover_sessions": 20,
+    "trend_fast_sessions": 20,
+    "trend_slow_sessions": 60
+  },
+  "network": {
+    "workers": 16,
+    "timeout_seconds": 15,
+    "attempts_per_host": 2,
+    "provider_hosts": [
+      "query1.finance.yahoo.com",
+      "query2.finance.yahoo.com"
+    ]
+  },
+  "frontier": {
+    "cash_is_explicit_alternative": true,
+    "cash_utility": 0.0,
+    "trade_admission": false,
+    "deep_evidence_pending": true,
+    "rank_only_not_recommendation": true
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "no_forced_trade": true,
+    "no_market_cap_large_cap_only_filter": true,
+    "all_candidates_keep_provenance": true,
+    "no_lookahead": true
+  }
+}

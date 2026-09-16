@@ -1,0 +1,186 @@
+name: Stock Trading v2 Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - stock-trading-v2
+    paths:
+      - ".github/workflows/stock-trading-v2-validation.yml"
+      - ".github/workflows/stock-trading-v2-continuous-discovery.yml"
+      - ".github/workflows/stock-trading-v2-learning-loop.yml"
+      - "scripts/stock_trading_v2_contracts.py"
+      - "scripts/stock_trading_v2_experience_store.py"
+      - "scripts/stock_trading_v2_admission_ledger.py"
+      - "scripts/stock_trading_v2_position_experience.py"
+      - "scripts/stock_trading_v2_outcome_replay.py"
+      - "scripts/stock_trading_v2_regret_engine.py"
+      - "scripts/stock_trading_v2_policy_learner.py"
+      - "scripts/stock_trading_v2_challenger_eval.py"
+      - "scripts/stock_trading_v2_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe_provider.py"
+      - "scripts/stock_trading_v2_fast_scan.py"
+      - "scripts/stock_trading_v2_live_scan.py"
+      - "scripts/stock_trading_v2_us_screener_provider.py"
+      - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_deep_evidence.py"
+      - "scripts/stock_trading_v2_opportunity_engine.py"
+      - "scripts/stock_trading_v2_opportunity_experience.py"
+      - "tests/test_stock_trading_v2_experience_store.py"
+      - "tests/test_stock_trading_v2_admission_ledger.py"
+      - "tests/test_stock_trading_v2_position_experience.py"
+      - "tests/test_stock_trading_v2_outcome_replay.py"
+      - "tests/test_stock_trading_v2_regret_engine.py"
+      - "tests/test_stock_trading_v2_policy_learning.py"
+      - "tests/test_stock_trading_v2_universe.py"
+      - "tests/test_stock_trading_v2_gpw_universe.py"
+      - "tests/test_stock_trading_v2_fast_scan.py"
+      - "tests/test_stock_trading_v2_live_scan.py"
+      - "tests/test_stock_trading_v2_us_screener_provider.py"
+      - "tests/test_stock_trading_v2_discovery.py"
+      - "tests/test_stock_trading_v2_deep_evidence.py"
+      - "tests/test_stock_trading_v2_opportunity_engine.py"
+      - "tests/test_stock_trading_v2_opportunity_experience.py"
+      - "data/investments/stock_trading_v2_config.json"
+      - "data/investments/stock_trading_v2_universe_config.json"
+      - "data/investments/stock_trading_v2_fast_scan_config.json"
+      - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/stock_trading_v2_evidence_config.json"
+      - "data/investments/stock_trading_v2_opportunity_config.json"
+      - "data/investments/stock_trading_v2_learning_config.json"
+      - "data/investments/stock_trading_v2_experience/**"
+      - "data/investments/stock_trading_v2_admission/**"
+      - "data/investments/stock_trading_v2_position_experience/**"
+      - "data/investments/stock_trading_v2_outcomes/**"
+      - "data/investments/stock_trading_v2_learning/**"
+      - "data/investments/stock_trading_v2_challengers/**"
+      - "data/investments/stock_trading_v2_challenger_evaluations/**"
+      - "data/investments/stock_trading_v2_universe/**"
+      - "data/investments/stock_trading_v2_frontier/**"
+      - "data/investments/stock_trading_v2_evidence/**"
+      - "data/investments/stock_trading_v2_opportunity/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out Stock Trading v2
+        uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile v2 modules
+        run: |
+          python -m py_compile \
+            scripts/stock_trading_v2_contracts.py \
+            scripts/stock_trading_v2_experience_store.py \
+            scripts/stock_trading_v2_admission_ledger.py \
+            scripts/stock_trading_v2_position_experience.py \
+            scripts/stock_trading_v2_outcome_replay.py \
+            scripts/stock_trading_v2_regret_engine.py \
+            scripts/stock_trading_v2_policy_learner.py \
+            scripts/stock_trading_v2_challenger_eval.py \
+            scripts/stock_trading_v2_universe.py \
+            scripts/stock_trading_v2_gpw_universe.py \
+            scripts/stock_trading_v2_gpw_universe_provider.py \
+            scripts/stock_trading_v2_fast_scan.py \
+            scripts/stock_trading_v2_live_scan.py \
+            scripts/stock_trading_v2_us_screener_provider.py \
+            scripts/stock_trading_v2_discovery.py \
+            scripts/stock_trading_v2_deep_evidence.py \
+            scripts/stock_trading_v2_opportunity_engine.py \
+            scripts/stock_trading_v2_opportunity_experience.py \
+            tests/test_stock_trading_v2_experience_store.py \
+            tests/test_stock_trading_v2_admission_ledger.py \
+            tests/test_stock_trading_v2_position_experience.py \
+            tests/test_stock_trading_v2_outcome_replay.py \
+            tests/test_stock_trading_v2_regret_engine.py \
+            tests/test_stock_trading_v2_policy_learning.py \
+            tests/test_stock_trading_v2_universe.py \
+            tests/test_stock_trading_v2_gpw_universe.py \
+            tests/test_stock_trading_v2_fast_scan.py \
+            tests/test_stock_trading_v2_live_scan.py \
+            tests/test_stock_trading_v2_us_screener_provider.py \
+            tests/test_stock_trading_v2_discovery.py \
+            tests/test_stock_trading_v2_deep_evidence.py \
+            tests/test_stock_trading_v2_opportunity_engine.py \
+            tests/test_stock_trading_v2_opportunity_experience.py
+
+      - name: Validate configuration JSON
+        run: |
+          python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
+
+      - name: Run v2 unit tests
+        run: |
+          python -m unittest \
+            tests.test_stock_trading_v2_experience_store \
+            tests.test_stock_trading_v2_admission_ledger \
+            tests.test_stock_trading_v2_position_experience \
+            tests.test_stock_trading_v2_outcome_replay \
+            tests.test_stock_trading_v2_regret_engine \
+            tests.test_stock_trading_v2_policy_learning \
+            tests.test_stock_trading_v2_universe \
+            tests.test_stock_trading_v2_gpw_universe \
+            tests.test_stock_trading_v2_fast_scan \
+            tests.test_stock_trading_v2_live_scan \
+            tests.test_stock_trading_v2_us_screener_provider \
+            tests.test_stock_trading_v2_discovery \
+            tests.test_stock_trading_v2_deep_evidence \
+            tests.test_stock_trading_v2_opportunity_engine \
+            tests.test_stock_trading_v2_opportunity_experience -v
+
+      - name: Verify immutable learning ledgers
+        run: |
+          python scripts/stock_trading_v2_experience_store.py --verify
+          python scripts/stock_trading_v2_admission_ledger.py --verify
+          python scripts/stock_trading_v2_position_experience.py --verify
+          python scripts/stock_trading_v2_outcome_replay.py --verify
+          python scripts/stock_trading_v2_policy_learner.py --verify
+
+      - name: Smoke-test live dynamic universes and resilient US broad prefilter
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/briefrooms-v2-universe /tmp/briefrooms-v2-fast-scan.json
+          python scripts/stock_trading_v2_universe.py --market US --root /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_gpw_universe.py --root /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_universe.py --root /tmp/briefrooms-v2-universe --verify
+          python scripts/stock_trading_v2_live_scan.py \
+            --universe /tmp/briefrooms-v2-universe/us.json \
+            --output /tmp/briefrooms-v2-fast-scan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          us=json.loads(Path('/tmp/briefrooms-v2-universe/us.json').read_text(encoding='utf-8'))
+          gpw=json.loads(Path('/tmp/briefrooms-v2-universe/gpw.json').read_text(encoding='utf-8'))
+          scan=json.loads(Path('/tmp/briefrooms-v2-fast-scan.json').read_text(encoding='utf-8'))
+          if int(us.get('instrument_count') or 0) <= 50:
+              raise SystemExit(f'Dynamic US universe unexpectedly small: {us.get("instrument_count")}')
+          if int(gpw.get('instrument_count') or 0) < 200:
+              raise SystemExit(f'GPW v2 universe unexpectedly small: {gpw.get("instrument_count")}')
+          if not (50 < int(scan.get('shortlist_size') or 0) <= 600):
+              raise SystemExit(f'Fast scan shortlist outside expected bounds: {scan.get("shortlist_size")}')
+          if scan.get('governance',{}).get('production_decision_influence') is not False:
+              raise SystemExit('Fast scanner escaped shadow governance')
+          if scan.get('source',{}).get('degraded') and scan.get('source',{}).get('live_liquidity_claim') is not False:
+              raise SystemExit('Degraded fallback made an invalid live-liquidity claim')
+          print('LIVE_V2_DISCOVERY_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'], 'shortlist', scan['shortlist_size'], 'source', scan.get('source',{}).get('mode'))
+          PY
