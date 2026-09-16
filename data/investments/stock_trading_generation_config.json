@@ -1,0 +1,89 @@
+{
+  "schema_version": "stock-trading-generation-promotion-config-v1",
+  "version": "1.0.0",
+  "enabled": true,
+  "champion_generation": "v1",
+  "challenger_generation": "v2",
+  "promotion_scope": "entry_decision_source",
+  "markets": ["GPW", "US"],
+  "evaluation": {
+    "horizon_sessions": 5,
+    "primary_fixed_paired_n": 30,
+    "holdout_fixed_paired_n": 30,
+    "confidence_level": 0.9,
+    "bootstrap_samples": 4000,
+    "minimum_net_incremental_return_percent": 0.1,
+    "minimum_net_positive_rate": 0.55,
+    "minimum_unique_symbols": 5,
+    "minimum_span_days": 20,
+    "maximum_single_positive_contribution_share": 0.5,
+    "require_positive_first_half": true,
+    "require_positive_second_half": true,
+    "require_disjoint_primary_and_holdout": true,
+    "formal_pairs_only_when_generations_disagree": true
+  },
+  "cost_stress_percent": {
+    "GPW": 0.2,
+    "US": 0.1
+  },
+  "rollback": {
+    "enabled": true,
+    "fixed_paired_n": 12,
+    "minimum_span_days": 10,
+    "maximum_net_incremental_mean_percent": -0.1,
+    "maximum_net_positive_rate": 0.4,
+    "require_bootstrap_upper_bound_below_zero": true,
+    "cooldown_days": 30
+  },
+  "freeze": {
+    "v1_max_age_minutes": 720,
+    "v2_max_age_minutes": 240,
+    "activation_model": "next_session_open",
+    "same_bar_policy": "stop_first_conservative",
+    "immutable": true,
+    "prospective_only": true
+  },
+  "production": {
+    "automatic_promotion_enabled": true,
+    "manual_approval_required": false,
+    "automatic_rollback_enabled": true,
+    "v1_operational_fallback_on_v2_failure": true,
+    "v2_max_opportunity_age_minutes": {
+      "GPW": 180,
+      "US": 90
+    },
+    "replacement_authority_enabled": false,
+    "shared_canonical_portfolio_risk_kernel": true
+  },
+  "immutable_safety_invariants": [
+    "no_forced_trade",
+    "no_look_ahead",
+    "prospective_evidence_only",
+    "primary_and_holdout_samples_disjoint",
+    "data_integrity_required",
+    "freshness_required",
+    "liquidity_floor_required",
+    "stop_loss_required",
+    "maximum_position_risk_enforced",
+    "maximum_open_positions_enforced",
+    "shared_production_portfolio_risk_kernel",
+    "untested_v2_definition_cannot_control_production"
+  ],
+  "v2_definition_files": [
+    "scripts/stock_trading_v2_fast_scan.py",
+    "scripts/stock_trading_v2_live_scan.py",
+    "scripts/stock_trading_v2_discovery.py",
+    "scripts/stock_trading_v2_deep_evidence.py",
+    "scripts/stock_trading_v2_opportunity_engine.py",
+    "data/investments/stock_trading_v2_fast_scan_config.json",
+    "data/investments/stock_trading_v2_discovery_config.json",
+    "data/investments/stock_trading_v2_evidence_config.json",
+    "data/investments/stock_trading_v2_opportunity_config.json"
+  ],
+  "notes": {
+    "promotion": "V2 replaces the V1 entry-decision source market-by-market only after an exact fixed-N primary test and a fresh disjoint exact fixed-N holdout both pass.",
+    "shared_kernel": "Production position caps, stop loss, risk geometry and portfolio review remain a common non-learnable safety kernel; generation promotion does not weaken them.",
+    "replacement": "V2 REPLACE remains research-only until a dedicated replacement counterfactual contract is separately proven; promoted V2 may submit the candidate as a new entry only when the shared portfolio has capacity.",
+    "rollback": "After promotion, V1 continues as a shadow parent. Strong fresh paired evidence of V2 underperformance automatically restores V1 and starts a new evidence epoch after cooldown."
+  }
+}
