@@ -4,24 +4,25 @@
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
   const LOOP_MS = 15_000;
   const REQUEST_TIMEOUT_MS = 8_000;
-  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v2:';
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v3:';
+  const BACKEND_URL = '/data/investments/live_prices.json';
 
   const T = isEn ? {
     asOf: 'As of',
     live: 'LIVE',
     fallback: 'FALLBACK',
-    stale: 'STALE',
-    lastGood: 'last good',
-    backend: 'backend snapshot',
+    delayed: 'DELAYED',
+    lastPrice: 'last price',
+    backend: 'BriefRooms backend',
     result: 'Result',
     points: 'pts',
   } : {
     asOf: 'Stan na',
     live: 'LIVE',
     fallback: 'FALLBACK',
-    stale: 'STALE',
-    lastGood: 'ostatni poprawny',
-    backend: 'snapshot backendu',
+    delayed: 'OPÓŹNIONY',
+    lastPrice: 'ostatni kurs',
+    backend: 'backend BriefRooms',
     result: 'Wynik',
     points: 'pkt',
   };
@@ -63,6 +64,7 @@
   let inFlight = false;
   const lastAttemptAt = new Map();
   const states = new Map();
+  const backendQuotes = new Map();
 
   const number = (value) => {
     const parsed = Number(value);
@@ -119,11 +121,14 @@
     return Number.isNaN(date.valueOf()) ? null : date;
   }
 
+  function quoteAgeMs(quote) {
+    const stamp = validTimestamp(quote?.updatedAt);
+    return stamp ? Date.now() - stamp.valueOf() : Number.POSITIVE_INFINITY;
+  }
+
   function quoteFresh(quote, maxAgeMs) {
     if (!quote || positive(quote.price) === null) return false;
-    const stamp = validTimestamp(quote.updatedAt);
-    if (!stamp) return false;
-    const age = Date.now() - stamp.valueOf();
+    const age = quoteAgeMs(quote);
     return age >= -60_000 && age <= maxAgeMs;
   }
 
@@ -139,7 +144,7 @@
       price,
       updatedAt: stamp.toISOString(),
       source: quote?.source || sourceName,
-      maxAge: cfg.maxAgeMs,
+      backendFresh: quote?.backendFresh !== false,
     };
   }
 
@@ -219,6 +224,7 @@
   }
 
   function saveCache(instrumentId, quote) {
+    if (!quote || positive(quote.price) === null) return;
     try {
       localStorage.setItem(cacheKey(instrumentId), JSON.stringify({
         price: quote.price,
@@ -227,7 +233,7 @@
         savedAt: new Date().toISOString(),
       }));
     } catch (_) {
-      // Storage may be unavailable in privacy mode. The feed still works without it.
+      // Storage may be unavailable in privacy mode. The same-origin backend is still available.
     }
   }
 
@@ -250,34 +256,70 @@
     })[0] || null;
   }
 
+  async function refreshBackend() {
+    try {
+      const data = await fetchJson(BACKEND_URL);
+      const prices = data?.prices || {};
+      Object.keys(FEEDS).forEach((instrumentId) => {
+        const row = prices[instrumentId];
+        if (!row) return;
+        try {
+          const quote = validateQuote(instrumentId, {
+            price: row.price,
+            updatedAt: row.current_price_updated_at || row.timestamp,
+            source: `${T.backend} · ${row.source || 'live_prices.json'}`,
+            backendFresh: row.fresh !== false,
+          }, T.backend);
+          backendQuotes.set(instrumentId, quote);
+          saveCache(instrumentId, quote);
+        } catch (error) {
+          console.warn(`BriefRooms Weekly ${instrumentId} backend quote rejected:`, error?.message || error);
+        }
+      });
+    } catch (error) {
+      console.warn('BriefRooms Weekly backend refresh failed:', error?.message || error);
+    }
+  }
+
   async function refreshInstrument(instrumentId) {
     const cfg = FEEDS[instrumentId];
     if (!cfg) return;
 
-    let bestStale = null;
+    let bestDelayed = null;
     for (let index = 0; index < cfg.sources.length; index += 1) {
       const source = cfg.sources[index];
       try {
         const quote = validateQuote(instrumentId, await source.fetch(), source.name);
         if (quoteFresh(quote, cfg.maxAgeMs)) {
           saveCache(instrumentId, quote);
+          const backend = backendQuotes.get(instrumentId) || null;
+          const freshest = newestQuote(quote, backend);
+          const usingBackend = freshest === backend && backend && quoteFresh(backend, cfg.maxAgeMs) && backend.backendFresh;
           states.set(instrumentId, {
-            mode: index === 0 ? 'live' : 'fallback',
-            quote,
+            mode: usingBackend ? 'backend-live' : (index === 0 ? 'live' : 'fallback'),
+            quote: freshest,
           });
           return;
         }
-        bestStale = newestQuote(bestStale, quote);
+        bestDelayed = newestQuote(bestDelayed, quote);
       } catch (error) {
         console.warn(`BriefRooms Weekly ${instrumentId} source failed (${source.name}):`, error?.message || error);
       }
     }
 
+    const backend = backendQuotes.get(instrumentId) || null;
+    if (backend && quoteFresh(backend, cfg.maxAgeMs) && backend.backendFresh) {
+      states.set(instrumentId, { mode: 'backend-live', quote: backend });
+      return;
+    }
+
     const cached = loadCache(instrumentId);
-    states.set(instrumentId, {
-      mode: 'stale',
-      quote: newestQuote(bestStale, cached),
-    });
+    const previous = states.get(instrumentId)?.quote || null;
+    const quote = newestQuote(bestDelayed, backend, cached, previous);
+    if (quote) {
+      saveCache(instrumentId, quote);
+      states.set(instrumentId, { mode: 'delayed', quote });
+    }
   }
 
   function direction(item) {
@@ -325,6 +367,12 @@
     resultNode.classList.toggle('neutral', Math.abs(result.value) < 0.000001);
   }
 
+  function delayedLabel(quote) {
+    const age = quoteAgeMs(quote);
+    const minutes = Number.isFinite(age) ? Math.max(0, Math.round(age / 60_000)) : null;
+    return minutes === null ? T.delayed : `${T.delayed} ${minutes} min`;
+  }
+
   function patchCard(item, index, state) {
     const cards = document.querySelectorAll('#app .cards > .card');
     const card = cards[index];
@@ -336,10 +384,7 @@
     if (!nowBox || !priceNode || !timeNode) return;
 
     const quote = state?.quote || null;
-    const liveMode = state?.mode === 'live' || state?.mode === 'fallback';
-    const backendHasPrice = Boolean(String(priceNode.textContent || '').trim().replace('—', ''));
-
-    if (liveMode && quote && positive(quote.price) !== null) {
+    if (quote && positive(quote.price) !== null) {
       priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
       setResult(item, card, quote.price);
     }
@@ -350,34 +395,46 @@
       nowBox.dataset.feedStatus = 'live';
       nowBox.dataset.liveSource = quote.source;
       nowBox.dataset.liveAt = quote.updatedAt;
-    } else if (state?.mode === 'fallback' && quote) {
+      return;
+    }
+
+    if (state?.mode === 'fallback' && quote) {
       timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${T.fallback} · ${quote.source}`;
       timeNode.style.color = '#9fe8ff';
       nowBox.dataset.feedStatus = 'fallback';
       nowBox.dataset.liveSource = quote.source;
       nowBox.dataset.liveAt = quote.updatedAt;
-    } else if (backendHasPrice) {
-      const base = String(timeNode.textContent || '').replace(/\s*·\s*STALE.*$/i, '').trim();
-      timeNode.textContent = `${base || T.asOf} · ${T.stale} · ${T.backend}`;
-      timeNode.style.color = '#ffb86b';
-      nowBox.dataset.feedStatus = 'stale';
-      nowBox.dataset.liveSource = T.backend;
-      nowBox.dataset.liveAt = '';
-    } else if (quote && positive(quote.price) !== null) {
-      priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
-      setResult(item, card, quote.price);
-      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.stale} · ${T.lastGood} · ${quote.source}`;
-      timeNode.style.color = '#ffb86b';
-      nowBox.dataset.feedStatus = 'stale';
+      return;
+    }
+
+    if (state?.mode === 'backend-live' && quote) {
+      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
+      timeNode.style.color = '#72f0c1';
+      nowBox.dataset.feedStatus = 'live';
       nowBox.dataset.liveSource = quote.source;
       nowBox.dataset.liveAt = quote.updatedAt;
-    } else {
-      const base = String(timeNode.textContent || '').replace(/\s*·\s*STALE.*$/i, '').trim();
-      timeNode.textContent = `${base || T.asOf} · ${T.stale} · ${T.backend}`;
+      return;
+    }
+
+    if (quote && positive(quote.price) !== null) {
+      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${delayedLabel(quote)} · ${T.lastPrice} · ${quote.source}`;
       timeNode.style.color = '#ffb86b';
-      nowBox.dataset.feedStatus = 'stale';
+      nowBox.dataset.feedStatus = 'delayed';
+      nowBox.dataset.liveSource = quote.source;
+      nowBox.dataset.liveAt = quote.updatedAt;
+      return;
+    }
+
+    // A backend price rendered by investments-weekly-public.js is still useful.
+    // Never replace a visible last price with an error/status word. Preserve the
+    // price and exact timestamp already on screen, and only explain its status.
+    const backendHasPrice = Boolean(String(priceNode.textContent || '').trim().replace('—', ''));
+    if (backendHasPrice) {
+      const base = String(timeNode.textContent || '').split(' · ')[0].trim();
+      timeNode.textContent = `${base || T.asOf} · ${T.delayed} · ${T.lastPrice} · ${T.backend}`;
+      timeNode.style.color = '#ffb86b';
+      nowBox.dataset.feedStatus = 'delayed';
       nowBox.dataset.liveSource = T.backend;
-      nowBox.dataset.liveAt = '';
     }
   }
 
@@ -385,14 +442,16 @@
     if (!selectedWeek || !Array.isArray(selectedWeek.instruments)) return;
     selectedWeek.instruments.forEach((item, index) => {
       if (!FEEDS[item.instrument_id]) return;
-      patchCard(item, index, states.get(item.instrument_id) || { mode: 'stale', quote: loadCache(item.instrument_id) });
+      const state = states.get(item.instrument_id)
+        || { mode: 'delayed', quote: newestQuote(backendQuotes.get(item.instrument_id), loadCache(item.instrument_id)) };
+      patchCard(item, index, state);
     });
   }
 
   function bootstrapCachedStates() {
     Object.keys(FEEDS).forEach((instrumentId) => {
       const cached = loadCache(instrumentId);
-      states.set(instrumentId, { mode: 'stale', quote: cached });
+      if (cached) states.set(instrumentId, { mode: 'delayed', quote: cached });
     });
   }
 
@@ -400,6 +459,7 @@
     if (document.hidden || inFlight) return;
     inFlight = true;
     try {
+      await refreshBackend();
       const now = Date.now();
       const due = Object.entries(FEEDS).filter(([instrumentId, cfg]) => {
         const last = lastAttemptAt.get(instrumentId) || 0;
@@ -422,7 +482,7 @@
   });
 
   const timer = window.setInterval(() => refreshFeeds(), LOOP_MS);
-  window.setTimeout(() => refreshFeeds({ forceAll: true }), 700);
+  window.setTimeout(() => refreshFeeds({ forceAll: true }), 300);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshFeeds({ forceAll: true });
   });
