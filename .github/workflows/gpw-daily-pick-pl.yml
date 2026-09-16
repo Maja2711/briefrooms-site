@@ -17,8 +17,14 @@ on:
       - "scripts/daily_stock_core.py"
       - "scripts/gpw_*.py"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "scripts/stock_trading_generation_promotion.py"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+      - "data/investments/stock_trading_v2_opportunity/**"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_generation_promotion.py"
       - "scripts/gpw-daily-pick-public.js"
       - "scripts/gpw-expected-value-public.js"
       - "scripts/gpw-full-ranking-public.js"
@@ -113,7 +119,8 @@ jobs:
             tests.test_gpw_daily_pick_ui \
             tests.test_gpw_mandatory_daily \
             tests.test_gpw_ranking_gates_momentum \
-            tests.test_stock_trading_portfolio -v
+            tests.test_stock_trading_portfolio \
+            tests.test_stock_trading_generation_promotion -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/gpw_data_gates.py \
@@ -129,9 +136,13 @@ jobs:
             scripts/gpw_pipeline_v2.py \
             scripts/gpw_provider_v2.py \
             scripts/gpw_reviewer_v2.py \
-            scripts/stock_trading_portfolio.py
+            scripts/stock_trading_portfolio.py \
+            scripts/stock_trading_generation_promotion.py \
+            scripts/stock_trading_generation_router.py
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_state.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
           node --check scripts/gpw-expected-value-public.js
           node --check scripts/gpw-full-ranking-public.js
@@ -184,13 +195,14 @@ jobs:
                   raise SystemExit(f'GPW qualified setup missing: {missing}')
           print('GPW_STOCK_CANDIDATE_OK',decision,(p.get('selection') or {}).get('ticker'))
           PY
-          python scripts/stock_trading_portfolio.py --mode sync-candidates --market GPW
+          python scripts/stock_trading_generation_router.py --mode apply --market GPW
           python scripts/stock_trading_portfolio.py --mode verify
 
       - name: Validate only
         if: steps.mode.outputs.value == 'validate'
         run: |
           python scripts/stock_trading_portfolio.py --mode verify
+          python scripts/stock_trading_generation_router.py --mode status --market GPW
 
       - name: Settle legacy GPW daily history only
         if: steps.mode.outputs.value == 'settle'
