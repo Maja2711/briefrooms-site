@@ -1,0 +1,153 @@
+name: Production Investment Event Intelligence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/investment_event_intelligence.py"
+      - "scripts/investment_event_weekly_bridge.py"
+      - "scripts/investment_event_stock_bridge.py"
+      - "tests/test_investment_event_intelligence.py"
+      - ".github/workflows/investment-event-intelligence-production.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/investment_event_intelligence.py"
+      - "scripts/investment_event_weekly_bridge.py"
+      - "scripts/investment_event_stock_bridge.py"
+      - "tests/test_investment_event_intelligence.py"
+      - ".github/workflows/investment-event-intelligence-production.yml"
+  schedule:
+    # Offset from the existing :00/:15/:30/:45 weekly exposure watcher.
+    - cron: "6,21,36,51 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Event Intelligence contracts
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/investment_event_intelligence.py \
+            scripts/investment_event_weekly_bridge.py \
+            scripts/investment_event_stock_bridge.py
+          python -m unittest tests.test_investment_event_intelligence -v
+
+  weekly-overlay:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: investment-weekly-positions
+      cancel-in-progress: false
+    steps:
+      - name: Check out production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install weekly market dependencies
+        run: python -m pip install --disable-pip-version-check yfinance pandas numpy
+
+      - name: Build Event Intelligence and material-event requests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python scripts/investment_event_weekly_bridge.py
+          python scripts/daily_position_review.py
+
+      - name: Persist governed multi-asset event state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git restore --worktree -- data/investments/live_prices.json 2>/dev/null || true
+          git add data/investments/event_intelligence.json \
+                  data/investments/event_exit_requests.json \
+                  data/investments/daily_review_report.json \
+                  data/investments/weekly 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No multi-asset event state change."
+            exit 0
+          fi
+          git commit -m "Apply production multi-asset event intelligence"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+          exit 1
+
+  stock-overlay:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: stock-trading-state-writer
+      cancel-in-progress: false
+    steps:
+      - name: Check out production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Apply event overlay to GPW and US portfolio
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python scripts/investment_event_stock_bridge.py
+          python scripts/stock_trading_portfolio.py --mode verify
+
+      - name: Persist canonical Stock Trading event state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/stock_trading_portfolio.json 2>/dev/null || true
+          git add data/investments/event_intelligence_audit.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No Stock Trading event state change."
+            exit 0
+          fi
+          git commit -m "Apply production Stock Trading event intelligence"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+          exit 1
