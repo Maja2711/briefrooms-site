@@ -19,6 +19,8 @@ on:
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/daily-eurusd-spot-public.js"
       - "scripts/daily-eurusd-live-price.js"
+      - "en/investing/daily-trading.html"
+      - "pl/inwestycje/daily-trading.html"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
@@ -81,6 +83,15 @@ jobs:
             scripts/daily_eurusd_experiment_v12.py
           node --check scripts/daily-eurusd-spot-public.js
           node --check scripts/daily-eurusd-live-price.js
+          python - <<'PY'
+          from pathlib import Path
+          required = '/scripts/daily-eurusd-live-price.js?v=2'
+          for page in ('en/investing/daily-trading.html', 'pl/inwestycje/daily-trading.html'):
+              text = Path(page).read_text(encoding='utf-8')
+              if required not in text:
+                  raise SystemExit(f'{page} missing EUR/USD live price runtime: {required}')
+          print('EURUSD_FRONTEND_LIVE_RUNTIME_OK')
+          PY
 
       - name: Reconcile open position with ECB-aware v1.7 policy
         run: |
