@@ -9,13 +9,17 @@
     return String(value || '').trim().toLowerCase();
   }
 
-  function cardStatus(card){
+  function statusNode(card){
     for (const cell of card.querySelectorAll('.cell')) {
       const dt = normalized(cell.querySelector('dt')?.textContent);
       if (dt !== 'status') continue;
-      return normalized(cell.querySelector('dd')?.textContent);
+      return cell.querySelector('dd') || null;
     }
-    return '';
+    return null;
+  }
+
+  function cardStatus(card){
+    return normalized(statusNode(card)?.textContent);
   }
 
   function syncBadge(card){
@@ -24,10 +28,14 @@
     if (!heading) return;
 
     const status = cardStatus(card);
+    const statusDd = statusNode(card);
+    const isOpen = OPEN.has(status);
+    statusDd?.classList.toggle('br-weekly-status-open', isOpen);
+
     let type = '';
     let label = '';
 
-    if (OPEN.has(status)) {
+    if (isOpen) {
       type = 'is-open';
       label = 'OPEN';
     } else if (CLOSED.has(status)) {
