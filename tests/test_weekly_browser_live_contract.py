@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "scripts" / "render_weekly_public_pages.py"
 LIVE_SCRIPT = ROOT / "scripts" / "investments-weekly-browser-live.js"
 SP500_MINUTE_SCRIPT = ROOT / "scripts" / "investments-weekly-sp500-minute-live.js"
+ES_DELAYED_SCRIPT = ROOT / "scripts" / "investments-weekly-es-delayed.js"
 PAGES = [
     ROOT / "pl" / "inwestycje" / "pozycje-tygodniowe.html",
     ROOT / "pl" / "inwestycje" / "prognozy-tygodniowe.html",
@@ -17,6 +18,7 @@ PAGES = [
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260915-3"
 SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-4"
+ES_DELAYED_REF = "/scripts/investments-weekly-es-delayed.js?v=20260916-1"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -29,8 +31,11 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
             html = path.read_text(encoding="utf-8")
             self.assertEqual(html.count(SCRIPT_REF), 1)
             self.assertEqual(html.count(SP500_MINUTE_REF), 1)
+            self.assertEqual(html.count(ES_DELAYED_REF), 1)
             self.assertLess(html.index("investments-weekly-public.js"), html.index("investments-weekly-browser-live.js"))
             self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-sp500-minute-live.js"))
+            self.assertLess(html.index("investments-weekly-sp500-minute-live.js"), html.index("investments-weekly-es-delayed.js"))
+            self.assertLess(html.index("investments-weekly-es-delayed.js"), html.index("investments-weekly-trade-times.js"))
 
     def test_btc_live_feed_has_primary_fallback_polling_and_freshness_guard(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
@@ -63,6 +68,18 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("· LIVE${fallbackLabel} ·", source)
         self.assertIn("currentStatus === 'live' || currentStatus === 'fallback'", source)
         self.assertIn("Same-origin JSON is the primary path", source)
+
+    def test_es_delayed_overlay_is_explicit_and_never_replaces_fresher_live_quote(self) -> None:
+        source = ES_DELAYED_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("/data/investments/live_prices.json", source)
+        self.assertIn("MAX_DELAY_MS = 15 * 60 * 1000", source)
+        self.assertIn("sp500_futures", source)
+        self.assertIn("DELAYED ~${minutes} min", source)
+        self.assertIn("OPÓŹNIONY ~${minutes} min", source)
+        self.assertIn("nowBox.dataset.feedStatus = 'delayed'", source)
+        self.assertIn("status === 'live' || status === 'fallback'", source)
+        self.assertIn("MutationObserver", source)
+        self.assertIn("cache: 'no-store'", source)
 
 
 if __name__ == "__main__":
