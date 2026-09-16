@@ -15,6 +15,22 @@ import investment_event_intelligence as event
 import investment_event_quality as quality
 
 
+def _apply_position_direction(scores: dict[str, dict], week: dict) -> None:
+    """Translate signed market impact into LONG/SHORT position risk."""
+    for instrument_id in ("eurusd", "sp500_futures", "btcusd"):
+        score = scores.get(instrument_id)
+        item = event._week_position(week, instrument_id)
+        if not score or not item:
+            continue
+        side = str(item.get("direction") or "").upper()
+        if side not in {"LONG", "SHORT"}:
+            continue
+        decision = profiles.directional_decision(score, side)
+        score["market_impact_overlay"] = score.get("decision_overlay")
+        score["position_direction"] = side
+        score["decision_overlay"] = decision
+
+
 def main() -> int:
     now = datetime.now(event.UTC)
     snapshot, _, week_path, week = quality.build_snapshot(now)
@@ -24,6 +40,7 @@ def main() -> int:
         str(target["target_id"]): profiles.score_target(target, events, engine_profile=profiles.WEEKLY)
         for target in targets
     }
+    _apply_position_direction(scores, week)
     snapshot["targets"] = list(scores.values())
     snapshot["thresholds"] = profiles.thresholds(profiles.WEEKLY)
     snapshot["engine_weighting"] = profiles.public_profiles()
