@@ -1,0 +1,55 @@
+{
+  "schema_version": "stock-trading-v2-config-v1",
+  "version": "2.0.0-phase1a",
+  "enabled": true,
+  "mode": "shadow_no_production_influence",
+  "objective": "maximize_net_expectancy_with_explicit_opportunity_cost",
+  "markets": ["GPW", "US"],
+  "experience_store": {
+    "enabled": true,
+    "root": "data/investments/stock_trading_v2_experience",
+    "prospective_only": true,
+    "immutable": true,
+    "capture_selected_candidates": true,
+    "capture_rejected_candidates": true,
+    "capture_operational_failures": false,
+    "production_decision_influence": false
+  },
+  "learning": {
+    "closed_loop_enabled": false,
+    "automatic_policy_writeback": false,
+    "counterfactual_horizons_sessions": [1, 2, 5, 10, 20, 60, 120],
+    "policy_replay_required": true,
+    "champion_challenger_required": true,
+    "out_of_sample_promotion_required": true
+  },
+  "immutable_safety_invariants": [
+    "no_forced_trade",
+    "stop_loss_required",
+    "freshness_required",
+    "data_integrity_required",
+    "liquidity_floor_required",
+    "maximum_position_risk_enforced",
+    "maximum_open_positions_enforced",
+    "no_look_ahead",
+    "immutable_prospective_snapshots"
+  ],
+  "learnable_policy": [
+    "entry_score_threshold",
+    "factor_weights",
+    "expected_value_weight",
+    "uncertainty_penalty",
+    "admission_margin",
+    "shortlist_size",
+    "regime_weighting",
+    "catalyst_weighting",
+    "rotation_threshold",
+    "hold_exit_thresholds"
+  ],
+  "legacy_bridge": {
+    "gpw_source": "data/investments/gpw_daily_pick.json",
+    "us_source": "data/investments/us_daily_stock.json",
+    "rejected_candidate_field": "counterfactual_rejected_candidate_freeze",
+    "read_only": true
+  }
+}
