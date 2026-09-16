@@ -24,6 +24,8 @@ on:
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_deep_evidence.py"
+      - "scripts/stock_trading_v2_opportunity_engine.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_admission_ledger.py"
       - "tests/test_stock_trading_v2_position_experience.py"
@@ -35,10 +37,14 @@ on:
       - "tests/test_stock_trading_v2_fast_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
       - "tests/test_stock_trading_v2_discovery.py"
+      - "tests/test_stock_trading_v2_deep_evidence.py"
+      - "tests/test_stock_trading_v2_opportunity_engine.py"
       - "data/investments/stock_trading_v2_config.json"
       - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/stock_trading_v2_evidence_config.json"
+      - "data/investments/stock_trading_v2_opportunity_config.json"
       - "data/investments/stock_trading_v2_learning_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_admission/**"
@@ -49,6 +55,8 @@ on:
       - "data/investments/stock_trading_v2_challenger_evaluations/**"
       - "data/investments/stock_trading_v2_universe/**"
       - "data/investments/stock_trading_v2_frontier/**"
+      - "data/investments/stock_trading_v2_evidence/**"
+      - "data/investments/stock_trading_v2_opportunity/**"
 
 permissions:
   contents: read
@@ -88,6 +96,8 @@ jobs:
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py \
             scripts/stock_trading_v2_discovery.py \
+            scripts/stock_trading_v2_deep_evidence.py \
+            scripts/stock_trading_v2_opportunity_engine.py \
             tests/test_stock_trading_v2_experience_store.py \
             tests/test_stock_trading_v2_admission_ledger.py \
             tests/test_stock_trading_v2_position_experience.py \
@@ -98,7 +108,9 @@ jobs:
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
             tests/test_stock_trading_v2_us_screener_provider.py \
-            tests/test_stock_trading_v2_discovery.py
+            tests/test_stock_trading_v2_discovery.py \
+            tests/test_stock_trading_v2_deep_evidence.py \
+            tests/test_stock_trading_v2_opportunity_engine.py
 
       - name: Validate configuration JSON
         run: |
@@ -106,6 +118,8 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
 
       - name: Run v2 unit tests
@@ -121,7 +135,9 @@ jobs:
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
             tests.test_stock_trading_v2_us_screener_provider \
-            tests.test_stock_trading_v2_discovery -v
+            tests.test_stock_trading_v2_discovery \
+            tests.test_stock_trading_v2_deep_evidence \
+            tests.test_stock_trading_v2_opportunity_engine -v
 
       - name: Verify immutable learning ledgers
         run: |
