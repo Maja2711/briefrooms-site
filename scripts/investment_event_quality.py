@@ -12,7 +12,11 @@ import re
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
+import investment_event_diplomacy_coverage as diplomacy
 import investment_event_intelligence as event
+
+# Widen diplomacy recall/classification before any production collection call.
+DIPLOMACY_COVERAGE = diplomacy.install()
 
 
 HEAD_OF_STATE = (
@@ -22,6 +26,7 @@ HEAD_OF_STATE = (
 SENIOR_CABINET = (
     "foreign minister", "defense minister", "defence minister", "finance minister",
     "secretary of state", "treasury secretary", "national security adviser",
+    "top diplomat",
 )
 STATE_INSTITUTION = (
     "government", "ministry", "nato", "european commission", "central bank",
@@ -43,6 +48,7 @@ DEESCALATION_ACTION = (
     "begin", "began", "start", "started", "extend", "extended", "accept",
     "accepted", "propose", "proposed", "prepare", "prepared", "negotiat",
     "peace talks", "talks", "hold", "holds", "entered into force", "withdraw",
+    "revive", "resume", "restart", "return to", "reopen", "restore dialogue",
 )
 
 
@@ -81,8 +87,8 @@ def rejection_reason(row: Mapping[str, Any]) -> str | None:
         if labor and not military:
             return "labor_strike_not_military_strike"
 
-    # A ceasefire/truce mentioned only as background (e.g. an accident "during
-    # truce") is not itself a new de-escalation event. Require an operative verb.
+    # A ceasefire/truce/diplomacy term mentioned only as background is not itself a
+    # new de-escalation event. Require an operative verb or explicit talks action.
     if str(row.get("event_type") or "") == "deescalation":
         has_action = any(token in text for token in DEESCALATION_ACTION)
         if not has_action:
@@ -146,6 +152,7 @@ def build_snapshot(now: datetime) -> tuple[dict[str, Any], dict[str, Any], Any, 
         "schema_version": event.SCHEMA,
         "engine_version": event.VERSION,
         "quality_guard_version": "event-precision-v1",
+        "diplomacy_coverage": DIPLOMACY_COVERAGE,
         "mode": "production_decision_overlay",
         "generated_at": event.iso_z(now),
         "status": "healthy" if events else "degraded_no_fresh_classified_events",
@@ -161,6 +168,7 @@ def build_snapshot(now: datetime) -> tuple[dict[str, Any], dict[str, Any], Any, 
             "fail_closed_on_missing_event_feed": False,
             "no_event_data_means_no_overlay_change": True,
             "lexical_precision_guard_enabled": True,
+            "diplomacy_coverage_enabled": True,
         },
         "thresholds": {
             "entry_block": event.ENTRY_BLOCK_THRESHOLD,
