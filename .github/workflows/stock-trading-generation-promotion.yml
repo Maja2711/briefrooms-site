@@ -10,9 +10,12 @@ on:
         type: choice
         options: [all, GPW, US]
   schedule:
-    # After the GPW and US regular sessions. The engine itself verifies local
-    # exchange time and source freshness before freezing prospective evidence.
+    # Run around both DST variants. The engine itself checks local exchange
+    # close and source freshness, so pre-close attempts fail closed without
+    # creating a formal pair.
+    - cron: "25 15 * * 1-5"
     - cron: "25 16 * * 1-5"
+    - cron: "25 20 * * 1-5"
     - cron: "25 21 * * 1-5"
   push:
     branches: [main]
@@ -21,7 +24,6 @@ on:
       - "scripts/stock_trading_generation_promotion.py"
       - "scripts/stock_trading_generation_router.py"
       - "data/investments/stock_trading_generation_config.json"
-      - "data/investments/stock_trading_generation_state.json"
 
 permissions:
   contents: write
