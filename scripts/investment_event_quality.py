@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 """Precision guard for production Investment Event Intelligence.
 
-The base collector intentionally has broad recall. This module removes lexical false
-positives before any event is allowed to influence portfolio decisions and
-recomputes authority with token/phrase boundaries rather than substring matches.
+The geopolitical base collector intentionally has broad recall. This module removes
+lexical false positives before any geopolitical event can influence portfolio
+decisions, then merges the separately curated Corporate / Tech / Crypto radar into
+one shared production event stream.
 """
 from __future__ import annotations
 
-import math
 import re
+from collections import Counter
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
+import investment_corporate_event_intelligence as corporate
 import investment_event_diplomacy_coverage as diplomacy
 import investment_event_intelligence as event
 
 # Widen diplomacy recall/classification before any production collection call.
 DIPLOMACY_COVERAGE = diplomacy.install()
-
+COMBINED_MAX_EVENTS = event.MAX_EVENTS + corporate.MAX_EVENTS
 
 HEAD_OF_STATE = (
     "president", "prime minister", "supreme leader", "chancellor", "premier",
@@ -108,12 +110,14 @@ def curate_events(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any
                 "event_id": row.get("event_id"),
                 "title": row.get("title"),
                 "reason": reason,
+                "event_domain": "geopolitical",
             })
             continue
 
         authority, role = exact_authority(str(row.get("title") or ""))
         row["authority"] = authority
         row["actor_role"] = role
+        row["event_domain"] = row.get("event_domain") or "geopolitical"
         confidence = (
             authority
             * float(row.get("source_reliability") or 0.0)
@@ -128,7 +132,7 @@ def curate_events(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any
         )
         row["confidence"] = round(confidence, 4)
         row["event_strength"] = round(event.clamp(strength, 0.0, 1.0), 4)
-        row["quality_guard"] = "accepted_precision_v1"
+        row["quality_guard"] = "accepted_precision_v2"
         accepted.append(row)
 
     accepted.sort(
@@ -138,21 +142,44 @@ def curate_events(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any
     return accepted[: event.MAX_EVENTS], rejected
 
 
+def _dedupe_combined(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    # Event IDs are domain-prefixed. A second title-level guard handles the rare case
+    # where corporate and geopolitical queries return the same material headline.
+    ordered = sorted(
+        (dict(row) for row in rows),
+        key=lambda row: (float(row.get("event_strength") or 0.0), -float(row.get("age_hours") or 0.0)),
+        reverse=True,
+    )
+    accepted: list[dict[str, Any]] = []
+    for row in ordered:
+        if any(event.similar(row, previous) and row.get("source") == previous.get("source") for previous in accepted):
+            continue
+        accepted.append(row)
+        if len(accepted) >= COMBINED_MAX_EVENTS:
+            break
+    return accepted
+
+
 def collect(now: datetime) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]]]:
-    raw, errors = event.collect_events(now)
-    accepted, rejected = curate_events(raw)
-    return accepted, errors, rejected
+    geopolitical_raw, geopolitical_errors = event.collect_events(now)
+    geopolitical, geopolitical_rejected = curate_events(geopolitical_raw)
+    corporate_rows, corporate_errors, corporate_rejected = corporate.collect_events(now)
+    combined = _dedupe_combined([*geopolitical, *corporate_rows])
+    return combined, [*geopolitical_errors, *corporate_errors], [*geopolitical_rejected, *corporate_rejected]
 
 
 def build_snapshot(now: datetime) -> tuple[dict[str, Any], dict[str, Any], Any, dict[str, Any]]:
     events, errors, rejected = collect(now)
     targets, stock_state, week_path, week = event.build_targets(now)
     scores = {str(target["target_id"]): event.score_target(target, events) for target in targets}
+    domain_counts = Counter(str(row.get("event_domain") or "unknown") for row in events)
     payload = {
         "schema_version": event.SCHEMA,
         "engine_version": event.VERSION,
-        "quality_guard_version": "event-precision-v1",
+        "quality_guard_version": "event-precision-v2",
         "diplomacy_coverage": DIPLOMACY_COVERAGE,
+        "corporate_radar": corporate.public_config(),
+        "event_domain_counts": dict(domain_counts),
         "mode": "production_decision_overlay",
         "generated_at": event.iso_z(now),
         "status": "healthy" if events else "degraded_no_fresh_classified_events",
@@ -169,6 +196,8 @@ def build_snapshot(now: datetime) -> tuple[dict[str, Any], dict[str, Any], Any, 
             "no_event_data_means_no_overlay_change": True,
             "lexical_precision_guard_enabled": True,
             "diplomacy_coverage_enabled": True,
+            "corporate_tech_crypto_radar_enabled": True,
+            "corporate_events_require_target_relevance": True,
         },
         "thresholds": {
             "entry_block": event.ENTRY_BLOCK_THRESHOLD,
