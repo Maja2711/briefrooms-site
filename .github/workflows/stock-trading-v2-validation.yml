@@ -1,0 +1,49 @@
+name: Stock Trading v2 Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - stock-trading-v2-impl
+    paths:
+      - ".github/workflows/stock-trading-v2-validation.yml"
+      - "scripts/stock_trading_v2_contracts.py"
+      - "scripts/stock_trading_v2_experience_store.py"
+      - "tests/test_stock_trading_v2_experience_store.py"
+      - "data/investments/stock_trading_v2_config.json"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2-impl
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Phase 1A modules
+        run: |
+          python -m py_compile \
+            scripts/stock_trading_v2_contracts.py \
+            scripts/stock_trading_v2_experience_store.py \
+            tests/test_stock_trading_v2_experience_store.py
+
+      - name: Validate configuration JSON
+        run: python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
+
+      - name: Run Phase 1A unit tests
+        run: python -m unittest tests.test_stock_trading_v2_experience_store -v
+
+      - name: Verify empty/new experience store contract
+        run: python scripts/stock_trading_v2_experience_store.py --verify
