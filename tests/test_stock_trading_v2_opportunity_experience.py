@@ -79,7 +79,52 @@ class StockTradingV2OpportunityExperienceTests(unittest.TestCase):
         self.assertEqual(selected[0]["source"]["engine"], freeze.SOURCE_ENGINE)
         self.assertEqual(selected[0]["candidate_state"]["decision_path"]["portfolio_action"], "BUY")
         self.assertEqual(selected[0]["candidate_state"]["risk_plan"]["reference_price"], 100.0)
+        self.assertEqual(
+            rejected[0]["candidate_state"]["decision_path"]["first_blocking_gate"],
+            "opportunity_ranked_below_selected_candidate",
+        )
         contracts.validate_experience_event(selected[0])
+        contracts.validate_experience_event(rejected[0])
+
+    def test_eligible_cash_rejection_is_opportunity_edge_not_hard_gate(self):
+        evaluated = {
+            "eligible": True,
+            "eligibility_reason": "eligible_shadow_opportunity",
+            "symbol": "BETA",
+            "utility": 53.0,
+            "research_risk_plan": {"status": "VALID_RESEARCH_REFERENCE"},
+        }
+        state = freeze.candidate_state(
+            evaluated,
+            {"symbol": "BETA", "evidence_status": "COMPLETE"},
+            selected=False,
+            portfolio_action="CASH",
+            opportunity_reason="no_eligible_opportunity_clears_cash_edge",
+        )
+        self.assertEqual(
+            state["decision_path"]["first_blocking_gate"],
+            "opportunity_did_not_clear_cash_or_replacement_edge",
+        )
+
+    def test_hard_gate_rejection_preserves_actual_gate(self):
+        evaluated = {
+            "eligible": False,
+            "eligibility_reason": "production_reference_liquidity_not_met",
+            "symbol": "BETA",
+            "utility": 80.0,
+            "research_risk_plan": {"status": "VALID_RESEARCH_REFERENCE"},
+        }
+        state = freeze.candidate_state(
+            evaluated,
+            {"symbol": "BETA", "evidence_status": "COMPLETE"},
+            selected=False,
+            portfolio_action="CASH",
+            opportunity_reason="no_eligible_opportunity_clears_cash_edge",
+        )
+        self.assertEqual(
+            state["decision_path"]["first_blocking_gate"],
+            "production_reference_liquidity_not_met",
+        )
 
     def test_continuous_selected_and_rejected_plans_are_replayable_without_lookahead(self):
         evidence = evidence_snapshot()
