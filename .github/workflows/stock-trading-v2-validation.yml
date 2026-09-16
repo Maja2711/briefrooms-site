@@ -4,14 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - stock-trading-v2-impl
+      - stock-trading-v2
     paths:
       - ".github/workflows/stock-trading-v2-validation.yml"
       - "scripts/stock_trading_v2_contracts.py"
       - "scripts/stock_trading_v2_experience_store.py"
+      - "scripts/stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_experience_store.py"
+      - "tests/test_stock_trading_v2_universe.py"
       - "data/investments/stock_trading_v2_config.json"
       - "data/investments/stock_trading_v2_experience/**"
+      - "data/investments/stock_trading_v2_universe/**"
 
 permissions:
   contents: read
@@ -23,28 +26,38 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
-      - name: Check out implementation branch
+      - name: Check out Stock Trading v2
         uses: actions/checkout@v4
         with:
-          ref: stock-trading-v2-impl
+          ref: stock-trading-v2
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Compile Phase 1A modules
+      - name: Compile v2 modules
         run: |
           python -m py_compile \
             scripts/stock_trading_v2_contracts.py \
             scripts/stock_trading_v2_experience_store.py \
             tests/test_stock_trading_v2_experience_store.py
+          if [[ -f scripts/stock_trading_v2_universe.py ]]; then
+            python -m py_compile scripts/stock_trading_v2_universe.py
+          fi
+          if [[ -f tests/test_stock_trading_v2_universe.py ]]; then
+            python -m py_compile tests/test_stock_trading_v2_universe.py
+          fi
 
       - name: Validate configuration JSON
         run: python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
 
-      - name: Run Phase 1A unit tests
-        run: python -m unittest tests.test_stock_trading_v2_experience_store -v
+      - name: Run v2 unit tests
+        run: |
+          python -m unittest tests.test_stock_trading_v2_experience_store -v
+          if [[ -f tests/test_stock_trading_v2_universe.py ]]; then
+            python -m unittest tests.test_stock_trading_v2_universe -v
+          fi
 
       - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
