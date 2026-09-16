@@ -78,7 +78,22 @@ def universe_snapshot() -> dict:
         "source": {"provider": "test"},
         "instrument_count": 3,
         "instruments": [
-            {"schema_version": universe.INSTRUMENT_SCHEMA, "market": "US", "listing_symbol": symbol, "market_data_symbol": symbol, "name": symbol, "exchange": "NASDAQ", "security_type": "COMMON_STOCK", "eligibility": {"discovery_eligible": True}, "source": {"provider": "test"}}
+            {
+                "schema_version": universe.INSTRUMENT_SCHEMA,
+                "market": "US",
+                "listing_symbol": symbol,
+                "market_data_symbol": symbol,
+                "name": symbol,
+                "exchange": "NASDAQ",
+                "security_type": "COMMON_STOCK",
+                "eligibility": {
+                    "discovery_eligible": True,
+                    "liquidity_pending": True,
+                    "price_history_pending": True,
+                    "production_admission": False,
+                },
+                "source": {"provider": "test"},
+            }
             for symbol in ("UP", "FLAT", "DOWN")
         ],
         "governance": {"production_decision_influence": False},
