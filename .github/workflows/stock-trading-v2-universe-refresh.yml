@@ -10,7 +10,10 @@ on:
     paths:
       - ".github/workflows/stock-trading-v2-universe-refresh.yml"
       - "scripts/stock_trading_v2_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe_provider.py"
       - "tests/test_stock_trading_v2_universe.py"
+      - "tests/test_stock_trading_v2_gpw_universe.py"
       - "data/investments/stock_trading_v2_universe_config.json"
 
 permissions:
@@ -23,7 +26,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -38,18 +41,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate universe parser before network refresh
+      - name: Validate universe parsers before network refresh
         run: |
           set -euo pipefail
-          python -m unittest tests.test_stock_trading_v2_universe -v
-          python -m py_compile scripts/stock_trading_v2_universe.py
+          python -m unittest \
+            tests.test_stock_trading_v2_universe \
+            tests.test_stock_trading_v2_gpw_universe -v
+          python -m py_compile \
+            scripts/stock_trading_v2_universe.py \
+            scripts/stock_trading_v2_gpw_universe.py \
+            scripts/stock_trading_v2_gpw_universe_provider.py
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
 
       - name: Refresh broad shadow universes
         run: |
           set -euo pipefail
           python scripts/stock_trading_v2_universe.py --market US
-          python scripts/stock_trading_v2_universe.py --market GPW
+          python scripts/stock_trading_v2_gpw_universe.py
           python scripts/stock_trading_v2_universe.py --verify
           python - <<'PY'
           import json
@@ -58,10 +66,14 @@ jobs:
           gpw=json.loads(Path('data/investments/stock_trading_v2_universe/gpw.json').read_text(encoding='utf-8'))
           if int(us.get('instrument_count') or 0) <= 50:
               raise SystemExit(f'US v2 universe unexpectedly small: {us.get("instrument_count")}')
+          if int(gpw.get('instrument_count') or 0) < 200:
+              raise SystemExit(f'GPW v2 universe unexpectedly small: {gpw.get("instrument_count")}')
           if us.get('governance',{}).get('production_decision_influence') is not False:
               raise SystemExit('US universe must remain shadow-only')
           if gpw.get('governance',{}).get('production_decision_influence') is not False:
               raise SystemExit('GPW universe must remain shadow-only')
+          if gpw.get('governance',{}).get('dynamic_provider_ready') is not True:
+              raise SystemExit('GPW dynamic provider is not marked ready')
           print('UNIVERSE_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'])
           PY
 
