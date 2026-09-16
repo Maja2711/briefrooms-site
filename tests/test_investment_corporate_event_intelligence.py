@@ -59,6 +59,7 @@ class CorporateEventRadarTests(unittest.TestCase):
         self.assertEqual(0.97, authority)
         self.assertEqual("tracked_executive_or_founder", role)
         self.assertEqual("Jensen Huang", actor)
+        self.assertTrue(corporate.has_material_signal("Jensen Huang says NVIDIA sees strong data center demand", entity))
 
     def test_guidance_raise_is_positive_direct_company_signal(self):
         signal = corporate.classify_signal("NVIDIA raises guidance after earnings beat")
@@ -76,6 +77,23 @@ class CorporateEventRadarTests(unittest.TestCase):
         signal = corporate.classify_signal("NVIDIA unveils new GPU roadmap")
         self.assertEqual("product_roadmap", signal["event_kind"])
         self.assertEqual(0.0, signal["direct_impact"])
+
+    def test_gpu_comparison_article_is_not_material(self):
+        entity = corporate.match_entity("Which Nvidia GPU Is Equivalent To The Meta Quest 3?")
+        self.assertIsNotNone(entity)
+        self.assertFalse(corporate.has_material_signal("Which Nvidia GPU Is Equivalent To The Meta Quest 3?", entity))
+
+    def test_missile_guidance_is_not_financial_guidance(self):
+        entity = corporate.match_entity("Anthropic reports Claude AI used for missile guidance")
+        self.assertIsNotNone(entity)
+        self.assertFalse(corporate.has_material_signal("Anthropic reports Claude AI used for missile guidance", entity))
+        self.assertNotEqual("guidance_statement", corporate.classify_signal("Anthropic reports Claude AI used for missile guidance")["event_kind"])
+
+    def test_generic_strategy_word_does_not_match_mstr(self):
+        self.assertIsNone(corporate.match_entity("DOJ unveils a new fraud division strategy"))
+        entity = corporate.match_entity("Strategy Inc buys bitcoin as Michael Saylor expands reserves")
+        self.assertIsNotNone(entity)
+        self.assertEqual("strategy", entity["key"])
 
     def test_negative_nvidia_fundamental_hits_nvda_not_unrelated_stock(self):
         row = corporate_event()
