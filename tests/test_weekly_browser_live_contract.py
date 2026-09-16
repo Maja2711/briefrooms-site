@@ -16,8 +16,8 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-6"
-COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-3"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-7"
+COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -34,65 +34,62 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
             self.assertNotIn("investments-weekly-es-delayed.js", html)
             self.assertLess(html.index("investments-weekly-public.js"), html.index("investments-weekly-browser-live.js"))
             self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-price-compact.js"))
-            self.assertLess(html.index("investments-weekly-price-compact.js"), html.index("investments-weekly-trade-times.js"))
 
-    def test_runtime_keeps_last_known_price_instead_of_emitting_stale_state(self) -> None:
+    def test_browser_runtime_keeps_last_quote_without_visible_delay_minutes(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("/data/investments/live_prices.json", source)
-        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v3:'", source)
-        self.assertIn("lastPrice: 'ostatni kurs'", source)
-        self.assertIn("delayed: 'OPÓŹNIONY'", source)
+        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v4:'", source)
         self.assertIn("mode: 'delayed'", source)
-        self.assertIn("nowBox.dataset.feedStatus = 'delayed'", source)
-        self.assertIn("saveCache(instrumentId, quote)", source)
-        self.assertIn("newestQuote(bestDelayed, backend, cached, previous)", source)
-        self.assertNotIn("stale: 'STALE'", source)
-        self.assertNotIn("feedStatus = 'stale'", source)
+        self.assertIn("saveCache(instrumentId, finalQuote)", source)
+        self.assertIn("timeNode.textContent = fmtTime(quote.updatedAt)", source)
+        self.assertNotIn("opóźniony", source.lower())
+        self.assertNotIn("delayed ${", source)
+        self.assertNotIn(" min`", source)
 
-    def test_all_three_instruments_have_live_sources_and_same_origin_backend(self) -> None:
+    def test_btc_sources_are_requested_in_parallel_and_freshest_quote_wins(self) -> None:
+        source = LIVE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("Coinbase BTC-USD", source)
+        self.assertIn("CoinGecko BTC/USD", source)
+        self.assertIn("Promise.allSettled(cfg.sources.map", source)
+        self.assertIn("const newestFreshDirect = freshDirect.sort", source)
+        self.assertIn("pollMs: 15_000", source)
+        self.assertIn("REQUEST_TIMEOUT_MS = 6_000", source)
+        self.assertIn("backendMaxAgeMs: 7 * 60_000", source)
+        self.assertNotIn("for (let index = 0; index < cfg.sources.length", source)
+
+    def test_backend_refresh_does_not_block_direct_market_round(self) -> None:
+        source = LIVE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("BACKEND_POLL_MS = 60_000", source)
+        self.assertIn("void refreshBackend()", source)
+        self.assertIn("feedRoundInFlight", source)
+        self.assertIn("backendInFlight", source)
+        self.assertIn("cache: 'no-store'", source)
+        self.assertIn("br:weekly-rendered", source)
+
+    def test_compact_presenter_only_shows_publication_timestamp(self) -> None:
+        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("function compactTime", source)
+        self.assertIn("fmtStamp(liveAt)", source)
+        self.assertIn("replace(',', ' ·')", source)
+        self.assertIn("MutationObserver", source)
+        self.assertNotIn("opóźniony", source.lower())
+        self.assertNotIn("delayed", source.lower())
+        self.assertNotIn("Coinbase", source)
+        self.assertNotIn("CoinGecko", source)
+        self.assertNotIn("fetch(", source)
+
+    def test_all_three_instruments_keep_live_sources_and_same_origin_backend(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("FX mid-market", source)
         self.assertIn("Yahoo EURUSD=X", source)
         self.assertIn("Yahoo ES=F", source)
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
-        self.assertIn("pollMs: 15_000", source)
         self.assertIn("pollMs: 60_000", source)
         self.assertIn("maxAgeMs: 2 * 60_000", source)
         self.assertIn("maxAgeMs: 5 * 60_000", source)
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
-        self.assertIn("br:weekly-rendered", source)
-        self.assertIn("cache: 'no-store'", source)
-
-    def test_compact_presenter_reuses_daily_eurusd_source_and_short_metadata(self) -> None:
-        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
-        self.assertIn("EUR_REFRESH_MS = 60_000", source)
-        self.assertIn("EUR_LIVE_MAX_AGE_MS = 5 * 60_000", source)
-        self.assertIn("data.updatedAt ? new Date(data.updatedAt) : new Date()", source)
-        self.assertIn("replace(',', ' ·')", source)
-        self.assertIn("opóźniony", source)
-        self.assertNotIn("ostatni kurs", source)
-        self.assertNotIn("STALE", source)
-
-    def test_sp500_overlay_selects_freshest_quote_instead_of_forcing_active_yahoo(self) -> None:
-        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("ES_REFRESH_MS = 15_000", source)
-        self.assertIn("activeEsContract", source)
-        self.assertIn("thirdFridayUtc", source)
-        self.assertIn("8 * 24 * 60 * 60 * 1000", source)
-        self.assertIn("eSignal", source)
-        self.assertIn("fetchEsignalEs", source)
-        self.assertIn("fetchYahooEsSymbol(contract.yahoo)", source)
-        self.assertIn("fetchYahooEsSymbol('ES=F')", source)
-        self.assertIn("fetchBackendEs()", source)
-        self.assertIn("newestQuote(...quotes)", source)
-        self.assertIn("ES_USABLE_MAX_AGE_MS = 45 * 60_000", source)
-        self.assertIn("ES_DISPLAY_DELAY_MS = 5 * 60_000", source)
-        self.assertIn("if (existingAt > quoteAt) return", source)
-        self.assertNotIn("force = false", source)
-        self.assertNotIn("true);\n    } catch (error)", source)
 
     def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")
@@ -105,8 +102,6 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("lambda: stooq_quote(instrument_id)", source)
         self.assertIn("candidates.sort", source)
         self.assertIn("reverse=True", source)
-        self.assertNotIn("candidate_is_active_es", source)
-        self.assertNotIn("return active_quote, errors", source)
 
 
 if __name__ == "__main__":
