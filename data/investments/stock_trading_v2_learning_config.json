@@ -1,0 +1,65 @@
+{
+  "schema_version": "stock-trading-v2-learning-config-v1",
+  "version": "2.0.0-phase3a",
+  "mode": "shadow_closed_loop",
+  "horizons_sessions": [1, 2, 5, 10, 20, 60, 120],
+  "replay": {
+    "version": "frozen-geometry-next-session-open-v1",
+    "activation": "next_session_open_subject_to_frozen_skip_and_stop_target_geometry",
+    "same_bar_stop_target": "stop_first_conservative",
+    "selected_and_rejected_same_methodology": true,
+    "dynamic_policy_replay": "separate_phase_after_frozen_geometry_baseline"
+  },
+  "cost_stress_percent": {
+    "GPW": 0.2,
+    "US": 0.1
+  },
+  "regret": {
+    "group_key": "source_payload_sha256",
+    "cash_return_r": 0.0,
+    "minimum_comparable_candidates": 2,
+    "measure": "best_legal_counterfactual_net_r_minus_champion_net_r"
+  },
+  "learning": {
+    "minimum_observations_for_hypothesis": 12,
+    "minimum_observations_for_challenger": 30,
+    "minimum_unique_symbols": 5,
+    "minimum_span_days": 10,
+    "learnable_components": [
+      "entry_score_below_threshold",
+      "non_positive_conservative_expected_value",
+      "opening_confirmation",
+      "relative_momentum_weight",
+      "catalyst_weight",
+      "historical_expectancy_weight",
+      "admission_margin",
+      "rotation_threshold"
+    ],
+    "immutable_safety_components": [
+      "data_freshness",
+      "data_integrity",
+      "minimum_liquidity",
+      "maximum_risk_percent",
+      "stop_required",
+      "target_required",
+      "minimum_reward_risk",
+      "max_open_positions",
+      "no_forced_trade",
+      "no_lookahead"
+    ]
+  },
+  "promotion": {
+    "reuse_config": "data/investments/statistical_promotion_gate_v2_config.json",
+    "production_writeback_enabled": false,
+    "champion_challenger_required": true,
+    "fresh_holdout_required": true
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_policy_writeback": false,
+    "immutable_candidate_events": true,
+    "immutable_admission_observations": true,
+    "immutable_settled_horizon_outcomes": true,
+    "no_single_trade_parameter_mutation": true
+  }
+}
