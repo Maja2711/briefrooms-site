@@ -1,0 +1,158 @@
+name: Daily Stock MISS Learning
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/daily_stock_miss_engine.py"
+      - "scripts/daily_stock_champion_challenger.py"
+      - "scripts/daily_stock_self_improvement.py"
+      - "tests/test_daily_stock_miss_champion.py"
+      - ".github/workflows/daily-stock-miss-learning.yml"
+  push:
+    branches:
+      - main
+      - feat/daily-stock-miss-learning-v2
+    paths:
+      - "scripts/daily_stock_miss_engine.py"
+      - "scripts/daily_stock_champion_challenger.py"
+      - "scripts/daily_stock_self_improvement.py"
+      - "tests/test_daily_stock_miss_champion.py"
+      - ".github/workflows/daily-stock-miss-learning.yml"
+  workflow_run:
+    workflows:
+      - "Observe GPW Rejected Candidate Outcomes"
+    types: [completed]
+  schedule:
+    # After the GPW rejected-candidate observer's close/settlement windows.
+    - cron: "5 17 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-stock-miss-learning
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile MISS learning modules
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_stock_miss_engine.py \
+            scripts/daily_stock_champion_challenger.py \
+            scripts/daily_stock_self_improvement.py
+
+      - name: Run complete MISS to governed Challenger test suite
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_daily_stock_miss_champion -v
+
+      - name: Build and verify current prospective evidence end to end
+        run: |
+          set -euo pipefail
+          python scripts/daily_stock_self_improvement.py
+          python scripts/daily_stock_self_improvement.py --verify
+
+      - name: Enforce zero production authority and PR35/PR36 freeze
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          promotion=json.loads(Path('data/investments/statistical_promotion_gate_v2_config.json').read_text())
+          assert promotion['production_promotion_enabled'] is False
+          assert promotion['promotion_methodology_version'] == 2
+
+          miss=json.loads(Path('data/investments/daily_stock_miss_learning_report.json').read_text())
+          intents=json.loads(Path('data/investments/daily_stock_challenger_intents.json').read_text())
+          proposals=json.loads(Path('data/investments/daily_stock_miss_hypothesis_proposals.json').read_text())
+          assert miss['governance']['automatic_policy_writeback'] is False
+          assert miss['governance']['hard_safety_gates_are_learnable'] is False
+          assert intents['governance']['existing_PR35_PR36_is_only_promotion_route'] is True
+          assert intents['governance']['runtime_registry_writeback'] is False
+          assert proposals['governance']['automatic_registry_write'] is False
+          assert proposals['governance']['automatic_promotion'] is False
+          for row in miss['patterns']:
+              if row['hard_gate']:
+                  assert row['learnable'] is False
+          for row in intents['challenger_intents']:
+              assert row['route']['production_promotion_enabled'] is False
+              assert row['route']['automatic_registry_mutation'] is False
+          print('DAILY_STOCK_MISS_ZERO_AUTHORITY_PASS')
+          PY
+          git diff --exit-code -- \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/us_daily_stock_config.json \
+            data/investments/lesson_hypothesis_registry_v1.json
+
+  observe:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Materialize research-only MISS evidence and proposals
+        run: |
+          set -euo pipefail
+          python scripts/daily_stock_self_improvement.py
+          python scripts/daily_stock_self_improvement.py --verify
+
+      - name: Commit research artifacts only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/daily_stock_miss_learning_report.json \
+            data/investments/daily_stock_challenger_intents.json \
+            data/investments/daily_stock_miss_hypothesis_proposals.json
+          if git diff --cached --quiet; then
+            echo "No MISS-learning evidence change."
+            exit 0
+          fi
+          git commit -m "Update Daily Stock MISS learning evidence"
+          for attempt in 1 2 3 4 5; do
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+          exit 1
