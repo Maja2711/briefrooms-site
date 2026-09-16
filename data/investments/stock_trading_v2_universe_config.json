@@ -1,6 +1,6 @@
 {
   "schema_version": "stock-trading-v2-universe-config-v1",
-  "version": "2.0.0-phase1b",
+  "version": "2.0.0-phase1d",
   "mode": "shadow_no_production_influence",
   "objective": "broad_dynamic_discovery_before_expensive_analysis",
   "markets": {
@@ -30,12 +30,18 @@
     },
     "GPW": {
       "enabled": true,
-      "provider": "legacy_seed_pending_dynamic_main_market_provider",
-      "refresh": "compatibility_only",
+      "provider": "gpw_official_main_market_company_search",
+      "authority": "official_exchange_company_search",
+      "datasets": [
+        "https://www.gpw.pl/spolki",
+        "https://www.gpw.pl/ajaxindex.php"
+      ],
+      "refresh": "daily_and_on_demand",
       "target": "broad_main_market_dynamic_universe",
-      "dynamic_provider_ready": false,
+      "dynamic_provider_ready": true,
       "do_not_filter_by_market_cap": true,
-      "liquidity_filter_stage": "fast_scanner"
+      "liquidity_filter_stage": "fast_scanner",
+      "history_filter_stage": "fast_scanner"
     }
   },
   "governance": {
