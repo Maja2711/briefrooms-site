@@ -17,7 +17,6 @@ import investment_corporate_event_intelligence as corporate
 import investment_event_diplomacy_coverage as diplomacy
 import investment_event_intelligence as event
 
-# Widen diplomacy recall/classification before any production collection call.
 DIPLOMACY_COVERAGE = diplomacy.install()
 COMBINED_MAX_EVENTS = event.MAX_EVENTS + corporate.MAX_EVENTS
 
@@ -35,7 +34,6 @@ STATE_INSTITUTION = (
     "military chief", "armed forces", "u.s. house", "us house", "senate",
     "congress", "parliament",
 )
-
 LABOR_CONTEXT = (
     "worker", "workers", "employee", "employees", "union", "unions", "wage",
     "wages", "pay dispute", "labor strike", "labour strike", "walkout",
@@ -52,6 +50,18 @@ DEESCALATION_ACTION = (
     "peace talks", "talks", "hold", "holds", "entered into force", "withdraw",
     "revive", "resume", "restart", "return to", "reopen", "restore dialogue",
 )
+CONSUMER_SANCTION_CONTEXT = (
+    "family vacation", "family holiday", "parents face", "parent faces", "school punishment",
+    "student punishment", "theme park", "disney world", "disneyland", "sports sanction",
+    "league sanction", "disciplinary sanction",
+)
+GEOPOLITICAL_SANCTION_CONTEXT = (
+    "russia", "russian", "iran", "iranian", "china", "chinese", "ukraine", "ukrainian",
+    "israel", "gaza", "syria", "north korea", "venezuela", "taiwan", "belarus",
+    "united states", "u.s.", " us ", "european union", "eu ", "white house", "kremlin",
+    "congress", "senate", "parliament", "ministry", "foreign minister", "president",
+    "prime minister", "bank", "oil", "shipping", "export", "import", "trade",
+)
 
 
 def _norm(value: Any) -> str:
@@ -59,10 +69,6 @@ def _norm(value: Any) -> str:
 
 
 def _phrase(text: str, phrase: str) -> bool:
-    """Match a word or multiword phrase without substring collisions.
-
-    Example: NATO must not match seNATOr.
-    """
     escaped = re.escape(phrase.casefold()).replace(r"\ ", r"\s+")
     return re.search(rf"(?<![\w]){escaped}(?![\w])", text) is not None
 
@@ -81,20 +87,24 @@ def exact_authority(title: str) -> tuple[float, str]:
 def rejection_reason(row: Mapping[str, Any]) -> str | None:
     text = _norm(row.get("title"))
 
-    # "Strike" is highly ambiguous. A labour strike is not a geopolitical market
-    # shock merely because a president is mentioned in the same headline.
     if _phrase(text, "strike") or _phrase(text, "strikes"):
         labor = any(_phrase(text, token) for token in LABOR_CONTEXT)
         military = any(_phrase(text, token) for token in MILITARY_CONTEXT)
         if labor and not military:
             return "labor_strike_not_military_strike"
 
-    # A ceasefire/truce/diplomacy term mentioned only as background is not itself a
-    # new de-escalation event. Require an operative verb or explicit talks action.
     if str(row.get("event_type") or "") == "deescalation":
         has_action = any(token in text for token in DEESCALATION_ACTION)
         if not has_action:
             return "contextual_deescalation_without_new_action"
+
+    # "Sanction" also means a punishment in ordinary civil, school, family or sports
+    # contexts. Do not let such headlines enter the geopolitical market overlay.
+    if "sanction" in text:
+        consumer_context = any(token in text for token in CONSUMER_SANCTION_CONTEXT)
+        geopolitical_context = any(token in f" {text} " for token in GEOPOLITICAL_SANCTION_CONTEXT)
+        if consumer_context and not geopolitical_context:
+            return "non_geopolitical_sanction_context"
 
     return None
 
@@ -125,14 +135,10 @@ def curate_events(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any
             * float(row.get("corroboration") or 0.0)
         )
         confidence = event.clamp(confidence, 0.0, 1.0)
-        strength = (
-            float(row.get("severity") or 0.0)
-            * confidence
-            * float(row.get("time_decay") or 0.0)
-        )
+        strength = float(row.get("severity") or 0.0) * confidence * float(row.get("time_decay") or 0.0)
         row["confidence"] = round(confidence, 4)
         row["event_strength"] = round(event.clamp(strength, 0.0, 1.0), 4)
-        row["quality_guard"] = "accepted_precision_v2"
+        row["quality_guard"] = "accepted_precision_v2.1"
         accepted.append(row)
 
     accepted.sort(
@@ -143,8 +149,6 @@ def curate_events(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any
 
 
 def _dedupe_combined(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    # Event IDs are domain-prefixed. A second title-level guard handles the rare case
-    # where corporate and geopolitical queries return the same material headline.
     ordered = sorted(
         (dict(row) for row in rows),
         key=lambda row: (float(row.get("event_strength") or 0.0), -float(row.get("age_hours") or 0.0)),
@@ -176,7 +180,7 @@ def build_snapshot(now: datetime) -> tuple[dict[str, Any], dict[str, Any], Any, 
     payload = {
         "schema_version": event.SCHEMA,
         "engine_version": event.VERSION,
-        "quality_guard_version": "event-precision-v2",
+        "quality_guard_version": "event-precision-v2.1",
         "diplomacy_coverage": DIPLOMACY_COVERAGE,
         "corporate_radar": corporate.public_config(),
         "event_domain_counts": dict(domain_counts),
