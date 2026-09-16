@@ -1,0 +1,43 @@
+{
+  "schema_version": "stock-trading-v2-fast-scan-config-v1",
+  "version": "2.0.0-phase1c",
+  "market": "US",
+  "mode": "shadow_no_production_influence",
+  "objective": "preserve_broad_opportunity_coverage_before_expensive_analysis",
+  "filters": {
+    "minimum_price_usd": 1.0,
+    "absolute_minimum_dollar_volume_usd": 0.0,
+    "excluded_industries": [
+      "Blank Checks"
+    ],
+    "excluded_name_patterns": [
+      "\\bWarrant(s)?\\b",
+      "\\bRights?\\b",
+      "\\bPreferred\\b",
+      "\\bUnits?\\b"
+    ]
+  },
+  "selection": {
+    "maximum_candidates": 600,
+    "liquidity_lane": 300,
+    "mover_lane": 150,
+    "midcap_lane": 150,
+    "mover_minimum_dollar_volume_usd": 1000000,
+    "midcap_market_cap_min_usd": 100000000,
+    "midcap_market_cap_max_usd": 15000000000
+  },
+  "next_stage": {
+    "requires_price_history": true,
+    "requires_median_turnover": true,
+    "requires_multihorizon_momentum": true,
+    "requires_volatility_features": true,
+    "news_or_llm_for_all_stage_zero_candidates": false
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "no_market_cap_large_cap_only_filter": true,
+    "midcap_lane_required": true,
+    "no_forced_trade": true
+  }
+}
