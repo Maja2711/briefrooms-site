@@ -1,0 +1,281 @@
+name: Autonomous Policy Closed Loop
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Learning Outcome Loop"
+    types: [completed]
+  schedule:
+    - cron: "37 5 * * 1-5"
+    - cron: "37 17 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/autonomous_policy_closed_loop.py"
+      - "scripts/autonomous_policy_observatory_v3.py"
+      - "data/investments/autonomous_policy_closed_loop_config.json"
+      - "tests/test_autonomous_policy_closed_loop.py"
+      - ".github/workflows/autonomous-policy-closed-loop.yml"
+  pull_request:
+    paths:
+      - "scripts/autonomous_policy_closed_loop.py"
+      - "scripts/autonomous_policy_observatory_v3.py"
+      - "data/investments/autonomous_policy_closed_loop_config.json"
+      - "tests/test_autonomous_policy_closed_loop.py"
+      - ".github/workflows/autonomous-policy-closed-loop.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: autonomous-policy-closed-loop
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: autonomous-policy-closed-loop-state
+  STATE_ARCHIVE: autonomous-policy-closed-loop-state.tgz
+  LEGACY_ARTIFACT: autonomous-policy-state
+  LEGACY_ARCHIVE: autonomous-policy-state.tgz
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate closed-loop authority and legacy research safety
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/autonomous_policy_closed_loop.py \
+            scripts/autonomous_policy_observatory_v3.py
+          python -m json.tool data/investments/autonomous_policy_closed_loop_config.json >/dev/null
+          python -m unittest \
+            tests.test_autonomous_policy_closed_loop \
+            tests.test_promotion_safety_v2 \
+            tests.test_learning_integrity_v1 -v
+
+  closed-loop:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare durable research runtime
+        run: |
+          set -euo pipefail
+          echo "POLICY_STATE_DIR=$RUNNER_TEMP/autonomous-policy-closed-loop" >> "$GITHUB_ENV"
+          echo "LEARNING_STATE_DIR=$RUNNER_TEMP/learning-outcome-loop-readonly" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/autonomous-policy-closed-loop" "$RUNNER_TEMP/learning-outcome-loop-readonly"
+
+      - name: Restore closed-loop state, or migrate latest PR35/PR36 research state
+        shell: bash
+        run: |
+          set -euo pipefail
+          restore_from_run() {
+            local run_id="$1" artifact="$2" archive="$3"
+            [[ -n "$run_id" ]] || return 1
+            rm -rf "$RUNNER_TEMP/policy-artifact"
+            mkdir -p "$RUNNER_TEMP/policy-artifact"
+            gh run download "$run_id" -n "$artifact" -D "$RUNNER_TEMP/policy-artifact" || return 1
+            test -s "$RUNNER_TEMP/policy-artifact/$archive" || return 1
+            rm -rf "$POLICY_STATE_DIR"
+            mkdir -p "$POLICY_STATE_DIR"
+            tar -xzf "$RUNNER_TEMP/policy-artifact/$archive" -C "$POLICY_STATE_DIR"
+            python scripts/autonomous_policy_promotion.py --state-dir "$POLICY_STATE_DIR" --verify
+          }
+
+          own_run="$(gh run list --workflow autonomous-policy-closed-loop.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if restore_from_run "$own_run" "$STATE_ARTIFACT" "$STATE_ARCHIVE"; then
+            echo "Restored prior closed-loop research state from run $own_run"
+            exit 0
+          fi
+
+          legacy_run="$(gh run list --workflow autonomous-policy-promotion.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if restore_from_run "$legacy_run" "$LEGACY_ARTIFACT" "$LEGACY_ARCHIVE"; then
+            echo "Migrated existing PR35/PR36 research state from run $legacy_run"
+            exit 0
+          fi
+
+          echo "No restorable prior research state. A fresh prospective activation will be created."
+          rm -rf "$POLICY_STATE_DIR"
+          mkdir -p "$POLICY_STATE_DIR"
+
+      - name: Restore latest Learning Outcome Loop state read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list --workflow learning-outcome-loop.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No Learning Outcome Loop state yet; continuing with zero new evidence."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/learning-artifact"
+          mkdir -p "$RUNNER_TEMP/learning-artifact"
+          if ! gh run download "$run_id" -n learning-outcome-loop-state -D "$RUNNER_TEMP/learning-artifact"; then
+            echo "Latest learning run has no state artifact; continuing with zero new evidence."
+            exit 0
+          fi
+          archive="$RUNNER_TEMP/learning-artifact/learning-outcome-loop-state.tgz"
+          [[ -s "$archive" ]] || exit 0
+          tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
+          if [[ -f "$LEARNING_STATE_DIR/learning_ledger.jsonl" ]]; then
+            python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
+          fi
+
+      - name: Reconcile any prior production actuation into research lineage
+        run: |
+          set -euo pipefail
+          if [[ -f "$POLICY_STATE_DIR/policy_registry.json" ]]; then
+            python scripts/autonomous_policy_closed_loop.py reconcile \
+              --research-state-dir "$POLICY_STATE_DIR" \
+              --repo-root .
+          fi
+
+      - name: Run prospective PR35 fixed-N gate
+        run: |
+          set -euo pipefail
+          python scripts/promotion_learning_integrity.py pr35 \
+            --state-dir "$POLICY_STATE_DIR" \
+            --learning-state-dir "$LEARNING_STATE_DIR" \
+            --repo-root .
+          python scripts/promotion_learning_integrity.py verify \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+
+      - name: Run fresh disjoint PR36 fixed-N holdout
+        run: |
+          set -euo pipefail
+          python scripts/promotion_learning_integrity.py pr36 \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+          python scripts/promotion_learning_integrity.py verify \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+
+      - name: Promote proven challenger or roll back degraded production policy
+        run: |
+          set -euo pipefail
+          python scripts/autonomous_policy_closed_loop.py apply \
+            --research-state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+          python scripts/autonomous_policy_closed_loop.py verify \
+            --research-state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+
+      - name: Assert bounded autonomous authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from autonomous_policy_closed_loop import CONFIG_PATH, STATE_PATH, load_config, load_state, verify_state
+          from promotion_learning_integrity import verify as verify_research
+
+          research=Path(os.environ['POLICY_STATE_DIR'])
+          cfg=load_config(Path('.'))
+          assert cfg['closed_loop_enabled'] is True
+          assert cfg['manual_approval_required'] is False
+          assert cfg['code_mutation_allowed'] is False
+          assert cfg['arbitrary_parameter_mutation_allowed'] is False
+          assert cfg['hard_safety_gate_mutation_allowed'] is False
+          assert cfg['trade_execution_allowed'] is False
+          integrity=verify_research(research, Path('.'))
+          assert integrity['fixed_n_primary_gate_unchanged'] is True
+          assert integrity['production_promotion_enabled'] is False
+          state=load_state(Path('.'), create=False, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc))
+          assert state is not None
+          verify_state(Path('.'), state)
+          print('AUTONOMOUS_CLOSED_LOOP_AUTHORITY_PASS')
+          PY
+
+      - name: Commit only autonomous production policy state and allowlisted configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/autonomous_policy_production_state.json \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/us_daily_stock_config.json
+          unexpected="$(git diff --cached --name-only | grep -Ev '^(data/investments/autonomous_policy_production_state.json|data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json)$' || true)"
+          if [[ -n "$unexpected" ]]; then
+            echo "Unexpected staged production path(s):" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "No production policy/state change to commit."
+            exit 0
+          fi
+          git commit -m "Apply statistically proven autonomous policy calibration"
+          for attempt in 1 2 3 4 5; do
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              echo "FAIL_CLOSED: main changed incompatibly during production materialization." >&2
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Autonomous production calibration committed to main."
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+          echo "FAIL_CLOSED: could not atomically publish autonomous calibration." >&2
+          exit 1
+
+      - name: Publish production-aware observatory into private artifact
+        run: |
+          set -euo pipefail
+          python scripts/autonomous_policy_observatory_v3.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root .
+          python scripts/autonomous_policy_observatory_v3.py \
+            --state-dir "$POLICY_STATE_DIR" \
+            --repo-root . \
+            --verify
+          test -s data/public/autonomous_policy_observatory.json
+          cp data/public/autonomous_policy_observatory.json \
+            "$POLICY_STATE_DIR/autonomous_policy_observatory_public.json"
+
+      - name: Pack closed-loop research state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$POLICY_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+
+      - name: Store closed-loop state
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-policy-closed-loop-state
+          path: ${{ runner.temp }}/autonomous-policy-closed-loop-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
