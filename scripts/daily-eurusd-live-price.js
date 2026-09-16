@@ -50,13 +50,12 @@
     })}%`;
   };
 
-  const formatTime = value => {
+  const formatDateTime = value => {
     const d = new Date(value);
     if (Number.isNaN(d.valueOf())) return "—";
-    return d.toLocaleTimeString(isEn ? "en-GB" : "pl-PL", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
+    return d.toLocaleString(isEn ? "en-GB" : "pl-PL", {
+      dateStyle: "short",
+      timeStyle: "medium"
     });
   };
 
@@ -154,17 +153,19 @@
     pnl.classList.toggle("negative", Number(resultPct) < 0);
 
     if (usingLive) {
-      meta.textContent = `${T.sourceLive} · ${T.updated} ${formatTime(liveQuote.updatedAt)}`;
+      meta.textContent = `${T.sourceLive} · ${T.updated} ${formatDateTime(liveQuote.updatedAt)}`;
       meta.classList.remove("brfx-live-stale");
       card.dataset.livePriceSource = "browser-live";
       card.dataset.livePriceAt = liveQuote.updatedAt;
     } else {
-      const minutes = ageMinutes(payload?.timestamp);
+      const timestamp = payload?.timestamp;
+      const minutes = ageMinutes(timestamp);
       const ageText = minutes == null ? "" : ` · ${minutes} min`;
-      meta.textContent = `${T.sourceEngine}${ageText}${minutes != null && minutes >= 10 ? ` · ${T.stale}` : ""}`;
+      const timeText = timestamp ? ` · ${formatDateTime(timestamp)}` : "";
+      meta.textContent = `${T.sourceEngine}${timeText}${ageText}${minutes != null && minutes >= 10 ? ` · ${T.stale}` : ""}`;
       meta.classList.toggle("brfx-live-stale", minutes != null && minutes >= 10);
       card.dataset.livePriceSource = "engine-fallback";
-      card.dataset.livePriceAt = String(payload?.timestamp || "");
+      card.dataset.livePriceAt = String(timestamp || "");
     }
   }
 
