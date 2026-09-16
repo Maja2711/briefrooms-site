@@ -2,26 +2,44 @@
   'use strict';
 
   const POLL_MS = 30_000;
-  const MAX_AGE_MS = 90_000;
+  const MAX_AGE_MS = 5 * 60_000;
   const REQUEST_TIMEOUT_MS = 7_000;
-  const STOOQ_URL = 'https://stooq.com/q/l/?s=es.f&f=sd2t2ohlcv&h&e=csv';
+  const WARSAW_TZ = 'Europe/Warsaw';
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
 
+  const FEEDS = {
+    eurusd: {
+      symbol: 'eurusd',
+      source: 'Stooq EUR/USD',
+      minPrice: 0.8,
+      maxPrice: 1.5,
+      digits: 5,
+    },
+    sp500_futures: {
+      symbol: 'es.f',
+      source: 'Stooq ES.F',
+      minPrice: 500,
+      maxPrice: 100_000,
+      digits: 2,
+    },
+  };
+
   let selectedWeek = null;
-  let currentQuote = null;
   let inFlight = false;
-  let observer = null;
-  let patching = false;
+  const quotes = new Map();
+  const observers = new Map();
+  const patching = new Set();
 
   const positive = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   };
 
-  function fmtPrice(value) {
+  function fmtPrice(value, instrumentId) {
+    const digits = FEEDS[instrumentId]?.digits ?? 2;
     return Number(value).toLocaleString(isEn ? 'en-US' : 'pl-PL', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     });
   }
 
@@ -29,7 +47,7 @@
     const date = new Date(value);
     if (Number.isNaN(date.valueOf())) return '';
     return date.toLocaleString(isEn ? 'en-GB' : 'pl-PL', {
-      timeZone: 'Europe/Warsaw',
+      timeZone: WARSAW_TZ,
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -39,12 +57,54 @@
     });
   }
 
+  function timeZoneOffsetMs(date, timeZone) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(date)
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, part.value]),
+    );
+    const wallAsUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour) % 24,
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    return wallAsUtc - date.getTime();
+  }
+
+  function warsawLocalToUtc(dateText, timeText) {
+    const [year, month, day] = dateText.split('-').map(Number);
+    const [hour, minute, second = 0] = timeText.split(':').map(Number);
+    if (![year, month, day, hour, minute, second].every(Number.isFinite)) {
+      throw new Error('stooq_invalid_timestamp');
+    }
+    const wallUtcMs = Date.UTC(year, month - 1, day, hour, minute, second);
+    const firstGuess = new Date(wallUtcMs);
+    const firstOffset = timeZoneOffsetMs(firstGuess, WARSAW_TZ);
+    let instant = new Date(wallUtcMs - firstOffset);
+    const correctedOffset = timeZoneOffsetMs(instant, WARSAW_TZ);
+    if (correctedOffset !== firstOffset) instant = new Date(wallUtcMs - correctedOffset);
+    return instant;
+  }
+
   function quoteFresh(quote) {
     if (!quote || positive(quote.price) === null) return false;
     const stamp = new Date(quote.updatedAt);
     if (Number.isNaN(stamp.valueOf())) return false;
     const age = Date.now() - stamp.valueOf();
-    return age >= -30_000 && age <= MAX_AGE_MS;
+    return age >= -60_000 && age <= MAX_AGE_MS;
   }
 
   async function fetchText(url) {
@@ -64,7 +124,9 @@
     }
   }
 
-  function parseStooqCsv(text) {
+  function parseStooqCsv(text, instrumentId) {
+    const cfg = FEEDS[instrumentId];
+    if (!cfg) throw new Error('stooq_unknown_instrument');
     const lines = String(text || '').trim().split(/\r?\n/).filter(Boolean);
     if (lines.length < 2) throw new Error('stooq_missing_row');
     const header = lines[0].split(',').map((value) => value.trim().toLowerCase());
@@ -73,36 +135,35 @@
     const price = positive(at('close'));
     const date = at('date');
     const time = at('time');
-    if (price === null || price < 500 || price > 100_000) throw new Error('stooq_invalid_price');
+    if (price === null || price < cfg.minPrice || price > cfg.maxPrice) throw new Error('stooq_invalid_price');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
       throw new Error('stooq_invalid_timestamp');
     }
-
-    // Stooq quote timestamps use CET (UTC+1) as the feed clock.
     const clock = time.length === 5 ? `${time}:00` : time;
-    const stamp = new Date(`${date}T${clock}+01:00`);
+    const stamp = warsawLocalToUtc(date, clock);
     if (Number.isNaN(stamp.valueOf())) throw new Error('stooq_invalid_timestamp');
     return {
       price,
       updatedAt: stamp.toISOString(),
-      source: 'Stooq ES.F',
+      source: cfg.source,
     };
   }
 
-  async function fetchStooq(route) {
-    const upstream = `${STOOQ_URL}&_=${Date.now()}`;
+  async function fetchStooq(instrumentId, route) {
+    const cfg = FEEDS[instrumentId];
+    const upstream = `https://stooq.com/q/l/?s=${encodeURIComponent(cfg.symbol)}&f=sd2t2ohlcv&h&e=csv&_=${Date.now()}`;
     let url = upstream;
     if (route === 'codetabs') {
       url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
     } else if (route === 'allorigins') {
       url = `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`;
     }
-    return parseStooqCsv(await fetchText(url));
+    return parseStooqCsv(await fetchText(url), instrumentId);
   }
 
-  function selectedSp500() {
+  function selectedTarget(instrumentId) {
     if (!selectedWeek || !Array.isArray(selectedWeek.instruments)) return null;
-    const index = selectedWeek.instruments.findIndex((item) => item?.instrument_id === 'sp500_futures');
+    const index = selectedWeek.instruments.findIndex((item) => item?.instrument_id === instrumentId);
     if (index < 0) return null;
     return { item: selectedWeek.instruments[index], index };
   }
@@ -114,12 +175,18 @@
     if (direction === 'neutral') return null;
     const move = direction === 'short' ? entry - mark : mark - entry;
     const percent = move / entry * 100;
-    const notional = positive(item?.notional_usd) || 10_000;
-    const value = move / entry * notional;
-    const money = `${value >= 0 ? '+' : ''}${value.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-    const points = `${move >= 0 ? '+' : ''}${move.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isEn ? 'pts' : 'pkt'}`;
-    const pct = `${percent >= 0 ? '+' : ''}${percent.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-    return { text: `${money} · ${points} · ${pct}`, value };
+    const notional = positive(item?.instrument_id === 'eurusd' ? item?.notional_eur : item?.notional_usd) || 10_000;
+    const value = item?.instrument_id === 'eurusd' ? move * notional : move / entry * notional;
+    const parts = [
+      `${value >= 0 ? '+' : ''}${value.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`,
+    ];
+    if (item?.instrument_id === 'eurusd') {
+      parts.push(`${move / 0.0001 >= 0 ? '+' : ''}${(move / 0.0001).toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pips`);
+    } else if (item?.instrument_id === 'sp500_futures') {
+      parts.push(`${move >= 0 ? '+' : ''}${move.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isEn ? 'pts' : 'pkt'}`);
+    }
+    parts.push(`${percent >= 0 ? '+' : ''}${percent.toLocaleString(isEn ? 'en-US' : 'pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`);
+    return { text: parts.join(' · '), value };
   }
 
   function patchResult(item, card, mark) {
@@ -137,9 +204,11 @@
     node.classList.toggle('neutral', Math.abs(result.value) < 0.000001);
   }
 
-  function applyQuote() {
-    if (patching || !quoteFresh(currentQuote)) return;
-    const target = selectedSp500();
+  function applyQuote(instrumentId) {
+    if (patching.has(instrumentId)) return;
+    const quote = quotes.get(instrumentId);
+    if (!quoteFresh(quote)) return;
+    const target = selectedTarget(instrumentId);
     if (!target) return;
     const cards = document.querySelectorAll('#app .cards > .card');
     const card = cards[target.index];
@@ -148,53 +217,58 @@
     const timeNode = nowBox?.querySelector('small');
     if (!card || !nowBox || !priceNode || !timeNode) return;
 
-    // The Stooq minute feed is a fallback. Never overwrite a quote that the
-    // primary browser-live runtime has already marked LIVE/FALLBACK. If that
-    // primary runtime later degrades to STALE, the observer below promotes
-    // the fresh Stooq quote immediately.
     if (nowBox.dataset.feedStatus === 'live' || nowBox.dataset.feedStatus === 'fallback') return;
 
-    patching = true;
+    patching.add(instrumentId);
     try {
-      priceNode.textContent = fmtPrice(currentQuote.price);
-      timeNode.textContent = `${isEn ? 'As of' : 'Stan na'}: ${fmtTime(currentQuote.updatedAt)} · LIVE · ${currentQuote.source}`;
+      priceNode.textContent = fmtPrice(quote.price, instrumentId);
+      timeNode.textContent = `${isEn ? 'As of' : 'Stan na'}: ${fmtTime(quote.updatedAt)} · LIVE · ${quote.source}`;
       timeNode.style.color = '#72f0c1';
       nowBox.dataset.feedStatus = 'live';
-      nowBox.dataset.liveSource = currentQuote.source;
-      nowBox.dataset.liveAt = currentQuote.updatedAt;
-      patchResult(target.item, card, currentQuote.price);
+      nowBox.dataset.liveSource = quote.source;
+      nowBox.dataset.liveAt = quote.updatedAt;
+      patchResult(target.item, card, quote.price);
     } finally {
-      patching = false;
+      patching.delete(instrumentId);
     }
   }
 
-  function observeCard() {
-    if (observer) observer.disconnect();
-    const target = selectedSp500();
-    if (!target) return;
-    const card = document.querySelectorAll('#app .cards > .card')[target.index];
-    const nowBox = card?.querySelector('.now');
-    if (!nowBox) return;
-    observer = new MutationObserver(() => applyQuote());
-    observer.observe(nowBox, { childList: true, subtree: true, characterData: true, attributes: true });
+  function observeCards() {
+    observers.forEach((observer) => observer.disconnect());
+    observers.clear();
+    Object.keys(FEEDS).forEach((instrumentId) => {
+      const target = selectedTarget(instrumentId);
+      if (!target) return;
+      const card = document.querySelectorAll('#app .cards > .card')[target.index];
+      const nowBox = card?.querySelector('.now');
+      if (!nowBox) return;
+      const observer = new MutationObserver(() => applyQuote(instrumentId));
+      observer.observe(nowBox, { childList: true, subtree: true, characterData: true, attributes: true });
+      observers.set(instrumentId, observer);
+    });
+  }
+
+  async function refreshInstrument(instrumentId) {
+    for (const route of ['direct', 'codetabs', 'allorigins']) {
+      try {
+        const quote = await fetchStooq(instrumentId, route);
+        if (quoteFresh(quote)) {
+          quotes.set(instrumentId, quote);
+          applyQuote(instrumentId);
+          return true;
+        }
+      } catch (error) {
+        console.warn(`BriefRooms Weekly ${instrumentId} minute feed failed (${route}):`, error?.message || error);
+      }
+    }
+    return false;
   }
 
   async function refresh() {
     if (document.hidden || inFlight) return;
     inFlight = true;
     try {
-      for (const route of ['direct', 'codetabs', 'allorigins']) {
-        try {
-          const quote = await fetchStooq(route);
-          if (quoteFresh(quote)) {
-            currentQuote = quote;
-            applyQuote();
-            return;
-          }
-        } catch (error) {
-          console.warn(`BriefRooms Weekly S&P minute feed failed (${route}):`, error?.message || error);
-        }
-      }
+      await Promise.allSettled(Object.keys(FEEDS).map((instrumentId) => refreshInstrument(instrumentId)));
     } finally {
       inFlight = false;
     }
@@ -202,13 +276,13 @@
 
   document.addEventListener('br:weekly-rendered', (event) => {
     selectedWeek = event?.detail || null;
-    observeCard();
-    applyQuote();
+    observeCards();
+    Object.keys(FEEDS).forEach((instrumentId) => applyQuote(instrumentId));
     refresh();
   });
 
   const timer = window.setInterval(() => {
-    applyQuote();
+    Object.keys(FEEDS).forEach((instrumentId) => applyQuote(instrumentId));
     refresh();
   }, POLL_MS);
 
@@ -218,6 +292,7 @@
   window.addEventListener('online', () => refresh());
   window.addEventListener('pagehide', () => {
     window.clearInterval(timer);
-    if (observer) observer.disconnect();
+    observers.forEach((observer) => observer.disconnect());
+    observers.clear();
   }, { once: true });
 })();
