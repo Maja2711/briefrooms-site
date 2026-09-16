@@ -16,11 +16,17 @@ on:
       - ".github/workflows/stock-trading-portfolio.yml"
       - "scripts/stock_trading_portfolio.py"
       - "scripts/stock_trading_quote_enricher.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "scripts/stock_trading_generation_promotion.py"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+      - "data/investments/stock_trading_v2_opportunity/**"
       - "data/investments/stock_trading_policy.json"
       - "data/investments/gpw_daily_pick.json"
       - "data/investments/us_daily_stock.json"
       - "tests/test_stock_trading_portfolio.py"
       - "tests/test_stock_trading_quote_enricher.py"
+      - "tests/test_stock_trading_generation_promotion.py"
   schedule:
     # GitHub Actions cron has a 5-minute minimum. The public page polls the
     # canonical JSON every minute, while this job refreshes the source quote
@@ -57,9 +63,11 @@ jobs:
       - name: Validate Stock Trading contract
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py
+          python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/stock_trading_generation_promotion.py scripts/stock_trading_generation_router.py
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher -v
+          python -m json.tool data/investments/stock_trading_generation_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_state.json >/dev/null
+          python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_stock_trading_generation_promotion -v
 
       - name: Resolve market
         id: market
@@ -74,7 +82,7 @@ jobs:
       - name: Review positions and refresh session-aware quotes
         run: |
           set -euo pipefail
-          python scripts/stock_trading_portfolio.py --mode run --market "${{ steps.market.outputs.value }}"
+          python scripts/stock_trading_generation_router.py --mode review-and-apply --market "${{ steps.market.outputs.value }}"
           python scripts/stock_trading_quote_enricher.py --market "${{ steps.market.outputs.value }}" --verify
           python scripts/stock_trading_portfolio.py --mode verify
           python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
