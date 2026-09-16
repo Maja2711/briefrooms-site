@@ -10,10 +10,13 @@ on:
       - "scripts/stock_trading_v2_contracts.py"
       - "scripts/stock_trading_v2_experience_store.py"
       - "scripts/stock_trading_v2_universe.py"
+      - "scripts/stock_trading_v2_fast_scan.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_universe.py"
+      - "tests/test_stock_trading_v2_fast_scan.py"
       - "data/investments/stock_trading_v2_config.json"
       - "data/investments/stock_trading_v2_universe_config.json"
+      - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_universe/**"
 
@@ -23,7 +26,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -42,41 +45,48 @@ jobs:
           python -m py_compile \
             scripts/stock_trading_v2_contracts.py \
             scripts/stock_trading_v2_experience_store.py \
-            tests/test_stock_trading_v2_experience_store.py
-          if [[ -f scripts/stock_trading_v2_universe.py ]]; then
-            python -m py_compile scripts/stock_trading_v2_universe.py
-          fi
-          if [[ -f tests/test_stock_trading_v2_universe.py ]]; then
-            python -m py_compile tests/test_stock_trading_v2_universe.py
-          fi
+            scripts/stock_trading_v2_universe.py \
+            scripts/stock_trading_v2_fast_scan.py \
+            tests/test_stock_trading_v2_experience_store.py \
+            tests/test_stock_trading_v2_universe.py \
+            tests/test_stock_trading_v2_fast_scan.py
 
       - name: Validate configuration JSON
         run: |
           python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
 
       - name: Run v2 unit tests
         run: |
-          python -m unittest tests.test_stock_trading_v2_experience_store -v
-          python -m unittest tests.test_stock_trading_v2_universe -v
+          python -m unittest \
+            tests.test_stock_trading_v2_experience_store \
+            tests.test_stock_trading_v2_universe \
+            tests.test_stock_trading_v2_fast_scan -v
 
       - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
 
-      - name: Smoke-test live US universe provider in shadow mode
+      - name: Smoke-test live US universe and broad prefilter in shadow mode
         run: |
           set -euo pipefail
-          rm -rf /tmp/briefrooms-v2-universe
+          rm -rf /tmp/briefrooms-v2-universe /tmp/briefrooms-v2-fast-scan.json
           python scripts/stock_trading_v2_universe.py --market US --root /tmp/briefrooms-v2-universe
           python scripts/stock_trading_v2_universe.py --market GPW --root /tmp/briefrooms-v2-universe
           python scripts/stock_trading_v2_universe.py --root /tmp/briefrooms-v2-universe --verify
+          python scripts/stock_trading_v2_fast_scan.py \
+            --universe /tmp/briefrooms-v2-universe/us.json \
+            --output /tmp/briefrooms-v2-fast-scan.json
           python - <<'PY'
           import json
           from pathlib import Path
           us=json.loads(Path('/tmp/briefrooms-v2-universe/us.json').read_text(encoding='utf-8'))
+          scan=json.loads(Path('/tmp/briefrooms-v2-fast-scan.json').read_text(encoding='utf-8'))
           if int(us.get('instrument_count') or 0) <= 50:
               raise SystemExit(f'Dynamic US universe unexpectedly small: {us.get("instrument_count")}')
-          if us.get('governance',{}).get('production_decision_influence') is not False:
-              raise SystemExit('Dynamic universe escaped shadow governance')
-          print('LIVE_US_UNIVERSE_OK', us['instrument_count'])
+          if not (50 < int(scan.get('shortlist_size') or 0) <= 600):
+              raise SystemExit(f'Fast scan shortlist outside expected bounds: {scan.get("shortlist_size")}')
+          if scan.get('governance',{}).get('production_decision_influence') is not False:
+              raise SystemExit('Fast scanner escaped shadow governance')
+          print('LIVE_V2_DISCOVERY_OK', 'universe', us['instrument_count'], 'shortlist', scan['shortlist_size'])
           PY
