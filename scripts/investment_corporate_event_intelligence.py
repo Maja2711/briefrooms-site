@@ -23,7 +23,7 @@ from typing import Any, Iterable, Mapping
 
 import investment_event_intelligence as event
 
-RADAR_VERSION = "corporate-tech-crypto-radar-v1.1"
+RADAR_VERSION = "corporate-tech-crypto-radar-v1.2"
 LOOKBACK_HOURS = 30
 MAX_EVENTS = 28
 MAX_DYNAMIC_ENTITIES = 10
@@ -79,18 +79,24 @@ STRONG_MATERIAL_PHRASES = (
 PRODUCT_ACTION_PHRASES = (
     "launches", "launched", "unveils", "unveiled", "announces new", "introduced new",
     "introduces new", "roadmap", "new chip", "new gpu", "new ai model", "new model",
-    "production starts", "mass production", "ships", "shipping",
+    "production starts", "mass production", "ships", "shipping", "deploys", "deployed",
+    "to deploy", "will deploy", "rolls out", "rolled out",
 )
 EXECUTIVE_VERBS = (
     " says ", " said ", " sees ", " expects ", " forecasts ", " warns ", " warned ",
     " announces ", " announced ", " confirms ", " confirmed ", " predicts ", " predicted ",
-    " plans ", " targets ", " expects ", " signals ", " signaled ", " signalled ",
+    " plans ", " targets ", " signals ", " signaled ", " signalled ", " argues ", " argued ",
+    " rejects ", " rejected ", " backs ", " backed ", " supports ", " supported ",
+    " opposes ", " opposed ", " urges ", " urged ", " pushes back ", " push back ",
+    " calls for ", " called for ",
 )
 STRATEGIC_EXECUTIVE_TERMS = (
     "demand", "capex", "spending", "data center", "datacenter", "ai investment", "ai spending",
     "chip supply", "gpu supply", "orders", "backlog", "cloud growth", "revenue", "margin",
     "bitcoin", "crypto", "stablecoin", "regulation", "regulator", "export", "production",
-    "roadmap", "launch", "partnership", "acquisition",
+    "roadmap", "launch", "partnership", "acquisition", "ai safety", "ai slowdown",
+    "slow ai", "ai development", "ai regulation", "government regulation", "compute",
+    "open source", "model safety", "artificial intelligence", "agi",
 )
 LOW_VALUE_PATTERNS = (
     "which ", "how to ", "what is ", "what are ", "explained", "review:", "review of",
@@ -169,7 +175,8 @@ def _leader_or_role_present(text: str, entity: Mapping[str, Any]) -> bool:
 def _executive_material_statement(text: str, entity: Mapping[str, Any]) -> bool:
     if not _leader_or_role_present(text, entity):
         return False
-    if not any(verb in f" {text} " for verb in EXECUTIVE_VERBS):
+    padded = f" {text} "
+    if not any(verb in padded for verb in EXECUTIVE_VERBS):
         return False
     return any(term in text for term in STRATEGIC_EXECUTIVE_TERMS)
 
@@ -195,10 +202,8 @@ def has_material_signal(title: str, entity: Mapping[str, Any]) -> bool:
         return True
     if _executive_material_statement(text, entity):
         return True
-    # Financial result headlines may not contain a verb such as "reports".
     if any(term in text for term in ("earnings", "quarterly results", "revenue", "profit warning")):
         return True
-    # Crypto events require an actual market/protocol/regulatory action, not merely a coin name.
     if any(phrase in text for phrase in (
         "bitcoin reserves", "buys bitcoin", "bitcoin purchase", "etf approval", "stablecoin depeg",
         "protocol upgrade", "network upgrade", "hard fork", "mainnet upgrade", "exchange hack",
@@ -306,7 +311,7 @@ def _query_groups(all_entities: list[dict[str, Any]]) -> list[str]:
     groups = [static[index:index + 5] for index in range(0, len(static), 5)]
     if dynamic:
         groups.extend(dynamic[index:index + 5] for index in range(0, len(dynamic), 5))
-    signal_clause = '(earnings OR guidance OR outlook OR revenue OR demand OR capex OR launch OR roadmap OR partnership OR contract OR antitrust OR investigation OR export OR outage OR breach OR hack OR upgrade OR bitcoin OR ethereum OR crypto OR stablecoin OR regulation)'
+    signal_clause = '(earnings OR guidance OR outlook OR revenue OR demand OR capex OR launch OR roadmap OR partnership OR contract OR antitrust OR investigation OR export OR outage OR breach OR hack OR upgrade OR bitcoin OR ethereum OR crypto OR stablecoin OR regulation OR "AI safety" OR "AI slowdown" OR "AI development")'
     queries: list[str] = []
     for group in groups:
         aliases: list[str] = []
@@ -422,7 +427,7 @@ def _corroborate(rows: list[dict[str, Any]]) -> None:
         row["time_decay"] = round(decay, 6)
         row["confidence"] = round(event.clamp(confidence, 0.0, 1.0), 4)
         row["event_strength"] = round(event.clamp(float(row.get("severity") or 0.0) * confidence * decay, 0.0, 1.0), 4)
-        row["quality_guard"] = "corporate_materiality_v1.1"
+        row["quality_guard"] = "corporate_materiality_v1.2"
 
 
 def collect_events(now: datetime) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]]]:
@@ -453,5 +458,6 @@ def public_config() -> dict[str, Any]:
         "lookback_hours": LOOKBACK_HOURS,
         "max_events": MAX_EVENTS,
         "domains": ["corporate", "technology", "crypto"],
-        "materiality_guard": "corporate_materiality_v1.1",
+        "materiality_guard": "corporate_materiality_v1.2",
+        "strategic_executive_statements_enabled": True,
     }
