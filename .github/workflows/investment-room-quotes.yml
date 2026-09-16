@@ -5,30 +5,32 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/investments_weekly.py"
       - "scripts/update_investment_room_quotes.py"
       - "scripts/update_investment_room_quotes_v2.py"
       - ".github/workflows/investment-room-quotes.yml"
   schedule:
-    # GitHub Actions supports a five-minute minimum cadence. Keep a small offset
-    # from the top of the hour to reduce scheduler contention.
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    # Room-level quote tables are secondary to Weekly current-price marks and
+    # can run every 15 minutes without contending for live_prices.json.
+    - cron: "4,19,34,49 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: investment-room-quotes
-  cancel-in-progress: true
+  # Do not cancel an in-flight run when a new scheduled run arrives. The old
+  # five-minute cadence + cancellation could starve the workflow indefinitely.
+  cancel-in-progress: false
 
 jobs:
   update-investment-room-quotes:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out repository
+      - name: Check out latest main
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -36,83 +38,81 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependency
-        run: python -m pip install --upgrade pip yfinance
+      - name: Update Investment Room secondary quotes
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          import update_investment_room_quotes_v2 as updater
 
-      - name: Update investment room quotes
-        run: python scripts/update_investment_room_quotes_v2.py
+          # Weekly Trading now owns live_prices.json through its dedicated fast
+          # workflow. Keep this slower room/bond job from racing that file.
+          updater.refresh_live_prices = lambda: print("Skipping live_prices.json; owned by Update Weekly Live Prices")
+          updater.main()
+          PY
 
-      - name: Validate live quote snapshot
+      - name: Validate Investment Room quote snapshot
         run: |
           python - <<'PY'
           import json
           from datetime import datetime, timezone
           from pathlib import Path
 
-          path = Path("data/investments/live_prices.json")
+          path = Path("data/investments/room_quotes.json")
           if not path.exists():
-              raise SystemExit("live_prices.json was not generated")
+              raise SystemExit("room_quotes.json was not generated")
 
           data = json.loads(path.read_text(encoding="utf-8"))
           raw_updated_at = data.get("updated_at")
           if not raw_updated_at:
-              raise SystemExit("live_prices.json has no updated_at")
-
+              raise SystemExit("room_quotes.json has no updated_at")
           updated_at = datetime.fromisoformat(raw_updated_at)
           if updated_at.tzinfo is None:
-              raise SystemExit("live_prices.json updated_at must be timezone-aware")
-
+              raise SystemExit("room_quotes.json updated_at must be timezone-aware")
           age_seconds = (datetime.now(timezone.utc) - updated_at.astimezone(timezone.utc)).total_seconds()
-          if age_seconds < -60 or age_seconds > 15 * 60:
-              raise SystemExit(f"live_prices.json snapshot is stale: age={age_seconds:.0f}s")
+          if age_seconds < -60 or age_seconds > 20 * 60:
+              raise SystemExit(f"room_quotes.json snapshot is stale: age={age_seconds:.0f}s")
 
-          prices = data.get("prices") or {}
-          expected = {"eurusd", "sp500_futures", "btcusd"}
-          missing = sorted(expected - set(prices))
+          quotes = data.get("quotes") or {}
+          expected = {"eurusd", "sp500", "btcusd", "pl10y", "us10y"}
+          missing = sorted(expected - set(quotes))
           if missing:
-              raise SystemExit(f"live_prices.json is missing instruments: {', '.join(missing)}")
+              raise SystemExit(f"room_quotes.json is missing instruments: {', '.join(missing)}")
 
-          invalid = []
-          fresh = []
-          for key in sorted(expected):
-              record = prices.get(key) or {}
+          market_valid = []
+          for key in ("eurusd", "sp500", "btcusd"):
               try:
-                  price = float(record.get("price"))
+                  if float((quotes.get(key) or {}).get("close")) > 0:
+                      market_valid.append(key)
               except (TypeError, ValueError):
-                  price = 0.0
-              if price <= 0:
-                  invalid.append(key)
-              if record.get("fresh") is True:
-                  fresh.append(key)
-
-          if invalid:
-              raise SystemExit(f"live_prices.json has invalid prices: {', '.join(invalid)}")
-          if not fresh:
-              raise SystemExit("No fresh live quote was obtained in this run")
-
-          print(f"Live quote snapshot OK; age={age_seconds:.0f}s; fresh={','.join(fresh)}")
+                  pass
+          if not market_valid:
+              raise SystemExit("No valid FX/index/crypto quote in room_quotes.json")
+          print(f"Investment Room quote snapshot OK; age={age_seconds:.0f}s; markets={','.join(market_valid)}")
           PY
 
-      - name: Commit investment room quotes
+      - name: Commit Investment Room quotes
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/room_quotes.json
+          git add data/investments/room_quotes.json
           if git diff --cached --quiet; then
-            echo "No investment room quote changes"
+            echo "No Investment Room quote changes"
             exit 0
           fi
           git commit -m "Update investment room quotes"
 
-          for attempt in 1 2 3; do
-            git pull --rebase origin main
-            if git push; then
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
               exit 0
             fi
-            echo "Push failed (${attempt}/3); retrying..."
+            git rebase --abort || true
+            echo "Push failed (${attempt}/5); retrying..."
             sleep $((attempt * 2))
           done
 
-          echo "Unable to push investment room quotes after 3 attempts" >&2
+          echo "Unable to push Investment Room quotes after 5 attempts" >&2
           exit 1
