@@ -1,0 +1,353 @@
+{
+  "action": "LONG",
+  "candidate_state": {
+    "decision_path": {
+      "first_blocking_gate": null,
+      "producer_decision": "TRANSAKCJA",
+      "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji.",
+      "selection_mode": "MANDATORY_DAILY_FINAL"
+    },
+    "evidence_state": {
+      "review": {
+        "approved": true,
+        "mode": "mandatory_daily_final_p03_p04_p05_opening_empirical_ev",
+        "reason": "Najwyższy bezpieczny wynik po pełnym rankingu i wspólnych data gates.",
+        "supported_source_ids": [
+          "market-open:PKO.WA:2026-09-16"
+        ]
+      },
+      "sources": [
+        {
+          "age_hours": 0,
+          "channel": "Yahoo",
+          "id": "market-open:PKO.WA:2026-09-16",
+          "materiality": 0,
+          "published_at": "2026-09-16T14:21:54+02:00",
+          "publisher": "Yahoo",
+          "source_kind": "market_quote",
+          "title": "Yahoo — bieżące kwotowanie PKO.WA",
+          "url": "https://finance.yahoo.com/quote/PKO.WA"
+        }
+      ]
+    },
+    "identity": {
+      "name": "PKO BP",
+      "sector": "banki",
+      "ticker": "PKO"
+    },
+    "legacy_source_snapshot": {
+      "producer_methodology": {
+        "daily_stock_core": {
+          "adapter": {
+            "automatic_no_trade_retries": true,
+            "calendar": "GPW / Europe-Warsaw",
+            "currency": "PLN",
+            "event_learning_preserved": true,
+            "legacy_learning_preserved": true,
+            "legacy_quant_fallback": true,
+            "non_trade_history_filtered": true,
+            "official_channels": [
+              "ESPI",
+              "EBI",
+              "PAP MediaRoom",
+              "Biznes PAP"
+            ],
+            "session_confirmation": "09:05 Europe/Warsaw"
+          },
+          "core": "daily-stock-core-v1",
+          "currency": "PLN",
+          "learning": {
+            "market_memory_isolated": true,
+            "method": "bayesian_shrinkage_historical_overlay_v1",
+            "weights_frozen": true
+          },
+          "market": "GPW",
+          "maximum_risk_percent": 0.07,
+          "minimum_reward_risk": 1.5,
+          "relative_momentum": {
+            "enabled": true,
+            "engine": "cross-sectional-multihorizon-v2",
+            "weights": {
+              "rank_1d": 0.10000000000000002,
+              "rank_20d": 0.20000000000000004,
+              "rank_5d": 0.35000000000000003,
+              "rank_risk_adjusted_5d": 0.20000000000000004,
+              "rank_sector_5d": 0.15000000000000002
+            }
+          },
+          "weights": {
+            "catalyst": 25,
+            "historical_expectancy": 10,
+            "market_context": 15,
+            "relative_momentum": 20,
+            "risk_reward": 15,
+            "volume_liquidity": 15
+          }
+        },
+        "data_gates": {
+          "engine": "gpw-data-gates-v1",
+          "maximum_execution_quote_age_minutes": 20,
+          "maximum_future_clock_skew_minutes": 2,
+          "maximum_historical_lag_sessions": 1,
+          "minimum_market_coverage": 0.8,
+          "reject_crosscheck_statuses": [
+            "conflict",
+            "rejected"
+          ],
+          "require_current_session_quote": true,
+          "role": "single_source_of_truth_for_gpw_freshness_and_data_quality"
+        },
+        "event_layer": {
+          "channels": [
+            "ESPI/EBI przez PAP",
+            "niezależne newsy"
+          ],
+          "enabled": true,
+          "event_learning": "bayesian shrinkage po typie zdarzenia",
+          "market_reaction": "ostatnia zakończona sesja: cena, relatywny zwrot i wolumen",
+          "weights_frozen": true
+        },
+        "expected_value": {
+          "confidence_sample": 28,
+          "cost_assumption_percent": 0.38,
+          "enabled": true,
+          "engine": "gpw-empirical-ev-v1",
+          "entry_proxy": "next_session_open",
+          "horizon_sessions": 2,
+          "maximum_analogs": 32,
+          "minimum_analogs": 16,
+          "role": "empirical_target_and_bounded_reranking_overlay",
+          "rr_grid": [
+            1.5,
+            1.75,
+            2.0,
+            2.25,
+            2.5
+          ],
+          "same_bar_policy": "stop_first_conservative",
+          "score_weight": 0.2,
+          "target_selection": "maximize_uncertainty_adjusted_net_expected_R",
+          "uncertainty_penalty": 0.35
+        },
+        "full_ranking": {
+          "artifact": "data/investments/gpw_daily_candidate_ranking.json",
+          "enabled": true,
+          "engine": "gpw-full-ranking-v1",
+          "include_rejected_universe": true,
+          "role": "canonical_pre_news_quant_ranking_for_entire_gpw_universe"
+        },
+        "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+        "hard_admission_gates": [
+          "gpw_data_gates_v1_historical_freshness",
+          "gpw_data_gates_v1_market_coverage",
+          "minimum_liquidity",
+          "finite_atr_and_price",
+          "gpw_data_gates_v1_execution_freshness",
+          "bounded_published_risk",
+          "expected_value_history_quality"
+        ],
+        "horizon": "1-2 sesje GPW",
+        "learning_overlay": {
+          "active": true,
+          "method": "bayesian_shrinkage_historical_overlay_v1",
+          "minimum_sample": 8,
+          "weights_frozen": true
+        },
+        "mandatory_daily_selection": {
+          "data_gate_engine": "gpw-data-gates-v1",
+          "enabled": true,
+          "expected_value": {
+            "effective_selected_weight": 0.2,
+            "enabled": true,
+            "engine": "gpw-empirical-ev-v1"
+          },
+          "integrated_final_stage": true,
+          "late_recovery": true,
+          "maximum_published_risk_percent": 0.07,
+          "minimum_median_turnover_pln": 1000000.0,
+          "opening_confirmation": {
+            "component_weights": {
+              "distance_from_high": 0.2,
+              "gap_quality": 0.2,
+              "intraday_position": 0.3,
+              "open_return": 0.3
+            },
+            "engine": "gpw-opening-confirmation-v1",
+            "top_candidates": 8,
+            "weight": 0.25
+          },
+          "recovery_cutoff": "16:30",
+          "trigger": "primary_not_transaction_after_not_before"
+        },
+        "market_data": {
+          "crosscheck_max_deviation": 0.02,
+          "historical_provider_order": [
+            "Yahoo",
+            "Stooq"
+          ],
+          "historical_ranking_session": "ostatnia zakończona sesja GPW",
+          "opening_quote_not_before": "09:05 Europe/Warsaw",
+          "opening_quote_providers": [
+            "Yahoo",
+            "Stooq"
+          ],
+          "publication_cutoff": "10:00 Europe/Warsaw"
+        },
+        "minimum_reward_risk": 1.5,
+        "minimum_score": 0.0,
+        "relative_momentum": {
+          "enabled": true,
+          "engine": "cross-sectional-multihorizon-v2",
+          "role": "robust_cross_sectional_relative_strength_not_absolute_return",
+          "weights": {
+            "rank_1d": 0.1,
+            "rank_20d": 0.2,
+            "rank_5d": 0.35,
+            "rank_risk_adjusted_5d": 0.2,
+            "rank_sector_5d": 0.15
+          }
+        },
+        "score_policy": "mandatory_daily_p03_p04_p05_opening_empirical_ev",
+        "universe_size": 40,
+        "weights": {
+          "catalyst": 25,
+          "historical_expectancy": 10,
+          "market_context": 15,
+          "relative_momentum": 20,
+          "risk_reward": 15,
+          "volume_liquidity": 15
+        }
+      },
+      "producer_outcome": {
+        "activated": null,
+        "status": "PENDING"
+      }
+    },
+    "market_state": {
+      "execution_data_gate": {
+        "age_minutes": 15.13,
+        "crosscheck_status": "single_source",
+        "engine": "gpw-data-gates-v1",
+        "observed_at": "2026-09-16T14:21:54+02:00",
+        "provider": "Yahoo",
+        "session": "2026-09-16",
+        "status": "accepted"
+      },
+      "historical_data_gate": {
+        "accepted": true,
+        "expected_session": "2026-09-15",
+        "feature_session": "2026-09-15",
+        "lag_sessions": 0,
+        "latest_session": "2026-09-15",
+        "reason": null,
+        "status": "fresh"
+      },
+      "opening_confirmation": {
+        "component_weights": {
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2,
+          "intraday_position": 0.3,
+          "open_return": 0.3
+        },
+        "components": {
+          "distance_from_high": 85.93,
+          "gap_quality": 100.0,
+          "intraday_position": 53.42,
+          "open_return": 60.72
+        },
+        "distance_from_high": -0.00563,
+        "engine": "gpw-opening-confirmation-v1",
+        "gap": 0.00316,
+        "intraday_position": 0.53425,
+        "observed_at": "2026-09-16T14:21:54+02:00",
+        "open_return": -0.00464,
+        "score": 71.43
+      }
+    },
+    "risk_plan": {
+      "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
+      "entry_zone": [
+        119.76,
+        120.84
+      ],
+      "holding_policy": null,
+      "reference_price": 120.12,
+      "reward_risk": 2.0,
+      "risk_percent": 0.0225,
+      "skip_above": 120.84,
+      "stop": 117.42,
+      "target": 125.53,
+      "time_stop_legacy": "Maksymalnie 2 sesje od dnia wyboru.",
+      "valid_until_legacy": "2026-09-18"
+    },
+    "score_state": {
+      "expected_value": {
+        "analogue_count": 32,
+        "confidence": 1.0,
+        "conservative_ev_r": -0.0068,
+        "effective_sample_size": 31.58,
+        "engine": "gpw-empirical-ev-v1",
+        "expected_gross_r": 0.215,
+        "expected_net_r": 0.054,
+        "horizon_sessions": 2,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "selected_reward_risk": 2.0,
+        "standard_error_r": 0.1735
+      },
+      "expected_value_score": 49.76,
+      "expected_value_weight": 0.2,
+      "legacy_composite_score": 70.31,
+      "opening_adjusted_score": 70.59,
+      "opening_confirmation_score": 71.43,
+      "quant_pre_score": 77.08,
+      "quant_rank": 1,
+      "returns": {},
+      "score": 66.42,
+      "scores": {
+        "catalyst": 50.0,
+        "expected_value": 49.76,
+        "historical_expectancy": 50.0,
+        "market_context": 46.87,
+        "opening_confirmation": 71.43,
+        "relative_momentum": 89.14,
+        "risk_reward": 86.33,
+        "volume_liquidity": 100.0
+      }
+    },
+    "thesis_state": {
+      "risk_factors": [
+        "Opening Confirmation jest krótkoterminowym overlayem i nie może dominować bazowego rankingu.",
+        "Empiryczne prawdopodobieństwa TP/SL nie są skalibrowaną prognozą.",
+        "Dla świecy z jednoczesnym TP i SL model konserwatywnie przyjmuje SL jako pierwszy.",
+        "Minimalna płynność, P0.4 freshness i maksymalne ryzyko pozostają twardymi bramkami."
+      ],
+      "thesis": "PKO BP ma najwyższy końcowy ranking po połączeniu P0.5 relative momentum, pozostałych czynników ilościowych, bieżącej sesji i empirycznego EV.",
+      "why_now": "P0.5 porównuje relatywną siłę 1D/5D/20D, zwrot 5D skorygowany o ATR i siłę względem sektora. P0.4 wymaga wspólnej świeżości danych, a target wybiera P0.2 walk-forward EV."
+    }
+  },
+  "decision": "SELECTED",
+  "decision_at": "2026-09-16T14:37:01+02:00",
+  "event_id": "stv2-gpw-804ef9bf618cce8fac35",
+  "event_sha256": "1b9dfd0f7c9cd379500ad5b48ce6cc2fcebce00ff8d8811b3446f8babbb8a53c",
+  "event_type": "CANDIDATE_DECISION",
+  "governance": {
+    "automatic_policy_writeback": false,
+    "immutable": true,
+    "learning_eligible": true,
+    "phase": "v2_phase1a_shadow",
+    "production_decision_influence": false,
+    "prospective_only": true
+  },
+  "market": "GPW",
+  "recorded_at": "2026-09-16T16:11:02.035870Z",
+  "schema_version": "stock-trading-v2-experience-v1",
+  "selected": true,
+  "session_date": "2026-09-15",
+  "source": {
+    "engine": "gpw-daily-pick-v1",
+    "payload_sha256": "114012561da155fc39fd734d3b9c2a8daaaed8190ae24ce9c9de3e4aa795e242",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "schema_version": "gpw-daily-pick-v1"
+  },
+  "symbol": "PKO.WA"
+}
