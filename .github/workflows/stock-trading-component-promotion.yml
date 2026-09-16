@@ -46,8 +46,14 @@ jobs:
       - name: Verify production promotion machinery before mutation
         run: |
           set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_component_champion.py \
+            scripts/stock_trading_component_router.py \
+            scripts/stock_trading_component_promotion.py \
+            scripts/stock_trading_component_bound_promotion.py
           python scripts/stock_trading_component_champion.py --verify
           python scripts/test_stock_trading_component_promotion.py
+          python scripts/test_stock_trading_component_bound_promotion.py
           python - <<'PY'
           import json
           from pathlib import Path
@@ -59,10 +65,10 @@ jobs:
           print('COMPONENT_PROMOTION_CONFIG_OK')
           PY
 
-      - name: Promote at most one independently proven component
+      - name: Promote at most one exactly evaluated component
         run: |
           set -euo pipefail
-          python scripts/stock_trading_component_promotion.py \
+          python scripts/stock_trading_component_bound_promotion.py \
             --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
             --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
             | tee /tmp/stock-trading-component-promotion-result.json
@@ -72,6 +78,7 @@ jobs:
           set -euo pipefail
           python scripts/stock_trading_component_champion.py --verify
           python scripts/test_stock_trading_component_promotion.py
+          python scripts/test_stock_trading_component_bound_promotion.py
           python - <<'PY'
           import json
           from pathlib import Path
