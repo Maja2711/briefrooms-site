@@ -87,6 +87,20 @@ def _selected_symbol(payload: Mapping[str, Any]) -> str | None:
     return symbol or None
 
 
+def _rejection_blocker(evaluated: Mapping[str, Any], portfolio_action: str) -> str:
+    """Explain why a non-selected opportunity was not the action of the cycle.
+
+    Eligibility and portfolio choice are different layers. A candidate that
+    passed every hard gate must not be mislabeled as gate-rejected simply
+    because a higher-ranked candidate won the one-action budget.
+    """
+    if evaluated.get("eligible") is not True:
+        return str(evaluated.get("eligibility_reason") or "candidate_hard_gate_rejected")
+    if str(portfolio_action).upper() in {"BUY", "REPLACE"}:
+        return "opportunity_ranked_below_selected_candidate"
+    return "opportunity_did_not_clear_cash_or_replacement_edge"
+
+
 def candidate_state(
     evaluated: Mapping[str, Any],
     evidence_row: Mapping[str, Any],
@@ -95,7 +109,6 @@ def candidate_state(
     portfolio_action: str,
     opportunity_reason: str,
 ) -> dict[str, Any]:
-    market = str(evidence_row.get("market") or "")
     risk = deepcopy(evaluated.get("research_risk_plan") or evidence_row.get("research_risk_plan") or {})
     metrics = deepcopy(evaluated.get("evidence_metrics") or evidence_row.get("evidence_metrics") or {})
     return {
@@ -109,7 +122,7 @@ def candidate_state(
             "selection_mode": "V2_CONTINUOUS_OPPORTUNITY_FRONTIER",
             "portfolio_action": portfolio_action if selected else "REJECTED_SHADOW",
             "portfolio_reason": opportunity_reason,
-            "first_blocking_gate": None if selected else evaluated.get("eligibility_reason"),
+            "first_blocking_gate": None if selected else _rejection_blocker(evaluated, portfolio_action),
         },
         "score_state": {
             "score": evaluated.get("utility"),
