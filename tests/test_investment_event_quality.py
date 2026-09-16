@@ -40,6 +40,22 @@ class InvestmentEventQualityTests(unittest.TestCase):
         }
         self.assertIsNone(quality.rejection_reason(row))
 
+    def test_family_vacation_sanction_is_rejected(self):
+        row = {
+            "title": "Parents face government sanctions after family Disney World vacation",
+            "event_type": "escalation",
+            "scenario_tags": ["trade_sanctions"],
+        }
+        self.assertEqual("non_geopolitical_sanction_context", quality.rejection_reason(row))
+
+    def test_real_country_sanctions_are_not_rejected(self):
+        row = {
+            "title": "US Senate advances new Russia sanctions bill targeting oil exports",
+            "event_type": "escalation",
+            "scenario_tags": ["trade_sanctions", "russia_ukraine"],
+        }
+        self.assertIsNone(quality.rejection_reason(row))
+
 
 if __name__ == "__main__":
     unittest.main()
