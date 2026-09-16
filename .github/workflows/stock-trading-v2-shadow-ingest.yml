@@ -1,0 +1,58 @@
+name: Stock Trading v2 Shadow Experience Ingest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - stock-trading-v2-impl
+    paths:
+      - ".github/workflows/stock-trading-v2-shadow-ingest.yml"
+      - "scripts/stock_trading_v2_contracts.py"
+      - "scripts/stock_trading_v2_experience_store.py"
+      - "data/investments/gpw_daily_pick.json"
+      - "data/investments/us_daily_stock.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-v2-shadow-experience
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2-impl
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Ingest current legacy decisions in shadow mode
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_v2_experience_store.py --market GPW
+          python scripts/stock_trading_v2_experience_store.py --market US
+          python scripts/stock_trading_v2_experience_store.py --verify
+
+      - name: Commit immutable experience events
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/stock_trading_v2_experience 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No new immutable experience events."
+            exit 0
+          fi
+          git commit -m "Stock Trading v2: freeze shadow experience events"
+          git push origin HEAD:stock-trading-v2-impl
