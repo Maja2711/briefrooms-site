@@ -33,6 +33,9 @@ jobs:
               p.write_text(text,encoding='utf-8')
 
           common_paths='''      - "scripts/stock_trading_generation_router.py"\n      - "scripts/stock_trading_generation_promotion.py"\n      - "data/investments/stock_trading_generation_config.json"\n      - "data/investments/stock_trading_generation_state.json"\n      - "data/investments/stock_trading_v2_opportunity/**"\n      - "tests/test_stock_trading_generation_promotion.py"\n'''
+          expr='$'+'{{ steps.market.outputs.value }}'
+          old_portfolio=f'python scripts/stock_trading_portfolio.py --mode run --market "{expr}"'
+          new_portfolio=f'python scripts/stock_trading_generation_router.py --mode review-and-apply --market "{expr}"'
 
           patch('.github/workflows/stock-trading-portfolio.yml', [
               ('      - "scripts/stock_trading_portfolio.py"\n', '      - "scripts/stock_trading_portfolio.py"\n'+common_paths),
@@ -40,8 +43,7 @@ jobs:
                'python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/stock_trading_generation_promotion.py scripts/stock_trading_generation_router.py'),
               ('python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher -v',
                'python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_stock_trading_generation_promotion -v'),
-              ('python scripts/stock_trading_portfolio.py --mode run --market "${{ steps.market.outputs.value }}"',
-               'python scripts/stock_trading_generation_router.py --mode review-and-apply --market "${{ steps.market.outputs.value }}"'),
+              (old_portfolio,new_portfolio),
           ])
 
           patch('.github/workflows/gpw-daily-pick-pl.yml', [
