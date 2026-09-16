@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
 import math
+import re
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,6 +19,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "investments" / "live_prices.json"
 WARSAW = ZoneInfo("Europe/Warsaw")
+EASTERN = ZoneInfo("America/New_York")
 REQUEST_TIMEOUT = 6
 
 
@@ -31,7 +34,7 @@ class Instrument:
 
 INSTRUMENTS: Dict[str, Instrument] = {
     "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=10)),
-    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=30)),
+    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=45)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
 
@@ -59,8 +62,8 @@ def request_bytes(url: str) -> bytes:
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 BriefRoomsWeeklyLive/1.0",
-            "Accept": "application/json,text/plain,text/csv,*/*",
+            "User-Agent": "Mozilla/5.0 BriefRoomsWeeklyLive/1.1",
+            "Accept": "application/json,text/html,text/plain,text/csv,*/*",
         },
     )
     with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as response:
@@ -95,20 +98,16 @@ def next_quarter(year: int, month: int) -> tuple[int, int]:
     return year + 1, 3
 
 
-def active_es_yahoo_symbol(at: Optional[datetime] = None) -> str:
+def active_es_contract(at: Optional[datetime] = None) -> tuple[str, str]:
     current = (at or now_local()).astimezone(WARSAW)
     quarters = (3, 6, 9, 12)
     year = current.year
-    month = next((candidate for candidate in quarters if current.month <= candidate), 3)
-    if current.month > 12:
+    future_quarters = [candidate for candidate in quarters if current.month <= candidate]
+    if future_quarters:
+        month = future_quarters[0]
+    else:
         year += 1
-    elif current.month > max(quarters):
-        year += 1
-
-    if current.month > 12:
         month = 3
-    elif current.month == 12 and month == 3:
-        year += 1
 
     if current.month == month:
         expiry = third_friday(year, month)
@@ -118,7 +117,12 @@ def active_es_yahoo_symbol(at: Optional[datetime] = None) -> str:
             year, month = next_quarter(year, month)
 
     code = {3: "H", 6: "M", 9: "U", 12: "Z"}[month]
-    return f"ES{code}{str(year)[-2:]}.CME"
+    yy = str(year)[-2:]
+    return f"ES{code}{yy}.CME", f"ES {code}{yy}"
+
+
+def active_es_yahoo_symbol(at: Optional[datetime] = None) -> str:
+    return active_es_contract(at)[0]
 
 
 def valid_quote(instrument_id: str, quote: Dict[str, Any]) -> bool:
@@ -182,6 +186,38 @@ def yahoo_quote(instrument_id: str, yahoo_symbol: Optional[str] = None) -> Dict[
     }
 
 
+def esignal_quote() -> Dict[str, Any]:
+    yahoo_symbol, esignal_symbol = active_es_contract()
+    query = urllib.parse.urlencode({"symbol": esignal_symbol, "types": "future"})
+    url = f"https://quotes.esignal.com/esignalprod/quote.action?{query}"
+    markup = request_bytes(url).decode("utf-8", errors="ignore")
+    text = re.sub(r"<script[\s\S]*?</script>", " ", markup, flags=re.I)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+    price_match = re.search(r"Last:\s*([0-9,]+(?:\.[0-9]+)?)", text, re.I)
+    time_match = re.search(
+        r"Time of last trade:\s*([A-Za-z]{3}\s+\d{1,2}\s+\d{4}\s+\d{2}:\d{2}:\d{2})\s+(?:EST|EDT)",
+        text,
+        re.I,
+    )
+    if not price_match or not time_match:
+        raise RuntimeError("eSignal active ES quote incomplete")
+
+    price = safe_float(price_match.group(1).replace(",", ""))
+    if price is None:
+        raise RuntimeError("eSignal active ES price invalid")
+    naive = datetime.strptime(time_match.group(1), "%b %d %Y %H:%M:%S")
+    stamp = naive.replace(tzinfo=EASTERN).astimezone(WARSAW)
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": f"eSignal delayed:{esignal_symbol}",
+        "note": f"active quarterly ES contract {yahoo_symbol}; delayed CME quote",
+    }
+
+
 def stooq_quote(instrument_id: str) -> Dict[str, Any]:
     cfg = INSTRUMENTS[instrument_id]
     if not cfg.stooq:
@@ -225,6 +261,7 @@ def coinbase_quote() -> Dict[str, Any]:
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "sp500_futures":
         return [
+            esignal_quote,
             lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol()),
             lambda: yahoo_quote(instrument_id),
             lambda: stooq_quote(instrument_id),
@@ -239,21 +276,9 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 
 
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    errors: list[str] = []
-    configured = providers(instrument_id)
-
-    if instrument_id == "sp500_futures" and configured:
-        try:
-            active_quote = configured[0]()
-            if valid_quote(instrument_id, active_quote) and quote_age(active_quote) <= timedelta(minutes=30):
-                return active_quote, errors
-            errors.append("active ES contract: invalid or older than 30 minutes")
-        except Exception as exc:
-            errors.append(f"active ES contract: {exc}")
-        configured = configured[1:]
-
     candidates: list[Dict[str, Any]] = []
-    for provider in configured:
+    errors: list[str] = []
+    for provider in providers(instrument_id):
         try:
             quote = provider()
             if valid_quote(instrument_id, quote):
@@ -262,9 +287,13 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
                 errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
         except Exception as exc:
             errors.append(f"{getattr(provider, '__name__', 'provider')}: {exc}")
+
     if not candidates:
         return None, errors
-    candidates.sort(key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW), reverse=True)
+    candidates.sort(
+        key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
+        reverse=True,
+    )
     return candidates[0], errors
 
 
@@ -278,13 +307,7 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     if old and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
         new_stamp = parse_iso(candidate.get("timestamp")) if candidate else None
-        old_source = str(old.get("source") or "")
-        candidate_source = str(candidate.get("source") or "") if candidate else ""
-        candidate_is_active_es = instrument_id == "sp500_futures" and ".CME" in candidate_source
-        old_is_active_es = instrument_id == "sp500_futures" and ".CME" in old_source
-        if candidate_is_active_es and not old_is_active_es:
-            chosen = candidate
-        elif new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
+        if new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
             chosen = old
 
     attempt_at = now_local().isoformat(timespec="seconds")
@@ -296,17 +319,15 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
             "source": "BriefRooms fast feed",
             "fresh": False,
             "last_attempt_at": attempt_at,
-            "note": "; ".join(errors[-3:]) or "no usable quote",
+            "note": "; ".join(errors[-4:]) or "no usable quote",
         }
 
     stamp = parse_iso(chosen.get("current_price_updated_at") or chosen.get("timestamp"))
     age = now_local() - stamp if stamp else timedelta.max
     fresh = timedelta(seconds=-60) <= age <= cfg.max_age
     note = str(chosen.get("note") or "")
-    if instrument_id == "sp500_futures" and ".CME" in str(chosen.get("source") or ""):
-        note = f"active quarterly ES contract {active_es_yahoo_symbol()}"
-    elif errors and not fresh:
-        note = "; ".join(errors[-3:])
+    if errors and not fresh:
+        note = "; ".join(errors[-4:])
     return {
         "price": safe_float(chosen.get("price")),
         "timestamp": stamp.isoformat(timespec="seconds") if stamp else str(chosen.get("timestamp") or attempt_at),
