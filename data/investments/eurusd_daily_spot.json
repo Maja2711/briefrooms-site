@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-16T12:02:58Z",
+  "timestamp": "2026-09-16T12:57:00Z",
   "direction": "SHORT",
   "score": 45.57,
   "confidence": 0.0886,
@@ -41,8 +41,8 @@
         "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 42.51,
-      "stretch_atr": 0.8671,
+      "previous_score": 42.79,
+      "stretch_atr": 0.8095,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -138,7 +138,7 @@
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-16T12:02:58Z",
+      "observed_at": "2026-09-16T12:57:00Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -173,6 +173,38 @@
       "decision_influence": false,
       "new_entry_veto_enabled": true,
       "fail_closed_during_event_window": true
+    },
+    "event_intelligence": {
+      "schema_version": "daily-eurusd-event-overlay-v1",
+      "enabled": true,
+      "engine_profile": "DAILY",
+      "profile": {
+        "role": "EVENT_SENSITIVE",
+        "base_weight": 0.75,
+        "entry_block": -0.48,
+        "reduce_risk": -0.3,
+        "close": -0.64,
+        "minimum_entry_confidence": 0.66,
+        "minimum_close_confidence": 0.76
+      },
+      "snapshot_path": "/home/runner/work/briefrooms-site/briefrooms-site/data/investments/event_intelligence.json",
+      "snapshot_generated_at": "2026-09-16T11:44:31Z",
+      "coverage": false,
+      "decision_influence": false,
+      "fail_neutral": true,
+      "score": null,
+      "status": "EVENT_SNAPSHOT_STALE",
+      "age_minutes": 72.48,
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_or_no_directional_candidate"
+    },
+    "event_intelligence_policy": {
+      "profile_version": "engine-weighting-v1",
+      "engine_profile": "DAILY",
+      "role": "EVENT_SENSITIVE",
+      "new_entry_veto_enabled": true,
+      "existing_position_close_enabled": true,
+      "missing_or_stale_snapshot": "FAIL_NEUTRAL"
     },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
@@ -258,8 +290,8 @@
           "directional_dominance": 0.9674
         }
       },
-      "mark_price": 1.15407,
-      "unrealized_percent": 0.04609
+      "mark_price": 1.15393,
+      "unrealized_percent": 0.05763
     },
     "candidate_at_refresh": {
       "direction": "FLAT",
@@ -270,8 +302,8 @@
         "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 42.51,
-      "stretch_atr": 0.8671,
+      "previous_score": 42.79,
+      "stretch_atr": 0.8095,
       "shock_ratio": 0.0
     },
     "open_position_policy_check": {
@@ -279,7 +311,15 @@
       "direction": "SHORT",
       "conflict": false,
       "advisory_only": true,
-      "note": "v1.7 policy veto applies to fresh entries; existing positions remain owned by lifecycle/risk exits."
+      "note": "ECB entry veto stays advisory for existing positions; lifecycle/risk exits remain authoritative."
+    },
+    "open_position_event_check": {
+      "evaluated": false,
+      "direction": "SHORT",
+      "decision": "HOLD",
+      "engine_profile": "DAILY",
+      "close_authority": true,
+      "note": "Fresh Event Intelligence can close through the canonical Daily lifecycle record."
     }
   },
   "schema_version": "daily-engine-output-v1"
