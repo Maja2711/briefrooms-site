@@ -1,4 +1,4 @@
-name: Validate US Daily Stock Single Position
+name: Validate US Daily Stock Lifecycle and Generation Routing
 
 on:
   pull_request:
@@ -7,9 +7,14 @@ on:
       - "scripts/us_daily_stock_runtime.py"
       - "scripts/us_daily_stock_position_lifecycle.py"
       - "scripts/us_daily_stock_position_monitor.py"
+      - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "scripts/stock_trading_generation_promotion.py"
       - "scripts/build_daily_stock_history_index.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_us_daily_stock_position_lifecycle.py"
+      - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_generation_promotion.py"
       - ".github/workflows/us-daily-stock-en.yml"
       - ".github/workflows/us-daily-stock-position-monitor.yml"
       - ".github/workflows/us-daily-stock-position-validation.yml"
@@ -20,9 +25,14 @@ on:
       - "scripts/us_daily_stock_runtime.py"
       - "scripts/us_daily_stock_position_lifecycle.py"
       - "scripts/us_daily_stock_position_monitor.py"
+      - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "scripts/stock_trading_generation_promotion.py"
       - "scripts/build_daily_stock_history_index.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_us_daily_stock_position_lifecycle.py"
+      - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_generation_promotion.py"
       - ".github/workflows/us-daily-stock-en.yml"
       - ".github/workflows/us-daily-stock-position-monitor.yml"
       - ".github/workflows/us-daily-stock-position-validation.yml"
@@ -33,7 +43,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
 
@@ -43,7 +53,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Compile position-aware runtime
+      - name: Compile lifecycle and generation routing runtime
         run: |
           set -euo pipefail
           python -m py_compile \
@@ -51,16 +61,21 @@ jobs:
             scripts/us_daily_stock_runtime.py \
             scripts/us_daily_stock_position_lifecycle.py \
             scripts/us_daily_stock_position_monitor.py \
+            scripts/stock_trading_portfolio.py \
+            scripts/stock_trading_generation_promotion.py \
+            scripts/stock_trading_generation_router.py \
             scripts/build_daily_stock_history_index.py
 
-      - name: Run US selector and lifecycle tests
+      - name: Run legacy lifecycle, canonical portfolio and generation tests
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_us_daily_stock \
-            tests.test_us_daily_stock_position_lifecycle -v
+            tests.test_us_daily_stock_position_lifecycle \
+            tests.test_stock_trading_portfolio \
+            tests.test_stock_trading_generation_promotion -v
 
-      - name: Assert PR26 one-position production contract
+      - name: Assert legacy lifecycle remains safe and production uses canonical generation router
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -69,7 +84,10 @@ jobs:
           runtime=Path('scripts/us_daily_stock_runtime.py').read_text(encoding='utf-8')
           monitor=Path('.github/workflows/us-daily-stock-position-monitor.yml').read_text(encoding='utf-8')
           daily=Path('.github/workflows/us-daily-stock-en.yml').read_text(encoding='utf-8')
+          router=Path('scripts/stock_trading_generation_router.py').read_text(encoding='utf-8')
           history=Path('scripts/build_daily_stock_history_index.py').read_text(encoding='utf-8')
+
+          # Keep PR26 lifecycle behavior tested for historical/legacy records.
           assert 'max_open_positions' in lifecycle
           assert 'HOLD_NO_NEW_ENTRY' in lifecycle
           assert 'SUPPRESSED_DUPLICATE_SIGNAL' in lifecycle
@@ -78,10 +96,17 @@ jobs:
           assert 'same_symbol_hold' in lifecycle
           assert 'reconcile_open_position' in runtime
           assert 'position_action' in runtime
-          assert 'us_daily_stock_position.json' in daily
-          assert 'tests.test_us_daily_stock_position_lifecycle' in daily
           assert '*/5 13-21 * * 1-5' in monitor
           assert 'us-daily-stock-en' in monitor
           assert 'canonical_history_payloads' in history
-          print('PR26_SINGLE_US_POSITION_CONTRACT_OK')
+
+          # Production entry authority has migrated to the shared canonical
+          # Stock Trading portfolio, with V1/V2 selected by the formal bridge.
+          assert 'stock_trading_generation_router.py --mode apply --market US' in daily
+          assert 'stock_trading_portfolio.json' in daily
+          assert 'apply_entry_source' in router
+          assert 'available_slots' in router
+          assert 'replacement_authority_enabled' in router
+          assert 'v2_definition_not_proven_fail_closed' in router
+          print('US_CANONICAL_GENERATION_ROUTING_CONTRACT_OK')
           PY
