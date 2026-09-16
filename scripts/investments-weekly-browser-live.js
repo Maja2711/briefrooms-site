@@ -3,25 +3,16 @@
 
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
   const LOOP_MS = 15_000;
-  const REQUEST_TIMEOUT_MS = 8_000;
-  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v3:';
+  const BACKEND_POLL_MS = 60_000;
+  const REQUEST_TIMEOUT_MS = 6_000;
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v4:';
   const BACKEND_URL = '/data/investments/live_prices.json';
 
   const T = isEn ? {
-    asOf: 'As of',
-    live: 'LIVE',
-    fallback: 'FALLBACK',
-    delayed: 'DELAYED',
-    lastPrice: 'last price',
     backend: 'BriefRooms backend',
     result: 'Result',
     points: 'pts',
   } : {
-    asOf: 'Stan na',
-    live: 'LIVE',
-    fallback: 'FALLBACK',
-    delayed: 'OPÓŹNIONY',
-    lastPrice: 'ostatni kurs',
     backend: 'backend BriefRooms',
     result: 'Wynik',
     points: 'pkt',
@@ -41,6 +32,7 @@
     btcusd: {
       pollMs: 15_000,
       maxAgeMs: 2 * 60_000,
+      backendMaxAgeMs: 7 * 60_000,
       minPrice: 1_000,
       maxPrice: 2_000_000,
       sources: [
@@ -51,6 +43,7 @@
     sp500_futures: {
       pollMs: 15_000,
       maxAgeMs: 5 * 60_000,
+      backendMaxAgeMs: 45 * 60_000,
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
@@ -61,7 +54,9 @@
   };
 
   let selectedWeek = null;
-  let inFlight = false;
+  let feedRoundInFlight = false;
+  let backendInFlight = false;
+  let lastBackendAttemptAt = 0;
   const lastAttemptAt = new Map();
   const states = new Map();
   const backendQuotes = new Map();
@@ -109,7 +104,7 @@
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-    });
+    }).replace(',', ' ·');
   }
 
   function validTimestamp(value) {
@@ -140,6 +135,7 @@
       throw new Error(`${instrumentId}_invalid_price`);
     }
     if (!stamp) throw new Error(`${instrumentId}_missing_source_timestamp`);
+    if (stamp.valueOf() > Date.now() + 60_000) throw new Error(`${instrumentId}_future_timestamp`);
     return {
       price,
       updatedAt: stamp.toISOString(),
@@ -170,21 +166,13 @@
     if (!data || data.success === false) throw new Error('eurusd_api_error');
     const updatedAt = data.updatedAt || data.updated_at || data.timestamp || data.time;
     if (!updatedAt) throw new Error('eurusd_source_timestamp_missing');
-    return {
-      price: data.rate ?? data.result,
-      updatedAt,
-      source: 'FX mid-market',
-    };
+    return { price: data.rate ?? data.result, updatedAt, source: 'FX mid-market' };
   }
 
   async function fetchCoinbaseBtc() {
     const data = await fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/ticker');
     if (!data?.time) throw new Error('coinbase_source_timestamp_missing');
-    return {
-      price: data.price,
-      updatedAt: data.time,
-      source: 'Coinbase BTC-USD',
-    };
+    return { price: data.price, updatedAt: data.time, source: 'Coinbase BTC-USD' };
   }
 
   async function fetchCoinGeckoBtc() {
@@ -233,7 +221,7 @@
         savedAt: new Date().toISOString(),
       }));
     } catch (_) {
-      // Storage may be unavailable in privacy mode. The same-origin backend is still available.
+      // Same-origin backend remains available when storage is blocked.
     }
   }
 
@@ -257,6 +245,9 @@
   }
 
   async function refreshBackend() {
+    if (backendInFlight) return;
+    backendInFlight = true;
+    lastBackendAttemptAt = Date.now();
     try {
       const data = await fetchJson(BACKEND_URL);
       const prices = data?.prices || {};
@@ -276,50 +267,80 @@
           console.warn(`BriefRooms Weekly ${instrumentId} backend quote rejected:`, error?.message || error);
         }
       });
+      reconcileAll();
+      applyStates();
     } catch (error) {
       console.warn('BriefRooms Weekly backend refresh failed:', error?.message || error);
+    } finally {
+      backendInFlight = false;
     }
+  }
+
+  async function fetchAllSources(instrumentId) {
+    const cfg = FEEDS[instrumentId];
+    const attempts = await Promise.allSettled(cfg.sources.map(async (source, index) => ({
+      index,
+      quote: validateQuote(instrumentId, await source.fetch(), source.name),
+    })));
+    attempts.forEach((attempt, index) => {
+      if (attempt.status === 'rejected') {
+        console.warn(`BriefRooms Weekly ${instrumentId} source failed (${cfg.sources[index].name}):`, attempt.reason?.message || attempt.reason);
+      }
+    });
+    return attempts.filter((attempt) => attempt.status === 'fulfilled').map((attempt) => attempt.value);
   }
 
   async function refreshInstrument(instrumentId) {
     const cfg = FEEDS[instrumentId];
     if (!cfg) return;
+    const previous = states.get(instrumentId) || null;
+    const direct = await fetchAllSources(instrumentId);
+    const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
+    const newestFreshDirect = freshDirect.sort((a, b) =>
+      (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null;
+    const newestDirect = newestQuote(...direct.map((row) => row.quote));
 
-    let bestDelayed = null;
-    for (let index = 0; index < cfg.sources.length; index += 1) {
-      const source = cfg.sources[index];
-      try {
-        const quote = validateQuote(instrumentId, await source.fetch(), source.name);
-        if (quoteFresh(quote, cfg.maxAgeMs)) {
-          saveCache(instrumentId, quote);
-          const backend = backendQuotes.get(instrumentId) || null;
-          const freshest = newestQuote(quote, backend);
-          const usingBackend = freshest === backend && backend && quoteFresh(backend, cfg.maxAgeMs) && backend.backendFresh;
-          states.set(instrumentId, {
-            mode: usingBackend ? 'backend-live' : (index === 0 ? 'live' : 'fallback'),
-            quote: freshest,
-          });
-          return;
-        }
-        bestDelayed = newestQuote(bestDelayed, quote);
-      } catch (error) {
-        console.warn(`BriefRooms Weekly ${instrumentId} source failed (${source.name}):`, error?.message || error);
+    if (newestFreshDirect) {
+      const current = newestQuote(newestFreshDirect.quote, previous?.quote);
+      const sameAsNew = current === newestFreshDirect.quote;
+      states.set(instrumentId, {
+        mode: sameAsNew ? (newestFreshDirect.index === 0 ? 'live' : 'fallback') : (previous?.mode || 'live'),
+        quote: current,
+      });
+    } else {
+      const quote = newestQuote(newestDirect, previous?.quote, loadCache(instrumentId));
+      if (quote) states.set(instrumentId, { mode: 'delayed', quote });
+    }
+
+    reconcileInstrument(instrumentId);
+    const finalQuote = states.get(instrumentId)?.quote;
+    if (finalQuote) saveCache(instrumentId, finalQuote);
+  }
+
+  function reconcileInstrument(instrumentId) {
+    const cfg = FEEDS[instrumentId];
+    const state = states.get(instrumentId) || null;
+    const backend = backendQuotes.get(instrumentId) || null;
+    const backendAgeLimit = cfg.backendMaxAgeMs || cfg.maxAgeMs;
+    const backendUsable = backend && backend.backendFresh && quoteFresh(backend, backendAgeLimit);
+    const stateFresh = state?.quote && quoteFresh(state.quote, cfg.maxAgeMs);
+
+    if (backendUsable) {
+      const freshest = newestQuote(state?.quote, backend);
+      if (freshest === backend && (!stateFresh || freshest !== state?.quote)) {
+        states.set(instrumentId, { mode: 'backend-live', quote: backend });
+        return;
       }
     }
 
-    const backend = backendQuotes.get(instrumentId) || null;
-    if (backend && quoteFresh(backend, cfg.maxAgeMs) && backend.backendFresh) {
-      states.set(instrumentId, { mode: 'backend-live', quote: backend });
-      return;
-    }
+    if (stateFresh) return;
 
-    const cached = loadCache(instrumentId);
-    const previous = states.get(instrumentId)?.quote || null;
-    const quote = newestQuote(bestDelayed, backend, cached, previous);
-    if (quote) {
-      saveCache(instrumentId, quote);
-      states.set(instrumentId, { mode: 'delayed', quote });
-    }
+    const quote = newestQuote(state?.quote, backend, loadCache(instrumentId));
+    if (quote) states.set(instrumentId, { mode: 'delayed', quote });
+  }
+
+  function reconcileAll() {
+    Object.keys(FEEDS).forEach(reconcileInstrument);
   }
 
   function direction(item) {
@@ -367,17 +388,10 @@
     resultNode.classList.toggle('neutral', Math.abs(result.value) < 0.000001);
   }
 
-  function delayedLabel(quote) {
-    const age = quoteAgeMs(quote);
-    const minutes = Number.isFinite(age) ? Math.max(0, Math.round(age / 60_000)) : null;
-    return minutes === null ? T.delayed : `${T.delayed} ${minutes} min`;
-  }
-
   function patchCard(item, index, state) {
     const cards = document.querySelectorAll('#app .cards > .card');
     const card = cards[index];
     if (!card || card.classList.contains('integrity-withheld')) return;
-
     const nowBox = card.querySelector('.now');
     const priceNode = nowBox?.querySelector('strong');
     const timeNode = nowBox?.querySelector('small');
@@ -385,57 +399,24 @@
 
     const quote = state?.quote || null;
     if (quote && positive(quote.price) !== null) {
-      priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
-      setResult(item, card, quote.price);
-    }
-
-    if (state?.mode === 'live' && quote) {
-      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
-      timeNode.style.color = '#72f0c1';
-      nowBox.dataset.feedStatus = 'live';
-      nowBox.dataset.liveSource = quote.source;
-      nowBox.dataset.liveAt = quote.updatedAt;
+      const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
+      const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
+      if (quoteAt >= currentAt) {
+        priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
+        setResult(item, card, quote.price);
+        timeNode.textContent = fmtTime(quote.updatedAt);
+        nowBox.dataset.liveAt = quote.updatedAt;
+        nowBox.dataset.liveSource = quote.source;
+        nowBox.dataset.feedStatus = state.mode;
+      }
+      timeNode.style.color = state.mode === 'delayed' ? '#ffb86b' : state.mode === 'fallback' ? '#9fe8ff' : '#72f0c1';
       return;
     }
 
-    if (state?.mode === 'fallback' && quote) {
-      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${T.fallback} · ${quote.source}`;
-      timeNode.style.color = '#9fe8ff';
-      nowBox.dataset.feedStatus = 'fallback';
-      nowBox.dataset.liveSource = quote.source;
-      nowBox.dataset.liveAt = quote.updatedAt;
-      return;
-    }
-
-    if (state?.mode === 'backend-live' && quote) {
-      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${T.live} · ${quote.source}`;
-      timeNode.style.color = '#72f0c1';
-      nowBox.dataset.feedStatus = 'live';
-      nowBox.dataset.liveSource = quote.source;
-      nowBox.dataset.liveAt = quote.updatedAt;
-      return;
-    }
-
-    if (quote && positive(quote.price) !== null) {
-      timeNode.textContent = `${T.asOf}: ${fmtTime(quote.updatedAt)} · ${delayedLabel(quote)} · ${T.lastPrice} · ${quote.source}`;
-      timeNode.style.color = '#ffb86b';
-      nowBox.dataset.feedStatus = 'delayed';
-      nowBox.dataset.liveSource = quote.source;
-      nowBox.dataset.liveAt = quote.updatedAt;
-      return;
-    }
-
-    // A backend price rendered by investments-weekly-public.js is still useful.
-    // Never replace a visible last price with an error/status word. Preserve the
-    // price and exact timestamp already on screen, and only explain its status.
-    const backendHasPrice = Boolean(String(priceNode.textContent || '').trim().replace('—', ''));
-    if (backendHasPrice) {
-      const base = String(timeNode.textContent || '').split(' · ')[0].trim();
-      timeNode.textContent = `${base || T.asOf} · ${T.delayed} · ${T.lastPrice} · ${T.backend}`;
-      timeNode.style.color = '#ffb86b';
-      nowBox.dataset.feedStatus = 'delayed';
-      nowBox.dataset.liveSource = T.backend;
-    }
+    // Preserve the server-rendered price and timestamp when all browser sources fail.
+    const raw = String(timeNode.textContent || '').trim();
+    const match = raw.match(/(\d{2}\.\d{2}\.\d{4})[, ·]+([0-2]\d:[0-5]\d(?::[0-5]\d)?)/);
+    if (match) timeNode.textContent = `${match[1]} · ${match[2]}`;
   }
 
   function applyStates() {
@@ -456,20 +437,26 @@
   }
 
   async function refreshFeeds({ forceAll = false } = {}) {
-    if (document.hidden || inFlight) return;
-    inFlight = true;
+    if (document.hidden || feedRoundInFlight) return;
+    const now = Date.now();
+    if (forceAll || now - lastBackendAttemptAt >= BACKEND_POLL_MS) {
+      void refreshBackend();
+    }
+
+    const due = Object.entries(FEEDS).filter(([instrumentId, cfg]) => {
+      const last = lastAttemptAt.get(instrumentId) || 0;
+      return forceAll || now - last >= cfg.pollMs;
+    });
+    if (!due.length) return;
+
+    due.forEach(([instrumentId]) => lastAttemptAt.set(instrumentId, now));
+    feedRoundInFlight = true;
     try {
-      await refreshBackend();
-      const now = Date.now();
-      const due = Object.entries(FEEDS).filter(([instrumentId, cfg]) => {
-        const last = lastAttemptAt.get(instrumentId) || 0;
-        return forceAll || now - last >= cfg.pollMs;
-      });
-      due.forEach(([instrumentId]) => lastAttemptAt.set(instrumentId, now));
       await Promise.allSettled(due.map(([instrumentId]) => refreshInstrument(instrumentId)));
+      reconcileAll();
       applyStates();
     } finally {
-      inFlight = false;
+      feedRoundInFlight = false;
     }
   }
 
@@ -478,7 +465,7 @@
   document.addEventListener('br:weekly-rendered', (event) => {
     selectedWeek = event?.detail || null;
     applyStates();
-    refreshFeeds();
+    refreshFeeds({ forceAll: true });
   });
 
   const timer = window.setInterval(() => refreshFeeds(), LOOP_MS);
