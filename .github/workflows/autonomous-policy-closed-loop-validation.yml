@@ -1,0 +1,44 @@
+name: Autonomous Policy Closed Loop Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/autonomous-promotion-v3]
+    paths:
+      - "scripts/autonomous_policy_closed_loop.py"
+      - "data/investments/autonomous_policy_closed_loop_config.json"
+      - "tests/test_autonomous_policy_closed_loop.py"
+      - ".github/workflows/autonomous-policy-closed-loop-validation.yml"
+  pull_request:
+    paths:
+      - "scripts/autonomous_policy_closed_loop.py"
+      - "data/investments/autonomous_policy_closed_loop_config.json"
+      - "tests/test_autonomous_policy_closed_loop.py"
+      - ".github/workflows/autonomous-policy-closed-loop-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile closed-loop actuator
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/autonomous_policy_closed_loop.py
+          python -m json.tool data/investments/autonomous_policy_closed_loop_config.json >/dev/null
+      - name: Run closed-loop and existing promotion safety tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_autonomous_policy_closed_loop \
+            tests.test_promotion_safety_v2 \
+            tests.test_learning_integrity_v1 -v
