@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - stock-trading-v2-impl
+      - stock-trading-v2
     paths:
       - ".github/workflows/stock-trading-v2-shadow-ingest.yml"
       - "scripts/stock_trading_v2_contracts.py"
@@ -26,10 +26,10 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
-      - name: Check out implementation branch
+      - name: Check out Stock Trading v2
         uses: actions/checkout@v4
         with:
-          ref: stock-trading-v2-impl
+          ref: stock-trading-v2
           fetch-depth: 0
 
       - name: Set up Python
@@ -55,4 +55,13 @@ jobs:
             exit 0
           fi
           git commit -m "Stock Trading v2: freeze shadow experience events"
-          git push origin HEAD:stock-trading-v2-impl
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin stock-trading-v2 && git push origin HEAD:stock-trading-v2; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin stock-trading-v2
+            git rebase origin/stock-trading-v2
+            sleep $((attempt*3))
+          done
+          exit 1
