@@ -1,7 +1,7 @@
 {
   "schema_version": "investment-event-intelligence-v1",
   "engine_version": "production-event-overlay-v1",
-  "quality_guard_version": "event-precision-v2",
+  "quality_guard_version": "event-precision-v2.1",
   "diplomacy_coverage": {
     "version": "diplomacy-coverage-v1",
     "diplomacy_queries": 3,
@@ -9,7 +9,7 @@
     "rhetoric_extensions": 6
   },
   "corporate_radar": {
-    "version": "corporate-tech-crypto-radar-v1",
+    "version": "corporate-tech-crypto-radar-v1.1",
     "static_entities": 23,
     "dynamic_entity_limit": 10,
     "lookback_hours": 30,
@@ -18,18 +18,23 @@
       "corporate",
       "technology",
       "crypto"
-    ]
+    ],
+    "materiality_guard": "corporate_materiality_v1.1"
   },
   "event_domain_counts": {
-    "geopolitical": 23,
-    "technology": 11,
-    "crypto": 2
+    "geopolitical": 22
   },
   "mode": "production_decision_overlay",
-  "generated_at": "2026-09-16T18:19:37Z",
+  "generated_at": "2026-09-16T18:25:21Z",
   "status": "healthy",
   "source_errors": [],
   "quality_rejections": [
+    {
+      "event_id": "evt-ae5aedc6bc43a6754753",
+      "title": "Parents Face Government Sanctions After Family Disney World Vacation - disneyfanatic.com",
+      "reason": "non_geopolitical_sanction_context",
+      "event_domain": "geopolitical"
+    },
     {
       "event_id": "evt-7d0134a822f0cd49abb1",
       "title": "Building collapse in Gaza kills 19 as perilous conditions persist for Palestinians during truce - Chicago Tribune",
@@ -47,7 +52,7 @@
       "event_domain": "corporate"
     },
     {
-      "title": "Nvidia Stock Rises as Meta’s Zuckerberg Weighs In on AI Safety After Trump - Barron's",
+      "title": "Nvidia Stock Rises as Meta’s Zuckerberg Weighs In on AI Safety After Trump - barrons.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
@@ -57,12 +62,17 @@
       "event_domain": "corporate"
     },
     {
-      "title": "Nvidia, Meta CEOs Argue Against Anthropic's AI Slowdown Plan - PCMag UK",
+      "title": "Nvidia, Meta CEOs Argue Against Anthropic's AI Slowdown Plan - PCMag",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Nvidia Stock Rises as Meta CEO Rejects AI Slowdown Calls - GuruFocus",
+      "title": "Meta’s Mark Zuckerberg, Nvidia’s Jensen Huang shrug off red-alarm AI warnings calling for government regulation - New York Post",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Nvidia Stock Rises as Meta CEO Rejects AI Slowdown Calls - gurufocus.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
@@ -87,7 +97,12 @@
       "event_domain": "corporate"
     },
     {
-      "title": "NY Judges Wary of Holding Meta, Google Liable for Mass Shooting - Bloomberg Law News",
+      "title": "Which Nvidia GPU Is Equivalent To The Meta Quest 3? - bgr.com",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "NY Judges Wary of Holding Meta, Google Liable for Mass Shooting - news.bloomberglaw.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
@@ -97,22 +112,42 @@
       "event_domain": "corporate"
     },
     {
-      "title": "NVIDIA's Huang and Meta's Zuckerberg Reject AI Development Slowd - GuruFocus",
+      "title": "NVIDIA's Huang and Meta's Zuckerberg Reject AI Development Slowd - gurufocus.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "NY Judges Wary of Holding Meta, Google Liable for Massacre (1) - Bloomberg Law News",
+      "title": "NY Judges Wary of Holding Meta, Google Liable for Massacre (1) - news.bloomberglaw.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Tech layoffs 2026: Tracking the job losses across Oracle, Uber, Apple, TikTok, Meta, Microsoft and others - tech.yahoo.com",
+      "title": "Meta To Reportedly Launch New AI Chip In 2027, Aims To Beat Nvidia On Efficiency - Stocktwits",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Google Cloud's rapid growth and low valuation m... - Pluang",
+      "title": "Meta and Nvidia Reject an Industry-Wide AI Slowdown; Capex Is Still the Test - TechStock²",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Meta To Deploy In-House ‘Arke’, ‘Astrid’ Chips In 2027 To Cut Costs Over Nvidia - oodaloop.com",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Meta To Deploy In-House 'Arke', 'Astrid' Chips In 2027 To Cut Costs Over Nvidia - NDTV Profit",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Meta Platforms Plans to Deploy New In-House Arke Chip in First Half, Aiming to Reduce Reliance on Nvidia - TradingKey",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Google Cloud's rapid growth and low valuation m... - pluang.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
@@ -142,7 +177,7 @@
       "event_domain": "corporate"
     },
     {
-      "title": "New CGT rules make billionaires’ tax strategy more attractive - The Australian",
+      "title": "Why ASML Holding (NasdaqGS:ASML) Is Getting Fresh Attention Now - simplywall.st",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
@@ -152,27 +187,47 @@
       "event_domain": "corporate"
     },
     {
+      "title": "There Is One Thing ASML's $400 Million Machine Still Cannot Do. AI Chips Keep Making It Worse. - 24/7 Wall St.",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
       "title": "ASML Stock Fell 7% in a Day on AI Slowdown Fears. Here’s Where the Stock Could Go - TIKR.com",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "DOJ’s New Fraud Division: A Different Strategy, Or The Same Playbook? - Forbes",
+      "title": "ASML Holding (ENXTAM:ASML) Shares Fell On Calls To Slow AI Development - simplywall.st",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Do we adopt another strategy, or finally implement one? - HelpAge International",
+      "title": "ASML’s Current Share Price of $1,575 Shouldn’t Scare You. - 24/7 Wall St.",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Is ‘Pheromone Maxing’ Dating Strategy Really Just Body Odor? - NBC Palm Springs",
+      "title": "Anthropic’s IPO Is Still Moving as It Touts a Second Adjusted-Profit Quarter - TechStock²",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     },
     {
-      "title": "Award-Winning Author Aubin M. Jack Sr. Announces National Gun-Violence Prevention Strategy - The Daily Tribune News",
+      "title": "Richard Teng Says Binance Is Not Accused: So Why the $61 Million Seizure? - finance.yahoo.com",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Binance News: CEO Richard Teng Distances Exchange From DOJ’s $61M Iran-Linked Case - CryptoRank",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Richard Teng Denies Binance Accusations, While the DOJ Targets $61 million Connected to Iran - Cointribune",
+      "reason": "entity_mention_without_material_signal",
+      "event_domain": "corporate"
+    },
+    {
+      "title": "Solana holds $100 support as ETF inflows and network activity strengthen outlook - Invezz",
       "reason": "entity_mention_without_material_signal",
       "event_domain": "corporate"
     }
@@ -206,7 +261,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMirgFBVV95cUxPeURxZkdzcC1ZX3IxSWM5TTBLc3dZYXZrYlZhcXc4LXVDU3BKeEx5Y0xRWi04dUk3TE9LN0VGbjNLRlN6UXExckR0b1BZZGh6cEFiOEE0VlExSHh6Q29lcFlYX01ZaWlOT1E4Wl9aYnhORHRZcHFKZkJSWDZSd0NtOVhtMnU5dUpROW1aTkdYMVFWQmFIWUlZQ0dPVlhIZzU0dkktSXVzelAzU1BfR3c?oc=5",
       "published_at": "2026-09-16T13:34:05Z",
-      "age_hours": 4.759,
+      "age_hours": 4.855,
       "authority": 0.93,
       "actor_role": "senior_cabinet",
       "action_strength": 0.62,
@@ -219,13 +274,13 @@
         "middle_east",
         "china_taiwan"
       ],
-      "independent_sources": 7,
+      "independent_sources": 8,
       "corroboration": 1.0,
-      "time_decay": 0.662102,
+      "time_decay": 0.656617,
       "confidence": 0.5305,
-      "event_strength": 0.2529,
+      "event_strength": 0.2508,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-982d79f016047772cd32",
@@ -234,7 +289,7 @@
       "source_domain": "https://www.tehrantimes.com",
       "source_ref": "https://news.google.com/rss/articles/CBMirgFBVV95cUxORGE1Wm5XTU5raXViRlpyT0l1X3d2b01xQVgtb1pDUjZOWTBEMzB4eklaSkVKUEFDT21NNmFNU09HYmMwbThjcUhsV2I1bnJiRDJqdEltZExlVDRJOU5yZVpRZlNtY0dVLVBncnZrOE9HaldJblA0UVN6YzVmSXlMellVNnRoRDFfY2FQNWRScTdCZ0xRSThrSXBpOXlTM1ZCdXlXWXNCLTlxZWE5TVE?oc=5",
       "published_at": "2026-09-16T17:56:41Z",
-      "age_hours": 0.382,
+      "age_hours": 0.478,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -249,38 +304,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.967444,
+      "time_decay": 0.95943,
       "confidence": 0.2526,
-      "event_strength": 0.2199,
+      "event_strength": 0.2181,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
-    },
-    {
-      "event_id": "evt-507f805065cfcf1cfb29",
-      "title": "Parents Face Government Sanctions After Family Disney World Vacation - Disney Fanatic",
-      "source": "Disney Fanatic",
-      "source_domain": "https://www.disneyfanatic.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQNFN0b2dzRDd6T1ZINTlKQWxWdDdyV0l5ZUVmWHdTY3NVa1lBRThIb0V2UXkzNURxcjNxQ3p0Z0xBa2p1SHp3Tl9XQXpHaldzQWlnSm9tVllFOG5KYlBzRzdEQW5KUjFIcGtoX3NOUkgxTzRsdEhLVVVuX0EwTjUtcWgxSmRyVVhDX0JvVVYzOHM1bkZzTzVFQnZjYWQ4aHFIXzFDVlR3?oc=5",
-      "published_at": "2026-09-16T17:41:54Z",
-      "age_hours": 0.629,
-      "authority": 0.88,
-      "actor_role": "state_institution",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.6,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "trade_sanctions"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.94696,
-      "confidence": 0.3832,
-      "event_strength": 0.2177,
-      "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-87d5dcfbcd512b2a18bb",
@@ -289,7 +317,7 @@
       "source_domain": "https://www.linkedin.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSUdEQldTWFRUeWk1RUM4Q3BKbXFlbXdlb19TVVBYRFJHcU80REg1a0c3WGVtMzg5d1k4QVBjY2U3Zk0tRnl1RkxjVjlISEZjZFB3ekRsWlpzbnRVaThweTMtYkJ1NVB5bnVTdVJvT3ZUa3hVQTcwQWlXY2dpV3lVMlpWT1dGWWxURkEwOXowUmlnY1VsLTNvMWVMemRxVGZZeFllZzR6NUh1STRxc1o4NTRFV3dtUEF0SEE?oc=5",
       "published_at": "2026-09-16T17:31:31Z",
-      "age_hours": 0.802,
+      "age_hours": 0.897,
       "authority": 0.88,
       "actor_role": "state_institution",
       "action_strength": 0.72,
@@ -304,11 +332,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.932871,
+      "time_decay": 0.925224,
       "confidence": 0.3832,
-      "event_strength": 0.2145,
+      "event_strength": 0.2127,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-ec1456ca6acc5d08232a",
@@ -317,7 +345,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMivwFBVV95cUxQdGtKVXRwQXN1c3J1bnpHcXNvRzJEbE9DVEVqV3JOQWttNmNhbHR3ekdVNWhKY1VUSHVuUmZvLXJILXNXRWI1bWhpSnJNV1BqUGhESUl0dGFpUUJDVmtvTmZpeV9ZR3F3bUhJZGFfNllUdENsemJHd0xubFBzUy0yanFES0xxX0FPc1p4UHpNQnh6VU1NSmhwOHp1ZHdka0ItUGlKN0NlcE1Id2J1RjVpcUVZLVZlcFZ6bnd1R0FMVQ?oc=5",
       "published_at": "2026-09-16T12:14:16Z",
-      "age_hours": 6.089,
+      "age_hours": 6.185,
       "authority": 0.88,
       "actor_role": "state_institution",
       "action_strength": 0.72,
@@ -332,11 +360,11 @@
       ],
       "independent_sources": 2,
       "corroboration": 1.0,
-      "time_decay": 0.590036,
+      "time_decay": 0.585149,
       "confidence": 0.5829,
-      "event_strength": 0.2064,
+      "event_strength": 0.2047,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-1d230f575d63bb02634a",
@@ -345,7 +373,7 @@
       "source_domain": "https://www.radio.gov.pk",
       "source_ref": "https://news.google.com/rss/articles/CBMiowFBVV95cUxNajV1cW0ydmhYbHZCenpULTZLZHBwVDBIdjdHTU53NzU1ZVVwY0xSX1NJX2ZNTnhHRl9YUU85X0ZVb0Z5dVAxOG1seGpISVh0Q01aMHhQY1NFcGlZdlBmZGFxYjJpYkhUd2w5TGJSUDhDaERXbmxBWVYxaE1PSmdqN2IyOUkzQ05FZEFoQjFXTU8wUjJiNWhQT3Q2Z2N2Q0dqc0lZ?oc=5",
       "published_at": "2026-09-16T15:35:54Z",
-      "age_hours": 2.729,
+      "age_hours": 2.824,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.62,
@@ -358,13 +386,13 @@
         "middle_east",
         "china_taiwan"
       ],
-      "independent_sources": 5,
+      "independent_sources": 6,
       "corroboration": 1.0,
-      "time_decay": 0.789425,
+      "time_decay": 0.782954,
       "confidence": 0.3524,
-      "event_strength": 0.2003,
+      "event_strength": 0.1987,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-b98a4d2017fae839a720",
@@ -373,7 +401,7 @@
       "source_domain": "https://www.middleeasteye.net",
       "source_ref": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQcDJUcVRhMmdkN2d6M3pleEZqQlNIazdHYml2WUpaMTJtNXNvd0RLYW81WVpjclAzZnZITUFSWkxSSWlpTFE4ZndYcXV5TDdacVlUTmwxTW5PXzJObXFVd2hValoxQ3JvQkxEZzItb2lLNFJ6ZWltWVZTT294aExTRHIzcFIzMkdzYWU2cTYwS0pnYmlaVXRsT3hTeGJYN3RMaFAwcl9MMFc2b25fSjVZRHFtRFhDZzBMQ0JTblVSdzlQaFU?oc=5",
       "published_at": "2026-09-16T13:50:00Z",
-      "age_hours": 4.494,
+      "age_hours": 4.589,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.72,
@@ -387,59 +415,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.67748,
+      "time_decay": 0.671926,
       "confidence": 0.4267,
-      "event_strength": 0.1879,
+      "event_strength": 0.1864,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
-    },
-    {
-      "event_id": "corp-98f45a75a5e37827a70b",
-      "event_domain": "technology",
-      "event_kind": "guidance_statement",
-      "title": "ASML Holding stock steadies after sharp pullback as Q2 2026 guidance raises the stakes - ad-hoc-news.de",
-      "source": "ad-hoc-news.de",
-      "source_domain": "https://www.ad-hoc-news.de",
-      "source_ref": "https://news.google.com/rss/articles/CBMiywFBVV95cUxQRmsteXQya0NKRjBTS0ZQV2lvR0w3VE44RzFNQ0swQVhrNGdxX2FYY1g3eEtEd2hPeHJIeTRjbEtpeE4yMG5PVThwOE5rUHljSGtEYl8xd09kMVZjQXM3cFJkVEVwOFdWOWY2eUxaYzJFY0JFRVZfWE5GaF9XNTJ6WVQ5M3pHR0x6OFV0MlotY0NOZHU4SzdDMy1EdGNjUklBVkxwaW9pS1c5Y2FoZVNNNWhlazJsdFY0VWc3aXhmcW83cjFXMmtsTEluRQ?oc=5",
-      "published_at": "2026-09-16T13:15:32Z",
-      "age_hours": 5.068,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.78,
-      "action_type": "corporate_material_update",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.66,
-      "event_type": "guidance_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:asml",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "asml",
-      "entity_name": "ASML",
-      "entity_symbols": [
-        "ASML"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure"
-      ],
-      "entity_tier": "large_cap",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.703782,
-      "confidence": 0.396,
-      "event_strength": 0.184,
-      "quality_guard": "corporate_materiality_v1"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-f806467c9b2eb2d84833",
@@ -448,7 +428,7 @@
       "source_domain": "https://www.intellinews.com",
       "source_ref": "https://news.google.com/rss/articles/CBMi9AFBVV95cUxPQ3ZJeVNHY2RlTlZsZEM3ZlBTalVYWkc1bjVPMUVkVTdNdmlyb1hRWmNHcjlraTBJQ2NZdlpISHFFeVBEcHNEd2NLN3RrSWdHaTFRSF90MHdVS1hhTTI2QTZ3VlJ0OEptc0I1cWxSU3JkTFZrTHZPZzM3NGFteHVWaTcxcE1JLWFLNTRHUV9DS0ZPRUNtQl80eGtLYTU2Q1R1X2dDeWVSbkxadURHOElGbXotc3ozR2RvbFBuajVIbk10YlFUNUxGbU9ka3ZMY2xZcmJJMHFfZFNrLWtDdkxEcVpJRzd3MVpjUHctOG1YcDVQY3pk?oc=5",
       "published_at": "2026-09-16T14:26:15Z",
-      "age_hours": 3.89,
+      "age_hours": 3.985,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.72,
@@ -462,11 +442,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.713878,
+      "time_decay": 0.708026,
       "confidence": 0.4267,
-      "event_strength": 0.1828,
+      "event_strength": 0.1813,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-6027cb203a4fe87422b7",
@@ -475,7 +455,7 @@
       "source_domain": "https://www.wionews.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxNeVZxXzFRVFRJMVNhRlMwNy1INHNTVjdRcXpaYTh3SkcwUzFsV0taSUs1bWNjT3F5X0xTMUFOeXR6TE5Ib1Q2b3dPUkxyZ082XzNfa3JHSzcyMlNIQktmY1lMY2tRQzlvQlRxa3llNXJKWWpDSXR5RGNLdUx1eWUwMUNtUzQtYVhQSkdQLXdRVXBTVnNfb1NSd19tV29mZF96eS1hQVQ4UG93UTljUHFva3g0d25VUVRhbUF2YmNvamHSAcYBQVVfeXFMUElIc0NzWVdGNmw0ZE5Xc3pTdGVTLVN2OFlaNUp1X01hYlg0V2JBN3ZabHFDMy1kNnN0UmI4MkROMW5Yd3pRNzJUM2p1TkZiSEQzN0VDbzVzbGZ4djVPelFLWTJ1blU1alBRRXJ5dE5NT1dxc1Z0TTRvWjBKbWVtX2FaOTJ2WmxscUVfRlByX0NyQmY4cU95QlNjX29IeDEtQ1hHM0h0V3o4V09xRlcwenZmMjZTOWVGazBMYXEwMUF5UkFmc0JR?oc=5",
       "published_at": "2026-09-16T17:36:00Z",
-      "age_hours": 0.727,
+      "age_hours": 0.823,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.72,
@@ -489,11 +469,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.938953,
+      "time_decay": 0.931175,
       "confidence": 0.4267,
-      "event_strength": 0.1803,
+      "event_strength": 0.1788,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-6a51254dce2cd272e998",
@@ -502,7 +482,7 @@
       "source_domain": "https://www.dailysabah.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxNeTlKaHl3Y1pkNzVneXRGekh2cGRpNmdBRVd4RnhhMTNxanU2Z3MzVlZLeWpnUFIwb29RVXBDeDhZZ242ajBEUmhUaVItczhtOUp6b0tpZ2MyMXVueUplaWQ2UVpwVWxnRTJvSWVrS0J5YjRrcVBRV09BS0lSejBXRm1KM0MxX3ZOOFJTV0lnWUhIU1NUMG5KTzBZeGJsUVoxOVdMbnM2b3g?oc=5",
       "published_at": "2026-09-16T15:51:00Z",
-      "age_hours": 2.477,
+      "age_hours": 2.573,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -516,11 +496,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.806851,
+      "time_decay": 0.800168,
       "confidence": 0.2526,
-      "event_strength": 0.1732,
+      "event_strength": 0.1718,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-4e79d00f22a38c6a7e97",
@@ -529,7 +509,7 @@
       "source_domain": "https://www.ksl.com",
       "source_ref": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNcWk1UE1aZjFxYm4zNnIyY1BHOERYUTJSMEtOMWZoSzJUZ1NUWGlyNWVINzJpOFRpMGhsRFBNV3lNUFNGalJkTzB4VG5PSmZoU1dxYzIySmlWV1dBYWNRRTNMNHRRaDU1TmMtalRjZU1GTEVEODBZNjVvSmptellGeUd6Q1J4Yzlwb1ZmN0NId2ZCdVBaRll0SVE3LWJlZ2VN?oc=5",
       "published_at": "2026-09-16T17:47:27Z",
-      "age_hours": 0.536,
+      "age_hours": 0.632,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -542,13 +522,13 @@
         "russia_ukraine",
         "trade_sanctions"
       ],
-      "independent_sources": 2,
+      "independent_sources": 3,
       "corroboration": 1.0,
-      "time_decay": 0.954621,
+      "time_decay": 0.946714,
       "confidence": 0.3007,
-      "event_strength": 0.1722,
+      "event_strength": 0.1708,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-cc5a275bc825a6104ed8",
@@ -557,7 +537,7 @@
       "source_domain": "https://www.themoscowtimes.com",
       "source_ref": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxPMTBwWVhTdHF6bjNod0VSdTFqWW1WZURHZUh6OWN5V2NMVmpLVHBnbHBYZVQwY2U4Sk5saWlUdFFRV1d1aUxKZ2NDUURTbHVCaTBXaDFhRFdMYjMtSG9SU3ZKX1MwaXFQdjR3d3d2b2g1MENPLUZqUWVvRWlTeU00UEJjdEQtZlljb2tTOW5qVF9nc293M2dSTFVHaEV1dFQwaEgzSmo5dDRPQXlDQmtUWTg1QWRpWTBFdUFEQ1JPWXhDaGwwQ2otdXZRaE05djBsZEE?oc=5",
       "published_at": "2026-09-16T14:31:29Z",
-      "age_hours": 3.802,
+      "age_hours": 3.898,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.62,
@@ -571,11 +551,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.719342,
+      "time_decay": 0.713384,
       "confidence": 0.3675,
-      "event_strength": 0.1718,
+      "event_strength": 0.1704,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-3da41f58193a3365028c",
@@ -584,7 +564,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMitwFBVV95cUxPN2pEQlJIejhCanFpeUNqdG5XdFc1YTFIUzZfOW4wc2FUUmd1elZHNkJSY3c0dEp1Vkl0OHYxbXNTLUZ1RmVFeEdDMExxNUVxaTY5cnFISFAwOGdjQktCV0FCVHdPUWRFQmRjbVg3bkg3TW9UYmV0MW5hcDR3ZDM3cFVITm9DRzFqWW1leFJacEUyOTNNRzZtcUFoV1R4MjBZLWVFeGdWR1FWbFNBZzF3YjY5MFI4NWc?oc=5",
       "published_at": "2026-09-16T16:48:34Z",
-      "age_hours": 1.518,
+      "age_hours": 1.613,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -598,11 +578,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.876758,
+      "time_decay": 0.869571,
       "confidence": 0.3227,
-      "event_strength": 0.1698,
+      "event_strength": 0.1684,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-7ce5790200bed9672e6a",
@@ -611,7 +591,7 @@
       "source_domain": "https://themedialine.org",
       "source_ref": "https://news.google.com/rss/articles/CBMirgFBVV95cUxQT0daMmNDUm5nMGdQY3pvMkczQmUySXVFTkdzcWNDQ3B4MHVTaHZNNXJERThiVURvdV9XeU9SRFEwTE9tTVVqS1VRNTZWU0xTbGpxWjZJNWUzVXlreHo2Z3ByWV9rZEJ4S21QQklONzFrVmlBWXdpaEh3OGpRYmhKZEgtVV9UNEdqOTlQaDc5Qk9uRE02dTItQUJ3RGRKUVE2LWIyYWs0anRnQURCZVE?oc=5",
       "published_at": "2026-09-16T16:03:30Z",
-      "age_hours": 2.269,
+      "age_hours": 2.364,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -627,11 +607,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.821524,
+      "time_decay": 0.81479,
       "confidence": 0.2526,
-      "event_strength": 0.1618,
+      "event_strength": 0.1605,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-b842b2d187d67bf7e369",
@@ -640,7 +620,7 @@
       "source_domain": "https://www.ottumwacourier.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxPMXBMWWtlaVZVZHlUUkdhZ0ZCX0NWcGRnaXdQVHZ4dW82N09wdG1MRTRRVncwWEdwcnNrNWZscnd1QjVWd0ZzMUQ2a3R3MlVDbFF4aU84NE1paWFCLU82bXRNQWhhYmxNMzlteWxyNGEzTVNKSlFmdEhNVFRiMDZPMzRoU19GU3ROVkRsa1JzNUZ2aGhKVGNCYkdWOUNscVo3Zm12cUhlTHpHS0xzY1UyZVJ6MGZqclpMOWlJLVJvNks2Z2poQ2dGOERqb1p5dmlMY0FOX3lmVDRlOGkwd1EycWlOS2RpYmRZNV8zbTF2RjFNcFA5b1QyLUUtZnpiSmR5WF9qMmtNOC0?oc=5",
       "published_at": "2026-09-16T17:01:58Z",
-      "age_hours": 1.294,
+      "age_hours": 1.39,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -655,20 +635,20 @@
       ],
       "independent_sources": 2,
       "corroboration": 1.0,
-      "time_decay": 0.89394,
+      "time_decay": 0.886535,
       "confidence": 0.3007,
-      "event_strength": 0.1613,
+      "event_strength": 0.1599,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
-      "event_id": "evt-1b684dfda59fc60b954e",
-      "title": "House nears vote on Russia sanctions bill named after late Sen. Lindsey Graham - The Tribune-Democrat",
-      "source": "The Tribune-Democrat",
+      "event_id": "evt-6915232e6dd5db0dd47d",
+      "title": "House nears vote on Russia sanctions bill named after late Sen. Lindsey Graham - tribdem.com",
+      "source": "tribdem.com",
       "source_domain": "https://www.tribdem.com",
       "source_ref": "https://news.google.com/rss/articles/CBMi-AFBVV95cUxOcjBkZHZHc1RaN2xOa2pjWVpMaW9pMXpJRTU5SjRtNHZvM2JKUFlndGFpaXFhNWVnMTB1eDdwLUw0MTUyRGRIYW4yaXV1SkNvTVh3Vk5xS21sSk80clY0VzRSeHo1dHJXSXN4NmJFSXVWT2JlTllXcWdTTFoyUFZIQkJHZUI2elV4WEFpazdUQjBmRzNhYUJOcXZVckRnODJSc1FaVXphWlpfall1QVBBQkt4NEhBVEc5aVlFUkpDSlowVjBDT2FUVlRfZmF5RXFDNjFqV1B1QkwtUHNUMXA2QU53TzNtS09UMHBlWUVBVlRpZURTSmk2Mw?oc=5",
       "published_at": "2026-09-16T17:01:00Z",
-      "age_hours": 1.31,
+      "age_hours": 1.406,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -681,13 +661,40 @@
         "russia_ukraine",
         "trade_sanctions"
       ],
-      "independent_sources": 2,
+      "independent_sources": 3,
       "corroboration": 1.0,
-      "time_decay": 0.892702,
+      "time_decay": 0.885307,
       "confidence": 0.3007,
-      "event_strength": 0.161,
+      "event_strength": 0.1597,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
+    },
+    {
+      "event_id": "evt-def1829f602aa561fce4",
+      "title": "Iran’s Nuclear Red Line: Could Tehran Trigger a New U.S.-Israel Strike? - TV7 Israel News",
+      "source": "TV7 Israel News",
+      "source_domain": "https://www.tv7israelnews.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMie0FVX3lxTFB3S2djREFKenNZbUIwOHYyNnJFQWNzd1Q4NHpFNFVNQ0cwaE9sQzZMQVZOc2lWUjduWlVyRGhSTEhMYUNfM2FabzFfa19BSFFubldpVC0wLTk2YVRlbnJrSjlqckY1azdTZTk1OGEwTTNRdHlPXzVid1Uzcw?oc=5",
+      "published_at": "2026-09-16T16:35:02Z",
+      "age_hours": 1.839,
+      "authority": 0.58,
+      "actor_role": "reported_actor",
+      "action_strength": 0.62,
+      "action_type": "rhetoric_or_warning",
+      "pressure": 1.0,
+      "severity": 0.85,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "middle_east"
+      ],
+      "independent_sources": 1,
+      "corroboration": 0.84,
+      "time_decay": 0.852709,
+      "confidence": 0.2175,
+      "event_strength": 0.1576,
+      "event_domain": "geopolitical",
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-f18de2802b62f3840155",
@@ -696,7 +703,7 @@
       "source_domain": "https://reform.news",
       "source_ref": "https://news.google.com/rss/articles/CBMingFBVV95cUxPejZzalBMd2FEcE14OWlsWlRHcEEzSnhzUWVBbXpCQl8xd3pRd09PanhKZWpTVVVtRkxmUzJVSzJIYlJMa1NWQi11LWlJaXp1Sm9FNEUzckNBX1hOQlBBV09aak5vb1hjcVBrOVNWY1ItUFBWOE1RQWRrc19neGJfSEo4LUtpYzBYcWdLclhzU1ZzOWkxMnVIOERWTU44QdIBowFBVV95cUxQTFRORkkwWm9xSThIZlNpYzJjdFNLV1hobklmcGdlQ09QaUZvbHYzQWw3b0ZNeVlZU0ducU5NRmQ0VHdnNWRtWUlHZmRvWUVIRFNBOWZlRFVQUU14SGo1MXJYenFKYWQwSGNPR21uNHR6VXRXakFiYnQzX0pHVjFGc3Izak5PR0Y2ZzNZREUwTUZoaEI4b2N3M0xHMk5UNUZ2X1Nj?oc=5",
       "published_at": "2026-09-16T17:06:15Z",
-      "age_hours": 1.223,
+      "age_hours": 1.318,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.62,
@@ -710,11 +717,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.899456,
+      "time_decay": 0.892083,
       "confidence": 0.2175,
-      "event_strength": 0.1565,
+      "event_strength": 0.1552,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-f99883b4b295879a1290",
@@ -723,7 +730,7 @@
       "source_domain": "https://www.cbsnews.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPemFWRzlJa1NQdVdadlg4NW84NFJXaGlybDJfTDYwWkV1WjE2VTFlZGxxV1pTZjZ6UWtQa3FkODEwQWpXaV9UeVZBT0JzVnZfTDgxUDUtWHJtNlg5VVg4QzNJZlk3RzExMUppcXN6N0JKUUFlSEtKeWxIdWw1YzBMSTZZa2hUOG12UHc?oc=5",
       "published_at": "2026-09-16T14:29:12Z",
-      "age_hours": 3.84,
+      "age_hours": 3.936,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -737,11 +744,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.716978,
+      "time_decay": 0.711039,
       "confidence": 0.2526,
-      "event_strength": 0.1539,
+      "event_strength": 0.1526,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-8304558d6ab6ecdfa3e5",
@@ -750,7 +757,7 @@
       "source_domain": "https://www.cnbc.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPcFhvRmY4VGxlaUd4NFpmcDNQR296QkhNUkdwM0U5RnQ3ZmJVT0UybXZSVEdxeDZhWHhIUFQwV0V1cWxXQzZLS0FLZ1h6WHNBN3VCQ1JCT1VES1M4ZzFWXzBHaVR3eE1xS0FYS01mOXluRU9QS1lLbklCSlY0OURHZjFUdTBmbkdGNUHSAY8BQVVfeXFMTVluWlFjSDFCMGw2U0dtak5mR2ZOV0ZicXlhQzBiWVhfRTdWNzNuYUxkOW9YOVZlRUplNk9YazR4TllhYjJfY2Y0LVZRMkt2Z0N6alJfTUEwYTRvUW1FNXlaODBxeExzbE4yMGplZ0xkZVRYSlltejJOWThQQUt2WHlvYWUyQmp0UmJTek8yMDg?oc=5",
       "published_at": "2026-09-16T15:27:46Z",
-      "age_hours": 2.864,
+      "age_hours": 2.96,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -765,11 +772,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.780245,
+      "time_decay": 0.773782,
       "confidence": 0.3227,
-      "event_strength": 0.1511,
+      "event_strength": 0.1498,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-969a9e19721fcf040273",
@@ -778,7 +785,7 @@
       "source_domain": "https://www.cbc.ca",
       "source_ref": "https://news.google.com/rss/articles/CBMidkFVX3lxTE9pTkplWFBKM0hzYVZUM1JVcDdDQy1Rdmp5eHZrQ1FqTFA1SU5FX0E3YVp4LVZuVkRyRDBQb0ZvMW5ZWnBzVUpodnlSb19IYTU0Yl9MNzZCc2p3TmN0ZklMaHJpT0tnTDBmOGRrVklBY0xwMU4wNWc?oc=5",
       "published_at": "2026-09-16T17:17:13Z",
-      "age_hours": 1.04,
+      "age_hours": 1.136,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -792,11 +799,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.913831,
+      "time_decay": 0.906262,
       "confidence": 0.2526,
-      "event_strength": 0.15,
+      "event_strength": 0.1488,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-f63fb27c6243422db8ff",
@@ -805,7 +812,7 @@
       "source_domain": "https://middle-east-online.com",
       "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPUV85RlZQTXh4dGMxUDFNdlh6WmRRMTZ4a2h2VjU2Y1ZjdDkyaXZac240U08wUE9oeGVhVVpjT2JhbE1EYjRja282cV9EZjFxQThmaUtYM29CVC05dTBuMEdvOTFZTXRFc3YwRFBLZ3huaWdZSDU2bVdXVTBVR0g1R25KMGpuS0xmZ1Vhb1JB?oc=5",
       "published_at": "2026-09-16T13:50:25Z",
-      "age_hours": 4.487,
+      "age_hours": 4.582,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -820,11 +827,11 @@
       ],
       "independent_sources": 3,
       "corroboration": 1.0,
-      "time_decay": 0.677891,
+      "time_decay": 0.672334,
       "confidence": 0.3007,
-      "event_strength": 0.1468,
+      "event_strength": 0.1455,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
+      "quality_guard": "accepted_precision_v2.1"
     },
     {
       "event_id": "evt-109f8e567b074f4f67cd",
@@ -833,7 +840,7 @@
       "source_domain": "https://wtop.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiygFBVV95cUxQYlItLWN5akNxV1NQNlhsRVRKMGlxNUg3RVU2T3J1bmMtUC1ONGRzTUw4aWFUelh6ZFM0TUhsY2NsczZoaW4zaDR2TU1MQlB0ajZ2d1NUY1RuV1FaeTNwZG1OWGE2cHNMNC1XQTlCV0hhLWNicTVaX2owc0JlS1BhQ205R19DdTFHa2hiSV9XUWlnNnpZbFI0bzZpQkJOcEo2YWw4aDR4eEM3c0kxNU16eTBCM2ZDSXQza0dRcDlDeTdzdng1Y01ySS13?oc=5",
       "published_at": "2026-09-16T14:15:52Z",
-      "age_hours": 4.063,
+      "age_hours": 4.158,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -847,625 +854,11 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.703258,
+      "time_decay": 0.697493,
       "confidence": 0.2526,
-      "event_strength": 0.1421,
+      "event_strength": 0.1409,
       "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
-    },
-    {
-      "event_id": "corp-bcde82c22d1e25a2b7d6",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta’s Mark Zuckerberg, Nvidia’s Jensen Huang shrug off red-alarm AI warnings calling for government regulation - New York Post",
-      "source": "New York Post",
-      "source_domain": "https://nypost.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMixgFBVV95cUxQdXBibml4X0huOTlKVmc0Ti16cW5WTXA3SVduVERPZGtSNU0zZDlLVnRoZjY5cDRkclVvYWF2UE9tY1F6N3VUeUZHbENnZGt5T1ZUUXJKaTZZRUtHdjR5SDNCV1JtNzljbXNuLXNrbjlodTdGU0xrN1kwMmxDU3RYR1JrT3ktLVNPank2ZlF1dy1zUjVCQXc4eFNzYlN5WnZKR1VBSXVsUlhQbDJkSWpzcUN4el9SdmVkWDJVN0lLWTFkRkdWM1E?oc=5",
-      "published_at": "2026-09-16T15:23:00Z",
-      "age_hours": 2.944,
-      "authority": 0.97,
-      "actor_role": "tracked_executive_or_founder",
-      "actor_name": "Mark Zuckerberg",
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:meta",
-        "theme:software",
-        "theme:ai_market",
-        "theme:consumer_tech",
-        "ai_market"
-      ],
-      "entity_key": "meta",
-      "entity_name": "Meta Platforms",
-      "entity_symbols": [
-        "META"
-      ],
-      "entity_themes": [
-        "software",
-        "ai_market",
-        "consumer_tech"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.815411,
-      "confidence": 0.4084,
-      "event_strength": 0.1399,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "evt-d8855dcca11fab14a775",
-      "title": "US Lawmakers Set To Vote on Sweeping New Russia Sanctions | Vantage on Firstpost - Firstpost",
-      "source": "Firstpost",
-      "source_domain": "https://www.firstpost.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxPd1JwUDYwTDFIMjlHd1VBRUNUd3kyLVc0SXphNnBUWlg4YUhEdzV6Wlc4QTBKYjg2SFlDc3djLWt1Nm5VbFhCdUVBMEV4a1IxLUFDaEF1eV94eEQxSWxJbDVESm9MTlVJWmg5S2hBTkx1Z3haVHphV1BhUDdBdVRINXQxQ2E0WnF5bjA5NmVaYnZFMUtFQVMxWUNKMHdNaVNKSnpmNWlJMERwMXlfMy1Mc2FxdUdiYWFxMzF2U0dtMU7SAcYBQVVfeXFMUDNUTnZJdlRRY1JyMXFldjBkTjkyRFJHTFo1bFMwNS10bndXY3Fia3hreHIzYk00OVNFLTZibmtCa09fNEhWZG53NndaM3kxZk1Cd1ZHMUg4QkhNeW1uSUM3bms5UF8yM1RFZGRQYm51ZmRZcnY1NGpGVUQ5Q1MxaDMwcUExdnlxNFNYVU5UUHllR1NJbWtiNEYyNGlDZVFBVlJOXzFla2Yzc3lsMHBTbVhLdTk2UEFwV3M2c095RHB3eWRHWkJn?oc=5",
-      "published_at": "2026-09-16T17:21:40Z",
-      "age_hours": 0.966,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.6,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine",
-        "trade_sanctions"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.919709,
-      "confidence": 0.2526,
-      "event_strength": 0.1394,
-      "event_domain": "geopolitical",
-      "quality_guard": "accepted_precision_v2"
-    },
-    {
-      "event_id": "corp-508b6e6f5a04ca3571e1",
-      "event_domain": "crypto",
-      "event_kind": "material_statement",
-      "title": "Bitcoin's Coinbase premium sinks to one-month low as US buying interest fades - TradingView",
-      "source": "TradingView",
-      "source_domain": "https://www.tradingview.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMi2gFBVV95cUxQYkZhclNTMWdkVjlhell3RmtkZHZVT2M0NDMxeFprelZHbE1BRHVMR29qbWE0b2I5SHFnc3NBVVFtaGpiWUM4RTlzcTZCWVpxUU5nQnVOckRYOFJwVGxvUVdjR3hEOWl5RW5jVlJXQk1xQU1lVlVwNXVjekNmNm9YWkE2azZpallpZlZ2NnB6SVcwZHU4WTM3ZjMyYmF1ZWR0OTJDSzlHbVFKemhqM2tkQ0xob1RLUjRTckJuVW9GOW16U01DZDJ4YV9iRmFrd2l3R0tKbVdma2Vzdw?oc=5",
-      "published_at": "2026-09-16T10:07:09Z",
-      "age_hours": 8.208,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:coinbase",
-        "theme:crypto_market",
-        "theme:bitcoin",
-        "theme:ethereum",
-        "crypto_market",
-        "bitcoin",
-        "ethereum"
-      ],
-      "entity_key": "coinbase",
-      "entity_name": "Coinbase",
-      "entity_symbols": [
-        "COIN"
-      ],
-      "entity_themes": [
-        "crypto_market",
-        "bitcoin",
-        "ethereum"
-      ],
-      "entity_tier": "crypto_public",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.566128,
-      "confidence": 0.3453,
-      "event_strength": 0.0821,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-b5899779f6c21599ee19",
-      "event_domain": "crypto",
-      "event_kind": "material_statement",
-      "title": "Binance opens Capital Connect to wealthy investors with $1M in assets - Crypto News",
-      "source": "Crypto News",
-      "source_domain": "https://crypto.news",
-      "source_ref": "https://news.google.com/rss/articles/CBMikwFBVV95cUxNaUdiTVV3VTE2Q1RweklLbjJOZHN2ZWdjaFZueXZZeHF2UVRBM0JDU3M2SldlQlJWeTNzVndQd3JaSWdqMEt1by1IQ2F1QTZYZ3I3Z0h3N3lLMGRXTENTcnQ4LVZEcTFYUFdjMGdvN1ZuVFlxRGF0Q2E5Qm1qbS1rYWxzNEVyNDFjcXRtUG9Ub0NzOXM?oc=5",
-      "published_at": "2026-09-16T09:56:25Z",
-      "age_hours": 8.387,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:binance",
-        "theme:crypto_market",
-        "theme:bitcoin",
-        "theme:ethereum",
-        "crypto_market",
-        "bitcoin",
-        "ethereum"
-      ],
-      "entity_key": "binance",
-      "entity_name": "Binance",
-      "entity_symbols": [],
-      "entity_themes": [
-        "crypto_market",
-        "bitcoin",
-        "ethereum"
-      ],
-      "entity_tier": "crypto_systemic",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.559147,
-      "confidence": 0.3453,
-      "event_strength": 0.0811,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-91c51b10ebdf4b64a009",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta and Nvidia Reject an Industry-Wide AI Slowdown; Capex Is Still the Test - ts2.tech",
-      "source": "ts2.tech",
-      "source_domain": "https://ts2.tech",
-      "source_ref": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOcU9CZ2VaZmFfVUY3U19FZk9GNTRCZmJnekJRdmtRWmg2bHpUd3lvVktKUHJ4NWtYNl9kWFVaQ3R4dTBLQUVzeXctQmVVVGt2U0Z3NlVrZkpwejNnNGNITzRvenJaS0ZTVUlPZWhsQmc1YjlnVkxQSmJVNUs3X05tWHktYWlRa3lweUdzZUN2alkxY005YmhFc2otTGY?oc=5",
-      "published_at": "2026-09-16T09:13:41Z",
-      "age_hours": 9.099,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:nvidia",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "theme:ai_market",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "nvidia",
-      "entity_name": "NVIDIA",
-      "entity_symbols": [
-        "NVDA"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.532222,
-      "confidence": 0.3453,
-      "event_strength": 0.0772,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-c69f28444f7d0b305a4f",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Which Nvidia GPU Is Equivalent To The Meta Quest 3? - bgr.com",
-      "source": "bgr.com",
-      "source_domain": "https://www.bgr.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMidEFVX3lxTE96WEh3WXA5TVY4alZNX05wRXBTMHBtbjkzQUpCVjlJZGUtZF83ZWs3VkNtRUxMM3hZNi1Ob3A4ZFdZRlZCZ2ctNVFib3BxYi0tbmJHd3JQaFFMNk9palZQV2U1US0zYWJPYkJsMFJqLUdTY1Ez?oc=5",
-      "published_at": "2026-09-15T21:47:00Z",
-      "age_hours": 20.544,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:nvidia",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "theme:ai_market",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "nvidia",
-      "entity_name": "NVIDIA",
-      "entity_symbols": [
-        "NVDA"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.240749,
-      "confidence": 0.3453,
-      "event_strength": 0.0349,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-af43f8c4e37aa3635174",
-      "event_domain": "technology",
-      "event_kind": "guidance_statement",
-      "title": "Anthropic reports Claude AI used for missile guidance and state-linked cyber-espionage between December 2025 and August 2026 - Digital Watch Observatory",
-      "source": "Digital Watch Observatory",
-      "source_domain": "https://dig.watch",
-      "source_ref": "https://news.google.com/rss/articles/CBMidkFVX3lxTE9rZm1aS2VXb0dlTzZoTVpzbXZoMnhnQlZjYVNCYnBaRGJldUh4NEhCc1h2SnRLMFQ2dVFVZ3BtTHJGTWdDaVJyZ21jcXZUeFMzcjdhMm5fMHNXb1FJdUlvSXMwaXhTSmdaQ2JiNmtiaXp4aWhuTUE?oc=5",
-      "published_at": "2026-09-15T13:04:50Z",
-      "age_hours": 29.247,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.78,
-      "action_type": "corporate_material_update",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.66,
-      "event_type": "guidance_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:anthropic",
-        "theme:ai_market",
-        "theme:ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_key": "anthropic",
-      "entity_name": "Anthropic",
-      "entity_symbols": [],
-      "entity_themes": [
-        "ai_market",
-        "ai_infrastructure"
-      ],
-      "entity_tier": "systemic_private",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.131698,
-      "confidence": 0.396,
-      "event_strength": 0.0344,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-91dbe9d120e1b8d9d6ad",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "There Is One Thing ASML's $400 Million Machine Still Cannot Do. AI Chips Keep Making It Worse. - 24/7 Wall St.",
-      "source": "24/7 Wall St.",
-      "source_domain": "https://247wallst.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMizwFBVV95cUxQZmtpT2tpa283M2I4cUF2eFZkbk9kbFU4Z3BoU1lfX2tjLXRxZzhrYkR4NlIzMHRuclltc0NXT2lpRzFnRi10NVczQ3FPZVZ1NEVmcE1Fd19Tc1lndnZZVGxIS3ZVQW5OajNEQnJMTmozMzJRazZSek14dDVHbERJQXpuRHJRM1JObWpvYzJ1Z3Q2YXM2NkZlaXVfTzJWTEtjYXZ5YmE2SHc3bnFHbl9NRkpzY3FaZzg2MV9jX0VpME41YkM4MXduaVlxN0RyUEk?oc=5",
-      "published_at": "2026-09-15T20:00:00Z",
-      "age_hours": 22.327,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:asml",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "asml",
-      "entity_name": "ASML",
-      "entity_symbols": [
-        "ASML"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure"
-      ],
-      "entity_tier": "large_cap",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.21276,
-      "confidence": 0.3453,
-      "event_strength": 0.0309,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-571821ea19df7bc7d615",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta To Deploy In-House ‘Arke’, ‘Astrid’ Chips In 2027 To Cut Costs Over Nvidia - oodaloop.com",
-      "source": "oodaloop.com",
-      "source_domain": "https://oodaloop.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMitAFBVV95cUxNQzNWblU5aW81Z0RJNk9oNGxJMTdHVnNXbkN6SW1hb1hZU2xqbVROT3k4MXM0MUd1VjJTRXc3ODBXUUZnUVFEQjE4VUoxcVRGalRoMGlDOExZbDVNWnBuejMzS3JPWXNJQWlxZlpETFpEcEVjXzNKdC15TDd5b2dEUTZXU2N3cC16OS1VRHF6a0dZdHJ5MW9IX3BGTVpmSjJUWlpDNWZ6QWxqRklNNFRyZWlucDM?oc=5",
-      "published_at": "2026-09-15T14:48:45Z",
-      "age_hours": 27.515,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:nvidia",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "theme:ai_market",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "nvidia",
-      "entity_name": "NVIDIA",
-      "entity_symbols": [
-        "NVDA"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 2,
-      "corroboration": 1.0,
-      "time_decay": 0.148496,
-      "confidence": 0.4015,
-      "event_strength": 0.025,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-422e1ddc4e908a463915",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta To Deploy In-House 'Arke', 'Astrid' Chips In 2027 To Cut Costs Over Nvidia - NDTV Profit",
-      "source": "NDTV Profit",
-      "source_domain": "https://www.ndtvprofit.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMivgFBVV95cUxOX1pZMlpjUExKWTlwVE9ESFNRMnFjUlRZd2lIUDNwVDlVaEMxTUwwNXJPcEhuNnFBLWp2QUFEZkZtSjJneHZWMEIyWVp3SkdVTTBacm5ET0FyLTZCa0ZWTmZRTS0tN2YwVjctRlZWVHJjeTR2c2lPX05PNm5XOXluU1pVLWM5QkpZdWN4MjE0UU5Jc0NpMldKT1pJSzlBTVFaTjRLUmtoYTl1VGVUTXRXWmQ5bVNHNHA5VDZMTkJ30gHGAUFVX3lxTE43Wmd0TktTeUZYX3VBbjNnc3RvVy1BZXFaZXB3dkJHZzA4Q1M1NHJRWjQ2MmxFQTJIanF3TlEwYXVBemd4RENvWkFiNnEzdUNJS1l0Qm9oRktsUXppZVEtcXJDeWMtVTRkU1J4M296YXlOTWhXWWF1SXd6U3RFWmFFci1fLWM0VG8tbmtNQUpWd0lEX0U3NDByMUpxSDdvNXNzTlJaQktVT2lQMjQyNElmMzB3ZmpEVFM2aHFqcHVaZmdDNzlLQQ?oc=5",
-      "published_at": "2026-09-15T14:22:01Z",
-      "age_hours": 27.96,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:nvidia",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "theme:ai_market",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "nvidia",
-      "entity_name": "NVIDIA",
-      "entity_symbols": [
-        "NVDA"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 2,
-      "corroboration": 1.0,
-      "time_decay": 0.143986,
-      "confidence": 0.4015,
-      "event_strength": 0.0243,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-fbe4ccba92a4d52ae0e4",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta Platforms Plans to Deploy New In-House Arke Chip in First Half, Aiming to Reduce Reliance on Nvidia - TradingKey",
-      "source": "TradingKey",
-      "source_domain": "https://www.tradingkey.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMizgFBVV95cUxNbjE5em14QWVUYmJHMWhjb2tpV3RyaGdGTDVHbXFMR3FkTGx5VjNyQ2wzem5vVmY2ODVKQUZkaFp2aF8tTktnNzJhZ2RPMW9ucXN3Nkt0VFhRVXpkZC13ZHV5WUYweHFsemZ6X3NHdDg3S3JyWk1zWV8wTFVtNTFDbENjMlA0cVN5QVc0QklKUW1Qc0tKT3FpM18xd2VpYmlJNWJjTDgweGFPczhOb0lGYzdKNlBidXlTUnRGaDhLQllKYVpzQ2JqQ2Q5OC1lUQ?oc=5",
-      "published_at": "2026-09-15T15:39:54Z",
-      "age_hours": 26.662,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:meta",
-        "theme:software",
-        "theme:ai_market",
-        "theme:consumer_tech",
-        "ai_market"
-      ],
-      "entity_key": "meta",
-      "entity_name": "Meta Platforms",
-      "entity_symbols": [
-        "META"
-      ],
-      "entity_themes": [
-        "software",
-        "ai_market",
-        "consumer_tech"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.157541,
-      "confidence": 0.3453,
-      "event_strength": 0.0228,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-442141dc36797361008f",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "Meta To Reportedly Launch New AI Chip In 2027, Aims To Beat Nvidia On Efficiency - Stocktwits",
-      "source": "Stocktwits",
-      "source_domain": "https://stocktwits.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMizAFBVV95cUxQUWs4RWc5a0lPSmF2akxYS1dxZmVsS1M1NzRlTTEwOFZaTVpZa2xyWUpka1cyckVjcHRVSmd4V3UxYXdZZ1ZpRThuWFFKOHJvSXhHTzduejVQWVo2eElMbEhPRjRwU3lWMG5TRkNtMnlub3RRcnFSYWNUQXItRjdhWXR3VTF1R2JtVUlvZzNxM1BpRUdYaWVlOGw0M2ZheWxnaUo4M3IxZUVnSFJpbE1YV2RzME1YazB0eUZvY0tId0R0d0hVRjFsa2JPd1o?oc=5",
-      "published_at": "2026-09-15T15:10:00Z",
-      "age_hours": 27.16,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:nvidia",
-        "theme:semiconductor",
-        "theme:ai_infrastructure",
-        "theme:ai_market",
-        "ai_market",
-        "semiconductor"
-      ],
-      "entity_key": "nvidia",
-      "entity_name": "NVIDIA",
-      "entity_symbols": [
-        "NVDA"
-      ],
-      "entity_themes": [
-        "semiconductor",
-        "ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_tier": "mega_cap",
-      "market_index_relevant": true,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.152196,
-      "confidence": 0.3453,
-      "event_strength": 0.0221,
-      "quality_guard": "corporate_materiality_v1"
-    },
-    {
-      "event_id": "corp-a44824a6a846ae11ae9d",
-      "event_domain": "technology",
-      "event_kind": "material_statement",
-      "title": "ORCL Stock Rallies Into Earnings Week: OpenAI GPT-6 Astra Buzz, Morgan Stanley’s Big Target Give Bulls A Boost - Stocktwits",
-      "source": "Stocktwits",
-      "source_domain": "https://stocktwits.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMigwJBVV95cUxOYU5wMnFvck9Db2RxTHZfYVdBbHRPMDVOVUw4TEN5clE1ZUJ0SU90R2dpZ2VOa1JiTHdrZVFtZldEeVRmYlFJdDFQbzJHak5kcWVPdlBWWmtRN2FvMUYyMXE5bXVrcWI4bUZJZGxDSndQbHNTZHFlYWo5T1Nac3JvTDZBODBLblUzSENEWTQxaHdWRXdGQlhCQS1sUDFMWk0ySlAxanJNaDRtajI0Q25ydTBTTmc4dHNyU2lnTjZkQ2ZPYVdyVXdPX011SUpQcHpxcVlPXzhoYzU0Mjk5QzRlZEpoaGw4M3JMM00xT0tFM1NNbVZVR1h5VzBib0JGRlpzU1Zz?oc=5",
-      "published_at": "2026-09-15T15:01:54Z",
-      "age_hours": 27.295,
-      "authority": 0.82,
-      "actor_role": "reported_company_or_industry_actor",
-      "actor_name": null,
-      "action_strength": 0.68,
-      "action_type": "executive_statement",
-      "pressure": 0.0,
-      "direct_impact": 0.0,
-      "sector_impact": 0.0,
-      "index_impact": 0.0,
-      "severity": 0.42,
-      "event_type": "material_statement",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "entity:openai",
-        "theme:ai_market",
-        "theme:ai_infrastructure",
-        "ai_market"
-      ],
-      "entity_key": "openai",
-      "entity_name": "OpenAI",
-      "entity_symbols": [],
-      "entity_themes": [
-        "ai_market",
-        "ai_infrastructure"
-      ],
-      "entity_tier": "systemic_private",
-      "market_index_relevant": false,
-      "collector": "corporate-tech-crypto-radar-v1",
-      "independent_sources": 1,
-      "corroboration": 0.86,
-      "time_decay": 0.150778,
-      "confidence": 0.3453,
-      "event_strength": 0.0219,
-      "quality_guard": "corporate_materiality_v1"
+      "quality_guard": "accepted_precision_v2.1"
     }
   ],
   "targets": [
@@ -1478,9 +871,9 @@
       "engine_role": "EVENT_DOMINANT",
       "profile_base_weight": 1.0,
       "exposure_coefficient": -0.55,
-      "raw_normalized_impact": 0.0548,
-      "normalized_impact": 0.0548,
-      "score_delta": 1.1,
+      "raw_normalized_impact": 0.0547,
+      "normalized_impact": 0.0547,
+      "score_delta": 1.09,
       "confidence": 0.5305,
       "dominant_event_scope": "macro_geopolitical",
       "dominant_event_domain": "geopolitical",
@@ -1516,8 +909,8 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": 0.1391,
-          "signed_impact": 0.1391
+          "raw_signed_impact": 0.1379,
+          "signed_impact": 0.1379
         },
         {
           "event_id": "evt-982d79f016047772cd32",
@@ -1540,31 +933,32 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1209,
-          "signed_impact": -0.1209
+          "raw_signed_impact": -0.12,
+          "signed_impact": -0.12
         },
         {
-          "event_id": "evt-507f805065cfcf1cfb29",
+          "event_id": "evt-87d5dcfbcd512b2a18bb",
           "event_domain": "geopolitical",
           "event_kind": null,
           "entity_key": null,
           "entity_name": null,
-          "title": "Parents Face Government Sanctions After Family Disney World Vacation - Disney Fanatic",
-          "published_at": "2026-09-16T17:41:54Z",
-          "source": "Disney Fanatic",
-          "source_ref": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQNFN0b2dzRDd6T1ZINTlKQWxWdDdyV0l5ZUVmWHdTY3NVa1lBRThIb0V2UXkzNURxcjNxQ3p0Z0xBa2p1SHp3Tl9XQXpHaldzQWlnSm9tVllFOG5KYlBzRzdEQW5KUjFIcGtoX3NOUkgxTzRsdEhLVVVuX0EwTjUtcWgxSmRyVVhDX0JvVVYzOHM1bkZzTzVFQnZjYWQ4aHFIXzFDVlR3?oc=5",
+          "title": "US House discusses Russia Sanctions Bill, recorded vote pending- Moneycontrol.com - LinkedIn",
+          "published_at": "2026-09-16T17:31:31Z",
+          "source": "LinkedIn",
+          "source_ref": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSUdEQldTWFRUeWk1RUM4Q3BKbXFlbXdlb19TVVBYRFJHcU80REg1a0c3WGVtMzg5d1k4QVBjY2U3Zk0tRnl1RkxjVjlISEZjZFB3ekRsWlpzbnRVaThweTMtYkJ1NVB5bnVTdVJvT3ZUa3hVQTcwQWlXY2dpV3lVMlpWT1dGWWxURkEwOXowUmlnY1VsLTNvMWVMemRxVGZZeFllZzR6NUh1STRxc1o4NTRFV3dtUEF0SEE?oc=5",
           "confidence": 0.3832,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
+            "russia_ukraine",
             "trade_sanctions"
           ],
           "direct_impact": null,
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1197,
-          "signed_impact": -0.1197
+          "raw_signed_impact": -0.117,
+          "signed_impact": -0.117
         }
       ]
     },
@@ -1577,8 +971,8 @@
       "engine_role": "EVENT_DOMINANT",
       "profile_base_weight": 1.0,
       "exposure_coefficient": -0.95,
-      "raw_normalized_impact": 0.0946,
-      "normalized_impact": 0.0946,
+      "raw_normalized_impact": 0.0945,
+      "normalized_impact": 0.0945,
       "score_delta": 1.89,
       "confidence": 0.5305,
       "dominant_event_scope": "macro_geopolitical",
@@ -1615,8 +1009,8 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": 0.2403,
-          "signed_impact": 0.2403
+          "raw_signed_impact": 0.2383,
+          "signed_impact": 0.2383
         },
         {
           "event_id": "evt-982d79f016047772cd32",
@@ -1639,31 +1033,32 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.2089,
-          "signed_impact": -0.2089
+          "raw_signed_impact": -0.2072,
+          "signed_impact": -0.2072
         },
         {
-          "event_id": "evt-507f805065cfcf1cfb29",
+          "event_id": "evt-87d5dcfbcd512b2a18bb",
           "event_domain": "geopolitical",
           "event_kind": null,
           "entity_key": null,
           "entity_name": null,
-          "title": "Parents Face Government Sanctions After Family Disney World Vacation - Disney Fanatic",
-          "published_at": "2026-09-16T17:41:54Z",
-          "source": "Disney Fanatic",
-          "source_ref": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQNFN0b2dzRDd6T1ZINTlKQWxWdDdyV0l5ZUVmWHdTY3NVa1lBRThIb0V2UXkzNURxcjNxQ3p0Z0xBa2p1SHp3Tl9XQXpHaldzQWlnSm9tVllFOG5KYlBzRzdEQW5KUjFIcGtoX3NOUkgxTzRsdEhLVVVuX0EwTjUtcWgxSmRyVVhDX0JvVVYzOHM1bkZzTzVFQnZjYWQ4aHFIXzFDVlR3?oc=5",
+          "title": "US House discusses Russia Sanctions Bill, recorded vote pending- Moneycontrol.com - LinkedIn",
+          "published_at": "2026-09-16T17:31:31Z",
+          "source": "LinkedIn",
+          "source_ref": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSUdEQldTWFRUeWk1RUM4Q3BKbXFlbXdlb19TVVBYRFJHcU80REg1a0c3WGVtMzg5d1k4QVBjY2U3Zk0tRnl1RkxjVjlISEZjZFB3ekRsWlpzbnRVaThweTMtYkJ1NVB5bnVTdVJvT3ZUa3hVQTcwQWlXY2dpV3lVMlpWT1dGWWxURkEwOXowUmlnY1VsLTNvMWVMemRxVGZZeFllZzR6NUh1STRxc1o4NTRFV3dtUEF0SEE?oc=5",
           "confidence": 0.3832,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
+            "russia_ukraine",
             "trade_sanctions"
           ],
           "direct_impact": null,
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.2068,
-          "signed_impact": -0.2068
+          "raw_signed_impact": -0.2021,
+          "signed_impact": -0.2021
         }
       ]
     },
@@ -1714,8 +1109,8 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": 0.1214,
-          "signed_impact": 0.1214
+          "raw_signed_impact": 0.1204,
+          "signed_impact": 0.1204
         },
         {
           "event_id": "evt-982d79f016047772cd32",
@@ -1738,31 +1133,32 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1056,
-          "signed_impact": -0.1056
+          "raw_signed_impact": -0.1047,
+          "signed_impact": -0.1047
         },
         {
-          "event_id": "evt-507f805065cfcf1cfb29",
+          "event_id": "evt-87d5dcfbcd512b2a18bb",
           "event_domain": "geopolitical",
           "event_kind": null,
           "entity_key": null,
           "entity_name": null,
-          "title": "Parents Face Government Sanctions After Family Disney World Vacation - Disney Fanatic",
-          "published_at": "2026-09-16T17:41:54Z",
-          "source": "Disney Fanatic",
-          "source_ref": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQNFN0b2dzRDd6T1ZINTlKQWxWdDdyV0l5ZUVmWHdTY3NVa1lBRThIb0V2UXkzNURxcjNxQ3p0Z0xBa2p1SHp3Tl9XQXpHaldzQWlnSm9tVllFOG5KYlBzRzdEQW5KUjFIcGtoX3NOUkgxTzRsdEhLVVVuX0EwTjUtcWgxSmRyVVhDX0JvVVYzOHM1bkZzTzVFQnZjYWQ4aHFIXzFDVlR3?oc=5",
+          "title": "US House discusses Russia Sanctions Bill, recorded vote pending- Moneycontrol.com - LinkedIn",
+          "published_at": "2026-09-16T17:31:31Z",
+          "source": "LinkedIn",
+          "source_ref": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSUdEQldTWFRUeWk1RUM4Q3BKbXFlbXdlb19TVVBYRFJHcU80REg1a0c3WGVtMzg5d1k4QVBjY2U3Zk0tRnl1RkxjVjlISEZjZFB3ekRsWlpzbnRVaThweTMtYkJ1NVB5bnVTdVJvT3ZUa3hVQTcwQWlXY2dpV3lVMlpWT1dGWWxURkEwOXowUmlnY1VsLTNvMWVMemRxVGZZeFllZzR6NUh1STRxc1o4NTRFV3dtUEF0SEE?oc=5",
           "confidence": 0.3832,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
+            "russia_ukraine",
             "trade_sanctions"
           ],
           "direct_impact": null,
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1045,
-          "signed_impact": -0.1045
+          "raw_signed_impact": -0.1021,
+          "signed_impact": -0.1021
         }
       ],
       "market_impact_overlay": "HOLD",
@@ -1777,9 +1173,9 @@
       "engine_role": "EVENT_DOMINANT",
       "profile_base_weight": 1.0,
       "exposure_coefficient": -0.52,
-      "raw_normalized_impact": 0.0518,
-      "normalized_impact": 0.0518,
-      "score_delta": 1.04,
+      "raw_normalized_impact": 0.0517,
+      "normalized_impact": 0.0517,
+      "score_delta": 1.03,
       "confidence": 0.5305,
       "dominant_event_scope": "macro_geopolitical",
       "dominant_event_domain": "geopolitical",
@@ -1815,8 +1211,8 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": 0.1315,
-          "signed_impact": 0.1315
+          "raw_signed_impact": 0.1304,
+          "signed_impact": 0.1304
         },
         {
           "event_id": "evt-982d79f016047772cd32",
@@ -1839,31 +1235,32 @@
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1143,
-          "signed_impact": -0.1143
+          "raw_signed_impact": -0.1134,
+          "signed_impact": -0.1134
         },
         {
-          "event_id": "evt-507f805065cfcf1cfb29",
+          "event_id": "evt-87d5dcfbcd512b2a18bb",
           "event_domain": "geopolitical",
           "event_kind": null,
           "entity_key": null,
           "entity_name": null,
-          "title": "Parents Face Government Sanctions After Family Disney World Vacation - Disney Fanatic",
-          "published_at": "2026-09-16T17:41:54Z",
-          "source": "Disney Fanatic",
-          "source_ref": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQNFN0b2dzRDd6T1ZINTlKQWxWdDdyV0l5ZUVmWHdTY3NVa1lBRThIb0V2UXkzNURxcjNxQ3p0Z0xBa2p1SHp3Tl9XQXpHaldzQWlnSm9tVllFOG5KYlBzRzdEQW5KUjFIcGtoX3NOUkgxTzRsdEhLVVVuX0EwTjUtcWgxSmRyVVhDX0JvVVYzOHM1bkZzTzVFQnZjYWQ4aHFIXzFDVlR3?oc=5",
+          "title": "US House discusses Russia Sanctions Bill, recorded vote pending- Moneycontrol.com - LinkedIn",
+          "published_at": "2026-09-16T17:31:31Z",
+          "source": "LinkedIn",
+          "source_ref": "https://news.google.com/rss/articles/CBMiugFBVV95cUxOSUdEQldTWFRUeWk1RUM4Q3BKbXFlbXdlb19TVVBYRFJHcU80REg1a0c3WGVtMzg5d1k4QVBjY2U3Zk0tRnl1RkxjVjlISEZjZFB3ekRsWlpzbnRVaThweTMtYkJ1NVB5bnVTdVJvT3ZUa3hVQTcwQWlXY2dpV3lVMlpWT1dGWWxURkEwOXowUmlnY1VsLTNvMWVMemRxVGZZeFllZzR6NUh1STRxc1o4NTRFV3dtUEF0SEE?oc=5",
           "confidence": 0.3832,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
+            "russia_ukraine",
             "trade_sanctions"
           ],
           "direct_impact": null,
           "sector_impact": null,
           "event_scope": "macro_geopolitical",
           "engine_weight": 1.0,
-          "raw_signed_impact": -0.1132,
-          "signed_impact": -0.1132
+          "raw_signed_impact": -0.1106,
+          "signed_impact": -0.1106
         }
       ]
     }
