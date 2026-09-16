@@ -7,9 +7,12 @@ on:
       - stock-trading-v2
     paths:
       - ".github/workflows/stock-trading-v2-validation.yml"
+      - ".github/workflows/stock-trading-v2-continuous-discovery.yml"
+      - ".github/workflows/stock-trading-v2-learning-loop.yml"
       - "scripts/stock_trading_v2_contracts.py"
       - "scripts/stock_trading_v2_experience_store.py"
       - "scripts/stock_trading_v2_admission_ledger.py"
+      - "scripts/stock_trading_v2_position_experience.py"
       - "scripts/stock_trading_v2_outcome_replay.py"
       - "scripts/stock_trading_v2_regret_engine.py"
       - "scripts/stock_trading_v2_policy_learner.py"
@@ -23,6 +26,7 @@ on:
       - "scripts/stock_trading_v2_discovery.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_admission_ledger.py"
+      - "tests/test_stock_trading_v2_position_experience.py"
       - "tests/test_stock_trading_v2_outcome_replay.py"
       - "tests/test_stock_trading_v2_regret_engine.py"
       - "tests/test_stock_trading_v2_policy_learning.py"
@@ -38,6 +42,7 @@ on:
       - "data/investments/stock_trading_v2_learning_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_admission/**"
+      - "data/investments/stock_trading_v2_position_experience/**"
       - "data/investments/stock_trading_v2_outcomes/**"
       - "data/investments/stock_trading_v2_learning/**"
       - "data/investments/stock_trading_v2_challengers/**"
@@ -71,6 +76,7 @@ jobs:
             scripts/stock_trading_v2_contracts.py \
             scripts/stock_trading_v2_experience_store.py \
             scripts/stock_trading_v2_admission_ledger.py \
+            scripts/stock_trading_v2_position_experience.py \
             scripts/stock_trading_v2_outcome_replay.py \
             scripts/stock_trading_v2_regret_engine.py \
             scripts/stock_trading_v2_policy_learner.py \
@@ -84,6 +90,7 @@ jobs:
             scripts/stock_trading_v2_discovery.py \
             tests/test_stock_trading_v2_experience_store.py \
             tests/test_stock_trading_v2_admission_ledger.py \
+            tests/test_stock_trading_v2_position_experience.py \
             tests/test_stock_trading_v2_outcome_replay.py \
             tests/test_stock_trading_v2_regret_engine.py \
             tests/test_stock_trading_v2_policy_learning.py \
@@ -106,6 +113,7 @@ jobs:
           python -m unittest \
             tests.test_stock_trading_v2_experience_store \
             tests.test_stock_trading_v2_admission_ledger \
+            tests.test_stock_trading_v2_position_experience \
             tests.test_stock_trading_v2_outcome_replay \
             tests.test_stock_trading_v2_regret_engine \
             tests.test_stock_trading_v2_policy_learning \
@@ -119,6 +127,7 @@ jobs:
         run: |
           python scripts/stock_trading_v2_experience_store.py --verify
           python scripts/stock_trading_v2_admission_ledger.py --verify
+          python scripts/stock_trading_v2_position_experience.py --verify
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
