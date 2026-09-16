@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Engine-specific weighting for production Investment Event Intelligence.
 
-The shared Event Intelligence collector/classifier remains the single source of event
-truth. This module changes only how a classified event is translated into decision
-impact for each investment engine.
+The shared Event Intelligence stream contains geopolitical and corporate/technology/
+crypto events. This module translates those events into engine- and target-specific
+impact while preserving one source of classified event truth.
 
 Principles:
-- Weekly Trading is event-dominant and keeps the legacy 1.00x sensitivity.
+- Weekly Trading is event-dominant.
 - Daily Trading is event-sensitive but slightly less reactive than Weekly.
 - Stock Trading is fundamentals-dominant for generic macro/geopolitical news.
-- Direct sector/company/fundamental events can escalate Stock Trading sensitivity.
-- Directional position decisions are symmetric: positive impact can hurt shorts just
-  as negative impact can hurt longs.
+- Direct company/fundamental events can receive full Stock Trading weight.
+- Corporate events have zero impact on unrelated targets.
+- Directional position decisions are symmetric for LONG and SHORT exposure.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from typing import Any, Iterable, Mapping
 
 import investment_event_intelligence as event
 
-PROFILE_VERSION = "engine-weighting-v1"
+PROFILE_VERSION = "engine-weighting-v2"
 WEEKLY = "WEEKLY"
 DAILY = "DAILY"
 STOCK_TRADING = "STOCK_TRADING"
@@ -56,6 +56,7 @@ ENGINE_PROFILES: dict[str, dict[str, Any]] = {
 }
 
 STOCK_SCOPE_WEIGHTS = {
+    "irrelevant": 0.00,
     "macro_geopolitical": 0.30,
     "sector_direct": 0.60,
     "company_direct": 0.85,
@@ -69,6 +70,13 @@ FUNDAMENTAL_TERMS = (
     "export ban", "export control", "sanctions on", "sanctioned", "delisted",
     "production halt", "plant closure", "contract cancelled", "contract canceled",
 )
+
+FUNDAMENTAL_EVENT_KINDS = {
+    "guidance_raise", "guidance_cut", "earnings_beat", "earnings_miss",
+    "earnings_report", "profit_warning", "record_results", "demand_strength",
+    "demand_weakness", "operational_disruption", "security_incident",
+    "regulatory_adverse", "regulatory_approval", "major_contract",
+}
 
 LEGAL_SUFFIXES = {
     "inc", "incorporated", "corp", "corporation", "company", "co", "plc", "sa",
@@ -99,6 +107,8 @@ def public_profiles() -> dict[str, Any]:
         "version": PROFILE_VERSION,
         "profiles": {name: dict(values) for name, values in ENGINE_PROFILES.items()},
         "stock_scope_weights": dict(STOCK_SCOPE_WEIGHTS),
+        "corporate_direct_impact_enabled": True,
+        "unrelated_corporate_event_impact": 0.0,
     }
 
 
@@ -145,7 +155,31 @@ def _company_phrases(target: Mapping[str, Any]) -> list[str]:
     return list(dict.fromkeys(phrase for phrase in phrases if phrase))
 
 
-def _sector_direct(target: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
+def _symbol_base(value: Any) -> str:
+    text = str(value or "").upper().strip()
+    return text.split(".", 1)[0].split(":", 1)[-1]
+
+
+def _event_symbols(row: Mapping[str, Any]) -> set[str]:
+    return {_symbol_base(symbol) for symbol in row.get("entity_symbols") or [] if _symbol_base(symbol)}
+
+
+def _event_themes(row: Mapping[str, Any]) -> set[str]:
+    themes = {_norm(theme) for theme in row.get("entity_themes") or [] if _norm(theme)}
+    for tag in row.get("scenario_tags") or []:
+        text = str(tag)
+        if text.startswith("theme:"):
+            themes.add(_norm(text.split(":", 1)[1]))
+        elif text in {"crypto_market", "bitcoin", "ethereum", "ai_market", "semiconductor"}:
+            themes.add(_norm(text))
+    return themes
+
+
+def _is_corporate_event(row: Mapping[str, Any]) -> bool:
+    return str(row.get("event_domain") or "").lower() in {"corporate", "technology", "crypto"}
+
+
+def _sector_direct_geopolitical(target: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
     sector = _norm(target.get("sector"))
     tags = {str(tag) for tag in row.get("scenario_tags") or []}
     if not sector:
@@ -161,7 +195,55 @@ def _sector_direct(target: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
     return False
 
 
+def _sector_direct_corporate(target: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
+    sector = _norm(target.get("sector"))
+    symbol = _symbol_base(target.get("symbol"))
+    themes = _event_themes(row)
+    if not themes:
+        return False
+    if themes & {"semiconductor", "ai_infrastructure"} and any(token in sector for token in ("semiconductor", "chip", "hardware", "technology", "tech", "technolog")):
+        return True
+    if "ai_market" in themes and any(token in sector for token in ("semiconductor", "software", "technology", "tech", "cloud", "internet", "technolog")):
+        return True
+    if "cloud" in themes and any(token in sector for token in ("software", "cloud", "technology", "tech", "internet")):
+        return True
+    if "crypto_market" in themes and (
+        symbol in {"COIN", "MSTR", "CRCL"}
+        or any(token in sector for token in ("crypto", "blockchain", "digital asset"))
+    ):
+        return True
+    return False
+
+
+def _corporate_scope(target: Mapping[str, Any], row: Mapping[str, Any], engine_profile: str) -> str:
+    target_id = str(target.get("target_id") or "")
+    symbol = _symbol_base(target.get("symbol"))
+    event_symbols = _event_symbols(row)
+    themes = _event_themes(row)
+
+    if target_id == "eurusd":
+        return "irrelevant"
+    if target_id == "btcusd":
+        return "sector_direct" if themes & {"crypto_market", "bitcoin", "ethereum", "stablecoin", "solana", "xrp"} else "irrelevant"
+    if target_id == "sp500_futures":
+        return "sector_direct" if row.get("market_index_relevant") and float(row.get("index_impact") or 0.0) != 0.0 else "irrelevant"
+
+    if not target_id.startswith(("stock:", "candidate:")):
+        return "irrelevant"
+
+    if symbol and symbol in event_symbols:
+        text = _norm(row.get("title"))
+        if str(row.get("event_kind") or "") in FUNDAMENTAL_EVENT_KINDS or any(term in text for term in FUNDAMENTAL_TERMS):
+            return "company_fundamental"
+        return "company_direct"
+    if _sector_direct_corporate(target, row):
+        return "sector_direct"
+    return "irrelevant"
+
+
 def classify_scope(target: Mapping[str, Any], row: Mapping[str, Any], engine_profile: str) -> str:
+    if _is_corporate_event(row):
+        return _corporate_scope(target, row, engine_profile)
     if str(engine_profile).upper() != STOCK_TRADING:
         return "macro_geopolitical"
     text = _norm(row.get("title"))
@@ -170,7 +252,7 @@ def classify_scope(target: Mapping[str, Any], row: Mapping[str, Any], engine_pro
         return "company_fundamental"
     if company_direct:
         return "company_direct"
-    if _sector_direct(target, row):
+    if _sector_direct_geopolitical(target, row):
         return "sector_direct"
     return "macro_geopolitical"
 
@@ -178,9 +260,31 @@ def classify_scope(target: Mapping[str, Any], row: Mapping[str, Any], engine_pro
 def event_weight(engine_profile: str, scope: str) -> float:
     key = str(engine_profile or WEEKLY).upper()
     cfg = profile(key)
+    if scope == "irrelevant":
+        return 0.0
     if key == STOCK_TRADING:
         return float(STOCK_SCOPE_WEIGHTS.get(scope, cfg["base_weight"]))
     return float(cfg["base_weight"])
+
+
+def _corporate_raw_impact(target: Mapping[str, Any], row: Mapping[str, Any], scope: str) -> float:
+    strength = float(row.get("event_strength") or 0.0)
+    target_id = str(target.get("target_id") or "")
+    if scope in {"company_direct", "company_fundamental"}:
+        return float(row.get("direct_impact") or 0.0) * strength
+    if scope == "sector_direct":
+        if target_id == "sp500_futures":
+            return float(row.get("index_impact") or 0.0) * strength
+        return float(row.get("sector_impact") or 0.0) * strength
+    return 0.0
+
+
+def _raw_signed_impact(target: Mapping[str, Any], row: Mapping[str, Any], coefficient: float, scope: str) -> float:
+    if _is_corporate_event(row):
+        return _corporate_raw_impact(target, row, scope)
+    strength = float(row.get("event_strength") or 0.0)
+    pressure = float(row.get("pressure") or 0.0)
+    return pressure * coefficient * strength
 
 
 def _adverse_impact(impact: float, direction: str) -> float:
@@ -224,16 +328,20 @@ def score_target(
     contributions: list[dict[str, Any]] = []
 
     for row in events:
-        strength = float(row.get("event_strength") or 0.0)
-        pressure = float(row.get("pressure") or 0.0)
-        raw_signed = pressure * coefficient * strength
         scope = classify_scope(target, row, key)
         weight = event_weight(key, scope)
+        if weight <= 0.0:
+            continue
+        raw_signed = _raw_signed_impact(target, row, coefficient, scope)
         signed = raw_signed * weight
         if abs(signed) < 0.035:
             continue
         contributions.append({
             "event_id": row.get("event_id"),
+            "event_domain": row.get("event_domain") or "geopolitical",
+            "event_kind": row.get("event_kind"),
+            "entity_key": row.get("entity_key"),
+            "entity_name": row.get("entity_name"),
             "title": row.get("title"),
             "published_at": row.get("published_at"),
             "source": row.get("source"),
@@ -242,6 +350,8 @@ def score_target(
             "action_type": row.get("action_type"),
             "event_type": row.get("event_type"),
             "scenario_tags": row.get("scenario_tags"),
+            "direct_impact": row.get("direct_impact"),
+            "sector_impact": row.get("sector_impact"),
             "event_scope": scope,
             "engine_weight": round(weight, 4),
             "raw_signed_impact": round(raw_signed, 4),
@@ -283,6 +393,7 @@ def score_target(
         "score_delta": round(aggregate * 20.0, 2),
         "confidence": round(confidence, 4),
         "dominant_event_scope": dominant.get("event_scope"),
+        "dominant_event_domain": dominant.get("event_domain"),
         "dominant_engine_weight": dominant.get("engine_weight", float(cfg["base_weight"])),
         "thresholds_applied": limits,
         "decision_overlay": action,
