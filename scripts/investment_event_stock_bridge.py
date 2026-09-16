@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 
 import investment_event_intelligence as event
+import investment_event_quality as quality
 
 
 def main() -> int:
@@ -22,7 +23,7 @@ def main() -> int:
     args = parser.parse_args()
 
     now = datetime.now(event.UTC)
-    events, errors = event.collect_events(now)
+    events, errors, rejected = quality.collect(now)
     targets, state, _, _ = event.build_targets(now)
     scores = {str(target["target_id"]): event.score_target(target, events) for target in targets}
     before = json.dumps(state, ensure_ascii=False, sort_keys=True)
@@ -44,6 +45,7 @@ def main() -> int:
     print(json.dumps({
         "status": "healthy" if events else "degraded_no_fresh_classified_events",
         "events": len(events),
+        "quality_rejections": len(rejected),
         "source_errors": errors,
         "actions": actions,
         "state_changed": after != before,
