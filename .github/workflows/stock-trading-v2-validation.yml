@@ -10,11 +10,14 @@ on:
       - "scripts/stock_trading_v2_contracts.py"
       - "scripts/stock_trading_v2_experience_store.py"
       - "scripts/stock_trading_v2_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe.py"
+      - "scripts/stock_trading_v2_gpw_universe_provider.py"
       - "scripts/stock_trading_v2_fast_scan.py"
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_universe.py"
+      - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
       - "data/investments/stock_trading_v2_config.json"
@@ -29,7 +32,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -49,11 +52,14 @@ jobs:
             scripts/stock_trading_v2_contracts.py \
             scripts/stock_trading_v2_experience_store.py \
             scripts/stock_trading_v2_universe.py \
+            scripts/stock_trading_v2_gpw_universe.py \
+            scripts/stock_trading_v2_gpw_universe_provider.py \
             scripts/stock_trading_v2_fast_scan.py \
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py \
             tests/test_stock_trading_v2_experience_store.py \
             tests/test_stock_trading_v2_universe.py \
+            tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
             tests/test_stock_trading_v2_us_screener_provider.py
 
@@ -68,19 +74,20 @@ jobs:
           python -m unittest \
             tests.test_stock_trading_v2_experience_store \
             tests.test_stock_trading_v2_universe \
+            tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
             tests.test_stock_trading_v2_us_screener_provider -v
 
       - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
 
-      - name: Smoke-test live US universe and broad prefilter in shadow mode
+      - name: Smoke-test live dynamic universes and US broad prefilter
         continue-on-error: true
         run: |
           set -euo pipefail
           rm -rf /tmp/briefrooms-v2-universe /tmp/briefrooms-v2-fast-scan.json
           python scripts/stock_trading_v2_universe.py --market US --root /tmp/briefrooms-v2-universe
-          python scripts/stock_trading_v2_universe.py --market GPW --root /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_gpw_universe.py --root /tmp/briefrooms-v2-universe
           python scripts/stock_trading_v2_universe.py --root /tmp/briefrooms-v2-universe --verify
           python scripts/stock_trading_v2_live_scan.py \
             --universe /tmp/briefrooms-v2-universe/us.json \
@@ -89,12 +96,15 @@ jobs:
           import json
           from pathlib import Path
           us=json.loads(Path('/tmp/briefrooms-v2-universe/us.json').read_text(encoding='utf-8'))
+          gpw=json.loads(Path('/tmp/briefrooms-v2-universe/gpw.json').read_text(encoding='utf-8'))
           scan=json.loads(Path('/tmp/briefrooms-v2-fast-scan.json').read_text(encoding='utf-8'))
           if int(us.get('instrument_count') or 0) <= 50:
               raise SystemExit(f'Dynamic US universe unexpectedly small: {us.get("instrument_count")}')
+          if int(gpw.get('instrument_count') or 0) < 200:
+              raise SystemExit(f'Dynamic GPW universe unexpectedly small: {gpw.get("instrument_count")}')
           if not (50 < int(scan.get('shortlist_size') or 0) <= 600):
               raise SystemExit(f'Fast scan shortlist outside expected bounds: {scan.get("shortlist_size")}')
           if scan.get('governance',{}).get('production_decision_influence') is not False:
               raise SystemExit('Fast scanner escaped shadow governance')
-          print('LIVE_V2_DISCOVERY_OK', 'universe', us['instrument_count'], 'shortlist', scan['shortlist_size'])
+          print('LIVE_V2_DISCOVERY_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'], 'shortlist', scan['shortlist_size'])
           PY
