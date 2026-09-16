@@ -11,6 +11,7 @@ on:
       - "scripts/stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "data/investments/stock_trading_v2_config.json"
+      - "data/investments/stock_trading_v2_experience/**"
 
 permissions:
   contents: read
@@ -45,5 +46,5 @@ jobs:
       - name: Run Phase 1A unit tests
         run: python -m unittest tests.test_stock_trading_v2_experience_store -v
 
-      - name: Verify empty/new experience store contract
+      - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
