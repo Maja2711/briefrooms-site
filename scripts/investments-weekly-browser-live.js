@@ -4,7 +4,7 @@
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
   const LOOP_MS = 15_000;
   const REQUEST_TIMEOUT_MS = 8_000;
-  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v2:';
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v3:';
 
   const T = isEn ? {
     asOf: 'As of',
@@ -49,12 +49,14 @@
     },
     sp500_futures: {
       pollMs: 15_000,
-      maxAgeMs: 5 * 60_000,
+      maxAgeMs: 2 * 60_000,
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
-        { name: 'Yahoo ES=F', fetch: () => fetchYahooQuote('ES=F', 'codetabs') },
-        { name: 'Yahoo ES=F · backup route', fetch: () => fetchYahooQuote('ES=F', 'allorigins') },
+        { name: 'Yahoo ES=F · direct', fetch: () => fetchYahooQuote('ES=F', 'direct1') },
+        { name: 'Yahoo ES=F · direct backup', fetch: () => fetchYahooQuote('ES=F', 'direct2') },
+        { name: 'Yahoo ES=F · proxy', fetch: () => fetchYahooQuote('ES=F', 'codetabs') },
+        { name: 'Yahoo ES=F · proxy backup', fetch: () => fetchYahooQuote('ES=F', 'allorigins') },
       ],
     },
   };
@@ -195,10 +197,14 @@
   }
 
   async function fetchYahooQuote(symbol, route) {
-    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-    const url = route === 'allorigins'
-      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+    const yahooHost = route === 'direct2' ? 'query2.finance.yahoo.com' : 'query1.finance.yahoo.com';
+    const upstream = `https://${yahooHost}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+    let url = upstream;
+    if (route === 'allorigins') {
+      url = `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`;
+    } else if (route === 'codetabs') {
+      url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+    }
     const data = await fetchJson(url);
     const chart = data?.chart?.result?.[0];
     if (!chart) throw new Error(`yahoo_${symbol}_missing_chart`);
