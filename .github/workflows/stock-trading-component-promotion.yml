@@ -1,0 +1,111 @@
+name: Stock Trading Component Promotion
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Stock Trading v2 Closed Learning Loop"]
+    types: [completed]
+  schedule:
+    # Safety net if workflow_run is skipped. Runs after the v2 daily learning loop.
+    - cron: "20 23 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-component-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out production Champion
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch immutable v2 research evidence
+        run: |
+          set -euo pipefail
+          git fetch origin stock-trading-v2
+          rm -rf /tmp/stock-trading-v2-research
+          git worktree add --detach /tmp/stock-trading-v2-research origin/stock-trading-v2
+          git -C /tmp/stock-trading-v2-research rev-parse HEAD
+
+      - name: Verify production promotion machinery before mutation
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_component_champion.py --verify
+          python scripts/test_stock_trading_component_promotion.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/investments/stock_trading_component_promotion_config.json')
+          cfg = json.loads(path.read_text(encoding='utf-8'))
+          assert cfg.get('schema_version') == 'stock-trading-component-promotion-config-v1'
+          assert cfg.get('enabled') is True, 'component promotion kill switch is disabled'
+          assert int(cfg.get('max_promotions_per_run') or 0) == 1
+          print('COMPONENT_PROMOTION_CONFIG_OK')
+          PY
+
+      - name: Promote at most one independently proven component
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_component_promotion.py \
+            --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
+            --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
+            | tee /tmp/stock-trading-component-promotion-result.json
+
+      - name: Verify composite Champion after promotion or rollback
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_component_champion.py --verify
+          python scripts/test_stock_trading_component_promotion.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/stock-trading-component-promotion-result.json').read_text(encoding='utf-8'))
+          allowed = {'NO_PROMOTION', 'PROMOTED', 'AUTO_ROLLBACK'}
+          if result.get('status') not in allowed:
+              raise SystemExit(f"unexpected promotion status: {result.get('status')}")
+          print('PROMOTION_RESULT_OK', result.get('status'))
+          PY
+
+      - name: Commit production Champion transition
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/stock_trading_champion_manifest.json \
+            data/investments/stock_trading_champion_history \
+            data/investments/stock_trading_component_promotion_audit.jsonl \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/stock_trading_policy.json \
+            2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No production component promotion to commit."
+            exit 0
+          fi
+          git commit -m "Stock Trading: promote proven Champion component"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*3))
+          done
+          exit 1
