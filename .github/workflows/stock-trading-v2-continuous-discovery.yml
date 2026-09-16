@@ -22,7 +22,7 @@ concurrency:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -69,16 +69,31 @@ jobs:
           print(f'now_utc={now.isoformat()}')
           PY
 
-      - name: Validate v2 discovery configuration
+      - name: Validate v2 discovery evidence and opportunity configuration
         run: |
           set -euo pipefail
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m py_compile \
             scripts/stock_trading_v2_discovery.py \
+            scripts/stock_trading_v2_deep_evidence.py \
+            scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py
 
-      - name: US broad stage-zero and Opportunity Frontier
+      - name: Read current canonical portfolio from main without merging main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          rm -f /tmp/stock-trading-v2-production-portfolio.json
+          if git cat-file -e "origin/main:data/investments/stock_trading_portfolio.json" 2>/dev/null; then
+            git show "origin/main:data/investments/stock_trading_portfolio.json" > /tmp/stock-trading-v2-production-portfolio.json
+          else
+            printf '{"markets":{"GPW":{"open_positions":[]},"US":{"open_positions":[]}}}\n' > /tmp/stock-trading-v2-production-portfolio.json
+          fi
+
+      - name: US broad stage-zero Opportunity Frontier Deep Evidence and portfolio comparison
         if: steps.market_window.outputs.us == 'true'
         run: |
           set -euo pipefail
@@ -90,44 +105,80 @@ jobs:
             --market US \
             --stage-zero /tmp/stock-trading-v2-us-stage-zero.json \
             --output data/investments/stock_trading_v2_frontier/us.json
+          python scripts/stock_trading_v2_deep_evidence.py \
+            --market US \
+            --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --output data/investments/stock_trading_v2_evidence/us.json
+          python scripts/stock_trading_v2_opportunity_engine.py \
+            --market US \
+            --evidence data/investments/stock_trading_v2_evidence/us.json \
+            --portfolio /tmp/stock-trading-v2-production-portfolio.json \
+            --output data/investments/stock_trading_v2_opportunity/us.json
 
-      - name: GPW broad Opportunity Frontier
+      - name: GPW broad Opportunity Frontier Deep Evidence and portfolio comparison
         if: steps.market_window.outputs.gpw == 'true'
         run: |
           set -euo pipefail
           python scripts/stock_trading_v2_discovery.py \
             --market GPW \
             --output data/investments/stock_trading_v2_frontier/gpw.json
+          python scripts/stock_trading_v2_deep_evidence.py \
+            --market GPW \
+            --frontier data/investments/stock_trading_v2_frontier/gpw.json \
+            --output data/investments/stock_trading_v2_evidence/gpw.json
+          python scripts/stock_trading_v2_opportunity_engine.py \
+            --market GPW \
+            --evidence data/investments/stock_trading_v2_evidence/gpw.json \
+            --portfolio /tmp/stock-trading-v2-production-portfolio.json \
+            --output data/investments/stock_trading_v2_opportunity/gpw.json
 
-      - name: Validate generated frontiers
+      - name: Validate generated frontiers evidence and opportunity decisions
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
           from scripts.stock_trading_v2_discovery import validate_frontier
+          from scripts.stock_trading_v2_deep_evidence import validate_deep_evidence
+          from scripts.stock_trading_v2_opportunity_engine import validate_opportunity
+
           for market in ('gpw','us'):
-              path=Path(f'data/investments/stock_trading_v2_frontier/{market}.json')
-              if not path.exists():
+              frontier_path=Path(f'data/investments/stock_trading_v2_frontier/{market}.json')
+              evidence_path=Path(f'data/investments/stock_trading_v2_evidence/{market}.json')
+              opportunity_path=Path(f'data/investments/stock_trading_v2_opportunity/{market}.json')
+              if not frontier_path.exists():
                   continue
-              payload=json.loads(path.read_text(encoding='utf-8'))
-              validate_frontier(payload)
-              assert payload['global_selection_cutoff'] is None
-              assert payload['governance']['production_decision_influence'] is False
-              print('FRONTIER_OK', market.upper(), payload['frontier_size'], payload['generated_at'])
+              frontier=json.loads(frontier_path.read_text(encoding='utf-8'))
+              validate_frontier(frontier)
+              assert frontier['global_selection_cutoff'] is None
+              assert frontier['governance']['production_decision_influence'] is False
+              if evidence_path.exists():
+                  evidence=json.loads(evidence_path.read_text(encoding='utf-8'))
+                  validate_deep_evidence(evidence)
+                  assert evidence['source_frontier_sha256'] == frontier['frontier_sha256']
+              if opportunity_path.exists():
+                  opportunity=json.loads(opportunity_path.read_text(encoding='utf-8'))
+                  validate_opportunity(opportunity)
+                  assert opportunity['governance']['production_decision_influence'] is False
+                  assert opportunity['governance']['execution_ready'] is False
+              print('V2_OPPORTUNITY_LOOP_OK', market.upper(), frontier['frontier_size'], frontier['generated_at'])
           PY
 
-      - name: Commit materialized shadow frontiers
+      - name: Commit materialized shadow opportunity loop
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/stock_trading_v2_frontier 2>/dev/null || true
+          git add \
+            data/investments/stock_trading_v2_frontier \
+            data/investments/stock_trading_v2_evidence \
+            data/investments/stock_trading_v2_opportunity \
+            2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "No frontier changes to commit."
+            echo "No shadow opportunity changes to commit."
             exit 0
           fi
-          git commit -m "Stock Trading v2: refresh continuous opportunity frontier"
+          git commit -m "Stock Trading v2: refresh continuous opportunity loop"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin stock-trading-v2 && git push origin HEAD:stock-trading-v2; then
               exit 0
