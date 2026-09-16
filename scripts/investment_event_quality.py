@@ -49,7 +49,6 @@ DEESCALATION_ACTION = (
     "accepted", "propose", "proposed", "prepare", "prepared", "negotiat",
     "peace talks", "talks", "hold", "holds", "entered into force", "withdraw",
     "revive", "resume", "restart", "return to", "reopen", "restore dialogue",
-    "consultation", "dialogue",
 )
 
 
@@ -88,8 +87,8 @@ def rejection_reason(row: Mapping[str, Any]) -> str | None:
         if labor and not military:
             return "labor_strike_not_military_strike"
 
-    # A ceasefire/truce or diplomacy term mentioned only as background is not itself
-    # a new de-escalation event. Require an operative verb/negotiation action.
+    # A ceasefire/truce/diplomacy term mentioned only as background is not itself a
+    # new de-escalation event. Require an operative verb or explicit talks action.
     if str(row.get("event_type") or "") == "deescalation":
         has_action = any(token in text for token in DEESCALATION_ACTION)
         if not has_action:
