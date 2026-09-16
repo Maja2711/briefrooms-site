@@ -142,8 +142,8 @@ class StockTradingV2FastScanTests(unittest.TestCase):
         indexed = {row["symbol"]: row for row in payload["candidates"]}
         self.assertIn("MID", indexed)
         self.assertIn("midcap", indexed["MID"]["lanes"])
-        self.assertIn("MOVE", indexed)
-        self.assertIn("midcap", indexed["MOVE"]["lanes"])
+        self.assertIn("NYSEX", indexed)
+        self.assertIn("midcap", indexed["NYSEX"]["lanes"])
 
     def test_mover_lane_can_surface_non_megacap_activity(self):
         payload = scan.build_shortlist(self.universe, SCREENER_ROWS, CONFIG)
