@@ -8,6 +8,7 @@ from scripts import stock_trading_v2_contracts as contracts
 from scripts import stock_trading_v2_deep_evidence as deep
 from scripts import stock_trading_v2_opportunity_engine as opportunity
 from scripts import stock_trading_v2_opportunity_experience as freeze
+from scripts import stock_trading_v2_outcome_replay as replay
 
 
 def evidence_snapshot() -> dict:
@@ -79,6 +80,28 @@ class StockTradingV2OpportunityExperienceTests(unittest.TestCase):
         self.assertEqual(selected[0]["candidate_state"]["decision_path"]["portfolio_action"], "BUY")
         self.assertEqual(selected[0]["candidate_state"]["risk_plan"]["reference_price"], 100.0)
         contracts.validate_experience_event(selected[0])
+
+    def test_continuous_selected_and_rejected_plans_are_replayable_without_lookahead(self):
+        evidence = evidence_snapshot()
+        opp = opportunity_snapshot(evidence)
+        events = freeze.events_from_snapshots(opp, evidence, candidates_per_cycle=2, recorded_at="2026-09-16T15:01:00Z")
+        future_bars = [
+            {"day": "2026-09-17", "open": 100.0, "high": 105.0, "low": 99.0, "close": 103.0},
+            {"day": "2026-09-18", "open": 103.0, "high": 106.0, "low": 102.0, "close": 105.0},
+        ]
+        for event in events:
+            outcome = replay.replay_horizon(
+                event,
+                future_bars,
+                horizon_sessions=2,
+                cost_stress_percent=0.1,
+                replay_version="unit-test",
+            )
+            self.assertIsNotNone(outcome)
+            assert outcome is not None
+            self.assertEqual(outcome["status"], "SETTLED")
+            self.assertEqual(outcome["exit_reason"], "TARGET")
+            self.assertEqual(outcome["entry_session"], "2026-09-17")
 
     def test_repeated_same_daily_state_is_not_multiplied(self):
         evidence = evidence_snapshot()
