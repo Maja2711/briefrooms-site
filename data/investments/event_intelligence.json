@@ -1,10 +1,23 @@
 {
   "schema_version": "investment-event-intelligence-v1",
   "engine_version": "production-event-overlay-v1",
+  "quality_guard_version": "event-precision-v1",
   "mode": "production_decision_overlay",
-  "generated_at": "2026-09-16T11:37:33Z",
+  "generated_at": "2026-09-16T11:44:31Z",
   "status": "healthy",
   "source_errors": [],
+  "quality_rejections": [
+    {
+      "event_id": "evt-3ec6f088a7a69af1ec78",
+      "title": "Building collapse in Gaza kills 19 as perilous conditions persist for Palestinians during truce - chicagotribune.com",
+      "reason": "contextual_deescalation_without_new_action"
+    },
+    {
+      "event_id": "evt-babcf39f02f2cac2c689",
+      "title": "No Trump Truce Seen as Kyiv Hits Volga Refinery - Rigzone",
+      "reason": "contextual_deescalation_without_new_action"
+    }
+  ],
   "controls": {
     "standalone_entry_authority": false,
     "existing_model_entry_authority_preserved": true,
@@ -13,7 +26,8 @@
     "partial_reduce_execution_enabled": false,
     "market_confirmation_is_input_not_mandatory_gate": true,
     "fail_closed_on_missing_event_feed": false,
-    "no_event_data_means_no_overlay_change": true
+    "no_event_data_means_no_overlay_change": true,
+    "lexical_precision_guard_enabled": true
   },
   "thresholds": {
     "entry_block": -0.55,
@@ -30,7 +44,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxNRmNzc3NZckg4bGkxOVZCbU43UG8tM3E3VkdwVnBuWjZWVFpLRFRBTnJaQTVPTHhWX1ZURktrVlRDZGRha3NkVi1BTG1Nd0E0ZkhhOGJ4by10eUxwZldtd0lObGxVd1AzdmRtLXpzVl94Y2pmeU03Z1lXU2xRZ2ZFNkxqcWw0c25QaWVCclJPS2lQWmRvMzBJTUc1NUZjeThyQzhBMlhyT1pwcmhBU0pGalBRUFJRSTBEU0lNLVdFenJncXlaWWY3MXd2dktXZERUY0dneTJB?oc=5",
       "published_at": "2026-09-16T11:17:31Z",
-      "age_hours": 0.334,
+      "age_hours": 0.45,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.62,
@@ -44,9 +58,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.971476,
+      "time_decay": 0.961761,
       "confidence": 0.4696,
-      "event_strength": 0.2965
+      "event_strength": 0.2935,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-ec1456ca6acc5d08232a",
@@ -55,7 +70,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMivwFBVV95cUxQdGtKVXRwQXN1c3J1bnpHcXNvRzJEbE9DVEVqV3JOQWttNmNhbHR3ekdVNWhKY1VUSHVuUmZvLXJILXNXRWI1bWhpSnJNV1BqUGhESUl0dGFpUUJDVmtvTmZpeV9ZR3F3bUhJZGFfNllUdENsemJHd0xubFBzUy0yanFES0xxX0FPc1p4UHpNQnh6VU1NSmhwOHp1ZHdka0ItUGlKN0NlcE1Id2J1RjVpcUVZLVZlcFZ6bnd1R0FMVQ?oc=5",
       "published_at": "2026-09-16T10:28:03Z",
-      "age_hours": 1.158,
+      "age_hours": 1.275,
       "authority": 0.88,
       "actor_role": "state_institution",
       "action_strength": 0.72,
@@ -70,109 +85,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.904536,
+      "time_decay": 0.895413,
       "confidence": 0.4896,
-      "event_strength": 0.2657
-    },
-    {
-      "event_id": "evt-595149a451b25863b3bc",
-      "title": "Hourly-paid state workers suspend Thursday strike after president talks - Philenews",
-      "source": "Philenews",
-      "source_domain": "https://en.philenews.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNbzVXYlRhVDhWcnN6d01EOHBueGR0TURhZmJ3Z080dWFwVzBFNTJxcjdNOVNnUjhlWEJmaHFZT29rM1dVYnRReHByWlJ4R2JrOEs2QV9tWTBDVWlISVJtT043eXlqazh3eUtMdlZHa1pfME1hNkdEbFBhZzI2ek1ic2tqZ2FYeS01?oc=5",
-      "published_at": "2026-09-16T07:07:05Z",
-      "age_hours": 4.508,
-      "authority": 0.98,
-      "actor_role": "head_of_state",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.85,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "general_geopolitics"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.676659,
-      "confidence": 0.4267,
-      "event_strength": 0.2454
-    },
-    {
-      "event_id": "evt-79362517f31796a6037b",
-      "title": "Russian drone strike kills 5 and injures at least 7 on passenger bus in Ukraine - WPXI",
-      "source": "WPXI",
-      "source_domain": "https://www.wpxi.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMihwFBVV95cUxNN2FqV01qYjdtRWYyaldwVDNBMENDYjNYX09FT01QRkpFX0d1VWJWeVpYVUlRXzh1cExBemJ4MUhob0hTQ1NoU29oV3BFN2FMZ21zZGlVVHZUd0h5VDhvYXJhV3ZCRmR0R1ZVVU1jRWk3Y2haNU1EUDlxVE1IREJFZC14bkRUOUXSAZsBQVVfeXFMUFl5SDBpUXJLTE13aUM3Z0NzS0lfTTNyT3ZGcUNOdHlST244MllNajlPWHA3NHU2ZUZaWm5BNVRPSkFyM09PNDlEWXQ3THhrT2ttZzNUdUJid1ptRThsTEJQLVloUDVXQlptQ2dIdFBGR3RPTU90bDlYVXh3SzNXek9BWjhGWFBRZmlqUW9pX2Z1cU9CZXJqamZ6LTg?oc=5",
-      "published_at": "2026-09-16T10:55:52Z",
-      "age_hours": 0.695,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.85,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine"
-      ],
-      "independent_sources": 2,
-      "corroboration": 1.0,
-      "time_decay": 0.94156,
-      "confidence": 0.3007,
-      "event_strength": 0.2406
-    },
-    {
-      "event_id": "evt-3ec6f088a7a69af1ec78",
-      "title": "Building collapse in Gaza kills 19 as perilous conditions persist for Palestinians during truce - chicagotribune.com",
-      "source": "chicagotribune.com",
-      "source_domain": "https://www.chicagotribune.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMilgFBVV95cUxNNVd6OHlpWnJBVFRvb3NGNWJZc2pSM0I0VXFPZkQ3aHRlTWE5QmVpUFNzNmJ5QkNTWWl3Z0xGOFV2R0ZHOXVFTUZNekZUN29RdGRSRzJxUDBPVUFQZWNKQ1h5TkVaOVNnRXRXQlMxMWw3bkFMeGhTOC1sS3lFM1lsa2VuMF82bGpaMzg5Ykoxand3b3Rxcnc?oc=5",
-      "published_at": "2026-09-16T11:30:27Z",
-      "age_hours": 0.118,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": -1.0,
-      "severity": 0.95,
-      "event_type": "deescalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "middle_east"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.989828,
-      "confidence": 0.2526,
-      "event_strength": 0.2375
-    },
-    {
-      "event_id": "evt-979fac880dd22097dcb2",
-      "title": "Russian drone strike kills 5 and injures at least 7 on passenger bus in Ukraine - whio.com",
-      "source": "whio.com",
-      "source_domain": "https://www.whio.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQYUhUX29DTXNnTjNHWDF4M2NuVUduTlhaQWlPX3RyLXdJWFAyRk5LbjdhQVBVVDV0WGoxZl9ZdGstNDVEdVR4eDVBWEVpV3lXNTU4RE96UTFRTHZvdWx1OXpsb3dJSm40Q25DY3ZtMVd1cmtnZ3NyR1B3M01jZDVRRmNxNXNLM1c1V193M29xNjRXMi1NWHl5WHZrc9IBmwFBVV95cUxQYUhUX29DTXNnTjNHWDF4M2NuVUduTlhaQWlPX3RyLXdJWFAyRk5LbjdhQVBVVDV0WGoxZl9ZdGstNDVEdVR4eDVBWEVpV3lXNTU4RE96UTFRTHZvdWx1OXpsb3dJSm40Q25DY3ZtMVd1cmtnZ3NyR1B3M01jZDVRRmNxNXNLM1c1V193M29xNjRXMi1NWHl5WHZrcw?oc=5",
-      "published_at": "2026-09-16T10:24:43Z",
-      "age_hours": 1.214,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.85,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine"
-      ],
-      "independent_sources": 2,
-      "corroboration": 1.0,
-      "time_decay": 0.900158,
-      "confidence": 0.3007,
-      "event_strength": 0.2301
+      "event_strength": 0.2631,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-66b1b6c85f219f121f97",
@@ -181,7 +97,7 @@
       "source_domain": "https://ua.news",
       "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNR1NucVRReGEwWXdVbzR6eUo5bUlnTnFVYUw2Vnh2OVM5Ny1TM3R0eVp2UVRnZUJVaDZ5WDg5ZUN1eWpQYmF0dzhZbThKTUNOeC1pcnhfMW1mRXJvaS1vZWpCM2ZFcFhJcmJSby1vVnZMa1FVOWkxd01QSmtxMTlZZnUxblRrUFU1bDhqUHBRRDNzQQ?oc=5",
       "published_at": "2026-09-16T07:00:26Z",
-      "age_hours": 4.619,
+      "age_hours": 4.735,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.72,
@@ -195,18 +111,46 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.670182,
+      "time_decay": 0.66348,
       "confidence": 0.4267,
-      "event_strength": 0.2288
+      "event_strength": 0.2265,
+      "quality_guard": "accepted_precision_v1"
     },
     {
-      "event_id": "evt-1762ffad38b5235f1783",
-      "title": "Zelenskyy explains steps Ukraine is prepared to take towards energy ceasefire - Українська правда",
-      "source": "Українська правда",
-      "source_domain": "https://www.pravda.com.ua",
-      "source_ref": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE5QZXQ1R0NySDlGOW9yM3VXcHU5Z0d0QWxOc1dYMDV5NzBlYTZ2cUNaWTVYVm9GZUJiUVpKb0JJNGEwaFo3VndOLWsxN29ZTUNzTTN3SGJRd1RlbTlSSmFRTEEtWDTSAXBBVV95cUxNaGUyM2ZTN09fcF9UeTVCS0FqQUJqaEpWYmVsOVRSZ2tzRE92YkZaNUZ2MWFxaDh4VGtGRno2N2NGNFUyazkyREZ5MnpqMG1FQ3NHNGlFWWwyUDV0bXlFbjEtVVBlQ3VCdUlXUEpMQmth?oc=5",
+      "event_id": "evt-675391c8bba06ad7a719",
+      "title": "US Pressure Mounts, Modi Surrenders: Congress on Russia Sanctions Bill - Deccan Chronicle",
+      "source": "Deccan Chronicle",
+      "source_domain": "https://www.deccanchronicle.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPWjVkbUp3c0ZNQ2tXNkN0UmZEMU40VzFacXlXVEJBOXZjZngzM3Q3OWYyT0ZLYUFCU3ZDeDFfYXU5TGd1dW1Vc1RURG8zXzh2ZFhOVU1wa3A0SjM1WjVfV2taaGJHTmg3WXVsREFGeUd0Z09oOFZQbWV6MjhPNUU5VDBQSlJZOVMxSW9uVDB2c0tUSE5WVnduN0libDlUMWMwamVwQllyaHdwX2ItM204eEU3ZmNDaVhzV29XXzFZNDk2QdIBxwFBVV95cUxNNHhoc3I5cGVrSlk3QjlsRmJUbEw2VXhIRlJJY1EwVVJnc2RmQXpCUTBwMEs2bjJxZFdjRjY5bzFNbnhaX21ySU1EQXl3SEZ3ZFJVOFIxRFdqLXRCOTBsdlVzZ1A3QlFZZ09nOTFOREs1dy0tRUZVb1RBYVJFLXR0dFo0MnAyRnZXNVdRV0VtbDZRemVKMnJBcEhvWlFYcUhNdG5ObDA4NTFYVksxNGZURTRCZjBaYVRibTZZQXptYXhVSkpXUHVJ?oc=5",
+      "published_at": "2026-09-16T10:52:45Z",
+      "age_hours": 0.863,
+      "authority": 0.88,
+      "actor_role": "state_institution",
+      "action_strength": 0.72,
+      "action_type": "reported_event",
+      "pressure": 1.0,
+      "severity": 0.6,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "russia_ukraine",
+        "trade_sanctions"
+      ],
+      "independent_sources": 1,
+      "corroboration": 0.84,
+      "time_decay": 0.927954,
+      "confidence": 0.3832,
+      "event_strength": 0.2134,
+      "quality_guard": "accepted_precision_v1"
+    },
+    {
+      "event_id": "evt-8bee7f08672b98673799",
+      "title": "Zelenskyy explains steps Ukraine is prepared to take towards energy ceasefire - yahoo.com",
+      "source": "yahoo.com",
+      "source_domain": "https://www.yahoo.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMinwFBVV95cUxOcElfbk94d2dSZmI1d2F3b1NwWXBUZmdZSzVjQVVBZmg3NlNDZXBTdk1FNlJIbUFQSHlnd0pVWi0xbDNHSjJBSW04QklzdW1lNTdYRm9tRHJuQlZPSy1mMkxWbV90TnlXZW40WkRFSHBLTFlRcTlOMFB2cXg5MzBQVktlQk1aV0xHSzFfZEVQTGozRTQ0cl95STFqaXJQV2M?oc=5",
       "published_at": "2026-09-16T09:33:00Z",
-      "age_hours": 2.076,
+      "age_hours": 2.192,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -220,20 +164,48 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.835377,
+      "time_decay": 0.827023,
       "confidence": 0.2526,
-      "event_strength": 0.211
+      "event_strength": 0.2089,
+      "quality_guard": "accepted_precision_v1"
     },
     {
-      "event_id": "evt-6f6ba157039b3cd54b7e",
-      "title": "U.S. Imposes Sanctions on Russia’s VTB - The Presidential Prayer Team",
-      "source": "The Presidential Prayer Team",
-      "source_domain": "https://www.presidentialprayerteam.org",
-      "source_ref": "https://news.google.com/rss/articles/CBMikAFBVV95cUxNbFpOY3o0Mkt5RUVIbnRtSGRVaHFiVnZfUnFpMklkOHZwTENlQWJJMFJQMk1Semd4bUVSZGQzeEk4a3BmcEd1dnloVEhxQ2pVYUpIZFp5al9CZ3JmaTlVeWZ2bnlQT3VscmZiZGs3Z3NGQU14X00tYWdkUFJBbnFPa084VWdvSEhNQUJEcXliQzI?oc=5",
-      "published_at": "2026-09-16T09:00:00Z",
-      "age_hours": 2.626,
-      "authority": 0.98,
-      "actor_role": "head_of_state",
+      "event_id": "evt-25aa18b3d538db07dc39",
+      "title": "US House clears way for final vote on long-stalled Russia sanctions bill - Hromadske",
+      "source": "Hromadske",
+      "source_domain": "https://hromadske.ua",
+      "source_ref": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQWHc2R1hOcDVzM2tGMHloSkZWWDJPbTlIbzU0VU1IS2Zad2RFcGpMb1FYeGg0OEJCN05pVHc1M0ZGeURjWWFoaXRFa0lTVWxVZjFxOGhlTXp2RHdxMnI3LVNLQXE3MVRWWUlGdjFQVjhqMzJHd212Unhicm95c1RNRmRjVURsemZ0SWhxTVNGQThTcFFsZ056ankyTVoydkYxdlkxQ0JUMUJYcWRzZXVoQ1cwQlVBOXMzaEJCcTNKV3pyLTTSAcMBQVVfeXFMUFh3NkdYTnA1czNrRjB5aEpGVlgyT205SG81NFVNSEtmWndkRXBqTG9RWHhoNDhCQjdOaVR3NTNGRnlEY1lhaGl0RWtJU1VsVWYxcThoZU16dkR3cTJyNy1TS0FxNzFUVllJRnYxUFY4ajMyR3dtdlJ4YnJveXNUTUZkY1VEbHpmdElocU1TRkE4U3BRbGdOemp5Mk1aMnZGMXZZMUNCVDFCWHFkc2V1aENXMEJVQTlzM2hCQnEzSld6ci00?oc=5",
+      "published_at": "2026-09-16T08:31:00Z",
+      "age_hours": 3.226,
+      "authority": 0.88,
+      "actor_role": "state_institution",
+      "action_strength": 0.72,
+      "action_type": "reported_event",
+      "pressure": 1.0,
+      "severity": 0.6,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "russia_ukraine",
+        "trade_sanctions"
+      ],
+      "independent_sources": 2,
+      "corroboration": 1.0,
+      "time_decay": 0.756153,
+      "confidence": 0.4562,
+      "event_strength": 0.207,
+      "quality_guard": "accepted_precision_v1"
+    },
+    {
+      "event_id": "evt-54ce43128f9cd4ca7ecf",
+      "title": "US House advances Russia Sanctions Bill, India under 100% tariff risk - Fibre2Fashion",
+      "source": "Fibre2Fashion",
+      "source_domain": "https://www.fibre2fashion.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMi1AFBVV95cUxNcWROUkNiNXl6aEVfQ1l2X1BiRUtyWU8tSDJMZmhfdThzTngzTU80UmY0TkhVdEk4QkI1QW4zQ0dBU3BTNjNjVS1yaUxxbnA1S1hZZFZBbThNOU9WNTFPUGtGZ0loSGF0bkNkSFA5R0VTY2JlWU9lMFNPVWZTaTR0ZVBCVEtpWGVqNXRIMlVYbGxqcmJ0UlM2cm93dE93b0VMa0p2dThMcWZYbnA3SG1lQ0FyYkpacnZzTFMxUm5zOEprWnpyMll6Z2loN0VZUW1OeW9VaA?oc=5",
+      "published_at": "2026-09-16T10:29:44Z",
+      "age_hours": 1.247,
+      "authority": 0.88,
+      "actor_role": "state_institution",
       "action_strength": 0.72,
       "action_type": "reported_event",
       "pressure": 1.0,
@@ -246,34 +218,36 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.796502,
-      "confidence": 0.4267,
-      "event_strength": 0.2039
+      "time_decay": 0.897588,
+      "confidence": 0.3832,
+      "event_strength": 0.2064,
+      "quality_guard": "accepted_precision_v1"
     },
     {
-      "event_id": "evt-babcf39f02f2cac2c689",
-      "title": "No Trump Truce Seen as Kyiv Hits Volga Refinery - Rigzone",
-      "source": "Rigzone",
-      "source_domain": "https://www.rigzone.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMirgFBVV95cUxPMTh1NVB1SDRzV2FQTHlIc2ttWnFjQ2EtQ0Rjam5JUGVaSXNnR1FscnRxTDA2MnBfLWhfZ2RqTXQ5MW5TekVybmRLOFRuMTBhUkxUamlad1l3YWRLMnhhcWs5c094MXFrNGwxVDJNSXVuZExKSkJSeS1QTWVqZGJrQzdQWkFaZDQyMHdQVW1zSjNXbkFYZ3U1N2t6OTBVRU03aG90WTBfbUJsXzc4NGc?oc=5",
-      "published_at": "2026-09-16T09:22:00Z",
-      "age_hours": 2.259,
+      "event_id": "evt-79362517f31796a6037b",
+      "title": "Russian drone strike kills 5 and injures at least 7 on passenger bus in Ukraine - WPXI",
+      "source": "WPXI",
+      "source_domain": "https://www.wpxi.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMihwFBVV95cUxNN2FqV01qYjdtRWYyaldwVDNBMENDYjNYX09FT01QRkpFX0d1VWJWeVpYVUlRXzh1cExBemJ4MUhob0hTQ1NoU29oV3BFN2FMZ21zZGlVVHZUd0h5VDhvYXJhV3ZCRmR0R1ZVVU1jRWk3Y2haNU1EUDlxVE1IREJFZC14bkRUOUXSAZsBQVVfeXFMUFl5SDBpUXJLTE13aUM3Z0NzS0lfTTNyT3ZGcUNOdHlST244MllNajlPWHA3NHU2ZUZaWm5BNVRPSkFyM09PNDlEWXQ3THhrT2ttZzNUdUJid1ptRThsTEJQLVloUDVXQlptQ2dIdFBGR3RPTU90bDlYVXh3SzNXek9BWjhGWFBRZmlqUW9pX2Z1cU9CZXJqamZ6LTg?oc=5",
+      "published_at": "2026-09-16T10:55:52Z",
+      "age_hours": 0.811,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
       "action_type": "reported_event",
-      "pressure": -1.0,
-      "severity": 0.95,
-      "event_type": "deescalation",
+      "pressure": 1.0,
+      "severity": 0.85,
+      "event_type": "escalation",
       "source_reliability": 0.72,
       "scenario_tags": [
-        "general_geopolitics"
+        "russia_ukraine"
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.822236,
+      "time_decay": 0.932144,
       "confidence": 0.2526,
-      "event_strength": 0.1973
+      "event_strength": 0.2001,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-91e98906ef56eb41b9dc",
@@ -282,7 +256,7 @@
       "source_domain": "https://www.cnbc.com",
       "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNV3RDMU50OVh5Wm8xU0FjbXhkd0c5Z1p1TkdBNlVMZGRMZW5ubUNNZ1JwR3NlTy10UWNLM0t2Mmw1UWMxQl83cS1qQVN3ZGZDYXZlS29oSW93NEx3NjkzUzh3eWJETlEzRmNBcTRMMW9XME16aEpnV3pfTV9uTHV0RTk0QzNSdzh5eW05UGV30gGTAUFVX3lxTE1vajNQT25zLVVkT25JTmdOSkNwV2p0U19FYXNndndlMmFTSWNyY1ZvZm9IX2x1bmk4X2d4RVNMT0ViYms0bVNwdFphbjYyYmNFeVh1N29BOHFra0V2dUc0RVZqbWpfdWdpRTF6V19kTWg3VWxPejI5R29PbkpMOWFhTUJSMlV4THo2OWljQnl2Wk1SUQ?oc=5",
       "published_at": "2026-09-16T08:00:27Z",
-      "age_hours": 3.618,
+      "age_hours": 3.735,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -296,9 +270,36 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.730902,
+      "time_decay": 0.72353,
       "confidence": 0.3227,
-      "event_strength": 0.184
+      "event_strength": 0.1821,
+      "quality_guard": "accepted_precision_v1"
+    },
+    {
+      "event_id": "evt-098ce088a23db97689ca",
+      "title": "Hamas commanders killed in Gaza strikes, Israel says - thejc.com",
+      "source": "thejc.com",
+      "source_domain": "https://www.thejc.com",
+      "source_ref": "https://news.google.com/rss/articles/CBMijwFBVV95cUxNYTdaX2tsU1l5cnF2QUV5X0ViaGxTdFA5d1d3WDBfdHZfWGtwUzdfZmRzYWlfR1JNWFdpVWdtMlNjckItS3B5SWNOMUpkR2JnSjAtcG5DWGFqdnBPV2ZpSzU2azlFamhZMFF3OHhTQkNhemI4RUczMmVXU2tKSFh5ZDhZX0ZzcFhRdkl6VTg2Yw?oc=5",
+      "published_at": "2026-09-16T11:18:58Z",
+      "age_hours": 0.426,
+      "authority": 0.58,
+      "actor_role": "reported_actor",
+      "action_strength": 0.62,
+      "action_type": "rhetoric_or_warning",
+      "pressure": 1.0,
+      "severity": 0.85,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "middle_east"
+      ],
+      "independent_sources": 1,
+      "corroboration": 0.84,
+      "time_decay": 0.963763,
+      "confidence": 0.2175,
+      "event_strength": 0.1782,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-0bba8e40c26b915b95de",
@@ -307,7 +308,7 @@
       "source_domain": "https://www.washingtonpost.com",
       "source_ref": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxQaE1ubjM3ektrLUgwaE1tdElKZGhfLU1Kc2t3cnZpZmNNQ0ZMWEwtVHNyT29ZS1ZSbkNWWjF6UEdGbDJvS1BIX1hxRGVGclZaWkpWWjhzWFdzN2dMTmJ5STVVTnFjMGM5RFRiUThfZWREZndieFBVdkt6QktfMkZpWUJEMk1acHhIRVpPaG1BQ3lWMXhoMUdGQm0tNmt3WVUtQUN3NngwTkhQNmJ3QUR2ck5PeFpfVXhYSm1DcEpsemhnX0lZZlBNVG5qM2V4ZklnOWM0SU16QlE?oc=5",
       "published_at": "2026-09-16T10:03:02Z",
-      "age_hours": 1.575,
+      "age_hours": 1.692,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -321,9 +322,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.872438,
+      "time_decay": 0.863639,
       "confidence": 0.2526,
-      "event_strength": 0.1763
+      "event_strength": 0.1745,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-dfc7c786a1257e456bf6",
@@ -332,7 +334,7 @@
       "source_domain": "https://abcnews.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxPVEJzT2tvVm9EemJDVkxBa1BYRWNpWGdLcHZ5TnJaQXdjZ3hwdWkzTmUxWFVNWUdGd0hhQzlpenNXSmlLY1l0TlUwV3FEVUp3Tjd0OWhFX0NYRHQ2NEhMRk9PZjJWUjdPeW9uNEFWN25ldFE1Zk1Uam8tTlNRNjcxblNPbEpnemlIaVhLWnpMQm1fRkk4b3YxQlMxSEk4WFY1X3VxUGVUVmpVd1HSAbABQVVfeXFMUEViOUdBeFlLcDgzTGQzVkdROExzV2ctQ2h5UkhaMXlzV1dVSmhZamxvWF94MUQyZVhXRWZRTHU2NThtYXNudEo1Z0V4UUVFN0NHdGVva0RQdDFNOFpoc0NGQ0gybjU1TG5ibmY0WVZFd3hTeU5ESnd5aHIwVHBaQVoxOUhlNWVTZzUyQnN2Ri1wSl80X1luc0JLR24zemtzeXZyRFFJMWREN3ZjSUJqTjE?oc=5",
       "published_at": "2026-09-16T09:18:37Z",
-      "age_hours": 2.316,
+      "age_hours": 2.432,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -346,9 +348,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.818186,
+      "time_decay": 0.810003,
       "confidence": 0.2526,
-      "event_strength": 0.1756
+      "event_strength": 0.1739,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-beeaa65b5f7779f34798",
@@ -357,7 +360,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMilwFBVV95cUxNeEF4X3lkbmdETWZ4S3A5a19qUDlUNG1BS240WVlVMFRWWkFNU2FsRk5MUDdqSUVUQWsxMkFqNzd6THdDT0RIQWg1MkhHUnEwZ29uemExN21FTGZwcFBiZmRyaThEYXA3b3htaWZEb0hRRndrYzFWSWdDYTUxU3YtNjR2YTkwcnF3ZzUwTHAzZU9xN1QxOTcw?oc=5",
       "published_at": "2026-09-16T10:01:24Z",
-      "age_hours": 1.603,
+      "age_hours": 1.719,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -371,9 +374,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.870324,
+      "time_decay": 0.861621,
       "confidence": 0.3227,
-      "event_strength": 0.1685
+      "event_strength": 0.1668,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-5b704898d2f7d0b06ed7",
@@ -382,7 +386,7 @@
       "source_domain": "https://omannews.gov.om",
       "source_ref": "https://news.google.com/rss/articles/CBMiY0FVX3lxTE5aTzBOaDZuU2VFRVVaV2xucXN3VnNfV1NIWWxpS0V1dXBtVExDUkhkMVNEUUNOTEN4TlhPUW5kUTF6QjFJejJQMUgwOTFOVVllSHVuMHNZRHNWeFRGWElPaHNadw?oc=5",
       "published_at": "2026-09-15T22:57:59Z",
-      "age_hours": 12.66,
+      "age_hours": 12.776,
       "authority": 0.98,
       "actor_role": "head_of_state",
       "action_strength": 0.72,
@@ -396,9 +400,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.333903,
+      "time_decay": 0.330564,
       "confidence": 0.5808,
-      "event_strength": 0.1649
+      "event_strength": 0.1632,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-46e930bdf1756987ccde",
@@ -407,7 +412,7 @@
       "source_domain": "https://eaworldview.com",
       "source_ref": "https://news.google.com/rss/articles/CBMifEFVX3lxTE1DSnVBT001WlJFVHV5eWR0MGlKZ1RsQjV4NWFnS1VtNzJ3Q1FBQ0twWnh1RzdQX1lHNDFvOTBlZ0o0VlNSNnZxRVZzYWJnM1VpQUVRRnh3ZC1RMm1JSnpJZm9TN1VyYW1xQk9vOVNpUXNzaGtOb2xScU14VGM?oc=5",
       "published_at": "2026-09-16T09:06:39Z",
-      "age_hours": 2.515,
+      "age_hours": 2.631,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -421,9 +426,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.804199,
+      "time_decay": 0.796157,
       "confidence": 0.2526,
-      "event_strength": 0.1625
+      "event_strength": 0.1609,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-a7bc345c03451a64cffd",
@@ -432,7 +438,7 @@
       "source_domain": "https://tvpworld.com",
       "source_ref": "https://news.google.com/rss/articles/CBMikwFBVV95cUxOeTVsNmNFcTMxcndhRUwtWUE3QUtuNmVYT19ZWGI2TXZTRDdDU1ZPWHlnT05GZ2RBTHNLZ3JxbWp5RnFCUWZ3Q0tnWEZwUnpXWnN6Njg3UENmYmVETFloY1ZwbmloRWhYTl9veEJFV2lBMDFiVHBadjFzNUpfZUpjNURtRk5JWm02Zk8tSWpPa0gyNUU?oc=5",
       "published_at": "2026-09-16T09:23:00Z",
-      "age_hours": 2.243,
+      "age_hours": 2.359,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -446,9 +452,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.823377,
+      "time_decay": 0.815143,
       "confidence": 0.2526,
-      "event_strength": 0.1622
+      "event_strength": 0.1606,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-1f568622b9196d1dc327",
@@ -457,7 +464,7 @@
       "source_domain": "https://tvpworld.com",
       "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxPbTJXd19XSVhZdGdPYVU0X04zRk9TNkczRU9iTWJTTzh2SEJkeFRKY3F2TF9XaGZVNldBUEgtWUQzajlSMzlnaTRuUDFfOEgzUU8ydThxaDMzSkpidEpnbUNyaXJVM3hNa1BjR3R4Ylc1WkhyaXhjNHZrZFRheDlpcFEzZE1sR1Q2MEJZNDk1ZlNsZw?oc=5",
       "published_at": "2026-09-16T11:06:00Z",
-      "age_hours": 0.526,
+      "age_hours": 0.642,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -471,35 +478,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.955448,
+      "time_decay": 0.945894,
       "confidence": 0.2526,
-      "event_strength": 0.1569
-    },
-    {
-      "event_id": "evt-675391c8bba06ad7a719",
-      "title": "US Pressure Mounts, Modi Surrenders: Congress on Russia Sanctions Bill - Deccan Chronicle",
-      "source": "Deccan Chronicle",
-      "source_domain": "https://www.deccanchronicle.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPWjVkbUp3c0ZNQ2tXNkN0UmZEMU40VzFacXlXVEJBOXZjZngzM3Q3OWYyT0ZLYUFCU3ZDeDFfYXU5TGd1dW1Vc1RURG8zXzh2ZFhOVU1wa3A0SjM1WjVfV2taaGJHTmg3WXVsREFGeUd0Z09oOFZQbWV6MjhPNUU5VDBQSlJZOVMxSW9uVDB2c0tUSE5WVnduN0libDlUMWMwamVwQllyaHdwX2ItM204eEU3ZmNDaVhzV29XXzFZNDk2QdIBxwFBVV95cUxNNHhoc3I5cGVrSlk3QjlsRmJUbEw2VXhIRlJJY1EwVVJnc2RmQXpCUTBwMEs2bjJxZFdjRjY5bzFNbnhaX21ySU1EQXl3SEZ3ZFJVOFIxRFdqLXRCOTBsdlVzZ1A3QlFZZ09nOTFOREs1dy0tRUZVb1RBYVJFLXR0dFo0MnAyRnZXNVdRV0VtbDZRemVKMnJBcEhvWlFYcUhNdG5ObDA4NTFYVksxNGZURTRCZjBaYVRibTZZQXptYXhVSkpXUHVJ?oc=5",
-      "published_at": "2026-09-16T10:52:45Z",
-      "age_hours": 0.747,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.6,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine",
-        "trade_sanctions"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.937327,
-      "confidence": 0.2526,
-      "event_strength": 0.142
+      "event_strength": 0.1553,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-254e0269b25a13757725",
@@ -508,7 +490,7 @@
       "source_domain": "https://www.reuters.com",
       "source_ref": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxPbDNXZ2lkM0J6Q3h2bTlrR2xaeWNKbTUxOUgya1lMOUlubXItalZ6eWxkb2hBYW5SOS1RdElHRkRZZWQ0MjdDZm56ODYyTU5kN3JyalNXdmdheDU3VjNQMXZxQVBHdVJseC0tNktZS3k2Z1ZOaWNoQ2QzTkRfOVJkb0lTS1dSMXlUWDVIT1RiWXBaanBjRzRHaElUWG9SV2U3dGt6Zm5JU2NKbEY1azYtY1VNUlRGdEN4?oc=5",
       "published_at": "2026-09-16T06:57:00Z",
-      "age_hours": 4.676,
+      "age_hours": 4.792,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -522,61 +504,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.66688,
+      "time_decay": 0.660211,
       "confidence": 0.3227,
-      "event_strength": 0.1399
-    },
-    {
-      "event_id": "evt-25aa18b3d538db07dc39",
-      "title": "US House clears way for final vote on long-stalled Russia sanctions bill - Hromadske",
-      "source": "Hromadske",
-      "source_domain": "https://hromadske.ua",
-      "source_ref": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQWHc2R1hOcDVzM2tGMHloSkZWWDJPbTlIbzU0VU1IS2Zad2RFcGpMb1FYeGg0OEJCN05pVHc1M0ZGeURjWWFoaXRFa0lTVWxVZjFxOGhlTXp2RHdxMnI3LVNLQXE3MVRWWUlGdjFQVjhqMzJHd212Unhicm95c1RNRmRjVURsemZ0SWhxTVNGQThTcFFsZ056ankyTVoydkYxdlkxQ0JUMUJYcWRzZXVoQ1cwQlVBOXMzaEJCcTNKV3pyLTTSAcMBQVVfeXFMUFh3NkdYTnA1czNrRjB5aEpGVlgyT205SG81NFVNSEtmWndkRXBqTG9RWHhoNDhCQjdOaVR3NTNGRnlEY1lhaGl0RWtJU1VsVWYxcThoZU16dkR3cTJyNy1TS0FxNzFUVllJRnYxUFY4ajMyR3dtdlJ4YnJveXNUTUZkY1VEbHpmdElocU1TRkE4U3BRbGdOemp5Mk1aMnZGMXZZMUNCVDFCWHFkc2V1aENXMEJVQTlzM2hCQnEzSld6ci00?oc=5",
-      "published_at": "2026-09-16T08:31:00Z",
-      "age_hours": 3.109,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.6,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine",
-        "trade_sanctions"
-      ],
-      "independent_sources": 2,
-      "corroboration": 1.0,
-      "time_decay": 0.763857,
-      "confidence": 0.3007,
-      "event_strength": 0.1378
-    },
-    {
-      "event_id": "evt-54ce43128f9cd4ca7ecf",
-      "title": "US House advances Russia Sanctions Bill, India under 100% tariff risk - Fibre2Fashion",
-      "source": "Fibre2Fashion",
-      "source_domain": "https://www.fibre2fashion.com",
-      "source_ref": "https://news.google.com/rss/articles/CBMi1AFBVV95cUxNcWROUkNiNXl6aEVfQ1l2X1BiRUtyWU8tSDJMZmhfdThzTngzTU80UmY0TkhVdEk4QkI1QW4zQ0dBU3BTNjNjVS1yaUxxbnA1S1hZZFZBbThNOU9WNTFPUGtGZ0loSGF0bkNkSFA5R0VTY2JlWU9lMFNPVWZTaTR0ZVBCVEtpWGVqNXRIMlVYbGxqcmJ0UlM2cm93dE93b0VMa0p2dThMcWZYbnA3SG1lQ0FyYkpacnZzTFMxUm5zOEprWnpyMll6Z2loN0VZUW1OeW9VaA?oc=5",
-      "published_at": "2026-09-16T10:29:44Z",
-      "age_hours": 1.13,
-      "authority": 0.58,
-      "actor_role": "reported_actor",
-      "action_strength": 0.72,
-      "action_type": "reported_event",
-      "pressure": 1.0,
-      "severity": 0.6,
-      "event_type": "escalation",
-      "source_reliability": 0.72,
-      "scenario_tags": [
-        "russia_ukraine",
-        "trade_sanctions"
-      ],
-      "independent_sources": 1,
-      "corroboration": 0.84,
-      "time_decay": 0.906733,
-      "confidence": 0.2526,
-      "event_strength": 0.1374
+      "event_strength": 0.1385,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-e15e2afde66dc8040cda",
@@ -585,7 +516,7 @@
       "source_domain": "https://www.euractiv.com",
       "source_ref": "https://news.google.com/rss/articles/CBMijAFBVV95cUxPcGJCN21STmd1TmVNdzhDc1djRkI2eElmUlY3dmp0YUZKSG5PdlhrWVZILUF1WFlJN2NGWXIxUGJDYkgxWlhkZWRGdmZRLWFacWlHLW9qWERhai1ELXhLV0NNdWpWQlhhWFVKYjRTZmN1TWRNT1FzOXc1dTJ6emhEd1R1ZmVFTjRETks5dQ?oc=5",
       "published_at": "2026-09-16T10:27:46Z",
-      "age_hours": 1.163,
+      "age_hours": 1.279,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -600,9 +531,10 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.904144,
+      "time_decay": 0.895103,
       "confidence": 0.2526,
-      "event_strength": 0.137
+      "event_strength": 0.1356,
+      "quality_guard": "accepted_precision_v1"
     },
     {
       "event_id": "evt-10fb3c16e18dd54d70a1",
@@ -611,7 +543,7 @@
       "source_domain": "https://ua.news",
       "source_ref": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOUmNXTnRXUEMwT2Q4eXFJOHB4NlZxcS1aOEdfWVFVRkZHT2JvelBtOUFBNnJTS1VQdmNPanhtQ2t3ZUhIZE5pMGJEajdRZ1lRbnJjOHdLT21GcGVrVGFEN3BkaGZEUDlBYURYbEFTcEdKemlQdE5fMUx0MDVuenlESEZzMlpnTGFFcXFKT1E1Sm5lQ1hNUXhPRkVtb0I5WEdj?oc=5",
       "published_at": "2026-09-16T09:15:02Z",
-      "age_hours": 2.375,
+      "age_hours": 2.492,
       "authority": 0.58,
       "actor_role": "reported_actor",
       "action_strength": 0.72,
@@ -625,9 +557,63 @@
       ],
       "independent_sources": 1,
       "corroboration": 0.84,
-      "time_decay": 0.814014,
+      "time_decay": 0.805804,
       "confidence": 0.2526,
-      "event_strength": 0.1336
+      "event_strength": 0.1323,
+      "quality_guard": "accepted_precision_v1"
+    },
+    {
+      "event_id": "evt-ecde9adf471a6a4ddad6",
+      "title": "Zelenskyy Says Russia Tried to Attack His Plane With Drones Twice in Recent Weeks - reform.news",
+      "source": "reform.news",
+      "source_domain": "https://reform.news",
+      "source_ref": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxNQ1MtVUlkeGxzaTMzM0dDVWpiZGJhMTFvMUk2d01ZWHFRbHNYc19SYlk5Y3AtcDNoc2w3dE41dy1lM1lvWjFxdGZwLUVjcjZIcllKSHQ2QUR5aVYwSlVuUktCTy1hTFR2VlJRZU9aa0E3Z1QtNHJYTldUUVlyd19RcTM4dGpncjJ5SUlhR1ktU0FhU1FyeFBibV9fS1Y3VmNKNC1seFFJTETSAa4BQVVfeXFMT0VablNZalE3clpyUDFDNGZMdXR1Z3JJaWMyeEI3em9pRDVzWHRPMHBjSFRqZllfMmZNSTJTSjd2ekpuVnVVT1JfZEN3czk4YnVpWDl6LTFPMnNRTE9fNGI0NEFxS0h2bWxrSUl0cnBuLVJBX05jN240ajBaMVRGWW5BWEJIT3pCT2RFaGxSeTNwSHFNNEJiNDFIWU1IYk9kd2l5UmFGVGoxRWRYRzlB?oc=5",
+      "published_at": "2026-09-16T08:21:02Z",
+      "age_hours": 3.392,
+      "authority": 0.58,
+      "actor_role": "reported_actor",
+      "action_strength": 0.62,
+      "action_type": "rhetoric_or_warning",
+      "pressure": 1.0,
+      "severity": 0.8,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "russia_ukraine"
+      ],
+      "independent_sources": 1,
+      "corroboration": 0.84,
+      "time_decay": 0.745355,
+      "confidence": 0.2175,
+      "event_strength": 0.1297,
+      "quality_guard": "accepted_precision_v1"
+    },
+    {
+      "event_id": "evt-6f6ba157039b3cd54b7e",
+      "title": "U.S. Imposes Sanctions on Russia’s VTB - The Presidential Prayer Team",
+      "source": "The Presidential Prayer Team",
+      "source_domain": "https://www.presidentialprayerteam.org",
+      "source_ref": "https://news.google.com/rss/articles/CBMikAFBVV95cUxNbFpOY3o0Mkt5RUVIbnRtSGRVaHFiVnZfUnFpMklkOHZwTENlQWJJMFJQMk1Semd4bUVSZGQzeEk4a3BmcEd1dnloVEhxQ2pVYUpIZFp5al9CZ3JmaTlVeWZ2bnlQT3VscmZiZGs3Z3NGQU14X00tYWdkUFJBbnFPa084VWdvSEhNQUJEcXliQzI?oc=5",
+      "published_at": "2026-09-16T09:00:00Z",
+      "age_hours": 2.742,
+      "authority": 0.58,
+      "actor_role": "reported_actor",
+      "action_strength": 0.72,
+      "action_type": "reported_event",
+      "pressure": 1.0,
+      "severity": 0.6,
+      "event_type": "escalation",
+      "source_reliability": 0.72,
+      "scenario_tags": [
+        "russia_ukraine",
+        "trade_sanctions"
+      ],
+      "independent_sources": 1,
+      "corroboration": 0.84,
+      "time_decay": 0.788537,
+      "confidence": 0.2526,
+      "event_strength": 0.1195,
+      "quality_guard": "accepted_precision_v1"
     }
   ],
   "targets": [
@@ -637,8 +623,8 @@
       "market": "MULTI_ASSET",
       "sector": "fx",
       "exposure_coefficient": -0.55,
-      "normalized_impact": -0.2626,
-      "score_delta": -5.25,
+      "normalized_impact": -0.2577,
+      "score_delta": -5.15,
       "confidence": 0.4896,
       "decision_overlay": "HOLD",
       "entry_blocked": false,
@@ -655,7 +641,7 @@
           "scenario_tags": [
             "russia_ukraine"
           ],
-          "signed_impact": -0.1631
+          "signed_impact": -0.1614
         },
         {
           "event_id": "evt-ec1456ca6acc5d08232a",
@@ -670,21 +656,21 @@
             "russia_ukraine",
             "trade_sanctions"
           ],
-          "signed_impact": -0.1461
+          "signed_impact": -0.1447
         },
         {
-          "event_id": "evt-595149a451b25863b3bc",
-          "title": "Hourly-paid state workers suspend Thursday strike after president talks - Philenews",
-          "published_at": "2026-09-16T07:07:05Z",
-          "source": "Philenews",
-          "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNbzVXYlRhVDhWcnN6d01EOHBueGR0TURhZmJ3Z080dWFwVzBFNTJxcjdNOVNnUjhlWEJmaHFZT29rM1dVYnRReHByWlJ4R2JrOEs2QV9tWTBDVWlISVJtT043eXlqazh3eUtMdlZHa1pfME1hNkdEbFBhZzI2ek1ic2tqZ2FYeS01?oc=5",
+          "event_id": "evt-66b1b6c85f219f121f97",
+          "title": "Pakistan’s Prime Minister Shehbaz Sharif condemns attempted attack on Mecca - UA.NEWS",
+          "published_at": "2026-09-16T07:00:26Z",
+          "source": "UA.NEWS",
+          "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNR1NucVRReGEwWXdVbzR6eUo5bUlnTnFVYUw2Vnh2OVM5Ny1TM3R0eVp2UVRnZUJVaDZ5WDg5ZUN1eWpQYmF0dzhZbThKTUNOeC1pcnhfMW1mRXJvaS1vZWpCM2ZFcFhJcmJSby1vVnZMa1FVOWkxd01QSmtxMTlZZnUxblRrUFU1bDhqUHBRRDNzQQ?oc=5",
           "confidence": 0.4267,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
             "general_geopolitics"
           ],
-          "signed_impact": -0.135
+          "signed_impact": -0.1246
         }
       ]
     },
@@ -694,8 +680,8 @@
       "market": "MULTI_ASSET",
       "sector": "equity index",
       "exposure_coefficient": -0.95,
-      "normalized_impact": -0.4536,
-      "score_delta": -9.07,
+      "normalized_impact": -0.4451,
+      "score_delta": -8.9,
       "confidence": 0.4896,
       "decision_overlay": "REDUCE_RISK",
       "entry_blocked": false,
@@ -712,7 +698,7 @@
           "scenario_tags": [
             "russia_ukraine"
           ],
-          "signed_impact": -0.2817
+          "signed_impact": -0.2788
         },
         {
           "event_id": "evt-ec1456ca6acc5d08232a",
@@ -727,21 +713,21 @@
             "russia_ukraine",
             "trade_sanctions"
           ],
-          "signed_impact": -0.2524
+          "signed_impact": -0.2499
         },
         {
-          "event_id": "evt-595149a451b25863b3bc",
-          "title": "Hourly-paid state workers suspend Thursday strike after president talks - Philenews",
-          "published_at": "2026-09-16T07:07:05Z",
-          "source": "Philenews",
-          "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNbzVXYlRhVDhWcnN6d01EOHBueGR0TURhZmJ3Z080dWFwVzBFNTJxcjdNOVNnUjhlWEJmaHFZT29rM1dVYnRReHByWlJ4R2JrOEs2QV9tWTBDVWlISVJtT043eXlqazh3eUtMdlZHa1pfME1hNkdEbFBhZzI2ek1ic2tqZ2FYeS01?oc=5",
+          "event_id": "evt-66b1b6c85f219f121f97",
+          "title": "Pakistan’s Prime Minister Shehbaz Sharif condemns attempted attack on Mecca - UA.NEWS",
+          "published_at": "2026-09-16T07:00:26Z",
+          "source": "UA.NEWS",
+          "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNR1NucVRReGEwWXdVbzR6eUo5bUlnTnFVYUw2Vnh2OVM5Ny1TM3R0eVp2UVRnZUJVaDZ5WDg5ZUN1eWpQYmF0dzhZbThKTUNOeC1pcnhfMW1mRXJvaS1vZWpCM2ZFcFhJcmJSby1vVnZMa1FVOWkxd01QSmtxMTlZZnUxblRrUFU1bDhqUHBRRDNzQQ?oc=5",
           "confidence": 0.4267,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
             "general_geopolitics"
           ],
-          "signed_impact": -0.2331
+          "signed_impact": -0.2152
         }
       ]
     },
@@ -751,8 +737,8 @@
       "market": "MULTI_ASSET",
       "sector": "crypto",
       "exposure_coefficient": -0.48,
-      "normalized_impact": -0.2291,
-      "score_delta": -4.58,
+      "normalized_impact": -0.2249,
+      "score_delta": -4.5,
       "confidence": 0.4896,
       "decision_overlay": "HOLD",
       "entry_blocked": false,
@@ -769,7 +755,7 @@
           "scenario_tags": [
             "russia_ukraine"
           ],
-          "signed_impact": -0.1423
+          "signed_impact": -0.1409
         },
         {
           "event_id": "evt-ec1456ca6acc5d08232a",
@@ -784,21 +770,21 @@
             "russia_ukraine",
             "trade_sanctions"
           ],
-          "signed_impact": -0.1275
+          "signed_impact": -0.1263
         },
         {
-          "event_id": "evt-595149a451b25863b3bc",
-          "title": "Hourly-paid state workers suspend Thursday strike after president talks - Philenews",
-          "published_at": "2026-09-16T07:07:05Z",
-          "source": "Philenews",
-          "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNbzVXYlRhVDhWcnN6d01EOHBueGR0TURhZmJ3Z080dWFwVzBFNTJxcjdNOVNnUjhlWEJmaHFZT29rM1dVYnRReHByWlJ4R2JrOEs2QV9tWTBDVWlISVJtT043eXlqazh3eUtMdlZHa1pfME1hNkdEbFBhZzI2ek1ic2tqZ2FYeS01?oc=5",
+          "event_id": "evt-66b1b6c85f219f121f97",
+          "title": "Pakistan’s Prime Minister Shehbaz Sharif condemns attempted attack on Mecca - UA.NEWS",
+          "published_at": "2026-09-16T07:00:26Z",
+          "source": "UA.NEWS",
+          "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNR1NucVRReGEwWXdVbzR6eUo5bUlnTnFVYUw2Vnh2OVM5Ny1TM3R0eVp2UVRnZUJVaDZ5WDg5ZUN1eWpQYmF0dzhZbThKTUNOeC1pcnhfMW1mRXJvaS1vZWpCM2ZFcFhJcmJSby1vVnZMa1FVOWkxd01QSmtxMTlZZnUxblRrUFU1bDhqUHBRRDNzQQ?oc=5",
           "confidence": 0.4267,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
             "general_geopolitics"
           ],
-          "signed_impact": -0.1178
+          "signed_impact": -0.1087
         }
       ]
     },
@@ -808,8 +794,8 @@
       "market": "GPW",
       "sector": "handel",
       "exposure_coefficient": -0.48,
-      "normalized_impact": -0.2291,
-      "score_delta": -4.58,
+      "normalized_impact": -0.2249,
+      "score_delta": -4.5,
       "confidence": 0.4896,
       "decision_overlay": "HOLD",
       "entry_blocked": false,
@@ -826,7 +812,7 @@
           "scenario_tags": [
             "russia_ukraine"
           ],
-          "signed_impact": -0.1423
+          "signed_impact": -0.1409
         },
         {
           "event_id": "evt-ec1456ca6acc5d08232a",
@@ -841,21 +827,21 @@
             "russia_ukraine",
             "trade_sanctions"
           ],
-          "signed_impact": -0.1275
+          "signed_impact": -0.1263
         },
         {
-          "event_id": "evt-595149a451b25863b3bc",
-          "title": "Hourly-paid state workers suspend Thursday strike after president talks - Philenews",
-          "published_at": "2026-09-16T07:07:05Z",
-          "source": "Philenews",
-          "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNbzVXYlRhVDhWcnN6d01EOHBueGR0TURhZmJ3Z080dWFwVzBFNTJxcjdNOVNnUjhlWEJmaHFZT29rM1dVYnRReHByWlJ4R2JrOEs2QV9tWTBDVWlISVJtT043eXlqazh3eUtMdlZHa1pfME1hNkdEbFBhZzI2ek1ic2tqZ2FYeS01?oc=5",
+          "event_id": "evt-66b1b6c85f219f121f97",
+          "title": "Pakistan’s Prime Minister Shehbaz Sharif condemns attempted attack on Mecca - UA.NEWS",
+          "published_at": "2026-09-16T07:00:26Z",
+          "source": "UA.NEWS",
+          "source_ref": "https://news.google.com/rss/articles/CBMikgFBVV95cUxNR1NucVRReGEwWXdVbzR6eUo5bUlnTnFVYUw2Vnh2OVM5Ny1TM3R0eVp2UVRnZUJVaDZ5WDg5ZUN1eWpQYmF0dzhZbThKTUNOeC1pcnhfMW1mRXJvaS1vZWpCM2ZFcFhJcmJSby1vVnZMa1FVOWkxd01QSmtxMTlZZnUxblRrUFU1bDhqUHBRRDNzQQ?oc=5",
           "confidence": 0.4267,
           "action_type": "reported_event",
           "event_type": "escalation",
           "scenario_tags": [
             "general_geopolitics"
           ],
-          "signed_impact": -0.1178
+          "signed_impact": -0.1087
         }
       ]
     }
