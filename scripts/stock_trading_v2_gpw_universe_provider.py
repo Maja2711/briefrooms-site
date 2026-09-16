@@ -2,23 +2,30 @@
 """Official GPW Main Market universe provider for Stock Trading v2.
 
 The public GPW company list is server-rendered in batches and loads additional
-rows through the exchange's own GPWCompanySearch AJAX endpoint.  We first read
+rows through the exchange's own GPWCompanySearch AJAX endpoint. We first read
 its live search form, then submit the same filter contract with all index,
-country and voivodship checkboxes enabled.  This avoids hard-coding a stale
-40-name seed and keeps provenance at the exchange source.
+country and voivodship checkboxes enabled. Network reads are retried and pages
+are deliberately small because the GPW endpoint can terminate large chunked
+responses early. The provider fails closed if the final universe is incomplete.
 """
 from __future__ import annotations
 
 import html
+import http.client
 import http.cookiejar
 import re
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
-from typing import Any, Mapping
+from typing import Any
 
 GPW_COMPANIES_URL = "https://www.gpw.pl/spolki"
 GPW_AJAX_URL = "https://www.gpw.pl/ajaxindex.php"
+DEFAULT_PAGE_SIZE = 40
+DEFAULT_MAX_PAGES = 20
+DEFAULT_ATTEMPTS = 3
 
 
 class ProviderUnavailable(RuntimeError):
@@ -81,7 +88,13 @@ def _opener() -> urllib.request.OpenerDirector:
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 
 
-def _request(opener: urllib.request.OpenerDirector, url: str, *, data: bytes | None = None, timeout: int = 25) -> str:
+def _request_once(
+    opener: urllib.request.OpenerDirector,
+    url: str,
+    *,
+    data: bytes | None = None,
+    timeout: int = 25,
+) -> str:
     request = urllib.request.Request(
         url,
         data=data,
@@ -90,11 +103,45 @@ def _request(opener: urllib.request.OpenerDirector, url: str, *, data: bytes | N
             "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
             "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
             "Referer": GPW_COMPANIES_URL,
+            "Connection": "close",
+            "Cache-Control": "no-cache",
         },
     )
     with opener.open(request, timeout=timeout) as response:  # noqa: S310 - fixed official GPW endpoints
         raw = response.read()
     return raw.decode("utf-8", errors="replace")
+
+
+def _request(
+    opener: urllib.request.OpenerDirector,
+    url: str,
+    *,
+    data: bytes | None = None,
+    timeout: int = 25,
+    attempts: int = DEFAULT_ATTEMPTS,
+    diagnostics: list[str] | None = None,
+) -> str:
+    """Retry transient GPW transport failures; never accept a truncated page."""
+    errors = diagnostics if diagnostics is not None else []
+    last_error: Exception | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            return _request_once(opener, url, data=data, timeout=timeout)
+        except (
+            TimeoutError,
+            ConnectionError,
+            OSError,
+            urllib.error.URLError,
+            http.client.IncompleteRead,
+            http.client.RemoteDisconnected,
+        ) as exc:
+            last_error = exc
+            errors.append(
+                f"{url} attempt={attempt}: {type(exc).__name__}: {' '.join(str(exc).split())}"[:900]
+            )
+            if attempt < attempts:
+                time.sleep(min(5.0, 0.75 * (2 ** (attempt - 1))))
+    raise ProviderUnavailable(f"GPW request failed after {attempts} attempts: {last_error}") from last_error
 
 
 def parse_search_form(page_html: str) -> dict[str, str]:
@@ -138,9 +185,22 @@ def expected_company_count(page_html: str) -> int | None:
     return int(match.group(1))
 
 
-def fetch_companies(*, timeout: int = 25, page_size: int = 100, max_pages: int = 10) -> tuple[list[dict[str, str]], dict[str, Any]]:
+def fetch_companies(
+    *,
+    timeout: int = 25,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    attempts: int = DEFAULT_ATTEMPTS,
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
     opener = _opener()
-    landing = _request(opener, GPW_COMPANIES_URL, timeout=timeout)
+    failures: list[str] = []
+    landing = _request(
+        opener,
+        GPW_COMPANIES_URL,
+        timeout=timeout,
+        attempts=attempts,
+        diagnostics=failures,
+    )
     payload = parse_search_form(landing)
     target = expected_company_count(landing)
     by_ticker: dict[str, dict[str, str]] = {}
@@ -152,7 +212,14 @@ def fetch_companies(*, timeout: int = 25, page_size: int = 100, max_pages: int =
         page_payload["offset"] = str(offset)
         page_payload["limit"] = str(max(1, page_size))
         encoded = urllib.parse.urlencode(page_payload).encode("utf-8")
-        fragment = _request(opener, GPW_AJAX_URL, data=encoded, timeout=timeout)
+        fragment = _request(
+            opener,
+            GPW_AJAX_URL,
+            data=encoded,
+            timeout=timeout,
+            attempts=attempts,
+            diagnostics=failures,
+        )
         companies = parse_companies(fragment)
         page_counts.append(len(companies))
         if not companies:
@@ -182,5 +249,6 @@ def fetch_companies(*, timeout: int = 25, page_size: int = 100, max_pages: int =
         "companies_received": len(companies),
         "page_size": page_size,
         "page_counts": page_counts,
+        "request_failures_recovered": failures,
         "complete": target is None or len(companies) >= target,
     }
