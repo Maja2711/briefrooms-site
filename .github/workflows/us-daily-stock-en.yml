@@ -11,6 +11,8 @@ on:
       - "scripts/us_daily_stock.py"
       - "scripts/us_stock_candidate.py"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "scripts/stock_trading_generation_promotion.py"
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/us-daily-stock-public.js"
@@ -18,10 +20,14 @@ on:
       - "scripts/daily-stock-position-ux.js"
       - "data/investments/us_daily_stock_config.json"
       - "data/investments/stock_trading_policy.json"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+      - "data/investments/stock_trading_v2_opportunity/**"
       - "tests/test_daily_stock_core.py"
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_generation_promotion.py"
       - "en/investing/stock-trading.html"
       - "pl/inwestycje/stock-trading.html"
   schedule:
@@ -77,17 +83,22 @@ jobs:
             tests.test_daily_stock_core \
             tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_us_daily_stock \
-            tests.test_stock_trading_portfolio -v
+            tests.test_stock_trading_portfolio \
+            tests.test_stock_trading_generation_promotion -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_us_adapter.py \
             scripts/us_daily_stock.py \
             scripts/us_stock_candidate.py \
             scripts/stock_trading_portfolio.py \
+            scripts/stock_trading_generation_promotion.py \
+            scripts/stock_trading_generation_router.py \
             scripts/daily_stock_rejected_candidate_freeze.py \
             scripts/build_daily_stock_history_index.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_state.json >/dev/null
           node --check scripts/us-daily-stock-public.js
           node --check scripts/daily-stock-markets-public.js
           node --check scripts/daily-stock-position-ux.js
@@ -115,10 +126,10 @@ jobs:
           print('US_STOCK_CANDIDATE_OK',decision,(p.get('selection') or {}).get('symbol'))
           PY
 
-      - name: Feed canonical US Stock Trading portfolio
+      - name: Feed canonical US Stock Trading portfolio through proven generation
         run: |
           set -euo pipefail
-          python scripts/stock_trading_portfolio.py --mode sync-candidates --market US
+          python scripts/stock_trading_generation_router.py --mode apply --market US
           python scripts/stock_trading_portfolio.py --mode verify
 
       - name: Freeze rejected US candidates for research only
