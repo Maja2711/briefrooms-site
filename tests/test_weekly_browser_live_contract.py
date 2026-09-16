@@ -17,7 +17,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-6"
-COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-2"
+COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-3"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -74,33 +74,39 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("replace(',', ' ·')", source)
         self.assertIn("opóźniony", source)
         self.assertNotIn("ostatni kurs", source)
-        self.assertNotIn("backend BriefRooms", source)
         self.assertNotIn("STALE", source)
 
-    def test_sp500_overlay_uses_active_quarterly_es_contract_with_roll_logic(self) -> None:
+    def test_sp500_overlay_selects_freshest_quote_instead_of_forcing_active_yahoo(self) -> None:
         source = COMPACT_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("ES_REFRESH_MS = 15_000", source)
-        self.assertIn("activeEsContractSymbol", source)
+        self.assertIn("activeEsContract", source)
         self.assertIn("thirdFridayUtc", source)
         self.assertIn("8 * 24 * 60 * 60 * 1000", source)
-        self.assertIn("ES${code}${String(year).slice(-2)}.CME", source)
-        self.assertIn("query1.finance.yahoo.com/v8/finance/chart", source)
-        self.assertIn("['codetabs', 'allorigins']", source)
-        self.assertIn("ES_USABLE_MAX_AGE_MS = 30 * 60_000", source)
+        self.assertIn("eSignal", source)
+        self.assertIn("fetchEsignalEs", source)
+        self.assertIn("fetchYahooEsSymbol(contract.yahoo)", source)
+        self.assertIn("fetchYahooEsSymbol('ES=F')", source)
+        self.assertIn("fetchBackendEs()", source)
+        self.assertIn("newestQuote(...quotes)", source)
+        self.assertIn("ES_USABLE_MAX_AGE_MS = 45 * 60_000", source)
         self.assertIn("ES_DISPLAY_DELAY_MS = 5 * 60_000", source)
-        self.assertIn("lastEsQuote", source)
-        self.assertIn("active-${quote.symbol}", source)
+        self.assertIn("if (existingAt > quoteAt) return", source)
+        self.assertNotIn("force = false", source)
+        self.assertNotIn("true);\n    } catch (error)", source)
 
-    def test_server_snapshot_prefers_active_quarterly_es_before_continuous_fallback(self) -> None:
+    def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")
+        self.assertIn("active_es_contract", source)
         self.assertIn("active_es_yahoo_symbol", source)
-        self.assertIn("third_friday", source)
-        self.assertIn("timedelta(days=8)", source)
-        self.assertIn('f"ES{code}{str(year)[-2:]}.CME"', source)
-        self.assertIn("timedelta(minutes=30)", source)
+        self.assertIn("esignal_quote", source)
+        self.assertIn("eSignal delayed", source)
         self.assertIn("lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol())", source)
         self.assertIn("lambda: yahoo_quote(instrument_id)", source)
-        self.assertIn("active ES contract", source)
+        self.assertIn("lambda: stooq_quote(instrument_id)", source)
+        self.assertIn("candidates.sort", source)
+        self.assertIn("reverse=True", source)
+        self.assertNotIn("candidate_is_active_es", source)
+        self.assertNotIn("return active_quote, errors", source)
 
 
 if __name__ == "__main__":
