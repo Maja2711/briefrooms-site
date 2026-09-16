@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/autonomous_policy_closed_loop.py
           python -m json.tool data/investments/autonomous_policy_closed_loop_config.json >/dev/null
-      - name: Run closed-loop and existing promotion safety tests
+      - name: Run closed-loop, rollback regression and existing promotion safety tests
         run: |
           set -euo pipefail
           python -m unittest \
