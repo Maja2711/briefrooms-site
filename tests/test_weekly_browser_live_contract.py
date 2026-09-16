@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "scripts" / "render_weekly_public_pages.py"
 LIVE_SCRIPT = ROOT / "scripts" / "investments-weekly-browser-live.js"
+COMPACT_SCRIPT = ROOT / "scripts" / "investments-weekly-price-compact.js"
 PAGES = [
     ROOT / "pl" / "inwestycje" / "pozycje-tygodniowe.html",
     ROOT / "pl" / "inwestycje" / "prognozy-tygodniowe.html",
@@ -15,6 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-6"
+COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-1"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -22,14 +24,16 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         subprocess.run([sys.executable, str(GENERATOR)], cwd=ROOT, check=True)
 
-    def test_one_authoritative_price_runtime_is_rendered_on_every_weekly_page(self) -> None:
+    def test_authoritative_price_runtime_and_compact_presenter_are_rendered(self) -> None:
         for path in PAGES:
             html = path.read_text(encoding="utf-8")
             self.assertEqual(html.count(SCRIPT_REF), 1)
+            self.assertEqual(html.count(COMPACT_REF), 1)
             self.assertNotIn("investments-weekly-sp500-minute-live.js", html)
             self.assertNotIn("investments-weekly-es-delayed.js", html)
             self.assertLess(html.index("investments-weekly-public.js"), html.index("investments-weekly-browser-live.js"))
-            self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-trade-times.js"))
+            self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-price-compact.js"))
+            self.assertLess(html.index("investments-weekly-price-compact.js"), html.index("investments-weekly-trade-times.js"))
 
     def test_runtime_keeps_last_known_price_instead_of_emitting_stale_state(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
@@ -59,6 +63,18 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("backendFresh", source)
         self.assertIn("br:weekly-rendered", source)
         self.assertIn("cache: 'no-store'", source)
+
+    def test_compact_presenter_reuses_daily_eurusd_source_and_short_metadata(self) -> None:
+        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
+        self.assertIn("REFRESH_MS = 60_000", source)
+        self.assertIn("LIVE_MAX_AGE_MS = 5 * 60_000", source)
+        self.assertIn("data.updatedAt ? new Date(data.updatedAt) : new Date()", source)
+        self.assertIn("replace(',', ' ·')", source)
+        self.assertIn("opóźniony", source)
+        self.assertNotIn("ostatni kurs", source)
+        self.assertNotIn("backend BriefRooms", source)
+        self.assertNotIn("STALE", source)
 
 
 if __name__ == "__main__":
