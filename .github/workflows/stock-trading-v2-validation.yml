@@ -9,6 +9,9 @@ on:
       - ".github/workflows/stock-trading-v2-validation.yml"
       - "scripts/stock_trading_v2_contracts.py"
       - "scripts/stock_trading_v2_experience_store.py"
+      - "scripts/stock_trading_v2_admission_ledger.py"
+      - "scripts/stock_trading_v2_outcome_replay.py"
+      - "scripts/stock_trading_v2_regret_engine.py"
       - "scripts/stock_trading_v2_universe.py"
       - "scripts/stock_trading_v2_gpw_universe.py"
       - "scripts/stock_trading_v2_gpw_universe_provider.py"
@@ -17,6 +20,9 @@ on:
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
       - "tests/test_stock_trading_v2_experience_store.py"
+      - "tests/test_stock_trading_v2_admission_ledger.py"
+      - "tests/test_stock_trading_v2_outcome_replay.py"
+      - "tests/test_stock_trading_v2_regret_engine.py"
       - "tests/test_stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
@@ -26,7 +32,11 @@ on:
       - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/stock_trading_v2_learning_config.json"
       - "data/investments/stock_trading_v2_experience/**"
+      - "data/investments/stock_trading_v2_admission/**"
+      - "data/investments/stock_trading_v2_outcomes/**"
+      - "data/investments/stock_trading_v2_learning/**"
       - "data/investments/stock_trading_v2_universe/**"
       - "data/investments/stock_trading_v2_frontier/**"
 
@@ -55,6 +65,9 @@ jobs:
           python -m py_compile \
             scripts/stock_trading_v2_contracts.py \
             scripts/stock_trading_v2_experience_store.py \
+            scripts/stock_trading_v2_admission_ledger.py \
+            scripts/stock_trading_v2_outcome_replay.py \
+            scripts/stock_trading_v2_regret_engine.py \
             scripts/stock_trading_v2_universe.py \
             scripts/stock_trading_v2_gpw_universe.py \
             scripts/stock_trading_v2_gpw_universe_provider.py \
@@ -63,6 +76,9 @@ jobs:
             scripts/stock_trading_v2_us_screener_provider.py \
             scripts/stock_trading_v2_discovery.py \
             tests/test_stock_trading_v2_experience_store.py \
+            tests/test_stock_trading_v2_admission_ledger.py \
+            tests/test_stock_trading_v2_outcome_replay.py \
+            tests/test_stock_trading_v2_regret_engine.py \
             tests/test_stock_trading_v2_universe.py \
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
@@ -75,19 +91,26 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
 
       - name: Run v2 unit tests
         run: |
           python -m unittest \
             tests.test_stock_trading_v2_experience_store \
+            tests.test_stock_trading_v2_admission_ledger \
+            tests.test_stock_trading_v2_outcome_replay \
+            tests.test_stock_trading_v2_regret_engine \
             tests.test_stock_trading_v2_universe \
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
             tests.test_stock_trading_v2_us_screener_provider \
             tests.test_stock_trading_v2_discovery -v
 
-      - name: Verify experience store contract
-        run: python scripts/stock_trading_v2_experience_store.py --verify
+      - name: Verify immutable learning ledgers
+        run: |
+          python scripts/stock_trading_v2_experience_store.py --verify
+          python scripts/stock_trading_v2_admission_ledger.py --verify
+          python scripts/stock_trading_v2_outcome_replay.py --verify
 
       - name: Smoke-test live dynamic universes and US broad prefilter
         continue-on-error: true
