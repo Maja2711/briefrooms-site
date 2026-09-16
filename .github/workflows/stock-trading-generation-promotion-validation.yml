@@ -1,0 +1,67 @@
+name: Stock Trading Generation Promotion Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/stock-trading-v2-generation-promotion
+    paths:
+      - "scripts/stock_trading_generation_promotion.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+      - "tests/test_stock_trading_generation_promotion.py"
+      - ".github/workflows/stock-trading-generation-promotion-validation.yml"
+  pull_request:
+    paths:
+      - "scripts/stock_trading_generation_promotion.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+      - "tests/test_stock_trading_generation_promotion.py"
+      - ".github/workflows/stock-trading-generation-promotion-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/scripts
+    steps:
+      - name: Check out tested ref
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile generation bridge
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_generation_promotion.py \
+            scripts/stock_trading_generation_router.py \
+            scripts/stock_trading_portfolio.py \
+            scripts/stock_trading_v2_opportunity_engine.py \
+            scripts/stock_trading_v2_outcome_replay.py
+          python -m json.tool data/investments/stock_trading_generation_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_state.json >/dev/null
+
+      - name: Run generation promotion and regression tests
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_stock_trading_generation_promotion \
+            tests.test_stock_trading_portfolio \
+            tests.test_stock_trading_v2_opportunity_engine \
+            tests.test_stock_trading_v2_outcome_replay -v
+
+      - name: Verify bootstrap generation state and V2 definition
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_generation_promotion.py --mode verify
+          python scripts/stock_trading_generation_router.py --mode status --market all
