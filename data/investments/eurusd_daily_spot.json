@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-16T18:44:57Z",
+  "timestamp": "2026-09-16T18:51:57Z",
   "direction": "SHORT",
   "score": 30.84,
   "confidence": 0.383,
@@ -23,9 +23,9 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.5735,
-      "broad_usd_environment": -0.3869,
-      "us_rates_pressure_proxy": 0.1461
+      "trend": -0.6037,
+      "broad_usd_environment": -0.4153,
+      "us_rates_pressure_proxy": 0.0566
     },
     "weights": {
       "trend": 0.547312,
@@ -34,12 +34,14 @@
     },
     "candidate": {
       "direction": "SHORT",
-      "score": 30.84,
-      "confidence": 0.383,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 31.42,
-      "stretch_atr": 5.2174,
+      "score": 28.76,
+      "confidence": 0.425,
+      "accepted": false,
+      "gate_reasons": [
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 29.46,
+      "stretch_atr": 5.8379,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -127,34 +129,15 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": true,
+      "evaluated": false,
       "blocked": false,
-      "reason": "no_recent_meaningful_same_direction_loss",
-      "current_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "NATIVE",
-        "source_family": "NATIVE_COMPONENTS",
-        "direction": "SHORT",
-        "score": 30.84,
-        "directional_strength": 19.16,
-        "confidence": 0.383,
-        "components": {
-          "trend": -0.5735,
-          "broad_usd_environment": -0.3869,
-          "us_rates_pressure_proxy": 0.1461
-        },
-        "weights": {
-          "trend": 0.547312,
-          "broad_usd_environment": 0.25417,
-          "us_rates_pressure_proxy": 0.198517
-        }
-      }
+      "reason": "entry_disabled_this_cycle"
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-16T18:44:57Z",
+      "observed_at": "2026-09-16T18:51:57Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -181,9 +164,8 @@
         "note": "No direct EUR OIS feed is configured in v1.7."
       },
       "veto_threshold": 0.35,
-      "gate_evaluated": true,
-      "gate_blocked": false,
-      "gate_reason": "ecb_policy_aligned_or_neutral"
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_this_cycle"
     },
     "central_bank_policy": {
       "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
@@ -310,10 +292,9 @@
         ]
       },
       "status": "ACTIVE",
-      "age_minutes": 14.77,
-      "gate_evaluated": true,
-      "gate_blocked": false,
-      "gate_reason": "event_intelligence_aligned_neutral_or_below_threshold"
+      "age_minutes": 21.77,
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_or_no_directional_candidate"
     },
     "event_intelligence_policy": {
       "profile_version": "engine-weighting-v2",
@@ -373,17 +354,19 @@
           "us_rates_pressure_proxy": 0.198517
         }
       },
-      "mark_price": 1.14903,
-      "unrealized_percent": 8e-05
+      "mark_price": 1.1485,
+      "unrealized_percent": 0.04605
     },
     "candidate_at_refresh": {
       "direction": "SHORT",
-      "score": 30.84,
-      "confidence": 0.383,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 31.42,
-      "stretch_atr": 5.2174,
+      "score": 28.76,
+      "confidence": 0.425,
+      "accepted": false,
+      "gate_reasons": [
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 29.46,
+      "stretch_atr": 5.8379,
       "shock_ratio": 0.0
     },
     "open_position_policy_check": {
