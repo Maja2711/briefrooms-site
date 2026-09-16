@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260915-3"
-SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-3"
+SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-4"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -41,22 +41,28 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("br:weekly-rendered", source)
         self.assertIn("cache: 'no-store'", source)
 
-    def test_minute_fallback_covers_eurusd_and_sp500_with_dst_safe_timestamp(self) -> None:
+    def test_minute_overlay_uses_same_origin_backend_and_external_fallbacks(self) -> None:
         source = SP500_MINUTE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("/data/investments/live_prices.json", source)
+        self.assertIn("BriefRooms backend", source)
         self.assertIn("symbol: 'eurusd'", source)
         self.assertIn("Stooq EUR/USD", source)
         self.assertIn("symbol: 'es.f'", source)
         self.assertIn("Stooq ES.F", source)
+        self.assertIn("symbol: 'BTC-USD'", source)
+        self.assertIn("Coinbase BTC-USD", source)
+        self.assertIn("CoinGecko BTC/USD", source)
         self.assertIn("POLL_MS = 30_000", source)
-        self.assertIn("MAX_AGE_MS = 5 * 60_000", source)
+        self.assertIn("BACKEND_MAX_AGE_MS = 10 * 60_000", source)
+        self.assertIn("EXTERNAL_MAX_AGE_MS = 5 * 60_000", source)
         self.assertIn("WARSAW_TZ = 'Europe/Warsaw'", source)
         self.assertIn("warsawLocalToUtc", source)
         self.assertNotIn("T${clock}+01:00", source)
         self.assertIn("['direct', 'codetabs', 'allorigins']", source)
         self.assertIn("MutationObserver", source)
-        self.assertIn("· LIVE ·", source)
-        self.assertIn("nowBox.dataset.feedStatus === 'live'", source)
-        self.assertIn("nowBox.dataset.feedStatus === 'fallback'", source)
+        self.assertIn("· LIVE${fallbackLabel} ·", source)
+        self.assertIn("currentStatus === 'live' || currentStatus === 'fallback'", source)
+        self.assertIn("Same-origin JSON is the primary path", source)
 
 
 if __name__ == "__main__":

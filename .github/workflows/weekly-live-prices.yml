@@ -1,0 +1,112 @@
+name: Update Weekly Live Prices
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update_weekly_live_prices_fast.py"
+      - ".github/workflows/weekly-live-prices.yml"
+  schedule:
+    # Dedicated fast path for Weekly Trading current-price marks.
+    # Offset it from the slower Investment Room quote workflow.
+    - cron: "1,6,11,16,21,26,31,36,41,46,51,56 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-live-prices
+  # Never create a five-minute cancellation loop. One run may finish and the
+  # newest pending run will follow if GitHub Actions was temporarily delayed.
+  cancel-in-progress: false
+
+jobs:
+  update-weekly-live-prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check out latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Refresh Weekly live prices
+        run: python scripts/update_weekly_live_prices_fast.py
+
+      - name: Validate Weekly live-price snapshot
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("data/investments/live_prices.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          expected = {"eurusd", "sp500_futures", "btcusd"}
+          prices = data.get("prices") or {}
+          missing = sorted(expected - set(prices))
+          if missing:
+              raise SystemExit(f"Missing instruments: {', '.join(missing)}")
+
+          valid = []
+          fresh = []
+          for key in sorted(expected):
+              rec = prices.get(key) or {}
+              try:
+                  price = float(rec.get("price"))
+              except (TypeError, ValueError):
+                  price = 0.0
+              if price <= 0:
+                  continue
+              raw = rec.get("current_price_updated_at") or rec.get("timestamp")
+              try:
+                  stamp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+              except Exception:
+                  continue
+              if stamp.tzinfo is None:
+                  continue
+              age = (datetime.now(timezone.utc) - stamp.astimezone(timezone.utc)).total_seconds()
+              if age < -60:
+                  continue
+              valid.append(key)
+              if rec.get("fresh") is True:
+                  fresh.append(key)
+
+          if set(valid) != expected:
+              raise SystemExit(f"Invalid Weekly live prices: valid={valid}")
+          if not fresh:
+              raise SystemExit("No fresh Weekly quote was obtained; BTC should normally keep this path live")
+          print(f"Weekly live-price snapshot OK; fresh={','.join(fresh)}")
+          PY
+
+      - name: Commit Weekly live prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json
+          if git diff --cached --quiet; then
+            echo "No Weekly live-price changes"
+            exit 0
+          fi
+          git commit -m "Update Weekly live prices"
+
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            echo "Push failed (${attempt}/5); retrying..."
+            sleep $((attempt * 2))
+          done
+
+          echo "Unable to push Weekly live prices after 5 attempts" >&2
+          exit 1
