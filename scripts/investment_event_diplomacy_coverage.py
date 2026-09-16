@@ -15,7 +15,7 @@ COVERAGE_VERSION = "diplomacy-coverage-v1"
 
 DIPLOMACY_QUERIES = (
     '(Iran OR Israel OR Hormuz OR "Red Sea") ("foreign minister" OR "top diplomat" OR minister OR government) (talks OR negotiations OR dialogue OR consultations OR diplomacy) when:1d',
-    '(Iran OR "United States" OR US OR USA) ("revive talks" OR "resume talks" OR "return to talks" OR "restart talks" OR "reopen dialogue" OR negotiations OR consultations) when:1d',
+    '(Iran OR "United States" OR "U.S." OR Washington) ("revive talks" OR "resume talks" OR "return to talks" OR "restart talks" OR "reopen dialogue" OR negotiations OR consultations) when:1d',
     '(Russia OR Ukraine OR China OR Taiwan) ("foreign minister" OR "top diplomat" OR government) (talks OR negotiations OR dialogue OR consultations OR diplomacy) when:1d',
 )
 
