@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate Event Intelligence contracts
+      - name: Validate Event Intelligence contracts and Daily EURUSD regressions
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
@@ -71,7 +71,14 @@ jobs:
             tests.test_investment_event_intelligence \
             tests.test_investment_event_quality \
             tests.test_investment_event_engine_profiles \
-            tests.test_daily_eurusd_event_overlay -v
+            tests.test_daily_eurusd_event_overlay \
+            tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_direct_signal \
+            tests.test_daily_eurusd_a_fallback \
+            tests.test_daily_eurusd_dynamic_exit \
+            tests.test_daily_eurusd_learning_exploration \
+            tests.test_daily_eurusd_post_trade_intelligence \
+            tests.test_daily_eurusd_ecb_policy -v
 
   weekly-overlay:
     if: github.event_name != 'pull_request'
