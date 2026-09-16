@@ -98,9 +98,9 @@
   function historyRows(trades) {
     if (!trades.length) return `<p class="brfx-muted">${esc(T.noHistory)}</p>`;
     return `<div class="brfx-history-wrap"><table class="brfx-history"><thead><tr>
-      <th>${esc(T.opened)}</th><th>Side</th><th>${esc(T.entry)}</th><th>${esc(T.exit)}</th><th>${esc(T.result)}</th><th>${esc(T.r)}</th><th>Status</th>
+      <th>${esc(T.opened)}</th><th>${esc(T.closed)}</th><th>Side</th><th>${esc(T.entry)}</th><th>${esc(T.exit)}</th><th>${esc(T.result)}</th><th>${esc(T.r)}</th><th>Status</th>
     </tr></thead><tbody>${[...trades].reverse().slice(0, 10).map(trade => `<tr>
-      <td>${esc(date(trade.opened_at))}</td><td><b>${esc(trade.direction || "—")}</b></td><td>${esc(px(trade.entry))}</td><td>${esc(px(trade.exit_price))}</td>
+      <td>${esc(date(trade.opened_at))}</td><td>${esc(date(trade.closed_at))}</td><td><b>${esc(trade.direction || "—")}</b></td><td>${esc(px(trade.entry))}</td><td>${esc(px(trade.exit_price))}</td>
       <td class="${Number(trade.result_percent) >= 0 ? "positive" : "negative"}"><b>${esc(pct(trade.result_percent))}</b></td>
       <td>${esc(num(trade.r_multiple, 2))}R</td><td>${esc(statusLabel(trade.exit_reason === "STOP_LOSS" ? "CLOSED_SL" : trade.exit_reason === "TAKE_PROFIT" ? "CLOSED_TP" : "CLOSED_TIME"))}</td>
     </tr>`).join("")}</tbody></table></div>`;
