@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-6"
-COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-1"
+COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-2"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -67,14 +67,26 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
     def test_compact_presenter_reuses_daily_eurusd_source_and_short_metadata(self) -> None:
         source = COMPACT_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
-        self.assertIn("REFRESH_MS = 60_000", source)
-        self.assertIn("LIVE_MAX_AGE_MS = 5 * 60_000", source)
+        self.assertIn("EUR_REFRESH_MS = 60_000", source)
+        self.assertIn("EUR_LIVE_MAX_AGE_MS = 5 * 60_000", source)
         self.assertIn("data.updatedAt ? new Date(data.updatedAt) : new Date()", source)
         self.assertIn("replace(',', ' ·')", source)
         self.assertIn("opóźniony", source)
         self.assertNotIn("ostatni kurs", source)
         self.assertNotIn("backend BriefRooms", source)
         self.assertNotIn("STALE", source)
+
+    def test_sp500_overlay_uses_active_quarterly_es_contract_with_roll_logic(self) -> None:
+        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("ES_REFRESH_MS = 15_000", source)
+        self.assertIn("activeEsContractSymbol", source)
+        self.assertIn("thirdFridayUtc", source)
+        self.assertIn("8 * 24 * 60 * 60 * 1000", source)
+        self.assertIn("ES${code}${String(year).slice(-2)}.CME", source)
+        self.assertIn("query1.finance.yahoo.com/v8/finance/chart", source)
+        self.assertIn("['codetabs', 'allorigins']", source)
+        self.assertIn("ES_USABLE_MAX_AGE_MS = 30 * 60_000", source)
+        self.assertIn("ES_DISPLAY_DELAY_MS = 5 * 60_000", source)
 
 
 if __name__ == "__main__":
