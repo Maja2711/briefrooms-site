@@ -9,6 +9,7 @@
   const ES_USABLE_MAX_AGE_MS = 30 * 60_000;
   const ES_DISPLAY_DELAY_MS = 5 * 60_000;
   const REQUEST_TIMEOUT_MS = 8_000;
+  let lastEsQuote = null;
 
   const number = (value) => {
     const parsed = Number(value);
@@ -137,19 +138,13 @@
     const local = warsawYmd();
     const quarters = [3, 6, 9, 12];
     let year = local.year;
-    let month = quarters.find((candidate) => local.month <= candidate);
-    if (!month) {
-      year += 1;
-      month = 3;
-    }
-
+    let month = quarters.find((candidate) => local.month <= candidate) || 3;
     if (local.month === month) {
       const today = new Date(Date.UTC(local.year, local.month - 1, local.day));
       const expiry = thirdFridayUtc(year, month);
       const rollStart = new Date(expiry.valueOf() - 8 * 24 * 60 * 60 * 1000);
       if (today >= rollStart) ({ year, month } = nextQuarter(year, month));
     }
-
     const code = { 3: 'H', 6: 'M', 9: 'U', 12: 'Z' }[month];
     return `ES${code}${String(year).slice(-2)}.CME`;
   }
@@ -191,7 +186,7 @@
     throw lastError || new Error('es_unavailable');
   }
 
-  function setQuote(label, quote, digits, delayThresholdMs, source) {
+  function setQuote(label, quote, digits, delayThresholdMs, source, force = false) {
     const card = cardByLabel(label);
     const nowBox = card?.querySelector('.now');
     const priceNode = nowBox?.querySelector('strong');
@@ -200,19 +195,23 @@
 
     const existingAt = new Date(nowBox.dataset.liveAt || 0).valueOf() || 0;
     const quoteAt = new Date(quote.updatedAt).valueOf() || 0;
-    if (existingAt > quoteAt) return;
+    if (!force && existingAt > quoteAt) return;
 
     const ageMs = Math.max(0, Date.now() - quoteAt);
     const minutes = Math.round(ageMs / 60_000);
     const delayed = ageMs > delayThresholdMs;
-    priceNode.textContent = fmtPrice(quote.price, digits);
-    timeNode.textContent = delayed
+    const nextPrice = fmtPrice(quote.price, digits);
+    const nextTime = delayed
       ? `${fmtStamp(quote.updatedAt)} · ${isEn ? 'delayed' : 'opóźniony'} ${minutes} min`
       : fmtStamp(quote.updatedAt);
+    const nextStatus = delayed ? 'delayed' : 'live';
+
+    if (priceNode.textContent !== nextPrice) priceNode.textContent = nextPrice;
+    if (timeNode.textContent !== nextTime) timeNode.textContent = nextTime;
     timeNode.style.color = delayed ? '#ffb86b' : '#72f0c1';
-    nowBox.dataset.feedStatus = delayed ? 'delayed' : 'live';
-    nowBox.dataset.liveAt = quote.updatedAt;
-    nowBox.dataset.liveSource = source;
+    if (nowBox.dataset.feedStatus !== nextStatus) nowBox.dataset.feedStatus = nextStatus;
+    if (nowBox.dataset.liveAt !== quote.updatedAt) nowBox.dataset.liveAt = quote.updatedAt;
+    if (nowBox.dataset.liveSource !== source) nowBox.dataset.liveSource = source;
   }
 
   async function refreshEurUsd() {
@@ -228,7 +227,8 @@
   async function refreshEs() {
     try {
       const quote = await fetchActiveEs();
-      setQuote('S&P 500 FUTURES', quote, 2, ES_DISPLAY_DELAY_MS, `active-${quote.symbol}`);
+      lastEsQuote = quote;
+      setQuote('S&P 500 FUTURES', quote, 2, ES_DISPLAY_DELAY_MS, `active-${quote.symbol}`, true);
     } catch (error) {
       console.warn('BriefRooms Weekly active ES futures feed fallback:', error?.message || error);
       compactAll();
@@ -239,7 +239,12 @@
   const observer = new MutationObserver(() => {
     if (compacting) return;
     compacting = true;
-    try { compactAll(); } finally { compacting = false; }
+    try {
+      compactAll();
+      if (lastEsQuote) setQuote('S&P 500 FUTURES', lastEsQuote, 2, ES_DISPLAY_DELAY_MS, `active-${lastEsQuote.symbol}`, true);
+    } finally {
+      compacting = false;
+    }
   });
 
   const app = document.getElementById('app');
