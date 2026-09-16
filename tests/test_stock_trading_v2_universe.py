@@ -57,8 +57,8 @@ class StockTradingV2UniverseTests(unittest.TestCase):
         self.assertEqual(stats["accepted"], 2)
         self.assertEqual(stats["excluded_etf"], 1)
         self.assertEqual(stats["excluded_test"], 1)
-        self.assertEqual(stats["excluded_symbol"], 1)  # preferred symbol with $
-        self.assertEqual(stats["excluded_security_type"], 2)  # unit + note
+        self.assertEqual(stats["excluded_symbol"], 1)
+        self.assertEqual(stats["excluded_security_type"], 2)
 
     def test_combined_snapshot_is_hashed_deduplicated_and_shadow_only(self):
         snapshot = universe.build_us_snapshot(
@@ -68,8 +68,45 @@ class StockTradingV2UniverseTests(unittest.TestCase):
         )
         universe.validate_snapshot(snapshot)
         self.assertEqual(snapshot["instrument_count"], 5)
+        self.assertEqual(snapshot["schema_version"], "stock-trading-v2-universe-snapshot-v2")
+        self.assertTrue(snapshot["semantic_sha256"])
+        self.assertTrue(snapshot["snapshot_sha256"])
         self.assertFalse(snapshot["governance"]["production_decision_influence"])
         self.assertTrue(all(not row["eligibility"]["production_admission"] for row in snapshot["instruments"]))
+
+    def test_semantic_hash_ignores_refresh_time_but_full_hash_does_not(self):
+        first = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE, generated_at="2026-09-16T16:00:00Z")
+        later = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE, generated_at="2026-09-17T16:00:00Z")
+        self.assertEqual(first["semantic_sha256"], later["semantic_sha256"])
+        self.assertNotEqual(first["snapshot_sha256"], later["snapshot_sha256"])
+
+    def test_timestamp_only_refresh_does_not_rewrite_snapshot(self):
+        first = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE, generated_at="2026-09-16T16:00:00Z")
+        later = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE, generated_at="2026-09-17T16:00:00Z")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = universe.write_snapshot(first, root=root)
+            original = path.read_text(encoding="utf-8")
+            universe.write_snapshot(later, root=root)
+            persisted = path.read_text(encoding="utf-8")
+            self.assertEqual(original, persisted)
+            saved = json.loads(persisted)
+            self.assertEqual(saved["generated_at"], "2026-09-16T16:00:00Z")
+
+    def test_real_semantic_change_rewrites_snapshot(self):
+        first = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE, generated_at="2026-09-16T16:00:00Z")
+        changed_text = NASDAQ_SAMPLE.replace(
+            "File Creation Time: 0916202617:15|||||||",
+            "NEWC|New Company Inc. - Common Stock|Q|N|N|100|N|N\nFile Creation Time: 0916202617:15|||||||",
+        )
+        changed = universe.build_us_snapshot(changed_text, OTHER_SAMPLE, generated_at="2026-09-17T16:00:00Z")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = universe.write_snapshot(first, root=root)
+            universe.write_snapshot(changed, root=root)
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["instrument_count"], 6)
+            self.assertEqual(saved["semantic_sha256"], changed["semantic_sha256"])
 
     def test_snapshot_tamper_is_detected(self):
         snapshot = universe.build_us_snapshot(NASDAQ_SAMPLE, OTHER_SAMPLE)
@@ -86,6 +123,7 @@ class StockTradingV2UniverseTests(unittest.TestCase):
             result = universe.verify_root(root)
             self.assertTrue(result["ok"])
             self.assertEqual(result["markets"]["US"]["instrument_count"], 5)
+            self.assertEqual(result["markets"]["US"]["semantic_sha256"], snapshot["semantic_sha256"])
 
     def test_gpw_seed_is_explicitly_non_dynamic_and_non_production(self):
         snapshot = universe.build_legacy_gpw_seed_snapshot(generated_at="2026-09-16T16:00:00Z")
