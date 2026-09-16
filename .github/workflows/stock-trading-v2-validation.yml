@@ -36,6 +36,7 @@ on:
       - "tests/test_stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
+      - "tests/test_stock_trading_v2_live_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
       - "tests/test_stock_trading_v2_discovery.py"
       - "tests/test_stock_trading_v2_deep_evidence.py"
@@ -110,6 +111,7 @@ jobs:
             tests/test_stock_trading_v2_universe.py \
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
+            tests/test_stock_trading_v2_live_scan.py \
             tests/test_stock_trading_v2_us_screener_provider.py \
             tests/test_stock_trading_v2_discovery.py \
             tests/test_stock_trading_v2_deep_evidence.py \
@@ -138,6 +140,7 @@ jobs:
             tests.test_stock_trading_v2_universe \
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
+            tests.test_stock_trading_v2_live_scan \
             tests.test_stock_trading_v2_us_screener_provider \
             tests.test_stock_trading_v2_discovery \
             tests.test_stock_trading_v2_deep_evidence \
@@ -152,7 +155,7 @@ jobs:
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
-      - name: Smoke-test live dynamic universes and US broad prefilter
+      - name: Smoke-test live dynamic universes and resilient US broad prefilter
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -177,5 +180,7 @@ jobs:
               raise SystemExit(f'Fast scan shortlist outside expected bounds: {scan.get("shortlist_size")}')
           if scan.get('governance',{}).get('production_decision_influence') is not False:
               raise SystemExit('Fast scanner escaped shadow governance')
-          print('LIVE_V2_DISCOVERY_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'], 'shortlist', scan['shortlist_size'])
+          if scan.get('source',{}).get('degraded') and scan.get('source',{}).get('live_liquidity_claim') is not False:
+              raise SystemExit('Degraded fallback made an invalid live-liquidity claim')
+          print('LIVE_V2_DISCOVERY_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'], 'shortlist', scan['shortlist_size'], 'source', scan.get('source',{}).get('mode'))
           PY
