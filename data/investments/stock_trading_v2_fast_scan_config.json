@@ -1,6 +1,6 @@
 {
   "schema_version": "stock-trading-v2-fast-scan-config-v1",
-  "version": "2.0.0-phase1c",
+  "version": "2.0.0-phase1c-resilient",
   "market": "US",
   "mode": "shadow_no_production_influence",
   "objective": "preserve_broad_opportunity_coverage_before_expensive_analysis",
@@ -26,6 +26,15 @@
     "midcap_market_cap_min_usd": 100000000,
     "midcap_market_cap_max_usd": 15000000000
   },
+  "provider_fallback": {
+    "enabled": true,
+    "mode": "rotating_audited_universe_shard",
+    "candidates_per_cycle": 180,
+    "rotation_period_minutes": 60,
+    "stage_zero_score": 50.0,
+    "purpose": "continue_price_history_discovery_when_live_screener_is_temporarily_unavailable",
+    "live_liquidity_claim_allowed": false
+  },
   "next_stage": {
     "requires_price_history": true,
     "requires_median_turnover": true,
@@ -38,6 +47,8 @@
     "automatic_portfolio_admission": false,
     "no_market_cap_large_cap_only_filter": true,
     "midcap_lane_required": true,
-    "no_forced_trade": true
+    "no_forced_trade": true,
+    "provider_fallback_must_be_explicitly_degraded": true,
+    "fallback_cannot_claim_live_liquidity": true
   }
 }
