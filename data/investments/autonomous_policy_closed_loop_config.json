@@ -1,0 +1,23 @@
+{
+  "schema_version": "briefrooms-autonomous-policy-closed-loop-config-v1",
+  "closed_loop_enabled": true,
+  "automatic_materialization_enabled": true,
+  "automatic_rollback_enabled": true,
+  "manual_approval_required": false,
+  "require_pr35_pass": true,
+  "require_pr36_pass": true,
+  "require_disjoint_validation_samples": true,
+  "require_hash_committed_validation_epochs": true,
+  "required_research_methodology_version": 2,
+  "maximum_promotions_per_engine_per_run": 1,
+  "code_mutation_allowed": false,
+  "arbitrary_parameter_mutation_allowed": false,
+  "hard_safety_gate_mutation_allowed": false,
+  "trade_execution_allowed": false,
+  "notes": {
+    "authority_boundary": "PR35 and PR36 remain research-only and frozen. This separate actuator may materialize only a candidate that has already passed both formal prospective gates.",
+    "scope": "Only the explicitly allowlisted GPW/US Daily score threshold may be changed autonomously. Hard safety gates, code, sizing and arbitrary config keys are outside authority.",
+    "rollback": "The promoted policy is monitored on subsequent resolved production outcomes. Existing conservative rollback thresholds restore the immutable parent policy automatically and block the failed transition.",
+    "durability": "Production state is committed atomically with allowlisted config changes so the next run can reconcile research state even if a private Actions artifact is lost."
+  }
+}
