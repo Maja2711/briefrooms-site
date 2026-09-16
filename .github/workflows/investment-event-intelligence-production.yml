@@ -7,20 +7,30 @@ on:
     paths:
       - "scripts/investment_event_intelligence.py"
       - "scripts/investment_event_quality.py"
+      - "scripts/investment_event_engine_profiles.py"
       - "scripts/investment_event_weekly_bridge.py"
       - "scripts/investment_event_stock_bridge.py"
+      - "scripts/daily_eurusd_event_overlay.py"
+      - "scripts/daily_eurusd_spot_v17.py"
       - "tests/test_investment_event_intelligence.py"
       - "tests/test_investment_event_quality.py"
+      - "tests/test_investment_event_engine_profiles.py"
+      - "tests/test_daily_eurusd_event_overlay.py"
       - ".github/workflows/investment-event-intelligence-production.yml"
   push:
     branches: [main]
     paths:
       - "scripts/investment_event_intelligence.py"
       - "scripts/investment_event_quality.py"
+      - "scripts/investment_event_engine_profiles.py"
       - "scripts/investment_event_weekly_bridge.py"
       - "scripts/investment_event_stock_bridge.py"
+      - "scripts/daily_eurusd_event_overlay.py"
+      - "scripts/daily_eurusd_spot_v17.py"
       - "tests/test_investment_event_intelligence.py"
       - "tests/test_investment_event_quality.py"
+      - "tests/test_investment_event_engine_profiles.py"
+      - "tests/test_daily_eurusd_event_overlay.py"
       - ".github/workflows/investment-event-intelligence-production.yml"
   schedule:
     - cron: "6,21,36,51 * * * *"
@@ -52,9 +62,16 @@ jobs:
           python -m py_compile \
             scripts/investment_event_intelligence.py \
             scripts/investment_event_quality.py \
+            scripts/investment_event_engine_profiles.py \
             scripts/investment_event_weekly_bridge.py \
-            scripts/investment_event_stock_bridge.py
-          python -m unittest tests.test_investment_event_intelligence tests.test_investment_event_quality -v
+            scripts/investment_event_stock_bridge.py \
+            scripts/daily_eurusd_event_overlay.py \
+            scripts/daily_eurusd_spot_v17.py
+          python -m unittest \
+            tests.test_investment_event_intelligence \
+            tests.test_investment_event_quality \
+            tests.test_investment_event_engine_profiles \
+            tests.test_daily_eurusd_event_overlay -v
 
   weekly-overlay:
     if: github.event_name != 'pull_request'
