@@ -15,6 +15,7 @@ on:
       - "scripts/stock_trading_v2_discovery.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
       - "scripts/stock_trading_v2_opportunity_engine.py"
+      - "scripts/stock_trading_v2_opportunity_experience.py"
       - "data/investments/stock_trading_v2_discovery_config.json"
       - "data/investments/stock_trading_v2_evidence_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
@@ -90,18 +91,22 @@ jobs:
             scripts/stock_trading_v2_discovery.py \
             scripts/stock_trading_v2_deep_evidence.py \
             scripts/stock_trading_v2_opportunity_engine.py \
+            scripts/stock_trading_v2_opportunity_experience.py \
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py
 
-      - name: Read current canonical portfolio from main without merging main
+      - name: Read current canonical portfolio and policy from main without merging main
         run: |
           set -euo pipefail
           git fetch origin main
-          rm -f /tmp/stock-trading-v2-production-portfolio.json
+          rm -f /tmp/stock-trading-v2-production-portfolio.json /tmp/stock-trading-v2-production-policy.json
           if git cat-file -e "origin/main:data/investments/stock_trading_portfolio.json" 2>/dev/null; then
             git show "origin/main:data/investments/stock_trading_portfolio.json" > /tmp/stock-trading-v2-production-portfolio.json
           else
             printf '{"markets":{"GPW":{"open_positions":[]},"US":{"open_positions":[]}}}\n' > /tmp/stock-trading-v2-production-portfolio.json
+          fi
+          if git cat-file -e "origin/main:data/investments/stock_trading_policy.json" 2>/dev/null; then
+            git show "origin/main:data/investments/stock_trading_policy.json" > /tmp/stock-trading-v2-production-policy.json
           fi
 
       - name: US broad stage-zero Opportunity Frontier Deep Evidence and portfolio comparison
@@ -125,6 +130,10 @@ jobs:
             --evidence data/investments/stock_trading_v2_evidence/us.json \
             --portfolio /tmp/stock-trading-v2-production-portfolio.json \
             --output data/investments/stock_trading_v2_opportunity/us.json
+          python scripts/stock_trading_v2_opportunity_experience.py \
+            --market US \
+            --opportunity data/investments/stock_trading_v2_opportunity/us.json \
+            --evidence data/investments/stock_trading_v2_evidence/us.json
 
       - name: GPW broad Opportunity Frontier Deep Evidence and portfolio comparison
         if: steps.market_window.outputs.gpw == 'true'
@@ -142,8 +151,21 @@ jobs:
             --evidence data/investments/stock_trading_v2_evidence/gpw.json \
             --portfolio /tmp/stock-trading-v2-production-portfolio.json \
             --output data/investments/stock_trading_v2_opportunity/gpw.json
+          python scripts/stock_trading_v2_opportunity_experience.py \
+            --market GPW \
+            --opportunity data/investments/stock_trading_v2_opportunity/gpw.json \
+            --evidence data/investments/stock_trading_v2_evidence/gpw.json
 
-      - name: Validate generated frontiers evidence and opportunity decisions
+      - name: Freeze current Champion admission for newly observed opportunities
+        run: |
+          set -euo pipefail
+          if [[ -f /tmp/stock-trading-v2-production-policy.json ]]; then
+            python scripts/stock_trading_v2_admission_ledger.py --policy /tmp/stock-trading-v2-production-policy.json
+          else
+            python scripts/stock_trading_v2_admission_ledger.py
+          fi
+
+      - name: Validate generated frontiers evidence opportunity decisions and immutable stores
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -174,6 +196,8 @@ jobs:
                   assert opportunity['governance']['execution_ready'] is False
               print('V2_OPPORTUNITY_LOOP_OK', market.upper(), frontier['frontier_size'], frontier['generated_at'])
           PY
+          python scripts/stock_trading_v2_experience_store.py --verify
+          python scripts/stock_trading_v2_admission_ledger.py --verify
 
       - name: Commit materialized shadow opportunity loop
         run: |
@@ -184,6 +208,8 @@ jobs:
             data/investments/stock_trading_v2_frontier \
             data/investments/stock_trading_v2_evidence \
             data/investments/stock_trading_v2_opportunity \
+            data/investments/stock_trading_v2_experience \
+            data/investments/stock_trading_v2_admission \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No shadow opportunity changes to commit."
