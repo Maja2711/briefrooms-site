@@ -10,6 +10,8 @@ Principles:
 - Daily Trading is event-sensitive but slightly less reactive than Weekly.
 - Stock Trading is fundamentals-dominant for generic macro/geopolitical news.
 - Direct sector/company/fundamental events can escalate Stock Trading sensitivity.
+- Directional position decisions are symmetric: positive impact can hurt shorts just
+  as negative impact can hurt longs.
 """
 from __future__ import annotations
 
@@ -53,8 +55,6 @@ ENGINE_PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 
-# Stock Trading overrides. Generic geopolitics stays deliberately small; a direct
-# event is allowed to become material when it changes the economics of the company.
 STOCK_SCOPE_WEIGHTS = {
     "macro_geopolitical": 0.30,
     "sector_direct": 0.60,
@@ -129,7 +129,6 @@ def _target_name(target: Mapping[str, Any]) -> str:
 def _company_phrases(target: Mapping[str, Any]) -> list[str]:
     phrases: list[str] = []
     symbol = str(target.get("symbol") or "").strip()
-    # Short plain tickers such as CAT are ordinary words and too collision-prone.
     if len(symbol) >= 4:
         phrases.append(symbol)
     name = _target_name(target)
@@ -182,6 +181,34 @@ def event_weight(engine_profile: str, scope: str) -> float:
     if key == STOCK_TRADING:
         return float(STOCK_SCOPE_WEIGHTS.get(scope, cfg["base_weight"]))
     return float(cfg["base_weight"])
+
+
+def _adverse_impact(impact: float, direction: str) -> float:
+    side = str(direction or "").upper()
+    if side in {"SHORT", "SELL"}:
+        return -float(impact)
+    return float(impact)
+
+
+def directional_decision(score: Mapping[str, Any], direction: str) -> str:
+    """Translate signed asset impact into risk for a held LONG/SHORT direction."""
+    limits = score.get("thresholds_applied") or thresholds(str(score.get("engine_profile") or WEEKLY))
+    confidence = float(score.get("confidence") or 0.0)
+    adverse = _adverse_impact(float(score.get("normalized_impact") or 0.0), direction)
+    if adverse <= float(limits["close"]) and confidence >= float(limits["minimum_close_confidence"]):
+        return "CLOSE"
+    if adverse <= float(limits["reduce_risk"]):
+        return "REDUCE_RISK"
+    if adverse >= 0.35:
+        return "SUPPORTIVE"
+    return "HOLD"
+
+
+def entry_blocked_for_direction(score: Mapping[str, Any], direction: str) -> bool:
+    limits = score.get("thresholds_applied") or thresholds(str(score.get("engine_profile") or WEEKLY))
+    confidence = float(score.get("confidence") or 0.0)
+    adverse = _adverse_impact(float(score.get("normalized_impact") or 0.0), direction)
+    return adverse <= float(limits["entry_block"]) and confidence >= float(limits["minimum_entry_confidence"])
 
 
 def score_target(
