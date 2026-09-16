@@ -2,7 +2,9 @@
   'use strict';
 
   const POLL_MS = 30_000;
-  const MAX_AGE_MS = 5 * 60_000;
+  const BACKEND_LIVE_AGE_MS = 6 * 60_000;
+  const BACKEND_MAX_AGE_MS = 10 * 60_000;
+  const EXTERNAL_MAX_AGE_MS = 5 * 60_000;
   const REQUEST_TIMEOUT_MS = 7_000;
   const WARSAW_TZ = 'Europe/Warsaw';
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
@@ -20,6 +22,13 @@
       source: 'Stooq ES.F',
       minPrice: 500,
       maxPrice: 100_000,
+      digits: 2,
+    },
+    btcusd: {
+      symbol: 'BTC-USD',
+      source: 'Coinbase BTC-USD',
+      minPrice: 1_000,
+      maxPrice: 2_000_000,
       digits: 2,
     },
   };
@@ -55,6 +64,105 @@
       minute: '2-digit',
       second: '2-digit',
     });
+  }
+
+  function quoteAgeMs(quote) {
+    const stamp = new Date(quote?.updatedAt);
+    if (!quote || positive(quote.price) === null || Number.isNaN(stamp.valueOf())) return Number.POSITIVE_INFINITY;
+    return Date.now() - stamp.valueOf();
+  }
+
+  function quoteFresh(quote, maxAgeMs = BACKEND_MAX_AGE_MS) {
+    const age = quoteAgeMs(quote);
+    return age >= -60_000 && age <= maxAgeMs;
+  }
+
+  function validQuote(instrumentId, quote, sourceName) {
+    const cfg = FEEDS[instrumentId];
+    const price = positive(quote?.price);
+    const stamp = new Date(quote?.updatedAt);
+    if (!cfg || price === null || price < cfg.minPrice || price > cfg.maxPrice) {
+      throw new Error(`${instrumentId}_invalid_price`);
+    }
+    if (Number.isNaN(stamp.valueOf())) throw new Error(`${instrumentId}_invalid_timestamp`);
+    return {
+      price,
+      updatedAt: stamp.toISOString(),
+      source: quote?.source || sourceName,
+      mode: quote?.mode || 'live',
+    };
+  }
+
+  function newestQuote(current, candidate) {
+    if (!candidate) return current || null;
+    if (!current) return candidate;
+    const currentTime = new Date(current.updatedAt).valueOf() || 0;
+    const candidateTime = new Date(candidate.updatedAt).valueOf() || 0;
+    return candidateTime > currentTime ? candidate : current;
+  }
+
+  function storeQuote(instrumentId, quote) {
+    const previous = quotes.get(instrumentId) || null;
+    quotes.set(instrumentId, newestQuote(previous, quote));
+  }
+
+  async function fetchJson(url) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const separator = url.includes('?') ? '&' : '?';
+      const response = await fetch(`${url}${separator}_=${Date.now()}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return response.json();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  async function fetchText(url) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const separator = url.includes('?') ? '&' : '?';
+      const response = await fetch(`${url}${separator}_=${Date.now()}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return response.text();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  async function refreshBackend() {
+    try {
+      const data = await fetchJson('/data/investments/live_prices.json');
+      const prices = data?.prices || {};
+      Object.keys(FEEDS).forEach((instrumentId) => {
+        const record = prices[instrumentId];
+        if (!record) return;
+        try {
+          const quote = validQuote(instrumentId, {
+            price: record.price,
+            updatedAt: record.current_price_updated_at || record.timestamp,
+            source: `BriefRooms backend · ${record.source || 'live_prices.json'}`,
+          }, 'BriefRooms backend');
+          const age = quoteAgeMs(quote);
+          if (age < -60_000 || age > BACKEND_MAX_AGE_MS) return;
+          quote.mode = age <= BACKEND_LIVE_AGE_MS && record.fresh !== false ? 'live' : 'fallback';
+          storeQuote(instrumentId, quote);
+          applyQuote(instrumentId);
+        } catch (error) {
+          console.warn(`BriefRooms Weekly ${instrumentId} backend snapshot rejected:`, error?.message || error);
+        }
+      });
+    } catch (error) {
+      console.warn('BriefRooms Weekly same-origin live_prices.json failed:', error?.message || error);
+    }
   }
 
   function timeZoneOffsetMs(date, timeZone) {
@@ -99,31 +207,6 @@
     return instant;
   }
 
-  function quoteFresh(quote) {
-    if (!quote || positive(quote.price) === null) return false;
-    const stamp = new Date(quote.updatedAt);
-    if (Number.isNaN(stamp.valueOf())) return false;
-    const age = Date.now() - stamp.valueOf();
-    return age >= -60_000 && age <= MAX_AGE_MS;
-  }
-
-  async function fetchText(url) {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const separator = url.includes('?') ? '&' : '?';
-      const response = await fetch(`${url}${separator}_=${Date.now()}`, {
-        cache: 'no-store',
-        mode: 'cors',
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error(`http_${response.status}`);
-      return response.text();
-    } finally {
-      window.clearTimeout(timer);
-    }
-  }
-
   function parseStooqCsv(text, instrumentId) {
     const cfg = FEEDS[instrumentId];
     if (!cfg) throw new Error('stooq_unknown_instrument');
@@ -141,12 +224,12 @@
     }
     const clock = time.length === 5 ? `${time}:00` : time;
     const stamp = warsawLocalToUtc(date, clock);
-    if (Number.isNaN(stamp.valueOf())) throw new Error('stooq_invalid_timestamp');
-    return {
+    return validQuote(instrumentId, {
       price,
       updatedAt: stamp.toISOString(),
       source: cfg.source,
-    };
+      mode: 'live',
+    }, cfg.source);
   }
 
   async function fetchStooq(instrumentId, route) {
@@ -159,6 +242,30 @@
       url = `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`;
     }
     return parseStooqCsv(await fetchText(url), instrumentId);
+  }
+
+  async function fetchCoinbase() {
+    const data = await fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/ticker');
+    if (!data?.time) throw new Error('coinbase_timestamp_missing');
+    return validQuote('btcusd', {
+      price: data.price,
+      updatedAt: data.time,
+      source: 'Coinbase BTC-USD',
+      mode: 'live',
+    }, 'Coinbase BTC-USD');
+  }
+
+  async function fetchCoinGecko() {
+    const data = await fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_last_updated_at=true');
+    const row = data?.bitcoin;
+    const stamp = Number(row?.last_updated_at);
+    if (!Number.isFinite(stamp)) throw new Error('coingecko_timestamp_missing');
+    return validQuote('btcusd', {
+      price: row.usd,
+      updatedAt: new Date(stamp * 1000).toISOString(),
+      source: 'CoinGecko BTC/USD',
+      mode: 'fallback',
+    }, 'CoinGecko BTC/USD');
   }
 
   function selectedTarget(instrumentId) {
@@ -207,7 +314,7 @@
   function applyQuote(instrumentId) {
     if (patching.has(instrumentId)) return;
     const quote = quotes.get(instrumentId);
-    if (!quoteFresh(quote)) return;
+    if (!quoteFresh(quote, BACKEND_MAX_AGE_MS)) return;
     const target = selectedTarget(instrumentId);
     if (!target) return;
     const cards = document.querySelectorAll('#app .cards > .card');
@@ -217,14 +324,18 @@
     const timeNode = nowBox?.querySelector('small');
     if (!card || !nowBox || !priceNode || !timeNode) return;
 
-    if (nowBox.dataset.feedStatus === 'live' || nowBox.dataset.feedStatus === 'fallback') return;
+    const currentAt = new Date(nowBox.dataset.liveAt || 0).valueOf() || 0;
+    const quoteAt = new Date(quote.updatedAt).valueOf() || 0;
+    const currentStatus = nowBox.dataset.feedStatus;
+    if ((currentStatus === 'live' || currentStatus === 'fallback') && currentAt >= quoteAt) return;
 
     patching.add(instrumentId);
     try {
       priceNode.textContent = fmtPrice(quote.price, instrumentId);
-      timeNode.textContent = `${isEn ? 'As of' : 'Stan na'}: ${fmtTime(quote.updatedAt)} · LIVE · ${quote.source}`;
-      timeNode.style.color = '#72f0c1';
-      nowBox.dataset.feedStatus = 'live';
+      const fallbackLabel = quote.mode === 'fallback' ? ' · FALLBACK' : '';
+      timeNode.textContent = `${isEn ? 'As of' : 'Stan na'}: ${fmtTime(quote.updatedAt)} · LIVE${fallbackLabel} · ${quote.source}`;
+      timeNode.style.color = quote.mode === 'fallback' ? '#9fe8ff' : '#72f0c1';
+      nowBox.dataset.feedStatus = quote.mode === 'fallback' ? 'fallback' : 'live';
       nowBox.dataset.liveSource = quote.source;
       nowBox.dataset.liveAt = quote.updatedAt;
       patchResult(target.item, card, quote.price);
@@ -248,12 +359,29 @@
     });
   }
 
-  async function refreshInstrument(instrumentId) {
+  async function refreshExternal(instrumentId) {
+    if (instrumentId === 'btcusd') {
+      for (const provider of [fetchCoinbase, fetchCoinGecko]) {
+        try {
+          const quote = await provider();
+          if (quoteFresh(quote, EXTERNAL_MAX_AGE_MS)) {
+            storeQuote(instrumentId, quote);
+            applyQuote(instrumentId);
+            return true;
+          }
+        } catch (error) {
+          console.warn(`BriefRooms Weekly BTC fallback failed:`, error?.message || error);
+        }
+      }
+      return false;
+    }
+
     for (const route of ['direct', 'codetabs', 'allorigins']) {
       try {
         const quote = await fetchStooq(instrumentId, route);
-        if (quoteFresh(quote)) {
-          quotes.set(instrumentId, quote);
+        if (quoteFresh(quote, EXTERNAL_MAX_AGE_MS)) {
+          quote.mode = route === 'direct' ? 'live' : 'fallback';
+          storeQuote(instrumentId, quote);
           applyQuote(instrumentId);
           return true;
         }
@@ -268,7 +396,10 @@
     if (document.hidden || inFlight) return;
     inFlight = true;
     try {
-      await Promise.allSettled(Object.keys(FEEDS).map((instrumentId) => refreshInstrument(instrumentId)));
+      // Same-origin JSON is the primary path: no mobile CORS/proxy dependency.
+      await refreshBackend();
+      await Promise.allSettled(Object.keys(FEEDS).map((instrumentId) => refreshExternal(instrumentId)));
+      Object.keys(FEEDS).forEach((instrumentId) => applyQuote(instrumentId));
     } finally {
       inFlight = false;
     }
