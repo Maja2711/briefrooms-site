@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "scripts" / "render_weekly_public_pages.py"
 LIVE_SCRIPT = ROOT / "scripts" / "investments-weekly-browser-live.js"
 COMPACT_SCRIPT = ROOT / "scripts" / "investments-weekly-price-compact.js"
+FAST_UPDATER = ROOT / "scripts" / "update_weekly_live_prices_fast.py"
 PAGES = [
     ROOT / "pl" / "inwestycje" / "pozycje-tygodniowe.html",
     ROOT / "pl" / "inwestycje" / "prognozy-tygodniowe.html",
@@ -16,7 +17,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-6"
-COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-1"
+COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-2"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -67,14 +68,39 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
     def test_compact_presenter_reuses_daily_eurusd_source_and_short_metadata(self) -> None:
         source = COMPACT_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
-        self.assertIn("REFRESH_MS = 60_000", source)
-        self.assertIn("LIVE_MAX_AGE_MS = 5 * 60_000", source)
+        self.assertIn("EUR_REFRESH_MS = 60_000", source)
+        self.assertIn("EUR_LIVE_MAX_AGE_MS = 5 * 60_000", source)
         self.assertIn("data.updatedAt ? new Date(data.updatedAt) : new Date()", source)
         self.assertIn("replace(',', ' ·')", source)
         self.assertIn("opóźniony", source)
         self.assertNotIn("ostatni kurs", source)
         self.assertNotIn("backend BriefRooms", source)
         self.assertNotIn("STALE", source)
+
+    def test_sp500_overlay_uses_active_quarterly_es_contract_with_roll_logic(self) -> None:
+        source = COMPACT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("ES_REFRESH_MS = 15_000", source)
+        self.assertIn("activeEsContractSymbol", source)
+        self.assertIn("thirdFridayUtc", source)
+        self.assertIn("8 * 24 * 60 * 60 * 1000", source)
+        self.assertIn("ES${code}${String(year).slice(-2)}.CME", source)
+        self.assertIn("query1.finance.yahoo.com/v8/finance/chart", source)
+        self.assertIn("['codetabs', 'allorigins']", source)
+        self.assertIn("ES_USABLE_MAX_AGE_MS = 30 * 60_000", source)
+        self.assertIn("ES_DISPLAY_DELAY_MS = 5 * 60_000", source)
+        self.assertIn("lastEsQuote", source)
+        self.assertIn("active-${quote.symbol}", source)
+
+    def test_server_snapshot_prefers_active_quarterly_es_before_continuous_fallback(self) -> None:
+        source = FAST_UPDATER.read_text(encoding="utf-8")
+        self.assertIn("active_es_yahoo_symbol", source)
+        self.assertIn("third_friday", source)
+        self.assertIn("timedelta(days=8)", source)
+        self.assertIn('f"ES{code}{str(year)[-2:]}.CME"', source)
+        self.assertIn("timedelta(minutes=30)", source)
+        self.assertIn("lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol())", source)
+        self.assertIn("lambda: yahoo_quote(instrument_id)", source)
+        self.assertIn("active ES contract", source)
 
 
 if __name__ == "__main__":

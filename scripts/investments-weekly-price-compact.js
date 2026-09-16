@@ -3,17 +3,22 @@
 
   const isEn = (document.documentElement.lang || 'pl').toLowerCase().startsWith('en');
   const EURUSD_URL = 'https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD';
-  const REFRESH_MS = 60_000;
-  const LIVE_MAX_AGE_MS = 5 * 60_000;
+  const EUR_REFRESH_MS = 60_000;
+  const ES_REFRESH_MS = 15_000;
+  const EUR_LIVE_MAX_AGE_MS = 5 * 60_000;
+  const ES_USABLE_MAX_AGE_MS = 30 * 60_000;
+  const ES_DISPLAY_DELAY_MS = 5 * 60_000;
+  const REQUEST_TIMEOUT_MS = 8_000;
+  let lastEsQuote = null;
 
   const number = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   };
 
-  const fmtPrice = (value) => Number(value).toLocaleString(isEn ? 'en-US' : 'pl-PL', {
-    minimumFractionDigits: 5,
-    maximumFractionDigits: 5,
+  const fmtPrice = (value, digits) => Number(value).toLocaleString(isEn ? 'en-US' : 'pl-PL', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   });
 
   const fmtStamp = (value) => {
@@ -70,17 +75,28 @@
     const sp = cardByLabel('S&P 500 FUTURES')?.querySelector('.now');
     const btc = cardByLabel('BTC/USD')?.querySelector('.now');
     if (eur) cleanMeta(eur, 5 * 60_000);
-    if (sp) cleanMeta(sp, 5 * 60_000);
+    if (sp) cleanMeta(sp, ES_DISPLAY_DELAY_MS);
     if (btc) cleanMeta(btc, 2 * 60_000);
   }
 
+  async function fetchJson(url) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        cache: 'no-store',
+        mode: 'cors',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return response.json();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   async function fetchEurUsdLikeDaily() {
-    const response = await fetch(`${EURUSD_URL}&_=${Date.now()}`, {
-      cache: 'no-store',
-      mode: 'cors',
-    });
-    if (!response.ok) throw new Error(`eurusd_http_${response.status}`);
-    const data = await response.json();
+    const data = await fetchJson(`${EURUSD_URL}&_=${Date.now()}`);
     if (!data || data.success === false) throw new Error('eurusd_api_error');
 
     const price = number(data.rate ?? data.result);
@@ -89,28 +105,132 @@
     const sourceTime = data.updatedAt ? new Date(data.updatedAt) : new Date();
     if (Number.isNaN(sourceTime.valueOf())) throw new Error('eurusd_invalid_timestamp');
     const age = Date.now() - sourceTime.valueOf();
-    if (age < -60_000 || age > LIVE_MAX_AGE_MS) throw new Error('eurusd_stale');
+    if (age < -60_000 || age > EUR_LIVE_MAX_AGE_MS) throw new Error('eurusd_stale');
 
     return { price, updatedAt: sourceTime.toISOString() };
+  }
+
+  function warsawYmd() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Warsaw',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+    return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
+  }
+
+  function thirdFridayUtc(year, month) {
+    const first = new Date(Date.UTC(year, month - 1, 1));
+    const firstFriday = 1 + ((5 - first.getUTCDay() + 7) % 7);
+    return new Date(Date.UTC(year, month - 1, firstFriday + 14));
+  }
+
+  function nextQuarter(year, month) {
+    if (month === 3) return { year, month: 6 };
+    if (month === 6) return { year, month: 9 };
+    if (month === 9) return { year, month: 12 };
+    return { year: year + 1, month: 3 };
+  }
+
+  function activeEsContractSymbol() {
+    const local = warsawYmd();
+    const quarters = [3, 6, 9, 12];
+    let year = local.year;
+    let month = quarters.find((candidate) => local.month <= candidate) || 3;
+    if (local.month === month) {
+      const today = new Date(Date.UTC(local.year, local.month - 1, local.day));
+      const expiry = thirdFridayUtc(year, month);
+      const rollStart = new Date(expiry.valueOf() - 8 * 24 * 60 * 60 * 1000);
+      if (today >= rollStart) ({ year, month } = nextQuarter(year, month));
+    }
+    const code = { 3: 'H', 6: 'M', 9: 'U', 12: 'Z' }[month];
+    return `ES${code}${String(year).slice(-2)}.CME`;
+  }
+
+  async function fetchYahooEs(route) {
+    const symbol = activeEsContractSymbol();
+    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+    const url = route === 'allorigins'
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}&_=${Date.now()}`
+      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}&_=${Date.now()}`;
+    const data = await fetchJson(url);
+    const chart = data?.chart?.result?.[0];
+    if (!chart) throw new Error('es_chart_missing');
+
+    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
+    const closes = chart?.indicators?.quote?.[0]?.close || [];
+    for (let index = Math.min(timestamps.length, closes.length) - 1; index >= 0; index -= 1) {
+      const price = number(closes[index]);
+      const epoch = number(timestamps[index]);
+      if (price === null || epoch === null) continue;
+      if (price < 500 || price > 100_000) continue;
+      const stamp = new Date(epoch * 1000);
+      const age = Date.now() - stamp.valueOf();
+      if (age < -60_000 || age > ES_USABLE_MAX_AGE_MS) throw new Error('es_quote_too_old');
+      return { price, updatedAt: stamp.toISOString(), symbol };
+    }
+    throw new Error('es_quote_missing');
+  }
+
+  async function fetchActiveEs() {
+    let lastError = null;
+    for (const route of ['codetabs', 'allorigins']) {
+      try {
+        return await fetchYahooEs(route);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error('es_unavailable');
+  }
+
+  function setQuote(label, quote, digits, delayThresholdMs, source, force = false) {
+    const card = cardByLabel(label);
+    const nowBox = card?.querySelector('.now');
+    const priceNode = nowBox?.querySelector('strong');
+    const timeNode = nowBox?.querySelector('small');
+    if (!nowBox || !priceNode || !timeNode) return;
+
+    const existingAt = new Date(nowBox.dataset.liveAt || 0).valueOf() || 0;
+    const quoteAt = new Date(quote.updatedAt).valueOf() || 0;
+    if (!force && existingAt > quoteAt) return;
+
+    const ageMs = Math.max(0, Date.now() - quoteAt);
+    const minutes = Math.round(ageMs / 60_000);
+    const delayed = ageMs > delayThresholdMs;
+    const nextPrice = fmtPrice(quote.price, digits);
+    const nextTime = delayed
+      ? `${fmtStamp(quote.updatedAt)} · ${isEn ? 'delayed' : 'opóźniony'} ${minutes} min`
+      : fmtStamp(quote.updatedAt);
+    const nextStatus = delayed ? 'delayed' : 'live';
+
+    if (priceNode.textContent !== nextPrice) priceNode.textContent = nextPrice;
+    if (timeNode.textContent !== nextTime) timeNode.textContent = nextTime;
+    timeNode.style.color = delayed ? '#ffb86b' : '#72f0c1';
+    if (nowBox.dataset.feedStatus !== nextStatus) nowBox.dataset.feedStatus = nextStatus;
+    if (nowBox.dataset.liveAt !== quote.updatedAt) nowBox.dataset.liveAt = quote.updatedAt;
+    if (nowBox.dataset.liveSource !== source) nowBox.dataset.liveSource = source;
   }
 
   async function refreshEurUsd() {
     try {
       const quote = await fetchEurUsdLikeDaily();
-      const card = cardByLabel('EUR/USD');
-      const nowBox = card?.querySelector('.now');
-      const priceNode = nowBox?.querySelector('strong');
-      const timeNode = nowBox?.querySelector('small');
-      if (!nowBox || !priceNode || !timeNode) return;
-
-      priceNode.textContent = fmtPrice(quote.price);
-      timeNode.textContent = fmtStamp(quote.updatedAt);
-      timeNode.style.color = '#72f0c1';
-      nowBox.dataset.feedStatus = 'live';
-      nowBox.dataset.liveAt = quote.updatedAt;
-      nowBox.dataset.liveSource = 'daily-eurusd-direct';
+      setQuote('EUR/USD', quote, 5, EUR_LIVE_MAX_AGE_MS, 'daily-eurusd-direct');
     } catch (error) {
       console.warn('BriefRooms Weekly EUR/USD direct feed fallback:', error?.message || error);
+      compactAll();
+    }
+  }
+
+  async function refreshEs() {
+    try {
+      const quote = await fetchActiveEs();
+      lastEsQuote = quote;
+      setQuote('S&P 500 FUTURES', quote, 2, ES_DISPLAY_DELAY_MS, `active-${quote.symbol}`, true);
+    } catch (error) {
+      console.warn('BriefRooms Weekly active ES futures feed fallback:', error?.message || error);
       compactAll();
     }
   }
@@ -119,28 +239,34 @@
   const observer = new MutationObserver(() => {
     if (compacting) return;
     compacting = true;
-    try { compactAll(); } finally { compacting = false; }
+    try {
+      compactAll();
+      if (lastEsQuote) setQuote('S&P 500 FUTURES', lastEsQuote, 2, ES_DISPLAY_DELAY_MS, `active-${lastEsQuote.symbol}`, true);
+    } finally {
+      compacting = false;
+    }
   });
 
   const app = document.getElementById('app');
   if (app) observer.observe(app, { childList: true, subtree: true, characterData: true, attributes: true });
 
-  document.addEventListener('br:weekly-rendered', () => {
+  function refreshAll() {
     compactAll();
     refreshEurUsd();
-  });
+    refreshEs();
+  }
 
-  window.setTimeout(() => {
-    compactAll();
-    refreshEurUsd();
-  }, 100);
+  document.addEventListener('br:weekly-rendered', refreshAll);
+  window.setTimeout(refreshAll, 100);
 
-  const timer = window.setInterval(refreshEurUsd, REFRESH_MS);
+  const eurTimer = window.setInterval(refreshEurUsd, EUR_REFRESH_MS);
+  const esTimer = window.setInterval(refreshEs, ES_REFRESH_MS);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshEurUsd();
+    if (!document.hidden) refreshAll();
   });
   window.addEventListener('pagehide', () => {
-    window.clearInterval(timer);
+    window.clearInterval(eurTimer);
+    window.clearInterval(esTimer);
     observer.disconnect();
   }, { once: true });
 })();

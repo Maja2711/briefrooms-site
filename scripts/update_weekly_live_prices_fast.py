@@ -31,7 +31,7 @@ class Instrument:
 
 INSTRUMENTS: Dict[str, Instrument] = {
     "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=10)),
-    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=10)),
+    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=30)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
 
@@ -79,6 +79,48 @@ def parse_iso(value: Any) -> Optional[datetime]:
     return parsed.astimezone(WARSAW)
 
 
+def third_friday(year: int, month: int) -> datetime:
+    first = datetime(year, month, 1, tzinfo=WARSAW)
+    days_to_friday = (4 - first.weekday()) % 7
+    return first + timedelta(days=days_to_friday + 14)
+
+
+def next_quarter(year: int, month: int) -> tuple[int, int]:
+    if month == 3:
+        return year, 6
+    if month == 6:
+        return year, 9
+    if month == 9:
+        return year, 12
+    return year + 1, 3
+
+
+def active_es_yahoo_symbol(at: Optional[datetime] = None) -> str:
+    current = (at or now_local()).astimezone(WARSAW)
+    quarters = (3, 6, 9, 12)
+    year = current.year
+    month = next((candidate for candidate in quarters if current.month <= candidate), 3)
+    if current.month > 12:
+        year += 1
+    elif current.month > max(quarters):
+        year += 1
+
+    if current.month > 12:
+        month = 3
+    elif current.month == 12 and month == 3:
+        year += 1
+
+    if current.month == month:
+        expiry = third_friday(year, month)
+        roll_start = expiry - timedelta(days=8)
+        today = datetime(current.year, current.month, current.day, tzinfo=WARSAW)
+        if today >= roll_start:
+            year, month = next_quarter(year, month)
+
+    code = {3: "H", 6: "M", 9: "U", 12: "Z"}[month]
+    return f"ES{code}{str(year)[-2:]}.CME"
+
+
 def valid_quote(instrument_id: str, quote: Dict[str, Any]) -> bool:
     cfg = INSTRUMENTS[instrument_id]
     price = safe_float(quote.get("price"))
@@ -98,9 +140,10 @@ def quote_age(quote: Dict[str, Any]) -> timedelta:
     return now_local() - stamp
 
 
-def yahoo_quote(instrument_id: str) -> Dict[str, Any]:
+def yahoo_quote(instrument_id: str, yahoo_symbol: Optional[str] = None) -> Dict[str, Any]:
     cfg = INSTRUMENTS[instrument_id]
-    symbol = urllib.parse.quote(cfg.yahoo, safe="")
+    raw_symbol = yahoo_symbol or cfg.yahoo
+    symbol = urllib.parse.quote(raw_symbol, safe="")
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1m"
     payload = json.loads(request_bytes(url).decode("utf-8"))
     chart = (payload.get("chart", {}).get("result") or [None])[0]
@@ -121,7 +164,7 @@ def yahoo_quote(instrument_id: str) -> Dict[str, Any]:
         return {
             "price": price,
             "timestamp": stamp.isoformat(timespec="seconds"),
-            "source": f"Yahoo Finance:{cfg.yahoo}:chart:1d:1m",
+            "source": f"Yahoo Finance:{raw_symbol}:chart:1d:1m",
             "note": "",
         }
 
@@ -134,7 +177,7 @@ def yahoo_quote(instrument_id: str) -> Dict[str, Any]:
     return {
         "price": price,
         "timestamp": stamp.isoformat(timespec="seconds"),
-        "source": f"Yahoo Finance:{cfg.yahoo}:regularMarketPrice",
+        "source": f"Yahoo Finance:{raw_symbol}:regularMarketPrice",
         "note": "",
     }
 
@@ -180,6 +223,13 @@ def coinbase_quote() -> Dict[str, Any]:
 
 
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
+    if instrument_id == "sp500_futures":
+        return [
+            lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol()),
+            lambda: yahoo_quote(instrument_id),
+            lambda: stooq_quote(instrument_id),
+        ]
+
     result: list[Callable[[], Dict[str, Any]]] = [lambda: yahoo_quote(instrument_id)]
     if instrument_id == "btcusd":
         result.append(coinbase_quote)
@@ -189,9 +239,21 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 
 
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    candidates: list[Dict[str, Any]] = []
     errors: list[str] = []
-    for provider in providers(instrument_id):
+    configured = providers(instrument_id)
+
+    if instrument_id == "sp500_futures" and configured:
+        try:
+            active_quote = configured[0]()
+            if valid_quote(instrument_id, active_quote) and quote_age(active_quote) <= timedelta(minutes=30):
+                return active_quote, errors
+            errors.append("active ES contract: invalid or older than 30 minutes")
+        except Exception as exc:
+            errors.append(f"active ES contract: {exc}")
+        configured = configured[1:]
+
+    candidates: list[Dict[str, Any]] = []
+    for provider in configured:
         try:
             quote = provider()
             if valid_quote(instrument_id, quote):
@@ -216,7 +278,13 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     if old and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
         new_stamp = parse_iso(candidate.get("timestamp")) if candidate else None
-        if new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
+        old_source = str(old.get("source") or "")
+        candidate_source = str(candidate.get("source") or "") if candidate else ""
+        candidate_is_active_es = instrument_id == "sp500_futures" and ".CME" in candidate_source
+        old_is_active_es = instrument_id == "sp500_futures" and ".CME" in old_source
+        if candidate_is_active_es and not old_is_active_es:
+            chosen = candidate
+        elif new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
             chosen = old
 
     attempt_at = now_local().isoformat(timespec="seconds")
@@ -235,7 +303,9 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     age = now_local() - stamp if stamp else timedelta.max
     fresh = timedelta(seconds=-60) <= age <= cfg.max_age
     note = str(chosen.get("note") or "")
-    if errors and not fresh:
+    if instrument_id == "sp500_futures" and ".CME" in str(chosen.get("source") or ""):
+        note = f"active quarterly ES contract {active_es_yahoo_symbol()}"
+    elif errors and not fresh:
         note = "; ".join(errors[-3:])
     return {
         "price": safe_float(chosen.get("price")),
