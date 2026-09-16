@@ -15,16 +15,20 @@ on:
       - "scripts/stock_trading_v2_fast_scan.py"
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
+      - "scripts/stock_trading_v2_discovery.py"
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
+      - "tests/test_stock_trading_v2_discovery.py"
       - "data/investments/stock_trading_v2_config.json"
       - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
+      - "data/investments/stock_trading_v2_discovery_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_universe/**"
+      - "data/investments/stock_trading_v2_frontier/**"
 
 permissions:
   contents: read
@@ -57,17 +61,20 @@ jobs:
             scripts/stock_trading_v2_fast_scan.py \
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py \
+            scripts/stock_trading_v2_discovery.py \
             tests/test_stock_trading_v2_experience_store.py \
             tests/test_stock_trading_v2_universe.py \
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
-            tests/test_stock_trading_v2_us_screener_provider.py
+            tests/test_stock_trading_v2_us_screener_provider.py \
+            tests/test_stock_trading_v2_discovery.py
 
       - name: Validate configuration JSON
         run: |
           python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
 
       - name: Run v2 unit tests
         run: |
@@ -76,7 +83,8 @@ jobs:
             tests.test_stock_trading_v2_universe \
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
-            tests.test_stock_trading_v2_us_screener_provider -v
+            tests.test_stock_trading_v2_us_screener_provider \
+            tests.test_stock_trading_v2_discovery -v
 
       - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
