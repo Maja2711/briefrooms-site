@@ -682,7 +682,7 @@ def rollback_gate(metrics: Mapping[str, Any], config: Mapping[str, Any]) -> tupl
     rollback = config.get("rollback") or {}
     triggers = {
         "incremental_mean_bad": float(metrics.get("paired_net_incremental_mean_percent") or 0.0) <= float(rollback["maximum_net_incremental_mean_percent"]),
-        "positive_rate_bad": float(metrics.get("paired_net_positive_rate") or 1.0) <= float(rollback["maximum_net_positive_rate"]),
+        "positive_rate_bad": float(metrics.get("paired_net_positive_rate") if metrics.get("paired_net_positive_rate") is not None else 1.0) <= float(rollback["maximum_net_positive_rate"]),
         "bootstrap_upper_below_zero": float(metrics.get("bootstrap_ci_high_percent") or 1.0) < 0.0,
         "span_sufficient": int(metrics.get("span_days") or 0) >= int(rollback["minimum_span_days"]),
     }
