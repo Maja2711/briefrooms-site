@@ -13,6 +13,7 @@ on:
       - "tests/test_stock_trading_v2_experience_store.py"
       - "tests/test_stock_trading_v2_universe.py"
       - "data/investments/stock_trading_v2_config.json"
+      - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_universe/**"
 
@@ -22,7 +23,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -50,14 +51,32 @@ jobs:
           fi
 
       - name: Validate configuration JSON
-        run: python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
+        run: |
+          python -m json.tool data/investments/stock_trading_v2_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
 
       - name: Run v2 unit tests
         run: |
           python -m unittest tests.test_stock_trading_v2_experience_store -v
-          if [[ -f tests/test_stock_trading_v2_universe.py ]]; then
-            python -m unittest tests.test_stock_trading_v2_universe -v
-          fi
+          python -m unittest tests.test_stock_trading_v2_universe -v
 
       - name: Verify experience store contract
         run: python scripts/stock_trading_v2_experience_store.py --verify
+
+      - name: Smoke-test live US universe provider in shadow mode
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_universe.py --market US --root /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_universe.py --market GPW --root /tmp/briefrooms-v2-universe
+          python scripts/stock_trading_v2_universe.py --root /tmp/briefrooms-v2-universe --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          us=json.loads(Path('/tmp/briefrooms-v2-universe/us.json').read_text(encoding='utf-8'))
+          if int(us.get('instrument_count') or 0) <= 50:
+              raise SystemExit(f'Dynamic US universe unexpectedly small: {us.get("instrument_count")}')
+          if us.get('governance',{}).get('production_decision_influence') is not False:
+              raise SystemExit('Dynamic universe escaped shadow governance')
+          print('LIVE_US_UNIVERSE_OK', us['instrument_count'])
+          PY
