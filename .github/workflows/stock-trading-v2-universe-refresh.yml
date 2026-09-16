@@ -1,0 +1,88 @@
+name: Stock Trading v2 Universe Refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 5 * * 1-5"
+  push:
+    branches:
+      - stock-trading-v2
+    paths:
+      - ".github/workflows/stock-trading-v2-universe-refresh.yml"
+      - "scripts/stock_trading_v2_universe.py"
+      - "tests/test_stock_trading_v2_universe.py"
+      - "data/investments/stock_trading_v2_universe_config.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-v2-universe-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out Stock Trading v2
+        uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate universe parser before network refresh
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_stock_trading_v2_universe -v
+          python -m py_compile scripts/stock_trading_v2_universe.py
+          python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
+
+      - name: Refresh broad shadow universes
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_v2_universe.py --market US
+          python scripts/stock_trading_v2_universe.py --market GPW
+          python scripts/stock_trading_v2_universe.py --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          us=json.loads(Path('data/investments/stock_trading_v2_universe/us.json').read_text(encoding='utf-8'))
+          gpw=json.loads(Path('data/investments/stock_trading_v2_universe/gpw.json').read_text(encoding='utf-8'))
+          if int(us.get('instrument_count') or 0) <= 50:
+              raise SystemExit(f'US v2 universe unexpectedly small: {us.get("instrument_count")}')
+          if us.get('governance',{}).get('production_decision_influence') is not False:
+              raise SystemExit('US universe must remain shadow-only')
+          if gpw.get('governance',{}).get('production_decision_influence') is not False:
+              raise SystemExit('GPW universe must remain shadow-only')
+          print('UNIVERSE_OK', 'US', us['instrument_count'], 'GPW', gpw['instrument_count'])
+          PY
+
+      - name: Commit audited universe snapshots
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/stock_trading_v2_universe
+          if git diff --cached --quiet; then
+            echo "No universe snapshot changes."
+            exit 0
+          fi
+          git commit -m "Stock Trading v2: refresh shadow universe snapshots"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin stock-trading-v2 && git push origin HEAD:stock-trading-v2; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin stock-trading-v2
+            git rebase origin/stock-trading-v2
+            sleep $((attempt*3))
+          done
+          exit 1
