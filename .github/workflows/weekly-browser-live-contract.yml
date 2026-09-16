@@ -5,7 +5,7 @@ on:
     paths:
       - "scripts/render_weekly_public_pages.py"
       - "scripts/investments-weekly-browser-live.js"
-      - "scripts/investments-weekly-sp500-minute-live.js"
+      - "scripts/investments-weekly-price-compact.js"
       - "pl/inwestycje/pozycje-tygodniowe.html"
       - "pl/inwestycje/prognozy-tygodniowe.html"
       - "en/investing/open-weekly-positions.html"
@@ -17,7 +17,7 @@ on:
     paths:
       - "scripts/render_weekly_public_pages.py"
       - "scripts/investments-weekly-browser-live.js"
-      - "scripts/investments-weekly-sp500-minute-live.js"
+      - "scripts/investments-weekly-price-compact.js"
       - "pl/inwestycje/pozycje-tygodniowe.html"
       - "pl/inwestycje/prognozy-tygodniowe.html"
       - "en/investing/open-weekly-positions.html"
@@ -51,5 +51,5 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/render_weekly_public_pages.py
           node --check scripts/investments-weekly-browser-live.js
-          node --check scripts/investments-weekly-sp500-minute-live.js
+          node --check scripts/investments-weekly-price-compact.js
           python -m unittest tests.test_weekly_browser_live_contract -v
