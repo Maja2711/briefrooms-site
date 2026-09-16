@@ -4,8 +4,10 @@
 Phase 1B broadens discovery without changing production trading decisions.
 US listings are sourced from Nasdaq Trader's official symbol-directory files;
 GPW remains on the legacy seed until its dynamic source receives the same audit
-and parser coverage.  Universe snapshots are therefore research/shadow inputs,
-not portfolio admission inputs.
+and parser coverage. Universe snapshots are research/shadow inputs only.
+
+Universe persistence is semantic: a refresh with identical instruments and
+metadata does not rewrite a large snapshot merely because wall-clock time moved.
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ import json
 import re
 import tempfile
 import urllib.request
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -30,13 +33,9 @@ CONFIG_PATH = ROOT / "data/investments/stock_trading_v2_universe_config.json"
 SNAPSHOT_ROOT = ROOT / "data/investments/stock_trading_v2_universe"
 US_NASDAQ_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 US_OTHER_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
-SNAPSHOT_SCHEMA = "stock-trading-v2-universe-snapshot-v1"
+SNAPSHOT_SCHEMA = "stock-trading-v2-universe-snapshot-v2"
 INSTRUMENT_SCHEMA = "stock-trading-v2-instrument-v1"
 
-# Obvious non-operating-company instruments.  The broad scanner is deliberately
-# permissive for ADRs/ordinary shares and delegates price/liquidity quality to
-# later gates, but debt, preferreds, rights, warrants, units and funds do not
-# belong in the equity opportunity universe.
 EXCLUDED_NAME_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -98,7 +97,6 @@ def _excluded_name(name: str) -> str | None:
 
 
 def _yahoo_us_symbol(symbol: str) -> str:
-    """Translate common consolidated-tape class punctuation to Yahoo form."""
     value = symbol.strip().upper()
     if "$" in value:
         return value
@@ -176,7 +174,6 @@ def parse_nasdaq_listed(text: str) -> tuple[list[dict[str, Any]], dict[str, int]
         if row.get("ETF", "N") == "Y":
             counters["excluded_etf"] += 1
             continue
-        # Deficient/delinquent/bankrupt listings should not enter discovery.
         if row.get("Financial Status", "N") not in {"", "N"}:
             counters["excluded_financial_status"] += 1
             continue
@@ -266,6 +263,24 @@ def _dedupe(instruments: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return sorted(result.values(), key=lambda item: (str(item["market"]), str(item["listing_symbol"])))
 
 
+def _semantic_snapshot_body(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the universe identity independent of refresh wall-clock time."""
+    body = deepcopy(dict(snapshot))
+    body.pop("generated_at", None)
+    body.pop("semantic_sha256", None)
+    body.pop("snapshot_sha256", None)
+    return body
+
+
+def _finalize_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    snapshot["semantic_sha256"] = contracts.payload_sha256(_semantic_snapshot_body(snapshot))
+    body = deepcopy(snapshot)
+    body.pop("snapshot_sha256", None)
+    snapshot["snapshot_sha256"] = contracts.payload_sha256(body)
+    validate_snapshot(snapshot)
+    return snapshot
+
+
 def build_us_snapshot(
     nasdaq_text: str,
     other_text: str,
@@ -293,10 +308,7 @@ def build_us_snapshot(
             "liquidity_filter_stage": "downstream_fast_scanner",
         },
         "instrument_count": len(instruments),
-        "provider_stats": {
-            "nasdaq": nasdaq_stats,
-            "other": other_stats,
-        },
+        "provider_stats": {"nasdaq": nasdaq_stats, "other": other_stats},
         "instruments": instruments,
         "governance": {
             "production_decision_influence": False,
@@ -305,11 +317,7 @@ def build_us_snapshot(
             "requires_downstream_history_gate": True,
         },
     }
-    semantic = dict(snapshot)
-    semantic.pop("snapshot_sha256", None)
-    snapshot["snapshot_sha256"] = contracts.payload_sha256(semantic)
-    validate_snapshot(snapshot)
-    return snapshot
+    return _finalize_snapshot(snapshot)
 
 
 def build_legacy_gpw_seed_snapshot(*, generated_at: str | None = None) -> dict[str, Any]:
@@ -345,7 +353,7 @@ def build_legacy_gpw_seed_snapshot(*, generated_at: str | None = None) -> dict[s
             }
         )
     instruments = _dedupe(instruments)
-    snapshot = {
+    snapshot: dict[str, Any] = {
         "schema_version": SNAPSHOT_SCHEMA,
         "market": "GPW",
         "generated_at": generated_at or _now_utc(),
@@ -363,9 +371,7 @@ def build_legacy_gpw_seed_snapshot(*, generated_at: str | None = None) -> dict[s
             "dynamic_provider_ready": False,
         },
     }
-    snapshot["snapshot_sha256"] = contracts.payload_sha256(snapshot)
-    validate_snapshot(snapshot)
-    return snapshot
+    return _finalize_snapshot(snapshot)
 
 
 def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
@@ -398,17 +404,31 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
     governance = snapshot.get("governance")
     if not isinstance(governance, Mapping) or governance.get("production_decision_influence") is not False:
         raise contracts.ContractError("universe governance must be shadow-only")
-    body = dict(snapshot)
+
+    semantic_hash = str(snapshot.get("semantic_sha256") or "")
+    if not semantic_hash or semantic_hash != contracts.payload_sha256(_semantic_snapshot_body(snapshot)):
+        raise contracts.ContractError("universe semantic hash mismatch")
+    body = deepcopy(dict(snapshot))
     stored = str(body.pop("snapshot_sha256", ""))
     if not stored or contracts.payload_sha256(body) != stored:
         raise contracts.ContractError("universe snapshot hash mismatch")
 
 
 def write_snapshot(snapshot: Mapping[str, Any], *, root: Path = SNAPSHOT_ROOT) -> Path:
+    """Persist only a semantic universe change, never a timestamp-only refresh."""
     validate_snapshot(snapshot)
     market = str(snapshot["market"]).lower()
     path = root / f"{market}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        try:
+            existing = _read_json(path)
+            validate_snapshot(existing)
+            if existing.get("semantic_sha256") == snapshot.get("semantic_sha256"):
+                return path
+        except (contracts.ContractError, json.JSONDecodeError):
+            # A legacy v1 snapshot is rewritten once into the v2 contract.
+            pass
     content = json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
         handle.write(content)
@@ -421,14 +441,14 @@ def refresh_us(*, root: Path = SNAPSHOT_ROOT) -> dict[str, Any]:
     nasdaq_text = _download_text(US_NASDAQ_URL)
     other_text = _download_text(US_OTHER_URL)
     snapshot = build_us_snapshot(nasdaq_text, other_text)
-    write_snapshot(snapshot, root=root)
-    return snapshot
+    path = write_snapshot(snapshot, root=root)
+    return _read_json(path)
 
 
 def refresh_gpw_seed(*, root: Path = SNAPSHOT_ROOT) -> dict[str, Any]:
     snapshot = build_legacy_gpw_seed_snapshot()
-    write_snapshot(snapshot, root=root)
-    return snapshot
+    path = write_snapshot(snapshot, root=root)
+    return _read_json(path)
 
 
 def verify_root(root: Path = SNAPSHOT_ROOT) -> dict[str, Any]:
@@ -442,6 +462,7 @@ def verify_root(root: Path = SNAPSHOT_ROOT) -> dict[str, Any]:
         result["markets"][market.upper()] = {
             "instrument_count": snapshot["instrument_count"],
             "provider": (snapshot.get("source") or {}).get("provider"),
+            "semantic_sha256": snapshot.get("semantic_sha256"),
         }
     return result
 
@@ -465,6 +486,7 @@ def main() -> int:
                 "market": market,
                 "instrument_count": snapshot["instrument_count"],
                 "provider": snapshot["source"]["provider"],
+                "semantic_sha256": snapshot["semantic_sha256"],
                 "production_decision_influence": False,
             },
             ensure_ascii=False,
