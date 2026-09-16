@@ -1,0 +1,55 @@
+{
+  "schema_version": "stock-trading-v2-evidence-config-v1",
+  "version": "2.0.0-phase2b",
+  "mode": "shadow_no_production_influence",
+  "objective": "authority_weighted_event_evidence_for_opportunity_frontier",
+  "frontier_candidates_to_enrich": 10,
+  "network": {
+    "workers": 4,
+    "timeout_seconds": 15,
+    "attempts": 2,
+    "user_agent": "BriefRooms Stock Trading v2 research contact@briefrooms.com"
+  },
+  "markets": {
+    "US": {
+      "primary_provider": "SEC_EDGAR",
+      "secondary_provider": "GOOGLE_NEWS_RSS",
+      "lookback_hours": 168,
+      "sec_forms": ["8-K", "10-Q", "10-K", "6-K", "20-F", "S-3", "S-4", "424B3", "424B5"],
+      "risk": {
+        "atr_multiple": 1.05,
+        "risk_floor_percent": 0.011,
+        "maximum_risk_percent": 0.07,
+        "research_target_reward_risk": 2.0
+      }
+    },
+    "GPW": {
+      "primary_provider": "ESPI_EBI_PAP",
+      "secondary_provider": "INDEPENDENT_NEWS",
+      "lookback_hours": 120,
+      "risk": {
+        "atr_multiple": 1.10,
+        "risk_floor_percent": 0.012,
+        "maximum_risk_percent": 0.07,
+        "research_target_reward_risk": 2.0
+      }
+    }
+  },
+  "scoring": {
+    "neutral_evidence_quality": 50.0,
+    "maximum_directional_overlay_points": 8.0,
+    "maximum_reaction_overlay_points": 3.0,
+    "degraded_provider_penalty_points": 2.0,
+    "secondary_authority_weight": 0.55,
+    "primary_authority_weight": 1.0
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "no_forced_trade": true,
+    "primary_sources_are_evidence_not_trade_signals": true,
+    "secondary_news_cannot_bypass_hard_gates": true,
+    "research_risk_plan_requires_fresh_execution_recheck": true,
+    "no_llm_required_for_runtime": true
+  }
+}
