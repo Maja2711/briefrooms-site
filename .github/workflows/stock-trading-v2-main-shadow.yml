@@ -1,0 +1,226 @@
+name: Stock Trading v2 Main Shadow Challenger
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to scan (AUTO, GPW, US, BOTH)"
+        required: false
+        default: "AUTO"
+  schedule:
+    - cron: "40 6-22 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-v2-main-shadow.yml"
+      - "scripts/stock_trading_v2_live_scan.py"
+      - "scripts/stock_trading_v2_us_screener_provider.py"
+      - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_deep_evidence.py"
+      - "scripts/stock_trading_v2_opportunity_engine.py"
+      - "scripts/stock_trading_v2_opportunity_experience.py"
+      - "data/investments/stock_trading_v2_fast_scan_config.json"
+      - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/stock_trading_v2_evidence_config.json"
+      - "data/investments/stock_trading_v2_opportunity_config.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-v2-main-shadow
+  cancel-in-progress: true
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Resolve active exchange windows
+        id: market_window
+        env:
+          REQUESTED_MARKET: ${{ github.event.inputs.market || 'AUTO' }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          from datetime import datetime, time, timezone
+          from zoneinfo import ZoneInfo
+
+          requested=os.environ.get('REQUESTED_MARKET','AUTO').upper()
+          now=datetime.now(timezone.utc)
+
+          def active(tz_name, start, end):
+              local=now.astimezone(ZoneInfo(tz_name))
+              return local.weekday() < 5 and start <= local.time().replace(tzinfo=None) <= end
+
+          gpw=active('Europe/Warsaw', time(8,40), time(17,20))
+          us=active('America/New_York', time(9,35), time(16,35))
+          if requested == 'GPW':
+              gpw, us = True, False
+          elif requested == 'US':
+              gpw, us = False, True
+          elif requested == 'BOTH':
+              gpw, us = True, True
+          elif requested != 'AUTO':
+              raise SystemExit(f'Unsupported market input: {requested}')
+          print(f'gpw={str(gpw).lower()}')
+          print(f'us={str(us).lower()}')
+          print(f'now_utc={now.isoformat()}')
+          PY
+
+      - name: Validate zero-authority V2 contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_v2_live_scan.py \
+            scripts/stock_trading_v2_us_screener_provider.py \
+            scripts/stock_trading_v2_discovery.py \
+            scripts/stock_trading_v2_deep_evidence.py \
+            scripts/stock_trading_v2_opportunity_engine.py \
+            scripts/stock_trading_v2_opportunity_experience.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cfg=json.loads(Path('data/investments/stock_trading_v2_config.json').read_text())
+          assert cfg['mode']=='shadow_no_production_influence'
+          assert cfg['portfolio_opportunity']['production_decision_influence'] is False
+          assert cfg['learning']['automatic_policy_writeback'] is False
+          assert cfg['learning']['production_promotion_enabled'] is False
+          print('V2_INTRINSIC_ZERO_AUTHORITY_OK')
+          PY
+
+      - name: Refresh audited universes when stale
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def stale(path, hours=12):
+              try:
+                  p=json.loads(Path(path).read_text())
+                  raw=str(p.get('generated_at') or '').replace('Z','+00:00')
+                  age=(datetime.now(timezone.utc)-datetime.fromisoformat(raw).astimezone(timezone.utc)).total_seconds()/3600
+                  return age > hours
+              except Exception:
+                  return True
+
+          if stale('data/investments/stock_trading_v2_universe/us.json'):
+              subprocess.run(['python','scripts/stock_trading_v2_universe.py','--market','US'], check=True)
+          if stale('data/investments/stock_trading_v2_universe/gpw.json'):
+              subprocess.run(['python','scripts/stock_trading_v2_gpw_universe.py'], check=True)
+          PY
+
+      - name: US broad shadow discovery and opportunity decision
+        if: steps.market_window.outputs.us == 'true'
+        run: |
+          set -euo pipefail
+          rm -f /tmp/stock-trading-v2-us-stage-zero.json
+          python scripts/stock_trading_v2_live_scan.py \
+            --universe data/investments/stock_trading_v2_universe/us.json \
+            --output /tmp/stock-trading-v2-us-stage-zero.json
+          python scripts/stock_trading_v2_discovery.py \
+            --market US \
+            --stage-zero /tmp/stock-trading-v2-us-stage-zero.json \
+            --output data/investments/stock_trading_v2_frontier/us.json
+          python scripts/stock_trading_v2_deep_evidence.py \
+            --market US \
+            --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --output data/investments/stock_trading_v2_evidence/us.json
+          python scripts/stock_trading_v2_opportunity_engine.py \
+            --market US \
+            --evidence data/investments/stock_trading_v2_evidence/us.json \
+            --portfolio data/investments/stock_trading_portfolio.json \
+            --output data/investments/stock_trading_v2_opportunity/us.json
+          python scripts/stock_trading_v2_opportunity_experience.py \
+            --market US \
+            --opportunity data/investments/stock_trading_v2_opportunity/us.json \
+            --evidence data/investments/stock_trading_v2_evidence/us.json
+
+      - name: GPW broad shadow discovery and opportunity decision
+        if: steps.market_window.outputs.gpw == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_v2_discovery.py \
+            --market GPW \
+            --output data/investments/stock_trading_v2_frontier/gpw.json
+          python scripts/stock_trading_v2_deep_evidence.py \
+            --market GPW \
+            --frontier data/investments/stock_trading_v2_frontier/gpw.json \
+            --output data/investments/stock_trading_v2_evidence/gpw.json
+          python scripts/stock_trading_v2_opportunity_engine.py \
+            --market GPW \
+            --evidence data/investments/stock_trading_v2_evidence/gpw.json \
+            --portfolio data/investments/stock_trading_portfolio.json \
+            --output data/investments/stock_trading_v2_opportunity/gpw.json
+          python scripts/stock_trading_v2_opportunity_experience.py \
+            --market GPW \
+            --opportunity data/investments/stock_trading_v2_opportunity/gpw.json \
+            --evidence data/investments/stock_trading_v2_evidence/gpw.json
+
+      - name: Validate main shadow outputs
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.stock_trading_v2_discovery import validate_frontier
+          from scripts.stock_trading_v2_deep_evidence import validate_deep_evidence
+          from scripts.stock_trading_v2_opportunity_engine import validate_opportunity
+
+          for market in ('gpw','us'):
+              f=Path(f'data/investments/stock_trading_v2_frontier/{market}.json')
+              e=Path(f'data/investments/stock_trading_v2_evidence/{market}.json')
+              o=Path(f'data/investments/stock_trading_v2_opportunity/{market}.json')
+              if not (f.exists() and e.exists() and o.exists()):
+                  continue
+              frontier=json.loads(f.read_text()); evidence=json.loads(e.read_text()); opp=json.loads(o.read_text())
+              validate_frontier(frontier); validate_deep_evidence(evidence); validate_opportunity(opp)
+              assert frontier['governance']['production_decision_influence'] is False
+              assert opp['governance']['production_decision_influence'] is False
+              assert opp['governance']['execution_ready'] is False
+              print('MAIN_V2_SHADOW_OK', market.upper(), opp['decision']['action'], opp['generated_at'])
+          PY
+          python scripts/stock_trading_v2_experience_store.py --verify
+
+      - name: Persist only V2 shadow challenger evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/stock_trading_v2_universe \
+            data/investments/stock_trading_v2_frontier \
+            data/investments/stock_trading_v2_evidence \
+            data/investments/stock_trading_v2_opportunity \
+            data/investments/stock_trading_v2_experience \
+            2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No V2 shadow changes to commit."
+            exit 0
+          fi
+          git commit -m "Refresh V2 shadow Challenger on main"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*3))
+          done
+          exit 1
