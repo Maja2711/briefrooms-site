@@ -1,0 +1,124 @@
+name: Stock Trading V1 vs V2 Generation Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to freeze/evaluate (all, GPW, US)"
+        required: false
+        default: all
+        type: choice
+        options: [all, GPW, US]
+  schedule:
+    # After the GPW and US regular sessions. The engine itself verifies local
+    # exchange time and source freshness before freezing prospective evidence.
+    - cron: "25 16 * * 1-5"
+    - cron: "25 21 * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-generation-promotion.yml"
+      - "scripts/stock_trading_generation_promotion.py"
+      - "scripts/stock_trading_generation_router.py"
+      - "data/investments/stock_trading_generation_config.json"
+      - "data/investments/stock_trading_generation_state.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-state-writer
+  cancel-in-progress: false
+
+jobs:
+  generation-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/scripts
+    steps:
+      - name: Check out production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate generation promotion authority
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_generation_promotion.py \
+            scripts/stock_trading_generation_router.py \
+            scripts/stock_trading_v2_outcome_replay.py \
+            scripts/stock_trading_v2_opportunity_engine.py
+          python -m json.tool data/investments/stock_trading_generation_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_generation_state.json >/dev/null
+          python -m unittest tests.test_stock_trading_generation_promotion -v
+
+      - name: Freeze prospective pair settle outcomes and evaluate Champion vs Challenger
+        env:
+          REQUESTED_MARKET: ${{ github.event.inputs.market || 'all' }}
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_generation_promotion.py \
+            --mode run \
+            --market "$REQUESTED_MARKET"
+          python scripts/stock_trading_generation_promotion.py --mode verify
+          python scripts/stock_trading_generation_router.py --mode status --market all
+
+      - name: Assert bounded autonomous generation authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts import stock_trading_generation_promotion as bridge
+
+          cfg=json.loads(Path('data/investments/stock_trading_generation_config.json').read_text())
+          state=json.loads(Path('data/investments/stock_trading_generation_state.json').read_text())
+          bridge.validate_state(state)
+          assert cfg['production']['automatic_promotion_enabled'] is True
+          assert cfg['production']['manual_approval_required'] is False
+          assert cfg['production']['automatic_rollback_enabled'] is True
+          assert cfg['production']['replacement_authority_enabled'] is False
+          assert cfg['production']['shared_canonical_portfolio_risk_kernel'] is True
+          for market,row in state['markets'].items():
+              assert row['active_generation'] in {'v1','v2'}
+              if row['active_generation']=='v2':
+                  assert row['promoted_definition_sha256']==row['v2_definition_sha256']
+                  assert row['holdout']['status']=='PASS'
+                  assert row['primary']['status']=='PASS'
+                  assert set(row['primary']['sample_outcome_sha256']).isdisjoint(row['holdout']['sample_outcome_sha256'])
+          print('GENERATION_AUTHORITY_BOUNDED_OK')
+          PY
+
+      - name: Persist generation evidence and routing authority
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/stock_trading_generation_state.json \
+            data/investments/stock_trading_generation_pairs \
+            data/investments/stock_trading_generation_outcomes \
+            2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No generation evidence/state changes to commit."
+            exit 0
+          fi
+          git commit -m "Update Stock Trading generation Champion-Challenger evidence"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*4))
+          done
+          exit 1
