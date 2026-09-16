@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
 SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260915-3"
-SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-2"
+SP500_MINUTE_REF = "/scripts/investments-weekly-sp500-minute-live.js?v=20260916-3"
 
 
 class WeeklyBrowserLiveContractTests(unittest.TestCase):
@@ -41,12 +41,17 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("br:weekly-rendered", source)
         self.assertIn("cache: 'no-store'", source)
 
-    def test_sp500_minute_fallback_is_independent_and_freshness_bounded(self) -> None:
+    def test_minute_fallback_covers_eurusd_and_sp500_with_dst_safe_timestamp(self) -> None:
         source = SP500_MINUTE_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("stooq.com/q/l/?s=es.f", source)
+        self.assertIn("symbol: 'eurusd'", source)
+        self.assertIn("Stooq EUR/USD", source)
+        self.assertIn("symbol: 'es.f'", source)
         self.assertIn("Stooq ES.F", source)
         self.assertIn("POLL_MS = 30_000", source)
-        self.assertIn("MAX_AGE_MS = 90_000", source)
+        self.assertIn("MAX_AGE_MS = 5 * 60_000", source)
+        self.assertIn("WARSAW_TZ = 'Europe/Warsaw'", source)
+        self.assertIn("warsawLocalToUtc", source)
+        self.assertNotIn("T${clock}+01:00", source)
         self.assertIn("['direct', 'codetabs', 'allorigins']", source)
         self.assertIn("MutationObserver", source)
         self.assertIn("· LIVE ·", source)
