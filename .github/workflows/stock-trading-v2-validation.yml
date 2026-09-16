@@ -12,6 +12,8 @@ on:
       - "scripts/stock_trading_v2_admission_ledger.py"
       - "scripts/stock_trading_v2_outcome_replay.py"
       - "scripts/stock_trading_v2_regret_engine.py"
+      - "scripts/stock_trading_v2_policy_learner.py"
+      - "scripts/stock_trading_v2_challenger_eval.py"
       - "scripts/stock_trading_v2_universe.py"
       - "scripts/stock_trading_v2_gpw_universe.py"
       - "scripts/stock_trading_v2_gpw_universe_provider.py"
@@ -23,6 +25,7 @@ on:
       - "tests/test_stock_trading_v2_admission_ledger.py"
       - "tests/test_stock_trading_v2_outcome_replay.py"
       - "tests/test_stock_trading_v2_regret_engine.py"
+      - "tests/test_stock_trading_v2_policy_learning.py"
       - "tests/test_stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
@@ -37,6 +40,8 @@ on:
       - "data/investments/stock_trading_v2_admission/**"
       - "data/investments/stock_trading_v2_outcomes/**"
       - "data/investments/stock_trading_v2_learning/**"
+      - "data/investments/stock_trading_v2_challengers/**"
+      - "data/investments/stock_trading_v2_challenger_evaluations/**"
       - "data/investments/stock_trading_v2_universe/**"
       - "data/investments/stock_trading_v2_frontier/**"
 
@@ -68,6 +73,8 @@ jobs:
             scripts/stock_trading_v2_admission_ledger.py \
             scripts/stock_trading_v2_outcome_replay.py \
             scripts/stock_trading_v2_regret_engine.py \
+            scripts/stock_trading_v2_policy_learner.py \
+            scripts/stock_trading_v2_challenger_eval.py \
             scripts/stock_trading_v2_universe.py \
             scripts/stock_trading_v2_gpw_universe.py \
             scripts/stock_trading_v2_gpw_universe_provider.py \
@@ -79,6 +86,7 @@ jobs:
             tests/test_stock_trading_v2_admission_ledger.py \
             tests/test_stock_trading_v2_outcome_replay.py \
             tests/test_stock_trading_v2_regret_engine.py \
+            tests/test_stock_trading_v2_policy_learning.py \
             tests/test_stock_trading_v2_universe.py \
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
@@ -100,6 +108,7 @@ jobs:
             tests.test_stock_trading_v2_admission_ledger \
             tests.test_stock_trading_v2_outcome_replay \
             tests.test_stock_trading_v2_regret_engine \
+            tests.test_stock_trading_v2_policy_learning \
             tests.test_stock_trading_v2_universe \
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
@@ -111,6 +120,7 @@ jobs:
           python scripts/stock_trading_v2_experience_store.py --verify
           python scripts/stock_trading_v2_admission_ledger.py --verify
           python scripts/stock_trading_v2_outcome_replay.py --verify
+          python scripts/stock_trading_v2_policy_learner.py --verify
 
       - name: Smoke-test live dynamic universes and US broad prefilter
         continue-on-error: true
