@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from scripts import stock_trading_v2_challenger_factory as factory
+from scripts import stock_trading_v2_contracts as contracts
 from scripts import stock_trading_v2_exact_replay as exact
 
 
@@ -77,6 +78,20 @@ def main() -> int:
         assert row["base_manifest_revision"] == 1
         assert row["base_component_version"] == "v1"
         assert row["deployment_sha256"] == factory.deployment_sha256(row["deployment_spec"])
+
+    long_horizon = _hypothesis()
+    long_horizon["horizon_sessions"] = 20
+    try:
+        factory._entry_threshold_candidates(
+            hypothesis=long_horizon,
+            manifest=_manifest(),
+            gpw_config=_gpw(),
+            policy=_policy(),
+        )
+    except contracts.ContractError:
+        pass
+    else:
+        raise AssertionError("20-session research evidence must not manufacture a Daily Trading deployment")
 
     candidate = rows[1]  # exact threshold 70
 
