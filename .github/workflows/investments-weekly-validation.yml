@@ -1,4 +1,5 @@
 name: Validate Weekly Investment Models
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -12,7 +13,10 @@ on:
       - "scripts/backtest_weekly_execution_parity_v5.py"
       - "scripts/audit_weekly_model.py"
       - "scripts/audit_weekly_model_runtime.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_audit_weekly_integrity.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/investments-weekly-validation.yml"
 
 permissions:
@@ -31,40 +35,39 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+      - name: Start immutable validation clock
+        run: echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
-
       - name: Run full integrity and validation suite
         env:
           FORCE_BACKTEST: "1"
         run: |
-          python -m unittest tests/test_audit_weekly_integrity.py
+          python -m unittest tests/test_audit_weekly_integrity.py tests.test_no_retroactive_execution
           python scripts/audit_weekly_model_runtime.py
           python scripts/backtest_weekly_model_v2.py
           python scripts/backtest_multi_strategy_v4.py
           python scripts/backtest_weekly_execution_parity_v5.py
-
-      - name: Commit validation artifacts
+      - name: Commit validation artifacts through NO RETROACTIVE airlock
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/model_audit.json \
                   data/investments/closed_week_manifest.json \
                   data/investments/model_validation_v2.json \
                   data/investments/weekly_execution_parity_v5.json
-          if git diff --cached --quiet; then
-            echo "No validation change to commit."
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Validate weekly investment models"
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin main
-            if git push; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push; then exit 0; fi
+            fi
             sleep $((attempt * 4))
           done
           exit 1
