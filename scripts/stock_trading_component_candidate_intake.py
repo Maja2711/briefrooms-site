@@ -33,6 +33,10 @@ except ModuleNotFoundError:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 GPW_CONFIG_PATH = ROOT / "data/investments/gpw_daily_pick_config.json"
 POLICY_PATH = ROOT / "data/investments/stock_trading_policy.json"
+# Daily Trading has a 1-2 session mandate. A production mutation is admitted
+# only after the *same exact deployment SHA* has independently passed the fresh
+# holdout on both short horizons. Longer v2 horizons remain research-only.
+REQUIRED_PRODUCTION_HORIZONS = frozenset({1, 2})
 
 
 class IntakeError(RuntimeError):
@@ -182,6 +186,9 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
     policy = _read(policy_path)
     accepted: list[str] = []
     rejected: list[dict[str, str]] = []
+    proposals: dict[str, dict[str, Any]] = {}
+    passed_horizons: dict[str, set[int]] = {}
+    proposal_challengers: dict[str, list[str]] = {}
 
     for evaluation_path in sorted(evaluations.glob("*.json")) if evaluations.exists() else []:
         evaluation = _read(evaluation_path)
@@ -192,6 +199,9 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
         challenger = _read(challenger_path)
         try:
             promotion.validate_research_pair(challenger, evaluation)
+            horizon = int(challenger.get("horizon_sessions") or 0)
+            if horizon not in REQUIRED_PRODUCTION_HORIZONS:
+                raise IntakeError("formal PASS horizon is outside the 1-2 session production mandate")
             candidate = challenger.get("production_candidate")
             evaluated = evaluation.get("evaluated_production_candidate")
             if not isinstance(candidate, Mapping) or not isinstance(evaluated, Mapping):
@@ -217,13 +227,33 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
             if str(candidate.get("base_component_version") or "") != str(manifest["components"][component]["version"]):
                 raise IntakeError("proposal is stale against current component version")
             validate_bounded_deployment(spec, gpw_config=gpw, policy=policy)
-            existing = (approved.get("deployments") or {}).get(deployment_id)
-            if existing is not None and existing != spec:
-                raise IntakeError("deployment_id collision with different production spec")
-            approved.setdefault("deployments", {})[deployment_id] = copy.deepcopy(dict(spec))
-            accepted.append(deployment_id)
+            previous = proposals.get(deployment_id)
+            if previous is not None and previous != dict(spec):
+                raise IntakeError("deployment_id collision with different exact specs across horizons")
+            proposals[deployment_id] = copy.deepcopy(dict(spec))
+            passed_horizons.setdefault(deployment_id, set()).add(horizon)
+            proposal_challengers.setdefault(deployment_id, []).append(challenger_id)
         except (promotion.PromotionError, router.RouterError, IntakeError, KeyError, ValueError, TypeError) as exc:
             rejected.append({"challenger_id": challenger_id, "reason": str(exc)})
+
+    for deployment_id in sorted(proposals):
+        missing = REQUIRED_PRODUCTION_HORIZONS - passed_horizons.get(deployment_id, set())
+        if missing:
+            rejected.append({
+                "challenger_id": ",".join(sorted(proposal_challengers.get(deployment_id) or [])),
+                "reason": "missing exact fresh-holdout PASS for production horizon(s): " + ",".join(str(value) for value in sorted(missing)),
+            })
+            continue
+        spec = proposals[deployment_id]
+        existing = (approved.get("deployments") or {}).get(deployment_id)
+        if existing is not None and existing != spec:
+            rejected.append({
+                "challenger_id": ",".join(sorted(proposal_challengers.get(deployment_id) or [])),
+                "reason": "deployment_id collision with different production spec",
+            })
+            continue
+        approved.setdefault("deployments", {})[deployment_id] = copy.deepcopy(spec)
+        accepted.append(deployment_id)
 
     _atomic(output_path, approved)
     return {"accepted": accepted, "rejected": rejected, "output_registry": str(output_path)}
