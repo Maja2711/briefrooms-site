@@ -1,4 +1,5 @@
 name: Publish PL GPW Stock Candidate
+# NO RETROACTIVE EXECUTION
 # Recovery trigger: governed final selector, policy retry and canonical portfolio admission.
 
 on:
@@ -17,8 +18,11 @@ on:
       - "scripts/daily_stock_core.py"
       - "scripts/gpw_*.py"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_no_retroactive_execution.py"
       - "scripts/gpw-daily-pick-public.js"
       - "scripts/gpw-expected-value-public.js"
       - "scripts/gpw-full-ranking-public.js"
@@ -48,9 +52,6 @@ permissions:
   pages: write
 
 concurrency:
-  # GPW, US and the quote refresher all persist the canonical portfolio JSON.
-  # Serialize those writers so a simultaneous market update cannot create a
-  # rebase conflict and discard an otherwise valid daily decision.
   group: stock-trading-state-writer
   cancel-in-progress: false
 
@@ -77,6 +78,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: pip install requests
@@ -113,7 +119,8 @@ jobs:
             tests.test_gpw_daily_pick_ui \
             tests.test_gpw_mandatory_daily \
             tests.test_gpw_ranking_gates_momentum \
-            tests.test_stock_trading_portfolio -v
+            tests.test_stock_trading_portfolio \
+            tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/gpw_data_gates.py \
@@ -129,7 +136,9 @@ jobs:
             scripts/gpw_pipeline_v2.py \
             scripts/gpw_provider_v2.py \
             scripts/gpw_reviewer_v2.py \
-            scripts/stock_trading_portfolio.py
+            scripts/stock_trading_portfolio.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/gpw_daily_pick_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
           node --check scripts/gpw-daily-pick-public.js
@@ -157,10 +166,6 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/gpw_event_driven_loop.py --mode auto
-          # The primary evidence-rich path remains first. When it misses its
-          # early cutoff or returns no setup, the final selector chooses the
-          # best candidate that still passes freshness, liquidity, execution,
-          # risk and reward/risk hard gates. Its recovery window lasts to 16:30.
           python scripts/gpw_mandatory_daily.py
 
       - name: Enforce final GPW selection contract
@@ -189,8 +194,7 @@ jobs:
 
       - name: Validate only
         if: steps.mode.outputs.value == 'validate'
-        run: |
-          python scripts/stock_trading_portfolio.py --mode verify
+        run: python scripts/stock_trading_portfolio.py --mode verify
 
       - name: Settle legacy GPW daily history only
         if: steps.mode.outputs.value == 'settle'
@@ -208,7 +212,7 @@ jobs:
         if: steps.mode.outputs.value == 'settle'
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Commit GPW candidate and canonical portfolio state
+      - name: Commit GPW candidate and canonical portfolio state through NO RETROACTIVE airlock
         id: commit
         if: steps.mode.outputs.value != 'validate'
         shell: bash
@@ -223,15 +227,20 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Publish GPW Stock Trading candidate state"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt*4))
           done
           exit 1
