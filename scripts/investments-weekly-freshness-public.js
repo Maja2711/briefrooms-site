@@ -46,6 +46,7 @@
   const targetPath = `/data/investments/weekly/${targetWeekId}.json`;
   let syntheticMissingUsed = false;
   let selectingTarget = false;
+  let targetSelectionEnsured = false;
 
   function missingPayload() {
     return {
@@ -106,15 +107,22 @@
 
   document.addEventListener('br:weekly-rendered', (event) => {
     const week = event?.detail || {};
-    if (week.week_id !== targetWeekId && !selectingTarget && typeof window.BR_WEEKLY_SELECT === 'function') {
-      selectingTarget = true;
-      try {
-        window.BR_WEEKLY_SELECT(targetWeekId);
-      } finally {
-        selectingTarget = false;
+
+    // Freshness governance owns only the initial/default week selection. Once
+    // that state is established, the user must be free to browse history.
+    if (!targetSelectionEnsured) {
+      targetSelectionEnsured = true;
+      if (week.week_id !== targetWeekId && !selectingTarget && typeof window.BR_WEEKLY_SELECT === 'function') {
+        selectingTarget = true;
+        try {
+          window.BR_WEEKLY_SELECT(targetWeekId);
+        } finally {
+          selectingTarget = false;
+        }
+        return;
       }
-      return;
     }
+
     if (week.week_id === targetWeekId) decorateMissing(week);
   });
 
