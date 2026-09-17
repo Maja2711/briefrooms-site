@@ -20,6 +20,20 @@ TIER_AUTHORITY_BONUS = {
     "unknown": 0.0,
 }
 
+# Systemically important monetary/financial institutions receive an additional
+# source-level boost. This makes official rate decisions, projections and crisis
+# actions compete at the top of Business/Economy rather than as ordinary stories.
+# It does not bypass editorial filtering or source verification.
+SYSTEMIC_FINANCIAL_SOURCE_BONUS = {
+    "nbp": 320.0,
+    "narodowy bank polski": 320.0,
+    "ecb": 320.0,
+    "european central bank": 320.0,
+    "federal reserve": 360.0,
+    "federal reserve board": 360.0,
+    "fomc": 360.0,
+}
+
 
 @dataclass(frozen=True)
 class SourceProfile:
@@ -30,9 +44,6 @@ class SourceProfile:
     parent: str | None = None
 
 
-# Architecture registry. Reuters/AP/PAP are deliberately modeled even where a
-# stable/licensed direct adapter is not enabled yet. This prevents the ranking
-# layer from being coupled to today's RSS availability.
 _SOURCE_PROFILES: dict[str, SourceProfile] = {}
 
 
@@ -60,7 +71,6 @@ def normalize_source_name(value: Any) -> str:
     return " ".join(str(value or "").strip().lower().replace("/", " ").split())
 
 
-# Tier 0: institutions publishing the underlying decision/data/release.
 _register("NBP", tier="primary", source_type="institution", acquisition="official", aliases=("Narodowy Bank Polski",))
 _register("ECB", tier="primary", source_type="institution", acquisition="official", aliases=("European Central Bank",))
 _register("Federal Reserve", tier="primary", source_type="institution", acquisition="official", aliases=("Federal Reserve Board", "FOMC"))
@@ -73,18 +83,15 @@ _register("NASA", tier="primary", source_type="institution", acquisition="offici
 _register("NASA JPL", tier="primary", source_type="institution", acquisition="official", aliases=("JPL", "Jet Propulsion Laboratory"), parent="NASA")
 _register("ESA", tier="primary", source_type="institution", acquisition="official", aliases=("European Space Agency",))
 
-# Tier 1: news wires / agencies. Direct adapters may require commercial access.
 _register("Reuters", tier="wire", source_type="wire", acquisition="licensed_adapter_preferred", aliases=("Reuters News",))
 _register("Associated Press", tier="wire", source_type="wire", acquisition="licensed_adapter_preferred", aliases=("AP", "AP News"))
 _register("PAP", tier="wire", source_type="wire", acquisition="direct_or_licensed", aliases=("Polska Agencja Prasowa",))
 _register("Nauka w Polsce", tier="wire", source_type="specialist_wire_desk", acquisition="public_rss", parent="PAP")
 
-# Tier 2: premium global desks.
 _register("BBC News", tier="premium", source_type="global_media", acquisition="public_rss", aliases=("BBC", "BBC Business", "BBC Science", "BBC Health", "BBC Sport"))
 _register("Financial Times", tier="premium", source_type="global_media", acquisition="best_effort_public_rss", aliases=("FT", "FT Markets"))
 _register("Bloomberg", tier="premium", source_type="global_media", acquisition="best_effort_public_rss", aliases=("Bloomberg Markets", "Bloomberg Politics"))
 
-# Tier 3: strong specialist / national desks already used by BriefRooms.
 for _name in (
     "Rzeczpospolita",
     "The Guardian",
@@ -96,8 +103,6 @@ for _name in (
 ):
     _register(_name, tier="quality", source_type="editorial_desk", acquisition="public_rss")
 
-# Tier 4: broad-reach desks. Useful for coverage and speed, but they should not
-# dominate a curated nine-card section when higher-authority alternatives exist.
 for _name in (
     "TVN24",
     "Polsat News",
@@ -109,9 +114,6 @@ for _name in (
     _register(_name, tier="broad", source_type="broad_media", acquisition="public_rss")
 
 
-# Verified/best-effort feeds that enrich the existing English desks. Feed failure
-# is non-fatal in the canonical fetcher; these are additional sources, not single
-# points of failure.
 EXTRA_FEEDS: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
     "en": {
         "business": (
@@ -146,7 +148,12 @@ def source_profile(source: Any) -> SourceProfile:
 
 
 def source_authority_bonus(source: Any) -> float:
-    return TIER_AUTHORITY_BONUS[source_profile(source).tier]
+    key = normalize_source_name(source)
+    profile = source_profile(source)
+    systemic = SYSTEMIC_FINANCIAL_SOURCE_BONUS.get(key, 0.0)
+    if not systemic:
+        systemic = SYSTEMIC_FINANCIAL_SOURCE_BONUS.get(normalize_source_name(profile.canonical_name), 0.0)
+    return TIER_AUTHORITY_BONUS[profile.tier] + systemic
 
 
 def source_tier_rank(source: Any) -> int:
@@ -157,13 +164,12 @@ def source_tier_rank(source: Any) -> int:
 
 
 def extend_config(config: Any, lang: str) -> list[Any]:
-    """Add curated reserve feeds without duplicating an existing URL."""
     additions_by_section = EXTRA_FEEDS.get(lang, {})
     extended: list[Any] = []
     for section_id, label, feeds in config:
         merged = list(feeds)
         seen_urls = {url for _, url in merged}
-        for source, url in additions_by_section.get(section_id, ()): 
+        for source, url in additions_by_section.get(section_id, ()):
             if url not in seen_urls:
                 merged.append((source, url))
                 seen_urls.add(url)
@@ -204,6 +210,11 @@ def public_source_policy() -> dict[str, Any]:
         "authority_order": list(TIER_ORDER[:-1]),
         "target_max_cards_per_source": TARGET_MAX_SOURCE_CARDS,
         "emergency_max_cards_per_source": EMERGENCY_MAX_SOURCE_CARDS,
+        "systemic_financial_priority": {
+            "status": "active",
+            "scope": ["NBP", "ECB", "Federal Reserve/FOMC"],
+            "rule": "Official monetary-policy decisions and releases receive systemic source priority but never bypass editorial verification.",
+        },
         "rule": "Authority improves ranking but never bypasses editorial quality filters.",
         "preferred_sources": [
             "primary institutions",
