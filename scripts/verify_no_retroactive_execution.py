@@ -60,6 +60,8 @@ CANONICAL_NAMES = {
     "paper_portfolio.json",
     "execution_results.json",
     "order_queue.json",
+    "eurusd_daily_spot.json",
+    "eurusd_daily_history.json",
 }
 
 
@@ -122,7 +124,6 @@ def _path_is_canonical(path: str, payload: Any) -> bool:
         return True
     if "/weekly/" in normalized and p.name.endswith(".json"):
         return True
-    # BRACE / Portfolio 10K uses data/portfolio10k (without underscore).
     if any(token in normalized for token in ("/portfolio10k/", "portfolio_10k", "portfolio-10k")):
         return True
     if isinstance(payload, dict):
@@ -170,8 +171,6 @@ def _is_execution_event(row: dict[str, Any]) -> bool:
         return True
     if direction in {"long", "short"} and row.get("entry_price") is not None and row.get("exit_price") is None:
         return True
-    # BRACE / portfolio ledgers record fills as transaction rows rather than
-    # position-open objects. Both BUY and SELL execution times must be append-only.
     if side in {"BUY", "SELL"} and row.get("executed_at") and row.get("price") is not None:
         return True
     if status in {"paper_executed", "executed", "filled"} and row.get("executed_at"):
@@ -209,8 +208,6 @@ def _decision_ts(row: dict[str, Any]) -> Any:
         for key in ("decision_at", "decided_at", "decision_created_at", "signal_at"):
             if decision.get(key):
                 return decision.get(key)
-    # Synchronous production admissions use execution time as their decision
-    # boundary when no separate timestamp exists.
     return _entry_ts(row)
 
 
