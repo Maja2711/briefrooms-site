@@ -1,0 +1,154 @@
+name: HOTFIX remove retroactive SPX trade
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hotfix-remove-retroactive-spx.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  remove-retroactive-spx:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore pre-bad-run S&P state only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import copy
+          import json
+          import pathlib
+          import subprocess
+
+          PARENT = "b32a9ec3a0379c50add7267db13f8484d4a31cfb"
+
+          def load_current(path):
+              return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+
+          def load_parent(path):
+              raw = subprocess.check_output(["git", "show", f"{PARENT}:{path}"], text=True)
+              return json.loads(raw)
+
+          def save(path, obj):
+              pathlib.Path(path).write_text(
+                  json.dumps(obj, ensure_ascii=False, indent=2) + "\n",
+                  encoding="utf-8",
+              )
+
+          # 1) Canonical weekly record used by the Weekly Trading frontend.
+          weekly_path = "data/investments/weekly/2026-W38.json"
+          cur = load_current(weekly_path)
+          prev = load_parent(weekly_path)
+          prev_spx = next(
+              copy.deepcopy(x) for x in prev["instruments"]
+              if x.get("instrument_id") == "sp500_futures"
+          )
+          found = False
+          for i, item in enumerate(cur["instruments"]):
+              if item.get("instrument_id") == "sp500_futures":
+                  cur["instruments"][i] = prev_spx
+                  found = True
+                  break
+          if not found:
+              raise SystemExit("HOTFIX ABORT: sp500_futures missing from weekly record")
+          save(weekly_path, cur)
+
+          # 2) Live exposure state: replace only S&P state with exact pre-bad-run state.
+          state_path = "data/investments/multi_instrument_exposure_state_v5.json"
+          cur = load_current(state_path)
+          prev = load_parent(state_path)
+          if "sp500_futures" not in cur.get("instruments", {}) or "sp500_futures" not in prev.get("instruments", {}):
+              raise SystemExit("HOTFIX ABORT: sp500_futures missing from exposure state")
+          cur["instruments"]["sp500_futures"] = copy.deepcopy(prev["instruments"]["sp500_futures"])
+          save(state_path, cur)
+
+          # 3) Exposure action report: restore only the S&P action from immediately before the bad run.
+          report_path = "data/investments/multi_instrument_exposure_report_v5.json"
+          cur = load_current(report_path)
+          prev = load_parent(report_path)
+          prev_actions = [copy.deepcopy(a) for a in prev.get("actions", []) if a.get("instrument_id") == "sp500_futures"]
+          new_actions = []
+          inserted = False
+          for action in cur.get("actions", []):
+              if action.get("instrument_id") == "sp500_futures":
+                  if not inserted:
+                      new_actions.extend(prev_actions)
+                      inserted = True
+              else:
+                  new_actions.append(action)
+          if not inserted:
+              new_actions.extend(prev_actions)
+          cur["actions"] = new_actions
+          save(report_path, cur)
+
+          # 4) WES postflight report: delete bogus S&P OPEN action; preserve unrelated actions.
+          wes_path = "data/investments/wes_report.json"
+          cur = load_current(wes_path)
+          prev = load_parent(wes_path)
+          def is_spx_action(a):
+              if not isinstance(a, dict):
+                  return False
+              vals = [a.get("instrument_id"), a.get("instrument"), a.get("symbol")]
+              return any(str(v).lower() in {"sp500_futures", "es=f", "sp500", "s&p 500 futures"} for v in vals if v is not None)
+          prev_spx_actions = [copy.deepcopy(a) for a in prev.get("actions", []) if is_spx_action(a)]
+          cur["actions"] = [a for a in cur.get("actions", []) if not is_spx_action(a)] + prev_spx_actions
+          save(wes_path, cur)
+
+          # Hard verification: the public/canonical record must NOT contain an open S&P trade.
+          check = load_current(weekly_path)
+          spx = next(x for x in check["instruments"] if x.get("instrument_id") == "sp500_futures")
+          if str(spx.get("trade_status", "")).lower() == "open":
+              raise SystemExit("HOTFIX FAILED: S&P trade is still OPEN")
+          if spx.get("entry_price") is not None or spx.get("entry_captured_at") is not None:
+              raise SystemExit("HOTFIX FAILED: retroactive S&P entry still exists")
+
+          print("HOTFIX VERIFIED: retroactive S&P trade removed; BTC and unrelated instruments preserved.")
+          PY
+
+      - name: Roll back contaminated SPX shadow artifacts when untouched since bad run
+        shell: bash
+        run: |
+          set -euo pipefail
+          BAD="a2adf4f6b8e2ad4941c9f4096205dd07996a0f1f"
+          PARENT="b32a9ec3a0379c50add7267db13f8484d4a31cfb"
+          for f in \
+            data/investments/wes_spx_brace_alpha_report.json \
+            data/investments/wes_spx_brace_bridge.json
+          do
+            bad_blob="$(git rev-parse "$BAD:$f")"
+            cur_blob="$(git hash-object "$f")"
+            if [ "$cur_blob" = "$bad_blob" ]; then
+              git show "$PARENT:$f" > "$f"
+              echo "Restored contaminated artifact: $f"
+            else
+              echo "Preserved newer artifact for later forensic audit: $f"
+            fi
+          done
+
+      - name: Commit emergency production rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/weekly/2026-W38.json \
+            data/investments/multi_instrument_exposure_state_v5.json \
+            data/investments/multi_instrument_exposure_report_v5.json \
+            data/investments/wes_report.json \
+            data/investments/wes_spx_brace_alpha_report.json \
+            data/investments/wes_spx_brace_bridge.json
+          git commit -m "HOTFIX: remove nonexistent retroactive S&P 500 trade"
+          git push origin HEAD:main
