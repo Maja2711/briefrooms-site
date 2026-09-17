@@ -1,4 +1,5 @@
 name: Portfolio 10K Freshness Guardian
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -12,6 +13,9 @@ on:
       - "scripts/portfolio_10k_hard_gate.py"
       - "scripts/validate_portfolio_10k_state.py"
       - "scripts/reconcile_portfolio_10k_executions.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
+      - "tests/test_no_retroactive_execution.py"
 
 permissions:
   contents: write
@@ -33,6 +37,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Validate global execution invariant
+        run: python -m unittest tests.test_no_retroactive_execution -v
 
       - name: Decide whether primary hourly publication is stale
         run: |
@@ -69,7 +81,7 @@ jobs:
           python scripts/portfolio_10k_hard_gate.py
           python scripts/render_portfolio_10k_static.py
 
-      - name: Publish repaired core and PL/EN snapshots
+      - name: Publish repaired core and PL/EN snapshots through NO RETROACTIVE airlock
         if: env.NEED_REPAIR == '1'
         run: |
           set -euo pipefail
@@ -84,19 +96,22 @@ jobs:
             echo "Guardian found stale data but repair produced no diff."
             exit 1
           fi
+          # Reconciliation may recover valuation state, never manufacture a historical trade.
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Guardian repair Portfolio 10K freshness"
-          # Generators may also touch diagnostic/cache files that are not part of
-          # the public freshness transaction. Never let those scratch changes
-          # block rebase/push of the already hard-gated valuation commit.
           git reset --hard HEAD
           git clean -fd
           for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
+            fi
             git rebase --abort 2>/dev/null || true
             git reset --hard HEAD
             git clean -fd
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt * 5))
           done
           exit 1
