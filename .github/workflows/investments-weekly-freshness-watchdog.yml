@@ -1,4 +1,5 @@
 name: Weekly Freshness Watchdog
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -12,9 +13,12 @@ on:
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/verify_weekly_close_deadline.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_weekly_freshness_guard.py"
       - "tests/test_investments_weekly_freshness_public.js"
       - "tests/test_automation_workflow_ownership.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/investments-weekly-freshness-watchdog.yml"
   workflow_run:
     workflows: ["Weekly Engine Star", "Maintain Weekly Paper Positions"]
@@ -24,8 +28,6 @@ permissions:
   contents: write
 
 concurrency:
-  # This workflow writes the canonical weekly ledger, so it MUST serialize with
-  # every other weekly settlement/publisher path.
   group: investment-weekly-positions
   cancel-in-progress: false
 
@@ -39,28 +41,27 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Validate freshness guard and public fail-closed shim
+      - name: Validate freshness guard, public fail-closed shim and execution invariant
         run: |
           python -m py_compile \
-            scripts/weekly_freshness_guard.py \
-            scripts/ensure_current_week_forecast.py \
-            scripts/render_weekly_public_pages.py \
-            scripts/verify_weekly_close_deadline.py
-          python -m unittest tests/test_weekly_freshness_guard.py -v
+            scripts/weekly_freshness_guard.py scripts/ensure_current_week_forecast.py \
+            scripts/render_weekly_public_pages.py scripts/verify_weekly_close_deadline.py \
+            scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests/test_weekly_freshness_guard.py tests.test_no_retroactive_execution -v
           node --check scripts/investments-weekly-freshness-public.js
           node --test tests/test_investments_weekly_freshness_public.js
-
       - name: Inspect real weekly decision freshness
         id: freshness
         shell: bash
@@ -69,12 +70,7 @@ jobs:
           python scripts/weekly_freshness_guard.py --mode check
           rc=$?
           set -e
-          if [ "$rc" -eq 0 ]; then
-            echo "needs_recovery=0" >> "$GITHUB_OUTPUT"
-          else
-            echo "needs_recovery=1" >> "$GITHUB_OUTPUT"
-          fi
-
+          if [ "$rc" -eq 0 ]; then echo "needs_recovery=0" >> "$GITHUB_OUTPUT"; else echo "needs_recovery=1" >> "$GITHUB_OUTPUT"; fi
       - name: Attempt real decision recovery before fail-closed marker
         if: steps.freshness.outputs.needs_recovery == '1'
         shell: bash
@@ -89,20 +85,15 @@ jobs:
             python scripts/ensure_current_week_forecast.py
           fi
           set -e
-
       - name: Materialize formal fail-closed state when recovery is unavailable
         run: python scripts/weekly_freshness_guard.py --mode ensure
-
       - name: Verify target week has a formal state and cannot silently fall back
         run: python scripts/weekly_freshness_guard.py --mode verify
-
       - name: Verify no weekly exposure survives its deadline
         run: python scripts/verify_weekly_close_deadline.py
-
       - name: Render PL and EN weekly public pages
         run: python scripts/render_simple_investments.py
-
-      - name: Persist repaired weekly freshness state atomically
+      - name: Persist repaired weekly freshness state through NO RETROACTIVE airlock
         shell: bash
         run: |
           set -euo pipefail
@@ -110,25 +101,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git restore --worktree -- data/investments/live_prices.json || true
           git add data/investments/weekly \
-                  pl/inwestycje/pozycje-tygodniowe.html \
-                  pl/inwestycje/prognozy-tygodniowe.html \
-                  en/investing/open-weekly-positions.html \
-                  en/investing/weekly-forecasts.html
-          if git diff --cached --quiet; then
-            echo "Weekly freshness already durable; nothing to commit."
-            exit 0
-          fi
+                  pl/inwestycje/pozycje-tygodniowe.html pl/inwestycje/prognozy-tygodniowe.html \
+                  en/investing/open-weekly-positions.html en/investing/weekly-forecasts.html
+          if git diff --cached --quiet; then exit 0; fi
+          # Recovery may create current prospective state, never reconstruct a historical LIVE fill.
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Repair weekly freshness state"
           pushed=0
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              pushed=1
-              break
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then pushed=1; break; fi
             fi
             git rebase --abort || true
             sleep $((attempt * 4))
           done
-          if [ "$pushed" != "1" ]; then
-            echo "::error::Could not persist weekly freshness repair."
-            exit 1
-          fi
+          [[ "$pushed" == "1" ]] || { echo "::error::Could not persist weekly freshness repair."; exit 1; }
