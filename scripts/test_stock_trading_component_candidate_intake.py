@@ -131,7 +131,7 @@ def main() -> int:
 
         valid_ch, valid_ev, valid_id = _pair("valid", threshold=70)
         too_large_ch, too_large_ev, too_large_id = _pair("too-large", threshold=68)
-        tampered_ch, tampered_ev, tampered_id = _pair("tampered", threshold=70, tamper_hash=True)
+        tampered_ch, tampered_ev, tampered_id = _pair("tampered", threshold=69, tamper_hash=True)
         stale_ch, stale_ev, stale_id = _pair("stale", threshold=71, revision=2)
 
         for name, ch, ev in (
