@@ -1,4 +1,5 @@
 name: Monitor US Stock Trading Portfolio
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -7,10 +8,12 @@ on:
     paths:
       - ".github/workflows/us-daily-stock-position-monitor.yml"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_no_retroactive_execution.py"
   schedule:
-    # Broad UTC window covers the regular US session in EDT and EST.
     - cron: "*/5 13-21 * * 1-5"
 
 permissions:
@@ -39,11 +42,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate canonical multi-position lifecycle
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Validate canonical multi-position lifecycle and execution invariant
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_portfolio.py
-          python -m unittest tests.test_stock_trading_portfolio -v
+          python -m py_compile scripts/stock_trading_portfolio.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_stock_trading_portfolio tests.test_no_retroactive_execution -v
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
 
       - name: Review all open US positions
@@ -53,7 +61,7 @@ jobs:
           python scripts/stock_trading_portfolio.py --mode verify
           python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
 
-      - name: Persist canonical US portfolio state
+      - name: Persist canonical US portfolio state through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -63,14 +71,17 @@ jobs:
             echo "No US Stock Trading portfolio state change"
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor US Stock Trading portfolio"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt*3))
           done
           exit 1
