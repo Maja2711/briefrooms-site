@@ -1100,7 +1100,7 @@
       "entry_captured_at": "2026-09-14T17:45:00+02:00",
       "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
       "entry_quality_status": "wes_midweek_trigger",
-      "trade_status": "open",
+      "trade_status": "closed",
       "risk_plan": {
         "model_version": "WES-1.0.0",
         "generated_at": "2026-09-14T17:51:57+02:00",
@@ -1126,13 +1126,13 @@
         },
         "friday_tactical_low_tp": false
       },
-      "exit_price": null,
-      "exit_captured_at": null,
-      "exit_source": null,
-      "exit_reason": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 76444.59375,
+      "exit_captured_at": "2026-09-17T23:10:00+02:00",
+      "exit_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_position_review",
+      "exit_reason": "daily_model_directional_invalidation",
+      "result": "profit",
+      "result_value": 265.68900171,
+      "result_percent": 2.6569,
       "rationale_pl": [
         "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
         "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
@@ -1448,12 +1448,12 @@
         }
       },
       "continuous_entry_regime": "trend_flat:vol_normal",
-      "risk_status": "open_multi_instrument_continuous_exposure",
+      "risk_status": "closed_by_daily_model_review",
       "continuous_exposure_active": true,
       "continuous_exposure_status": "open",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
-      "last_risk_review_at": "2026-09-17T19:18:46+00:00",
+      "last_risk_review_at": "2026-09-17T23:19:56+02:00",
       "entry_decision_at": "2026-09-14T17:40:55+02:00",
       "entry_execution_rule": "first_completed_5m_bar_on_or_after_frozen_decision",
       "entry_macro_context": {
@@ -1505,11 +1505,47 @@
           "data_quality": "passed",
           "decision": "keep",
           "reason": "keep_original_thesis_not_invalidated"
+        },
+        {
+          "review_date": "2026-09-17",
+          "reviewed_at": "2026-09-17T23:19:57+02:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "position_review_key": "2026-W38:btcusd:2026-09-14T17:45:00+02:00",
+          "observation_mode": "LIVE",
+          "formal_learning_eligible": true,
+          "missing_review_is_hold": false,
+          "original_direction": "short",
+          "fresh_direction": "neutral",
+          "fresh_score": 19,
+          "fresh_signal_strength": 0.19,
+          "weekly_score": 14,
+          "weekly_regime": "trend_flat:vol_normal",
+          "macro_context": {
+            "enabled": false,
+            "instrument_id": "btcusd",
+            "data_quality": "not_applicable",
+            "score": 0.0,
+            "ma_structure": {
+              "enabled": false,
+              "instrument_id": "btcusd",
+              "data_quality": "not_applicable",
+              "score": 0.0
+            }
+          },
+          "combined_review_score": 14.4,
+          "positive_groups": 2,
+          "negative_groups": 1,
+          "data_quality": "passed",
+          "decision": "close",
+          "reason": "directional_invalidation",
+          "exit_price": 76444.59375,
+          "exit_captured_at": "2026-09-17T23:10:00+02:00",
+          "exit_source": "Yahoo Finance:BTC-USD:5m:last_completed_bar_position_review"
         }
       ],
-      "last_daily_review_at": "2026-09-15T23:18:40+02:00",
-      "last_daily_review_decision": "keep",
-      "last_daily_review_reason": "keep_original_thesis_not_invalidated",
+      "last_daily_review_at": "2026-09-17T23:19:57+02:00",
+      "last_daily_review_decision": "close",
+      "last_daily_review_reason": "directional_invalidation",
       "latest_macro_context": {
         "as_of": null,
         "data_quality": "not_applicable",
@@ -1525,7 +1561,10 @@
           "score": 0.0
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
-      }
+      },
+      "exit_execution_model": "last_completed_5m_bar_at_review",
+      "result_units": 2.65689002,
+      "result_currency": "USD"
     }
   ],
   "forecast_hash": "e449a3baa01642b57e0475d012dfcaa2dcbe1d41c7438604d8ecfc58cd16ee03",
@@ -1600,24 +1639,33 @@
       },
       {
         "schema_version": "briefrooms-daily-review-completeness-v1",
+        "week_id": "2026-W38",
         "session_date": "2026-09-17",
-        "status": "NOT_DUE",
-        "expected_count": 0,
-        "reviewed_count": 0,
+        "status": "PASS",
+        "expected_count": 1,
+        "reviewed_count": 1,
+        "expected_positions": [
+          {
+            "position_key": "2026-W38:btcusd:2026-09-14T17:45:00+02:00",
+            "instrument_id": "btcusd"
+          }
+        ],
         "missing": [],
         "duplicates": [],
-        "formal_learning_eligible": false,
-        "missing_review_is_hold": false
+        "missing_review_is_hold": false,
+        "historical_backfill_performed": false,
+        "formal_learning_eligible": true,
+        "reconstructed_review_present": false
       }
     ],
     "enabled": true,
     "completeness_contract": "exactly_one_scheduled_review_per_open_position_session",
     "missing_review_is_hold": false,
     "historical_backfill_allowed": false,
-    "last_completeness_checked_at": "2026-09-17T20:11:39+02:00",
-    "last_completeness_status": "NOT_DUE",
-    "last_review_date": "2026-09-15",
-    "last_reviewed_at": "2026-09-15T23:18:40+02:00",
+    "last_completeness_checked_at": "2026-09-17T23:19:58+02:00",
+    "last_completeness_status": "PASS",
+    "last_review_date": "2026-09-17",
+    "last_reviewed_at": "2026-09-17T23:19:57+02:00",
     "local_time": "23:00 Europe/Warsaw",
     "exit_rules": {
       "confirmed_opposite_signal": true,
