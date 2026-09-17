@@ -19,6 +19,10 @@ except ModuleNotFoundError:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ROOT = ROOT / "data/investments/stock_trading_v2_factory_candidates"
 SCHEMA_VERSION = "stock-trading-v2-factory-candidate-v1"
+# The production Daily Trading mandate is explicitly 1-2 sessions. Longer v2
+# horizons remain valuable research evidence, but may not manufacture a
+# production-deployable artifact for this system.
+DEPLOYABLE_HORIZONS = frozenset({1, 2})
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -43,6 +47,9 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 def _entry_threshold_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapping[str, Any], gpw_config: Mapping[str, Any], policy: Mapping[str, Any]) -> list[dict[str, Any]]:
+    horizon = int(hypothesis.get("horizon_sessions") or 0)
+    if horizon not in DEPLOYABLE_HORIZONS:
+        raise contracts.ContractError("entry Factory horizon is outside the 1-2 session production mandate")
     gpw_threshold = int(gpw_config.get("minimum_composite_score") or 0)
     policy_threshold = int((((policy.get("markets") or {}).get("GPW") or {}).get("minimum_entry_score")) or 0)
     if gpw_threshold <= 0 or gpw_threshold != policy_threshold:
@@ -71,7 +78,7 @@ def _entry_threshold_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapp
             "deployment_sha256": spec_sha,
             "base_manifest_revision": revision,
             "base_component_version": base_version,
-            "horizon_sessions": int(hypothesis.get("horizon_sessions") or 0),
+            "horizon_sessions": horizon,
         }
         candidate_id = "stfactv2-" + contracts.payload_sha256(identity)[:24]
         payload: dict[str, Any] = {
@@ -80,7 +87,7 @@ def _entry_threshold_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapp
             "created_at": contracts.iso_utc(),
             "research_component": "entry_score_below_threshold",
             "production_component": "entry",
-            "horizon_sessions": int(hypothesis.get("horizon_sessions") or 0),
+            "horizon_sessions": horizon,
             "base_manifest_revision": revision,
             "base_component_version": base_version,
             "deployment_id": deployment_id,
@@ -99,6 +106,7 @@ def _entry_threshold_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapp
                 "automatic_policy_writeback": False,
                 "exact_artifact_required": True,
                 "bounded_parameter_search": True,
+                "production_horizon_sessions": [1, 2],
             },
         }
         body = dict(payload)
@@ -113,6 +121,8 @@ def validate_candidate(payload: Mapping[str, Any]) -> None:
         raise contracts.ContractError("factory candidate schema mismatch")
     if payload.get("production_component") not in {"entry", "ranking", "risk", "portfolio", "exit", "universe", "meta_label", "regime"}:
         raise contracts.ContractError("factory candidate production component invalid")
+    if int(payload.get("horizon_sessions") or 0) not in DEPLOYABLE_HORIZONS:
+        raise contracts.ContractError("factory candidate horizon is outside the 1-2 session production mandate")
     if int(payload.get("base_manifest_revision") or 0) < 1:
         raise contracts.ContractError("factory candidate base revision invalid")
     spec = payload.get("deployment_spec")
@@ -139,6 +149,13 @@ def build_candidates(*, report: Mapping[str, Any], manifest: Mapping[str, Any], 
         if not isinstance(raw, Mapping) or raw.get("status") != "ELIGIBLE_FOR_CHALLENGER_HOLDOUT":
             continue
         component = str(raw.get("component") or "")
+        horizon = int(raw.get("horizon_sessions") or 0)
+        if horizon not in DEPLOYABLE_HORIZONS:
+            unsupported.append({
+                "research_component": component,
+                "reason": "outside_1_2_session_production_mandate",
+            })
+            continue
         if component == "entry_score_below_threshold":
             generated.extend(_entry_threshold_candidates(hypothesis=raw, manifest=manifest, gpw_config=gpw_config, policy=policy))
         else:
