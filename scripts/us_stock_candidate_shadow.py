@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Continuous-session US selector for the legacy v1 shadow challenger.
 
-This intentionally does not inherit the obsolete 09:45 publication cutoff.
-The only time boundary is the exchange's regular session.  Candidate rejection
-is non-terminal: the selector continues through the ranked shortlist until a
-candidate passes every evidence, execution and risk gate or the shortlist is
-exhausted.
+There is no obsolete morning publication cutoff.  The only time boundary is the
+regular exchange session.  Candidate rejection is non-terminal: ranked names
+are evaluated in bounded evidence batches and the search advances to subsequent
+batches until one company passes every gate or the ranked universe is exhausted.
 """
 from __future__ import annotations
 
@@ -28,8 +27,8 @@ def generate(now: datetime | None = None, *, exclude_symbols: Iterable[str] = ()
         payload = us.base_payload(now, config, "PENDING", "Waiting for the US regular-session analysis window.")
         payload["locked"] = False
         return payload
-    # Natural exchange boundary only.  There is deliberately no morning
-    # publication cutoff in the challenger.
+    # Natural exchange boundary only. There is deliberately no 09:45-style
+    # selection cutoff in the shadow challenger.
     if now.time() >= clock_time(16, 0):
         return us.base_payload(now, config, "NO_TRADE", "US regular session has ended; no new shadow entry is opened after the close.")
 
@@ -59,123 +58,176 @@ def generate(now: datetime | None = None, *, exclude_symbols: Iterable[str] = ()
     ratio = valid_market / eligible_universe
     if ratio < float(config["minimum_data_completeness"]):
         payload = us.base_payload(now, config, "DATA_ERROR", f"Fresh US market-data completeness {ratio:.0%} is below the required threshold.")
-        payload["data_quality"] = {"status": "failed", "complete_ratio": round(ratio, 4), "expected_session": expected.isoformat(), "provider_failures": failures}
+        payload["data_quality"] = {
+            "status": "failed",
+            "complete_ratio": round(ratio, 4),
+            "expected_session": expected.isoformat(),
+            "provider_failures": failures,
+        }
         return payload
     if not candidates:
         payload = us.base_payload(now, config, "NO_TRADE", "No non-held US stock passed liquidity and risk screening.")
-        payload["data_quality"] = {"status": "healthy", "complete_ratio": round(ratio, 4), "expected_session": expected.isoformat(), "ranked_candidates": 0}
-        return payload
-
-    us.normalize_cross_section(candidates)
-    search_depth = min(len(candidates), max(12, int(config.get("top_candidates_for_news") or 0)))
-    shortlist = sorted(candidates, key=lambda item: item["quant_pre_score"], reverse=True)[:search_depth]
-    for row in shortlist:
-        try:
-            row["sources"] = us.news_items(row, now=now)
-        except Exception:
-            row["sources"] = []
-    if not any(row.get("sources") for row in shortlist):
-        payload = us.base_payload(now, config, "NO_TRADE", "No fresh verifiable catalyst was available for the ranked US shortlist.")
-        payload["data_quality"] = {"status": "healthy", "complete_ratio": round(ratio, 4), "expected_session": expected.isoformat(), "ranked_candidates": len(candidates), "reviewed_candidates": len(shortlist)}
-        return payload
-
-    analyses = us.gemini_analysis(shortlist)
-    eligible: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
-    analysis_rejections: dict[str, str] = {}
-    for row in shortlist:
-        analysis = analyses.get(row["symbol"])
-        if not analysis:
-            analysis_rejections[row["symbol"]] = "missing_analysis"
-            continue
-        if not us.source_gate(row, analysis):
-            analysis_rejections[row["symbol"]] = "source_gate"
-            continue
-        score = us.composite(row, analysis, config)
-        if float(row["reward_risk"]) < float(config["minimum_reward_risk"]):
-            analysis_rejections[row["symbol"]] = "reward_risk"
-            continue
-        eligible.append((score, row, analysis))
-    eligible.sort(key=lambda item: item[0], reverse=True)
-
-    review_rejections: list[dict[str, Any]] = []
-    execution_rejections: list[dict[str, Any]] = []
-    for score, candidate, analysis in eligible:
-        review = us.gemini_review(candidate, analysis, score)
-        if review.get("approved") is not True:
-            review_rejections.append({"symbol": candidate["symbol"], "score": score, "reason": review.get("reason")})
-            continue
-        try:
-            candidate = us.reprice(candidate, now=now)
-            entry = float((candidate.get("market_snapshot") or {}).get("last") or candidate.get("reference_price") or 0.0)
-            stop = float(candidate.get("stop") or 0.0)
-            risk_percent = (entry - stop) / entry if entry > 0 else 99.0
-            if entry <= 0 or not stop < entry or not (0 < risk_percent <= float(config["maximum_risk_percent"])):
-                raise us.PublicationError("fresh execution geometry outside hard risk limit")
-        except Exception as exc:
-            execution_rejections.append({"symbol": candidate.get("symbol"), "score": score, "reason": f"{type(exc).__name__}: {str(exc)[:180]}"})
-            continue
-
-        by_id = {source["id"]: source for source in candidate.get("sources", [])}
-        approved_sources = [by_id[source_id] for source_id in review.get("supported_source_ids", []) if source_id in by_id]
-        if not approved_sources:
-            execution_rejections.append({"symbol": candidate.get("symbol"), "score": score, "reason": "approved_source_resolution_empty"})
-            continue
-        target_score = float(config["target_score"])
-        conviction = "high" if score >= target_score + 8 else "solid" if score >= target_score else "moderate"
-        payload = us.base_payload(now, config, "TRADE", "Best non-held v1 shadow candidate passed all hard gates; score is ranking metadata, not a veto.")
-        payload["locked"] = False
-        payload["selection"] = {
-            "symbol": candidate["symbol"],
-            "ticker": candidate["symbol"],
-            "name": candidate["name"],
-            "sector": candidate["sector"],
-            "score": score,
-            "score_target": target_score,
-            "score_target_met": score >= target_score,
-            "conviction": conviction,
-            "reference_price": candidate["reference_price"],
-            "entry_zone": candidate["entry_zone"],
-            "stop": candidate["stop"],
-            "target": candidate["target"],
-            "risk_percent": round(risk_percent, 6),
-            "reward_risk": candidate["reward_risk"],
-            "selection_mode": "V1_SHADOW_CONTINUOUS",
-            "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "valid_until": None,
-            "time_stop": None,
-            "early_exit": "Shadow portfolio applies the same model-controlled SL/TP and thesis review contract.",
-            "thesis": analysis["thesis"],
-            "why_now": analysis["why_now"],
-            "risk_factors": analysis["risk_factors"],
-            "scores": {**candidate["scores"], "catalyst": analysis["catalyst_score"]},
-            "sources": approved_sources,
-            "review": review,
-            "market_snapshot": candidate["market_snapshot"],
-        }
         payload["data_quality"] = {
             "status": "healthy",
             "complete_ratio": round(ratio, 4),
             "expected_session": expected.isoformat(),
-            "ranked_candidates": len(candidates),
-            "reviewed_candidates": len(shortlist),
-            "eligible_candidates": len(eligible),
-            "excluded_held_symbols": sorted(excluded),
-            "analysis_rejections": analysis_rejections,
-            "review_rejections": review_rejections,
-            "execution_rejections": execution_rejections,
-            "provider_failures": failures,
-            "provider_usage": providers,
+            "ranked_candidates": 0,
         }
         return payload
 
-    payload = us.base_payload(now, config, "NO_TRADE", "All ranked non-held candidates failed evidence, review or fresh execution gates.")
+    us.normalize_cross_section(candidates)
+    ranked = sorted(candidates, key=lambda item: item["quant_pre_score"], reverse=True)
+    batch_size = max(6, int(config.get("top_candidates_for_news") or 6))
+    analysis_rejections: dict[str, str] = {}
+    review_rejections: list[dict[str, Any]] = []
+    execution_rejections: list[dict[str, Any]] = []
+    searched = 0
+    eligible_count = 0
+
+    for offset in range(0, len(ranked), batch_size):
+        batch = ranked[offset : offset + batch_size]
+        searched += len(batch)
+        for row in batch:
+            try:
+                row["sources"] = us.news_items(row, now=now)
+            except Exception:
+                row["sources"] = []
+        if not any(row.get("sources") for row in batch):
+            for row in batch:
+                analysis_rejections[row["symbol"]] = "no_fresh_verifiable_source"
+            continue
+
+        analyses = us.gemini_analysis(batch)
+        eligible: list[tuple[float, dict[str, Any], dict[str, Any]]] = []
+        for row in batch:
+            analysis = analyses.get(row["symbol"])
+            if not analysis:
+                analysis_rejections[row["symbol"]] = "missing_analysis"
+                continue
+            if not us.source_gate(row, analysis):
+                analysis_rejections[row["symbol"]] = "source_gate"
+                continue
+            score = us.composite(row, analysis, config)
+            if float(row["reward_risk"]) < float(config["minimum_reward_risk"]):
+                analysis_rejections[row["symbol"]] = "reward_risk"
+                continue
+            eligible.append((score, row, analysis))
+        eligible.sort(key=lambda item: item[0], reverse=True)
+        eligible_count += len(eligible)
+
+        for score, candidate, analysis in eligible:
+            review = us.gemini_review(candidate, analysis, score)
+            if review.get("approved") is not True:
+                review_rejections.append({
+                    "symbol": candidate["symbol"],
+                    "score": score,
+                    "reason": review.get("reason"),
+                })
+                continue
+            try:
+                candidate = us.reprice(candidate, now=now)
+                entry = float((candidate.get("market_snapshot") or {}).get("last") or candidate.get("reference_price") or 0.0)
+                stop = float(candidate.get("stop") or 0.0)
+                risk_percent = (entry - stop) / entry if entry > 0 else 99.0
+                if entry <= 0 or not stop < entry or not (0 < risk_percent <= float(config["maximum_risk_percent"])):
+                    raise us.PublicationError("fresh execution geometry outside hard risk limit")
+            except Exception as exc:
+                execution_rejections.append({
+                    "symbol": candidate.get("symbol"),
+                    "score": score,
+                    "reason": f"{type(exc).__name__}: {str(exc)[:180]}",
+                })
+                continue
+
+            by_id = {source["id"]: source for source in candidate.get("sources", [])}
+            approved_sources = [
+                by_id[source_id]
+                for source_id in review.get("supported_source_ids", [])
+                if source_id in by_id
+            ]
+            if not approved_sources:
+                execution_rejections.append({
+                    "symbol": candidate.get("symbol"),
+                    "score": score,
+                    "reason": "approved_source_resolution_empty",
+                })
+                continue
+
+            target_score = float(config["target_score"])
+            conviction = "high" if score >= target_score + 8 else "solid" if score >= target_score else "moderate"
+            payload = us.base_payload(
+                now,
+                config,
+                "TRADE",
+                "Best non-held v1 shadow candidate passed all hard gates; score is ranking metadata, not a veto.",
+            )
+            payload["locked"] = False
+            payload["selection"] = {
+                "symbol": candidate["symbol"],
+                "ticker": candidate["symbol"],
+                "name": candidate["name"],
+                "sector": candidate["sector"],
+                "score": score,
+                "score_target": target_score,
+                "score_target_met": score >= target_score,
+                "conviction": conviction,
+                "reference_price": candidate["reference_price"],
+                "entry_zone": candidate["entry_zone"],
+                "stop": candidate["stop"],
+                "target": candidate["target"],
+                "risk_percent": round(risk_percent, 6),
+                "reward_risk": candidate["reward_risk"],
+                "selection_mode": "V1_SHADOW_CONTINUOUS_FULL_SEARCH",
+                "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+                "valid_until": None,
+                "time_stop": None,
+                "early_exit": "Shadow portfolio applies the same model-controlled SL/TP and thesis review contract.",
+                "thesis": analysis["thesis"],
+                "why_now": analysis["why_now"],
+                "risk_factors": analysis["risk_factors"],
+                "scores": {**candidate["scores"], "catalyst": analysis["catalyst_score"]},
+                "sources": approved_sources,
+                "review": review,
+                "market_snapshot": candidate["market_snapshot"],
+            }
+            payload["data_quality"] = {
+                "status": "healthy",
+                "complete_ratio": round(ratio, 4),
+                "expected_session": expected.isoformat(),
+                "ranked_candidates": len(ranked),
+                "searched_candidates": searched,
+                "eligible_candidates_seen": eligible_count,
+                "search_batches_completed": offset // batch_size + 1,
+                "search_batch_size": batch_size,
+                "excluded_held_symbols": sorted(excluded),
+                "analysis_rejections": analysis_rejections,
+                "review_rejections": review_rejections,
+                "execution_rejections": execution_rejections,
+                "provider_failures": failures,
+                "provider_usage": providers,
+            }
+            payload.setdefault("methodology", {})["candidate_search_policy"] = "continue_ranked_batches_until_candidate_passes_or_universe_exhausted"
+            return payload
+
+    payload = us.base_payload(
+        now,
+        config,
+        "NO_TRADE",
+        "Entire ranked non-held US universe was searched; every candidate failed evidence, review or fresh execution gates.",
+    )
     payload["data_quality"] = {
         "status": "healthy",
         "complete_ratio": round(ratio, 4),
         "expected_session": expected.isoformat(),
+        "ranked_candidates": len(ranked),
+        "searched_candidates": searched,
+        "eligible_candidates_seen": eligible_count,
+        "search_batches_completed": (len(ranked) + batch_size - 1) // batch_size,
+        "search_batch_size": batch_size,
         "analysis_rejections": analysis_rejections,
         "review_rejections": review_rejections,
         "execution_rejections": execution_rejections,
         "excluded_held_symbols": sorted(excluded),
     }
+    payload.setdefault("methodology", {})["candidate_search_policy"] = "full_ranked_universe_exhausted_before_cash"
     return payload
