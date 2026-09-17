@@ -2,10 +2,15 @@
 """Pre-commit airlock for NO RETROACTIVE EXECUTION.
 
 Compare the working tree with the commit currently checked out. Existing LIVE
-positions are grandfathered. Any *new* LIVE opening event created by this run
-must be contemporaneous with the run; historical reconstruction is rejected.
-Shadow/replay artifacts may contain historical simulated events, but never count
-as canonical LIVE state.
+positions are grandfathered. Any *new* LIVE opening/execution event created by
+this run must be contemporaneous with the run; historical reconstruction is
+rejected. Shadow/replay artifacts may contain historical simulated events, but
+never count as canonical LIVE state.
+
+# NO RETROACTIVE EXECUTION
+This verifier deliberately scans all changed JSON under data/, not only the
+Weekly/Stock Trading subtree. BRACE, Daily Trading, Portfolio 10K and future
+canonical trading engines therefore inherit the same publication airlock.
 """
 from __future__ import annotations
 
@@ -36,10 +41,15 @@ except ModuleNotFoundError:  # direct scripts/ execution
 
 ROOT = Path(__file__).resolve().parents[1]
 UTC = timezone.utc
-NON_LIVE_TOKENS = ("shadow", "replay", "counterfactual", "backtest", "research", "simulation", "simulated")
-# Canonical execution books. Other investment JSON is scanned when it contains
-# an explicit LIVE/PRODUCTION mode, but learning/research stores are not treated
-# as executable merely because they describe historical trades.
+NON_LIVE_TOKENS = (
+    "shadow",
+    "replay",
+    "counterfactual",
+    "backtest",
+    "research",
+    "simulation",
+    "simulated",
+)
 CANONICAL_NAMES = {
     "stock_trading_portfolio.json",
     "stock_trading_v2_production_state.json",
@@ -47,11 +57,21 @@ CANONICAL_NAMES = {
     "multi_instrument_exposure_state_v5.json",
     "multi_instrument_exposure_report_v5.json",
     "wes_report.json",
+    "paper_portfolio.json",
+    "execution_results.json",
+    "order_queue.json",
 }
 
 
 def _run(*args: str, check: bool = True) -> str:
-    return subprocess.run(args, cwd=ROOT, check=check, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
+    return subprocess.run(
+        args,
+        cwd=ROOT,
+        check=check,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
 
 
 def _load_worktree(path: str) -> Any:
@@ -62,7 +82,13 @@ def _load_worktree(path: str) -> Any:
 
 
 def _load_ref(path: str, ref: str) -> Any:
-    proc = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    proc = subprocess.run(
+        ["git", "show", f"{ref}:{path}"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
     if proc.returncode != 0:
         return None
     try:
@@ -72,8 +98,13 @@ def _load_ref(path: str, ref: str) -> Any:
 
 
 def _changed_json(ref: str) -> list[str]:
-    names = set(_run("git", "diff", "--name-only", ref, "--", "data/investments").splitlines())
-    names.update(_run("git", "diff", "--name-only", "--cached", ref, "--", "data/investments").splitlines())
+    # Intentionally scan the complete data tree. _path_is_canonical() decides
+    # which files are executable state; this prevents a new engine directory
+    # from silently falling outside the safety perimeter.
+    names = set(_run("git", "diff", "--name-only", ref, "--", "data").splitlines())
+    names.update(
+        _run("git", "diff", "--name-only", "--cached", ref, "--", "data").splitlines()
+    )
     return sorted(x for x in names if x.endswith(".json") and (ROOT / x).exists())
 
 
@@ -83,17 +114,24 @@ def _path_is_non_live(path: str) -> bool:
 
 
 def _path_is_canonical(path: str, payload: Any) -> bool:
+    normalized = path.replace("\\", "/").lower()
     p = Path(path)
     if _path_is_non_live(path):
         return False
     if p.name in CANONICAL_NAMES:
         return True
-    if "/weekly/" in path.replace("\\", "/") and p.name.endswith(".json"):
+    if "/weekly/" in normalized and p.name.endswith(".json"):
         return True
-    if "portfolio_10k" in path.lower() or "portfolio-10k" in path.lower():
+    # BRACE / Portfolio 10K uses data/portfolio10k (without underscore).
+    if any(token in normalized for token in ("/portfolio10k/", "portfolio_10k", "portfolio-10k")):
         return True
     if isinstance(payload, dict):
-        mode = str(payload.get("mode") or payload.get("execution_mode") or payload.get("environment") or "").upper()
+        mode = str(
+            payload.get("mode")
+            or payload.get("execution_mode")
+            or payload.get("environment")
+            or ""
+        ).upper()
         if mode in {"LIVE", "PRODUCTION", "PAPER_LIVE"}:
             return True
     return False
@@ -109,38 +147,70 @@ def _walk(value: Any, pointer: str = "$") -> Iterable[tuple[str, dict[str, Any]]
             yield from _walk(child, f"{pointer}[{index}]")
 
 
-def _is_open_event(row: dict[str, Any]) -> bool:
+def _is_execution_event(row: dict[str, Any]) -> bool:
     action = str(row.get("action") or "").lower()
     status = str(row.get("status") or row.get("trade_status") or "").lower()
     direction = str(row.get("direction") or "").lower()
-    has_entry = any(row.get(k) is not None for k in ("entry_at", "entry_captured_at", "opened_at", "entry_time", "entry_timestamp", "entry_price", "entry"))
+    side = str(row.get("side") or "").upper()
+    has_entry = any(
+        row.get(k) is not None
+        for k in (
+            "entry_at",
+            "entry_captured_at",
+            "opened_at",
+            "entry_time",
+            "entry_timestamp",
+            "entry_price",
+            "entry",
+        )
+    )
     if action == "open":
         return True
     if status in {"open", "opened"} and has_entry:
         return True
     if direction in {"long", "short"} and row.get("entry_price") is not None and row.get("exit_price") is None:
         return True
+    # BRACE / portfolio ledgers record fills as transaction rows rather than
+    # position-open objects. Both BUY and SELL execution times must be append-only.
+    if side in {"BUY", "SELL"} and row.get("executed_at") and row.get("price") is not None:
+        return True
+    if status in {"paper_executed", "executed", "filled"} and row.get("executed_at"):
+        return True
     return False
 
 
 def _entry_ts(row: dict[str, Any]) -> Any:
-    for key in ("entry_at", "entry_captured_at", "opened_at", "entry_time", "entry_timestamp", "executed_at"):
+    for key in (
+        "entry_at",
+        "entry_captured_at",
+        "opened_at",
+        "entry_time",
+        "entry_timestamp",
+        "executed_at",
+    ):
         if row.get(key):
             return row.get(key)
     return None
 
 
 def _decision_ts(row: dict[str, Any]) -> Any:
-    for key in ("entry_decision_at", "decision_at", "decided_at", "decision_created_at"):
+    for key in (
+        "entry_decision_at",
+        "decision_at",
+        "decided_at",
+        "decision_created_at",
+        "signal_at",
+        "queued_at",
+    ):
         if row.get(key):
             return row.get(key)
     decision = row.get("entry_decision")
     if isinstance(decision, dict):
-        for key in ("decision_at", "decided_at", "decision_created_at"):
+        for key in ("decision_at", "decided_at", "decision_created_at", "signal_at"):
             if decision.get(key):
                 return decision.get(key)
-    # Stock portfolio positions are admitted synchronously; opened_at is both
-    # the executable decision boundary and the fill timestamp.
+    # Synchronous production admissions use execution time as their decision
+    # boundary when no separate timestamp exists.
     return _entry_ts(row)
 
 
@@ -148,20 +218,41 @@ def _event_identity(row: dict[str, Any]) -> str:
     fields = {
         key: row.get(key)
         for key in (
-            "position_id", "leg_id", "instrument_id", "symbol", "ticker", "market",
-            "entry_at", "entry_captured_at", "opened_at", "entry_time", "entry_timestamp",
+            "transaction_id",
+            "order_id",
+            "position_id",
+            "leg_id",
+            "instrument_id",
+            "symbol",
+            "ticker",
+            "market",
+            "side",
+            "entry_at",
+            "entry_captured_at",
+            "opened_at",
+            "entry_time",
+            "entry_timestamp",
+            "executed_at",
         )
         if row.get(key) is not None
     }
     if not fields:
-        fields = {"entry": row.get("entry"), "entry_price": row.get("entry_price"), "direction": row.get("direction")}
-    return hashlib.sha256(json.dumps(fields, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
+        fields = {
+            "entry": row.get("entry"),
+            "entry_price": row.get("entry_price"),
+            "price": row.get("price"),
+            "direction": row.get("direction"),
+            "side": row.get("side"),
+        }
+    return hashlib.sha256(
+        json.dumps(fields, sort_keys=True, ensure_ascii=False, default=str).encode()
+    ).hexdigest()
 
 
 def _events(payload: Any) -> dict[str, tuple[str, dict[str, Any]]]:
     out: dict[str, tuple[str, dict[str, Any]]] = {}
     for pointer, row in _walk(payload):
-        if _is_open_event(row):
+        if _is_execution_event(row):
             out[_event_identity(row)] = (pointer, row)
     return out
 
@@ -179,7 +270,10 @@ def verify_file(path: str, baseline_ref: str, run_started_at: datetime) -> list[
         entry_at = _entry_ts(row)
         decision_at = _decision_ts(row)
         if not entry_at:
-            violations.append(f"{path} {pointer}: missing_execution_provenance: new LIVE open event has no entry timestamp")
+            violations.append(
+                f"{path} {pointer}: missing_execution_provenance: "
+                "new LIVE execution event has no timestamp"
+            )
             continue
         try:
             assert_live_fill(
@@ -233,7 +327,7 @@ def main() -> int:
         for item in violations:
             print(f" - {item}", file=sys.stderr)
         return 1
-    print(f"NO RETROACTIVE EXECUTION: PASS ({len(paths)} changed investment JSON files checked)")
+    print(f"NO RETROACTIVE EXECUTION: PASS ({len(paths)} changed data JSON files checked)")
     return 0
 
 
