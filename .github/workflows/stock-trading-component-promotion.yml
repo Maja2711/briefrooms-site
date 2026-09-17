@@ -50,7 +50,8 @@ jobs:
             scripts/stock_trading_component_champion.py \
             scripts/stock_trading_component_router.py \
             scripts/stock_trading_component_promotion.py \
-            scripts/stock_trading_component_bound_promotion.py
+            scripts/stock_trading_component_bound_promotion.py \
+            scripts/stock_trading_component_candidate_intake.py
           python scripts/stock_trading_component_champion.py --verify
           python scripts/test_stock_trading_component_promotion.py
           python scripts/test_stock_trading_component_bound_promotion.py
@@ -65,13 +66,46 @@ jobs:
           print('COMPONENT_PROMOTION_CONFIG_OK')
           PY
 
+      - name: Independently approve bounded exact deployment proposals
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_component_candidate_intake.py \
+            --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
+            --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
+            --output-registry /tmp/stock-trading-approved-registry.json \
+            | tee /tmp/stock-trading-candidate-intake-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('/tmp/stock-trading-candidate-intake-result.json').read_text(encoding='utf-8'))
+          print('CANDIDATE_INTAKE_OK', len(payload.get('accepted') or []), 'accepted')
+          PY
+
       - name: Promote at most one exactly evaluated component
         run: |
           set -euo pipefail
           python scripts/stock_trading_component_bound_promotion.py \
             --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
             --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
+            --registry /tmp/stock-trading-approved-registry.json \
             | tee /tmp/stock-trading-component-promotion-result.json
+
+      - name: Persist only the deployment that actually became active
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/stock-trading-component-promotion-result.json').read_text(encoding='utf-8'))
+          Path('/tmp/promotion-status').write_text(str(result.get('status') or ''), encoding='utf-8')
+          PY
+          if [[ "$(cat /tmp/promotion-status)" == "PROMOTED" ]]; then
+            python scripts/stock_trading_component_candidate_intake.py \
+              --persist-active \
+              --approved-registry /tmp/stock-trading-approved-registry.json
+          else
+            echo "No successful promotion; production deployment registry remains unchanged."
+          fi
 
       - name: Verify composite Champion after promotion or rollback
         run: |
@@ -82,10 +116,18 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from scripts import stock_trading_component_promotion as promotion
+          from scripts import stock_trading_component_champion as champion
+          from scripts import stock_trading_component_router as router
           result = json.loads(Path('/tmp/stock-trading-component-promotion-result.json').read_text(encoding='utf-8'))
           allowed = {'NO_PROMOTION', 'PROMOTED', 'AUTO_ROLLBACK'}
           if result.get('status') not in allowed:
               raise SystemExit(f"unexpected promotion status: {result.get('status')}")
+          if result.get('status') == 'PROMOTED':
+              promotion.health_check(
+                  manifest_path=champion.MANIFEST_PATH,
+                  registry_path=router.REGISTRY_PATH,
+              )
           print('PROMOTION_RESULT_OK', result.get('status'))
           PY
 
@@ -98,6 +140,7 @@ jobs:
             data/investments/stock_trading_champion_manifest.json \
             data/investments/stock_trading_champion_history \
             data/investments/stock_trading_component_promotion_audit.jsonl \
+            data/investments/stock_trading_component_deployments.json \
             data/investments/gpw_daily_pick_config.json \
             data/investments/stock_trading_policy.json \
             2>/dev/null || true
