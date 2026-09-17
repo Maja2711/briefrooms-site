@@ -1,4 +1,5 @@
 name: Open Fresh 10K Positions
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -7,11 +8,12 @@ on:
     paths:
       - "scripts/portfolio_10k_open_live_now.py"
       - "scripts/portfolio_10k_complete_declared_positions.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_portfolio_10k_staged_entry.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/portfolio-10k-live-entry.yml"
   schedule:
-    # Retry pending instruments every 15 minutes while European/US markets may trade.
-    # The scripts are idempotent: an already active position is never opened again.
     - cron: "7,22,37,52 7-16 * * 1-5"
 
 permissions:
@@ -37,6 +39,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
 
@@ -55,13 +62,15 @@ jobs:
       - name: Validate material reports
         run: python scripts/validate_portfolio_10k_material_reports.py
 
-      - name: Run Portfolio 10K tests
+      - name: Run Portfolio 10K tests and execution invariant
         run: |
           python -m pytest -q tests/test_portfolio_10k*.py
+          python -m unittest tests.test_no_retroactive_execution -v
           node tests/test_portfolio_10k_material_reports_ui.js
 
-      - name: Commit validated entries and report data atomically
+      - name: Commit validated entries and report data atomically through NO RETROACTIVE airlock
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/portfolio_10k.json \
@@ -69,6 +78,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "No portfolio entry or material-report changes."
           else
+            # NO RETROACTIVE EXECUTION: every newly published 10K trade must belong to this run.
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Update validated 10K entries and material reports"
             if ! git diff --quiet; then
               echo "::error::10K entry workflow left unstaged files; refusing a partial publication."
@@ -76,5 +87,6 @@ jobs:
               exit 1
             fi
             git pull --rebase origin main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git push
           fi
