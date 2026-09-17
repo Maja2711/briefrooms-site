@@ -51,6 +51,16 @@ def _blocker(event: Mapping[str, Any]) -> str:
     state = event.get("candidate_state") or {}
     path = state.get("decision_path") or {}
     value = path.get("first_blocking_gate") or state.get("first_blocking_gate")
+    if isinstance(value, Mapping):
+        # Rejected-candidate freezes store the canonical blocker as a structured
+        # gate object. Attribution must use its stable gate name, never the
+        # string representation of the whole dictionary.
+        name = str(value.get("name") or "").strip()
+        if name:
+            return name
+        reason = str(value.get("reason") or "").strip()
+        if reason:
+            return reason
     if value:
         return str(value)
     return "selected_candidate" if event.get("selected") else "unspecified_rejection"
