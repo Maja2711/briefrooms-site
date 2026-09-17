@@ -18,6 +18,8 @@ on:
       - "scripts/investments_wes_memory.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
       - "scripts/investments_wes_counterfactual.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "scripts/investments-wes-public.js"
       - "scripts/render_weekly_public_pages.py"
       - "tests/test_instrument_registry.py"
@@ -27,6 +29,7 @@ on:
       - "tests/test_investments_wes_spx_brace_bridge.py"
       - "tests/test_investments_wes_counterfactual.py"
       - "tests/test_investments_wes_counterfactual_deadline.py"
+      - "tests/test_no_retroactive_execution.py"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - "data/investments/wes_methodology.json"
@@ -55,9 +58,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
-      - name: Validate WES code and canonical instrument routing
+      - name: Validate WES code, routing and execution-time invariants
         run: |
           python -m py_compile \
             scripts/instrument_registry.py \
@@ -72,8 +79,11 @@ jobs:
             scripts/investments_wes_lifecycle.py \
             scripts/investments_wes_memory.py \
             scripts/investments_wes_spx_brace_bridge.py \
-            scripts/investments_wes_counterfactual.py
+            scripts/investments_wes_counterfactual.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
+          python -m unittest tests.test_no_retroactive_execution -v
           python -m unittest tests.test_instrument_registry -v
           python -m unittest tests.test_instrument_registry_wes_integration -v
           node --check scripts/investments-wes-public.js
@@ -120,7 +130,7 @@ jobs:
         run: python scripts/verify_weekly_close_deadline.py
       - name: Render WES public status
         run: python scripts/render_simple_investments.py
-      - name: Commit WES state and public pages
+      - name: Commit WES state and public pages through execution airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -149,9 +159,13 @@ jobs:
             echo "No WES change to commit."
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Run Weekly Engine Star cycle"
           for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
+            fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             sleep $((attempt * 8))
           done
