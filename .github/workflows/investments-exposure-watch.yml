@@ -1,11 +1,10 @@
 name: Governed Weekly Paper Exposure Watch
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
   schedule:
-    # Critical paper-risk monitoring every 15 minutes on trading days.
     - cron: "*/15 * * * 1-5"
-    # Independent settlement retries after the Friday deadline, including DST.
     - cron: "7,37 0-6 * * 6"
   push:
     branches: [main]
@@ -26,6 +25,8 @@ on:
       - "scripts/enforce_weekly_risk_exit_lock.py"
       - "scripts/render_weekly_public_pages.py"
       - "scripts/render_simple_investments.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "scripts/investments-weekly-public.js"
       - "scripts/investments-weekly-governance.js"
       - "tests/test_investments_weekly_public.js"
@@ -33,6 +34,7 @@ on:
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_automation_workflow_ownership.py"
       - "tests/test_audit_weekly_integrity.py"
+      - "tests/test_no_retroactive_execution.py"
       - "data/investments/manual_risk_exit_overrides.json"
       - "data/investments/public_quarantine.json"
       - "data/investments/methodology.json"
@@ -63,18 +65,21 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Install market-data dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy
 
-      # Settlement is committed before broad audits, rendering or learning.
-      # A failure in any later step can no longer discard a valid close.
       - name: Settle due weekly or rolling WES positions before downstream work
         run: python scripts/investments_wes_lifecycle.py --mode close
 
       - name: Verify no weekly exposure survives its effective deadline
         run: python scripts/verify_weekly_close_deadline.py
 
-      - name: Persist weekly exits before downstream audits
+      - name: Persist weekly exits before downstream audits through execution airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -86,6 +91,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No weekly settlement change to persist."
           else
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Settle weekly paper positions at governed deadline"
             if ! git diff --quiet; then
               echo "::error::Settlement fast lane left unstaged files."
@@ -93,25 +99,27 @@ jobs:
               exit 1
             fi
             for attempt in 1 2 3 4 5; do
-              if git pull --rebase origin main && git push origin HEAD:main; then
-                break
+              if git pull --rebase origin main; then
+                python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+                if git push origin HEAD:main; then break; fi
               fi
               if [ "$attempt" -eq 5 ]; then exit 1; fi
               sleep $((attempt * 8))
             done
           fi
 
-      - name: Validate publication integrity code
+      - name: Validate publication integrity code and execution invariant
         run: |
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
-          python -m py_compile scripts/investments_wes_lifecycle.py scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py
+          python -m py_compile scripts/investments_wes_lifecycle.py scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m unittest \
             tests/test_audit_weekly_integrity.py \
             tests/test_investments_weekly_v5.py \
             tests/test_verify_weekly_close_deadline.py \
             tests.test_wes_lifecycle_expired_no_entry \
+            tests.test_no_retroactive_execution \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_settlement_paths_are_independent_queued_and_fail_closed
 
       - name: Recover a missing current-week paper forecast
@@ -123,12 +131,10 @@ jobs:
       - name: Apply confirmed missed threshold corrections
         run: python scripts/apply_manual_risk_exit_overrides.py
 
-      # Independent fail-safe audit. It scans completed OHLC bars from entry,
-      # using 5-minute data first and a 60-minute fallback when necessary.
       - name: Fail-safe audit of all frozen SL TP levels
         run: python scripts/audit_intraday_risk_exits.py
 
-      - name: Persist audited intraday risk exits before broad audits
+      - name: Persist audited intraday risk exits before broad audits through execution airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -149,6 +155,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No SL/TP or public-page changes to persist."
           else
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Apply 15-minute weekly position risk review"
             if ! git diff --quiet; then
               echo "::error::Risk review left unstaged files; refusing a partial publication."
@@ -156,8 +163,9 @@ jobs:
               exit 1
             fi
             for attempt in 1 2 3; do
-              if git pull --rebase origin main && git push origin HEAD:main; then
-                break
+              if git pull --rebase origin main; then
+                python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+                if git push origin HEAD:main; then break; fi
               fi
               if [ "$attempt" -eq 3 ]; then exit 1; fi
               sleep $((attempt * 10))
@@ -194,7 +202,7 @@ jobs:
       - name: Render Polish and English public pages
         run: python scripts/render_simple_investments.py
 
-      - name: Commit governed paper-position updates
+      - name: Commit governed paper-position updates through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -217,6 +225,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "No governed exposure changes to commit."
           else
+            # NO RETROACTIVE EXECUTION: this is the final publication boundary.
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Maintain governed weekly paper positions"
             if ! git diff --quiet; then
               echo "::error::Exposure update left unstaged files; refusing a partial publication."
@@ -224,8 +234,9 @@ jobs:
               exit 1
             fi
             for attempt in 1 2 3; do
-              if git pull --rebase origin main && git push origin HEAD:main; then
-                break
+              if git pull --rebase origin main; then
+                python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+                if git push origin HEAD:main; then break; fi
               fi
               if [ "$attempt" -eq 3 ]; then exit 1; fi
               sleep $((attempt * 10))
