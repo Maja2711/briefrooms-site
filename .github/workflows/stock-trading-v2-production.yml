@@ -1,4 +1,5 @@
 name: Stock Trading v2 Production Champion
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -7,8 +8,11 @@ on:
     paths:
       - ".github/workflows/stock-trading-v2-production.yml"
       - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/investments/stock_trading_v2_production_config.json"
       - "data/investments/stock_trading_policy.json"
+      - "tests/test_no_retroactive_execution.py"
   schedule:
     - cron: "*/10 7-21 * * 1-5"
 
@@ -37,6 +41,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Fetch latest v2 opportunity frontier
         run: |
           set -euo pipefail
@@ -52,10 +61,10 @@ jobs:
       - name: Validate v2 production boundary
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py
+          python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/stock_trading_v2_production_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio -v
+          python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_no_retroactive_execution -v
           python - <<'PY'
           import json
           from pathlib import Path
@@ -80,7 +89,7 @@ jobs:
           python scripts/stock_trading_portfolio.py --mode verify
           python scripts/stock_trading_quote_enricher.py --market all --verify
 
-      - name: Persist canonical v2 portfolio state
+      - name: Persist canonical v2 portfolio state through NO RETROACTIVE airlock
         id: commit
         run: |
           set -euo pipefail
@@ -94,15 +103,21 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Shadow opportunity data may inform a new decision, but may never donate a historical fill.
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Stock Trading: apply v2 Champion production decision"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt*3))
           done
           exit 1
