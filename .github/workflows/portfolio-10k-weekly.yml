@@ -1,4 +1,5 @@
 name: Update 10K Model Portfolio
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -21,6 +22,8 @@ on:
       - "scripts/portfolio_10k_material_reports_enrichment.py"
       - "scripts/normalize_portfolio_10k_material_reports.py"
       - "scripts/validate_portfolio_10k*.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "scripts/portfolio-10k-public.js"
       - "scripts/portfolio-10k-material-reports-public.js"
       - "data/investments/portfolio_10k_verified_material_events.json"
@@ -28,6 +31,7 @@ on:
       - "pl/inwestycje/portfel-10k.html"
       - "en/investing/portfolio-10k.html"
       - "tests/test_portfolio_10k*"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/portfolio-10k-weekly.yml"
 
 permissions:
@@ -48,6 +52,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: python -m pip install --upgrade pip yfinance pandas numpy pytest
       - name: Migrate, initialize or review portfolio
@@ -66,21 +74,25 @@ jobs:
           python scripts/normalize_portfolio_10k_material_reports.py
       - name: Validate material reports
         run: python scripts/validate_portfolio_10k_material_reports.py
-      - name: Run Portfolio 10K tests
+      - name: Run Portfolio 10K tests and execution invariant
         run: |
           python -m compileall -q scripts
           python -m pytest -q tests/test_portfolio_10k*.py
+          python -m unittest tests.test_no_retroactive_execution -v
           node tests/test_portfolio_10k_material_reports_ui.js
           node --check scripts/portfolio-10k-explainers.js
-      - name: Commit validated portfolio and reports
+      - name: Commit validated portfolio and reports through NO RETROACTIVE airlock
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/portfolio_10k.json data/investments/portfolio_10k_material_reports.json
           if git diff --cached --quiet; then
             echo "No portfolio changes to commit."
           else
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Update 10K model portfolio"
             git pull --rebase origin main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git push
           fi
