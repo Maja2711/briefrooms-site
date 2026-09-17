@@ -6,13 +6,13 @@ on:
     paths:
       - "scripts/**"
       - "tests/**"
-      - "data/investments/**"
+      - "data/**"
       - ".github/workflows/**"
   pull_request:
     paths:
       - "scripts/**"
       - "tests/**"
-      - "data/investments/**"
+      - "data/**"
       - ".github/workflows/**"
   workflow_dispatch:
 
@@ -33,7 +33,13 @@ jobs:
       - name: Unit tests - incident regression and policy invariants
         run: python -m unittest tests.test_no_retroactive_execution -v
       - name: Compile execution guards
-        run: python -m py_compile scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+        run: |
+          python -m py_compile \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py \
+            scripts/verify_trading_workflow_airlocks.py
+      - name: Verify every canonical trading writer has a pre-publication airlock
+        run: python scripts/verify_trading_workflow_airlocks.py
       - name: Audit current commit against its parent
         if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
         env:
