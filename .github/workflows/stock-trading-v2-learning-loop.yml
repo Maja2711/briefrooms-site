@@ -41,12 +41,28 @@ jobs:
             data/investments/gpw_daily_pick.json \
             data/investments/us_daily_stock.json \
             data/investments/stock_trading_portfolio.json \
-            data/investments/stock_trading_policy.json; do
+            data/investments/stock_trading_policy.json \
+            data/investments/gpw_daily_pick_config.json \
+            data/investments/stock_trading_champion_manifest.json; do
               if git cat-file -e "origin/main:$path" 2>/dev/null; then
                 git show "origin/main:$path" > "/tmp/stock-trading-v2-production/$(basename "$path")"
               fi
           done
+          test -f /tmp/stock-trading-v2-production/stock_trading_champion_manifest.json
+          test -f /tmp/stock-trading-v2-production/gpw_daily_pick_config.json
+          test -f /tmp/stock-trading-v2-production/stock_trading_policy.json
           ls -la /tmp/stock-trading-v2-production
+
+      - name: Verify v2 learning machinery before mutation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_v2_challenger_factory.py \
+            scripts/stock_trading_v2_exact_replay.py \
+            scripts/stock_trading_v2_replay_tournament.py \
+            scripts/stock_trading_v2_exact_challenger_eval.py \
+            scripts/test_stock_trading_v2_challenger_factory.py
+          python scripts/test_stock_trading_v2_challenger_factory.py
 
       - name: Freeze candidate and canonical admission experience prospectively
         run: |
@@ -98,12 +114,41 @@ jobs:
           print('REGRET_REPORT_OK', len(payload.get('gate_attribution') or {}), len(payload.get('challenger_hypotheses') or []))
           PY
 
-      - name: Create only future-holdout Challenger policies and evaluate them
+      - name: Build exact Challenger artifacts and run Replay Tournament
         run: |
           set -euo pipefail
+          # Preserve the legacy semantic learner for research continuity. Only
+          # exact Factory winners can become automatically deployable.
           python scripts/stock_trading_v2_policy_learner.py
+          python scripts/stock_trading_v2_challenger_factory.py \
+            --report data/investments/stock_trading_v2_learning/regret_report.json \
+            --manifest /tmp/stock-trading-v2-production/stock_trading_champion_manifest.json \
+            --gpw-config /tmp/stock-trading-v2-production/gpw_daily_pick_config.json \
+            --policy /tmp/stock-trading-v2-production/stock_trading_policy.json
+          python scripts/stock_trading_v2_challenger_factory.py \
+            --report data/investments/stock_trading_v2_learning/regret_report.json \
+            --manifest /tmp/stock-trading-v2-production/stock_trading_champion_manifest.json \
+            --gpw-config /tmp/stock-trading-v2-production/gpw_daily_pick_config.json \
+            --policy /tmp/stock-trading-v2-production/stock_trading_policy.json \
+            --verify
+          python scripts/stock_trading_v2_replay_tournament.py \
+            --experience-root data/investments/stock_trading_v2_experience \
+            --admission-root data/investments/stock_trading_v2_admission \
+            --outcome-root data/investments/stock_trading_v2_outcomes \
+            --promotion-config data/investments/statistical_promotion_gate_v2_config.json \
+            --challengers data/investments/stock_trading_v2_challengers
+
+      - name: Evaluate fresh holdouts and cryptographically bind exact artifacts
+        run: |
+          set -euo pipefail
           python scripts/stock_trading_v2_policy_learner.py --verify
           python scripts/stock_trading_v2_challenger_eval.py
+          python scripts/stock_trading_v2_exact_challenger_eval.py \
+            --challengers data/investments/stock_trading_v2_challengers \
+            --experience-root data/investments/stock_trading_v2_experience \
+            --admission-root data/investments/stock_trading_v2_admission \
+            --outcome-root data/investments/stock_trading_v2_outcomes \
+            --output-root data/investments/stock_trading_v2_challenger_evaluations
 
       - name: Verify all immutable stores
         run: |
@@ -125,6 +170,8 @@ jobs:
             data/investments/stock_trading_v2_position_experience \
             data/investments/stock_trading_v2_outcomes \
             data/investments/stock_trading_v2_learning \
+            data/investments/stock_trading_v2_factory_candidates \
+            data/investments/stock_trading_v2_tournaments \
             data/investments/stock_trading_v2_challengers \
             data/investments/stock_trading_v2_challenger_evaluations \
             2>/dev/null || true
@@ -132,7 +179,7 @@ jobs:
             echo "No new learning evidence."
             exit 0
           fi
-          git commit -m "Stock Trading v2: advance closed learning loop"
+          git commit -m "Stock Trading v2: advance exact Challenger learning loop"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin stock-trading-v2 && git push origin HEAD:stock-trading-v2; then
               exit 0
