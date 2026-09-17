@@ -1,4 +1,5 @@
 name: Production Investment Event Intelligence
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -14,12 +15,15 @@ on:
       - "scripts/investment_event_stock_bridge.py"
       - "scripts/daily_eurusd_event_overlay.py"
       - "scripts/daily_eurusd_spot_v17.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_investment_event_intelligence.py"
       - "tests/test_investment_event_quality.py"
       - "tests/test_investment_event_diplomacy_coverage.py"
       - "tests/test_investment_corporate_event_intelligence.py"
       - "tests/test_investment_event_engine_profiles.py"
       - "tests/test_daily_eurusd_event_overlay.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/investment-event-intelligence-production.yml"
   push:
     branches: [main]
@@ -33,12 +37,15 @@ on:
       - "scripts/investment_event_stock_bridge.py"
       - "scripts/daily_eurusd_event_overlay.py"
       - "scripts/daily_eurusd_spot_v17.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_investment_event_intelligence.py"
       - "tests/test_investment_event_quality.py"
       - "tests/test_investment_event_diplomacy_coverage.py"
       - "tests/test_investment_corporate_event_intelligence.py"
       - "tests/test_investment_event_engine_profiles.py"
       - "tests/test_daily_eurusd_event_overlay.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/investment-event-intelligence-production.yml"
   schedule:
     - cron: "6,21,36,51 * * * *"
@@ -56,13 +63,11 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Validate Event Intelligence contracts and Daily EURUSD regressions
+      - name: Validate Event Intelligence contracts, EURUSD regressions and execution invariant
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
@@ -76,7 +81,9 @@ jobs:
             scripts/investment_event_weekly_bridge.py \
             scripts/investment_event_stock_bridge.py \
             scripts/daily_eurusd_event_overlay.py \
-            scripts/daily_eurusd_spot_v17.py
+            scripts/daily_eurusd_spot_v17.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py
           python -m unittest \
             tests.test_investment_event_intelligence \
             tests.test_investment_event_quality \
@@ -90,7 +97,8 @@ jobs:
             tests.test_daily_eurusd_dynamic_exit \
             tests.test_daily_eurusd_learning_exploration \
             tests.test_daily_eurusd_post_trade_intelligence \
-            tests.test_daily_eurusd_ecb_policy -v
+            tests.test_daily_eurusd_ecb_policy \
+            tests.test_no_retroactive_execution -v
 
   weekly-overlay:
     if: github.event_name != 'pull_request'
@@ -106,15 +114,14 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+      - name: Start immutable LIVE execution clock
+        run: echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Install weekly market dependencies
         run: python -m pip install --disable-pip-version-check yfinance pandas numpy
-
       - name: Build Event Intelligence and material-event requests
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
@@ -122,8 +129,7 @@ jobs:
           set -euo pipefail
           python scripts/investment_event_weekly_bridge.py
           python scripts/daily_position_review.py
-
-      - name: Persist governed multi-asset event state
+      - name: Persist governed multi-asset event state through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -133,13 +139,14 @@ jobs:
                   data/investments/event_exit_requests.json \
                   data/investments/daily_review_report.json \
                   data/investments/weekly 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "No multi-asset event state change."
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Apply production multi-asset event intelligence"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
+            fi
             git rebase --abort 2>/dev/null || true
             sleep $((attempt * 3))
           done
@@ -159,12 +166,12 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+      - name: Start immutable LIVE execution clock
+        run: echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Apply event overlay to GPW and US portfolio
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
@@ -172,21 +179,21 @@ jobs:
           set -euo pipefail
           python scripts/investment_event_stock_bridge.py
           python scripts/stock_trading_portfolio.py --mode verify
-
-      - name: Persist canonical Stock Trading event state
+      - name: Persist canonical Stock Trading event state through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/stock_trading_portfolio.json 2>/dev/null || true
           git add data/investments/event_intelligence_audit.jsonl 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "No Stock Trading event state change."
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Apply production Stock Trading event intelligence"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
+            fi
             git rebase --abort 2>/dev/null || true
             sleep $((attempt * 3))
           done
