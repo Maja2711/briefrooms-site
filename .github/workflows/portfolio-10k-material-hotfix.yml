@@ -1,4 +1,5 @@
 name: Apply Portfolio 10K Material Events
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -11,7 +12,10 @@ on:
       - "scripts/brace_portfolio_user_control.py"
       - "scripts/brace_portfolio_decision.py"
       - "scripts/brace_portfolio_execution.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_brace_portfolio_material_overlay.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/portfolio-10k-material-hotfix.yml"
 
 permissions:
@@ -32,11 +36,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Compile and test material-event logic
+      - name: Start immutable PAPER_LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Compile and test material-event logic and execution invariant
         run: |
           python -m compileall -q scripts
           python -m pip install --upgrade pip pytest numpy pandas yfinance
           python -m pytest -q tests/test_brace_portfolio_material_overlay.py
+          python -m unittest tests.test_no_retroactive_execution -v
       - name: Apply verified events and queue paper decision
         run: |
           python scripts/brace_portfolio_material_overlay.py
@@ -62,8 +71,9 @@ jobs:
           assert public['source_metadata']['real_broker_connected'] is False
           print('Novo BRACE action:', novo['action'], novo['final_score'], 'order:', order['status'])
           PY
-      - name: Commit material-aware decisions and paper queue
+      - name: Commit material-aware decisions through NO RETROACTIVE airlock
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/portfolio10k/analysis.json \
@@ -71,10 +81,9 @@ jobs:
                   data/portfolio10k/paper_orders.json \
                   data/portfolio10k/paper_portfolio.json \
                   data/portfolio10k/public/brace_engine_public.json
-          if git diff --cached --quiet; then
-            echo "No material-decision change to commit."
-          else
-            git commit -m "Apply verified material events to BRACE decisions"
-            git pull --rebase origin main
-            git push
-          fi
+          if git diff --cached --quiet; then exit 0; fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Apply verified material events to BRACE decisions"
+          git pull --rebase origin main
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git push
