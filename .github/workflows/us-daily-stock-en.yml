@@ -1,4 +1,5 @@
 name: Publish US Stock Candidate
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -11,6 +12,8 @@ on:
       - "scripts/us_daily_stock.py"
       - "scripts/us_stock_candidate.py"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "scripts/daily_stock_rejected_candidate_freeze.py"
       - "scripts/build_daily_stock_history_index.py"
       - "scripts/us-daily-stock-public.js"
@@ -22,6 +25,7 @@ on:
       - "tests/test_daily_stock_rejected_candidate_freeze.py"
       - "tests/test_us_daily_stock.py"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_no_retroactive_execution.py"
       - "en/investing/stock-trading.html"
       - "pl/inwestycje/stock-trading.html"
   schedule:
@@ -67,6 +71,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: pip install requests
 
@@ -77,13 +86,16 @@ jobs:
             tests.test_daily_stock_core \
             tests.test_daily_stock_rejected_candidate_freeze \
             tests.test_us_daily_stock \
-            tests.test_stock_trading_portfolio -v
+            tests.test_stock_trading_portfolio \
+            tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_stock_core.py \
             scripts/daily_stock_us_adapter.py \
             scripts/us_daily_stock.py \
             scripts/us_stock_candidate.py \
             scripts/stock_trading_portfolio.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py \
             scripts/daily_stock_rejected_candidate_freeze.py \
             scripts/build_daily_stock_history_index.py
           python -m json.tool data/investments/us_daily_stock_config.json >/dev/null
@@ -130,7 +142,7 @@ jobs:
       - name: Rebuild shared candidate history index
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Commit US candidate and canonical portfolio state
+      - name: Commit US candidate and canonical portfolio state through NO RETROACTIVE airlock
         id: commit
         run: |
           set -euo pipefail
@@ -143,15 +155,20 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Publish US Stock Trading candidate state"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt*4))
           done
           exit 1
