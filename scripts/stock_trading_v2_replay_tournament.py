@@ -66,8 +66,7 @@ def candidate_metrics(candidate: Mapping[str, Any], samples: list[Mapping[str, A
     first_mean = statistics.mean(first) if first else 0.0
     second_mean = statistics.mean(second) if second else 0.0
     positive = [max(0.0, value) for value in values]
-    positive_total = sum(positive)
-    concentration = (max(positive) / positive_total) if positive_total > 0 else 1.0
+    concentration = (max(positive) / sum(positive)) if sum(positive) > 0 else 1.0
     lower = evaluator._bootstrap_lower_bound(
         values,
         confidence=0.80,
@@ -172,46 +171,94 @@ def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion
 
 def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, outcome_root: Path, promotion_config_path: Path, challenger_root: Path, tournament_root: Path = TOURNAMENT_ROOT) -> dict[str, Any]:
     events, admissions, outcomes = _iter(experience_root), _iter(admission_root), _iter(outcome_root)
-    rows: list[dict[str, Any]] = []
-    for path in sorted(candidate_root.glob("*.json")) if candidate_root.exists() else []:
+    candidate_files = sorted(candidate_root.glob("*.json")) if candidate_root.exists() else []
+    candidates: list[dict[str, Any]] = []
+    for path in candidate_files:
         candidate = _read(path)
         factory.validate_candidate(candidate)
+        candidates.append(candidate)
+
+    # Old factory artifacts stay immutable for audit, but they must never win
+    # against candidates built on a newer production Champion revision.
+    current_revision = max((int(row.get("base_manifest_revision") or 0) for row in candidates), default=0)
+    current_candidates = [row for row in candidates if int(row.get("base_manifest_revision") or 0) == current_revision]
+
+    rows: list[dict[str, Any]] = []
+    for candidate in current_candidates:
         try:
             samples = exact.collect_entry_threshold_samples(candidate=candidate, events=events, admissions=admissions, outcomes=outcomes)
             metrics = candidate_metrics(candidate, samples)
-            rows.append({"candidate_id": candidate["candidate_id"], "deployment_id": candidate["deployment_id"], "deployment_sha256": candidate["deployment_sha256"], "research_component": candidate["research_component"], "production_component": candidate["production_component"], "metrics": metrics})
+            rows.append({
+                "candidate_id": candidate["candidate_id"],
+                "deployment_id": candidate["deployment_id"],
+                "deployment_sha256": candidate["deployment_sha256"],
+                "research_component": candidate["research_component"],
+                "production_component": candidate["production_component"],
+                "horizon_sessions": candidate["horizon_sessions"],
+                "base_manifest_revision": candidate["base_manifest_revision"],
+                "metrics": metrics,
+            })
         except (ValueError, TypeError) as exc:
-            rows.append({"candidate_id": candidate["candidate_id"], "deployment_id": candidate["deployment_id"], "research_component": candidate.get("research_component"), "status": "UNREPLAYABLE", "reason": str(exc), "metrics": {"robustness_pass": False}})
+            rows.append({
+                "candidate_id": candidate["candidate_id"],
+                "deployment_id": candidate["deployment_id"],
+                "research_component": candidate.get("research_component"),
+                "production_component": candidate.get("production_component"),
+                "horizon_sessions": candidate.get("horizon_sessions"),
+                "base_manifest_revision": candidate.get("base_manifest_revision"),
+                "status": "UNREPLAYABLE",
+                "reason": str(exc),
+                "metrics": {"robustness_pass": False},
+            })
 
-    winners = [row for row in rows if (row.get("metrics") or {}).get("robustness_pass") is True]
-    winners.sort(key=lambda row: (float((row["metrics"] or {}).get("tournament_score") or -1e99), float((row["metrics"] or {}).get("mean_incremental_net_return_percent") or -1e99), str(row["candidate_id"])), reverse=True)
-    winner = winners[0] if winners else None
+    robust = [row for row in rows if (row.get("metrics") or {}).get("robustness_pass") is True]
+    grouped: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    for row in robust:
+        key = (str(row.get("production_component") or ""), int(row.get("horizon_sessions") or 0))
+        grouped.setdefault(key, []).append(row)
+    winners: list[dict[str, Any]] = []
+    for group_rows in grouped.values():
+        group_rows.sort(
+            key=lambda row: (
+                float((row["metrics"] or {}).get("tournament_score") or -1e99),
+                float((row["metrics"] or {}).get("mean_incremental_net_return_percent") or -1e99),
+                str(row["candidate_id"]),
+            ),
+            reverse=True,
+        )
+        winners.append(group_rows[0])
+    winners.sort(key=lambda row: (str(row.get("production_component") or ""), int(row.get("horizon_sessions") or 0)))
+
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": contracts.iso_utc(),
+        "base_manifest_revision": current_revision or None,
         "candidate_results": rows,
-        "winner": winner,
+        "winners": winners,
+        "winner": winners[0] if winners else None,
         "governance": {"production_decision_influence": False, "fresh_holdout_required_after_win": True},
     }
     body = dict(payload)
     payload["tournament_sha256"] = contracts.payload_sha256(body)
     _atomic(tournament_root / "latest.json", payload)
 
-    challenger_id = None
-    created = False
-    if winner:
+    promotion_config = _read(promotion_config_path)
+    challenger_ids: list[str] = []
+    created = 0
+    for winner in winners:
         candidate = _read(candidate_root / f"{winner['candidate_id']}.json")
-        promotion_config = _read(promotion_config_path)
         challenger = make_challenger(candidate, payload["tournament_sha256"], promotion_config, start_at=payload["generated_at"])
-        challenger_id = challenger["challenger_id"]
-        created = learner.persist(challenger_root, challenger)
+        challenger_ids.append(str(challenger["challenger_id"]))
+        if learner.persist(challenger_root, challenger):
+            created += 1
     return {
         "schema_version": "stock-trading-v2-replay-tournament-run-v1",
+        "base_manifest_revision": current_revision or None,
         "candidates": len(rows),
         "robust_winners": len(winners),
-        "winner_candidate_id": winner.get("candidate_id") if winner else None,
-        "challenger_id": challenger_id,
-        "challenger_created": created,
+        "winner_candidate_ids": [row["candidate_id"] for row in winners],
+        "challenger_ids": challenger_ids,
+        "challengers_created": created,
         "production_decision_influence": False,
     }
 
