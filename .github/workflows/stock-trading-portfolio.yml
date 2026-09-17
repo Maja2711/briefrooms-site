@@ -1,4 +1,5 @@
 name: Run Stock Trading Portfolio
+# NO RETROACTIVE EXECUTION
 # Portfolio controls: open horizon with monotonic SL/TP ratchets.
 
 on:
@@ -16,15 +17,15 @@ on:
       - ".github/workflows/stock-trading-portfolio.yml"
       - "scripts/stock_trading_portfolio.py"
       - "scripts/stock_trading_quote_enricher.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/investments/stock_trading_policy.json"
       - "data/investments/gpw_daily_pick.json"
       - "data/investments/us_daily_stock.json"
       - "tests/test_stock_trading_portfolio.py"
       - "tests/test_stock_trading_quote_enricher.py"
+      - "tests/test_no_retroactive_execution.py"
   schedule:
-    # GitHub Actions cron has a 5-minute minimum. The public page polls the
-    # canonical JSON every minute, while this job refreshes the source quote
-    # and deterministic portfolio controls at the fastest supported cadence.
     - cron: "*/5 7-21 * * 1-5"
 
 permissions:
@@ -54,12 +55,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Validate Stock Trading contract
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py
+          python -m py_compile scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher -v
+          python -m unittest tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
 
       - name: Resolve market
         id: market
@@ -79,7 +85,7 @@ jobs:
           python scripts/stock_trading_portfolio.py --mode verify
           python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
 
-      - name: Persist canonical Stock Trading portfolio
+      - name: Persist canonical Stock Trading portfolio through NO RETROACTIVE airlock
         id: commit
         shell: bash
         run: |
@@ -91,15 +97,20 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Update adaptive Stock Trading portfolio"
           for attempt in 1 2 3 4 5; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt*3))
           done
           exit 1
