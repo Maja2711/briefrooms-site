@@ -12,10 +12,20 @@ Dla dokumentu `docs/<NAZWA>_EN.md` ten sam pull request musi zawierać semantycz
 
 Wersje nie muszą być tłumaczeniem słowo w słowo, ale muszą opisywać tę samą architekturę, invarianty, zakres migracji i granice authority.
 
+## Wymóg kanonicznej Architecture Map
+
+`docs/ARCHITECTURE_MAP_EN.md` i `docs/ARCHITECTURE_MAP_PL.md` są kanonicznymi mapami nawigacyjnymi całej architektury BriefRooms i stanowią jeden logiczny artefakt.
+
+Każdy pull request zmieniający architekturę MUSI zaktualizować obie mapy w tym samym pull requeście. Po zmianie muszą pozostać poprawne: stabilny `module_id`, odpowiedzialność modułu, granica authority, wejścia/wyjścia, state/learning mode, odwołania do implementacji oraz invarianty bezpieczeństwa.
+
+Nowy subsystem musi otrzymać stabilny `module_id`. Zastąpiony albo wycofywany subsystem musi pozostać śledzalny przez jawny wpis migration/deprecation/status zamiast zniknąć z mapy bez śladu.
+
+Jeżeli zmiana architektury nie zmienia top-level dependency graph, mapa nadal musi zostać sprawdzona, a dotknięty wpis modułu/statusu/referencji zaktualizowany, jeśli jest to potrzebne. Rozjazd pomiędzy kodem runtime i mapą traktujemy jako defekt architektoniczny.
+
 ## Wymóg pull requestu
 
-PR architektoniczny jest niekompletny, dopóki nie istnieją obie wersje językowe. Kod runtime pozostaje źródłem prawdy implementacyjnej; sparowane dokumenty architektury są czytelnym dla człowieka zapisem projektu.
+PR architektoniczny jest niekompletny, dopóki nie istnieją obie wersje językowe oraz obie kanoniczne Architecture Maps poprawnie opisujące system po zmianie. Kod runtime pozostaje źródłem prawdy implementacyjnej; sparowane dokumenty architektury i Architecture Map są czytelnym dla człowieka zapisem projektu.
 
 ## Zakres
 
-Polityka obowiązuje prospektywnie od PR32A. Nie wymaga uzupełniania wszystkich historycznych dokumentów architektury BriefRooms.
+Polityka obowiązuje prospektywnie od PR32A. Nie wymaga uzupełniania wszystkich historycznych dokumentów architektury BriefRooms. Wymóg kanonicznej Architecture Map obowiązuje prospektywnie od Architecture Map v1.0.

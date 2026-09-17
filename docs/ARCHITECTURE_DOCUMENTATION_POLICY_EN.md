@@ -12,10 +12,20 @@ For an architecture document `docs/<NAME>_EN.md`, the same pull request must con
 
 The two versions do not need to be literal translations, but they must describe the same architecture, invariants, migration scope and authority boundaries.
 
+## Canonical Architecture Map requirement
+
+`docs/ARCHITECTURE_MAP_EN.md` and `docs/ARCHITECTURE_MAP_PL.md` are the canonical navigation maps of the whole BriefRooms architecture and form one logical artifact.
+
+Every pull request that changes architecture MUST update both map files in the same pull request. The relevant stable `module_id`, responsibility, authority boundary, inputs/outputs, state/learning mode, implementation references and safety invariants must remain accurate after the change.
+
+A new subsystem must receive a stable `module_id`. A replaced or retired subsystem must remain traceable through an explicit migration/deprecation/status update rather than disappearing silently from the map.
+
+If an architecture change does not require a top-level dependency change, the map must still be reviewed and its affected module/status/reference entry updated when needed. Architecture drift between runtime code and the map is treated as a defect.
+
 ## Pull-request requirement
 
-An architecture PR is incomplete until both language versions exist. Runtime code is the implementation source of truth; the paired architecture documents are the human-readable design record.
+An architecture PR is incomplete until both language versions exist and both canonical Architecture Maps accurately describe the resulting system. Runtime code is the implementation source of truth; the paired architecture documents and Architecture Map are the human-readable design record.
 
 ## Scope
 
-This policy applies prospectively from PR32A onward. It does not require backfilling every historical BriefRooms architecture document.
+This policy applies prospectively from PR32A onward. It does not require backfilling every historical BriefRooms architecture document. The canonical Architecture Map requirement applies prospectively from Architecture Map v1.0 onward.
