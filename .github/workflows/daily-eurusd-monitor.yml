@@ -1,4 +1,5 @@
 name: Monitor Daily EURUSD
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -17,6 +18,8 @@ on:
       - "scripts/daily_eurusd_policy.py"
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "scripts/daily-eurusd-spot-public.js"
       - "scripts/daily-eurusd-live-price.js"
       - "en/investing/daily-trading.html"
@@ -28,9 +31,9 @@ on:
       - "tests/test_daily_eurusd_learning_exploration.py"
       - "tests/test_daily_eurusd_post_trade_intelligence.py"
       - "tests/test_daily_eurusd_ecb_policy.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
-    # Independent risk monitor. Offset from round 5-minute boundaries.
     - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
 permissions:
@@ -57,7 +60,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate lifecycle, admission, exits, ECB policy and post-trade intelligence
+      - name: Start immutable LIVE execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Validate lifecycle, admission, exits, ECB policy and execution invariant
         run: |
           set -euo pipefail
           python -m unittest \
@@ -67,7 +75,8 @@ jobs:
             tests.test_daily_eurusd_dynamic_exit \
             tests.test_daily_eurusd_learning_exploration \
             tests.test_daily_eurusd_post_trade_intelligence \
-            tests.test_daily_eurusd_ecb_policy -v
+            tests.test_daily_eurusd_ecb_policy \
+            tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
             scripts/daily_eurusd_lifecycle.py \
@@ -80,7 +89,9 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_policy.py \
             scripts/daily_eurusd_experiment.py \
-            scripts/daily_eurusd_experiment_v12.py
+            scripts/daily_eurusd_experiment_v12.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py
           node --check scripts/daily-eurusd-spot-public.js
           node --check scripts/daily-eurusd-live-price.js
           python - <<'PY'
@@ -153,7 +164,7 @@ jobs:
           print('EURUSD_V17_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 
-      - name: Persist EURUSD state and append-only outcomes
+      - name: Persist EURUSD state and append-only outcomes through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -163,15 +174,20 @@ jobs:
             echo "No EURUSD state change"
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor Daily EURUSD position"
           for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push; then
-              exit 0
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push; then
+                exit 0
+              fi
             fi
             echo "Push attempt ${attempt} failed; retrying after ref refresh"
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt * 3))
           done
           echo "Unable to persist EURUSD state after retries" >&2
