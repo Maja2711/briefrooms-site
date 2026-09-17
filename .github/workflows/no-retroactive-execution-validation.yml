@@ -1,0 +1,55 @@
+name: NO RETROACTIVE EXECUTION validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "data/investments/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "data/investments/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-retroactive-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Unit tests - incident regression and policy invariants
+        run: python -m unittest tests.test_no_retroactive_execution -v
+      - name: Compile execution guards
+        run: python -m py_compile scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+      - name: Audit current commit against its parent
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          NO_RETROACTIVE_RUN_STARTED_AT: ${{ github.event.head_commit.timestamp }}
+        run: |
+          python scripts/verify_no_retroactive_execution.py \
+            --baseline-ref "${{ github.event.before }}" \
+            --run-start "${NO_RETROACTIVE_RUN_STARTED_AT}"
+      - name: Shadow isolation contract
+        run: |
+          python - <<'PY'
+          from scripts.no_retroactive_execution import assert_shadow_cannot_publish_live, RetroactiveExecutionError
+          try:
+              assert_shadow_cannot_publish_live(source_mode="SHADOW", target_mode="LIVE")
+          except RetroactiveExecutionError:
+              print("PASS: SHADOW execution cannot publish LIVE fills")
+          else:
+              raise SystemExit("FAIL: shadow isolation invariant missing")
+          PY
