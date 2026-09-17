@@ -1,4 +1,5 @@
 name: BRACE Portfolio Learning Loop v1
+# NO RETROACTIVE EXECUTION
 
 on:
   workflow_dispatch:
@@ -15,9 +16,12 @@ on:
       - "scripts/brace_portfolio_learning_loop_v1.py"
       - "scripts/brace_portfolio_learning_promotion_v1.py"
       - "scripts/brace_portfolio_option_market.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/portfolio10k/brace_learning_envelope_v1.json"
       - "data/portfolio10k/brace_production_learning_policy.json"
       - "tests/test_brace_portfolio_learning_loop_v1.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/brace-portfolio-learning-loop-v1.yml"
   push:
     branches: [main]
@@ -25,9 +29,12 @@ on:
       - "scripts/brace_portfolio_learning_loop_v1.py"
       - "scripts/brace_portfolio_learning_promotion_v1.py"
       - "scripts/brace_portfolio_option_market.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
       - "data/portfolio10k/brace_learning_envelope_v1.json"
       - "data/portfolio10k/brace_production_learning_policy.json"
       - "tests/test_brace_portfolio_learning_loop_v1.py"
+      - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/brace-portfolio-learning-loop-v1.yml"
 
 permissions:
@@ -48,19 +55,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compile BRACE learning modules
+      - name: Compile BRACE learning modules and execution guard
         run: |
           python -m py_compile \
             scripts/brace_portfolio_learning_loop_v1.py \
             scripts/brace_portfolio_learning_promotion_v1.py \
-            scripts/brace_portfolio_option_market.py
+            scripts/brace_portfolio_option_market.py \
+            scripts/no_retroactive_execution.py \
+            scripts/verify_no_retroactive_execution.py
           python -m json.tool data/portfolio10k/brace_learning_envelope_v1.json >/dev/null
           python -m json.tool data/portfolio10k/brace_production_learning_policy.json >/dev/null
-      - name: Test FX, options, counterfactual and autonomous promotion contracts
-        run: python -m unittest tests.test_brace_portfolio_learning_loop_v1 -v
+      - name: Test FX, options, counterfactual, promotion and execution invariants
+        run: |
+          python -m unittest tests.test_brace_portfolio_learning_loop_v1 -v
+          python -m unittest tests.test_no_retroactive_execution -v
       - name: Assert fixed authority boundary
         run: |
           python - <<'PY'
@@ -96,6 +108,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Start immutable prospective-policy clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Install live option-market dependency
         run: python -m pip install --disable-pip-version-check -q yfinance pandas
       - name: Collect real option chains and FX regime without synthetic pricing
@@ -123,7 +139,7 @@ jobs:
           assert plan['execution']['trade_execution_authority'] is False
           print('BRACE_PRODUCTION_HEDGE_PLAN_PASS', plan['production_policy_version'])
           PY
-      - name: Commit prospective learning state and automatically promoted production policy
+      - name: Commit prospective learning state through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -137,10 +153,14 @@ jobs:
             echo "No BRACE learning state changes."
             exit 0
           fi
+          # Policy learning is prospective-only; no historical execution may enter canonical state.
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Update BRACE portfolio learning and production hedge policy"
           for attempt in 1 2 3; do
-            git pull --rebase origin main
-            if git push origin HEAD:main; then exit 0; fi
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then exit 0; fi
+            fi
             sleep $((attempt * 5))
           done
           exit 1
