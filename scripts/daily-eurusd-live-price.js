@@ -6,24 +6,16 @@
 
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
-  const LIVE_URL = "https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD";
   const REFRESH_MS = 60_000;
-  const LIVE_MAX_AGE_MS = 5 * 60_000;
+  const LIVE_MAX_AGE_MS = 10 * 60_000;
+  const REQUEST_TIMEOUT_MS = 7_000;
 
   const T = isEn ? {
-    live: "Current",
-    engine: "Last engine price",
-    sourceLive: "live mid-market",
-    sourceEngine: "engine snapshot",
-    stale: "stale",
-    updated: "updated"
+    live: "Current", engine: "Last engine price", sourceLive: "live mid-market",
+    sourceEngine: "engine snapshot", stale: "stale", updated: "updated"
   } : {
-    live: "Cena teraz",
-    engine: "Ostatnia cena silnika",
-    sourceLive: "live mid-market",
-    sourceEngine: "snapshot silnika",
-    stale: "nieaktualne",
-    updated: "aktualizacja"
+    live: "Cena teraz", engine: "Ostatnia cena silnika", sourceLive: "live mid-market",
+    sourceEngine: "snapshot silnika", stale: "nieaktualne", updated: "aktualizacja"
   };
 
   let knownTradeId = null;
@@ -37,26 +29,21 @@
   };
 
   const formatPx = value => Number(value).toLocaleString(
-    isEn ? "en-US" : "pl-PL",
-    { minimumFractionDigits: 5, maximumFractionDigits: 5 }
+    isEn ? "en-US" : "pl-PL", { minimumFractionDigits: 5, maximumFractionDigits: 5 }
   );
 
   const formatPct = value => {
     const n = Number(value);
     if (!Number.isFinite(n)) return "—";
     return `${n > 0 ? "+" : ""}${n.toLocaleString(isEn ? "en-US" : "pl-PL", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 2, maximumFractionDigits: 2
     })}%`;
   };
 
   const formatDateTime = value => {
     const d = new Date(value);
     if (Number.isNaN(d.valueOf())) return "—";
-    return d.toLocaleString(isEn ? "en-GB" : "pl-PL", {
-      dateStyle: "short",
-      timeStyle: "medium"
-    });
+    return d.toLocaleString(isEn ? "en-GB" : "pl-PL", { dateStyle: "short", timeStyle: "medium" });
   };
 
   const ageMinutes = value => {
@@ -65,34 +52,56 @@
     return Math.max(0, Math.round((Date.now() - d.valueOf()) / 60_000));
   };
 
+  async function fetchJson(url) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { cache: "no-store", mode: "cors", signal: controller.signal });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return await response.json();
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
   async function fetchState() {
     const response = await fetch(`${STATE_URL}?v=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error("eurusd_state_unavailable");
     return response.json();
   }
 
-  async function fetchLiveQuote() {
-    const response = await fetch(`${LIVE_URL}&_=${Date.now()}`, {
-      cache: "no-store",
-      mode: "cors"
-    });
-    if (!response.ok) throw new Error(`live_quote_http_${response.status}`);
-    const data = await response.json();
-    if (!data || data.success === false) throw new Error("live_quote_api_error");
-
-    const rate = number(data.rate ?? data.result);
-    if (rate == null || rate < 0.8 || rate > 1.5) throw new Error("live_quote_invalid_rate");
-
-    const sourceTime = data.updatedAt ? new Date(data.updatedAt) : new Date();
-    if (Number.isNaN(sourceTime.valueOf())) throw new Error("live_quote_invalid_timestamp");
+  function validateQuote(price, timestamp, source) {
+    const rate = number(price);
+    if (rate == null || rate < 0.8 || rate > 1.5) throw new Error(`${source}_invalid_rate`);
+    const sourceTime = timestamp ? new Date(timestamp) : new Date();
+    if (Number.isNaN(sourceTime.valueOf())) throw new Error(`${source}_invalid_timestamp`);
     const age = Date.now() - sourceTime.valueOf();
-    if (age < -60_000 || age > LIVE_MAX_AGE_MS) throw new Error("live_quote_stale");
+    if (age < -60_000 || age > LIVE_MAX_AGE_MS) throw new Error(`${source}_stale`);
+    return { price: rate, updatedAt: sourceTime.toISOString(), source };
+  }
 
-    return {
-      price: rate,
-      updatedAt: sourceTime.toISOString(),
-      source: "Currency Exchange Tool"
-    };
+  async function quoteFxApi() {
+    const data = await fetchJson(`https://fxapi.app/api/EUR/USD.json?_=${Date.now()}`);
+    return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
+  }
+
+  async function quoteCurrencyExchangeTool() {
+    const data = await fetchJson(`https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD&_=${Date.now()}`);
+    if (!data || data.success === false) throw new Error("currencyexchangetool_api_error");
+    return validateQuote(data.rate ?? data.result, data.updatedAt, "Currency Exchange Tool");
+  }
+
+  async function fetchLiveQuote() {
+    const providers = [quoteFxApi, quoteCurrencyExchangeTool];
+    const errors = [];
+    for (const provider of providers) {
+      try {
+        return await provider();
+      } catch (error) {
+        errors.push(error?.message || String(error));
+      }
+    }
+    throw new Error(`all_live_providers_failed:${errors.join("|")}`);
   }
 
   function getOpenPosition(payload) {
@@ -153,9 +162,9 @@
     pnl.classList.toggle("negative", Number(resultPct) < 0);
 
     if (usingLive) {
-      meta.textContent = `${T.sourceLive} · ${T.updated} ${formatDateTime(liveQuote.updatedAt)}`;
+      meta.textContent = `${T.sourceLive} · ${liveQuote.source} · ${T.updated} ${formatDateTime(liveQuote.updatedAt)}`;
       meta.classList.remove("brfx-live-stale");
-      card.dataset.livePriceSource = "browser-live";
+      card.dataset.livePriceSource = liveQuote.source;
       card.dataset.livePriceAt = liveQuote.updatedAt;
     } else {
       const timestamp = payload?.timestamp;
@@ -172,14 +181,12 @@
   function maybeReloadForStateChange(payload, position) {
     const status = String(payload?.status || "");
     const tradeId = position?.trade_id || null;
-
     if (!initialized) {
       knownStatus = status;
       knownTradeId = tradeId;
       initialized = true;
       return false;
     }
-
     if (status !== knownStatus || tradeId !== knownTradeId) {
       window.location.reload();
       return true;
@@ -214,10 +221,11 @@
   style.textContent = `.brfx-live-meta{font-size:9px!important;color:#7f95aa!important;line-height:1.25;margin-top:4px}.brfx-live-stale{color:#ffb86b!important}`;
   document.head.appendChild(style);
 
-  setTimeout(refresh, 1200);
+  setTimeout(refresh, 250);
   const timer = window.setInterval(refresh, REFRESH_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refresh();
   });
+  window.addEventListener("pageshow", refresh);
   window.addEventListener("pagehide", () => window.clearInterval(timer), { once: true });
 })();
