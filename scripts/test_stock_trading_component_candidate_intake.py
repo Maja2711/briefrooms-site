@@ -72,7 +72,7 @@ def _spec(threshold: int) -> dict:
     }
 
 
-def _pair(name: str, *, threshold: int, revision: int = 1, tamper_hash: bool = False) -> tuple[dict, dict, str]:
+def _pair(name: str, *, threshold: int, horizon: int, revision: int = 1, tamper_hash: bool = False) -> tuple[dict, dict, str]:
     spec = _spec(threshold)
     deployment_sha = bound.deployment_sha256(spec)
     deployment_id = f"stdep-entry-{deployment_sha[:20]}"
@@ -88,6 +88,7 @@ def _pair(name: str, *, threshold: int, revision: int = 1, tamper_hash: bool = F
         "schema_version": "stock-trading-v2-challenger-policy-v1",
         "challenger_id": name,
         "component": "entry_score_below_threshold",
+        "horizon_sessions": horizon,
         "production_candidate": copy.deepcopy(candidate),
     }
     challenger["challenger_sha256"] = promotion._hash_without(challenger, "challenger_sha256")
@@ -95,6 +96,7 @@ def _pair(name: str, *, threshold: int, revision: int = 1, tamper_hash: bool = F
         "schema_version": "stock-trading-v2-challenger-evaluation-v1",
         "challenger_id": name,
         "component": "entry_score_below_threshold",
+        "horizon_sessions": horizon,
         "state": "RESEARCH_PASS_EXACT_HOLDOUT",
         "metrics": {"formal_pass": True},
         "evaluated_production_candidate": {
@@ -129,17 +131,37 @@ def main() -> int:
         _write(gpw_path, _gpw())
         _write(policy_path, _policy())
 
-        valid_ch, valid_ev, valid_id = _pair("valid", threshold=70)
-        too_large_ch, too_large_ev, too_large_id = _pair("too-large", threshold=68)
-        tampered_ch, tampered_ev, tampered_id = _pair("tampered", threshold=69, tamper_hash=True)
-        stale_ch, stale_ev, stale_id = _pair("stale", threshold=71, revision=2)
+        fixtures: list[tuple[str, dict, dict]] = []
+        valid_ids: list[str] = []
+        for horizon in (1, 2):
+            ch, ev, deployment_id = _pair(f"valid-h{horizon}", threshold=70, horizon=horizon)
+            fixtures.append((f"valid-h{horizon}", ch, ev))
+            valid_ids.append(deployment_id)
+        assert valid_ids[0] == valid_ids[1]
+        valid_id = valid_ids[0]
 
-        for name, ch, ev in (
-            ("valid", valid_ch, valid_ev),
-            ("too-large", too_large_ch, too_large_ev),
+        # A short-only PASS is deliberately insufficient: the exact same
+        # deployment must also PASS the other production holding horizon.
+        short_only_ch, short_only_ev, short_only_id = _pair("short-only", threshold=71, horizon=1)
+        fixtures.append(("short-only", short_only_ch, short_only_ev))
+
+        too_large_ids: list[str] = []
+        for horizon in (1, 2):
+            ch, ev, deployment_id = _pair(f"too-large-h{horizon}", threshold=68, horizon=horizon)
+            fixtures.append((f"too-large-h{horizon}", ch, ev))
+            too_large_ids.append(deployment_id)
+        too_large_id = too_large_ids[0]
+
+        tampered_ch, tampered_ev, tampered_id = _pair("tampered", threshold=69, horizon=1, tamper_hash=True)
+        stale_ch, stale_ev, stale_id = _pair("stale", threshold=69, horizon=2, revision=2)
+        long_ch, long_ev, long_id = _pair("long-horizon", threshold=69, horizon=20)
+        fixtures.extend([
             ("tampered", tampered_ch, tampered_ev),
             ("stale", stale_ch, stale_ev),
-        ):
+            ("long-horizon", long_ch, long_ev),
+        ])
+
+        for name, ch, ev in fixtures:
             _write(challengers / f"{name}.json", ch)
             _write(evaluations / f"{name}.json", ev)
 
@@ -153,23 +175,24 @@ def main() -> int:
             output_path=approved_path,
         )
         assert result["accepted"] == [valid_id]
-        reasons = {row["challenger_id"]: row["reason"] for row in result["rejected"]}
-        assert "maximum per-promotion delta" in reasons["too-large"]
-        assert "SHA" in reasons["tampered"]
-        assert "stale" in reasons["stale"].lower()
+        reason_text = "\n".join(row["reason"] for row in result["rejected"])
+        assert "maximum per-promotion delta" in reason_text
+        assert "SHA" in reason_text
+        assert "stale" in reason_text.lower()
+        assert "outside the 1-2 session production mandate" in reason_text
+        assert "missing exact fresh-holdout PASS" in reason_text
 
         approved = router.load_registry(approved_path)
         assert set(approved["deployments"]) == {valid_id}
-        assert too_large_id not in approved["deployments"]
-        assert tampered_id not in approved["deployments"]
-        assert stale_id not in approved["deployments"]
+        for rejected_id in (short_only_id, too_large_id, tampered_id, stale_id, long_id):
+            assert rejected_id not in approved["deployments"]
 
         promoted = champion.build_promoted_manifest(
             base_manifest,
             component="entry",
             version=approved["deployments"][valid_id]["version"],
             deployment_id=valid_id,
-            challenger_id="valid",
+            challenger_id="valid-h1",
             evidence_sha256="a" * 64,
             promotion_id="synthetic-promotion",
             expected_revision=1,
