@@ -1,0 +1,89 @@
+name: Stock Trading v1 Shadow Challenger
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-v1-shadow.yml"
+      - "scripts/stock_trading_v1_shadow.py"
+      - "scripts/us_stock_candidate_shadow.py"
+      - "scripts/gpw_stock_candidate_shadow.py"
+      - "data/investments/stock_trading_policy.json"
+  schedule:
+    - cron: "*/15 7-21 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-v1-shadow-challenger
+  cancel-in-progress: true
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      STOOQ_API_KEY: ${{ secrets.STOOQ_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash-lite
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Validate isolated challenger contract
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/stock_trading_v1_shadow.py \
+            scripts/us_stock_candidate_shadow.py \
+            scripts/gpw_stock_candidate_shadow.py \
+            scripts/stock_trading_portfolio.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/stock_trading_policy.json').read_text())
+          assert p['champion_engine']=='v2'
+          assert p['challenger_engine']=='v1'
+          assert p['legacy_candidate_admission_enabled'] is False
+          assert p['markets']['US']['minimum_entry_score']==0
+          assert p['markets']['GPW']['minimum_entry_score']==0
+          print('V1_SHADOW_CONTRACT_OK')
+          PY
+
+      - name: Run fair v1 counterfactual portfolio
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_v1_shadow.py --market all
+          python scripts/stock_trading_v1_shadow.py --verify
+
+      - name: Persist shadow evidence only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/stock_trading_v1_shadow_portfolio.json 2>/dev/null || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Stock Trading: refresh v1 shadow challenger"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*3))
+          done
+          exit 1
