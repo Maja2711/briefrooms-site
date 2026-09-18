@@ -72,6 +72,47 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
         self.assertEqual('PRE', enriched['markets']['US']['quote_session']['market_state'])
         self.assertEqual('quote_enriched', audits[0]['action'])
 
+    def test_execution_quote_uses_fresh_independent_fallback(self):
+        now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+        stale_yahoo = {
+            'price': 100.0,
+            'market_state': 'REGULAR',
+            'observed_at': '2026-09-18T11:45:00+02:00',
+            'received_at': '2026-09-18T10:00:00+00:00',
+            'provider': 'Yahoo Finance chart',
+            'delay_minutes': 15,
+            'capture_age_seconds': 900,
+        }
+        fresh_stooq = {
+            'price': 101.0,
+            'market_state': 'REGULAR',
+            'observed_at': '2026-09-18T11:59:30+02:00',
+            'received_at': '2026-09-18T10:00:00+00:00',
+            'provider': 'Stooq current quote',
+            'delay_minutes': 0.5,
+            'capture_age_seconds': 30,
+        }
+        with patch.object(quotes, 'quote_for_symbol', return_value=stale_yahoo), patch.object(quotes, '_stooq_quote', return_value=fresh_stooq):
+            result = quotes.execution_quote_for_symbol('LPP.WA', 'GPW', now_utc=now, maximum_age_seconds=300)
+        self.assertEqual('Stooq current quote', result['provider'])
+        self.assertEqual(101.0, result['price'])
+
+    def test_execution_quote_refuses_stale_fill(self):
+        now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+        stale = {
+            'price': 100.0,
+            'market_state': 'REGULAR',
+            'observed_at': '2026-09-18T11:45:00+02:00',
+            'received_at': '2026-09-18T10:00:00+00:00',
+            'provider': 'Yahoo Finance chart',
+            'delay_minutes': 15,
+            'capture_age_seconds': 900,
+        }
+        with patch.object(quotes, 'quote_for_symbol', return_value=stale), patch.object(quotes, '_stooq_quote', return_value=stale):
+            with self.assertRaises(quotes.ExecutionQuoteUnavailable):
+                quotes.execution_quote_for_symbol('LPP.WA', 'GPW', now_utc=now, maximum_age_seconds=300)
+
+
 
 if __name__ == '__main__':
     unittest.main()
