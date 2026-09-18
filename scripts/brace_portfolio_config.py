@@ -318,6 +318,15 @@ def configured_methodology_semver(raw: Mapping[str, Any]) -> str:
     return configured_methodology_version(raw).removeprefix("brace-portfolio-v")
 
 
+def default_methodology_version() -> str:
+    raw = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    return configured_methodology_version(raw)
+
+
+def default_methodology_semver() -> str:
+    return default_methodology_version().removeprefix("brace-portfolio-v")
+
+
 def load_config(
     path: Path = DEFAULT_CONFIG_PATH,
     adaptive_path: Path | None = None,
