@@ -66,6 +66,49 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertEqual(0, len(stock.open_positions(updated, 'US')))
         self.assertEqual(3, stock.available_slots(updated, 'US', self.policy))
 
+    def test_v2_policy_blocks_legacy_direct_admission(self):
+        governed = dict(self.policy)
+        governed['champion_engine'] = 'v2'
+        governed['challenger_engine'] = 'v1'
+        governed['legacy_candidate_admission_enabled'] = False
+        updated, action = stock.admit_candidate(
+            self.state, 'US', candidate(), now=self.now, policy=governed
+        )
+        self.assertEqual('candidate_admission_blocked', action['action'])
+        self.assertEqual('v2_production_bridge_only', action['reason'])
+        self.assertEqual([], stock.open_positions(updated, 'US'))
+        self.assertIsNone(updated['markets']['US']['last_candidate_key'])
+
+    def test_v2_bridge_authority_can_admit_after_revalidation(self):
+        governed = dict(self.policy)
+        governed['champion_engine'] = 'v2'
+        governed['challenger_engine'] = 'v1'
+        governed['legacy_candidate_admission_enabled'] = False
+        updated, action = stock.admit_candidate(
+            self.state,
+            'US',
+            candidate(),
+            now=self.now,
+            policy=governed,
+            authority='v2_production_bridge',
+        )
+        self.assertEqual('open', action['action'])
+        self.assertEqual(1, len(stock.open_positions(updated, 'US')))
+
+    def test_run_market_does_not_load_candidate_when_v2_bridge_owns_admission(self):
+        governed = dict(self.policy)
+        governed['champion_engine'] = 'v2'
+        governed['challenger_engine'] = 'v1'
+        governed['legacy_candidate_admission_enabled'] = False
+        with patch.object(stock, '_load') as loader:
+            updated, audit = stock.run_market(
+                self.state, 'US', now=self.now, policy=governed
+            )
+        loader.assert_not_called()
+        self.assertEqual([], stock.open_positions(updated, 'US'))
+        self.assertEqual('candidate_admission_blocked', audit[-1]['action'])
+        self.assertEqual('v2_production_bridge_only', audit[-1]['reason'])
+
     def test_forced_daily_candidate_is_rejected_even_with_high_score(self):
         ok, reason = stock.qualify_candidate('US', candidate(score=99, forced=True), self.policy)
         self.assertFalse(ok)
