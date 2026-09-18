@@ -18,8 +18,8 @@ def policy():
         'policy_version': 'test',
         'forced_trade_allowed': False,
         'markets': {
-            'GPW': {'max_open_positions': 3, 'minimum_entry_score': 72.0, 'minimum_reward_risk': 1.5, 'maximum_risk_percent': 0.07, 'atr_multiple': 1.1, 'risk_floor_percent': 0.012, 'model_exit_score': 30.0, 'candidate_file': 'x'},
-            'US': {'max_open_positions': 3, 'minimum_entry_score': 72.0, 'minimum_reward_risk': 1.5, 'maximum_risk_percent': 0.07, 'atr_multiple': 1.05, 'risk_floor_percent': 0.011, 'model_exit_score': 30.0, 'candidate_file': 'y'},
+            'GPW': {'max_open_positions': 3, 'minimum_entry_score': 72.0, 'minimum_reward_risk': 1.5, 'maximum_risk_percent': 0.07, 'atr_multiple': 1.1, 'risk_floor_percent': 0.012, 'model_exit_score': 30.0, 'candidate_file': 'x', 'target_position_notional': 5000.0, 'position_currency': 'PLN', 'fractional_quantity_allowed': True, 'quantity_precision': 8, 'sizing_policy_version': 'FIXED_NOTIONAL_V1'},
+            'US': {'max_open_positions': 3, 'minimum_entry_score': 72.0, 'minimum_reward_risk': 1.5, 'maximum_risk_percent': 0.07, 'atr_multiple': 1.05, 'risk_floor_percent': 0.011, 'model_exit_score': 30.0, 'candidate_file': 'y', 'target_position_notional': 5000.0, 'position_currency': 'USD', 'fractional_quantity_allowed': True, 'quantity_precision': 8, 'sizing_policy_version': 'FIXED_NOTIONAL_V1'},
         },
     }
 
@@ -116,6 +116,45 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertIsNone(position['scheduled_exit'])
         self.assertIsNone(position['valid_until'])
         self.assertIsNone(position['time_stop'])
+
+    def test_every_new_position_uses_fixed_5000_market_currency_notional(self):
+        us_state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
+        us = stock.open_positions(us_state, 'US')[0]
+        self.assertEqual('FIXED_NOTIONAL_V1', us['sizing_policy_version'])
+        self.assertEqual('USD', us['position_currency'])
+        self.assertEqual(5000.0, us['target_position_notional'])
+        self.assertAlmostEqual(5000.0, us['entry'] * us['quantity'], places=4)
+        self.assertEqual(50.0, us['quantity'])
+
+        gpw_state, _ = stock.admit_candidate(self.state, 'GPW', candidate('GPW', 'PKO.WA'), now=self.now, policy=self.policy)
+        gpw = stock.open_positions(gpw_state, 'GPW')[0]
+        self.assertEqual('PLN', gpw['position_currency'])
+        self.assertEqual(5000.0, gpw['target_position_notional'])
+        self.assertAlmostEqual(5000.0, gpw['entry'] * gpw['quantity'], places=4)
+        self.assertEqual(50.0, gpw['quantity'])
+
+    def test_fixed_notional_pnl_is_cash_exposure_not_one_share_move(self):
+        state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'US')[0]
+        state, _ = stock.close_position(
+            state,
+            'US',
+            position['position_id'],
+            now=self.now,
+            exit_price=110.0,
+            reason='test_exit',
+        )
+        closed = state['markets']['US']['closed_positions'][-1]
+        self.assertEqual(500.0, closed['pnl_amount'])
+        self.assertEqual(5500.0, closed['exit_notional'])
+        self.assertEqual(10.0, closed['return_percent'])
+
+    def test_fixed_notional_verifier_rejects_wrong_notional(self):
+        state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
+        state['markets']['US']['open_positions'][0]['quantity'] = 1.0
+        result = stock.verify_state(state, self.policy)
+        self.assertEqual('ERROR', result['status'])
+        self.assertTrue(any('fixed_notional_not_5000' in error for error in result['errors']))
 
     def test_open_ended_position_gets_ambitious_three_r_target(self):
         state, _ = stock.admit_candidate(self.state, 'GPW', candidate('GPW', 'PGE.WA', score=68.87, governed_final=True), now=self.now, policy=self.policy)
