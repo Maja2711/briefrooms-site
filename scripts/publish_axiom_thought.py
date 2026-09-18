@@ -1,142 +1,136 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import json
-import os
-import re
-import subprocess
-import sys
-import time
+import json, os, re, subprocess, sys, time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
-
 import requests
 
-ROOT = Path(__file__).resolve().parents[1]
-CURRENT = ROOT / "data/home/axiom-thought.json"
-HISTORY = ROOT / "data/home/axiom-thoughts-history.jsonl"
-PRINCIPLES = ROOT / "docs/axiom-thought-principles.md"
-GUARD = ROOT / "scripts/axiom_thought_guard.py"
-WARSAW = ZoneInfo("Europe/Warsaw")
-MODEL = os.getenv("AXIOM_THOUGHT_MODEL", "gemini-3.5-flash")
-FALLBACK_MODEL = os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+ROOT=Path(__file__).resolve().parents[1]
+CURRENT=ROOT/"data/home/axiom-thought.json"
+HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
+RESERVE=ROOT/"data/home/axiom-thought-reserve.json"
+PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
+GUARD=ROOT/"scripts/axiom_thought_guard.py"
+WARSAW=ZoneInfo("Europe/Warsaw")
+MODEL=os.getenv("AXIOM_THOUGHT_MODEL","gemini-3.5-flash")
+FALLBACK_MODEL=os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL","gemini-3.5-flash-lite")
+MAX_ATTEMPTS=int(os.getenv("AXIOM_THOUGHT_MAX_ATTEMPTS","10"))
+RESERVE_TARGET=int(os.getenv("AXIOM_THOUGHT_RESERVE_TARGET","10"))
 
+def today(): return datetime.now(WARSAW).date().isoformat()
+def history_rows(): return [json.loads(x) for x in HISTORY.read_text(encoding="utf-8").splitlines() if x.strip()]
+def reserve_rows():
+    if not RESERVE.exists(): return []
+    data=json.loads(RESERVE.read_text(encoding="utf-8"))
+    return data if isinstance(data,list) else []
 
-def today() -> str:
-    return datetime.now(WARSAW).date().isoformat()
+def save_reserve(rows): RESERVE.write_text(json.dumps(rows,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
 
+def extract_json(text):
+    text=re.sub(r"^\x60\x60\x60(?:json)?\s*","",text.strip())
+    text=re.sub(r"\s*\x60\x60\x60$","",text)
+    a,b=text.find("{"),text.rfind("}")
+    if a<0 or b<a: raise ValueError("model returned no JSON object")
+    return json.loads(text[a:b+1])
 
-def history_rows() -> list[dict]:
-    return [json.loads(line) for line in HISTORY.read_text(encoding="utf-8").splitlines() if line.strip()]
+def call_gemini(prompt,model):
+    key=os.environ.get("GEMINI_API_KEY","").strip()
+    if not key: raise RuntimeError("GEMINI_API_KEY is missing")
+    url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    payload={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":1.2,"responseMimeType":"application/json"}}
+    r=requests.post(url,json=payload,timeout=90); r.raise_for_status()
+    return extract_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
 
-
-def extract_json(text: str) -> dict:
-    text = text.strip()
-    text = re.sub(r"^```(?:json)?\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end < start:
-        raise ValueError("model returned no JSON object")
-    return json.loads(text[start:end + 1])
-
-
-def call_gemini(prompt: str, model: str) -> dict:
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY is missing")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 1.15, "responseMimeType": "application/json"},
-    }
-    r = requests.post(url, json=payload, timeout=90)
-    r.raise_for_status()
-    data = r.json()
-    return extract_json(data["candidates"][0]["content"]["parts"][0]["text"])
-
-
-def build_prompt(rows: list[dict]) -> str:
-    principles = PRINCIPLES.read_text(encoding="utf-8")
-    archive = "\n".join(json.dumps(r, ensure_ascii=False) for r in rows)
-    return f"""You are AXIOM, co-author of BriefRooms. Create today's Morning AXIOM thought.
+def build_prompt(rows,reserve,mode):
+    archive="\n".join(json.dumps(r,ensure_ascii=False) for r in rows)
+    reserved="\n".join(json.dumps(r,ensure_ascii=False) for r in reserve)
+    return f"""You are AXIOM, co-author of BriefRooms. Create a Morning AXIOM thought.
 This is NOT motivational quote generation. Intellectual depth and originality are mandatory.
-
-DATE: {today()}
-
+MODE: {mode}. DATE: {today()}
 EDITORIAL CONSTITUTION:
-{principles}
-
-FULL PUBLISHED ARCHIVE:
+{PRINCIPLES.read_text(encoding="utf-8")}
+PUBLISHED ARCHIVE:
 {archive}
+ALREADY VALIDATED RESERVE (do not repeat these ideas):
+{reserved}
+Internally generate and compare AT LEAST 10 conceptually different candidates from different domains.
+Reject slogans, corporate wisdom, self-help, obvious truths, famous-quote paraphrases, and anything semantically close to archive or reserve.
+Return ONLY one JSON object with exactly:
+{{"theme":"short-kebab-case-theme","pl":"„Polish thought”","en":"“faithful English translation”","candidates_considered":10,"scores":{{"depth":8,"novelty":8,"banality_risk":0}},"silence_test":true,"editor_note":"minimum 80 characters explaining the non-obvious insight and originality"}}
+Use honest scores. Rethink weak candidates before returning."""
 
-Internally generate and seriously compare AT LEAST 7 conceptually different candidates from different domains. Reject slogans, corporate wisdom, self-help, pretty obvious truths, paraphrases of famous quotations, and anything semantically close to the archive. The thought need not concern BriefRooms, business, AI or technology. Prefer a precise insight that creates a genuine second thought.
+def validate_candidate(c,rows,extra=None):
+    required={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
+    if set(c)!=required: raise ValueError("candidate keys mismatch")
+    stamp=today()
+    record={"date":stamp,**c}
+    current={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
+    sys.path.insert(0,str(ROOT/"scripts"))
+    from axiom_thought_guard import validate, similarity
+    errors=validate(current,rows+[record])
+    if errors: raise ValueError("; ".join(errors))
+    for other in extra or []:
+        sim=similarity(c["pl"],other.get("pl",""))
+        if sim.violates or c["theme"]==other.get("theme"):
+            raise ValueError("candidate too similar to reserve")
 
-Return ONLY one JSON object with exactly these fields:
-{{
-  "theme": "short-kebab-case-theme",
-  "pl": "„Polish thought”",
-  "en": "“faithful English translation”",
-  "candidates_considered": 7,
-  "scores": {{"depth": 8-10, "novelty": 8-10, "banality_risk": 0-2}},
-  "silence_test": true,
-  "editor_note": "minimum 80 characters: explain the non-obvious insight, why it survived the other candidates, and why it is not a repetition"
-}}
-Do not inflate scores to rescue a weak thought. If the best candidate is weak, rethink and generate a stronger candidate before returning JSON."""
-
-
-def validate_candidate(c: dict, rows: list[dict]) -> None:
-    required = {"theme", "pl", "en", "candidates_considered", "scores", "silence_test", "editor_note"}
-    if set(c) != required:
-        raise ValueError(f"candidate keys mismatch: {set(c)}")
-    record = {"date": today(), **c}
-    current = {"date": today(), "author": "AXIOM", "brand": "BriefRooms", "pl": c["pl"], "en": c["en"]}
-    # Reuse the production guard before touching files.
-    sys.path.insert(0, str(ROOT / "scripts"))
-    from axiom_thought_guard import validate
-    errors = validate(current, rows + [record])
-    if errors:
-        raise ValueError("; ".join(errors))
-
-
-def main() -> int:
-    rows = history_rows()
-    stamp = today()
-    if rows and rows[-1].get("date") == stamp:
-        print(f"AXIOM Thought: already published for {stamp}")
-        return 0
-
-    prompt = build_prompt(rows)
-    errors: list[str] = []
-    candidate = None
-    for attempt in range(1, 5):
-        model = MODEL if attempt <= 3 else FALLBACK_MODEL
+def generate_one(rows,reserve,mode):
+    prompt=build_prompt(rows,reserve,mode)
+    errors=[]
+    for attempt in range(1,MAX_ATTEMPTS+1):
+        model=MODEL if attempt <= max(1,MAX_ATTEMPTS-2) else FALLBACK_MODEL
         try:
-            candidate = call_gemini(prompt + f"\n\nAttempt {attempt}: be stricter than before.", model)
-            validate_candidate(candidate, rows)
-            break
+            c=call_gemini(prompt+f"\nAttempt {attempt}/{MAX_ATTEMPTS}: choose a genuinely different, deeper idea.",model)
+            validate_candidate(c,rows,reserve)
+            return c
         except Exception as exc:
-            errors.append(f"attempt {attempt}/{model}: {exc}")
-            candidate = None
-            time.sleep(3)
+            errors.append(f"{attempt}/{model}: {exc}"); time.sleep(2)
+    raise RuntimeError("no candidate passed after "+str(MAX_ATTEMPTS)+" attempts: "+" | ".join(errors[-3:]))
 
-    if candidate is None:
-        print("AXIOM Thought: no candidate passed quality gate; publishing nothing.", file=sys.stderr)
-        for error in errors:
-            print(" - " + error, file=sys.stderr)
-        return 1
+def publish(candidate,rows,source):
+    stamp=today()
+    record={"date":stamp,**candidate,"source":source}
+    # Guard schema intentionally excludes source; validate before adding audit metadata.
+    validate_candidate(candidate,rows)
+    history_record={"date":stamp,**candidate}
+    HISTORY.write_text(HISTORY.read_text(encoding="utf-8").rstrip()+"\n"+json.dumps(history_record,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+    CURRENT.write_text(json.dumps({"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":candidate["pl"],"en":candidate["en"]},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    if subprocess.run([sys.executable,str(GUARD)],cwd=ROOT).returncode: raise RuntimeError("post-write guard failed")
+    print(f"AXIOM Thought: published {stamp} source={source} theme={candidate['theme']}")
 
-    record = {"date": stamp, **candidate}
-    current = {"date": stamp, "author": "AXIOM", "brand": "BriefRooms", "pl": candidate["pl"], "en": candidate["en"]}
-    HISTORY.write_text(HISTORY.read_text(encoding="utf-8").rstrip() + "\n" + json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    CURRENT.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-    result = subprocess.run([sys.executable, str(GUARD)], cwd=ROOT)
-    if result.returncode:
-        raise RuntimeError("post-write AXIOM Thought Guard failed")
-    print(f"AXIOM Thought: published {stamp} theme={candidate['theme']}")
+def main():
+    rows=history_rows(); reserve=reserve_rows(); stamp=today()
+    if rows and rows[-1].get("date")==stamp:
+        print(f"AXIOM Thought: already published for {stamp}")
+    else:
+        try:
+            publish(generate_one(rows,reserve,"daily"),rows,"generated")
+        except Exception as exc:
+            print(f"AXIOM Thought: live generation failed: {exc}",file=sys.stderr)
+            published=False
+            while reserve:
+                candidate=reserve.pop(0); save_reserve(reserve)
+                try:
+                    validate_candidate(candidate,rows,reserve)
+                    publish(candidate,rows,"reserve")
+                    published=True; break
+                except Exception as reserve_exc:
+                    print(f"AXIOM Thought: rejected stale reserve item: {reserve_exc}",file=sys.stderr)
+            if not published: raise RuntimeError("live generation failed and validated reserve is empty")
+    # Refill reserve after publication. Failure here must not undo today's successful publication.
+    rows=history_rows(); reserve=reserve_rows()
+    refill_errors=0
+    while len(reserve)<RESERVE_TARGET:
+        try:
+            c=generate_one(rows,reserve,"reserve-refill")
+            reserve.append(c); save_reserve(reserve)
+            print(f"AXIOM Thought: reserve {len(reserve)}/{RESERVE_TARGET}")
+        except Exception as exc:
+            refill_errors+=1
+            print(f"AXIOM Thought: reserve refill stopped: {exc}",file=sys.stderr)
+            break
     return 0
 
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())
