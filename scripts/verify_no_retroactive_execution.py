@@ -52,6 +52,7 @@ NON_LIVE_TOKENS = (
 )
 NON_EXECUTABLE_EXACT_PATHS = {
     "data/portfolio10k/analysis.json",
+    "data/portfolio10k/baseline_portfolio.json",
 }
 
 CANONICAL_NAMES = {
