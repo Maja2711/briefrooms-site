@@ -1,4 +1,4 @@
-name: Validate US Daily Stock Single Position
+name: Validate US Daily Research Compatibility
 
 on:
   pull_request:
@@ -60,28 +60,31 @@ jobs:
             tests.test_us_daily_stock \
             tests.test_us_daily_stock_position_lifecycle -v
 
-      - name: Assert PR26 one-position production contract
+      - name: Assert legacy US path cannot own production admission
         run: |
           set -euo pipefail
           python - <<'PY'
+          import json
           from pathlib import Path
           lifecycle=Path('scripts/us_daily_stock_position_lifecycle.py').read_text(encoding='utf-8')
           runtime=Path('scripts/us_daily_stock_runtime.py').read_text(encoding='utf-8')
           monitor=Path('.github/workflows/us-daily-stock-position-monitor.yml').read_text(encoding='utf-8')
           daily=Path('.github/workflows/us-daily-stock-en.yml').read_text(encoding='utf-8')
           history=Path('scripts/build_daily_stock_history_index.py').read_text(encoding='utf-8')
+          portfolio=Path('scripts/stock_trading_portfolio.py').read_text(encoding='utf-8')
+          bridge=Path('scripts/stock_trading_v2_production_bridge.py').read_text(encoding='utf-8')
+          policy=json.loads(Path('data/investments/stock_trading_policy.json').read_text(encoding='utf-8'))
           assert 'max_open_positions' in lifecycle
-          assert 'HOLD_NO_NEW_ENTRY' in lifecycle
-          assert 'SUPPRESSED_DUPLICATE_SIGNAL' in lifecycle
-          assert 'ROTATION_SCORE_EDGE = 10.0' in lifecycle
-          assert 'ROTATION_MIN_CURRENT_R = 0.25' in lifecycle
-          assert 'same_symbol_hold' in lifecycle
           assert 'reconcile_open_position' in runtime
-          assert 'position_action' in runtime
-          assert 'us_daily_stock_position.json' in daily
-          assert 'tests.test_us_daily_stock_position_lifecycle' in daily
+          assert 'canonical_history_payloads' in history
           assert '*/5 13-21 * * 1-5' in monitor
           assert 'us-daily-stock-en' in monitor
-          assert 'canonical_history_payloads' in history
-          print('PR26_SINGLE_US_POSITION_CONTRACT_OK')
+          assert policy['champion_engine']=='v2'
+          assert policy['legacy_candidate_admission_enabled'] is False
+          assert '--mode sync-candidates' not in daily
+          assert 'git add data/investments/stock_trading_portfolio.json' not in daily
+          assert 'v2_production_bridge_only' in portfolio
+          assert 'candidate_admission_authorized' in portfolio
+          assert 'authority="v2_production_bridge"' in bridge
+          print('US_DAILY_RESEARCH_ONLY_SINGLE_ADMISSION_AUTHORITY_OK')
           PY
