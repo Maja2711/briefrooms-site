@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.2  
+**Wersja mapy:** 1.3  
 **Stan na:** 2026-09-18  
-**Bazowy commit `main`:** `875c27148508a80157096e5f040e5a8292051a63`  
+**Bazowy commit `main`:** `01464a78fadad0934c9fbd784633d556c05ae4a5`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -195,7 +195,7 @@ Dynamic Universe
  -> Statistical promotion gate
 ```
 
-Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Kontrakt sizingu: `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`.
+Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Kontrakt sizingu i normalizacji historii: `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`. Historia publiczna pokazuje nominał 5K, ułamkową quantity i P&L liczony od tej wspólnej bazy.
 
 ## 7. Shared Learning / Evolution Fabric
 
@@ -288,7 +288,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 10. **Selected AND rejected matter.** Tam, gdzie wspiera to engine, odrzucone kandydaty są zamrażane i analizowane pod kątem MISS/opportunity regret.
 11. **Production vs shadow is explicit.** Shadow output nie może być prezentowany jako historycznie wykonana transakcja produkcyjna.
 12. **PL/EN architecture sync.** Zmiana architektury aktualizuje obie wersje mapy i wymaganą dokumentację.
-13. **Stock Trading fixed notional.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Nie wolno nadawać tego nominału retroaktywnie starszym pozycjom bez frozen quantity.
+13. **Stock Trading fixed notional + normalized history.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Zamknięta historia — także legacy — jest porównywana przez jawne derived analytics `FIXED_NOTIONAL_HISTORY_V1`, gdzie `history_normalized_quantity = 5000 / entry`. Ceny, timestampy i execution facts pozostają immutable.
 
 ## 11. Authority map — kto czego NIE może robić
 

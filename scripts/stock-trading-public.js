@@ -29,7 +29,7 @@
     noClosed: 'Brak zamkniętych transakcji',
     days: 'dni', tradesShort: 'trans.',
     last30: 'Ostatnie 30 dni', last90: 'Ostatnie 90 dni', allTime: 'Od początku',
-    history: 'Historia tradingu', historyLead: 'Pełna historia Twoich transakcji. Analizuj, wyciągaj wnioski, rozwijaj się.',
+    history: 'Historia tradingu', historyLead: 'Pełna historia transakcji. Wyniki kwotowe są porównywane na stałym nominale 5 000 PLN (GPW) / 5 000 USD (USA).',
     export: 'Eksportuj historię',
     ticker: 'Ticker', company: 'Spółka', entryDate: 'Data wejścia', exitDate: 'Data wyjścia',
     entryPrice: 'Cena wejścia', exitPrice: 'Cena wyjścia', result: 'Wynik', returnPct: 'Zwrot %', closed: 'Zamknięta',
@@ -62,7 +62,7 @@
     noClosed: 'No closed trades',
     days: 'days', tradesShort: 'trades',
     last30: 'Last 30 days', last90: 'Last 90 days', allTime: 'All time',
-    history: 'Trading history', historyLead: 'Your complete trading history. Analyse, learn and improve.',
+    history: 'Trading history', historyLead: 'Complete trade history. Cash results are normalized to a fixed PLN 5,000 (GPW) / USD 5,000 (US) notional.',
     export: 'Export history',
     ticker: 'Ticker', company: 'Company', entryDate: 'Entry date', exitDate: 'Exit date',
     entryPrice: 'Entry price', exitPrice: 'Exit price', result: 'Result', returnPct: 'Return %', closed: 'Closed',
@@ -311,6 +311,8 @@
   }
 
   function rowResult(p) {
+    const normalized = firstNumber(p, ['history_normalized_pnl_amount']);
+    if (normalized !== null) return normalized;
     const explicit = firstNumber(p, ['pnl','pnl_amount','result_amount','profit_loss']);
     if (explicit !== null) return explicit;
     const entry = firstNumber(p, ['entry','entry_price','open_price']);
@@ -395,11 +397,15 @@
       const result = rowResult(p);
       const entry = firstNumber(p,['entry','entry_price','open_price']);
       const exit = firstNumber(p,['exit','exit_price','close_price','closed_mark','last_mark']);
+      const historyNotional = firstNumber(p,['history_target_position_notional','entry_notional','target_position_notional']);
+      const historyQuantity = firstNumber(p,['history_normalized_quantity','quantity']);
       const tone = ret === null || ret === 0 ? 'neutral' : ret > 0 ? 'positive' : 'negative';
       return `<div class="str-history-row" role="row">
         <strong role="cell">${esc(ticker)}</strong>
         <span role="cell">${esc(p.name || ticker)}</span>
         <span role="cell" class="str-history-market">${marketFlag(market)}${market==='US'?'USA':'GPW'}</span>
+        <span role="cell"><b>${historyNotional===null?'—':money(historyNotional,market)}</b></span>
+        <span role="cell">${historyQuantity===null?'—':historyQuantity.toLocaleString(locale,{maximumFractionDigits:8})}</span>
         <span role="cell">${dateTime(entryAt(p),market,false)}</span>
         <span role="cell">${dateTime(closedAt(p),market,false)}</span>
         <span role="cell">${money(entry,market)}</span>
@@ -420,6 +426,7 @@
       <div class="str-history-table" role="table" aria-label="${esc(T.history)}">
         <div class="str-history-head" role="row">
           <span role="columnheader">${esc(T.ticker)}</span><span role="columnheader">${esc(T.company)}</span><span role="columnheader">${esc(T.market)}</span>
+          <span role="columnheader">${esc(T.positionValue)}</span><span role="columnheader">${esc(T.shares)}</span>
           <span role="columnheader">${esc(T.entryDate)}</span><span role="columnheader">${esc(T.exitDate)}</span><span role="columnheader">${esc(T.entryPrice)}</span>
           <span role="columnheader">${esc(T.exitPrice)}</span><span role="columnheader">${esc(T.result)}</span><span role="columnheader">${esc(T.returnPct)}</span><span role="columnheader">${esc(T.status)}</span>
         </div>
@@ -482,8 +489,8 @@
       const exit = firstNumber(p,['exit','exit_price','close_price','closed_mark','last_mark']);
       const result = rowResult(p);
       const ret = rowReturn(p);
-      const notional = firstNumber(p,['entry_notional','target_position_notional']);
-      const quantity = firstNumber(p,['quantity']);
+      const notional = firstNumber(p,['history_target_position_notional','entry_notional','target_position_notional']);
+      const quantity = firstNumber(p,['history_normalized_quantity','quantity']);
       csvRows.push([
         ticker,p.name || ticker,market==='US'?'USA':'GPW',notional ?? '',quantity ?? '',
         dateTime(entryAt(p),market,false),dateTime(closedAt(p),market,false),

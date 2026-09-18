@@ -7,6 +7,8 @@ on:
       - ".github/workflows/stock-trading-fixed-notional-validation.yml"
       - ".github/workflows/stock-trading-v2-production.yml"
       - "data/investments/stock_trading_policy.json"
+      - "data/investments/stock_trading_portfolio.json"
+      - "assets/stock-trading-room.css"
       - "scripts/stock_trading_portfolio.py"
       - "scripts/stock_trading_v2_production_bridge.py"
       - "scripts/stock-trading-public.js"
@@ -23,6 +25,8 @@ on:
     paths:
       - ".github/workflows/stock-trading-fixed-notional-validation.yml"
       - "data/investments/stock_trading_policy.json"
+      - "data/investments/stock_trading_portfolio.json"
+      - "assets/stock-trading-room.css"
       - "scripts/stock_trading_portfolio.py"
       - "scripts/stock-trading-public.js"
       - "tests/test_stock_trading_portfolio.py"
@@ -64,6 +68,30 @@ jobs:
               assert cfg["quantity_precision"] == 8
               assert cfg["sizing_policy_version"] == "FIXED_NOTIONAL_V1"
           print("FIXED_NOTIONAL_POLICY_OK")
+          PY
+
+      - name: Validate normalized 5K trade history
+        run: |
+          python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
+          python scripts/stock_trading_portfolio.py --mode verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path("data/investments/stock_trading_portfolio.json").read_text(encoding="utf-8"))
+          expected = {"GPW": "PLN", "US": "USD"}
+          for market, currency in expected.items():
+              for row in p["markets"][market].get("closed_positions", []):
+                  assert row["history_normalization_version"] == "FIXED_NOTIONAL_HISTORY_V1"
+                  assert row["history_position_currency"] == currency
+                  assert row["history_target_position_notional"] == 5000
+                  q = float(row["history_normalized_quantity"])
+                  entry = float(row["entry"])
+                  exit_price = float(row["exit_price"])
+                  pnl = float(row["history_normalized_pnl_amount"])
+                  assert abs(entry * q - 5000.0) <= 0.05
+                  assert abs((exit_price - entry) * q - pnl) <= 0.02
+          print("FIXED_5K_HISTORY_OK")
           PY
 
       - name: Run targeted Stock Trading tests
