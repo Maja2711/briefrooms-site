@@ -133,6 +133,19 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertAlmostEqual(5000.0, gpw['entry'] * gpw['quantity'], places=4)
         self.assertEqual(50.0, gpw['quantity'])
 
+    def test_expensive_share_uses_fractional_quantity_to_keep_5000_notional(self):
+        payload = candidate('GPW', 'LPP.WA', score=90.0)
+        payload['selection']['reference_price'] = 24040.0
+        payload['selection']['market_snapshot']['last'] = 24040.0
+        payload['selection']['stop'] = 23264.0
+        payload['selection']['target'] = 26000.0
+        payload['selection']['risk_percent'] = (24040.0 - 23264.0) / 24040.0
+        state, action = stock.admit_candidate(self.state, 'GPW', payload, now=self.now, policy=self.policy)
+        self.assertEqual('open', action['action'])
+        position = stock.open_positions(state, 'GPW')[0]
+        self.assertLess(position['quantity'], 1.0)
+        self.assertAlmostEqual(5000.0, position['entry'] * position['quantity'], places=2)
+
     def test_fixed_notional_pnl_is_cash_exposure_not_one_share_move(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]
