@@ -164,6 +164,30 @@ class MarketRelationshipTriggerTest(unittest.TestCase):
             self.assertGreaterEqual(second["existing"], 1)
             files = list(root.rglob("*.json"))
             self.assertGreaterEqual(len(files), 1)
+            frozen = [__import__("json").loads(path.read_text(encoding="utf-8")) for path in files]
+            sources = {row["attention_source"] for row in frozen}
+            self.assertIn("trigger", sources)
+
+    def test_trigger_and_exploration_queue_sources_are_explicit(self) -> None:
+        quiet = [
+            candidate("AAA", 1, 80.0, r1=0.001, r5=0.005, r20=0.01, r60=0.02, volume=1.0, sector="Industrials", industry="Machinery"),
+            candidate("BBB", 2, 78.0, r1=0.001, r5=0.004, r20=0.009, r60=0.018, volume=1.0, sector="Health Care", industry="Medical"),
+        ]
+        quiet_snapshot = trigger.build_snapshot(
+            frontier(quiet),
+            {"generated_at": "2026-09-18T18:55:00Z", "events": []},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertEqual({"exploration"}, {row["attention_source"] for row in quiet_snapshot["attention_queue"]})
+
+        hot_snapshot = trigger.build_snapshot(
+            frontier(self.rows),
+            {"generated_at": "2026-09-18T18:55:00Z", "events": [direct_event()]},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertIn("trigger", {row["attention_source"] for row in hot_snapshot["attention_queue"]})
 
     def test_snapshot_contract_stays_shadow_only(self) -> None:
         snapshot = trigger.build_snapshot(
