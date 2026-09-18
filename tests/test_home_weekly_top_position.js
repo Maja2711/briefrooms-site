@@ -114,7 +114,7 @@ test('direction is derived safely from entry, stop and target when absent', () =
 test('EURUSD keeps five decimals while stock and other weekly instruments use two', () => {
   const eur = widget.weeklySignal(weekly('eurusd', 'long', 5, 1.155668497, 1.16685153, 1.14883443, 28), 'en');
   const spx = widget.weeklySignal(weekly('sp500_futures', 'long', 12, 7787, 7986.125846, 7665.311982, 83), 'en');
-  const mpc = widget.stockSignal(Object.assign(stock('MPC', 100, 93), { _market: 'US', entry: 421.82000732 }), 'en');
+  const mpc = widget.stockSignal(Object.assign(stock('MPC', 100, 93), { _market: 'US', entry: 421.82000732, stop: 407.9741874, target: 477.203287 }), 'en');
   assert.equal(widget.formatPrice(eur.entry_price, eur, 'en'), '1.15567');
   assert.equal(widget.formatPrice(spx.entry_price, spx, 'en'), '7,787.00');
   assert.equal(widget.formatPrice(mpc.entry_price, mpc, 'en'), '421.82');
