@@ -17,7 +17,10 @@
     portfolioData: 'Dane portfela',
     openTickets: 'Otwarte tikety',
     openLead: 'Aktywne pozycje z naszych analiz. Śledź wyniki i zarządzaj ryzykiem.',
-    allTickets: 'Zobacz wszystkie tikety',
+    allTickets: 'Pokaż tickety',
+    backToOverview: 'Wróć do pozycji',
+    openOverviewLead: 'Wszystkie otwarte pozycje w skrócie: spółka, cena wejścia, nominał i bieżący wynik.',
+    ticketDetailsLead: 'Pełne tickety z poziomami SL/TP, ryzykiem i szczegółami pozycji.',
     active: 'Aktywna pozycja', availableSlots: 'Dostępne sloty',
     noActive: 'Brak aktywnej pozycji', noActiveText: 'Brak otwartej pozycji na tym rynku.', cash: 'CASH / wolny slot',
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
@@ -50,7 +53,10 @@
     portfolioData: 'Portfolio data',
     openTickets: 'Open tickets',
     openLead: 'Active positions from our research. Track performance and manage risk.',
-    allTickets: 'See all tickets',
+    allTickets: 'Show tickets',
+    backToOverview: 'Back to positions',
+    openOverviewLead: 'All open positions at a glance: company, entry price, notional and current P&L.',
+    ticketDetailsLead: 'Full tickets with SL/TP levels, risk and position details.',
     active: 'Active position', availableSlots: 'Available slots',
     noActive: 'No active position', noActiveText: 'No open position in this market.', cash: 'CASH / free slot',
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
@@ -74,7 +80,7 @@
     empty: '—'
   };
 
-  const state = { data: null, period: '30', expanded: false };
+  const state = { data: null, period: '30', view: 'overview', selectedMarket: null };
   const asNumber = (v) => Number.isFinite(Number(v)) ? Number(v) : null;
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const firstNumber = (obj, keys) => {
@@ -204,7 +210,8 @@
     const open = openPositions(market).length;
     const max = maxPositions(market);
     const free = Math.max(0, max - open);
-    return `<button class="str-market-tab ${market === 'GPW' ? 'is-active' : ''}" type="button" data-market-jump="${market}">
+    const active = state.view === 'details' && state.selectedMarket === market;
+    return `<button class="str-market-tab ${active ? 'is-active' : ''}" type="button" data-market-jump="${market}" aria-pressed="${active ? 'true' : 'false'}">
       <span class="str-market-tab-title">${marketFlag(market)}<b>${esc(market === 'GPW' ? T.gpw : T.us)}</b></span>
       <small>${open}/${max} ${esc(T.openPositions)} · ${free} ${esc(T.freeSlots)}</small>
     </button>`;
@@ -225,18 +232,17 @@
     const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
     const stop = firstNumber(position, ['stop','sl','stop_loss']);
     const target = firstNumber(position, ['target','tp','take_profit']);
-    const quantity = firstNumber(position, ['quantity']);
-    const notional = firstNumber(position, ['entry_notional','target_position_notional']);
+    const contractNotional = firstNumber(marketData(market), ['target_position_notional']) ?? 5000;
+    const notional = firstNumber(position, ['entry_notional','target_position_notional']) ?? contractNotional;
+    const quantity = firstNumber(position, ['quantity']) ?? (entry !== null && entry > 0 && notional !== null ? notional / entry : null);
     const p = entry !== null && mark !== null && entry !== 0 ? ((mark - entry) / entry) * 100 : null;
-    const abs = entry !== null && mark !== null && quantity !== null ? (mark - entry) * quantity : null;
+    const abs = p !== null && notional !== null ? (p / 100) * notional : null;
     const clock = marketClock(market);
     const ticker = String(position.ticker || position.symbol || '—').toUpperCase();
     const name = position.name || ticker;
     const score = firstNumber(position, ['entry_score','score']);
     const sector = sectorLabel(position.sector);
-    const hiddenClass = !state.expanded && index > 0 ? ' is-extra' : '';
-
-    return `<article class="str-position${hiddenClass}">
+    return `<article class="str-position">
       <div class="str-position-head">
         <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
         <span class="str-active-badge"><i></i>${esc(T.active)}</span>
@@ -290,12 +296,57 @@
     </article>`;
   }
 
+  function openPositionSummaryCard(position, market) {
+    const entry = firstNumber(position, ['entry','entry_price','open_price']);
+    const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
+    const contractNotional = firstNumber(marketData(market), ['target_position_notional']) ?? 5000;
+    const notional = firstNumber(position, ['entry_notional','target_position_notional']) ?? contractNotional;
+    const p = entry !== null && mark !== null && entry !== 0 ? ((mark - entry) / entry) * 100 : null;
+    const abs = p !== null && notional !== null ? (p / 100) * notional : null;
+    const ticker = String(position.ticker || position.symbol || '—').toUpperCase();
+    const name = position.name || ticker;
+    return `<article class="str-overview-position" data-summary-market="${market}">
+      <div class="str-overview-position-head">
+        <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
+        <span class="str-active-badge"><i></i>${esc(T.active)}</span>
+      </div>
+      <div class="str-overview-position-body">
+        ${companyMark(ticker, market)}
+        <div class="str-overview-position-copy">
+          <div class="str-company-name"><h3>${esc(ticker)}</h3><span>${esc(name)}</span></div>
+          <div class="str-overview-facts">
+            <div><span>${esc(T.entry)}</span><strong>${money(entry, market)}</strong></div>
+            <div><span>${esc(T.positionValue)}</span><strong>${money(notional, market)}</strong></div>
+          </div>
+          <div class="str-overview-pnl ${p === null || p === 0 ? 'is-neutral' : p > 0 ? 'is-positive' : 'is-negative'}">
+            <span>${esc(T.pnl)}</span>
+            <strong>${percent(p)}</strong>
+            <b>${abs === null ? T.empty : `${abs > 0 ? '+' : ''}${money(abs, market)}`}</b>
+          </div>
+        </div>
+      </div>
+    </article>`;
+  }
+
   function marketTicketPanel(market) {
     const positions = openPositions(market);
-    const expandedClass = state.expanded && positions.length > 1 ? ' is-expanded-market' : '';
-    return `<div class="str-market-ticket-panel${expandedClass}" id="str-market-${market.toLowerCase()}">
+    const multiClass = positions.length > 1 ? ' is-expanded-market' : '';
+    const detailClass = state.selectedMarket === market ? ' is-detail-market' : '';
+    return `<div class="str-market-ticket-panel${multiClass}${detailClass}" id="str-market-${market.toLowerCase()}">
       ${positions.length ? positions.map((p,i) => openPositionCard(p, market, i)).join('') : emptyMarketCard(market)}
     </div>`;
+  }
+
+  function openSectionBody() {
+    const allOpen = ['GPW','US'].flatMap(market => openPositions(market).map(position => ({position, market})));
+    if (state.view === 'overview') {
+      if (!allOpen.length) {
+        return `<div class="str-position-overview-grid">${emptyMarketCard('GPW')}${emptyMarketCard('US')}</div>`;
+      }
+      return `<div class="str-position-overview-grid">${allOpen.map(({position,market}) => openPositionSummaryCard(position, market)).join('')}</div>`;
+    }
+    const markets = state.selectedMarket ? [state.selectedMarket] : ['GPW','US'];
+    return `<div class="str-open-grid str-open-grid-details">${markets.map(marketTicketPanel).join('')}</div>`;
   }
 
   const closedAt = p => firstValue(p, ['closed_at','exit_at','closed_on','exit_date','resolved_at']);
@@ -438,7 +489,9 @@
 
   function render() {
     const openTotal = openPositions('GPW').length + openPositions('US').length;
-    const hasExtras = openPositions('GPW').length > 1 || openPositions('US').length > 1;
+    const detailTitle = state.selectedMarket
+      ? `${T.openTickets} — ${state.selectedMarket === 'GPW' ? T.gpw : T.us}`
+      : T.openTickets;
     root.innerHTML = `
       <section class="str-market-overview">
         <div class="str-market-tabs" role="navigation" aria-label="Markets">${marketTab('GPW')}${marketTab('US')}</div>
@@ -446,12 +499,14 @@
         <div class="str-data-stamp"><span>${icon('calendar')}</span><div><small>${esc(T.portfolioData)}</small><strong>${esc(portfolioTimestamp())}</strong></div></div>
       </section>
 
-      <section class="str-section str-open-section">
+      <section class="str-section str-open-section" id="str-open-section">
         <div class="str-section-header">
-          <div class="str-section-heading"><span class="str-section-icon">${icon('target')}</span><div><h2>${esc(T.openTickets)}</h2><p>${esc(T.openLead)}</p></div></div>
-          ${hasExtras ? `<button class="str-show-all" type="button" data-toggle-extra>${esc(state.expanded?T.collapse:T.allTickets)} <span>→</span></button>` : `<span class="str-open-count">${openTotal} ${esc(T.openPositions)}</span>`}
+          <div class="str-section-heading"><span class="str-section-icon">${icon('target')}</span><div><h2>${esc(state.view === 'details' ? detailTitle : T.openTickets)}</h2><p>${esc(state.view === 'details' ? T.ticketDetailsLead : T.openOverviewLead)}</p></div></div>
+          ${state.view === 'overview'
+            ? (openTotal ? `<button class="str-show-all" type="button" data-show-details>${esc(T.allTickets)} <span>→</span></button>` : `<span class="str-open-count">${openTotal} ${esc(T.openPositions)}</span>`)
+            : `<button class="str-show-all" type="button" data-back-overview><span>←</span> ${esc(T.backToOverview)}</button>`}
         </div>
-        <div class="str-open-grid">${marketTicketPanel('GPW')}${marketTicketPanel('US')}</div>
+        ${openSectionBody()}
       </section>
 
       ${summarySection()}
@@ -459,22 +514,30 @@
     `;
 
     root.querySelectorAll('[data-market-jump]').forEach(btn => btn.addEventListener('click', () => {
-      root.querySelectorAll('.str-market-tab').forEach(x => x.classList.toggle('is-active', x === btn));
-      const target = document.getElementById(`str-market-${btn.dataset.marketJump.toLowerCase()}`);
-      target?.scrollIntoView({behavior:'smooth',block:'center'});
-      target?.classList.add('str-focus-pulse');
-      setTimeout(() => target?.classList.remove('str-focus-pulse'), 900);
+      state.view = 'details';
+      state.selectedMarket = btn.dataset.marketJump;
+      render();
+      requestAnimationFrame(() => document.getElementById('str-open-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
     }));
+
+    root.querySelector('[data-show-details]')?.addEventListener('click', () => {
+      state.view = 'details';
+      state.selectedMarket = null;
+      render();
+      requestAnimationFrame(() => document.getElementById('str-open-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
+    });
+
+    root.querySelector('[data-back-overview]')?.addEventListener('click', () => {
+      state.view = 'overview';
+      state.selectedMarket = null;
+      render();
+      requestAnimationFrame(() => document.getElementById('str-open-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
+    });
 
     root.querySelectorAll('[data-period]').forEach(btn => btn.addEventListener('click', () => {
       state.period = btn.dataset.period;
       render();
     }));
-
-    root.querySelector('[data-toggle-extra]')?.addEventListener('click', () => {
-      state.expanded = !state.expanded;
-      render();
-    });
 
     root.querySelector('[data-export]')?.addEventListener('click', exportCsv);
   }
