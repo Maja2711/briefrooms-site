@@ -187,6 +187,29 @@ def empty_state(now: datetime | None = None, policy: Mapping[str, Any] | None = 
     }
 
 
+def _ensure_fixed_notional_sizing(position: Mapping[str, Any], market: str, cfg: Mapping[str, Any]) -> dict[str, Any]:
+    """Backfill the mandatory 5K sizing fields on older still-open positions."""
+    updated = deepcopy(dict(position))
+    target_notional = float(cfg.get("target_position_notional") or 5000.0)
+    entry = _float(updated.get("entry") or updated.get("entry_price") or updated.get("open_price"))
+    if target_notional != 5000.0 or entry is None or entry <= 0:
+        return updated
+    precision = int(cfg.get("quantity_precision") or 8)
+    quantity = _float(updated.get("quantity"))
+    if quantity is None or quantity <= 0:
+        quantity = round(target_notional / entry, precision)
+        updated["quantity"] = quantity
+    updated["sizing_policy_version"] = str(cfg.get("sizing_policy_version") or FIXED_NOTIONAL_POLICY_VERSION)
+    updated["position_currency"] = str(cfg.get("position_currency") or POSITION_CURRENCY[market])
+    updated["target_position_notional"] = round(target_notional, 2)
+    updated["entry_notional"] = round(entry * quantity, 2)
+    updated["fractional_quantity"] = True
+    initial_risk = _float(updated.get("initial_risk_amount"))
+    if initial_risk is not None:
+        updated["initial_risk_cash"] = round(initial_risk * quantity, 2)
+    return updated
+
+
 def load_state(path: Path = STATE_PATH, *, now: datetime | None = None, policy: Mapping[str, Any] | None = None) -> dict[str, Any]:
     policy = policy or load_policy()
     state = _load(path)
@@ -198,6 +221,11 @@ def load_state(path: Path = STATE_PATH, *, now: datetime | None = None, policy: 
             row["position_currency"] = str(policy["markets"][market].get("position_currency") or POSITION_CURRENCY[market])
             row["sizing_policy_version"] = str(policy["markets"][market].get("sizing_policy_version") or FIXED_NOTIONAL_POLICY_VERSION)
             row.setdefault("open_positions", [])
+            row["open_positions"] = [
+                _ensure_fixed_notional_sizing(position, market, policy["markets"][market])
+                if isinstance(position, Mapping) else position
+                for position in row["open_positions"]
+            ]
             row.setdefault("closed_positions", [])
             row.setdefault("last_candidate_key", None)
         state["fixed_holding_deadline"] = None
