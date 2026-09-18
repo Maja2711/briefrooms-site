@@ -363,7 +363,16 @@ def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str,
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
     position = position_from_candidate(market, payload, now=now, market_cfg=policy["markets"][market])
     row["open_positions"] = open_positions(updated, market) + [position]
-    return updated, {"action": "open", "market": market, "position_id": position["position_id"], "symbol": symbol}
+    return updated, {
+        "action": "open",
+        "market": market,
+        "position_id": position["position_id"],
+        "symbol": symbol,
+        "sizing_policy_version": position["sizing_policy_version"],
+        "target_position_notional": position["target_position_notional"],
+        "position_currency": position["position_currency"],
+        "quantity": position["quantity"],
+    }
 
 
 def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, reason: str, conservative_same_bar: bool = False) -> dict[str, Any]:
