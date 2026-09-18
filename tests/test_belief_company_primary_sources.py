@@ -140,6 +140,15 @@ class SecPrimarySourceTest(unittest.TestCase):
         for ticker in ("NVDA", "MSFT", "AAPL", "GOOGL", "META", "AMD", "COIN", "MSTR", "CRCL"):
             self.assertIn(ticker, tickers)
 
+    def test_resilient_official_sources_use_feed_or_lower_friction_indexes(self):
+        by_key = {row["key"]: row for row in primary.SOURCE_REGISTRY}
+        self.assertEqual("https://investors.broadcom.com/rss/news-releases.xml", by_key["broadcom"]["sources"][0]["url"])
+        self.assertEqual("rss", by_key["broadcom"]["sources"][0]["kind"])
+        self.assertEqual("https://openai.com/news/rss.xml", by_key["openai"]["sources"][0]["url"])
+        self.assertEqual("https://ir.tesla.com/press", by_key["tesla"]["sources"][0]["url"])
+        self.assertEqual("https://www.strategy.com/press", by_key["strategy"]["sources"][0]["url"])
+        self.assertIn("investor.tsmc.com", by_key["tsmc"]["official_hosts"])
+
     def test_company_primary_document_becomes_belief_primary_observation(self):
         document = news.SourceDocument(
             source="NVIDIA Investor Relations",
