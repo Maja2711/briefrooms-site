@@ -88,6 +88,16 @@ class CompanyPrimarySourceTest(unittest.TestCase):
         rows = primary._index_documents(client, spec, source, now=now, cutoff=datetime(2026, 9, 17, 6, 0, tzinfo=UTC))
         self.assertEqual([], rows)
 
+    def test_structured_publish_date_outranks_future_visible_event_date(self):
+        payload = """<html><head>
+          <meta property="article:published_time" content="2026-09-18T15:00:00Z">
+        </head><body>
+          Published September 18, 2026. Investor day scheduled October 20, 2026.
+        </body></html>"""
+        value = primary._extract_document_date(payload)
+        self.assertIsNotNone(value)
+        self.assertEqual("2026-09-18T15:00:00+00:00", value.isoformat())
+
     def test_low_value_ir_link_is_not_collected(self):
         html = '<a href="/investor/stock-price">Historical Price Lookup</a>'
         self.assertEqual([], primary._anchor_candidates(html, "https://investor.example.com/"))
