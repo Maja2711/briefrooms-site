@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-18T19:54:56+00:00",
+  "generated_at": "2026-09-18T20:56:01+00:00",
   "methodology_version": "3.1.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -11,7 +11,7 @@
     "real_broker_connected": false
   },
   "controller_status": "PROBATIONARY_CONTROL",
-  "display_status": "PROBATIONARY_CONTROL",
+  "display_status": "BRACE_PROBATIONARY_PAPER_CONTROL",
   "portfolio_data_path": "/data/portfolio10k/paper_portfolio.json",
   "analysis_summary": {
     "portfolio_score": 58.8057,
@@ -595,30 +595,37 @@
   ],
   "pending_decisions": [
     {
-      "decision_id": "decision-f949b46acf683963",
-      "generated_at": "2026-09-18T18:18:41+00:00",
-      "action": "NO_ACTION",
-      "instrument": null,
-      "replacement_instrument": null,
-      "expected_benefit": 0,
-      "expected_risk": null,
-      "confidence": 0.9077,
-      "rationale_pl": "Żaden kandydat nie zapewnia obecnie materialnej przewagi po kosztach i przy obowiązujących limitach ryzyka.",
-      "rationale_en": "No candidate currently offers a material post-cost advantage within the applicable risk limits.",
-      "status": "PROPOSED"
-    },
-    {
       "decision_id": "cash-add-3585a2531437ff38",
       "generated_at": "2026-09-18T18:21:10+00:00",
       "action": "ADD",
       "instrument": "sxr8",
       "replacement_instrument": null,
+      "current_weight": 0,
+      "proposed_weight": 0.1,
       "expected_benefit": 0.106514,
       "expected_risk": 0.233203,
       "confidence": 1,
       "rationale_pl": "Wolna gotówka osiągnęła 14.3% portfela. SXR8.DE jest najwyżej ocenionym świeżym kandydatem BRACE spełniającym bramki pewności, oczekiwanej stopy zwrotu, drawdown i limit nowej pozycji. Zlecenie pozostaje paper-only.",
       "rationale_en": "Free cash reached 14.3% of the portfolio. SXR8.DE is the highest-ranked fresh BRACE candidate passing confidence, expected-return, drawdown and new-position-size gates. Execution remains paper-only.",
-      "status": "PROPOSED"
+      "data_timestamp": "2026-09-18T18:18:17+00:00",
+      "methodology_version": "brace-portfolio-v3.1.0",
+      "status": "PROPOSED",
+      "checks": {
+        "cash_funds_minimum_position": true,
+        "fresh_brace_analysis": true,
+        "candidate_eligible": true,
+        "confidence": true,
+        "expected_return": true,
+        "expected_drawdown": true,
+        "optimization_rules": true,
+        "paper_only": true
+      },
+      "transaction_cost_buffer": 0.01,
+      "source": "portfolio_10k_guardian_cash_deployment",
+      "execution_status": "PENDING",
+      "execution_reason": "market_closed",
+      "order_status": "WAITING_FOR_MARKET",
+      "executed_at": null
     }
   ],
   "policy": {
@@ -650,5 +657,52 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "ea4ca3d8e5e840b6a50ddf5165fe77031bd6ea09341483e85f35880356e50806"
+  "content_sha256": "e60ffe012746d0618cb4fb3f3298a1b14a71499e519101209266f68633c9477a",
+  "control_authorization": {
+    "schema_version": "brace-control-authorization-v1",
+    "enabled": true,
+    "controller_status": "PROBATIONARY_CONTROL",
+    "authorized_at": "2026-08-02T22:37:00+02:00",
+    "authorized_by": "site_owner",
+    "paper_only": true,
+    "real_broker_connected": false,
+    "baseline_fallback_required": true,
+    "reason_pl": "Właściciel projektu autoryzuje BRACE do sterowania oddzielnym portfelem modelowym w trybie próbnym, z limitami ryzyka i automatycznym fallbackiem do baseline.",
+    "reason_en": "The project owner authorises BRACE to control a separate model portfolio in probationary mode, with risk limits and automatic baseline fallback."
+  },
+  "active_portfolio_ids": [
+    "amzn",
+    "fwia",
+    "googl",
+    "jpm",
+    "tsm",
+    "visa",
+    "zprv"
+  ],
+  "portfolio_state_source": "data/portfolio10k/paper_portfolio.json",
+  "learning_loop": {
+    "status": "WARMUP",
+    "active_parameters": false,
+    "effective_samples": 0.122807,
+    "minimum_effective_samples": 12.0,
+    "outcome_events": 48,
+    "eligible_events": 1,
+    "active_overrides": {},
+    "candidate_overrides": {},
+    "reason": "WARMUP_INSUFFICIENT_MATURE_ACTIONABLE_OUTCOMES",
+    "last_review_at": "2026-09-13T13:27:56+00:00",
+    "cadence": "weekly",
+    "cron_utc": "40 8 * * 0",
+    "timezone": "UTC",
+    "previous_scheduled_review_at": "2026-09-13T08:40:00+00:00",
+    "next_scheduled_review_at": "2026-09-20T08:40:00+00:00",
+    "overdue": false,
+    "missed_scheduled_reviews": 0,
+    "next_changes_apply_weekly": true,
+    "real_broker_prohibited": true,
+    "explanation_pl": "Pętla uczenia jest zaplanowana cotygodniowo w niedzielę o 08:40 UTC. Stan WARMUP, dojrzałe próbki 0.122807/12. Ostatni planowy przegląd został zarejestrowany. Zmiany parametrów mogą zostać aktywowane dopiero po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej.",
+    "explanation_en": "The learning loop is scheduled weekly on Sunday at 08:40 UTC. Status WARMUP, mature effective samples 0.122807/12. The latest scheduled review is recorded. Parameter changes may activate only after the sample requirement, two consecutive confirmations and the research gate are satisfied."
+  },
+  "control_summary_pl": "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, uwzględnia zweryfikowane raporty istotne, ocenia pozycje i może wykonywać wyłącznie transakcje paper. Limity ryzyka oraz automatyczny powrót do baseline pozostają aktywne.",
+  "control_summary_en": "BRACE controls a separate model portfolio in probationary mode. Each week it refreshes data, incorporates verified material reports, assesses every position and may execute paper trades only. Risk limits and automatic baseline fallback remain active."
 }
