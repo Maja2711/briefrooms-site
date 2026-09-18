@@ -11,11 +11,16 @@ on:
     paths:
       - ".github/workflows/stock-trading-v2-production.yml"
       - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/stock_trading_quote_enricher.py"
+      - "scripts/stock_trading_portfolio.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
       - "data/investments/stock_trading_v2_production_config.json"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_no_retroactive_execution.py"
+      - "tests/test_stock_trading_quote_enricher.py"
+      - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_v2_production_bridge.py"
   schedule:
     - cron: "*/10 7-21 * * 1-5"
 
@@ -68,7 +73,7 @@ jobs:
           python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/stock_trading_v2_production_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_no_retroactive_execution -v
+          python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
           python - <<'PY'
           import json
           from pathlib import Path
