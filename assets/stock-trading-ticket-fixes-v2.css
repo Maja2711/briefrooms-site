@@ -38,6 +38,22 @@
   min-width:0!important;
   overflow-wrap:anywhere!important;
 }
+
+/* Price cells must remain readable on ordinary laptop widths. Four columns
+   inside a card are too narrow once the company mark and card padding are
+   accounted for, especially for USD values with thousands separators. */
+.str-open-grid .str-metrics{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.str-open-grid .str-metrics>div{
+  min-width:0!important;
+}
+.str-open-grid .str-metrics strong{
+  max-width:100%!important;
+  font-size:15px!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
 .str-open-grid>.str-market-ticket-panel>.str-position>.str-position-body{
   flex:1 1 auto!important;
 }
