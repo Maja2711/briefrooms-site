@@ -39,6 +39,19 @@ def text_overflow_count(page, selector: str) -> int:
     )
 
 
+def child_outside_card_count(page, child_selector: str) -> int:
+    return page.locator(child_selector).evaluate_all(
+        """els => els.filter(el => {
+          const child = el.getBoundingClientRect();
+          const cardEl = el.closest('.str-position');
+          if (!cardEl) return true;
+          const card = cardEl.getBoundingClientRect();
+          return child.left < card.left - 1 || child.right > card.right + 1 ||
+                 child.top < card.top - 1 || child.bottom > card.bottom + 1;
+        }).length"""
+    )
+
+
 def run() -> int:
     SHOT_DIR.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
@@ -87,6 +100,14 @@ def run() -> int:
                         if metric_overflows:
                             failures.append(f"{label}: {metric_overflows} metric values overflow their tiles")
 
+                        pnl_outside = child_outside_card_count(page, "#str-market-us .str-position:not(.is-extra) .str-pnl")
+                        if pnl_outside:
+                            failures.append(f"{label}: {pnl_outside} P&L panels escape their ticket boundary")
+
+                        pnl_text_overflows = text_overflow_count(page, "#str-market-us .str-position:not(.is-extra) .str-pnl")
+                        if pnl_text_overflows:
+                            failures.append(f"{label}: {pnl_text_overflows} P&L panels contain clipped text")
+
                         shot = SHOT_DIR / f"stock-trading-{label}.png"
                         page.screenshot(path=str(shot), full_page=True)
                         rows.append({
@@ -98,6 +119,8 @@ def run() -> int:
                             "expanded_card_widths": expanded_widths,
                             "horizontal_overflow_px": overflow,
                             "metric_overflow_count": metric_overflows,
+                            "pnl_outside_card_count": pnl_outside,
+                            "pnl_text_overflow_count": pnl_text_overflows,
                             "screenshot": str(shot.relative_to(ROOT)),
                         })
                     finally:
