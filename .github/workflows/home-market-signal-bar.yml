@@ -5,10 +5,11 @@ on:
   push:
     branches: [main]
     paths:
+      - "scripts/home-market-signal-v6.js"
+      - "scripts/home-intelligence-layout.js"
       - "scripts/install_home_market_signal_bar.py"
+      - "tests/test_home_weekly_top_position.js"
       - ".github/workflows/home-market-signal-bar.yml"
-      - "pl/index.html"
-      - "en/index.html"
 
 permissions:
   contents: write
@@ -32,26 +33,34 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate interaction hotfix
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate passive promotion bar
         run: |
           set -euo pipefail
+          node --check scripts/home-market-signal-v6.js
+          node --check scripts/home-intelligence-layout.js
+          node --test tests/test_home_weekly_top_position.js
           python -m py_compile scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py --check
-          grep -q "MARKET_SIGNAL_DISABLED_INTERACTION_HOTFIX" pl/index.html
-          grep -q "MARKET_SIGNAL_DISABLED_INTERACTION_HOTFIX" en/index.html
-          ! grep -q "home-market-signal-v6.js" pl/index.html
-          ! grep -q "home-market-signal-guard-v1.js" pl/index.html
-          ! grep -q "home-weekly-top-position.js" pl/index.html
+          grep -q 'home-market-signal-v6.js?v=7' pl/index.html
+          grep -q 'home-market-signal-v6.js?v=7' en/index.html
+          grep -q 'home-intelligence-layout.js?v=2' pl/index.html
+          grep -q 'BriefRooms Stock Trading · OPEN' scripts/home-intelligence-layout.js
+          ! grep -q 'home-market-signal-guard-v1.js' pl/index.html
+          ! grep -q 'home-weekly-top-position.js' pl/index.html
 
-      - name: Commit homepage hotfix installation
+      - name: Commit homepage installation if needed
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "hotfix(home): keep market signal disabled"
+          git commit -m "fix(home): keep passive market signal installed"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then exit 0; fi
@@ -77,35 +86,62 @@ jobs:
           done
           exit 1
 
-      - name: Verify production interaction hotfix
+      - name: Verify production
         run: |
           python - <<'PY'
           import time, urllib.request
-          headers={'User-Agent':'BriefRooms-Interaction-Hotfix-Verifier/1.0','Cache-Control':'no-cache'}
-          pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
-          forbidden=('home-market-signal-v6.js','home-market-signal-guard-v1.js','home-weekly-top-position.js')
+
+          headers={
+              'User-Agent':'BriefRooms-Market-Signal-Verifier/4.0',
+              'Cache-Control':'no-cache',
+          }
+          pages={
+              'pl':'https://briefrooms.com/pl/',
+              'en':'https://briefrooms.com/en/',
+          }
           ok=False
+
           for attempt in range(1,31):
               all_ok=True
               token=f'{int(time.time())}-{attempt}'
               for lang,url in pages.items():
                   try:
-                      req=urllib.request.Request(url+f'?interaction_hotfix={token}',headers=headers)
+                      req=urllib.request.Request(url+f'?market_signal={token}',headers=headers)
                       with urllib.request.urlopen(req,timeout=20) as r:
                           body=r.read().decode('utf-8',errors='replace')
                       page_ok=(
-                          'MARKET_SIGNAL_DISABLED_INTERACTION_HOTFIX' in body
-                          and not any(x in body for x in forbidden)
-                          and 'href="/pl/aktualnosci.html"' in body if lang=='pl' else 'MARKET_SIGNAL_DISABLED_INTERACTION_HOTFIX' in body and not any(x in body for x in forbidden)
+                          '/scripts/home-market-signal-v6.js?v=7' in body
+                          and '/scripts/home-intelligence-layout.js?v=2' in body
+                          and 'home-market-signal-guard-v1.js' not in body
+                          and 'home-weekly-top-position.js' not in body
+                          and 'MARKET_SIGNAL_DISABLED_INTERACTION_HOTFIX' not in body
+                          and 'must-revalidate">\\n<meta' not in body
+                          and '</script>\\n' not in body
                       )
                       all_ok=all_ok and page_ok
                   except Exception:
                       all_ok=False
+
+              try:
+                  req=urllib.request.Request(
+                      'https://briefrooms.com/scripts/home-intelligence-layout.js?v=2&verify='+token,
+                      headers=headers,
+                  )
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      layout=r.read().decode('utf-8',errors='replace')
+                  all_ok=all_ok and (
+                      'BriefRooms Stock Trading · OPEN' in layout
+                      and 'canonicalWeekly?copy.engineWeekly:copy.engineStock' in layout
+                  )
+              except Exception:
+                  all_ok=False
+
               if all_ok:
                   ok=True
                   break
               time.sleep(10)
+
           if not ok:
-              raise SystemExit('Production interaction hotfix verification failed')
-          print('PRODUCTION_INTERACTION_HOTFIX_OK')
+              raise SystemExit('Production market signal verification failed')
+          print('PRODUCTION_MARKET_SIGNAL_OK')
           PY
