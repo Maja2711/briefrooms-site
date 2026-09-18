@@ -193,6 +193,7 @@ def build_outcome(
         "trigger_type": observation.get("trigger_type"),
         "direction": observation.get("direction"),
         "attention_score": observation.get("attention_score"),
+        "attention_source": observation.get("attention_source"),
         "event_relation": strongest.get("relation"),
         "event_kind": strongest.get("event_kind"),
         "event_domain": strongest.get("event_domain"),
@@ -282,13 +283,14 @@ def iter_outcomes(root: Path = OUTCOME_ROOT) -> Iterable[dict[str, Any]]:
 
 
 def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    groups: dict[tuple[int, str, str, str], list[Mapping[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[int, str, str, str, str], list[Mapping[str, Any]]] = defaultdict(list)
     for row in outcomes:
         replay = row.get("replay") or {}
         if replay.get("status") != "SETTLED":
             continue
         key = (
             int(row.get("horizon_sessions") or 0),
+            str(row.get("attention_source") or "unknown"),
             str(row.get("trigger_type") or "UNKNOWN"),
             str(row.get("event_relation") or "none"),
             str(row.get("event_kind") or "none"),
@@ -296,7 +298,7 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
         groups[key].append(row)
 
     group_rows: list[dict[str, Any]] = []
-    for (horizon, trigger_type, relation, event_kind), rows in sorted(groups.items()):
+    for (horizon, attention_source, trigger_type, relation, event_kind), rows in sorted(groups.items()):
         returns = [
             float((row.get("replay") or {}).get("directional_return") or 0.0)
             for row in rows
@@ -309,6 +311,7 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
         lead_lag = [row for row in rows if row.get("lead_lag_watch") is True]
         group_rows.append({
             "horizon_sessions": horizon,
+            "attention_source": attention_source,
             "trigger_type": trigger_type,
             "event_relation": relation,
             "event_kind": event_kind,
@@ -320,7 +323,13 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
             "lead_lag_observations": len(lead_lag),
             "promotion_state": (
                 "ELIGIBLE_FOR_WEIGHT_CHALLENGER"
-                if len(rows) >= 30 and len(symbols) >= 8 and statistics.mean(returns) > 0 and sum(continuation) / len(continuation) >= 0.58
+                if attention_source == "trigger"
+                and len(rows) >= 30
+                and len(symbols) >= 8
+                and statistics.mean(returns) > 0
+                and sum(continuation) / len(continuation) >= 0.58
+                else "CONTROL_ARM_ONLY"
+                if attention_source == "exploration"
                 else "COLLECT_MORE_PROSPECTIVE_EVIDENCE"
             ),
         })
@@ -338,6 +347,7 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
         "groups": group_rows,
         "promotion_policy": {
             "automatic_promotion": False,
+            "exploration_control_cannot_promote_weights": True,
             "minimum_group_observations": 30,
             "minimum_unique_symbols": 8,
             "minimum_continuation_rate": 0.58,
