@@ -562,7 +562,7 @@ def _chart(symbol: str, *, interval: str, range_value: str) -> dict[str, Any]:
     raise RuntimeError(f"Yahoo chart unavailable for {symbol}: {'|'.join(failures)}")
 
 
-def _daily_observation(symbol: str, market: str, now: datetime) -> dict[str, Any]:
+def _daily_observation(symbol: str, market: str, now: datetime, *, opened_at: str | None = None) -> dict[str, Any]:
     daily = _chart(symbol, interval="1d", range_value="6mo")
     stamps = daily.get("timestamp") or []
     quote = ((daily.get("indicators") or {}).get("quote") or [{}])[0]
@@ -590,6 +590,12 @@ def _daily_observation(symbol: str, market: str, now: datetime) -> dict[str, Any
     iquote = ((intraday.get("indicators") or {}).get("quote") or [{}])[0]
     tz = MARKET_TZ[market]
     points: list[tuple[datetime, float, float, float]] = []
+    opened_dt = None
+    if opened_at:
+        try:
+            opened_dt = datetime.fromisoformat(str(opened_at).replace("Z", "+00:00")).astimezone(tz)
+        except (TypeError, ValueError):
+            opened_dt = None
     for index, stamp in enumerate(istamps):
         try:
             high = float((iquote.get("high") or [])[index])
@@ -598,8 +604,14 @@ def _daily_observation(symbol: str, market: str, now: datetime) -> dict[str, Any
         except (TypeError, ValueError, IndexError):
             continue
         dt = datetime.fromtimestamp(int(stamp), tz)
-        if dt.date() == now.date():
-            points.append((dt, high, low, close))
+        if dt.date() != now.date():
+            continue
+        # A position opened today must never be evaluated against bars that
+        # occurred before its actual entry.  That would manufacture a
+        # retroactive SL/TP hit from market history the position never lived.
+        if opened_dt is not None and opened_dt.date() == now.date() and dt < opened_dt:
+            continue
+        points.append((dt, high, low, close))
     if points:
         snapshot = {
             "high": max(item[1] for item in points),
@@ -609,6 +621,8 @@ def _daily_observation(symbol: str, market: str, now: datetime) -> dict[str, Any
             "provider": "Yahoo",
         }
     else:
+        if opened_dt is not None and opened_dt.date() == now.date():
+            raise RuntimeError("no_post_entry_intraday_bar_yet")
         snapshot = {"high": rows[-1][0], "low": rows[-1][1], "last": rows[-1][2], "provider": "Yahoo:daily_fallback"}
     return {"snapshot": snapshot, "closes": closes, "atr": atr}
 
@@ -650,7 +664,7 @@ def run_market(state: Mapping[str, Any], market: str, *, now: datetime, policy: 
     for position in open_positions(state, market):
         symbol = str(position.get("symbol") or "")
         try:
-            observations[symbol] = _daily_observation(symbol, market, now)
+            observations[symbol] = _daily_observation(symbol, market, now, opened_at=position.get("opened_at"))
         except Exception as exc:
             audits.append({"action": "observation_error", "market": market, "symbol": symbol, "error": f"{type(exc).__name__}:{str(exc)[:160]}"})
     updated, review_audit = review_market(state, market, observations=observations, now=now, policy=policy)
