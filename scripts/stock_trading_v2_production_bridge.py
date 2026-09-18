@@ -327,7 +327,14 @@ def process_market(
             continue
         healthy = True
         payload = _candidate_payload(market, selection, opportunity, now_utc)
-        canonical, action = portfolio.admit_candidate(canonical, market, payload, now=now_utc.astimezone(portfolio.MARKET_TZ[market]), policy=production_policy)
+        canonical, action = portfolio.admit_candidate(
+            canonical,
+            market,
+            payload,
+            now=now_utc.astimezone(portfolio.MARKET_TZ[market]),
+            policy=production_policy,
+            authority="v2_production_bridge",
+        )
         action = {**action, "source_engine": "v2", "phase": phase, "deep_rank": candidate.get("deep_rank"), "utility": candidate.get("utility")}
         if action.get("action") == "open":
             # The production-state audit is itself scanned by the NO RETROACTIVE

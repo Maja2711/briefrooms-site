@@ -127,11 +127,10 @@ jobs:
           print('US_STOCK_CANDIDATE_OK',decision,(p.get('selection') or {}).get('symbol'))
           PY
 
-      - name: Feed canonical US Stock Trading portfolio
-        run: |
-          set -euo pipefail
-          python scripts/stock_trading_portfolio.py --mode sync-candidates --market US
-          python scripts/stock_trading_portfolio.py --mode verify
+      # Candidate publication is research/input only. The v2 production bridge is
+      # the sole authority allowed to create canonical Stock Trading positions.
+      - name: Verify canonical Stock Trading state read-only
+        run: python scripts/stock_trading_portfolio.py --mode verify
 
       - name: Freeze rejected US candidates for research only
         run: |
@@ -142,7 +141,7 @@ jobs:
       - name: Rebuild shared candidate history index
         run: python scripts/build_daily_stock_history_index.py
 
-      - name: Commit US candidate and canonical portfolio state through NO RETROACTIVE airlock
+      - name: Commit US candidate research state through NO RETROACTIVE airlock
         id: commit
         run: |
           set -euo pipefail
@@ -150,7 +149,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/investments/us_daily_stock.json data/investments/us_daily_stock_metrics.json data/investments/daily_stock_history_index.json
           git add data/investments/us_daily_stock_history 2>/dev/null || true
-          git add data/investments/stock_trading_portfolio.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0

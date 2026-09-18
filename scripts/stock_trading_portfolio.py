@@ -262,6 +262,19 @@ def _forced_candidate(payload: Mapping[str, Any]) -> bool:
     return "MANDATORY" in text or "FORCED" in text
 
 
+def candidate_admission_authorized(policy: Mapping[str, Any], authority: str = "legacy") -> bool:
+    """Only the v2 production bridge may create new production positions.
+
+    Legacy Daily GPW/US paths remain useful for research and candidate
+    generation, but cannot bypass the bridge's prospective quote revalidation.
+    """
+    champion = str(policy.get("champion_engine") or "").lower()
+    legacy_enabled = policy.get("legacy_candidate_admission_enabled")
+    if champion == "v2" and legacy_enabled is False:
+        return str(authority or "").strip().lower() == "v2_production_bridge"
+    return True
+
+
 def _governed_gpw_final_candidate(market: str, payload: Mapping[str, Any]) -> bool:
     """Recognize the deterministic GPW final selector as a qualified model path.
 
@@ -404,10 +417,25 @@ def upgrade_open_position_geometry(position: Mapping[str, Any], market_cfg: Mapp
     return updated
 
 
-def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str, Any], *, now: datetime, policy: Mapping[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+def admit_candidate(
+    state: Mapping[str, Any],
+    market: str,
+    payload: Mapping[str, Any],
+    *,
+    now: datetime,
+    policy: Mapping[str, Any] | None = None,
+    authority: str = "legacy",
+) -> tuple[dict[str, Any], dict[str, Any]]:
     market = market.upper()
     policy = policy or load_policy()
     updated = deepcopy(dict(state))
+    if not candidate_admission_authorized(policy, authority):
+        return updated, {
+            "action": "candidate_admission_blocked",
+            "market": market,
+            "reason": "v2_production_bridge_only",
+            "authority": authority,
+        }
     row = market_state(updated, market)
     key = candidate_key(payload)
     if (
@@ -864,10 +892,18 @@ def run_market(state: Mapping[str, Any], market: str, *, now: datetime, policy: 
             audits.append({"action": "observation_error", "market": market, "symbol": symbol, "error": f"{type(exc).__name__}:{str(exc)[:160]}"})
     updated, review_audit = review_market(state, market, observations=observations, now=now, policy=policy)
     audits.extend(review_audit)
-    payload = _load(_candidate_path(market, policy), {})
-    if isinstance(payload, Mapping):
-        updated, admission = admit_candidate(updated, market, payload, now=now, policy=policy)
-        audits.append(admission)
+    if candidate_admission_authorized(policy, "legacy"):
+        payload = _load(_candidate_path(market, policy), {})
+        if isinstance(payload, Mapping):
+            updated, admission = admit_candidate(updated, market, payload, now=now, policy=policy, authority="legacy")
+            audits.append(admission)
+    else:
+        audits.append({
+            "action": "candidate_admission_blocked",
+            "market": market,
+            "reason": "v2_production_bridge_only",
+            "authority": "legacy",
+        })
     return updated, audits
 
 
@@ -904,18 +940,31 @@ def main() -> None:
             raise SystemExit(json.dumps(result, ensure_ascii=False))
         print(json.dumps(result, ensure_ascii=False, indent=2)); return
     if args.mode == "sync-candidates":
+        if not candidate_admission_authorized(policy, "legacy"):
+            result = verify_state(state, policy)
+            print(json.dumps({
+                "actions": [{
+                    "action": "candidate_admission_blocked",
+                    "market": market,
+                    "reason": "v2_production_bridge_only",
+                    "authority": "legacy",
+                } for market in markets],
+                "state_written": False,
+                **result,
+            }, ensure_ascii=False, indent=2))
+            return
         actions = []
         for market in markets:
             now = datetime.now(MARKET_TZ[market])
             payload = _load(_candidate_path(market, policy), {})
             if isinstance(payload, Mapping):
-                state, action = admit_candidate(state, market, payload, now=now, policy=policy)
+                state, action = admit_candidate(state, market, payload, now=now, policy=policy, authority="legacy")
                 actions.append(action)
         verify = verify_state(state, policy)
         if verify["status"] != "OK":
             raise SystemExit(json.dumps(verify, ensure_ascii=False))
         save_state(state, STATE_PATH, now=datetime.now(ZoneInfo("UTC")))
-        print(json.dumps({"actions": actions, **verify}, ensure_ascii=False, indent=2)); return
+        print(json.dumps({"actions": actions, "state_written": True, **verify}, ensure_ascii=False, indent=2)); return
     print(json.dumps(run(markets), ensure_ascii=False, indent=2))
 
 
