@@ -90,17 +90,33 @@ Stały nominał **nie zastępuje** SL/TP ani risk policy.
 
 Dwie pozycje mają tę samą nominalną ekspozycję 5K, ale mogą mieć różny procentowy risk-to-stop. `maximum_risk_percent`, reward/risk oraz wszystkie istniejące bramki pozostają aktywne.
 
-## Legacy / NO RETROACTIVE
+## Historia / NO RETROACTIVE
 
-Pozycje otwarte przed aktywacją `FIXED_NOTIONAL_V1` nie dostają sztucznie dopisanej quantity ani nominału.
+Historia Stock Trading jest porównywana na wspólnym nominale 5K także dla transakcji sprzed aktywacji `FIXED_NOTIONAL_V1`.
 
-Nie wolno:
+To jest **normalizacja analityczna**, a nie przepisywanie historycznego execution.
 
-- twierdzić po fakcie, że stara transakcja miała 5K,
-- wyliczać historycznego kwotowego P&L na fikcyjnej quantity,
-- przepisywać entry/exit historii.
+Dla każdej zamkniętej transakcji:
 
-Dla legacy pozycji procentowy zwrot pozostaje ważny, ale kwotowy P&L bez frozen quantity powinien być oznaczony jako niedostępny.
+```text
+history_normalized_quantity = 5000 / entry_price
+history_normalized_pnl_amount =
+    (exit_price - entry_price) * history_normalized_quantity
+```
+
+GPW używa 5 000 PLN, US używa 5 000 USD. Fractional quantity jest dozwolone, więc droga akcja (np. >5 000 PLN/USD) otrzymuje ułamkową liczbę akcji.
+
+Pola derived history są jawnie oznaczone:
+
+- `history_normalization_version = FIXED_NOTIONAL_HISTORY_V1`,
+- `history_normalization_basis = ANALYTICAL_FIXED_5000_NOTIONAL`,
+- `history_target_position_notional`,
+- `history_normalized_quantity`,
+- `history_normalized_entry_notional`,
+- `history_normalized_exit_notional`,
+- `history_normalized_pnl_amount`.
+
+NO RETROACTIVE nadal chroni ceny, timestampy i faktyczną historię decyzji/wykonań. Normalizacja nie może zmienić `entry`, `exit_price`, `opened_at`, `closed_at` ani udawać, że derived quantity była historycznym broker fill.
 
 ## Public UI PL/EN
 
