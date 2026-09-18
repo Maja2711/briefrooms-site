@@ -155,10 +155,31 @@ def collect_targeted_evidence(
         return symbol, rows, meta
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(one, candidate) for candidate in candidates]
+        futures = {
+            pool.submit(one, candidate): str(candidate.get("symbol") or "").upper()
+            for candidate in candidates
+        }
         for future in as_completed(futures):
-            symbol, rows, meta = future.result()
-            result[symbol] = (rows, meta)
+            symbol = futures[future]
+            try:
+                resolved_symbol, rows, meta = future.result()
+                result[resolved_symbol] = (rows, meta)
+            except Exception as exc:
+                result[symbol] = (
+                    [],
+                    {
+                        "primary": {
+                            "provider": "SEC_EDGAR",
+                            "ok": False,
+                            "reason": f"{type(exc).__name__}: {exc}"[:500],
+                        },
+                        "secondary": {
+                            "provider": "GOOGLE_NEWS_RSS",
+                            "ok": False,
+                            "reason": f"{type(exc).__name__}: {exc}"[:500],
+                        },
+                    },
+                )
     return result
 
 
