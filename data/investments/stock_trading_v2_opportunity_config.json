@@ -3,23 +3,23 @@
   "version": "2.0.0-phase2c",
   "mode": "shadow_no_production_influence",
   "objective": "compare_new_opportunities_cash_and_existing_positions_without_forced_activity",
-  "cash_utility": 50.0,
-  "minimum_new_position_edge_points": 5.0,
-  "replacement_hysteresis_points": 8.0,
-  "maximum_actions_per_market_cycle": 1,
+  "cash_utility": 50,
+  "minimum_new_position_edge_points": 5,
+  "replacement_hysteresis_points": 8,
+  "maximum_actions_per_market_cycle": 3,
   "maximum_open_positions_per_market": 3,
   "data_quality_penalties": {
-    "COMPLETE": 0.0,
-    "DEGRADED": 0.0,
-    "DATA_ERROR": 100.0
+    "COMPLETE": 0,
+    "DEGRADED": 0,
+    "DATA_ERROR": 100
   },
   "held_position": {
-    "default_utility": 50.0,
+    "default_utility": 50,
     "entry_score_weight": 0.35,
-    "thesis_score_weight": 0.50,
+    "thesis_score_weight": 0.5,
     "mark_return_weight": 0.15,
-    "mark_return_scale": 120.0,
-    "mark_return_cap_points": 20.0
+    "mark_return_scale": 120,
+    "mark_return_cap_points": 20
   },
   "hard_gates": {
     "require_production_reference_liquidity": true,
@@ -33,8 +33,9 @@
     "automatic_portfolio_admission": false,
     "automatic_position_replacement": false,
     "no_forced_trade": true,
-    "one_action_per_cycle": true,
+    "one_action_per_cycle": false,
     "shadow_buy_is_not_execution_ready": true,
-    "production_promotion_requires_separate_statistical_gate": true
+    "production_promotion_requires_separate_statistical_gate": true,
+    "full_frontier_can_supply_all_free_slots": true
   }
 }
