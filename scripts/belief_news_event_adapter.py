@@ -17,9 +17,21 @@ from email.utils import parsedate_to_datetime
 from belief_adapter_contract import AdapterResult, Observation
 from belief_core import iso_z, parse_time
 from belief_llm_interpreter import GeminiEvidenceInterpreter
+from belief_company_primary_sources import (
+    collect_company_primary_documents,
+    public_config as company_primary_config,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_PATH = ROOT / "data" / "investments" / "portfolio_10k_usd.json"
+STOCK_TRADING_STATE_PATH = ROOT / "data" / "investments" / "stock_trading_portfolio.json"
+GPW_CANDIDATE_PATH = ROOT / "data" / "investments" / "gpw_daily_pick.json"
+US_CANDIDATE_PATH = ROOT / "data" / "investments" / "us_daily_stock.json"
+
+DEFAULT_PRIMARY_TICKERS = (
+    "NVDA", "MSFT", "AAPL", "GOOGL", "META", "AMZN", "TSLA", "AVGO",
+    "AMD", "ORCL", "ASML", "TSM", "COIN", "MSTR", "CRCL",
+)
 
 FED_FEEDS = (
     ("Federal Reserve press releases", "https://www.federalreserve.gov/feeds/press_all.xml"),
@@ -100,6 +112,9 @@ class HttpClient:
         )
         with urllib.request.urlopen(req, timeout=self.timeout) as response:
             return response.read()
+
+    def bytes(self, url: str, *, accept: str = "*/*") -> bytes:
+        return self._request(url, accept=accept)
 
     def text(self, url: str) -> str:
         return self._request(url, accept="text/html,application/xml,text/xml,text/plain;q=0.9").decode("utf-8", "replace")
@@ -273,25 +288,55 @@ def parse_bea_current_releases(html_text: str, *, now: datetime, lookback_hours:
     return list(dedup.values())[:12]
 
 
+def _normalize_ticker(value: Any) -> str:
+    ticker = str(value or "").upper().strip()
+    for suffix in (".US", ".WA"):
+        if ticker.endswith(suffix):
+            ticker = ticker[:-len(suffix)]
+    return ticker if re.fullmatch(r"[A-Z][A-Z0-9.-]{0,9}", ticker) else ""
+
+
 def _watch_tickers() -> Tuple[str, ...]:
-    tickers = set()
+    # Always-on primary coverage for systemic US tech/crypto issuers, plus every
+    # stock currently held or considered by the canonical Stock Trading lifecycle.
+    tickers = set(DEFAULT_PRIMARY_TICKERS)
     env = os.getenv("BELIEF_EVENT_TICKERS", "")
     for value in env.split(","):
-        ticker = value.strip().upper()
+        ticker = _normalize_ticker(value)
         if ticker:
             tickers.add(ticker)
+
     try:
         payload = json.loads(PORTFOLIO_PATH.read_text(encoding="utf-8"))
         for position in payload.get("positions") or []:
             if str(position.get("asset_type") or "").lower() != "stock":
                 continue
-            symbol = str(position.get("market_symbol") or "").upper()
-            if symbol.endswith(".US"):
-                symbol = symbol[:-3]
-            if re.fullmatch(r"[A-Z][A-Z0-9.-]{0,9}", symbol):
-                tickers.add(symbol)
+            ticker = _normalize_ticker(position.get("market_symbol") or position.get("symbol"))
+            if ticker:
+                tickers.add(ticker)
     except Exception:
         pass
+
+    try:
+        payload = json.loads(STOCK_TRADING_STATE_PATH.read_text(encoding="utf-8"))
+        for market_row in (payload.get("markets") or {}).values():
+            for position in (market_row or {}).get("open_positions") or []:
+                ticker = _normalize_ticker(position.get("symbol") or position.get("ticker"))
+                if ticker:
+                    tickers.add(ticker)
+    except Exception:
+        pass
+
+    for path in (GPW_CANDIDATE_PATH, US_CANDIDATE_PATH):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            selection = payload.get("selection") if isinstance(payload.get("selection"), Mapping) else {}
+            ticker = _normalize_ticker(selection.get("symbol") or selection.get("ticker"))
+            if ticker:
+                tickers.add(ticker)
+        except Exception:
+            pass
+
     return tuple(sorted(tickers))
 
 
@@ -310,6 +355,83 @@ def _sec_ticker_index(payload: Mapping[str, Any]) -> Dict[str, int]:
     return out
 
 
+def _sec_filing_index_url(cik: int, accession: str) -> str:
+    accession_clean = str(accession).replace("-", "")
+    return (
+        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+        f"{accession_clean}/{accession}-index.html"
+    )
+
+
+def _sec_earnings_exhibits(
+    client: HttpClient,
+    *,
+    ticker: str,
+    cik: int,
+    accession: str,
+    published: datetime,
+) -> List[SourceDocument]:
+    """Extract issuer-filed earnings/press exhibits from recent 8-K/6-K filings."""
+    index_url = _sec_filing_index_url(cik, accession)
+    try:
+        payload = client.sec_text(index_url)
+    except Exception:
+        return []
+
+    out: List[SourceDocument] = []
+    for row_html in re.findall(r"<tr\b[^>]*>(.*?)</tr>", payload, flags=re.I | re.S):
+        row_text = html_to_text(row_html, 1800)
+        row_norm = row_text.casefold()
+        if not re.search(r"\b(?:ex-?99(?:\.1)?|99\.1)\b", row_norm, flags=re.I):
+            continue
+        hrefs = re.findall(r'href=["\']([^"\']+)["\']', row_html, flags=re.I)
+        if not hrefs:
+            continue
+        href = next(
+            (
+                value for value in hrefs
+                if not value.casefold().endswith("-index.html")
+                and value.casefold().split("?")[0].endswith((".htm", ".html", ".txt"))
+            ),
+            "",
+        )
+        if not href:
+            continue
+        source_ref = urllib.parse.urljoin(index_url, html.unescape(href))
+        try:
+            body = html_to_text(client.sec_text(source_ref), MAX_DOCUMENT_CHARS)
+        except Exception:
+            body = row_text
+        signal_text = f"{row_text} {body[:8000]}".casefold()
+        if not any(term in signal_text for term in (
+            "earnings", "financial results", "quarterly results", "quarter results",
+            "revenue", "net income", "press release", "results of operations",
+        )):
+            continue
+        out.append(
+            SourceDocument(
+                source="SEC EDGAR",
+                source_ref=source_ref,
+                title=f"{ticker} issuer-filed earnings exhibit {row_text[:180]}",
+                published_at=iso_z(published),
+                entity=ticker,
+                document_text=body,
+                category_hint="sec_earnings_exhibit",
+                reliability=.995,
+                metadata={
+                    "ticker": ticker,
+                    "cik": cik,
+                    "accession_number": accession,
+                    "filing_index_url": index_url,
+                    "primary_source_class": "sec_earnings_exhibit",
+                    "official_host_verified": True,
+                    "official_lineage_verified": True,
+                },
+            )
+        )
+    return out[:3]
+
+
 def _sec_documents(
     client: HttpClient,
     *,
@@ -323,7 +445,8 @@ def _sec_documents(
         index = _sec_ticker_index(client.sec_json(SEC_TICKER_MAP))
     except Exception:
         return []
-    cutoff_date = (now.astimezone(timezone.utc) - timedelta(hours=lookback_hours)).date()
+
+    cutoff = now.astimezone(timezone.utc) - timedelta(hours=lookback_hours)
     out: List[SourceDocument] = []
 
     for ticker in tickers:
@@ -334,24 +457,37 @@ def _sec_documents(
             payload = client.sec_json(SEC_SUBMISSIONS.format(cik=cik))
         except Exception:
             continue
+
         recent = ((payload.get("filings") or {}).get("recent") or {})
         forms = recent.get("form") or []
         accessions = recent.get("accessionNumber") or []
         dates = recent.get("filingDate") or []
+        acceptances = recent.get("acceptanceDateTime") or []
         docs = recent.get("primaryDocument") or []
         descriptions = recent.get("primaryDocDescription") or []
-        for form, accession, filing_date, primary_doc, description in zip(
-            forms, accessions, dates, docs, descriptions
-        ):
-            if str(form) not in SEC_FORMS:
+
+        width = max(len(forms), len(accessions), len(dates), len(docs), len(descriptions))
+        for idx in range(width):
+            form = str(forms[idx]) if idx < len(forms) else ""
+            accession = str(accessions[idx]) if idx < len(accessions) else ""
+            filing_date = str(dates[idx]) if idx < len(dates) else ""
+            primary_doc = str(docs[idx]) if idx < len(docs) else ""
+            description = str(descriptions[idx]) if idx < len(descriptions) else ""
+            acceptance_raw = str(acceptances[idx]) if idx < len(acceptances) else ""
+
+            if form not in SEC_FORMS or not accession or not primary_doc:
                 continue
-            try:
-                date_value = datetime.fromisoformat(str(filing_date)).date()
-            except ValueError:
+
+            published = _parse_date(acceptance_raw)
+            if published is None:
+                try:
+                    published = datetime.fromisoformat(filing_date).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue
+            if published < cutoff or published > now.astimezone(timezone.utc) + timedelta(minutes=10):
                 continue
-            if date_value < cutoff_date:
-                continue
-            accession_clean = str(accession).replace("-", "")
+
+            accession_clean = accession.replace("-", "")
             archive = (
                 f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
                 f"{accession_clean}/{primary_doc}"
@@ -362,7 +498,7 @@ def _sec_documents(
                 document_text = html_to_text(fetched)
             except Exception:
                 pass
-            published = datetime.combine(date_value, datetime.min.time(), tzinfo=timezone.utc)
+
             out.append(
                 SourceDocument(
                     source="SEC EDGAR",
@@ -376,14 +512,32 @@ def _sec_documents(
                     metadata={
                         "ticker": ticker,
                         "cik": cik,
-                        "form": str(form),
-                        "accession_number": str(accession),
-                        "filing_date": str(filing_date),
-                        "primary_document": str(primary_doc),
+                        "form": form,
+                        "accession_number": accession,
+                        "filing_date": filing_date,
+                        "acceptance_datetime": acceptance_raw,
+                        "primary_document": primary_doc,
+                        "primary_source_class": "sec_filing",
+                        "official_host_verified": True,
+                        "official_lineage_verified": True,
                     },
                 )
             )
-    return out
+            if form in {"8-K", "6-K"}:
+                out.extend(
+                    _sec_earnings_exhibits(
+                        client,
+                        ticker=ticker,
+                        cik=cik,
+                        accession=accession,
+                        published=published,
+                    )
+                )
+
+    dedup: Dict[str, SourceDocument] = {}
+    for doc in out:
+        dedup[doc.source_ref] = doc
+    return list(dedup.values())
 
 
 def document_to_observation(document: SourceDocument) -> Observation:
@@ -411,7 +565,7 @@ def document_to_observation(document: SourceDocument) -> Observation:
 
 class NewsEventAdapter:
     name = "news_event"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -420,6 +574,7 @@ class NewsEventAdapter:
         interpreter: Optional[GeminiEvidenceInterpreter] = None,
         lookback_hours: int = DEFAULT_LOOKBACK_HOURS,
         enable_sec: Optional[bool] = None,
+        enable_company_primary: Optional[bool] = None,
     ) -> None:
         self.client = client or HttpClient()
         self.interpreter = interpreter
@@ -429,6 +584,21 @@ class NewsEventAdapter:
             if enable_sec is not None
             else os.getenv("BELIEF_SEC_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
         )
+        self.enable_company_primary = (
+            bool(enable_company_primary)
+            if enable_company_primary is not None
+            else os.getenv("BELIEF_COMPANY_PRIMARY_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
+        )
+        self.last_primary_source_errors: List[str] = []
+
+    def primary_source_status(self) -> Dict[str, Any]:
+        return {
+            "sec_enabled": self.enable_sec,
+            "company_primary_enabled": self.enable_company_primary,
+            "watched_tickers": list(_watch_tickers()),
+            "company_primary": company_primary_config(),
+            "source_errors": list(self.last_primary_source_errors),
+        }
 
     def collect_documents(self, now: datetime) -> List[SourceDocument]:
         documents: List[SourceDocument] = []
@@ -456,15 +626,40 @@ class NewsEventAdapter:
         except Exception:
             pass
 
+        watch_tickers = _watch_tickers()
         if self.enable_sec:
             documents.extend(
                 _sec_documents(
                     self.client,
                     now=now,
                     lookback_hours=self.lookback_hours,
-                    tickers=_watch_tickers(),
+                    tickers=watch_tickers,
                 )
             )
+
+        self.last_primary_source_errors = []
+        if self.enable_company_primary:
+            company_docs, company_errors = collect_company_primary_documents(
+                self.client,
+                now=now,
+                lookback_hours=self.lookback_hours,
+                tickers=watch_tickers,
+            )
+            self.last_primary_source_errors = list(company_errors)
+            for doc in company_docs:
+                documents.append(
+                    SourceDocument(
+                        source=doc.source,
+                        source_ref=doc.source_ref,
+                        title=doc.title,
+                        published_at=doc.published_at,
+                        entity=doc.entity,
+                        document_text=doc.document_text,
+                        category_hint=doc.category_hint,
+                        reliability=doc.reliability,
+                        metadata=doc.metadata,
+                    )
+                )
 
         enriched: List[SourceDocument] = []
         allowed_hosts = {"www.federalreserve.gov", "federalreserve.gov", "www.bls.gov", "bls.gov", "www.bea.gov", "bea.gov"}
