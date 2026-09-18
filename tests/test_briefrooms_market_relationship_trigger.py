@@ -39,6 +39,7 @@ def candidate(
         "score_components": {"trend_quality": 95.0},
         "features": {
             "latest_session": "2026-09-18",
+            "last_close": 100.0,
             "returns": {"1": r1, "5": r5, "20": r20, "60": r60},
             "atr_fraction": 0.03,
             "realized_volatility_20d": 0.025,
@@ -167,6 +168,10 @@ class MarketRelationshipTriggerTest(unittest.TestCase):
             frozen = [__import__("json").loads(path.read_text(encoding="utf-8")) for path in files]
             sources = {row["attention_source"] for row in frozen}
             self.assertIn("trigger", sources)
+            trigger_rows = [row for row in frozen if row["attention_source"] == "trigger"]
+            self.assertTrue(trigger_rows)
+            self.assertEqual(100.0, trigger_rows[0]["reference_market_state"]["price"])
+            self.assertTrue(trigger_rows[0]["reference_market_state"]["point_in_time_frozen"])
 
     def test_trigger_and_exploration_queue_sources_are_explicit(self) -> None:
         quiet = [
