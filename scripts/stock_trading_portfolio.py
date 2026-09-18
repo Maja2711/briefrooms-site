@@ -42,6 +42,7 @@ MARKET_TZ = {"GPW": ZoneInfo("Europe/Warsaw"), "US": ZoneInfo("America/New_York"
 DECISIONS = {"GPW": "TRANSAKCJA", "US": "TRADE"}
 POSITION_CURRENCY = {"GPW": "PLN", "US": "USD"}
 FIXED_NOTIONAL_POLICY_VERSION = "FIXED_NOTIONAL_V1"
+HISTORY_NOTIONAL_NORMALIZATION_VERSION = "FIXED_NOTIONAL_HISTORY_V1"
 RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold"}
 
 
@@ -71,6 +72,39 @@ def _float(value: Any) -> float | None:
 
 def _iso(now: datetime) -> str:
     return now.isoformat(timespec="seconds")
+
+
+def history_normalized_metrics(
+    position: Mapping[str, Any],
+    market: str | None = None,
+    *,
+    target_notional: float = 5000.0,
+    quantity_precision: int = 8,
+) -> dict[str, Any]:
+    """Derived 5K analytics for history without rewriting execution facts."""
+    market_name = str(market or position.get("market") or "").upper()
+    if market_name not in POSITION_CURRENCY:
+        return {}
+    entry = _float(position.get("entry") or position.get("entry_price") or position.get("open_price"))
+    exit_price = _float(position.get("exit_price") or position.get("exit") or position.get("close_price"))
+    if entry is None or entry <= 0 or exit_price is None or exit_price <= 0:
+        return {}
+    quantity = round(float(target_notional) / entry, int(quantity_precision))
+    if quantity <= 0:
+        return {}
+    entry_notional = entry * quantity
+    exit_notional = exit_price * quantity
+    pnl_amount = (exit_price - entry) * quantity
+    return {
+        "history_normalization_version": HISTORY_NOTIONAL_NORMALIZATION_VERSION,
+        "history_normalization_basis": "ANALYTICAL_FIXED_5000_NOTIONAL",
+        "history_position_currency": POSITION_CURRENCY[market_name],
+        "history_target_position_notional": round(float(target_notional), 2),
+        "history_normalized_quantity": quantity,
+        "history_normalized_entry_notional": round(entry_notional, 2),
+        "history_normalized_exit_notional": round(exit_notional, 2),
+        "history_normalized_pnl_amount": round(pnl_amount, 2),
+    }
 
 
 def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
@@ -400,6 +434,7 @@ def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, r
     if pnl_amount is not None:
         closure["pnl_amount"] = round(pnl_amount, 2)
         closure["exit_notional"] = round(exit_notional, 2)
+    closure.update(history_normalized_metrics(closure, str(position.get("market") or "")))
     return closure
 
 
