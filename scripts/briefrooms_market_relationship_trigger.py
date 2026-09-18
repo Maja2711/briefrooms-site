@@ -536,6 +536,7 @@ def score_candidate(
         "sector": candidate.get("sector"),
         "industry": candidate.get("industry"),
         "frontier_rank": candidate.get("frontier_rank"),
+        "relationship_rank": candidate.get("relationship_rank") or candidate.get("frontier_rank"),
         "opportunity_score": candidate.get("opportunity_score"),
         "direction": "UP" if direction > 0 else "DOWN" if direction < 0 else "FLAT",
         "attention_score": round(attention, 6),
@@ -571,7 +572,10 @@ def allocate_attention(
 
     ordered = sorted(
         (dict(row) for row in scored),
-        key=lambda row: (float(row.get("attention_score") or 0.0), -int(row.get("frontier_rank") or 9999)),
+        key=lambda row: (
+            float(row.get("attention_score") or 0.0),
+            -int(row.get("frontier_rank") or row.get("relationship_rank") or 9999),
+        ),
         reverse=True,
     )
     queue: list[dict[str, Any]] = []
@@ -591,12 +595,13 @@ def allocate_attention(
             "trigger_type": row.get("trigger_type"),
             "deep_belief_eligible": row.get("deep_belief_eligible"),
             "frontier_rank": row.get("frontier_rank"),
+            "relationship_rank": row.get("relationship_rank"),
         })
         selected.add(symbol)
 
     exploration = sorted(
         (dict(row) for row in scored if str(row.get("symbol") or "") not in selected),
-        key=lambda row: int(row.get("frontier_rank") or 9999),
+        key=lambda row: int(row.get("frontier_rank") or row.get("relationship_rank") or 9999),
     )
     for row in exploration[:exploration_slots]:
         if len(queue) >= max_total:
@@ -641,7 +646,9 @@ def build_snapshot(
     generated = generated_at or datetime.now(timezone.utc)
     event_snapshot = event_snapshot if isinstance(event_snapshot, Mapping) else {}
     events = [dict(row) for row in event_snapshot.get("events") or [] if isinstance(row, Mapping)]
-    candidates = [dict(row) for row in frontier.get("candidates") or [] if isinstance(row, Mapping)]
+    frontier_candidates = [dict(row) for row in frontier.get("candidates") or [] if isinstance(row, Mapping)]
+    relationship_pool = [dict(row) for row in frontier.get("relationship_pool") or [] if isinstance(row, Mapping)]
+    candidates = relationship_pool or frontier_candidates
 
     scored = [
         score_candidate(candidate, candidates, events, now=generated, config=config)
@@ -665,7 +672,8 @@ def build_snapshot(
         "source_frontier_sha256": frontier.get("frontier_sha256"),
         "source_frontier_generated_at": frontier.get("generated_at"),
         "source_event_snapshot_generated_at": event_snapshot.get("generated_at"),
-        "frontier_size": len(candidates),
+        "frontier_size": len(frontier_candidates),
+        "relationship_pool_size": len(candidates),
         "event_count_seen": len(events),
         "candidate_count": len(scored),
         "candidates": scored,
