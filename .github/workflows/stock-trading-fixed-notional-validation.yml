@@ -125,7 +125,7 @@ jobs:
           python -u scripts/audit_stock_trading_ui.py
 
       - name: Upload Stock Trading UI evidence
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: stock-trading-ui-audit
