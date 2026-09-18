@@ -94,6 +94,17 @@ def run_external_cycle(
     scheduler["processed_event_observation_ids"] = seen
     scheduler["schema_version"] = 2
     scheduler["last_external_run_at"] = iso_z(now)
+    primary_source_counts: Dict[str, int] = {}
+    for observation in news_result.observations:
+        if observation.metric != "primary_event_document":
+            continue
+        source_class = str(observation.metadata.get("primary_source_class") or observation.metadata.get("category_hint") or "other")
+        primary_source_counts[source_class] = primary_source_counts.get(source_class, 0) + 1
+    primary_source_status = (
+        news_adapter.primary_source_status()
+        if hasattr(news_adapter, "primary_source_status")
+        else {}
+    )
     scheduler["last_external_status"] = {
         "mode": MODE,
         "news_observations": len(news_result.observations),
@@ -107,6 +118,8 @@ def run_external_cycle(
         "llm_available": bool(interpreter and interpreter.available),
         "llm_model": interpreter.model if interpreter else "",
         "processed_event_observation_ids": len(seen),
+        "primary_source_counts": primary_source_counts,
+        "primary_source_status": primary_source_status,
     }
 
     save_scheduler(state_dir, scheduler)
@@ -125,6 +138,7 @@ def main() -> int:
     )
     parser.add_argument("--now", help="ISO timestamp override")
     parser.add_argument("--disable-sec", action="store_true")
+    parser.add_argument("--disable-company-primary", action="store_true")
     args = parser.parse_args()
 
     now = parse_time(args.now) if args.now else datetime.now(timezone.utc)
@@ -132,6 +146,7 @@ def main() -> int:
     news = NewsEventAdapter(
         interpreter=interpreter,
         enable_sec=False if args.disable_sec else None,
+        enable_company_primary=False if args.disable_company_primary else None,
     )
     macro = MacroEventCalendarAdapter()
     macro_data = MacroDataAdapter()
