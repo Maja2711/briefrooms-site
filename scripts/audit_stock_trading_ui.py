@@ -84,7 +84,8 @@ def run() -> int:
                             else "The edge is not activity. The edge is selection."
                         )
                         motto = " ".join(page.locator(".stock-room-quote p").inner_text().split())
-                        if motto.strip("„”\"") != expected_motto:
+                        normalized_motto = motto.strip('„”“”"')
+                        if normalized_motto != expected_motto:
                             failures.append(f"{label}: unexpected hero motto: {motto}")
 
                         overview_total = page.locator(".str-overview-position").count()
