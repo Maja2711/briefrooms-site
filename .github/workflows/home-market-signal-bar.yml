@@ -5,10 +5,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/home-market-signal-v6.js"\n      - "scripts/home-weekly-top-position.js"
+      - "scripts/home-market-signal-v6.js"
       - "scripts/install_home_market_signal_bar.py"
       - "tests/test_home_weekly_top_position.js"
       - ".github/workflows/home-market-signal-bar.yml"
+      - "pl/index.html"
+      - "en/index.html"
 
 permissions:
   contents: write
@@ -45,31 +47,24 @@ jobs:
           python scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py --check
 
-      - name: Commit homepage asset version
-        id: commit
+      - name: Commit homepage asset installation
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pl/index.html en/index.html
           if git diff --cached --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "fix(home): canonicalize trading signal source"
+          git commit -m "fix(home): install cache-safe market signal asset"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
-            if git push origin HEAD:main; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            if git push origin HEAD:main; then exit 0; fi
             sleep $((attempt*4))
           done
           exit 1
 
       - name: Request Pages build
-        # Always rebuild Pages after the selector/client changes. The HTML may already
-        # contain the current asset version, so changed=false must not suppress deploy.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -90,83 +85,97 @@ jobs:
       - name: Verify production homepage and canonical feeds
         run: |
           python - <<'PY'
-          import json,time,urllib.request
+          import json, time, urllib.request
           from datetime import datetime, timezone
           from pathlib import Path
-          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/2.0','Cache-Control':'no-cache'}
+
+          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/3.0','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
           client='https://briefrooms.com/scripts/home-market-signal-v6.js'
           portfolio_url='https://briefrooms.com/data/investments/stock_trading_portfolio.json'
           last={}
           success=False
+
           for attempt in range(1,31):
-            ok=True
-            token=f'{int(time.time())}-{attempt}'
-            for lang,url in pages.items():
+              ok=True
+              token=f'{int(time.time())}-{attempt}'
+              for lang,url in pages.items():
+                  try:
+                      req=urllib.request.Request(url+f'?marketbar={token}',headers=headers)
+                      with urllib.request.urlopen(req,timeout=20) as r:
+                          body=r.read().decode('utf-8',errors='replace')
+                      page_ok=(
+                          '/scripts/home-market-signal-v6.js' in body
+                          and 'home-weekly-top-position.js' not in body
+                          and 'br-share-strip' in body
+                      )
+                      last[lang]={'page':page_ok}
+                      ok=ok and page_ok
+                  except Exception as exc:
+                      last[lang]={'error':f'{type(exc).__name__}: {exc}'}
+                      ok=False
+
               try:
-                req=urllib.request.Request(url+f'?marketbar={token}',headers=headers)
-                with urllib.request.urlopen(req,timeout=20) as r:
-                  body=r.read().decode('utf-8',errors='replace')
-                page_ok='/scripts/home-market-signal-v6.js' in body and 'home-weekly-top-position.js' not in body and 'br-share-strip' in body
-                last[lang]={'page':page_ok}
-                ok = ok and page_ok
+                  req=urllib.request.Request(client+f'?verify={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      script=r.read().decode('utf-8',errors='replace')
+                  client_ok=(
+                      'WEEKLY_ALLOWLIST' in script
+                      and 'stock_trading_portfolio.json' in script
+                      and 'gpw_daily_pick.json' not in script
+                      and 'us_daily_stock.json' not in script
+                      and 'BRIEFROOMS STOCK TRADING · OPEN' in script
+                  )
+                  last['client']={'served':client_ok,'version':6}
+                  ok=ok and client_ok
               except Exception as exc:
-                last[lang]={'error':f'{type(exc).__name__}: {exc}'}
-                ok=False
-            try:
-              req=urllib.request.Request(client+'&verify='+token,headers=headers)
-              with urllib.request.urlopen(req,timeout=20) as r:
-                script=r.read().decode('utf-8',errors='replace')
-              client_ok=(
-                'WEEKLY_ALLOWLIST' in script and
-                'stock_trading_portfolio.json' in script and
-                'gpw_daily_pick.json' not in script and
-                'us_daily_stock.json' not in script and
-                'BRIEFROOMS STOCK TRADING · OPEN' in script
-              )
-              last['client']={'served':client_ok,'version':6}
-              ok = ok and client_ok
-            except Exception as exc:
-              last['client']={'error':f'{type(exc).__name__}: {exc}'}
-              ok=False
-            try:
-              req=urllib.request.Request(portfolio_url+f'?v={token}',headers=headers)
-              with urllib.request.urlopen(req,timeout=20) as r:
-                portfolio=json.load(r)
-              markets=portfolio.get('markets') or {}
-              feed_ok=isinstance(markets,dict) and all(
-                isinstance((markets.get(m) or {}).get('open_positions'),list)
-                for m in ('GPW','US')
-              )
-              last['stock_trading_portfolio']={
-                'feed':feed_ok,
-                'updated_at':portfolio.get('updated_at'),
-                'gpw_open':len((markets.get('GPW') or {}).get('open_positions') or []),
-                'us_open':len((markets.get('US') or {}).get('open_positions') or []),
-              }
-              ok = ok and feed_ok
-            except Exception as exc:
-              last['stock_trading_portfolio']={'error':f'{type(exc).__name__}: {exc}'}
-              ok=False
-            if ok:
-              success=True
-              break
-            time.sleep(10)
+                  last['client']={'error':f'{type(exc).__name__}: {exc}'}
+                  ok=False
+
+              try:
+                  req=urllib.request.Request(portfolio_url+f'?v={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      portfolio=json.load(r)
+                  markets=portfolio.get('markets') or {}
+                  feed_ok=isinstance(markets,dict) and all(
+                      isinstance((markets.get(m) or {}).get('open_positions'),list)
+                      for m in ('GPW','US')
+                  )
+                  last['stock_trading_portfolio']={
+                      'feed':feed_ok,
+                      'updated_at':portfolio.get('updated_at'),
+                      'gpw_open':len((markets.get('GPW') or {}).get('open_positions') or []),
+                      'us_open':len((markets.get('US') or {}).get('open_positions') or []),
+                  }
+                  ok=ok and feed_ok
+              except Exception as exc:
+                  last['stock_trading_portfolio']={'error':f'{type(exc).__name__}: {exc}'}
+                  ok=False
+
+              if ok:
+                  success=True
+                  break
+              time.sleep(10)
+
           receipt={
-            'schema_version':'home-market-signal-production-v2',
-            'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
-            'status':'passed' if success else 'failed',
-            'asset_version':6,
-            'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
-            'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
-            'legacy_daily_feeds_excluded':True,
-            'stock_label':'BRIEFROOMS STOCK TRADING · OPEN',
-            'checks':last,
+              'schema_version':'home-market-signal-production-v3',
+              'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'status':'passed' if success else 'failed',
+              'asset_version':6,
+              'asset_path':'/scripts/home-market-signal-v6.js',
+              'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
+              'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
+              'legacy_daily_feeds_excluded':True,
+              'legacy_home_asset_excluded':True,
+              'stock_label':'BRIEFROOMS STOCK TRADING · OPEN',
+              'checks':last,
           }
-          Path('data/home_market_signal_production_status.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          Path('data/home_market_signal_production_status.json').write_text(
+              json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'
+          )
           print(json.dumps(receipt,ensure_ascii=False,indent=2))
           if not success:
-            raise SystemExit('Homepage market signal production verification failed')
+              raise SystemExit('Homepage market signal production verification failed')
           PY
 
       - name: Commit production verification receipt
@@ -176,7 +185,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/home_market_signal_production_status.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore(home): verify canonical market signal production"
+          git commit -m "chore(home): verify cache-safe market signal production"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then exit 0; fi
