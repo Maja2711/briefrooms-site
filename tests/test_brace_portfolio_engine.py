@@ -163,8 +163,21 @@ def test_audit_code_sha_resolves_to_a_real_commit():
     int(value, 16)
 
 
+def test_baseline_is_physically_separate_from_brace_controlled_portfolio():
+    assert brace_portfolio_data.BASELINE_PORTFOLIO_PATH == ROOT / "data" / "portfolio10k" / "baseline_portfolio_immutable.json"
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
+    contract = baseline.get("baseline_contract") or {}
+    assert contract.get("immutable") is True
+    assert contract.get("source_commit") == "893be8b4ce5497b62ac99bd282a5a793826d545d"
+    assert contract.get("source_snapshot_at") < contract.get("brace_control_authorized_at")
+    registry = load("data/portfolio10k/methodology_registry.json")
+    method = next(row for row in registry["methodologies"] if row["methodology_id"] == "portfolio-10k-baseline")
+    assert method["parameters"]["source"] == "data/portfolio10k/baseline_portfolio_immutable.json"
+    assert method["parameters"]["immutable"] is True
+
+
 def test_baseline_entries_and_history_are_immutable():
-    baseline = load("data/investments/portfolio_10k.json")
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
     changed = copy.deepcopy(baseline)
     changed["positions"][0]["entry_price"] += 1
     with pytest.raises(ValueError):
@@ -176,7 +189,7 @@ def test_baseline_entries_and_history_are_immutable():
 
 
 def test_registry_records_separate_source_and_immutable_history_hashes():
-    baseline = load("data/investments/portfolio_10k.json")
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
     registry = load("data/portfolio10k/methodology_registry.json")
     _record_baseline_validation(
         registry,
@@ -450,7 +463,7 @@ class FixedQuotes:
 
 def test_paper_execution_uses_post_signal_quote_and_never_mutates_baseline(config):
     now = datetime(2026, 7, 29, 15, 0, tzinfo=timezone.utc)
-    baseline = load("data/investments/portfolio_10k.json")
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
     baseline_before = copy.deepcopy(baseline)
     paper = initialize_paper_portfolio(baseline, now)
     universe = load("data/portfolio10k/universe.json")
@@ -486,7 +499,7 @@ def test_paper_execution_uses_post_signal_quote_and_never_mutates_baseline(confi
 
 def test_paper_order_waits_for_market_and_is_idempotently_queued(config):
     now = datetime(2026, 7, 29, 2, 0, tzinfo=timezone.utc)
-    baseline = load("data/investments/portfolio_10k.json")
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
     paper = initialize_paper_portfolio(baseline, now)
     universe = load("data/portfolio10k/universe.json")
     pending = {
@@ -520,7 +533,7 @@ def test_paper_order_waits_for_market_and_is_idempotently_queued(config):
 
 def test_paper_execution_supports_reduce_exit_and_add_with_cash(config):
     now = datetime(2026, 7, 29, 15, 0, tzinfo=timezone.utc)
-    baseline = load("data/investments/portfolio_10k.json")
+    baseline = load("data/portfolio10k/baseline_portfolio_immutable.json")
     paper = initialize_paper_portfolio(baseline, now)
     universe = load("data/portfolio10k/universe.json")
     reduce_order = {
@@ -612,8 +625,29 @@ def test_public_snapshot_is_sanitized_and_baseline_selected_initially(config):
     registry["controller_state"] = "ACTIVE_BASELINE"
     public = build_public_snapshot(
         registry,
-        {"expected_annual_return": 0.06, "required_risk_to_target": 0.2},
-        {"decisions": []},
+        {
+            "generated_at": "2026-07-29T00:00:00+00:00",
+            "expected_annual_return": 0.06,
+            "required_risk_to_target": 0.2,
+            "positions": [
+                {"instrument_id": "amzn", "final_score": 62.0, "confidence_score": 0.8},
+                {"instrument_id": "fwia", "final_score": 58.0, "confidence_score": 1.0},
+            ],
+        },
+        {
+            "decisions": [],
+            "recommendations": [
+                {
+                    "instrument": "amzn",
+                    "broker_symbol": "AMZN.US",
+                    "action": "HOLD",
+                    "final_score": 62.0,
+                    "confidence": 0.8,
+                    "current_weight": 0.15,
+                    "proposed_weight": 0.15,
+                }
+            ],
+        },
         {"statistics": {"calendar_days": 0, "decisions": 0, "completed_trades": 0}},
         {"records": []},
         {"data_freshness": "current", "safe_mode": False},
@@ -625,6 +659,14 @@ def test_public_snapshot_is_sanitized_and_baseline_selected_initially(config):
     assert public["display_status"] == "ACTIVE_BASELINE + BRACE_SHADOW"
     assert public["portfolio_data_path"] == "/data/investments/portfolio_10k.json"
     assert public["source_metadata"]["real_broker_connected"] is False
+    assert public["frontend_contract"]["canonical_source"] == "/data/portfolio10k/public/brace_engine_public.json"
+    assert public["frontend_contract"]["cache_live_max_age_minutes"] == 120
+    assert public["frontend_contract"]["cache_stale_max_age_minutes"] == 360
+    assert public["baseline"]["immutable"] is True
+    assert public["baseline"]["source"] == "data/portfolio10k/baseline_portfolio_immutable.json"
+    assert public["analysis_summary"]["portfolio_score"] == 60.0
+    assert public["analysis_summary"]["confidence"] == 0.9
+    assert public["position_recommendations"][0]["broker_symbol"] == "AMZN.US"
     assert "api_key" not in encoded.lower()
     assert "secret" not in encoded.lower()
 
@@ -641,6 +683,28 @@ def test_public_pages_share_control_panel_and_guard_paper_data_path():
     assert "PROBATIONARY_CONTROL" in script
     assert "ACTIVE_PAPER_CONTROL" in script
     assert "requestedPath==='/data/portfolio10k/paper_portfolio.json'" in script
+
+    brace_ui = (ROOT / "scripts" / "portfolio-10k-brace-public.js").read_text(encoding="utf-8")
+    assert "/data/portfolio10k/public/brace_engine_public.json" in brace_ui
+    assert "/data/investments/portfolio_10k_brace.json" not in brace_ui
+
+    for dashboard_name in ("portfolio-10k-dashboard.js", "portfolio-10k-dashboard-en.js"):
+        dashboard = (ROOT / "scripts" / dashboard_name).read_text(encoding="utf-8")
+        assert "/data/portfolio10k/public/brace_engine_public.json" in dashboard
+        assert "/data/investments/portfolio_10k_brace.json" not in dashboard
+        assert "CACHE_FRESH_MAX_AGE_MS = 2 * 60 * 60 * 1000" in dashboard
+        assert "CACHE_STALE_MAX_AGE_MS = 6 * 60 * 60 * 1000" in dashboard
+        assert "'CACHED'" in dashboard
+        assert "'STALE'" in dashboard
+
+    for path in (
+        ROOT / "pl" / "inwestycje" / "portfel-10k.html",
+        ROOT / "en" / "investing" / "portfolio-10k.html",
+    ):
+        html = path.read_text(encoding="utf-8")
+        assert 'id="brace-status-chip"' in html
+        assert 'id="side-brace-status"' in html
+        assert ">SHADOW<" not in html
 
 
 def test_workflows_separate_monitor_learning_and_research():
