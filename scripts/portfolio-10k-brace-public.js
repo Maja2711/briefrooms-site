@@ -204,9 +204,6 @@
         const heading = positions.previousElementSibling;
         if (heading?.classList?.contains('brace-section-title')) heading.hidden = controlled;
       }
-      document.querySelectorAll('[data-brace-status]').forEach(element => {
-        element.textContent = String(canonical.value?.controller_status || 'BRACE').replaceAll('_', ' ');
-      });
     } else if (positions) {
       positions.innerHTML = `<div class="error">${esc(T.unavailable)}</div>`;
     }
