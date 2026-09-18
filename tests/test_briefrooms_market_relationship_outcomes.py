@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 try:
@@ -147,6 +148,18 @@ class RelationshipOutcomeTest(unittest.TestCase):
         self.assertEqual("ELIGIBLE_FOR_WEIGHT_CHALLENGER", group["promotion_state"])
         self.assertFalse(report["promotion_policy"]["automatic_promotion"])
         self.assertFalse(report["governance"]["automatic_policy_writeback"])
+
+    def test_due_horizons_only_fetch_when_next_horizon_can_mature(self) -> None:
+        obs = observation()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual([1], outcomes.due_horizons(obs, outcome_root=root, today=date(2026, 9, 21)))
+            replay = outcomes.settle_horizon(obs, bars(), horizon_sessions=1)
+            assert replay is not None
+            row = outcomes.build_outcome(obs, replay, settled_at="2026-09-21T21:00:00Z")
+            outcomes.persist_outcome(root, row)
+            self.assertEqual([], outcomes.due_horizons(obs, outcome_root=root, today=date(2026, 9, 21)))
+            self.assertEqual([3], outcomes.due_horizons(obs, outcome_root=root, today=date(2026, 9, 23)))
 
     def test_unplayable_missing_reference_is_explicit(self) -> None:
         replay = outcomes.settle_horizon(observation(), bars()[1:], horizon_sessions=1)
