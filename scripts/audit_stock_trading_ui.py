@@ -88,6 +88,9 @@ def run() -> int:
                         if summary_widths and min(summary_widths) < 300:
                             failures.append(f"{label}: overview card too narrow: {min(summary_widths)}px")
 
+                        overview_shot = SHOT_DIR / f"stock-trading-overview-{label}.png"
+                        page.screenshot(path=str(overview_shot), full_page=True)
+
                         # Market tab is navigation into that market's complete ticket view.
                         page.locator('[data-market-jump="US"]').click()
                         page.wait_for_selector("#str-market-us .str-position", timeout=5000)
@@ -128,8 +131,8 @@ def run() -> int:
                         if pnl_text_overflows:
                             failures.append(f"{label}: {pnl_text_overflows} P&L panels contain clipped text")
 
-                        shot = SHOT_DIR / f"stock-trading-{label}.png"
-                        page.screenshot(path=str(shot), full_page=True)
+                        detail_shot = SHOT_DIR / f"stock-trading-details-{label}.png"
+                        page.screenshot(path=str(detail_shot), full_page=True)
                         rows.append({
                             "case": label,
                             "overview_total": overview_total,
@@ -143,7 +146,8 @@ def run() -> int:
                             "metric_overflow_count": metric_overflows,
                             "pnl_outside_card_count": pnl_outside,
                             "pnl_text_overflow_count": pnl_text_overflows,
-                            "screenshot": str(shot.relative_to(ROOT)),
+                            "overview_screenshot": str(overview_shot.relative_to(ROOT)),
+                            "detail_screenshot": str(detail_shot.relative_to(ROOT)),
                         })
                     finally:
                         page.close()
