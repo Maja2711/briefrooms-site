@@ -189,6 +189,29 @@ class MarketRelationshipTriggerTest(unittest.TestCase):
         )
         self.assertIn("trigger", {row["attention_source"] for row in hot_snapshot["attention_queue"]})
 
+    def test_relationship_pool_can_surface_non_frontier_lagger(self) -> None:
+        lagger = candidate("LAG", 99, 70.0, r1=0.04, r5=0.08, r20=0.12, r60=0.18, volume=2.2)
+        lagger["frontier_rank"] = None
+        lagger["relationship_rank"] = 3
+        base = frontier(self.rows[:2])
+        base["relationship_pool"] = [dict(self.rows[0]), dict(self.rows[1]), lagger]
+        base["relationship_pool"][0]["relationship_rank"] = 1
+        base["relationship_pool"][1]["relationship_rank"] = 2
+        base["relationship_pool_size"] = 3
+        base.pop("frontier_sha256", None)
+        base["frontier_sha256"] = contracts.payload_sha256(base)
+        event = direct_event()
+        event["event_id"] = "corp-lag-1"
+        event["entity_symbols"] = ["LAG"]
+        snapshot = trigger.build_snapshot(
+            base,
+            {"generated_at": "2026-09-18T18:55:00Z", "events": [event]},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertIn("LAG", {row["symbol"] for row in snapshot["candidates"]})
+        self.assertGreater(snapshot["relationship_pool_size"], snapshot["frontier_size"])
+
     def test_snapshot_contract_stays_shadow_only(self) -> None:
         snapshot = trigger.build_snapshot(
             frontier(self.rows),
