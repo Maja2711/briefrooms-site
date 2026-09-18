@@ -79,6 +79,12 @@ def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
         raise RuntimeError("technical canary must be limited to one position per market")
     if int(cfg.get("full_max_open_positions_per_market") or 0) != 3:
         raise RuntimeError("full v2 production cap must be three positions per market")
+    if float(cfg.get("maximum_execution_quote_age_minutes") or 0) <= 0:
+        raise RuntimeError("execution quote freshness limit must be positive")
+    if int(cfg.get("full_cycle_max_new_positions_per_market") or 0) != 3:
+        raise RuntimeError("FULL cycle must be able to fill all three market slots")
+    if int(cfg.get("healthy_sessions_per_market_required") or 0) != 1:
+        raise RuntimeError("technical canary must promote after one healthy cycle per market")
     return cfg
 
 
@@ -147,6 +153,11 @@ def _preflight_candidate(
         return None, "symbol_missing", None
     try:
         quote = quote_fetcher(symbol, market, now_utc=now_utc)
+    except quotes.ExecutionQuoteUnavailable as exc:
+        return None, "execution_quote_waiting_fresh", {
+            "provider_candidates": list(exc.diagnostics),
+            "execution_quote_error": str(exc),
+        }
     except Exception as exc:
         return None, f"quote_error:{type(exc).__name__}", None
     if config.get("require_regular_session_for_new_entry") is True and quote.get("market_state") != "REGULAR":
@@ -168,6 +179,8 @@ def _preflight_candidate(
         "name": candidate.get("name") or candidate.get("symbol") or symbol,
         "sector": candidate.get("sector"),
         "score": round(_float(candidate.get("utility")) or 0.0, 6),
+        "research_reference_price": _float(plan.get("reference_price")),
+        "execution_price": round(entry, 8),
         "reference_price": round(entry, 8),
         "stop": round(stop, 8),
         "target": round(target, 8),
@@ -191,6 +204,15 @@ def _preflight_candidate(
             "capture_age_seconds": quote.get("capture_age_seconds"),
             "delay_status": quote.get("delay_status"),
             "is_realtime": quote.get("is_realtime"),
+            "execution_quote_policy": quote.get("execution_quote_policy"),
+        },
+        "execution_quote": {
+            "provider": quote.get("provider"),
+            "observed_at": quote.get("observed_at"),
+            "received_at": quote.get("received_at"),
+            "capture_age_seconds": quote.get("capture_age_seconds"),
+            "delay_status": quote.get("delay_status"),
+            "delay_minutes": quote.get("delay_minutes"),
         },
     }
     return selection, "execution_revalidated", quote
@@ -238,7 +260,7 @@ def process_market(
     config: Mapping[str, Any],
     runtime: dict[str, Any],
     now_utc: datetime,
-    quote_fetcher: Callable[..., dict[str, Any]] = quotes.quote_for_symbol,
+    quote_fetcher: Callable[..., dict[str, Any]] = quotes.execution_quote_for_symbol,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
     market = market.upper()
     audits: list[dict[str, Any]] = []
@@ -262,9 +284,28 @@ def process_market(
         return canonical, [{"market": market, "action": "cash", "reason": "eligible_frontier_empty"}], True
 
     healthy = False
+    cash = opportunity.get("cash") or {}
+    cash_utility = _float(cash.get("utility"))
+    edge = _float(cash.get("minimum_new_position_edge_points"))
+    minimum_utility = (cash_utility if cash_utility is not None else 50.0) + (edge if edge is not None else 5.0)
+    opened_this_cycle = 0
+    max_new_this_cycle = 1 if phase == "CANARY" else int(config.get("full_cycle_max_new_positions_per_market") or 3)
+
     for candidate in frontier:
-        if len(portfolio.open_positions(canonical, market)) >= phase_cap:
+        if len(portfolio.open_positions(canonical, market)) >= phase_cap or opened_this_cycle >= max_new_this_cycle:
             break
+        candidate_utility = _float(candidate.get("utility"))
+        symbol = candidate.get("market_data_symbol") or candidate.get("symbol")
+        if candidate_utility is None or candidate_utility < minimum_utility:
+            audits.append({
+                "market": market,
+                "symbol": symbol,
+                "action": "reject_continue",
+                "reason": "candidate_does_not_beat_cash_edge",
+                "utility": candidate_utility,
+                "minimum_utility": round(minimum_utility, 6),
+            })
+            continue
         selection, reason, quote = _preflight_candidate(
             market,
             candidate,
@@ -272,9 +313,17 @@ def process_market(
             now_utc=now_utc,
             quote_fetcher=quote_fetcher,
         )
-        symbol = candidate.get("market_data_symbol") or candidate.get("symbol")
         if selection is None:
-            audits.append({"market": market, "symbol": symbol, "action": "reject_continue", "reason": reason})
+            if reason == "execution_quote_waiting_fresh":
+                audits.append({
+                    "market": market,
+                    "symbol": symbol,
+                    "action": "ready_waiting_fresh_quote",
+                    "reason": reason,
+                    "quote_diagnostics": (quote or {}).get("provider_candidates") or [],
+                })
+            else:
+                audits.append({"market": market, "symbol": symbol, "action": "reject_continue", "reason": reason})
             continue
         healthy = True
         payload = _candidate_payload(market, selection, opportunity, now_utc)
@@ -300,6 +349,8 @@ def process_market(
             }
         audits.append(action)
         _tag_opened_position(canonical, market, action, candidate, quote, phase)
+        if action.get("action") == "open":
+            opened_this_cycle += 1
         # A rejection here is not terminal.  Keep searching the ranked frontier.
         if action.get("action") in {"cash", "candidate_already_reviewed", "hold_existing_symbol"}:
             continue
@@ -308,15 +359,25 @@ def process_market(
 
 def maybe_promote(runtime: dict[str, Any], config: Mapping[str, Any], healthy_sessions: list[str], now_utc: datetime) -> None:
     runtime["healthy_market_sessions"] = sorted(set(healthy_sessions))
+    counts = {"GPW": 0, "US": 0}
+    for item in runtime["healthy_market_sessions"]:
+        if ":" not in item:
+            continue
+        market = item.split(":", 1)[0]
+        if market in counts:
+            counts[market] += 1
+    runtime["canary_health_counts"] = counts
     if str(runtime.get("phase") or "").upper() != "CANARY" or config.get("auto_promote_canary") is not True:
         return
-    sessions = runtime["healthy_market_sessions"]
-    required = int(config.get("healthy_market_sessions_required") or 2)
-    markets = {item.split(":", 1)[0] for item in sessions if ":" in item}
-    if len(sessions) < required:
-        return
-    if config.get("require_both_markets_before_full") is True and not {"GPW", "US"}.issubset(markets):
-        return
+
+    required_each = int(config.get("healthy_sessions_per_market_required") or 1)
+    if config.get("require_both_markets_before_full") is True:
+        if not all(counts[market] >= required_each for market in ("GPW", "US")):
+            return
+    else:
+        if sum(counts.values()) < required_each:
+            return
+
     runtime["phase"] = "FULL"
     runtime["promoted_to_full_at"] = now_utc.isoformat().replace("+00:00", "Z")
 
