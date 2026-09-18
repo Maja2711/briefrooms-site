@@ -50,6 +50,10 @@ NON_LIVE_TOKENS = (
     "simulation",
     "simulated",
 )
+NON_EXECUTABLE_EXACT_PATHS = {
+    "data/portfolio10k/analysis.json",
+}
+
 CANONICAL_NAMES = {
     "stock_trading_portfolio.json",
     "stock_trading_v2_production_state.json",
@@ -111,8 +115,10 @@ def _changed_json(ref: str) -> list[str]:
 
 
 def _path_is_non_live(path: str) -> bool:
-    lowered = path.lower()
-    return any(token in lowered for token in NON_LIVE_TOKENS)
+    normalized = path.replace("\\", "/").lower()
+    if normalized in NON_EXECUTABLE_EXACT_PATHS:
+        return True
+    return any(token in normalized for token in NON_LIVE_TOKENS)
 
 
 def _path_is_canonical(path: str, payload: Any) -> bool:
