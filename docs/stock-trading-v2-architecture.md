@@ -29,6 +29,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - The trigger may nominate at most 2 names for actual authority-weighted deep research.
    - V1 uses Stock Trading v2 Deep Evidence as a research backend and explicitly labels itself a Deep BELIEF proxy, not full Belief Core.
    - Results are immutable per trigger snapshot and measure information yield per research unit.
+   - v2 research records carry the exact deterministic `trigger_observation_id`, so later outcome learning joins 1:1 and never by ticker/time heuristics.
    - The broad top-10 Deep Evidence arm remains Champion, so theoretical slot reduction is not reported as realized production compute savings.
    - No production decision influence, trade execution, automatic policy writeback or promotion authority.
 6. **Deep Evidence**
@@ -51,6 +52,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Counterfactual replay settles 1/2/5/10/20/60/120-session outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
    - HOLD/EXIT decisions have a separate immutable position-experience ledger.
+   - Trigger-directed deep research is joined to 1/3/5/20-session Trigger outcomes by exact observation ID; the report measures evidence yield, score update and directional-update/outcome agreement without claiming causality.
 10. **Policy learning and promotion**
    - Learning may create future-only Challenger policies; it cannot rewrite production automatically.
    - Promotion requires the separate fixed-N statistical holdout gate.
@@ -60,7 +62,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
 
 - `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
 - `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → relationship/trigger attention → max-two targeted deep-research shadow arm → broad Champion evidence → portfolio comparison → experience/admission freeze.
-- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, regret, Challenger learning and evaluation.
+- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning and evaluation.
 - `.github/workflows/stock-trading-v2-validation.yml` — compile/config/unit/integrity/live-smoke validation.
 
 ## Production boundary

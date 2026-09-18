@@ -218,6 +218,15 @@ class TriggerDeepBeliefTests(unittest.TestCase):
         )
         self.assertEqual(2, payload["target_count"])
         self.assertEqual(["AAA", "BBB"], [row["symbol"] for row in payload["targets"]])
+        trigger_rows = {
+            row["symbol"]: row
+            for row in self.trigger["candidates"]
+        }
+        for row in payload["targets"]:
+            self.assertEqual(
+                relationship.build_observation_id(self.trigger, trigger_rows[row["symbol"]]),
+                row["trigger_observation_id"],
+            )
         self.assertTrue(all(row["evidence_metrics"]["primary_count"] == 1 for row in payload["targets"]))
         self.assertFalse(payload["full_belief_core_invocation"])
         self.assertFalse(payload["governance"]["production_decision_influence"])
@@ -263,6 +272,16 @@ class TriggerDeepBeliefTests(unittest.TestCase):
             self.assertIsNotNone(existing)
             assert existing is not None
             self.assertEqual(payload["snapshot_id"], existing["snapshot_id"])
+
+    def test_deep_target_must_be_in_frozen_trigger_attention_arm(self) -> None:
+        broken = deepcopy(self.trigger)
+        broken["attention_queue"] = [
+            row for row in broken["attention_queue"] if row["symbol"] != "BBB"
+        ]
+        broken.pop("snapshot_sha256", None)
+        broken["snapshot_sha256"] = contracts.payload_sha256(broken)
+        with self.assertRaises(contracts.ContractError):
+            targeted.validate_inputs(broken, self.frontier, self.trigger_config)
 
     def test_full_belief_core_claim_is_rejected(self) -> None:
         payload = targeted.build_snapshot(

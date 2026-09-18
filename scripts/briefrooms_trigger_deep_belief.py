@@ -38,7 +38,7 @@ FRONTIER_PATH = ROOT / "data/investments/stock_trading_v2_frontier/us.json"
 OUTPUT_PATH = ROOT / "data/investments/market_relationship_deep_belief/us.json"
 HISTORY_ROOT = ROOT / "data/investments/market_relationship_deep_belief_history"
 
-SCHEMA_VERSION = "briefrooms-trigger-deep-belief-shadow-v1"
+SCHEMA_VERSION = "briefrooms-trigger-deep-belief-shadow-v2"
 BACKEND = "STOCK_TRADING_V2_DEEP_EVIDENCE"
 BELIEF_MODE = "DEEP_BELIEF_PROXY_NOT_FULL_BELIEF_CORE"
 
@@ -105,11 +105,17 @@ def validate_inputs(
         str((row or {}).get("symbol") or "").upper()
         for row in trigger_snapshot.get("candidates") or []
     }
+    attention_sources = {
+        str((row or {}).get("symbol") or "").upper(): str((row or {}).get("attention_source") or "")
+        for row in trigger_snapshot.get("attention_queue") or []
+    }
     seen: set[str] = set()
     for row in queue:
         symbol = str((row or {}).get("symbol") or "").upper()
         if not symbol or symbol in seen or symbol not in known:
             raise contracts.ContractError("trigger deep belief queue symbol invalid")
+        if attention_sources.get(symbol) != "trigger":
+            raise contracts.ContractError("trigger deep belief target must have frozen trigger attention")
         seen.add(symbol)
 
 
@@ -194,6 +200,11 @@ def build_snapshot(
 ) -> dict[str, Any]:
     validate_inputs(trigger_snapshot, frontier, trigger_config)
     pool = _candidate_pool(frontier)
+    trigger_candidates = {
+        str((row or {}).get("symbol") or "").upper(): row
+        for row in trigger_snapshot.get("candidates") or []
+        if isinstance(row, Mapping)
+    }
     queue = [dict(row) for row in trigger_snapshot.get("deep_belief_queue") or []]
     if len(queue) > 2:
         raise contracts.ContractError("trigger deep belief exceeded hard max-two budget")
@@ -215,9 +226,18 @@ def build_snapshot(
             market="US",
             config=evidence_config,
         )
+        trigger_row = trigger_candidates.get(symbol)
+        if not isinstance(trigger_row, Mapping):
+            raise contracts.ContractError(f"trigger candidate missing for deep research: {symbol}")
         research["selection_rank"] = selection_rank
+        research["trigger_observation_id"] = relationship.build_observation_id(
+            trigger_snapshot,
+            trigger_row,
+        )
         research["trigger_attention_score"] = queue_row.get("attention_score")
         research["trigger_type"] = queue_row.get("trigger_type")
+        research["trigger_direction"] = trigger_row.get("direction")
+        research["trigger_session_date"] = (trigger_row.get("time_context") or {}).get("latest_market_session")
         research["strongest_event_id"] = queue_row.get("strongest_event_id")
         rows.append(research)
 
@@ -327,6 +347,8 @@ def validate_snapshot(
         seen.add(symbol)
         if int((row or {}).get("selection_rank") or 0) != rank:
             raise contracts.ContractError("trigger deep belief selection rank mismatch")
+        if not str((row or {}).get("trigger_observation_id") or "").startswith("rel-"):
+            raise contracts.ContractError("trigger deep belief observation lineage missing")
         if (row or {}).get("evidence_status") not in {"COMPLETE", "DEGRADED", "DATA_ERROR"}:
             raise contracts.ContractError("trigger deep belief evidence status invalid")
         if ((row or {}).get("admission") or {}).get("production_decision_influence") is not False:
