@@ -90,17 +90,33 @@ Fixed notional does **not replace** SL/TP or the risk policy.
 
 Two positions may have the same 5K nominal exposure but different percentage risk to stop. `maximum_risk_percent`, reward/risk and all existing gates remain active.
 
-## Legacy / NO RETROACTIVE
+## History / NO RETROACTIVE
 
-Positions opened before `FIXED_NOTIONAL_V1` do not receive fabricated quantity or notional.
+Stock Trading history is compared on the same 5K notional basis, including trades closed before `FIXED_NOTIONAL_V1` became the live sizing rule.
 
-The system must not:
+This is an **analytical normalization**, not a rewrite of historical execution.
 
-- claim after the fact that an old trade had 5K notional,
-- calculate historical cash P&L from an invented quantity,
-- rewrite entry/exit history.
+For every closed trade:
 
-For legacy positions, percentage return remains valid, while cash P&L without frozen quantity should be shown as unavailable.
+```text
+history_normalized_quantity = 5000 / entry_price
+history_normalized_pnl_amount =
+    (exit_price - entry_price) * history_normalized_quantity
+```
+
+GPW uses PLN 5,000 and US uses USD 5,000. Fractional quantity is allowed, so an expensive share above 5,000 PLN/USD receives a fractional analytical quantity.
+
+Derived history fields are explicit:
+
+- `history_normalization_version = FIXED_NOTIONAL_HISTORY_V1`,
+- `history_normalization_basis = ANALYTICAL_FIXED_5000_NOTIONAL`,
+- `history_target_position_notional`,
+- `history_normalized_quantity`,
+- `history_normalized_entry_notional`,
+- `history_normalized_exit_notional`,
+- `history_normalized_pnl_amount`.
+
+NO RETROACTIVE continues to protect prices, timestamps and actual decision/execution history. Normalization must not change `entry`, `exit_price`, `opened_at`, `closed_at` or claim that the derived quantity was the historical broker fill.
 
 ## Public UI PL/EN
 
