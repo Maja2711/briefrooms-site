@@ -487,10 +487,44 @@ def build_frontier(
         key=lambda row: (float(row["opportunity_score"]), float(row["liquidity"]["median_turnover"])),
         reverse=True,
     )
+    for rank, row in enumerate(candidates, start=1):
+        row["relationship_rank"] = rank
+
     frontier_size = int(market_cfg.get("frontier_size") or 50)
+    relationship_pool_size = max(
+        frontier_size,
+        int(market_cfg.get("relationship_pool_size") or frontier_size),
+    )
     frontier = candidates[:frontier_size]
     for rank, row in enumerate(frontier, start=1):
         row["frontier_rank"] = rank
+
+    relationship_pool: list[dict[str, Any]] = []
+    for row in candidates[:relationship_pool_size]:
+        features = row.get("features") or {}
+        relationship_pool.append({
+            "symbol": row.get("symbol"),
+            "market_data_symbol": row.get("market_data_symbol"),
+            "name": row.get("name"),
+            "exchange": row.get("exchange"),
+            "sector": row.get("sector"),
+            "industry": row.get("industry"),
+            "country": row.get("country"),
+            "relationship_rank": row.get("relationship_rank"),
+            "frontier_rank": row.get("frontier_rank"),
+            "opportunity_score": row.get("opportunity_score"),
+            "score_components": dict(row.get("score_components") or {}),
+            "features": {
+                "latest_session": features.get("latest_session"),
+                "last_close": features.get("last_close"),
+                "returns": dict(features.get("returns") or {}),
+                "atr_fraction": features.get("atr_fraction"),
+                "realized_volatility_20d": features.get("realized_volatility_20d"),
+                "volume_ratio_20d": features.get("volume_ratio_20d"),
+                "median_turnover_20d": features.get("median_turnover_20d"),
+            },
+            "freshness": dict(row.get("freshness") or {}),
+        })
 
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -504,6 +538,8 @@ def build_frontier(
         "features_available": len(feature_map),
         "eligible_after_discovery_liquidity": len(eligible),
         "frontier_size": len(frontier),
+        "relationship_pool_size": len(relationship_pool),
+        "relationship_pool": relationship_pool,
         "cash_alternative": {
             "status": "AVAILABLE",
             "research_utility": float((config.get("frontier") or {}).get("cash_utility") or 0.0),
@@ -539,6 +575,20 @@ def validate_frontier(payload: Mapping[str, Any]) -> None:
     rows = payload.get("candidates")
     if not isinstance(rows, list) or int(payload.get("frontier_size", -1)) != len(rows):
         raise contracts.ContractError("opportunity frontier candidate count mismatch")
+    relationship_pool = payload.get("relationship_pool")
+    if relationship_pool is not None:
+        if not isinstance(relationship_pool, list) or int(payload.get("relationship_pool_size", -1)) != len(relationship_pool):
+            raise contracts.ContractError("relationship pool count mismatch")
+        relationship_seen: set[str] = set()
+        for rank, row in enumerate(relationship_pool, start=1):
+            if not isinstance(row, Mapping):
+                raise contracts.ContractError("relationship pool row must be an object")
+            symbol = str(row.get("symbol") or "")
+            if not symbol or symbol in relationship_seen:
+                raise contracts.ContractError("relationship pool duplicate/missing symbol")
+            relationship_seen.add(symbol)
+            if int(row.get("relationship_rank") or 0) != rank:
+                raise contracts.ContractError("relationship pool rank mismatch")
     last_score = float("inf")
     seen: set[str] = set()
     for rank, row in enumerate(rows, start=1):
