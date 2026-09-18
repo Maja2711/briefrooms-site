@@ -1,0 +1,110 @@
+name: BRACE Daily Analysis Liveness Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brace_portfolio_analysis_liveness.py"
+      - "scripts/brace_portfolio_engine.py"
+      - "scripts/brace_portfolio_execution.py"
+      - "tests/test_brace_portfolio_analysis_liveness.py"
+      - ".github/workflows/brace-portfolio-daily.yml"
+      - ".github/workflows/brace-portfolio-analysis-watchdog.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: brace-portfolio-research
+  cancel-in-progress: false
+
+jobs:
+  analysis-liveness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Inspect BRACE analysis liveness
+        id: liveness
+        run: |
+          python scripts/brace_portfolio_analysis_liveness.py
+          python scripts/brace_portfolio_analysis_liveness.py --github-output >> "$GITHUB_OUTPUT"
+
+      - name: Report healthy analysis
+        if: steps.liveness.outputs.overdue != 'true'
+        run: |
+          echo "BRACE analysis is current."
+          echo "Generated at: ${{ steps.liveness.outputs.analysis_generated_at }}"
+          echo "Latest required slot: ${{ steps.liveness.outputs.latest_required_slot }}"
+
+      - name: Start immutable recovery execution clock
+        if: steps.liveness.outputs.overdue == 'true'
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          echo "BRACE_ANALYSIS_RECOVERY=1" >> "$GITHUB_ENV"
+
+      - name: Install recovery dependencies
+        if: steps.liveness.outputs.overdue == 'true'
+        run: python -m pip install --upgrade pip yfinance pandas pytest
+
+      - name: Validate recovery path
+        if: steps.liveness.outputs.overdue == 'true'
+        run: |
+          python -m pytest -q tests/test_brace_portfolio_engine.py tests/test_brace_portfolio_analysis_liveness.py
+          python -m unittest tests.test_no_retroactive_execution -v
+
+      - name: Recover overdue BRACE daily analysis
+        if: steps.liveness.outputs.overdue == 'true'
+        env:
+          BRACE_TESTS_PASSED: "1"
+        run: python scripts/brace_portfolio_engine.py --mode daily --network
+
+      - name: Assert recovery produced a current analysis
+        if: steps.liveness.outputs.overdue == 'true'
+        run: python scripts/brace_portfolio_analysis_liveness.py --assert-current
+
+      - name: Commit recovered state through NO RETROACTIVE airlock
+        if: steps.liveness.outputs.overdue == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/portfolio10k
+          if git diff --cached --quiet; then
+            echo "Recovery completed without persisted BRACE state changes."
+            exit 0
+          fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Recover overdue BRACE daily analysis"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main; then
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+            fi
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Upload recovery diagnostics after failure
+        if: failure() && steps.liveness.outputs.overdue == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: brace-analysis-recovery-diagnostics
+          path: data/portfolio10k
+          retention-days: 14

@@ -20,6 +20,7 @@ from brace_portfolio_data import (
 from brace_portfolio_decision import deterministic_id
 
 PAPER_PORTFOLIO_PATH = ENGINE_DATA_ROOT / "paper_portfolio.json"
+OPERATIONAL_PATH = ENGINE_DATA_ROOT / "operational_state.json"
 ORDER_STATUSES = {
     "PROPOSED",
     "QUEUED",
@@ -734,6 +735,14 @@ def main() -> int:
     controller_status = str(registry.get("controller_state") or "ACTIVE_BASELINE")
     if controller_status not in CONTROLLING_STATUSES:
         print(f"Paper execution skipped: controller={controller_status}")
+        return 0
+    operational = read_json(OPERATIONAL_PATH)
+    if operational.get("safe_mode") or operational.get("analysis_overdue"):
+        reasons = ",".join(str(item) for item in operational.get("safe_mode_reasons") or [])
+        print(
+            "Paper execution held: BRACE operational state is not current"
+            + (f" ({reasons})" if reasons else "")
+        )
         return 0
     if not args.network:
         raise ValueError("--network is required for fresh paper execution quotes")

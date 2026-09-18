@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
+from brace_portfolio_analysis_liveness import assess_analysis_liveness
 from brace_portfolio_backtest import run_walk_forward
 from brace_portfolio_candidates import rank_candidates
 from brace_portfolio_config import EngineConfig, load_config
@@ -408,9 +409,13 @@ def _operational_state(
     freshness: Mapping[str, Any],
     baseline_unchanged: bool,
     generated_at: datetime,
+    analysis: Mapping[str, Any],
 ) -> Dict[str, Any]:
-    safe_mode = bool(freshness.get("safe_mode"))
+    liveness = assess_analysis_liveness(analysis, generated_at)
+    safe_mode = bool(freshness.get("safe_mode")) or bool(liveness.get("overdue"))
     reasons = list(freshness.get("reasons") or [])
+    if liveness.get("overdue") and "ANALYSIS_OVERDUE" not in reasons:
+        reasons.append("ANALYSIS_OVERDUE")
     return {
         "schema_version": "1.0.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
@@ -420,6 +425,12 @@ def _operational_state(
         "safe_mode": safe_mode,
         "safe_mode_reasons": reasons,
         "stale_data": "STALE_MARKET_DATA" in reasons,
+        "analysis_liveness_status": liveness.get("status"),
+        "analysis_overdue": bool(liveness.get("overdue")),
+        "analysis_generated_at": liveness.get("analysis_generated_at"),
+        "analysis_age_hours": liveness.get("analysis_age_hours"),
+        "analysis_latest_required_slot": liveness.get("latest_required_slot"),
+        "analysis_grace_minutes": liveness.get("grace_minutes"),
         "consecutive_workflow_failures": int(
             os.environ.get("BRACE_CONSECUTIVE_WORKFLOW_FAILURES", "0")
         ),
@@ -586,7 +597,7 @@ def run_cycle(
 
     assert_baseline_unchanged(baseline_copy, read_json(BASELINE_PORTFOLIO_PATH))
     _record_baseline_validation(registry, baseline_before, now)
-    operational = _operational_state(freshness, True, now)
+    operational = _operational_state(freshness, True, now, analysis)
     write_json_atomic(OPERATIONAL_PATH, operational)
     validation = read_json(VALIDATION_PATH)
     promotion_history = read_json(PROMOTION_HISTORY_PATH)
