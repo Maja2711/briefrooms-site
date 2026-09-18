@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.1  
+**Wersja mapy:** 1.2  
 **Stan na:** 2026-09-18  
-**Bazowy commit `main`:** `e4194467fb80dbc085dcb0c4bd30bdaee5eee18b`  
+**Bazowy commit `main`:** `875c27148508a80157096e5f040e5a8292051a63`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -169,7 +169,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `TR-01` | Legacy GPW Daily pipeline | Historyczny GPW Daily: candidate research, settlement, lineage i MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Kod i workflow mogą działać jako legacy research/settlement compatibility, ale nie są production Championem i nie mają prawa przyjmować pozycji do portfela v2 |
 | `TR-02` | Legacy US Daily pipeline | Historyczny US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Zachowany jako migration/history compatibility; aktywny stock authority należy do v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract | Historycznie rollout shadow; własne lifecycle/event overlay/ABC learning |
-| `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — CANARY**. `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; workflow `stock-trading-v2-production.yml` rewaliduje i przyjmuje wyłącznie bieżące prospektywne opportunities |
+| `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION**. Każda nowa pozycja ma `FIXED_NOTIONAL_V1`: 5 000 PLN na GPW lub 5 000 USD na US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false` |
 | `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; tygodniowy paper/research + WES memory/counterfactual/belief bridges | Weekly v4 = experimental paper research; WES ma własną pamięć i counterfactual layer |
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance, paper control | `ACTIVE_BASELINE + BRACE_SHADOW`; promocja deterministyczna, LLM nie może promować |
@@ -183,6 +183,9 @@ Dynamic Universe
  -> Opportunity Frontier / Ranking
  -> Deep Evidence
  -> Research Risk Plan
+ -> Fixed Notional Sizing
+      GPW = 5 000 PLN / spółkę
+      US  = 5 000 USD / spółkę
  -> Portfolio Opportunity Engine
       BUY / REPLACE / HOLD / CASH
  -> Experience Freeze (selected + rejected)
@@ -192,7 +195,7 @@ Dynamic Universe
  -> Statistical promotion gate
 ```
 
-Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`.
+Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Kontrakt sizingu: `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`.
 
 ## 7. Shared Learning / Evolution Fabric
 
@@ -285,6 +288,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 10. **Selected AND rejected matter.** Tam, gdzie wspiera to engine, odrzucone kandydaty są zamrażane i analizowane pod kątem MISS/opportunity regret.
 11. **Production vs shadow is explicit.** Shadow output nie może być prezentowany jako historycznie wykonana transakcja produkcyjna.
 12. **PL/EN architecture sync.** Zmiana architektury aktualizuje obie wersje mapy i wymaganą dokumentację.
+13. **Stock Trading fixed notional.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Nie wolno nadawać tego nominału retroaktywnie starszym pozycjom bez frozen quantity.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -359,6 +363,7 @@ Najważniejsze dokumenty szczegółowe użyte do utworzenia v1.0:
 - `DAILY_TRADING_ARCHITECTURE.md`
 - `stock-trading-v2-architecture.md`
 - `stock-trading-v2-production-promotion.md`
+- `STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`
 - `LEARNING_OUTCOME_LOOP_INTEGRATION.md`
 - `CHAMPION_CHALLENGER_STATISTICAL_GATE_V1.md`
 - `AUTONOMOUS_POLICY_OBSERVATORY_V1.md`

@@ -40,6 +40,8 @@ SCHEMA = "stock-trading-portfolio-v1"
 USER_AGENT = "BriefRooms-Stock-Trading-Portfolio/1.0"
 MARKET_TZ = {"GPW": ZoneInfo("Europe/Warsaw"), "US": ZoneInfo("America/New_York")}
 DECISIONS = {"GPW": "TRANSAKCJA", "US": "TRADE"}
+POSITION_CURRENCY = {"GPW": "PLN", "US": "USD"}
+FIXED_NOTIONAL_POLICY_VERSION = "FIXED_NOTIONAL_V1"
 RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold"}
 
 
@@ -81,6 +83,14 @@ def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
         cfg = policy["markets"].get(market) or {}
         if int(cfg.get("max_open_positions") or 0) != 3:
             raise ValueError(f"{market} Stock Trading cap must be exactly 3")
+        if float(cfg.get("target_position_notional") or 0) != 5000.0:
+            raise ValueError(f"{market} target_position_notional must be exactly 5000")
+        if str(cfg.get("position_currency") or "") != POSITION_CURRENCY[market]:
+            raise ValueError(f"{market} position_currency must be {POSITION_CURRENCY[market]}")
+        if cfg.get("fractional_quantity_allowed") is not True:
+            raise ValueError(f"{market} fixed-notional policy requires fractional_quantity_allowed=true")
+        if str(cfg.get("sizing_policy_version") or "") != FIXED_NOTIONAL_POLICY_VERSION:
+            raise ValueError(f"{market} sizing_policy_version must be {FIXED_NOTIONAL_POLICY_VERSION}")
     return policy
 
 
@@ -95,6 +105,9 @@ def empty_state(now: datetime | None = None, policy: Mapping[str, Any] | None = 
         "markets": {
             market: {
                 "max_open_positions": int(policy["markets"][market]["max_open_positions"]),
+                "target_position_notional": float(policy["markets"][market].get("target_position_notional") or 5000.0),
+                "position_currency": str(policy["markets"][market].get("position_currency") or POSITION_CURRENCY[market]),
+                "sizing_policy_version": str(policy["markets"][market].get("sizing_policy_version") or FIXED_NOTIONAL_POLICY_VERSION),
                 "open_positions": [],
                 "closed_positions": [],
                 "last_candidate_key": None,
@@ -113,6 +126,9 @@ def load_state(path: Path = STATE_PATH, *, now: datetime | None = None, policy: 
         for market in ("GPW", "US"):
             row = state.setdefault("markets", {}).setdefault(market, {})
             row["max_open_positions"] = int(policy["markets"][market]["max_open_positions"])
+            row["target_position_notional"] = float(policy["markets"][market].get("target_position_notional") or 5000.0)
+            row["position_currency"] = str(policy["markets"][market].get("position_currency") or POSITION_CURRENCY[market])
+            row["sizing_policy_version"] = str(policy["markets"][market].get("sizing_policy_version") or FIXED_NOTIONAL_POLICY_VERSION)
             row.setdefault("open_positions", [])
             row.setdefault("closed_positions", [])
             row.setdefault("last_candidate_key", None)
@@ -250,6 +266,14 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
     initial_risk = float(entry) - float(selection["stop"])
     target = max(float(selection["target"]), float(entry) + initial_risk * strategic_rr)
     rr = max(float(candidate_rr or 0.0), strategic_rr)
+    target_notional = float(cfg.get("target_position_notional") or 5000.0)
+    if target_notional != 5000.0:
+        raise ValueError(f"{market} target_position_notional must be exactly 5000")
+    quantity_precision = int(cfg.get("quantity_precision") or 8)
+    quantity = round(target_notional / float(entry), quantity_precision)
+    if quantity <= 0:
+        raise ValueError("fixed-notional quantity must be positive")
+    entry_notional = float(entry) * quantity
     return {
         "position_id": f"{market.lower()}:{now.strftime('%Y%m%dT%H%M%S')}:{symbol}",
         "market": market,
@@ -262,9 +286,16 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
         "source_candidate_date": payload.get("date"),
         "source_candidate_generated_at": payload.get("generated_at"),
         "entry": round(entry, 8),
+        "sizing_policy_version": str(cfg.get("sizing_policy_version") or FIXED_NOTIONAL_POLICY_VERSION),
+        "position_currency": str(cfg.get("position_currency") or POSITION_CURRENCY[market]),
+        "target_position_notional": round(target_notional, 2),
+        "quantity": quantity,
+        "entry_notional": round(entry_notional, 2),
+        "fractional_quantity": True,
         "stop": round(float(selection["stop"]), 8),
         "target": round(target, 8),
         "initial_risk_amount": round(initial_risk, 8),
+        "initial_risk_cash": round(initial_risk * quantity, 2),
         "strategic_target_rr": round(strategic_rr, 4),
         "risk_percent": float(risk_pct),
         "reward_risk": float(rr),
@@ -332,19 +363,32 @@ def admit_candidate(state: Mapping[str, Any], market: str, payload: Mapping[str,
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
     position = position_from_candidate(market, payload, now=now, market_cfg=policy["markets"][market])
     row["open_positions"] = open_positions(updated, market) + [position]
-    return updated, {"action": "open", "market": market, "position_id": position["position_id"], "symbol": symbol}
+    return updated, {
+        "action": "open",
+        "market": market,
+        "position_id": position["position_id"],
+        "symbol": symbol,
+        "sizing_policy_version": position["sizing_policy_version"],
+        "target_position_notional": position["target_position_notional"],
+        "position_currency": position["position_currency"],
+        "quantity": position["quantity"],
+    }
 
 
 def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, reason: str, conservative_same_bar: bool = False) -> dict[str, Any]:
     entry = float(position["entry"])
-    pnl_pct = (float(exit_price) / entry - 1.0) * 100.0 if entry else 0.0
+    exit_price_f = float(exit_price)
+    pnl_pct = (exit_price_f / entry - 1.0) * 100.0 if entry else 0.0
     initial_risk = max(entry - float(position.get("stop") or entry), 1e-12)
-    r_multiple = (float(exit_price) - entry) / initial_risk
-    return {
+    r_multiple = (exit_price_f - entry) / initial_risk
+    quantity = _float(position.get("quantity"))
+    pnl_amount = (exit_price_f - entry) * quantity if quantity is not None else None
+    exit_notional = exit_price_f * quantity if quantity is not None else None
+    closure = {
         **deepcopy(dict(position)),
         "status": "CLOSED",
         "closed_at": _iso(now),
-        "exit_price": round(float(exit_price), 8),
+        "exit_price": round(exit_price_f, 8),
         "exit_reason": reason,
         "return_percent": round(pnl_pct, 5),
         "r_multiple": round(r_multiple, 4),
@@ -353,6 +397,10 @@ def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, r
         "valid_until": None,
         "time_stop": None,
     }
+    if pnl_amount is not None:
+        closure["pnl_amount"] = round(pnl_amount, 2)
+        closure["exit_notional"] = round(exit_notional, 2)
+    return closure
 
 
 def close_position(state: Mapping[str, Any], market: str, position_id: str, *, now: datetime, exit_price: float, reason: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -532,6 +580,19 @@ def verify_state(state: Mapping[str, Any], policy: Mapping[str, Any] | None = No
                 errors.append(f"{market}:{pid}:fixed_holding_deadline_present")
             if not valid_long_risk(position.get("last_mark") or position.get("entry"), position.get("stop"), position.get("target"), max_risk_percent=float(policy["markets"][market]["maximum_risk_percent"])):
                 errors.append(f"{market}:{pid}:invalid_sl_tp")
+            if str(position.get("sizing_policy_version") or "") == FIXED_NOTIONAL_POLICY_VERSION:
+                target_notional = _float(position.get("target_position_notional"))
+                quantity = _float(position.get("quantity"))
+                entry = _float(position.get("entry"))
+                currency = str(position.get("position_currency") or "")
+                if target_notional != 5000.0:
+                    errors.append(f"{market}:{pid}:invalid_target_position_notional")
+                if currency != POSITION_CURRENCY[market]:
+                    errors.append(f"{market}:{pid}:invalid_position_currency")
+                if quantity is None or quantity <= 0 or entry is None or entry <= 0:
+                    errors.append(f"{market}:{pid}:invalid_fixed_notional_quantity")
+                elif abs(entry * quantity - 5000.0) > 0.05:
+                    errors.append(f"{market}:{pid}:fixed_notional_not_5000")
     return {"status": "OK" if not errors else "ERROR", "errors": errors, "open_gpw": len(open_positions(state, "GPW")), "open_us": len(open_positions(state, "US"))}
 
 

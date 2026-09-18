@@ -74,6 +74,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_production_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
           python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
+          node --check scripts/stock-trading-public.js
           python - <<'PY'
           import json
           from pathlib import Path
@@ -82,6 +83,14 @@ jobs:
           assert p['champion_engine']=='v2'
           assert p['challenger_engine']=='v1'
           assert p['legacy_candidate_admission_enabled'] is False
+          assert p['markets']['GPW']['target_position_notional']==5000
+          assert p['markets']['GPW']['position_currency']=='PLN'
+          assert p['markets']['GPW']['fractional_quantity_allowed'] is True
+          assert p['markets']['GPW']['sizing_policy_version']=='FIXED_NOTIONAL_V1'
+          assert p['markets']['US']['target_position_notional']==5000
+          assert p['markets']['US']['position_currency']=='USD'
+          assert p['markets']['US']['fractional_quantity_allowed'] is True
+          assert p['markets']['US']['sizing_policy_version']=='FIXED_NOTIONAL_V1'
           assert c['initial_phase']=='CANARY'
           assert c['canary_max_open_positions_per_market']==1
           assert c['candidate_search_policy']=='continue_ranked_candidates_until_capacity_or_exhaustion'

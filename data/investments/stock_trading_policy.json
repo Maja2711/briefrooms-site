@@ -1,6 +1,6 @@
 {
   "schema_version": "stock-trading-policy-v1",
-  "policy_version": "stock-trading-v2-champion-canary-v1",
+  "policy_version": "stock-trading-v2-fixed-notional-v1",
   "objective": "maximize_net_expectancy_not_trade_frequency",
   "champion_engine": "v2",
   "challenger_engine": "v1",
@@ -29,7 +29,12 @@
       "strategic_target_reward_risk": 3,
       "strong_thesis_target_reward_risk": 3.5,
       "exceptional_thesis_target_reward_risk": 4,
-      "model_reversal_from_peak": 22
+      "model_reversal_from_peak": 22,
+      "target_position_notional": 5000,
+      "position_currency": "PLN",
+      "fractional_quantity_allowed": true,
+      "quantity_precision": 8,
+      "sizing_policy_version": "FIXED_NOTIONAL_V1"
     },
     "US": {
       "max_open_positions": 3,
@@ -43,7 +48,12 @@
       "strategic_target_reward_risk": 3,
       "strong_thesis_target_reward_risk": 3.5,
       "exceptional_thesis_target_reward_risk": 4,
-      "model_reversal_from_peak": 22
+      "model_reversal_from_peak": 22,
+      "target_position_notional": 5000,
+      "position_currency": "USD",
+      "fractional_quantity_allowed": true,
+      "quantity_precision": 8,
+      "sizing_policy_version": "FIXED_NOTIONAL_V1"
     }
   }
 }

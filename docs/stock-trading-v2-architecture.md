@@ -37,14 +37,19 @@ STOCK TRADING v2
 5. **Research risk plan**
    - Deterministic SL/TP geometry from available completed-session information.
    - Research output is non-executable until the production bridge revalidates it.
-6. **Portfolio Opportunity Engine**
+6. **Fixed notional sizing**
+   - Every new GPW position uses PLN 5,000 target notional.
+   - Every new US position uses USD 5,000 target notional.
+   - Paper-trading quantity may be fractional: `quantity = 5000 / entry_price`.
+   - This standardizes exposure; SL/TP and risk gates remain independent.
+7. **Portfolio Opportunity Engine**
    - Compares new candidates, current positions and cash.
    - Candidate ranking is not a single hard admission cutoff.
    - Production search continues through ranked candidates until capacity is filled or the eligible frontier is exhausted.
-7. **Production revalidation**
+8. **Production revalidation**
    - `scripts/stock_trading_v2_production_bridge.py` revalidates opportunity age, live session state, quote freshness and risk geometry.
    - Only a fresh prospective opportunity may become a canonical portfolio admission.
-8. **Immutable learning loop**
+9. **Immutable learning loop**
    - Selected and rejected candidates are frozen prospectively.
    - Counterfactual replay settles later outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
@@ -65,7 +70,7 @@ The production config currently defines:
 
 Runtime truth lives in:
 
-- `data/investments/stock_trading_policy.json`
+- `data/investments/stock_trading_policy.json` — includes `FIXED_NOTIONAL_V1` sizing authority
 - `data/investments/stock_trading_v2_production_config.json`
 - `data/investments/stock_trading_v2_production_state.json`
 
@@ -76,6 +81,7 @@ Runtime truth lives in:
 - `.github/workflows/stock-trading-v2-learning-loop.yml`
 - `.github/workflows/stock-trading-v2-validation.yml`
 - `.github/workflows/stock-trading-v2-production.yml` — production Champion admission and canonical portfolio persistence.
+- `.github/workflows/stock-trading-fixed-notional-validation.yml` — PR/main validation of the mandatory 5K sizing contract, portfolio tests and public UI syntax.
 
 Legacy workflows such as `gpw-daily-pick-pl.yml` and US Daily workflows may still run for historical settlement, research compatibility or migration support. They are not separate active products and cannot override the v2 production authority.
 
@@ -113,3 +119,5 @@ Experience
 ```
 
 No learning step may rewrite closed history, fabricate prior execution or silently weaken hard safety invariants.
+
+Detailed bilingual sizing contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` and `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md`.

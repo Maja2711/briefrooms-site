@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.1  
+**Map version:** 1.2  
 **Snapshot date:** 2026-09-18  
-**Base `main` commit:** `e4194467fb80dbc085dcb0c4bd30bdaee5eee18b`  
+**Base `main` commit:** `875c27148508a80157096e5f040e5a8292051a63`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -169,7 +169,7 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `TR-01` | Legacy GPW Daily pipeline | Historical GPW Daily candidate research, settlement, lineage and MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Code/workflows may remain for legacy research/settlement compatibility, but are not the production Champion and may not admit positions into the v2 portfolio |
 | `TR-02` | Legacy US Daily pipeline | Historical US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Retained for migration/history compatibility; active stock authority belongs to v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; shared Daily contract | Historically shadow rollout; independent lifecycle/event overlay/ABC learning |
-| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — CANARY**. `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `stock-trading-v2-production.yml` revalidates and admits only current prospective opportunities |
+| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION**. Every new position uses `FIXED_NOTIONAL_V1`: PLN 5,000 on GPW or USD 5,000 in US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false` |
 | `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; weekly paper/research plus WES memory/counterfactual/belief bridges | Weekly v4 = experimental paper research; WES owns separate memory/counterfactual layers |
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control, optimizer, governance, paper control | `ACTIVE_BASELINE + BRACE_SHADOW`; deterministic promotion controller; LLM cannot promote |
@@ -183,6 +183,9 @@ Dynamic Universe
  -> Opportunity Frontier / Ranking
  -> Deep Evidence
  -> Research Risk Plan
+ -> Fixed Notional Sizing
+      GPW = PLN 5,000 / company
+      US  = USD 5,000 / company
  -> Portfolio Opportunity Engine
       BUY / REPLACE / HOLD / CASH
  -> Experience Freeze (selected + rejected)
@@ -192,7 +195,7 @@ Dynamic Universe
  -> Statistical promotion gate
 ```
 
-Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`.
+Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`.
 
 ## 7. Shared Learning / Evolution Fabric
 
@@ -359,6 +362,7 @@ Primary detailed documents used to build this map:
 - `DAILY_TRADING_ARCHITECTURE.md`
 - `stock-trading-v2-architecture.md`
 - `stock-trading-v2-production-promotion.md`
+- `STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`
 - `LEARNING_OUTCOME_LOOP_INTEGRATION.md`
 - `CHAMPION_CHALLENGER_STATISTICAL_GATE_V1.md`
 - `AUTONOMOUS_POLICY_OBSERVATORY_V1.md`
