@@ -2,8 +2,10 @@
 """Shadow Portfolio Opportunity Engine for Stock Trading v2.
 
 The engine compares cash, current canonical positions and Deep Evidence
-candidates. It emits one research action per market cycle: BUY, HOLD, CASH or
-REPLACE. It never mutates the production portfolio and never treats an empty
+candidates. It emits a primary research decision plus the complete ranked
+candidate frontier. Production may consume multiple qualified frontier members
+in one cycle up to market capacity; rejection of one member never terminates
+the search. It never mutates the production portfolio and never treats an empty
 slot as a reason to trade. Replacement requires explicit hysteresis to avoid
 churn.
 """
