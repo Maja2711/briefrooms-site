@@ -1,0 +1,73 @@
+name: Stock Trading Fixed Notional Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/stock-trading-fixed-notional-validation.yml"
+      - ".github/workflows/stock-trading-v2-production.yml"
+      - "data/investments/stock_trading_policy.json"
+      - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/stock-trading-public.js"
+      - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_v2_production_bridge.py"
+      - "docs/ARCHITECTURE_MAP_EN.md"
+      - "docs/ARCHITECTURE_MAP_PL.md"
+      - "docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md"
+      - "docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md"
+      - "pl/inwestycje/stock-trading.html"
+      - "en/investing/stock-trading.html"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-fixed-notional-validation.yml"
+      - "data/investments/stock_trading_policy.json"
+      - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock-trading-public.js"
+      - "tests/test_stock_trading_portfolio.py"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile fixed-notional runtime
+        run: |
+          python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_v2_production_bridge.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_v2_production_bridge.py
+          node --check scripts/stock-trading-public.js
+
+      - name: Validate policy contract
+        run: |
+          python -m json.tool data/investments/stock_trading_policy.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path("data/investments/stock_trading_policy.json").read_text(encoding="utf-8"))
+          expected = {"GPW": "PLN", "US": "USD"}
+          for market, currency in expected.items():
+              cfg = p["markets"][market]
+              assert cfg["target_position_notional"] == 5000
+              assert cfg["position_currency"] == currency
+              assert cfg["fractional_quantity_allowed"] is True
+              assert cfg["quantity_precision"] == 8
+              assert cfg["sizing_policy_version"] == "FIXED_NOTIONAL_V1"
+          print("FIXED_NOTIONAL_POLICY_OK")
+          PY
+
+      - name: Run targeted Stock Trading tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m unittest             tests.test_stock_trading_portfolio             tests.test_stock_trading_v2_production_bridge -v
