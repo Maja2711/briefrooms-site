@@ -254,7 +254,12 @@ class TriggerDeepBeliefTests(unittest.TestCase):
             root = Path(tmp)
             self.assertTrue(targeted.persist_snapshot(root, payload))
             self.assertFalse(targeted.persist_snapshot(root, payload))
-            existing = targeted.find_existing(root, self.trigger["snapshot_sha256"])
+            existing = targeted.find_existing(
+                root,
+                self.trigger["snapshot_sha256"],
+                trigger_config_version=str(self.trigger_config.get("version") or "unknown"),
+                evidence_config_version=str(self.evidence_config.get("version") or "unknown"),
+            )
             self.assertIsNotNone(existing)
             assert existing is not None
             self.assertEqual(payload["snapshot_id"], existing["snapshot_id"])
