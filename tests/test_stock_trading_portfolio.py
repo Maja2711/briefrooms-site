@@ -160,6 +160,30 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertIsNone(position['valid_until'])
         self.assertIsNone(position['time_stop'])
 
+    def test_load_state_backfills_fixed_notional_on_older_open_position(self):
+        older = stock.empty_state(self.now, self.policy)
+        older['markets']['US']['open_positions'] = [{
+            'position_id': 'us:legacy:MPC',
+            'market': 'US',
+            'status': 'OPEN',
+            'symbol': 'MPC',
+            'entry': 421.82000732,
+            'stop': 407.9741874,
+            'target': 477.203287,
+            'initial_risk_amount': 13.84581992,
+            'opened_at': '2026-09-18T09:55:05-04:00',
+            'risk_last_changed_at': '2026-09-18T09:55:05-04:00',
+        }]
+        with patch.object(stock, '_load', return_value=older):
+            loaded = stock.load_state(Path('unused.json'), now=self.now, policy=self.policy)
+        position = stock.open_positions(loaded, 'US')[0]
+        self.assertEqual(5000.0, position['target_position_notional'])
+        self.assertEqual('USD', position['position_currency'])
+        self.assertEqual('FIXED_NOTIONAL_V1', position['sizing_policy_version'])
+        self.assertAlmostEqual(11.85339698, position['quantity'], places=8)
+        self.assertEqual(5000.0, position['entry_notional'])
+        self.assertEqual(164.12, position['initial_risk_cash'])
+
     def test_every_new_position_uses_fixed_5000_market_currency_notional(self):
         us_state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
         us = stock.open_positions(us_state, 'US')[0]
