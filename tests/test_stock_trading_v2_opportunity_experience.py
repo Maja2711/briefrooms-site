@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts import stock_trading_v2_contracts as contracts
@@ -62,7 +63,12 @@ def evidence_snapshot() -> dict:
 
 def opportunity_snapshot(evidence: dict) -> dict:
     config = opportunity.load_config()
-    return opportunity.compare_opportunities(evidence, {"markets": {"US": {"open_positions": []}}}, config)
+    return opportunity.compare_opportunities(
+        evidence,
+        {"markets": {"US": {"open_positions": []}}},
+        config,
+        generated_at=datetime(2026, 9, 16, 15, 0, tzinfo=timezone.utc),
+    )
 
 
 class StockTradingV2OpportunityExperienceTests(unittest.TestCase):
