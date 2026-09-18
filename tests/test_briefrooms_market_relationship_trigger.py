@@ -149,6 +149,45 @@ class MarketRelationshipTriggerTest(unittest.TestCase):
         self.assertEqual([], snapshot["deep_belief_queue"])
         self.assertGreaterEqual(snapshot["attention_economics"]["counterfactual_slot_reduction_fraction"], 0.8)
 
+    def test_deep_belief_is_strict_subset_of_trigger_attention_slots(self) -> None:
+        scored = [
+            {
+                "symbol": f"TOP{rank}",
+                "attention_score": 100.0 - rank,
+                "attention_tier": "HOT",
+                "trigger_type": "BACKGROUND",
+                "deep_belief_eligible": False,
+                "frontier_rank": rank,
+                "relationship_rank": rank,
+                "event_context": [],
+            }
+            for rank in range(1, 5)
+        ]
+        scored.append({
+            "symbol": "DEEP5",
+            "attention_score": 95.0,
+            "attention_tier": "HOT",
+            "trigger_type": "DIRECT_EVENT_REACTION",
+            "deep_belief_eligible": True,
+            "frontier_rank": 5,
+            "relationship_rank": 5,
+            "event_context": [{"event_id": "evt-deep5"}],
+        })
+        queue, deep_queue = trigger.allocate_attention(scored, config=self.config)
+        sources = {row["symbol"]: row["attention_source"] for row in queue}
+        self.assertEqual("exploration", sources["DEEP5"])
+        self.assertEqual([], deep_queue)
+
+        scored[0]["deep_belief_eligible"] = True
+        scored[0]["trigger_type"] = "DIRECT_EVENT_REACTION"
+        scored[0]["event_context"] = [{"event_id": "evt-top1"}]
+        queue, deep_queue = trigger.allocate_attention(scored, config=self.config)
+        trigger_symbols = {
+            row["symbol"] for row in queue if row["attention_source"] == "trigger"
+        }
+        self.assertEqual(["TOP1"], [row["symbol"] for row in deep_queue])
+        self.assertTrue(all(row["symbol"] in trigger_symbols for row in deep_queue))
+
     def test_history_is_append_only_and_deduplicates_same_semantic_observation(self) -> None:
         snapshot = trigger.build_snapshot(
             frontier(self.rows),
