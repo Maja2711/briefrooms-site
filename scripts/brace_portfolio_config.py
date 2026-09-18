@@ -363,6 +363,8 @@ def load_config(
 
     merged["adaptive_policy_runtime"] = adaptive_metadata
     merged["portfolio_evolution_runtime"] = portfolio_metadata
+    if not merged.get("methodology_version"):
+        merged["methodology_version"] = default_methodology_version()
     configured_methodology_version(merged)
     return EngineConfig.from_mapping(merged), merged
 
