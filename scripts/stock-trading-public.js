@@ -473,7 +473,7 @@
 
   function exportCsv() {
     const rows = filteredClosed();
-    const header = [T.ticker,T.company,T.market,T.entryDate,T.exitDate,T.entryPrice,T.exitPrice,T.result,T.returnPct,T.status];
+    const header = [T.ticker,T.company,T.market,T.positionValue,T.shares,T.entryDate,T.exitDate,T.entryPrice,T.exitPrice,T.result,T.returnPct,T.status];
     const csvRows = [header];
     rows.forEach(p => {
       const market = p.__market || rowMarket(p);
@@ -482,8 +482,11 @@
       const exit = firstNumber(p,['exit','exit_price','close_price','closed_mark','last_mark']);
       const result = rowResult(p);
       const ret = rowReturn(p);
+      const notional = firstNumber(p,['entry_notional','target_position_notional']);
+      const quantity = firstNumber(p,['quantity']);
       csvRows.push([
-        ticker,p.name || ticker,market==='US'?'USA':'GPW',dateTime(entryAt(p),market,false),dateTime(closedAt(p),market,false),
+        ticker,p.name || ticker,market==='US'?'USA':'GPW',notional ?? '',quantity ?? '',
+        dateTime(entryAt(p),market,false),dateTime(closedAt(p),market,false),
         entry ?? '',exit ?? '',result ?? '',ret ?? '',T.closed
       ]);
     });
