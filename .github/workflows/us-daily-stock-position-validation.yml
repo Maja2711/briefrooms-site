@@ -78,7 +78,8 @@ jobs:
           assert 'reconcile_open_position' in runtime
           assert 'canonical_history_payloads' in history
           assert '*/5 13-21 * * 1-5' in monitor
-          assert 'us-daily-stock-en' in monitor
+          assert 'stock_trading_portfolio.py --mode run --market US' in monitor
+          assert 'us-daily-stock-en' not in monitor
           assert policy['champion_engine']=='v2'
           assert policy['legacy_candidate_admission_enabled'] is False
           assert '--mode sync-candidates' not in daily
