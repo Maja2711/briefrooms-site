@@ -13,6 +13,7 @@
     MCD:'mcdonalds.com', NKE:'nike.com', DIS:'thewaltdisneycompany.com', WMT:'walmart.com', COST:'costco.com', XOM:'corporate.exxonmobil.com',
     CVX:'chevron.com', CAT:'caterpillar.com', BA:'boeing.com', GE:'ge.com', LLY:'lilly.com', JNJ:'jnj.com', PFE:'pfizer.com',
     MRK:'merck.com', ABBV:'abbvie.com', TMO:'thermofisher.com', UNH:'unitedhealthgroup.com', HD:'homedepot.com',
+    MPC:'marathonpetroleum.com', NTRA:'natera.com', NET:'cloudflare.com',
 
     JSW:'jsw.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
     MBK:'mbank.pl', ALR:'aliorbank.pl', ING:'ing.pl', SAN:'santander.pl', SPL:'santander.pl', CDR:'cdprojekt.com', LPP:'lppsa.com',
@@ -94,7 +95,7 @@
   }
 
   function scan() {
-    root.querySelectorAll('.str-position').forEach(enhance);
+    root.querySelectorAll('.str-position,.str-overview-position').forEach(enhance);
   }
 
   let frame = 0;

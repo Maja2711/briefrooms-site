@@ -168,3 +168,104 @@
     grid-template-columns:minmax(0,1fr)!important;
   }
 }
+
+
+/* Overview-first UX: show every open position immediately in a compact card.
+   Full risk tickets are a second view, opened explicitly by the user. */
+.str-position-overview-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:14px!important;
+}
+.str-overview-position{
+  min-width:0!important;
+  padding:12px 14px 14px!important;
+  border:1px solid rgba(51,205,221,.52)!important;
+  border-radius:16px!important;
+  background:linear-gradient(145deg,rgba(7,35,52,.96),rgba(4,24,38,.94))!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.035)!important;
+}
+.str-overview-position-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  margin-bottom:10px!important;
+}
+.str-overview-position-body{
+  display:grid!important;
+  grid-template-columns:92px minmax(0,1fr)!important;
+  gap:13px!important;
+  align-items:stretch!important;
+}
+.str-overview-position .str-company-mark{
+  min-height:126px!important;
+}
+.str-overview-position-copy{
+  display:flex!important;
+  min-width:0!important;
+  flex-direction:column!important;
+}
+.str-overview-position .str-company-name{
+  min-width:0!important;
+  margin-bottom:8px!important;
+}
+.str-overview-position .str-company-name span{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.str-overview-facts{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:7px!important;
+}
+.str-overview-facts>div{
+  min-width:0!important;
+  padding:9px 10px!important;
+  border:1px solid rgba(80,154,190,.2)!important;
+  border-radius:9px!important;
+  background:linear-gradient(180deg,rgba(10,46,69,.82),rgba(7,34,52,.8))!important;
+}
+.str-overview-facts span,.str-overview-pnl span{
+  display:block!important;
+  color:#9cb3c5!important;
+  font-size:9px!important;
+}
+.str-overview-facts strong{
+  display:block!important;
+  margin-top:4px!important;
+  font-size:14px!important;
+  white-space:nowrap!important;
+}
+.str-overview-pnl{
+  display:flex!important;
+  align-items:baseline!important;
+  gap:8px!important;
+  margin-top:auto!important;
+  padding-top:9px!important;
+}
+.str-overview-pnl strong{font-size:16px!important}
+.str-overview-pnl b{margin-left:auto!important;font-size:11px!important}
+.str-overview-pnl.is-positive strong,.str-overview-pnl.is-positive b{color:var(--str-green)!important}
+.str-overview-pnl.is-negative strong,.str-overview-pnl.is-negative b{color:#ff647b!important}
+.str-overview-pnl.is-neutral strong,.str-overview-pnl.is-neutral b{color:#c1d3df!important}
+
+.str-open-grid-details>.str-market-ticket-panel.is-detail-market{
+  grid-column:1 / -1!important;
+}
+.str-open-grid-details>.str-market-ticket-panel.is-detail-market:not(.is-expanded-market){
+  grid-template-columns:minmax(0,1fr)!important;
+}
+
+@media(max-width:1180px){
+  .str-position-overview-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+@media(max-width:760px){
+  .str-position-overview-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+}
