@@ -1,0 +1,52 @@
+{
+  "schema_version": "briefrooms-market-relationship-trigger-config-v1",
+  "version": "1.0.0",
+  "mode": "shadow_attention_allocator",
+  "objective": "allocate scarce research attention to event-reaction-peer-time clusters",
+  "markets": {
+    "US": {
+      "minimum_trigger_score": 62.0,
+      "hot_trigger_score": 76.0,
+      "deep_belief_score": 82.0,
+      "maximum_attention_slots": 6,
+      "maximum_trigger_slots": 4,
+      "exploration_slots": 2,
+      "maximum_deep_belief_slots": 2,
+      "maximum_peers": 8,
+      "minimum_behavior_similarity": 0.72
+    }
+  },
+  "weights": {
+    "event_materiality": 30.0,
+    "entity_reaction": 25.0,
+    "peer_confirmation": 20.0,
+    "persistence": 15.0,
+    "frontier_prior": 10.0
+  },
+  "event": {
+    "maximum_age_hours": 48,
+    "direct_relevance_multiplier": 1.0,
+    "theme_relevance_multiplier": 0.72,
+    "macro_relevance_multiplier": 0.35,
+    "neutral_event_reaction_can_resolve_direction": true
+  },
+  "reaction": {
+    "minimum_scale": 0.01,
+    "volume_ratio_reference": 2.0
+  },
+  "history": {
+    "enabled": true,
+    "minimum_score_to_freeze": 62.0,
+    "one_semantic_observation_per_symbol_event_session": true,
+    "outcomes_are_written_to_separate_future_records": true
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "automatic_policy_writeback": false,
+    "deep_belief_execution": false,
+    "attention_queue_is_counterfactual_only": true,
+    "exploration_budget_preserved": true,
+    "no_forced_trade": true
+  }
+}

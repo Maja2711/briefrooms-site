@@ -2,6 +2,16 @@ name: Stock Trading v2 Validation
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - stock-trading-v2
+    paths:
+      - ".github/workflows/stock-trading-v2-validation.yml"
+      - "scripts/briefrooms_market_relationship_trigger.py"
+      - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/briefrooms_market_relationship_trigger.py"
+      - "tests/test_briefrooms_market_relationship_trigger.py"
+      - "data/investments/market_relationship_trigger_config.json"
   push:
     branches:
       - stock-trading-v2
@@ -39,6 +49,7 @@ on:
       - "tests/test_stock_trading_v2_live_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
       - "tests/test_stock_trading_v2_discovery.py"
+      - "tests/test_briefrooms_market_relationship_trigger.py"
       - "tests/test_stock_trading_v2_deep_evidence.py"
       - "tests/test_stock_trading_v2_opportunity_engine.py"
       - "tests/test_stock_trading_v2_opportunity_experience.py"
@@ -46,6 +57,7 @@ on:
       - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/market_relationship_trigger_config.json"
       - "data/investments/stock_trading_v2_evidence_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
       - "data/investments/stock_trading_v2_learning_config.json"
@@ -74,7 +86,7 @@ jobs:
       - name: Check out Stock Trading v2
         uses: actions/checkout@v4
         with:
-          ref: stock-trading-v2
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'stock-trading-v2' }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -99,6 +111,7 @@ jobs:
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py \
             scripts/stock_trading_v2_discovery.py \
+            scripts/briefrooms_market_relationship_trigger.py \
             scripts/stock_trading_v2_deep_evidence.py \
             scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_opportunity_experience.py \
@@ -114,6 +127,7 @@ jobs:
             tests/test_stock_trading_v2_live_scan.py \
             tests/test_stock_trading_v2_us_screener_provider.py \
             tests/test_stock_trading_v2_discovery.py \
+            tests/test_briefrooms_market_relationship_trigger.py \
             tests/test_stock_trading_v2_deep_evidence.py \
             tests/test_stock_trading_v2_opportunity_engine.py \
             tests/test_stock_trading_v2_opportunity_experience.py
@@ -124,6 +138,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
@@ -143,6 +158,7 @@ jobs:
             tests.test_stock_trading_v2_live_scan \
             tests.test_stock_trading_v2_us_screener_provider \
             tests.test_stock_trading_v2_discovery \
+            tests.test_briefrooms_market_relationship_trigger \
             tests.test_stock_trading_v2_deep_evidence \
             tests.test_stock_trading_v2_opportunity_engine \
             tests.test_stock_trading_v2_opportunity_experience -v
