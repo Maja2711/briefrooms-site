@@ -81,6 +81,7 @@ Runtime truth lives in:
 - `.github/workflows/stock-trading-v2-learning-loop.yml`
 - `.github/workflows/stock-trading-v2-validation.yml`
 - `.github/workflows/stock-trading-v2-production.yml` — production Champion admission and canonical portfolio persistence.
+- `.github/workflows/stock-trading-fixed-notional-validation.yml` — PR/main validation of the mandatory 5K sizing contract, portfolio tests and public UI syntax.
 
 Legacy workflows such as `gpw-daily-pick-pl.yml` and US Daily workflows may still run for historical settlement, research compatibility or migration support. They are not separate active products and cannot override the v2 production authority.
 
