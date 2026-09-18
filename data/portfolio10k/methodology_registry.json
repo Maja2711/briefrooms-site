@@ -4,9 +4,10 @@
   "methodology_version": "registry-v1.0.0",
   "data_freshness": "current",
   "source_metadata": {
-    "baseline_portfolio": "data/investments/portfolio_10k.json",
-    "legacy_brace": "data/investments/portfolio_10k_brace.json",
-    "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json"
+    "baseline_portfolio": "data/portfolio10k/baseline_portfolio_immutable.json",
+    "legacy_backtest": "data/investments/portfolio_10k_brace_backtest.json",
+    "controlled_portfolio": "data/portfolio10k/paper_portfolio.json",
+    "public_reconciled_portfolio": "data/investments/portfolio_10k.json"
   },
   "controller_state": "PROBATIONARY_CONTROL",
   "champion_methodology_id": "brace-portfolio-engine",
@@ -19,12 +20,15 @@
       "status": "FALLBACK_BASELINE",
       "activated_at": "2026-07-20T12:10:00+00:00",
       "retired_at": null,
-      "description": "Existing Portfolio 10K methodology preserved as champion, benchmark and automatic fallback.",
+      "description": "Immutable pre-BRACE-control Portfolio 10K snapshot preserved as benchmark and fallback methodology reference.",
       "parameters": {
-        "source": "data/investments/portfolio_10k.json",
+        "source": "data/portfolio10k/baseline_portfolio_immutable.json",
         "review_frequency": "weekly",
         "no_leverage": true,
-        "no_cfd": true
+        "no_cfd": true,
+        "immutable": true,
+        "source_commit": "893be8b4ce5497b62ac99bd282a5a793826d545d",
+        "frozen_before_brace_control": true
       },
       "benchmark": "FWIA.DE",
       "validation_results": {
@@ -32,7 +36,10 @@
         "history_preserved": true,
         "entry_history_sha256": "cdefa8db1f5824ae3eac75fab7f99ed59bc8c3a6cf4ba222d539368555d5f348",
         "source_snapshot_sha256": "5d5f0544d1936ba6b753a59cb32d3b65ba76e13001662a035e86ab3b453d7d3a",
-        "validated_at": "2026-09-18T17:47:37+00:00"
+        "validated_at": "2026-09-18T17:47:37+00:00",
+        "source_commit": "893be8b4ce5497b62ac99bd282a5a793826d545d",
+        "frozen_snapshot_at": "2026-08-02T20:07:12+00:00",
+        "brace_control_authorized_at": "2026-08-02T20:37:00+00:00"
       }
     },
     {
