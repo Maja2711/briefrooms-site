@@ -65,46 +65,66 @@ def run() -> int:
                     label = f"{language}-{width}x{height}"
                     try:
                         page.goto(BASE + path, wait_until="domcontentloaded", timeout=30000)
-                        page.wait_for_selector("#str-market-us .str-position", timeout=15000)
-                        page.wait_for_timeout(500)
+                        page.wait_for_selector(".str-overview-position", timeout=15000)
+                        page.wait_for_timeout(600)
 
-                        default_visible = visible_count(page, "#str-market-us .str-position")
-                        total_us = page.locator("#str-market-us .str-position").count()
-                        if total_us > 1 and default_visible != 1:
-                            failures.append(f"{label}: collapsed view exposes {default_visible}/{total_us} US cards")
+                        overview_total = page.locator(".str-overview-position").count()
+                        overview_visible = visible_count(page, ".str-overview-position")
+                        us_overview = page.locator('.str-overview-position[data-summary-market="US"]').count()
+                        if overview_total != overview_visible:
+                            failures.append(f"{label}: overview hides {overview_total-overview_visible} open positions")
+                        if us_overview != 3:
+                            failures.append(f"{label}: expected 3 visible US overview positions, got {us_overview}")
 
-                        default_widths = card_widths(page, "#str-market-us .str-position")
-                        if default_widths and min(default_widths) < 520:
-                            failures.append(f"{label}: collapsed active card too narrow: {min(default_widths)}px")
+                        mpc = page.locator('.str-overview-position[data-summary-market="US"]').filter(has_text="MPC")
+                        if mpc.count() != 1:
+                            failures.append(f"{label}: MPC overview card missing")
+                        else:
+                            mpc_text = mpc.inner_text()
+                            if "5" not in mpc_text or "000" not in mpc_text:
+                                failures.append(f"{label}: MPC overview does not show 5K notional")
 
-                        toggle = page.locator("[data-toggle-extra]")
-                        expanded_visible = default_visible
-                        expanded_widths = default_widths
-                        if toggle.count():
-                            toggle.click()
-                            page.wait_for_timeout(250)
-                            expanded_visible = visible_count(page, "#str-market-us .str-position")
-                            expanded_widths = card_widths(page, "#str-market-us .str-position")
-                            if expanded_visible != total_us:
-                                failures.append(f"{label}: expanded view shows {expanded_visible}/{total_us} US cards")
-                            if total_us > 1 and not page.locator("#str-market-us").evaluate("el => el.classList.contains('is-expanded-market')"):
-                                failures.append(f"{label}: expanded market class missing")
-                            if expanded_widths and min(expanded_widths) < 400:
-                                failures.append(f"{label}: expanded card too narrow: {min(expanded_widths)}px")
+                        summary_widths = card_widths(page, ".str-overview-position")
+                        if summary_widths and min(summary_widths) < 300:
+                            failures.append(f"{label}: overview card too narrow: {min(summary_widths)}px")
+
+                        # Market tab is navigation into that market's complete ticket view.
+                        page.locator('[data-market-jump="US"]').click()
+                        page.wait_for_selector("#str-market-us .str-position", timeout=5000)
+                        page.wait_for_timeout(200)
+                        us_detail_visible = visible_count(page, "#str-market-us .str-position")
+                        gpw_detail_count = page.locator("#str-market-gpw .str-position").count()
+                        if us_detail_visible != 3:
+                            failures.append(f"{label}: US market view shows {us_detail_visible}/3 tickets")
+                        if gpw_detail_count != 0:
+                            failures.append(f"{label}: US market view unexpectedly contains GPW ticket panel")
+
+                        detail_widths = card_widths(page, "#str-market-us .str-position")
+                        if detail_widths and min(detail_widths) < 300:
+                            failures.append(f"{label}: detailed ticket too narrow: {min(detail_widths)}px")
+
+                        # Return to overview, then the generic ticket button must show all tickets.
+                        page.locator("[data-back-overview]").click()
+                        page.wait_for_selector("[data-show-details]", timeout=5000)
+                        page.locator("[data-show-details]").click()
+                        page.wait_for_selector("#str-market-us .str-position", timeout=5000)
+                        all_us_visible = visible_count(page, "#str-market-us .str-position")
+                        if all_us_visible != 3:
+                            failures.append(f"{label}: all-ticket view shows {all_us_visible}/3 US tickets")
 
                         overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                         if overflow > 2:
                             failures.append(f"{label}: page horizontal overflow {overflow}px")
 
-                        metric_overflows = text_overflow_count(page, "#str-market-us .str-position:not(.is-extra) .str-metrics strong")
+                        metric_overflows = text_overflow_count(page, "#str-market-us .str-position .str-metrics strong")
                         if metric_overflows:
                             failures.append(f"{label}: {metric_overflows} metric values overflow their tiles")
 
-                        pnl_outside = child_outside_card_count(page, "#str-market-us .str-position:not(.is-extra) .str-pnl")
+                        pnl_outside = child_outside_card_count(page, "#str-market-us .str-position .str-pnl")
                         if pnl_outside:
                             failures.append(f"{label}: {pnl_outside} P&L panels escape their ticket boundary")
 
-                        pnl_text_overflows = text_overflow_count(page, "#str-market-us .str-position:not(.is-extra) .str-pnl")
+                        pnl_text_overflows = text_overflow_count(page, "#str-market-us .str-position .str-pnl")
                         if pnl_text_overflows:
                             failures.append(f"{label}: {pnl_text_overflows} P&L panels contain clipped text")
 
@@ -112,11 +132,13 @@ def run() -> int:
                         page.screenshot(path=str(shot), full_page=True)
                         rows.append({
                             "case": label,
-                            "total_us_cards": total_us,
-                            "default_visible_us_cards": default_visible,
-                            "default_card_widths": default_widths,
-                            "expanded_visible_us_cards": expanded_visible,
-                            "expanded_card_widths": expanded_widths,
+                            "overview_total": overview_total,
+                            "overview_visible": overview_visible,
+                            "us_overview_positions": us_overview,
+                            "overview_card_widths": summary_widths,
+                            "us_market_detail_visible": us_detail_visible,
+                            "detail_card_widths": detail_widths,
+                            "all_ticket_us_visible": all_us_visible,
                             "horizontal_overflow_px": overflow,
                             "metric_overflow_count": metric_overflows,
                             "pnl_outside_card_count": pnl_outside,
@@ -129,7 +151,7 @@ def run() -> int:
             browser.close()
 
     report = {
-        "schema_version": "stock-trading-ui-audit-v1",
+        "schema_version": "stock-trading-ui-audit-v2",
         "passed": not failures,
         "failures": failures,
         "cases": rows,
