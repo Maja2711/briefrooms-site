@@ -276,7 +276,8 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
 def _stooq_symbol(symbol: str, market: str) -> str:
     raw = str(symbol or "").strip().upper()
     if market == "GPW":
-        return raw[:-3].lower() if raw.endswith(".WA") else raw.lower()
+        base = raw[:-3] if raw.endswith(".WA") else raw
+        return f"{base.lower()}.pl"
     if market == "US":
         return raw.lower() if raw.endswith(".us") else f"{raw.lower()}.us"
     raise ValueError(f"Unsupported market: {market}")
