@@ -78,6 +78,27 @@ def build_public_snapshot(
         and paper_portfolio_available
     ):
         portfolio_path = "/data/portfolio10k/paper_portfolio.json"
+    recommendations = []
+    for item in pending.get("recommendations", []) or []:
+        recommendations.append(
+            {
+                key: item.get(key)
+                for key in (
+                    "instrument",
+                    "instrument_id",
+                    "broker_symbol",
+                    "action",
+                    "final_score",
+                    "confidence",
+                    "current_weight",
+                    "proposed_weight",
+                    "rationale_pl",
+                    "rationale_en",
+                    "material_event_context",
+                )
+            }
+        )
+
     decisions = []
     for item in pending.get("decisions", []) or []:
         decisions.append(
@@ -139,8 +160,24 @@ def build_public_snapshot(
             or ", ".join(operational.get("safe_mode_reasons") or [])
             or "Safety controls stopped BRACE decisions."
         )
+    analysis_positions = list(analysis.get("positions") or [])
+    analysis_scores = [
+        float(item.get("final_score"))
+        for item in analysis_positions
+        if item.get("final_score") is not None
+    ]
+    analysis_confidences = [
+        float(item.get("confidence_score"))
+        for item in analysis_positions
+        if item.get("confidence_score") is not None
+    ]
+    decision_counts: Dict[str, int] = {}
+    for item in recommendations:
+        action = str(item.get("action") or "UNKNOWN")
+        decision_counts[action] = decision_counts.get(action, 0) + 1
+
     snapshot = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
         "methodology_version": challenger.get("version"),
         "data_freshness": operational.get("data_freshness", "unknown"),
@@ -148,6 +185,15 @@ def build_public_snapshot(
             "publisher": "brace_portfolio_publish.py",
             "paper_only": True,
             "real_broker_connected": False,
+            "canonical_frontend_source": "/data/portfolio10k/public/brace_engine_public.json",
+            "legacy_frontend_source_retired": "/data/investments/portfolio_10k_brace.json",
+        },
+        "frontend_contract": {
+            "canonical_source": "/data/portfolio10k/public/brace_engine_public.json",
+            "legacy_source_retired": "/data/investments/portfolio_10k_brace.json",
+            "cache_live_max_age_minutes": 120,
+            "cache_stale_max_age_minutes": 360,
+            "freshness_states": ["LIVE", "CACHED", "STALE"],
         },
         "controller_status": controller,
         "display_status": (
@@ -165,6 +211,9 @@ def build_public_snapshot(
             "methodology_id": baseline.get("methodology_id"),
             "version": baseline.get("version"),
             "status": baseline.get("status"),
+            "source": (baseline.get("parameters") or {}).get("source"),
+            "immutable": bool((baseline.get("parameters") or {}).get("immutable")),
+            "source_commit": (baseline.get("parameters") or {}).get("source_commit"),
         },
         "challenger": {
             "methodology_id": challenger.get("methodology_id"),
@@ -216,6 +265,23 @@ def build_public_snapshot(
             "status": _target_status(analysis, config),
             "guaranteed": False,
         },
+        "analysis_summary": {
+            "generated_at": analysis.get("generated_at"),
+            "positions_reviewed": len(analysis_positions),
+            "portfolio_score": (
+                round(sum(analysis_scores) / len(analysis_scores), 2)
+                if analysis_scores else None
+            ),
+            "confidence": (
+                round(sum(analysis_confidences) / len(analysis_confidences), 4)
+                if analysis_confidences else None
+            ),
+            "decision_counts": decision_counts,
+            "risk_status": analysis.get("risk_status"),
+            "analysis_liveness_status": operational.get("analysis_liveness_status"),
+            "analysis_overdue": bool(operational.get("analysis_overdue")),
+        },
+        "position_recommendations": recommendations[:20],
         "last_incremental_learning": analysis.get("last_incremental_learning"),
         "last_research_run": analysis.get("last_research_run"),
         "next_scheduled_analysis": analysis.get("next_scheduled_analysis"),
