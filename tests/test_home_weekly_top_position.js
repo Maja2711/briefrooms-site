@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const widget = require('../scripts/home-weekly-top-position.js');
+const widget = require('../scripts/home-market-signal-v6.js');
 
 function weekly(id, direction = 'long', conviction = 10, entry = 100, tp = 110, sl = 95, score = 50) {
   return {

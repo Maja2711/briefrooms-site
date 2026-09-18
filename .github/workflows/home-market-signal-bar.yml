@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/home-weekly-top-position.js"
+      - "scripts/home-market-signal-v6.js"\n      - "scripts/home-weekly-top-position.js"
       - "scripts/install_home_market_signal_bar.py"
       - "tests/test_home_weekly_top_position.js"
       - ".github/workflows/home-market-signal-bar.yml"
@@ -39,7 +39,7 @@ jobs:
       - name: Test canonical homepage signal selection
         run: |
           set -euo pipefail
-          node --check scripts/home-weekly-top-position.js
+          node --check scripts/home-market-signal-v6.js
           node --test tests/test_home_weekly_top_position.js
           python -m py_compile scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py
@@ -95,7 +95,7 @@ jobs:
           from pathlib import Path
           headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/2.0','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
-          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=5'
+          client='https://briefrooms.com/scripts/home-market-signal-v6.js'
           portfolio_url='https://briefrooms.com/data/investments/stock_trading_portfolio.json'
           last={}
           success=False
@@ -107,7 +107,7 @@ jobs:
                 req=urllib.request.Request(url+f'?marketbar={token}',headers=headers)
                 with urllib.request.urlopen(req,timeout=20) as r:
                   body=r.read().decode('utf-8',errors='replace')
-                page_ok='/scripts/home-weekly-top-position.js?v=5' in body and 'br-share-strip' in body
+                page_ok='/scripts/home-market-signal-v6.js' in body and 'home-weekly-top-position.js' not in body and 'br-share-strip' in body
                 last[lang]={'page':page_ok}
                 ok = ok and page_ok
               except Exception as exc:
@@ -124,7 +124,7 @@ jobs:
                 'us_daily_stock.json' not in script and
                 'BRIEFROOMS STOCK TRADING · OPEN' in script
               )
-              last['client']={'served':client_ok,'version':5}
+              last['client']={'served':client_ok,'version':6}
               ok = ok and client_ok
             except Exception as exc:
               last['client']={'error':f'{type(exc).__name__}: {exc}'}
@@ -156,7 +156,7 @@ jobs:
             'schema_version':'home-market-signal-production-v2',
             'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
             'status':'passed' if success else 'failed',
-            'asset_version':5,
+            'asset_version':6,
             'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
             'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
             'legacy_daily_feeds_excluded':True,
