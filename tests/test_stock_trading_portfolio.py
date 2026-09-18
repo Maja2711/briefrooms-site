@@ -356,6 +356,7 @@ class StockTradingPortfolioTests(unittest.TestCase):
         state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]
         position['opened_at'] = '2026-01-01T10:00:00+00:00'
+        position['risk_last_changed_at'] = '2026-01-01T10:00:00+00:00'
         state['markets']['US']['open_positions'] = [position]
         observations = {
             'AAA': {'snapshot': {'high': 102.0, 'low': 94.0, 'last': 96.0}, 'closes': [100.0] * 50, 'atr': 2.0}
