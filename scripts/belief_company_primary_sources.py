@@ -113,7 +113,7 @@ SOURCE_REGISTRY: tuple[dict[str, Any], ...] = (
         "leaders": ("Elon Musk", "Vaibhav Taneja"),
         "official_hosts": ("ir.tesla.com", "tesla.com", "www.tesla.com"),
         "sources": (
-            {"kind": "html_index", "url": "https://ir.tesla.com/", "label": "Tesla Investor Relations", "category": "official_ir"},
+            {"kind": "html_index", "url": "https://ir.tesla.com/press", "label": "Tesla Investor Relations - Press", "category": "official_press_release"},
         ),
     },
     {
@@ -121,7 +121,7 @@ SOURCE_REGISTRY: tuple[dict[str, Any], ...] = (
         "leaders": ("Hock Tan",),
         "official_hosts": ("investors.broadcom.com", "broadcom.com", "www.broadcom.com"),
         "sources": (
-            {"kind": "html_index", "url": "https://investors.broadcom.com/", "label": "Broadcom Investor Relations", "category": "official_ir"},
+            {"kind": "rss", "url": "https://investors.broadcom.com/rss/news-releases.xml", "label": "Broadcom Investor Relations - Financial News", "category": "official_press_release"},
         ),
     },
     {
@@ -152,9 +152,9 @@ SOURCE_REGISTRY: tuple[dict[str, Any], ...] = (
     {
         "key": "tsmc", "entity": "TSM", "tickers": ("TSM",),
         "leaders": ("C. C. Wei", "CC Wei"),
-        "official_hosts": ("tsmc.com", "www.tsmc.com", "pr.tsmc.com"),
+        "official_hosts": ("tsmc.com", "www.tsmc.com", "pr.tsmc.com", "investor.tsmc.com"),
         "sources": (
-            {"kind": "html_index", "url": "https://pr.tsmc.com/english", "label": "TSMC Press Center", "category": "official_press_release"},
+            {"kind": "html_index", "url": "https://investor.tsmc.com/english/financial-calendar", "label": "TSMC Investor Relations - Financial Calendar", "category": "official_earnings"},
         ),
     },
     {
@@ -171,7 +171,7 @@ SOURCE_REGISTRY: tuple[dict[str, Any], ...] = (
         "leaders": ("Michael Saylor", "Phong Le"),
         "official_hosts": ("strategy.com", "www.strategy.com", "microstrategy.com", "www.microstrategy.com"),
         "sources": (
-            {"kind": "html_index", "url": "https://www.strategy.com/investor-relations", "label": "Strategy Investor Relations", "category": "official_ir"},
+            {"kind": "html_index", "url": "https://www.strategy.com/press", "label": "Strategy News and Press Releases", "category": "official_press_release"},
         ),
     },
     {
@@ -189,7 +189,7 @@ SOURCE_REGISTRY: tuple[dict[str, Any], ...] = (
         "official_hosts": ("openai.com", "www.openai.com"),
         "systemic": True,
         "sources": (
-            {"kind": "html_index", "url": "https://openai.com/news/", "label": "OpenAI News", "category": "official_blog"},
+            {"kind": "rss", "url": "https://openai.com/news/rss.xml", "label": "OpenAI News RSS", "category": "official_blog"},
         ),
     },
     {

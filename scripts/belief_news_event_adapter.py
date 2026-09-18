@@ -319,7 +319,11 @@ def _watch_tickers() -> Tuple[str, ...]:
 
     try:
         payload = json.loads(STOCK_TRADING_STATE_PATH.read_text(encoding="utf-8"))
-        for market_row in (payload.get("markets") or {}).values():
+        for market_name, market_row in (payload.get("markets") or {}).items():
+            # SEC ticker symbols are US-listing identifiers. Never allow a GPW
+            # symbol collision to resolve to an unrelated US registrant.
+            if str(market_name or "").upper() != "US":
+                continue
             for position in (market_row or {}).get("open_positions") or []:
                 ticker = _normalize_ticker(position.get("symbol") or position.get("ticker"))
                 if ticker:
@@ -327,7 +331,9 @@ def _watch_tickers() -> Tuple[str, ...]:
     except Exception:
         pass
 
-    for path in (GPW_CANDIDATE_PATH, US_CANDIDATE_PATH):
+    # Only the US daily candidate is eligible for SEC lookup. GPW candidates
+    # remain covered by their own market/event pipelines.
+    for path in (US_CANDIDATE_PATH,):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             selection = payload.get("selection") if isinstance(payload.get("selection"), Mapping) else {}
