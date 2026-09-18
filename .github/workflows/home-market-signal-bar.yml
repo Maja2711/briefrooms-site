@@ -94,7 +94,7 @@ jobs:
           from pathlib import Path
           headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/2.0','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
-          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=4'
+          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=5'
           portfolio_url='https://briefrooms.com/data/investments/stock_trading_portfolio.json'
           last={}
           success=False
@@ -106,7 +106,7 @@ jobs:
                 req=urllib.request.Request(url+f'?marketbar={token}',headers=headers)
                 with urllib.request.urlopen(req,timeout=20) as r:
                   body=r.read().decode('utf-8',errors='replace')
-                page_ok='/scripts/home-weekly-top-position.js?v=4' in body and 'br-share-strip' in body
+                page_ok='/scripts/home-weekly-top-position.js?v=5' in body and 'br-share-strip' in body
                 last[lang]={'page':page_ok}
                 ok = ok and page_ok
               except Exception as exc:
@@ -120,9 +120,10 @@ jobs:
                 'WEEKLY_ALLOWLIST' in script and
                 'stock_trading_portfolio.json' in script and
                 'gpw_daily_pick.json' not in script and
-                'us_daily_stock.json' not in script
+                'us_daily_stock.json' not in script and
+                'BRIEFROOMS STOCK TRADING · OPEN' in script
               )
-              last['client']={'served':client_ok,'version':4}
+              last['client']={'served':client_ok,'version':5}
               ok = ok and client_ok
             except Exception as exc:
               last['client']={'error':f'{type(exc).__name__}: {exc}'}
@@ -154,10 +155,11 @@ jobs:
             'schema_version':'home-market-signal-production-v2',
             'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
             'status':'passed' if success else 'failed',
-            'asset_version':4,
+            'asset_version':5,
             'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
             'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
             'legacy_daily_feeds_excluded':True,
+            'stock_label':'BRIEFROOMS STOCK TRADING · OPEN',
             'checks':last,
           }
           Path('data/home_market_signal_production_status.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

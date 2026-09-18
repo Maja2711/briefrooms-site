@@ -78,6 +78,13 @@ test('active canonical weekly position has priority over Stock Trading portfolio
   assert.equal(selected.instrument_id, 'sp500_futures');
 });
 
+test('Stock Trading signal is explicitly labelled OPEN and never WEEKLY', () => {
+  const selected = widget.chooseSignal([], portfolio([stock('MPC', 100, 93)]), 'pl');
+  assert.equal(selected.kind, 'stock');
+  assert.equal(widget.kickerFor(selected, 'pl'), 'BRIEFROOMS STOCK TRADING · OPEN');
+  assert.equal(widget.kickerFor(selected, 'pl').includes('WEEKLY'), false);
+});
+
 test('Stock Trading portfolio is the only fallback when no canonical weekly position is open', () => {
   const selected = widget.chooseSignal([], portfolio([
     stock('NTRA', 100, 87),

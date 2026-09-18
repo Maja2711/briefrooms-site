@@ -31,14 +31,14 @@
       weeklyHref: '/pl/inwestycje/pozycje-tygodniowe.html',
       stockHref: '/pl/inwestycje/stock-trading.html',
       weeklyKicker: 'BRIEFROOMS TRADING ENGINE · WEEKLY',
-      stockKicker: 'BRIEFROOMS TRADING ENGINE · STOCK TRADING',
+      stockKicker: 'BRIEFROOMS STOCK TRADING · OPEN',
       entry: 'WEJŚCIE', tp: 'TP', sl: 'SL', more: 'Szczegóły →', locale: 'pl-PL'
     },
     en: {
       weeklyHref: '/en/investing/open-weekly-positions.html',
       stockHref: '/en/investing/stock-trading.html',
       weeklyKicker: 'BRIEFROOMS TRADING ENGINE · WEEKLY',
-      stockKicker: 'BRIEFROOMS TRADING ENGINE · STOCK TRADING',
+      stockKicker: 'BRIEFROOMS STOCK TRADING · OPEN',
       entry: 'ENTRY', tp: 'TP', sl: 'SL', more: 'Details →', locale: 'en-US'
     }
   };
@@ -359,6 +359,7 @@
     isoWeekId: isoWeekId,
     load: load,
     render: render,
+    kickerFor: kickerFor,
     selectTopStockPosition: selectTopStockPosition,
     selectTopWeeklyPosition: selectTopWeeklyPosition,
     stockDirection: stockDirection,
