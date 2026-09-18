@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import sys
@@ -174,6 +175,35 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertEqual(old_stop, after['stop'])
         self.assertEqual(old_target, after['target'])
         self.assertEqual('preserved_last_valid_risk', after['risk_reviews'][-1]['status'])
+
+    def test_intraday_observation_excludes_pre_entry_bars(self):
+        tz = ZoneInfo('Europe/Warsaw')
+        now = datetime(2026, 9, 18, 12, 30, tzinfo=tz)
+        opened_at = '2026-09-18T12:00:00+02:00'
+        daily_stamps = [int(datetime(2026, 7, 1, 17, 0, tzinfo=tz).timestamp()) + i * 86400 for i in range(60)]
+        daily = {
+            'timestamp': daily_stamps,
+            'indicators': {'quote': [{
+                'high': [102.0] * 60,
+                'low': [98.0] * 60,
+                'close': [100.0] * 60,
+            }]},
+        }
+        before = int(datetime(2026, 9, 18, 11, 55, tzinfo=tz).timestamp())
+        after = int(datetime(2026, 9, 18, 12, 5, tzinfo=tz).timestamp())
+        intraday = {
+            'timestamp': [before, after],
+            'indicators': {'quote': [{
+                'high': [101.0, 102.0],
+                'low': [90.0, 99.0],
+                'close': [100.0, 101.0],
+            }]},
+        }
+        with patch.object(stock, '_chart', side_effect=[daily, intraday]):
+            observation = stock._daily_observation('AAA.WA', 'GPW', now, opened_at=opened_at)
+        self.assertEqual(99.0, observation['snapshot']['low'])
+        self.assertEqual(102.0, observation['snapshot']['high'])
+        self.assertEqual(101.0, observation['snapshot']['last'])
 
     def test_stop_or_take_profit_closes_immediately_regardless_of_age(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
