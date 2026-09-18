@@ -15,11 +15,13 @@ on:
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/briefrooms_market_relationship_trigger.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
       - "scripts/stock_trading_v2_opportunity_engine.py"
       - "scripts/stock_trading_v2_opportunity_experience.py"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/market_relationship_trigger_config.json"
       - "data/investments/stock_trading_v2_evidence_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
   schedule:
@@ -90,10 +92,12 @@ jobs:
         run: |
           set -euo pipefail
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m py_compile \
             scripts/stock_trading_v2_discovery.py \
+            scripts/briefrooms_market_relationship_trigger.py \
             scripts/stock_trading_v2_deep_evidence.py \
             scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_opportunity_experience.py \
@@ -104,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin main
-          rm -f /tmp/stock-trading-v2-production-portfolio.json /tmp/stock-trading-v2-production-policy.json
+          rm -f /tmp/stock-trading-v2-production-portfolio.json /tmp/stock-trading-v2-production-policy.json /tmp/briefrooms-event-intelligence.json
           if git cat-file -e "origin/main:data/investments/stock_trading_portfolio.json" 2>/dev/null; then
             git show "origin/main:data/investments/stock_trading_portfolio.json" > /tmp/stock-trading-v2-production-portfolio.json
           else
@@ -112,6 +116,11 @@ jobs:
           fi
           if git cat-file -e "origin/main:data/investments/stock_trading_policy.json" 2>/dev/null; then
             git show "origin/main:data/investments/stock_trading_policy.json" > /tmp/stock-trading-v2-production-policy.json
+          fi
+          if git cat-file -e "origin/main:data/investments/event_intelligence.json" 2>/dev/null; then
+            git show "origin/main:data/investments/event_intelligence.json" > /tmp/briefrooms-event-intelligence.json
+          else
+            printf '{"events":[]}\n' > /tmp/briefrooms-event-intelligence.json
           fi
 
       - name: US broad stage-zero Opportunity Frontier Deep Evidence and portfolio comparison
@@ -126,6 +135,12 @@ jobs:
             --market US \
             --stage-zero /tmp/stock-trading-v2-us-stage-zero.json \
             --output data/investments/stock_trading_v2_frontier/us.json
+          python scripts/briefrooms_market_relationship_trigger.py \
+            --market US \
+            --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --events /tmp/briefrooms-event-intelligence.json \
+            --output data/investments/market_relationship_trigger/us.json \
+            --history-root data/investments/market_relationship_trigger_history
           python scripts/stock_trading_v2_deep_evidence.py \
             --market US \
             --frontier data/investments/stock_trading_v2_frontier/us.json \
@@ -190,6 +205,15 @@ jobs:
               validate_frontier(frontier)
               assert frontier['global_selection_cutoff'] is None
               assert frontier['governance']['production_decision_influence'] is False
+              if market == 'us':
+                  from scripts.briefrooms_market_relationship_trigger import load_config as load_trigger_config, validate_snapshot as validate_trigger_snapshot
+                  trigger_path=Path('data/investments/market_relationship_trigger/us.json')
+                  assert trigger_path.exists()
+                  trigger=json.loads(trigger_path.read_text(encoding='utf-8'))
+                  validate_trigger_snapshot(trigger, load_trigger_config())
+                  assert trigger['governance']['production_decision_influence'] is False
+                  assert trigger['governance']['deep_belief_execution'] is False
+                  assert len(trigger['attention_queue']) <= 6
               if evidence_path.exists():
                   evidence=json.loads(evidence_path.read_text(encoding='utf-8'))
                   validate_deep_evidence(evidence)
@@ -215,6 +239,8 @@ jobs:
             data/investments/stock_trading_v2_opportunity \
             data/investments/stock_trading_v2_experience \
             data/investments/stock_trading_v2_admission \
+            data/investments/market_relationship_trigger \
+            data/investments/market_relationship_trigger_history \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No shadow opportunity changes to commit."
