@@ -58,13 +58,18 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/briefrooms_market_relationship_outcomes.py \
+            scripts/briefrooms_trigger_deep_belief.py \
+            scripts/briefrooms_trigger_deep_belief_learning.py \
             scripts/stock_trading_v2_challenger_factory.py \
             scripts/stock_trading_v2_exact_replay.py \
             scripts/stock_trading_v2_replay_tournament.py \
             scripts/stock_trading_v2_exact_challenger_eval.py \
             scripts/test_stock_trading_v2_challenger_factory.py
           python scripts/test_stock_trading_v2_challenger_factory.py
-          python -m unittest tests.test_briefrooms_market_relationship_outcomes -v
+          python -m unittest \
+            tests.test_briefrooms_market_relationship_outcomes \
+            tests.test_briefrooms_trigger_deep_belief \
+            tests.test_briefrooms_trigger_deep_belief_learning -v
 
       - name: Freeze candidate and canonical admission experience prospectively
         run: |
@@ -114,6 +119,17 @@ jobs:
             --report data/investments/market_relationship_trigger_learning.json \
             --verify
 
+      - name: Join targeted deep research to prospective Trigger outcomes
+        run: |
+          set -euo pipefail
+          python scripts/briefrooms_trigger_deep_belief_learning.py \
+            --research-root data/investments/market_relationship_deep_belief_history \
+            --outcome-root data/investments/market_relationship_trigger_outcomes \
+            --report data/investments/market_relationship_deep_belief_learning.json
+          python scripts/briefrooms_trigger_deep_belief_learning.py \
+            --report data/investments/market_relationship_deep_belief_learning.json \
+            --verify
+
       - name: Measure opportunity regret and gate attribution
         run: |
           set -euo pipefail
@@ -160,6 +176,9 @@ jobs:
             --outcome-root data/investments/market_relationship_trigger_outcomes \
             --report data/investments/market_relationship_trigger_learning.json \
             --verify
+          python scripts/briefrooms_trigger_deep_belief_learning.py \
+            --report data/investments/market_relationship_deep_belief_learning.json \
+            --verify
           python scripts/stock_trading_v2_challenger_eval.py
           python scripts/stock_trading_v2_exact_challenger_eval.py \
             --challengers data/investments/stock_trading_v2_challengers \
@@ -194,6 +213,7 @@ jobs:
             data/investments/stock_trading_v2_challenger_evaluations \
             data/investments/market_relationship_trigger_outcomes \
             data/investments/market_relationship_trigger_learning.json \
+            data/investments/market_relationship_deep_belief_learning.json \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No new learning evidence."
