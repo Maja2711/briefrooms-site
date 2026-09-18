@@ -8,10 +8,12 @@ on:
       - ".github/workflows/belief-core-events-live.yml"
       - "scripts/belief_external_live.py"
       - "scripts/belief_news_event_adapter.py"
+      - "scripts/belief_company_primary_sources.py"
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_llm_interpreter.py"
       - "tests/test_belief_core_news_macro.py"
+      - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
   schedule:
     # 30-minute primary-source/event scan from US pre-market through early evening.
@@ -43,6 +45,8 @@ jobs:
       GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite
       GEMINI_MIN_INTERVAL_SECONDS: "8"
       BELIEF_SEC_ENABLED: "1"
+      BELIEF_COMPANY_PRIMARY_ENABLED: "1"
+      BELIEF_HTTP_USER_AGENT: "BriefRooms-BeliefCore/1.1 https://briefrooms.com"
 
     steps:
       - name: Checkout current production code
@@ -55,8 +59,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install LLM transport dependency
-        run: pip install requests
+      - name: Install primary-source and LLM dependencies
+        run: pip install requests pypdf
 
       - name: Prepare runtime state path
         run: |
@@ -106,6 +110,7 @@ jobs:
             scripts/belief_adapter_contract.py \
             scripts/belief_llm_interpreter.py \
             scripts/belief_news_event_adapter.py \
+            scripts/belief_company_primary_sources.py \
             scripts/belief_macro_calendar_adapter.py \
             scripts/belief_macro_data_adapter.py \
             scripts/belief_external_live.py
