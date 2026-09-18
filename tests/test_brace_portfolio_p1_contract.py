@@ -13,8 +13,7 @@ class BracePortfolioP1ContractTests(unittest.TestCase):
         return (ROOT / path).read_text(encoding="utf-8")
 
     def test_current_frontend_uses_only_canonical_brace_public_source(self):
-        current_frontend = "
-".join(
+        current_frontend = "\n".join(
             self.read(path)
             for path in (
                 "scripts/portfolio-10k-dashboard.js",
