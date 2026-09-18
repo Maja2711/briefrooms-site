@@ -161,11 +161,55 @@ class RelationshipOutcomeTest(unittest.TestCase):
                 "continuation": True,
             }
             rows.append(outcomes.build_outcome(obs, replay, settled_at="2026-10-20T20:00:00Z"))
+        for index in range(20):
+            obs = observation()
+            obs["observation_id"] = f"control-{index}"
+            obs["symbol"] = f"C{index % 8}"
+            obs["attention_source"] = "exploration"
+            replay = {
+                "status": "SETTLED",
+                "horizon_sessions": 5,
+                "directional_return": 0.005,
+                "continuation": index % 4 != 0,
+            }
+            rows.append(outcomes.build_outcome(obs, replay, settled_at="2026-10-20T20:00:00Z"))
         report = outcomes.build_learning_report(rows)
-        group = report["groups"][0]
-        self.assertEqual("ELIGIBLE_FOR_WEIGHT_CHALLENGER", group["promotion_state"])
+        trigger_group = next(row for row in report["groups"] if row["attention_source"] == "trigger")
+        self.assertEqual("ELIGIBLE_FOR_WEIGHT_CHALLENGER", trigger_group["promotion_state"])
+        self.assertGreater(trigger_group["mean_excess_vs_exploration"], 0.0)
+        self.assertGreater(trigger_group["continuation_lift_vs_exploration"], 0.0)
         self.assertFalse(report["promotion_policy"]["automatic_promotion"])
         self.assertFalse(report["governance"]["automatic_policy_writeback"])
+
+    def test_positive_trigger_does_not_qualify_when_exploration_control_is_better(self) -> None:
+        rows = []
+        for index in range(30):
+            obs = observation()
+            obs["observation_id"] = f"trigger-{index}"
+            obs["symbol"] = f"T{index % 10}"
+            replay = {
+                "status": "SETTLED",
+                "horizon_sessions": 5,
+                "directional_return": 0.01,
+                "continuation": index % 5 != 0,
+            }
+            rows.append(outcomes.build_outcome(obs, replay, settled_at="2026-10-20T20:00:00Z"))
+        for index in range(20):
+            obs = observation()
+            obs["observation_id"] = f"better-control-{index}"
+            obs["symbol"] = f"B{index % 8}"
+            obs["attention_source"] = "exploration"
+            replay = {
+                "status": "SETTLED",
+                "horizon_sessions": 5,
+                "directional_return": 0.03,
+                "continuation": True,
+            }
+            rows.append(outcomes.build_outcome(obs, replay, settled_at="2026-10-20T20:00:00Z"))
+        report = outcomes.build_learning_report(rows)
+        trigger_group = next(row for row in report["groups"] if row["attention_source"] == "trigger")
+        self.assertEqual("TRIGGER_NOT_BEATING_EXPLORATION_CONTROL", trigger_group["promotion_state"])
+        self.assertLess(trigger_group["mean_excess_vs_exploration"], 0.0)
 
     def test_due_horizons_only_fetch_when_next_horizon_can_mature(self) -> None:
         obs = observation()
