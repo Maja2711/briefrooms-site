@@ -18,8 +18,9 @@ from urllib.request import Request, urlopen
 from brace_portfolio_config import EngineConfig
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE_PORTFOLIO_PATH = ROOT / "data" / "investments" / "portfolio_10k.json"
 ENGINE_DATA_ROOT = ROOT / "data" / "portfolio10k"
+CONTROLLED_PORTFOLIO_PATH = ROOT / "data" / "investments" / "portfolio_10k.json"
+BASELINE_PORTFOLIO_PATH = ENGINE_DATA_ROOT / "baseline_portfolio.json"
 
 IMMUTABLE_POSITION_FIELDS = (
     "id",
@@ -408,13 +409,19 @@ class YFinanceProvider:
 def source_metadata(
     portfolio_path: Path = BASELINE_PORTFOLIO_PATH,
 ) -> Dict[str, Any]:
-    return {
+    metadata = {
         "baseline_portfolio_path": str(portfolio_path.relative_to(ROOT)).replace(
             "\\", "/"
         ),
         "baseline_portfolio_sha256": file_sha256(portfolio_path),
-        "source_type": "repository_state_plus_market_data",
+        "controlled_portfolio_path": str(CONTROLLED_PORTFOLIO_PATH.relative_to(ROOT)).replace(
+            "\\", "/"
+        ),
+        "source_type": "immutable_baseline_plus_controlled_state_plus_market_data",
     }
+    if portfolio_path == BASELINE_PORTFOLIO_PATH:
+        metadata["baseline_immutable"] = True
+    return metadata
 
 
 def universe_records(payload: Mapping[str, Any]) -> Iterable[Dict[str, Any]]:
