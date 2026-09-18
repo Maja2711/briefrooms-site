@@ -22,6 +22,7 @@ def observation(direction: str = "UP", trigger_type: str = "PEER_READTHROUGH") -
         "session_date": "2026-09-18",
         "attention_score": 80.0,
         "attention_tier": "HOT",
+        "attention_source": "trigger",
         "trigger_type": trigger_type,
         "direction": direction,
         "components": {
@@ -108,6 +109,25 @@ class RelationshipOutcomeTest(unittest.TestCase):
             broken["outcome_sha256"] = contracts.payload_sha256(broken)
             with self.assertRaises(contracts.ContractError):
                 outcomes.persist_outcome(root, broken)
+
+    def test_exploration_control_is_measured_but_cannot_promote(self) -> None:
+        rows = []
+        for index in range(30):
+            obs = observation()
+            obs["observation_id"] = f"control-{index}"
+            obs["symbol"] = f"C{index % 10}"
+            obs["attention_source"] = "exploration"
+            replay = {
+                "status": "SETTLED",
+                "horizon_sessions": 5,
+                "directional_return": 0.04,
+                "continuation": True,
+            }
+            rows.append(outcomes.build_outcome(obs, replay, settled_at="2026-10-20T20:00:00Z"))
+        report = outcomes.build_learning_report(rows)
+        group = report["groups"][0]
+        self.assertEqual("exploration", group["attention_source"])
+        self.assertEqual("CONTROL_ARM_ONLY", group["promotion_state"])
 
     def test_learning_report_never_auto_promotes(self) -> None:
         rows = []
