@@ -26,6 +26,13 @@ def observation(direction: str = "UP", trigger_type: str = "PEER_READTHROUGH") -
         "attention_source": "trigger",
         "trigger_type": trigger_type,
         "direction": direction,
+        "reference_market_state": {
+            "session_date": "2026-09-18",
+            "price": 100.0,
+            "observed_at": "2026-09-18T19:00:00Z",
+            "source": "opportunity_frontier.features.last_close",
+            "point_in_time_frozen": True,
+        },
         "components": {
             "event_materiality": 70.0,
             "entity_reaction": 60.0,
@@ -90,6 +97,17 @@ class RelationshipOutcomeTest(unittest.TestCase):
         assert replay is not None
         self.assertFalse(replay["continuation"])
         self.assertAlmostEqual(-0.03, replay["directional_return"], places=8)
+
+    def test_settlement_uses_frozen_point_in_time_price_not_later_session_close(self) -> None:
+        changed = bars()
+        changed[0] = {**changed[0], "close": 140.0}
+        replay = outcomes.settle_horizon(observation("UP"), changed, horizon_sessions=1)
+        self.assertIsNotNone(replay)
+        assert replay is not None
+        self.assertEqual(100.0, replay["reference_price"])
+        self.assertEqual("2026-09-18T19:00:00Z", replay["reference_observed_at"])
+        self.assertTrue(replay["reference_point_in_time_frozen"])
+        self.assertAlmostEqual(0.03, replay["directional_return"], places=8)
 
     def test_unresolved_horizon_is_not_persisted_early(self) -> None:
         replay = outcomes.settle_horizon(observation(), bars(), horizon_sessions=20)
@@ -162,11 +180,13 @@ class RelationshipOutcomeTest(unittest.TestCase):
             self.assertEqual([3], outcomes.due_horizons(obs, outcome_root=root, today=date(2026, 9, 23)))
 
     def test_unplayable_missing_reference_is_explicit(self) -> None:
-        replay = outcomes.settle_horizon(observation(), bars()[1:], horizon_sessions=1)
+        obs = observation()
+        obs.pop("reference_market_state", None)
+        replay = outcomes.settle_horizon(obs, bars(), horizon_sessions=1)
         self.assertIsNotNone(replay)
         assert replay is not None
         self.assertEqual("UNPLAYABLE", replay["status"])
-        self.assertEqual("reference_session_missing", replay["reason"])
+        self.assertEqual("reference_not_point_in_time_frozen", replay["reason"])
 
 
 if __name__ == "__main__":
