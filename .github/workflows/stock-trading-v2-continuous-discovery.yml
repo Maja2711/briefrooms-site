@@ -24,8 +24,9 @@ on:
       - "data/investments/stock_trading_v2_opportunity_config.json"
   schedule:
     # Broad UTC envelope; the job decides from each exchange's local clock.
-    # This avoids DST-specific cron maintenance and creates no selection cutoff.
-    - cron: "40 6-22 * * 1-5"
+    # Three staggered attempts per hour reduce exposure to scheduled-event delay/drop.
+    # The independent liveness watchdog provides an event-driven recovery path.
+    - cron: "7,27,47 6-22 * * 1-5"
 
 permissions:
   contents: write
