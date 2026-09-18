@@ -1,0 +1,28 @@
+{
+  "schema_version": "stock-trading-repair-log-v1",
+  "repairs": [
+    {
+      "repair_id": "2026-09-18-lpp-retroactive-execution",
+      "position_id": "gpw:20260918T115303:LPP.WA",
+      "market": "GPW",
+      "symbol": "LPP.WA",
+      "action": "removed_from_canonical_portfolio_history",
+      "rationale": [
+        "entry_execution_quote_was_902_seconds_old_under_the_legacy_20_minute_canary_limit",
+        "stop_loss_was_evaluated_against_a_same_day_low_that_occurred_before_the_position_opened"
+      ],
+      "invalid_entry": 24040,
+      "invalid_stop": 23264.3494,
+      "invalid_closed_at": "2026-09-18T12:11:43+02:00",
+      "invalid_exit_reason": "stop_loss",
+      "invalid_return_percent": -3.2265,
+      "canonical_performance_effect": "excluded",
+      "remediation": [
+        "execution_quote_age_limit_tightened_to_2_minutes",
+        "gpw_stooq_symbol_mapping_repaired_for_fresh_quote_fallback",
+        "sl_tp_trigger_window_starts_at_max_opened_at_and_risk_last_changed_at",
+        "same_day_unverified_trigger_windows_fail_closed"
+      ]
+    }
+  ]
+}
