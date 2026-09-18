@@ -51,6 +51,70 @@ def _target_status(analysis: Mapping[str, Any], config: EngineConfig) -> str:
     return "TARGET_CURRENTLY_JUSTIFIED_WITHIN_MODEL"
 
 
+def _analysis_summary(
+    analysis: Mapping[str, Any],
+    pending: Mapping[str, Any],
+) -> Dict[str, Any]:
+    positions = [dict(item) for item in (analysis.get("positions") or []) if isinstance(item, Mapping)]
+    scores = [
+        float(item.get("final_score"))
+        for item in positions
+        if item.get("final_score") is not None
+    ]
+    confidences = [
+        float(item.get("confidence_score"))
+        for item in positions
+        if item.get("confidence_score") is not None
+    ]
+    recommendations = [
+        dict(item)
+        for item in (pending.get("recommendations") or [])
+        if isinstance(item, Mapping)
+    ]
+    counts: Dict[str, int] = {}
+    for item in recommendations:
+        action = str(item.get("action") or "HOLD").upper()
+        counts[action] = counts.get(action, 0) + 1
+    return {
+        "portfolio_score": round(sum(scores) / len(scores), 4) if scores else None,
+        "portfolio_confidence": round(sum(confidences) / len(confidences), 6)
+        if confidences
+        else None,
+        "positions_reviewed": len(positions),
+        "decision_counts": counts,
+        "analysis_generated_at": analysis.get("generated_at"),
+        "execution_mode": analysis.get("execution_mode", "RESEARCH"),
+        "executable": False,
+    }
+
+
+def _public_position_recommendations(pending: Mapping[str, Any]) -> list[Dict[str, Any]]:
+    fields = (
+        "instrument",
+        "instrument_id",
+        "broker_symbol",
+        "action",
+        "final_score",
+        "confidence",
+        "current_weight",
+        "proposed_weight",
+        "signal_price",
+        "signal_fx_to_pln",
+        "positive_factors",
+        "negative_factors",
+        "rationale_pl",
+        "rationale_en",
+        "conditions_for_change",
+        "material_event_context",
+    )
+    rows = []
+    for item in pending.get("recommendations") or []:
+        if not isinstance(item, Mapping):
+            continue
+        rows.append({key: item.get(key) for key in fields if key in item})
+    return rows[:20]
+
+
 def build_public_snapshot(
     registry: Mapping[str, Any],
     analysis: Mapping[str, Any],
@@ -146,6 +210,8 @@ def build_public_snapshot(
         "data_freshness": operational.get("data_freshness", "unknown"),
         "source_metadata": {
             "publisher": "brace_portfolio_publish.py",
+            "canonical_frontend_source": True,
+            "legacy_portfolio_10k_brace_json_deprecated_for_frontend": True,
             "paper_only": True,
             "real_broker_connected": False,
         },
@@ -156,6 +222,15 @@ def build_public_snapshot(
             else controller
         ),
         "portfolio_data_path": portfolio_path,
+        "analysis_summary": _analysis_summary(analysis, pending),
+        "analysis_liveness": {
+            "status": operational.get("analysis_liveness_status"),
+            "overdue": bool(operational.get("analysis_overdue")),
+            "analysis_generated_at": operational.get("analysis_generated_at"),
+            "analysis_age_hours": operational.get("analysis_age_hours"),
+            "latest_required_slot": operational.get("analysis_latest_required_slot"),
+        },
+        "position_recommendations": _public_position_recommendations(pending),
         "champion": {
             "methodology_id": champion.get("methodology_id"),
             "version": champion.get("version"),
@@ -165,6 +240,8 @@ def build_public_snapshot(
             "methodology_id": baseline.get("methodology_id"),
             "version": baseline.get("version"),
             "status": baseline.get("status"),
+            "immutable": True,
+            "source_path": "data/portfolio10k/baseline_portfolio.json",
         },
         "challenger": {
             "methodology_id": challenger.get("methodology_id"),
