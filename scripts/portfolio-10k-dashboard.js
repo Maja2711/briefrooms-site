@@ -12,22 +12,23 @@
   const portfolioUrl = isEn
     ? '/data/investments/portfolio_10k_usd.json'
     : '/data/investments/portfolio_10k.json';
-  const braceUrl = '/data/investments/portfolio_10k_brace.json';
-  const CONTROLLER_VERSION = 'resilient-v9';
-  const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const braceUrl = '/data/portfolio10k/public/brace_engine_public.json';
+  const CONTROLLER_VERSION = 'resilient-v10';
+  const CACHE_FRESH_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+  const CACHE_STALE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
   const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
   const COLORS = ['#15964d', '#2768c7', '#7050c8', '#d99a25', '#22a2a8', '#d35d76', '#8291a8', '#bcc4ce'];
   const NAV_ORDER = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
 
   const T = isEn ? {
-    active: 'ACTIVE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
+    active: 'ACTIVE', live: 'LIVE', cached: 'CACHED', stale: 'STALE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
     portfolio: '10K Portfolio', benchmark: 'Benchmark', rule: 'Rule',
     fallback: 'This section is available. Its detailed data is temporarily being refreshed.',
     braceUnavailable: 'BRACE data is temporarily unavailable. Portfolio data remains active.',
     market: 'Market data', values: 'values in USD', position: 'Position',
     error: 'The investment room recovered its navigation, but current portfolio data could not be loaded.'
   } : {
-    active: 'AKTYWNY', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
+    active: 'AKTYWNY', live: 'LIVE', cached: 'CACHED', stale: 'STALE', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
     portfolio: 'Portfel 10K', benchmark: 'Benchmark', rule: 'Zasada',
     fallback: 'Ta sekcja jest dostępna. Jej szczegółowe dane są chwilowo odświeżane.',
     braceUnavailable: 'Dane BRACE są chwilowo niedostępne. Dane portfela pozostają aktywne.',
@@ -120,14 +121,20 @@
   }
 
   function cacheKey(kind) {
-    return `briefrooms:investment-room:${kind}:${lang}:v9`;
+    return `briefrooms:investment-room:${kind}:${lang}:v10`;
   }
 
   function readCache(kind, validator) {
     try {
       const cached = JSON.parse(window.localStorage.getItem(cacheKey(kind)) || 'null');
-      if (!cached || Date.now() - Number(cached.savedAt || 0) > CACHE_MAX_AGE_MS) return null;
-      return validator(cached.payload) ? cached.payload : null;
+      if (!cached || !validator(cached.payload)) return null;
+      const ageMs = Math.max(0, Date.now() - Number(cached.savedAt || 0));
+      if (ageMs > CACHE_STALE_MAX_AGE_MS) return null;
+      return {
+        payload: cached.payload,
+        ageMs,
+        freshness: ageMs <= CACHE_FRESH_MAX_AGE_MS ? 'CACHED' : 'STALE'
+      };
     } catch (_) {
       return null;
     }
@@ -147,7 +154,17 @@
   }
 
   function validBrace(payload) {
-    return Boolean(payload?.portfolio && Number.isFinite(Number(payload.portfolio.score)));
+    return Boolean(payload?.controller_status && payload?.generated_at && payload?.frontend_contract?.canonical_source);
+  }
+
+  function freshnessLabel(stateValue) {
+    return stateValue === 'CACHED' ? T.cached : stateValue === 'STALE' ? T.stale : T.live;
+  }
+
+  function freshnessAge(ageMs) {
+    if (!Number.isFinite(Number(ageMs)) || Number(ageMs) <= 0) return '';
+    const minutes = Math.max(1, Math.round(Number(ageMs) / 60000));
+    return minutes < 60 ? `${minutes}m` : `${(minutes / 60).toFixed(1)}h`;
   }
 
   async function fetchJson(url, timeoutMs = 8000, cacheBust = false) {
@@ -264,7 +281,7 @@
       : (portfolio?.methodology?.objective_pl || portfolio?.methodology?.objective_en || '—'));
   }
 
-  function renderPortfolio(portfolio, source = 'network') {
+  function renderPortfolio(portfolio, source = 'network', freshness = 'LIVE', cacheAgeMs = 0) {
     state.portfolio = portfolio;
     const positions = activePositions(portfolio);
     const cash = valueOf(portfolio, 'cash_usd', 'cash_pln');
@@ -280,7 +297,9 @@
     setText('#updated-at', portfolio.last_updated_at
       ? new Date(portfolio.last_updated_at).toLocaleString(locale)
       : '—');
-    setText('#data-status', `${T.active} · ${currency}`);
+    const freshnessText = freshnessLabel(freshness);
+    const cacheAge = freshnessAge(cacheAgeMs);
+    setText('#data-status', `${freshnessText}${cacheAge ? ' · ' + cacheAge : ''} · ${currency}`);
     setText('#data-freshness', `${T.market}: ${portfolio.last_market_session || '—'} · ${T.values}`);
     setText('#broker-note', isEn
       ? (portfolio.broker_note_en || portfolio.broker_note_pl || '')
@@ -290,8 +309,9 @@
     if (returnElement) returnElement.className = result >= 0 ? 'positive' : 'negative';
     const badge = $('.live-badge');
     if (badge) {
-      badge.innerHTML = `<i></i> ${T.active}`;
-      badge.dataset.automationStatus = 'healthy';
+      badge.innerHTML = `<i></i> ${freshnessText}`;
+      badge.dataset.automationStatus = freshness.toLowerCase();
+      badge.dataset.freshness = freshness;
     }
 
     renderAllocation(positions);
@@ -302,27 +322,36 @@
     document.body.dataset.investmentData = 'ready';
     document.body.dataset.investmentCurrency = currency;
     document.body.dataset.investmentDataSource = source;
-    document.body.dataset.investmentNetwork = source === 'network' ? 'healthy' : 'refreshing';
+    document.body.dataset.investmentNetwork = source === 'network' ? 'healthy' : freshness.toLowerCase();
+    document.body.dataset.investmentFreshness = freshness;
     state.loaded = true;
     state.dataSource = source;
   }
 
-  function renderBrace(brace) {
+  function renderBrace(brace, freshness = 'LIVE', cacheAgeMs = 0) {
     state.brace = brace;
-    const score = num(brace?.portfolio?.score);
-    const confidence = num(brace?.portfolio?.confidence);
-    setText('#brace-score', score.toFixed(1));
-    setText('#side-brace-score', score.toFixed(0));
+    const summary = brace?.analysis_summary || {};
+    const scoreValue = num(summary.portfolio_score);
+    const confidenceRaw = num(summary.confidence);
+    const confidence = confidenceRaw <= 1 ? confidenceRaw * 100 : confidenceRaw;
+    setText('#brace-score', scoreValue.toFixed(1));
+    setText('#side-brace-score', scoreValue.toFixed(0));
     setText('#brace-confidence', `${confidence.toFixed(1)}%`);
+    const controller = String(brace?.display_status || brace?.controller_status || '—').replaceAll('_', ' ');
+    setText('#brace-status-chip', controller);
+    setText('#side-brace-status', controller);
     const track = $('#brace-track');
-    if (track) track.style.width = `${Math.min(score, 100)}%`;
+    if (track) track.style.width = `${Math.min(scoreValue, 100)}%`;
     const counts = $('#brace-counts');
-    if (counts) counts.innerHTML = Object.entries(brace?.portfolio?.decision_counts || {})
+    if (counts) counts.innerHTML = Object.entries(summary.decision_counts || {})
       .slice(0, 4).map(([key, value]) => `<span>${escapeHtml(key)}: <b>${escapeHtml(value)}</b></span>`).join('');
+    const sourceState = freshnessLabel(freshness);
+    const age = freshnessAge(cacheAgeMs);
     const impact = isEn
-      ? `BRACE analysed ${brace?.portfolio?.positions_reviewed || 0} positions. Market regime: ${brace?.market_context?.regime || '—'}.`
-      : `BRACE przeanalizował ${brace?.portfolio?.positions_reviewed || 0} pozycji. Reżim rynku: ${brace?.market_context?.regime || '—'}.`;
+      ? `BRACE reviewed ${summary.positions_reviewed || 0} positions · ${controller} · ${sourceState}${age ? ' ' + age : ''}.`
+      : `BRACE przeanalizował ${summary.positions_reviewed || 0} pozycji · ${controller} · ${sourceState}${age ? ' ' + age : ''}.`;
     setText('#brace-impact', impact);
+    document.body.dataset.investmentBraceFreshness = freshness;
   }
 
   function ensurePanelsAreUsable() {
@@ -380,11 +409,11 @@
   function loadPortfolio() {
     if (state.portfolioPromise) return state.portfolioPromise;
     const cached = !state.loaded ? readCache('portfolio', validPortfolio) : null;
-    if (cached) renderPortfolio(cached, 'cache');
+    if (cached) renderPortfolio(cached.payload, 'cache', cached.freshness, cached.ageMs);
     state.portfolioPromise = (async () => {
       try {
         const portfolio = await fetchJsonResilient(portfolioUrl, validPortfolio);
-        renderPortfolio(portfolio, 'network');
+        renderPortfolio(portfolio, 'network', 'LIVE', 0);
         writeCache('portfolio', portfolio);
         clearRetry();
         return true;
@@ -402,11 +431,11 @@
   function loadBrace() {
     if (state.bracePromise) return state.bracePromise;
     const cached = !state.brace ? readCache('brace', validBrace) : null;
-    if (cached) renderBrace(cached);
+    if (cached) renderBrace(cached.payload, cached.freshness, cached.ageMs);
     state.bracePromise = (async () => {
       try {
         const brace = await fetchJsonResilient(braceUrl, validBrace);
-        renderBrace(brace);
+        renderBrace(brace, 'LIVE', 0);
         writeCache('brace', brace);
         clearBraceRetry();
         document.body.dataset.investmentBrace = 'ready';
