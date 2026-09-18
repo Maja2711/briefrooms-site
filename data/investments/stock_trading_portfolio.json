@@ -1,7 +1,7 @@
 {
   "schema_version": "stock-trading-portfolio-v1",
   "policy_version": "stock-trading-v2-champion-canary-v1",
-  "updated_at": "2026-09-18T13:45:50+00:00",
+  "updated_at": "2026-09-18T13:55:05+00:00",
   "objective": "maximize_net_expectancy_not_trade_frequency",
   "fixed_holding_deadline": null,
   "markets": {
@@ -236,8 +236,8 @@
       "quote_session": {
         "market_state": "REGULAR",
         "state_source": "clock_fallback",
-        "as_of": "2026-09-18T13:45:55+00:00",
-        "received_at": "2026-09-18T13:45:55+00:00",
+        "as_of": "2026-09-18T13:55:09+00:00",
+        "received_at": "2026-09-18T13:55:09+00:00",
         "provider": null,
         "delay_status": "unverified",
         "delay_minutes": null,
@@ -246,7 +246,88 @@
     },
     "US": {
       "max_open_positions": 3,
-      "open_positions": [],
+      "open_positions": [
+        {
+          "position_id": "us:20260918T095505:MPC",
+          "market": "US",
+          "status": "OPEN",
+          "symbol": "MPC",
+          "ticker": "MPC",
+          "name": "Marathon Petroleum Corporation Common Stock",
+          "sector": null,
+          "opened_at": "2026-09-18T09:55:05-04:00",
+          "source_candidate_date": "2026-09-18",
+          "source_candidate_generated_at": "2026-09-18T13:48:08.219475Z",
+          "entry": 421.82000732,
+          "stop": 407.9741874,
+          "target": 477.203287,
+          "initial_risk_amount": 13.84581992,
+          "strategic_target_rr": 4.0,
+          "risk_percent": 0.032824,
+          "reward_risk": 4.0,
+          "entry_score": 92.999131,
+          "last_mark": 421.82000732,
+          "last_reviewed_at": "2026-09-18T09:55:05-04:00",
+          "risk_last_changed_at": "2026-09-18T09:55:05-04:00",
+          "risk_review_date": "2026-09-18",
+          "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+          "scheduled_exit": null,
+          "valid_until": null,
+          "time_stop": null,
+          "thesis_status": "ACTIVE",
+          "risk_reviews": [],
+          "peak_mark": 421.82000732,
+          "peak_thesis_score": 92.999131,
+          "source_engine": "stock_trading_v2",
+          "champion_role": "CANARY",
+          "v2_deep_rank": 1,
+          "v2_utility": 92.999131,
+          "v2_evidence_status": "DEGRADED",
+          "entry_validation": {
+            "price": 421.82000732,
+            "market_state": "REGULAR",
+            "state_source": "provider.currentTradingPeriod",
+            "price_kind": "regular",
+            "observed_at": "2026-09-18T09:55:09-04:00",
+            "received_at": "2026-09-18T13:55:05+00:00",
+            "provider": "Yahoo Finance chart",
+            "delay_status": "unverified",
+            "delay_minutes": null,
+            "is_realtime": false,
+            "source_verified": true,
+            "capture_age_seconds": 0,
+            "execution_quote_policy": {
+              "maximum_age_seconds": 300,
+              "provider_candidates": [
+                {
+                  "provider": "Yahoo Finance chart",
+                  "status": "ok",
+                  "market_state": "REGULAR",
+                  "observed_at": "2026-09-18T09:55:09-04:00",
+                  "capture_age_seconds": 0,
+                  "delay_minutes": null
+                }
+              ],
+              "selected_provider": "Yahoo Finance chart"
+            }
+          },
+          "current_mark": {
+            "price": 421.95001221,
+            "market_state": "REGULAR",
+            "state_source": "provider.currentTradingPeriod",
+            "price_kind": "regular",
+            "observed_at": "2026-09-18T09:54:59-04:00",
+            "received_at": "2026-09-18T13:55:09+00:00",
+            "provider": "Yahoo Finance chart",
+            "delay_status": "unverified",
+            "delay_minutes": null,
+            "is_realtime": false,
+            "source_verified": true,
+            "capture_age_seconds": 10
+          },
+          "quote_refresh_error": null
+        }
+      ],
       "closed_positions": [
         {
           "position_id": "us:2026-09-08:MU",
@@ -306,22 +387,22 @@
           "conservative_same_bar": false
         }
       ],
-      "last_candidate_key": "1970-01-01:1970-01-01T00:00:00Z:",
-      "last_candidate_decision": "CASH",
-      "last_candidate_reason": "no_trade_or_data_state",
+      "last_candidate_key": "2026-09-18:2026-09-18T13:48:08.219475Z:MPC",
+      "last_candidate_decision": "ADMIT",
+      "last_candidate_reason": "qualified_high_expectancy_candidate",
       "last_portfolio_review_at": "2026-09-18T09:45:22-04:00",
-      "last_candidate_reviewed_at": "2026-09-17T16:07:37-04:00",
+      "last_candidate_reviewed_at": "2026-09-18T09:55:05-04:00",
       "quote_session": {
         "market_state": "REGULAR",
-        "state_source": "clock_fallback",
-        "as_of": "2026-09-18T13:45:55+00:00",
-        "received_at": "2026-09-18T13:45:55+00:00",
-        "provider": null,
+        "state_source": "provider.currentTradingPeriod",
+        "as_of": "2026-09-18T09:54:59-04:00",
+        "received_at": "2026-09-18T13:55:09+00:00",
+        "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "delay_minutes": null,
         "is_realtime": false
       }
     }
   },
-  "quote_enriched_at": "2026-09-18T13:45:55+00:00"
+  "quote_enriched_at": "2026-09-18T13:55:09+00:00"
 }
