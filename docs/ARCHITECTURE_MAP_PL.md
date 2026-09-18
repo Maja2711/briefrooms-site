@@ -249,8 +249,9 @@ Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla sil
 
 - Belief Core / Epistemic / causal graph / calibration,
 - BRACE entity + portfolio,
-- Daily GPW / US / EURUSD,
-- Stock Trading v2 discovery/learning/validation,
+- legacy GPW/US Daily compatibility i settlement,
+- Daily EUR/USD,
+- Stock Trading v2 discovery/learning/validation/production,
 - Weekly/WES,
 - GSE,
 - Autonomous Policy Observatory/Promotion/Closed Loop,
@@ -300,7 +301,7 @@ LLM                   -> może interpretować/proponować; NIE może samodzielni
 Public UI             -> renderuje stan; NIE jest źródłem decyzji
 ```
 
-## 12. Status ważniejszych subsystemów na snapshot 1.0
+## 12. Status ważniejszych subsystemów na snapshot 1.1
 
 - **Belief Core v2:** engineering-complete dla shadow data collection; decision-independent.
 - **Evidence adapters:** rzeczywista modularna warstwa; podstawowe market/technical/liquidity/regime adapters są deterministyczne.
