@@ -150,7 +150,7 @@
   }
 
   function validBrace(payload) {
-    return Boolean(payload?.controller_status && payload?.generated_at && Array.isArray(payload?.position_recommendations));
+    return Boolean(payload?.controller_status && payload?.generated_at);
   }
 
   function payloadAgeMs(payload, field) {
@@ -341,15 +341,22 @@
   function renderBrace(brace, source = 'network') {
     state.brace = brace;
     const recommendations = Array.isArray(brace?.position_recommendations) ? brace.position_recommendations : [];
+    const summary = brace?.analysis_summary || {};
     const scores = recommendations.map(item => num(item.final_score, NaN)).filter(Number.isFinite);
     const confidences = recommendations.map(item => num(item.confidence, NaN)).filter(Number.isFinite);
-    const score = scores.length ? scores.reduce((a,b)=>a+b,0) / scores.length : 0;
-    const confidence = confidences.length ? confidences.reduce((a,b)=>a+b,0) / confidences.length * 100 : 0;
-    const decisionCounts = recommendations.reduce((acc,item) => {
-      const key = String(item.action || 'HOLD').toUpperCase();
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+    const score = Number.isFinite(Number(summary.portfolio_score))
+      ? Number(summary.portfolio_score)
+      : (scores.length ? scores.reduce((a,b)=>a+b,0) / scores.length : 0);
+    const confidence = Number.isFinite(Number(summary.portfolio_confidence))
+      ? Number(summary.portfolio_confidence) * 100
+      : (confidences.length ? confidences.reduce((a,b)=>a+b,0) / confidences.length * 100 : 0);
+    const decisionCounts = Object.keys(summary.decision_counts || {}).length
+      ? summary.decision_counts
+      : recommendations.reduce((acc,item) => {
+          const key = String(item.action || 'HOLD').toUpperCase();
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
     const freshness = freshnessState(brace, source, 'generated_at');
     const status = braceStatusLabel(brace?.controller_status);
     setText('#brace-score', score.toFixed(1));
@@ -365,8 +372,8 @@
       element.dataset.braceFreshness = freshness.toLowerCase();
     });
     const impact = isEn
-      ? `BRACE controls the paper portfolio in ${status} mode and currently assesses ${recommendations.length} active positions.`
-      : `BRACE steruje portfelem paper w trybie ${status} i obecnie ocenia ${recommendations.length} aktywnych pozycji.`;
+      ? `BRACE controls the paper portfolio in ${status} mode and currently assesses ${Number(summary.positions_reviewed ?? recommendations.length)} active positions.`
+      : `BRACE steruje portfelem paper w trybie ${status} i obecnie ocenia ${Number(summary.positions_reviewed ?? recommendations.length)} aktywnych pozycji.`;
     setText('#brace-impact', impact);
     document.body.dataset.investmentBrace = freshness.toLowerCase();
   }
