@@ -36,7 +36,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Test signal selection and installer
+      - name: Test canonical homepage signal selection
         run: |
           set -euo pipefail
           node --check scripts/home-weekly-top-position.js
@@ -56,7 +56,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "feat(home): show favored weekly or daily market signal"
+          git commit -m "fix(home): canonicalize trading signal source"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then
@@ -86,19 +86,16 @@ jobs:
           done
           exit 1
 
-      - name: Verify production homepages, client and live feeds
+      - name: Verify production homepage and canonical feeds
         run: |
           python - <<'PY'
           import json,time,urllib.request
           from datetime import datetime, timezone
           from pathlib import Path
-          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/1.2','Cache-Control':'no-cache'}
+          headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/2.0','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
-          feeds={
-            'gpw':'https://briefrooms.com/data/investments/gpw_daily_pick.json',
-            'us':'https://briefrooms.com/data/investments/us_daily_stock.json',
-          }
-          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=3'
+          client='https://briefrooms.com/scripts/home-weekly-top-position.js?v=4'
+          portfolio_url='https://briefrooms.com/data/investments/stock_trading_portfolio.json'
           last={}
           success=False
           for attempt in range(1,31):
@@ -109,7 +106,7 @@ jobs:
                 req=urllib.request.Request(url+f'?marketbar={token}',headers=headers)
                 with urllib.request.urlopen(req,timeout=20) as r:
                   body=r.read().decode('utf-8',errors='replace')
-                page_ok='/scripts/home-weekly-top-position.js?v=3' in body and 'br-share-strip' in body
+                page_ok='/scripts/home-weekly-top-position.js?v=4' in body and 'br-share-strip' in body
                 last[lang]={'page':page_ok}
                 ok = ok and page_ok
               except Exception as exc:
@@ -119,34 +116,48 @@ jobs:
               req=urllib.request.Request(client+'&verify='+token,headers=headers)
               with urllib.request.urlopen(req,timeout=20) as r:
                 script=r.read().decode('utf-8',errors='replace')
-              client_ok=('home-market-signal' in script and "['us', 'gpw']" in script and "['gpw', 'us']" in script and "RESOLVED" in script)
-              last['client']={'served':client_ok,'version':3}
+              client_ok=(
+                'WEEKLY_ALLOWLIST' in script and
+                'stock_trading_portfolio.json' in script and
+                'gpw_daily_pick.json' not in script and
+                'us_daily_stock.json' not in script
+              )
+              last['client']={'served':client_ok,'version':4}
               ok = ok and client_ok
             except Exception as exc:
               last['client']={'error':f'{type(exc).__name__}: {exc}'}
               ok=False
-            for market,url in feeds.items():
-              try:
-                req=urllib.request.Request(url+f'?v={token}',headers=headers)
-                with urllib.request.urlopen(req,timeout=20) as r:
-                  feed=json.load(r)
-                feed_ok=isinstance(feed,dict) and bool(feed.get('decision'))
-                last[market]={'feed':feed_ok,'decision':feed.get('decision'),'date':feed.get('date'),'outcome_status':(feed.get('outcome') or {}).get('status'),'ticker':(feed.get('selection') or {}).get('ticker')}
-                ok = ok and feed_ok
-              except Exception as exc:
-                last[market]={'error':f'{type(exc).__name__}: {exc}'}
-                ok=False
+            try:
+              req=urllib.request.Request(portfolio_url+f'?v={token}',headers=headers)
+              with urllib.request.urlopen(req,timeout=20) as r:
+                portfolio=json.load(r)
+              markets=portfolio.get('markets') or {}
+              feed_ok=isinstance(markets,dict) and all(
+                isinstance((markets.get(m) or {}).get('open_positions'),list)
+                for m in ('GPW','US')
+              )
+              last['stock_trading_portfolio']={
+                'feed':feed_ok,
+                'updated_at':portfolio.get('updated_at'),
+                'gpw_open':len((markets.get('GPW') or {}).get('open_positions') or []),
+                'us_open':len((markets.get('US') or {}).get('open_positions') or []),
+              }
+              ok = ok and feed_ok
+            except Exception as exc:
+              last['stock_trading_portfolio']={'error':f'{type(exc).__name__}: {exc}'}
+              ok=False
             if ok:
               success=True
               break
             time.sleep(10)
           receipt={
-            'schema_version':'home-market-signal-production-v1',
+            'schema_version':'home-market-signal-production-v2',
             'verified_at':datetime.now(timezone.utc).isoformat(timespec='seconds'),
             'status':'passed' if success else 'failed',
-            'asset_version':3,
-            'priority':['open_weekly','locale_daily','other_market_daily'],
-            'resolved_daily_hidden':True,
+            'asset_version':4,
+            'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
+            'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
+            'legacy_daily_feeds_excluded':True,
             'checks':last,
           }
           Path('data/home_market_signal_production_status.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -162,7 +173,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/home_market_signal_production_status.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "chore(home): verify market signal bar production"
+          git commit -m "chore(home): verify canonical market signal production"
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin main
             if git push origin HEAD:main; then exit 0; fi

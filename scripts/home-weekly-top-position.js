@@ -20,51 +20,39 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
+  var WEEKLY_ALLOWLIST = {
+    eurusd: true,
+    sp500_futures: true,
+    btcusd: true
+  };
+
   var CONFIG = {
     pl: {
       weeklyHref: '/pl/inwestycje/pozycje-tygodniowe.html',
-      weeklyKicker: 'Faworyzowana pozycja · WEEKLY',
+      stockHref: '/pl/inwestycje/stock-trading.html',
+      weeklyKicker: 'BRIEFROOMS TRADING ENGINE · WEEKLY',
+      stockKicker: 'BRIEFROOMS TRADING ENGINE · STOCK TRADING',
       entry: 'WEJŚCIE', tp: 'TP', sl: 'SL', more: 'Szczegóły →', locale: 'pl-PL'
     },
     en: {
       weeklyHref: '/en/investing/open-weekly-positions.html',
-      weeklyKicker: 'Favored position · WEEKLY',
+      stockHref: '/en/investing/stock-trading.html',
+      weeklyKicker: 'BRIEFROOMS TRADING ENGINE · WEEKLY',
+      stockKicker: 'BRIEFROOMS TRADING ENGINE · STOCK TRADING',
       entry: 'ENTRY', tp: 'TP', sl: 'SL', more: 'Details →', locale: 'en-US'
-    }
-  };
-
-  var MARKETS = {
-    gpw: {
-      url: '/data/investments/gpw_daily_pick.json',
-      decision: 'TRANSAKCJA',
-      timeZone: 'Europe/Warsaw',
-      href: '/pl/inwestycje/portfel-10k.html#overview',
-      kicker: { pl: 'Daily Trade · GPW', en: 'Daily Trade · GPW' }
-    },
-    us: {
-      url: '/data/investments/us_daily_stock.json',
-      decision: 'TRADE',
-      timeZone: 'America/New_York',
-      href: '/en/investing/portfolio-10k.html#overview',
-      kicker: { pl: 'Daily Trade · US MARKET', en: 'Daily Trade · US MARKET' }
     }
   };
 
   function configFor(lang) { return lang === 'en' ? CONFIG.en : CONFIG.pl; }
 
-  function zonedDate(date, timeZone) {
+  function warsawDateParts(date) {
     var parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timeZone,
+      timeZone: 'Europe/Warsaw',
       year: 'numeric', month: '2-digit', day: '2-digit'
     }).formatToParts(date || new Date());
     var out = {};
     parts.forEach(function (part) { if (part.type !== 'literal') out[part.type] = part.value; });
-    return out.year + '-' + out.month + '-' + out.day;
-  }
-
-  function warsawDateParts(date) {
-    var value = zonedDate(date || new Date(), 'Europe/Warsaw').split('-');
-    return { year: Number(value[0]), month: Number(value[1]), day: Number(value[2]) };
+    return { year: Number(out.year), month: Number(out.month), day: Number(out.day) };
   }
 
   function isoWeekId(date) {
@@ -83,8 +71,12 @@
     return Number.isFinite(n) ? n : null;
   }
 
-  function validPosition(item) {
-    if (!item || item.trade_status !== 'open') return false;
+  function isCanonicalWeeklyInstrument(item) {
+    return !!(item && WEEKLY_ALLOWLIST[String(item.instrument_id || '').toLowerCase()]);
+  }
+
+  function validWeeklyPosition(item) {
+    if (!isCanonicalWeeklyInstrument(item) || item.trade_status !== 'open') return false;
     var direction = String(item.direction || '').toLowerCase();
     if (direction !== 'long' && direction !== 'short') return false;
     if (finiteNumber(item.entry_price) === null) return false;
@@ -98,8 +90,8 @@
     return value === null ? -Infinity : value;
   }
 
-  function selectTopPosition(items) {
-    var candidates = (Array.isArray(items) ? items : []).filter(validPosition);
+  function selectTopWeeklyPosition(items) {
+    var candidates = (Array.isArray(items) ? items : []).filter(validWeeklyPosition);
     if (!candidates.length) return null;
     candidates.sort(function (a, b) {
       var diff = conviction(b) - conviction(a);
@@ -109,76 +101,133 @@
     return candidates[0];
   }
 
-  function decimalsFor(item) { return String(item && item.instrument_id || '') === 'eurusd' ? 5 : 2; }
-
-  function formatPrice(value, item, lang) {
-    var n = finiteNumber(value);
-    if (n === null) return '—';
-    var decimals = item && item.kind === 'daily' ? 2 : decimalsFor(item);
-    return new Intl.NumberFormat(configFor(lang).locale, {
-      minimumFractionDigits: decimals, maximumFractionDigits: decimals
-    }).format(n);
+  function stockDirection(item) {
+    var explicit = String(item && item.direction || '').toLowerCase();
+    if (explicit === 'long' || explicit === 'short') return explicit;
+    var entry = finiteNumber(item && item.entry);
+    var stop = finiteNumber(item && item.stop);
+    var target = finiteNumber(item && item.target);
+    if (entry === null || stop === null || target === null) return null;
+    if (target > entry && stop < entry) return 'long';
+    if (target < entry && stop > entry) return 'short';
+    return null;
   }
 
-  function formatEntry(signal, lang) {
-    if (signal.kind === 'daily' && Array.isArray(signal.entry_zone) && signal.entry_zone.length >= 2) {
-      return formatPrice(signal.entry_zone[0], signal, lang) + '–' + formatPrice(signal.entry_zone[1], signal, lang);
-    }
-    return formatPrice(signal.entry_price, signal, lang);
+  function validStockPosition(item) {
+    if (!item || String(item.status || '').toUpperCase() !== 'OPEN') return false;
+    if (!String(item.ticker || item.symbol || '').trim()) return false;
+    if (!stockDirection(item)) return false;
+    return finiteNumber(item.entry) !== null &&
+      finiteNumber(item.stop) !== null &&
+      finiteNumber(item.target) !== null;
   }
 
-  function dailySignal(payload, market, now) {
-    var cfg = MARKETS[market];
-    if (!cfg || !payload || typeof payload !== 'object' || payload.decision !== cfg.decision) return null;
-    if (now && String(payload.date || '') !== zonedDate(now, cfg.timeZone)) return null;
-    var outcome = payload.outcome || {};
-    if (String(outcome.status || '').toUpperCase() === 'RESOLVED') return null;
-    var selection = payload.selection || {};
-    var entry = Array.isArray(selection.entry_zone) ? selection.entry_zone : [];
-    var low = finiteNumber(entry[0]);
-    var high = finiteNumber(entry[1]);
-    var stop = finiteNumber(selection.stop);
-    var target = finiteNumber(selection.target);
-    if ((!selection.ticker && !selection.symbol) || low === null || high === null || stop === null || target === null) return null;
+  function stockScore(item) {
+    var thesis = finiteNumber(item && item.thesis_score);
+    var entry = finiteNumber(item && item.entry_score);
     return {
-      kind: 'daily', market: market, source: market + '_daily',
-      instrument_id: String(selection.ticker || selection.symbol || '').toLowerCase(),
-      label_pl: String(selection.name || selection.ticker || selection.symbol || ''),
-      label_en: String(selection.name || selection.ticker || selection.symbol || ''),
-      ticker: String(selection.ticker || selection.symbol || ''),
-      direction: 'long', entry_zone: [low, high], entry_price: finiteNumber(selection.reference_price),
-      stop_loss_price: stop, take_profit_price: target, score: finiteNumber(selection.score),
-      valid_until: String(selection.valid_until || ''), payload_date: String(payload.date || ''),
-      href: cfg.href
+      thesis: thesis === null ? -Infinity : thesis,
+      entry: entry === null ? -Infinity : entry
     };
+  }
+
+  function selectTopStockPosition(portfolio) {
+    var markets = portfolio && portfolio.markets || {};
+    var candidates = [];
+    Object.keys(markets).forEach(function (market) {
+      var positions = markets[market] && markets[market].open_positions;
+      (Array.isArray(positions) ? positions : []).forEach(function (item) {
+        if (!validStockPosition(item)) return;
+        var copy = Object.assign({}, item);
+        copy._market = market;
+        candidates.push(copy);
+      });
+    });
+    if (!candidates.length) return null;
+    candidates.sort(function (a, b) {
+      var sa = stockScore(a);
+      var sb = stockScore(b);
+      if (sb.thesis !== sa.thesis) return sb.thesis - sa.thesis;
+      if (sb.entry !== sa.entry) return sb.entry - sa.entry;
+      return String(b.opened_at || '').localeCompare(String(a.opened_at || ''));
+    });
+    return candidates[0];
   }
 
   function weeklySignal(item, lang) {
-    if (!validPosition(item)) return null;
+    if (!validWeeklyPosition(item)) return null;
     var cfg = configFor(lang || 'pl');
     return {
-      kind: 'weekly', market: 'weekly', source: 'weekly',
-      instrument_id: item.instrument_id, label_pl: item.label_pl, label_en: item.label_en,
-      ticker: item.symbol || item.instrument_id, direction: String(item.direction || '').toLowerCase(),
+      kind: 'weekly',
+      instrument_id: String(item.instrument_id || ''),
+      label_pl: item.label_pl,
+      label_en: item.label_en,
+      ticker: item.symbol || item.instrument_id,
+      direction: String(item.direction || '').toLowerCase(),
       entry_price: finiteNumber(item.entry_price),
       stop_loss_price: finiteNumber(item.risk_plan && item.risk_plan.stop_loss_price),
       take_profit_price: finiteNumber(item.risk_plan && item.risk_plan.take_profit_price),
-      score: finiteNumber(item.score), conviction: conviction(item), href: cfg.weeklyHref
+      score: finiteNumber(item.score),
+      conviction: conviction(item),
+      href: cfg.weeklyHref
     };
   }
 
-  function marketOrder(lang) { return lang === 'en' ? ['us', 'gpw'] : ['gpw', 'us']; }
+  function stockSignal(item, lang) {
+    if (!validStockPosition(item)) return null;
+    var cfg = configFor(lang || 'pl');
+    return {
+      kind: 'stock',
+      instrument_id: String(item.ticker || item.symbol || '').toLowerCase(),
+      label_pl: String(item.name || item.ticker || item.symbol || ''),
+      label_en: String(item.name || item.ticker || item.symbol || ''),
+      ticker: String(item.ticker || item.symbol || ''),
+      direction: stockDirection(item),
+      entry_price: finiteNumber(item.entry),
+      stop_loss_price: finiteNumber(item.stop),
+      take_profit_price: finiteNumber(item.target),
+      score: finiteNumber(item.entry_score),
+      thesis_score: finiteNumber(item.thesis_score),
+      market: item._market || item.market || '',
+      href: cfg.stockHref
+    };
+  }
 
-  function chooseSignal(weeklyItems, dailyPayloads, lang, now) {
-    var top = selectTopPosition(weeklyItems);
-    if (top) return weeklySignal(top, lang);
-    var payloads = dailyPayloads || {};
-    var order = marketOrder(lang);
-    for (var i = 0; i < order.length; i += 1) {
-      var signal = dailySignal(payloads[order[i]], order[i], now);
-      if (signal) return signal;
-    }
+  function chooseSignal(weeklyItems, portfolio, lang) {
+    var weekly = selectTopWeeklyPosition(weeklyItems);
+    if (weekly) return weeklySignal(weekly, lang);
+    var stock = selectTopStockPosition(portfolio);
+    if (stock) return stockSignal(stock, lang);
     return null;
+  }
+
+  function decimalsFor(signal) {
+    return signal && signal.kind === 'weekly' && String(signal.instrument_id || '') === 'eurusd' ? 5 : 2;
+  }
+
+  function formatPrice(value, signal, lang) {
+    var n = finiteNumber(value);
+    if (n === null) return '—';
+    var decimals = decimalsFor(signal);
+    return new Intl.NumberFormat(configFor(lang).locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(n);
+  }
+
+  function signalName(signal, lang) {
+    var label = lang === 'en' ? (signal.label_en || signal.label_pl) : (signal.label_pl || signal.label_en);
+    var ticker = String(signal.ticker || '').replace(/\.WA$/i, '');
+    if (!label) return ticker || signal.instrument_id || '';
+    if (signal.kind === 'stock' && ticker && String(label).toUpperCase().indexOf(ticker.toUpperCase()) === -1) {
+      return ticker + ' · ' + String(label);
+    }
+    return String(label);
+  }
+
+  function kickerFor(signal, lang) {
+    var cfg = configFor(lang);
+    return signal.kind === 'weekly' ? cfg.weeklyKicker : cfg.stockKicker;
   }
 
   function injectStyle(document) {
@@ -202,18 +251,12 @@
     document.head.appendChild(style);
   }
 
-  function signalName(signal, lang) {
-    var label = lang === 'en' ? (signal.label_en || signal.label_pl) : (signal.label_pl || signal.label_en);
-    var ticker = String(signal.ticker || '').replace(/\.WA$/i, '');
-    if (!label) return ticker || signal.instrument_id || '';
-    if (signal.kind === 'daily' && ticker && label.toUpperCase().indexOf(ticker.toUpperCase()) === -1) return ticker + ' · ' + label;
-    return String(label);
-  }
-
-  function kickerFor(signal, lang) {
-    if (signal.kind === 'weekly') return configFor(lang).weeklyKicker;
-    var market = MARKETS[signal.market];
-    return market ? market.kicker[lang === 'en' ? 'en' : 'pl'] : 'Daily Trade';
+  function removeSignal(document) {
+    if (!document) return;
+    var oldCard = document.getElementById('weekly-top-position');
+    if (oldCard) oldCard.remove();
+    var existing = document.getElementById('home-market-signal');
+    if (existing) existing.remove();
   }
 
   function render(document, signal, lang) {
@@ -221,10 +264,7 @@
     var share = document.querySelector('.br-share-strip');
     var host = share && share.parentNode ? share.parentNode : document.querySelector('.main-head');
     if (!host) return false;
-    var oldCard = document.getElementById('weekly-top-position');
-    if (oldCard) oldCard.remove();
-    var existing = document.getElementById('home-market-signal');
-    if (existing) existing.remove();
+    removeSignal(document);
     injectStyle(document);
 
     var cfg = configFor(lang);
@@ -232,7 +272,7 @@
     var link = document.createElement('a');
     link.id = 'home-market-signal';
     link.className = 'home-market-signal';
-    link.href = signal.href || cfg.weeklyHref;
+    link.href = signal.href;
     link.setAttribute('aria-label', kickerText + ': ' + signalName(signal, lang));
 
     var kicker = document.createElement('span');
@@ -248,19 +288,21 @@
     main.appendChild(name);
     var side = document.createElement('span');
     side.className = 'home-market-signal__side ' + signal.direction;
-    side.textContent = String(signal.direction || 'long').toUpperCase();
+    side.textContent = String(signal.direction || '').toUpperCase();
     main.appendChild(side);
     link.appendChild(main);
 
     var levels = document.createElement('span');
     levels.className = 'home-market-signal__levels';
     var entry = document.createElement('span');
-    entry.innerHTML = cfg.entry + ' <b>' + formatEntry(signal, lang) + '</b>';
+    entry.innerHTML = cfg.entry + ' <b>' + formatPrice(signal.entry_price, signal, lang) + '</b>';
     var tp = document.createElement('span');
     tp.innerHTML = cfg.tp + ' <b>' + formatPrice(signal.take_profit_price, signal, lang) + '</b>';
     var sl = document.createElement('span');
     sl.innerHTML = cfg.sl + ' <b>' + formatPrice(signal.stop_loss_price, signal, lang) + '</b>';
-    levels.appendChild(entry); levels.appendChild(tp); levels.appendChild(sl);
+    levels.appendChild(entry);
+    levels.appendChild(tp);
+    levels.appendChild(sl);
     link.appendChild(levels);
 
     var cta = document.createElement('span');
@@ -286,44 +328,44 @@
     var now = options && options.now || new Date();
     var logger = options && options.console || { warn: function () {} };
     if (!document || typeof fetchImpl !== 'function') return false;
-    var weekId = isoWeekId(now);
 
+    var weekId = isoWeekId(now);
     try {
       var weeklyData = await fetchJson(fetchImpl, '/data/investments/weekly/' + weekId + '.json');
-      var top = selectTopPosition(weeklyData && weeklyData.instruments);
-      if (top) return render(document, weeklySignal(top, lang), lang);
+      var weekly = selectTopWeeklyPosition(weeklyData && weeklyData.instruments);
+      if (weekly) return render(document, weeklySignal(weekly, lang), lang);
     } catch (error) {
-      logger.warn('BriefRooms weekly market signal unavailable.', error);
+      logger.warn('BriefRooms canonical weekly market signal unavailable.', error);
     }
 
-    var order = marketOrder(lang);
-    for (var i = 0; i < order.length; i += 1) {
-      var market = order[i];
-      try {
-        var payload = await fetchJson(fetchImpl, MARKETS[market].url);
-        var daily = dailySignal(payload, market, now);
-        if (daily) return render(document, daily, lang);
-      } catch (error) {
-        logger.warn('BriefRooms ' + market + ' daily market signal unavailable.', error);
-      }
+    try {
+      var portfolio = await fetchJson(fetchImpl, '/data/investments/stock_trading_portfolio.json');
+      var stock = selectTopStockPosition(portfolio);
+      if (stock) return render(document, stockSignal(stock, lang), lang);
+    } catch (error) {
+      logger.warn('BriefRooms Stock Trading portfolio signal unavailable.', error);
     }
+
+    removeSignal(document);
     return false;
   }
 
   return {
+    WEEKLY_ALLOWLIST: WEEKLY_ALLOWLIST,
     chooseSignal: chooseSignal,
     conviction: conviction,
-    dailySignal: dailySignal,
-    formatEntry: formatEntry,
     formatPrice: formatPrice,
+    isCanonicalWeeklyInstrument: isCanonicalWeeklyInstrument,
     isoWeekId: isoWeekId,
     load: load,
-    marketOrder: marketOrder,
     render: render,
-    selectTopPosition: selectTopPosition,
-    validPosition: validPosition,
+    selectTopStockPosition: selectTopStockPosition,
+    selectTopWeeklyPosition: selectTopWeeklyPosition,
+    stockDirection: stockDirection,
+    stockSignal: stockSignal,
+    validStockPosition: validStockPosition,
+    validWeeklyPosition: validWeeklyPosition,
     warsawDateParts: warsawDateParts,
-    weeklySignal: weeklySignal,
-    zonedDate: zonedDate
+    weeklySignal: weeklySignal
   };
 });

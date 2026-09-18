@@ -4,11 +4,12 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const widget = require('../scripts/home-weekly-top-position.js');
 
-function open(id, direction, conviction, entry, tp, sl, score) {
+function weekly(id, direction = 'long', conviction = 10, entry = 100, tp = 110, sl = 95, score = 50) {
   return {
     instrument_id: id,
     label_pl: id,
     label_en: id,
+    symbol: id,
     direction,
     score,
     trade_status: 'open',
@@ -18,98 +19,103 @@ function open(id, direction, conviction, entry, tp, sl, score) {
   };
 }
 
-function daily(market, outcomeStatus = 'PENDING', date = '2026-08-19') {
-  const us = market === 'us';
+function stock(ticker, thesis, entryScore, openedAt) {
   return {
-    date,
-    decision: us ? 'TRADE' : 'TRANSAKCJA',
-    selection: {
-      symbol: us ? 'MRK' : 'PKO.WA',
-      ticker: us ? 'MRK' : 'PKO',
-      name: us ? 'Merck' : 'PKO BP',
-      score: us ? 80.14 : 61.45,
-      reference_price: us ? 151.3 : 109.46,
-      entry_zone: us ? [150.85, 152.21] : [109.13, 110.12],
-      stop: us ? 147.48 : 106.62,
-      target: us ? 158.17 : 114.57,
-      valid_until: '2026-08-21'
-    },
-    outcome: { status: outcomeStatus }
+    ticker,
+    symbol: ticker,
+    name: ticker + ' Inc.',
+    status: 'OPEN',
+    entry: 100,
+    stop: 95,
+    target: 110,
+    thesis_score: thesis,
+    entry_score: entryScore,
+    opened_at: openedAt || '2026-09-18T10:00:00Z'
   };
 }
 
-const NOW = new Date('2026-08-19T14:20:00Z');
+function portfolio(items) {
+  return {
+    markets: {
+      US: { open_positions: items || [] },
+      GPW: { open_positions: [] }
+    }
+  };
+}
 
-test('Warsaw ISO week resolves W33 on 10 August 2026', () => {
-  assert.equal(widget.isoWeekId(new Date('2026-08-10T09:00:00Z')), '2026-W33');
+test('Warsaw ISO week resolves W38 on 18 September 2026', () => {
+  assert.equal(widget.isoWeekId(new Date('2026-09-18T18:00:00Z')), '2026-W38');
 });
 
-test('top weekly position is selected by conviction, not exploration utility', () => {
-  const eur = open('eurusd', 'long', 5.9764, 1.15567, 1.16685, 1.14883, 28);
-  const spx = open('sp500_futures', 'long', 12.45, 7787, 7986.13, 7665.31, 83);
-  const btc = open('btcusd', 'short', 6.45, 65100, 62000, 67000, -43);
-  assert.equal(widget.selectTopPosition([eur, spx, btc]).instrument_id, 'sp500_futures');
+test('weekly universe is hard-limited to EURUSD, S&P 500 futures and BTCUSD', () => {
+  assert.equal(widget.isCanonicalWeeklyInstrument({ instrument_id: 'eurusd' }), true);
+  assert.equal(widget.isCanonicalWeeklyInstrument({ instrument_id: 'sp500_futures' }), true);
+  assert.equal(widget.isCanonicalWeeklyInstrument({ instrument_id: 'btcusd' }), true);
+  assert.equal(widget.isCanonicalWeeklyInstrument({ instrument_id: 'equity.pl.dnp' }), false);
+  assert.equal(widget.isCanonicalWeeklyInstrument({ instrument_id: 'dnp' }), false);
 });
 
-test('closed or incomplete weekly tickets are never promoted to homepage', () => {
-  const closed = open('sp500_futures', 'long', 20, 7787, 7986, 7665, 83);
-  closed.trade_status = 'closed';
-  const missingRisk = open('btcusd', 'short', 15, 65000, 62000, 67000, -43);
-  delete missingRisk.risk_plan.stop_loss_price;
-  const valid = open('eurusd', 'long', 5, 1.15, 1.17, 1.14, 28);
-  assert.equal(widget.selectTopPosition([closed, missingRisk, valid]).instrument_id, 'eurusd');
+test('Dino cannot be promoted from weekly even when malformed data marks it open', () => {
+  const dino = weekly('dnp', 'long', 999, 36, 39, 35, 999);
+  const eur = weekly('eurusd', 'long', 5, 1.15567, 1.16685, 1.14883, 28);
+  assert.equal(widget.selectTopWeeklyPosition([dino, eur]).instrument_id, 'eurusd');
 });
 
-test('EURUSD keeps five decimals while index and daily stocks keep two', () => {
-  const eur = open('eurusd', 'long', 5, 1.155668497, 1.16685153, 1.14883443, 28);
-  const spx = open('sp500_futures', 'long', 12, 7787, 7986.125846, 7665.311982, 83);
-  const mrk = widget.dailySignal(daily('us'), 'us', NOW);
-  assert.equal(widget.formatPrice(eur.entry_price, eur, 'en'), '1.15567');
-  assert.equal(widget.formatPrice(spx.entry_price, spx, 'en'), '7,787.00');
-  assert.equal(widget.formatPrice(mrk.entry_price, mrk, 'en'), '151.30');
+test('closed, planned and incomplete weekly tickets are never promoted', () => {
+  const eur = weekly('eurusd');
+  eur.trade_status = 'no_trade';
+  const spx = weekly('sp500_futures');
+  spx.trade_status = 'planned';
+  const btc = weekly('btcusd', 'short');
+  btc.trade_status = 'closed';
+  assert.equal(widget.selectTopWeeklyPosition([eur, spx, btc]), null);
 });
 
-test('weekly signal always has priority over daily recommendations', () => {
-  const weekly = open('sp500_futures', 'long', 12.45, 7787, 7986.13, 7665.31, 83);
-  const selected = widget.chooseSignal([weekly], { us: daily('us'), gpw: daily('gpw') }, 'en', NOW);
+test('active canonical weekly position has priority over Stock Trading portfolio', () => {
+  const spx = weekly('sp500_futures', 'long', 12, 7800, 8000, 7680, 80);
+  const selected = widget.chooseSignal([spx], portfolio([stock('MPC', 100, 93)]), 'pl');
   assert.equal(selected.kind, 'weekly');
   assert.equal(selected.instrument_id, 'sp500_futures');
 });
 
-test('English homepage prefers active US Daily Stock when no weekly position is open', () => {
-  const selected = widget.chooseSignal([], { us: daily('us'), gpw: daily('gpw') }, 'en', NOW);
-  assert.equal(selected.kind, 'daily');
-  assert.equal(selected.market, 'us');
-  assert.equal(selected.ticker, 'MRK');
-  assert.deepEqual(selected.entry_zone, [150.85, 152.21]);
+test('Stock Trading portfolio is the only fallback when no canonical weekly position is open', () => {
+  const selected = widget.chooseSignal([], portfolio([
+    stock('NTRA', 100, 87),
+    stock('MPC', 100, 93),
+    stock('NET', 96, 86)
+  ]), 'pl');
+  assert.equal(selected.kind, 'stock');
+  assert.equal(selected.ticker, 'MPC');
 });
 
-test('Polish homepage prefers active GPW Daily Trade when available', () => {
-  const selected = widget.chooseSignal([], { us: daily('us'), gpw: daily('gpw') }, 'pl', NOW);
-  assert.equal(selected.market, 'gpw');
-  assert.equal(selected.ticker, 'PKO');
+test('closed Stock Trading positions are not promoted', () => {
+  const closed = stock('DNP', 999, 999);
+  closed.status = 'CLOSED';
+  assert.equal(widget.selectTopStockPosition(portfolio([closed])), null);
 });
 
-test('Polish homepage falls back to active US trade after GPW trade is resolved', () => {
-  const selected = widget.chooseSignal([], {
-    gpw: daily('gpw', 'RESOLVED'),
-    us: daily('us')
-  }, 'pl', NOW);
-  assert.equal(selected.market, 'us');
-  assert.equal(selected.ticker, 'MRK');
+test('Stock Trading ranking uses thesis score, then entry score', () => {
+  const selected = widget.selectTopStockPosition(portfolio([
+    stock('AAA', 90, 99),
+    stock('BBB', 100, 80),
+    stock('CCC', 100, 90)
+  ]));
+  assert.equal(selected.ticker, 'CCC');
 });
 
-test('resolved daily trades are never promoted as recommended', () => {
-  assert.equal(widget.dailySignal(daily('gpw', 'RESOLVED'), 'gpw', NOW), null);
-  assert.equal(widget.dailySignal(daily('us', 'RESOLVED'), 'us', NOW), null);
+test('direction is derived safely from entry, stop and target when absent', () => {
+  assert.equal(widget.stockDirection(stock('AAA', 100, 90)), 'long');
+  const short = stock('BBB', 100, 90);
+  short.stop = 105;
+  short.target = 90;
+  assert.equal(widget.stockDirection(short), 'short');
 });
 
-test('stale daily trade from a previous market date is never promoted', () => {
-  assert.equal(widget.dailySignal(daily('gpw', 'PENDING', '2026-08-18'), 'gpw', NOW), null);
-  assert.equal(widget.dailySignal(daily('us', 'PENDING', '2026-08-18'), 'us', NOW), null);
-});
-
-test('market decision types cannot be mixed between GPW and US feeds', () => {
-  assert.equal(widget.dailySignal(daily('us'), 'gpw', NOW), null);
-  assert.equal(widget.dailySignal(daily('gpw'), 'us', NOW), null);
+test('EURUSD keeps five decimals while stock and other weekly instruments use two', () => {
+  const eur = widget.weeklySignal(weekly('eurusd', 'long', 5, 1.155668497, 1.16685153, 1.14883443, 28), 'en');
+  const spx = widget.weeklySignal(weekly('sp500_futures', 'long', 12, 7787, 7986.125846, 7665.311982, 83), 'en');
+  const mpc = widget.stockSignal(Object.assign(stock('MPC', 100, 93), { _market: 'US', entry: 421.82000732 }), 'en');
+  assert.equal(widget.formatPrice(eur.entry_price, eur, 'en'), '1.15567');
+  assert.equal(widget.formatPrice(spx.entry_price, spx, 'en'), '7,787.00');
+  assert.equal(widget.formatPrice(mpc.entry_price, mpc, 'en'), '421.82');
 });
