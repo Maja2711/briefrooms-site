@@ -548,6 +548,13 @@ def score_candidate(
             **peer,
             "peers": deepcopy(peers),
         },
+        "reference_market_state": {
+            "session_date": (candidate.get("features") or {}).get("latest_session"),
+            "price": _finite((candidate.get("features") or {}).get("last_close")),
+            "observed_at": (candidate.get("freshness") or {}).get("observed_at") or _iso(now),
+            "source": "opportunity_frontier.features.last_close",
+            "point_in_time_frozen": True,
+        },
         "time_context": {
             "frontier_observed_at": (candidate.get("freshness") or {}).get("observed_at"),
             "latest_market_session": (candidate.get("features") or {}).get("latest_session"),
@@ -808,6 +815,7 @@ def freeze_observations(
             "components": deepcopy(row.get("components") or {}),
             "event_context": deepcopy(row.get("event_context") or []),
             "peer_context": deepcopy(row.get("peer_context") or {}),
+            "reference_market_state": deepcopy(row.get("reference_market_state") or {}),
             "frontier_rank": row.get("frontier_rank"),
             "source_frontier_sha256": snapshot.get("source_frontier_sha256"),
             "source_event_snapshot_generated_at": snapshot.get("source_event_snapshot_generated_at"),
