@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 from brace_portfolio_config import EngineConfig
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE_PORTFOLIO_PATH = ROOT / "data" / "investments" / "portfolio_10k.json"
+BASELINE_PORTFOLIO_PATH = ROOT / "data" / "portfolio10k" / "baseline_portfolio_immutable.json"
 ENGINE_DATA_ROOT = ROOT / "data" / "portfolio10k"
 
 IMMUTABLE_POSITION_FIELDS = (
