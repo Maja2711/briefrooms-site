@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.2  
+**Map version:** 1.3  
 **Snapshot date:** 2026-09-18  
-**Base `main` commit:** `875c27148508a80157096e5f040e5a8292051a63`  
+**Base `main` commit:** `01464a78fadad0934c9fbd784633d556c05ae4a5`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -195,7 +195,7 @@ Dynamic Universe
  -> Statistical promotion gate
 ```
 
-Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`.
+Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing and history-normalization contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`. Public history displays 5K notional, fractional analytical quantity and P&L calculated from that common base.
 
 ## 7. Shared Learning / Evolution Fabric
 
