@@ -332,22 +332,26 @@ def _parse_date_text(value: str) -> datetime | None:
 
 
 def _extract_document_date(payload: str) -> datetime | None:
-    candidates: list[str] = []
+    # Structured publication metadata outranks visible page text. IR pages often
+    # contain future event/calendar dates alongside an older article; choosing
+    # the maximum date would incorrectly make the document appear future-dated.
     meta_patterns = (
         r'<meta[^>]+(?:property|name)=["\'](?:article:published_time|date|datepublished|pubdate|publishdate|publication_date)["\'][^>]+content=["\']([^"\']+)["\']',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:article:published_time|date|datepublished|pubdate|publishdate|publication_date)["\']',
         r'<time[^>]+datetime=["\']([^"\']+)["\']',
         r'["\']datePublished["\']\s*:\s*["\']([^"\']+)["\']',
     )
+    explicit: list[datetime] = []
     for pattern in meta_patterns:
-        candidates.extend(re.findall(pattern, payload, flags=re.I | re.S))
-    visible = _strip_html(payload, 12000)
-    candidates.append(visible)
-    parsed = [value for value in (_parse_date_text(candidate) for candidate in candidates) if value is not None]
-    if not parsed:
-        return None
-    # Prefer the newest plausible date on a detail page.
-    return max(parsed)
+        for candidate in re.findall(pattern, payload, flags=re.I | re.S):
+            value = _parse_date_text(candidate)
+            if value is not None:
+                explicit.append(value)
+    if explicit:
+        return max(explicit)
+
+    # Visible text is a fallback only when the page exposes no structured date.
+    return _parse_date_text(_strip_html(payload, 12000))
 
 
 def _material_link(title: str, url: str) -> bool:
