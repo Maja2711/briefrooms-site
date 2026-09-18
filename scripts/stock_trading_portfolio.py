@@ -628,6 +628,35 @@ def verify_state(state: Mapping[str, Any], policy: Mapping[str, Any] | None = No
                     errors.append(f"{market}:{pid}:invalid_fixed_notional_quantity")
                 elif abs(entry * quantity - 5000.0) > 0.05:
                     errors.append(f"{market}:{pid}:fixed_notional_not_5000")
+        for position in (market_state(state, market).get("closed_positions") or []):
+            if not isinstance(position, Mapping):
+                continue
+            pid = str(position.get("position_id") or "")
+            version = str(position.get("history_normalization_version") or "")
+            currency = str(position.get("history_position_currency") or "")
+            notional = _float(position.get("history_target_position_notional"))
+            quantity = _float(position.get("history_normalized_quantity"))
+            entry = _float(position.get("entry"))
+            exit_price = _float(position.get("exit_price"))
+            pnl = _float(position.get("history_normalized_pnl_amount"))
+            if version != HISTORY_NOTIONAL_NORMALIZATION_VERSION:
+                errors.append(f"{market}:{pid}:missing_history_5k_normalization")
+                continue
+            if currency != POSITION_CURRENCY[market]:
+                errors.append(f"{market}:{pid}:invalid_history_currency")
+            if notional != 5000.0:
+                errors.append(f"{market}:{pid}:invalid_history_notional")
+            if quantity is None or quantity <= 0 or entry is None or entry <= 0:
+                errors.append(f"{market}:{pid}:invalid_history_quantity")
+                continue
+            if abs(entry * quantity - 5000.0) > 0.05:
+                errors.append(f"{market}:{pid}:history_notional_not_5000")
+            if exit_price is None or exit_price <= 0 or pnl is None:
+                errors.append(f"{market}:{pid}:invalid_history_pnl")
+            else:
+                expected_pnl = (exit_price - entry) * quantity
+                if abs(expected_pnl - pnl) > 0.02:
+                    errors.append(f"{market}:{pid}:history_pnl_mismatch")
     return {"status": "OK" if not errors else "ERROR", "errors": errors, "open_gpw": len(open_positions(state, "GPW")), "open_us": len(open_positions(state, "US"))}
 
 
