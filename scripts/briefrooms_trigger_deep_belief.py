@@ -38,7 +38,7 @@ FRONTIER_PATH = ROOT / "data/investments/stock_trading_v2_frontier/us.json"
 OUTPUT_PATH = ROOT / "data/investments/market_relationship_deep_belief/us.json"
 HISTORY_ROOT = ROOT / "data/investments/market_relationship_deep_belief_history"
 
-SCHEMA_VERSION = "briefrooms-trigger-deep-belief-shadow-v1"
+SCHEMA_VERSION = "briefrooms-trigger-deep-belief-shadow-v2"
 BACKEND = "STOCK_TRADING_V2_DEEP_EVIDENCE"
 BELIEF_MODE = "DEEP_BELIEF_PROXY_NOT_FULL_BELIEF_CORE"
 
