@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.0  
-**Stan na:** 2026-09-17  
-**Bazowy commit `main`:** `7c8b49afc72081a2c86fb743b26b6215f130b0da`  
+**Wersja mapy:** 1.1  
+**Stan na:** 2026-09-18  
+**Bazowy commit `main`:** `e4194467fb80dbc085dcb0c4bd30bdaee5eee18b`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -56,8 +56,8 @@ READ-ONLY BRIDGES / CONSUMERS       VERIFICATION
         |                            + calibration
         v                                |
 DECISION / RESEARCH ENGINES              |
-GPW / US / EURUSD / WES /                 |
-Stock Trading v2 / Portfolio10K / BRACE   |
+Stock Trading v2 / EURUSD / WES /         |
+Portfolio10K / BRACE                      |
         |                                 |
         v                                 |
 CANONICAL DECISION ENVELOPE               |
@@ -88,7 +88,7 @@ Statistical Gates / Shadow / Promotion / Rollback
 |---|---|---|---|---|
 | `CF-01` | Instrument Registry | Stabilna tożsamość instrumentów i routing symboli | `scripts/instrument_registry.py`, `docs/CANONICAL_INSTRUMENT_REGISTRY.md` | Authority dla zarządzanych statycznych instrumentów; dynamiczne akcje mają deterministyczne scoped IDs podczas migracji |
 | `CF-02` | Canonical MarketSnapshot | Immutable point-in-time fakt rynkowy, provenance, timestamp lineage i DataQuality | `scripts/canonical_market_snapshot.py`, `scripts/market_snapshot_adapters.py`, `docs/CANONICAL_MARKET_SNAPSHOT.md` | Nie rankuje i nie decyduje; fail-closed dla złej jakości danych |
-| `CF-03` | Daily Engine Contract | Wspólny kontrakt prezentacji/normalizacji silników Daily | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Anti-corruption layer; nie zmienia natywnych decyzji GPW/US |
+| `CF-03` | Daily Engine Contract (legacy compatibility) | Historyczny kontrakt normalizacji dawnych GPW/US Daily oraz Daily EUR/USD | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Compatibility/migration only dla stocków; aktywnym stock product authority jest `TR-04` Stock Trading v2 |
 | `CF-04` | Canonical Epistemic State | Kanoniczny snapshot stanu epistemicznego dla konsumentów | `scripts/canonical_epistemic_state.py`, `scripts/canonical_epistemic_state_builder.py`, dokumenty canonical epistemic state | Warstwa informacyjna, nie execution authority |
 | `CF-05` | DecisionEnvelope | Wiąże decyzję z engine/version/time/snapshot/risk/lineage | `scripts/decision_envelope.py`, `scripts/decision_envelope_adapters.py`, `docs/CANONICAL_DECISION_ENVELOPE.md` | Standaryzuje rekord decyzji, ale nie tworzy decyzji |
 | `CF-06` | RiskPolicy Contract | Wspólny shape oceny ryzyka przy zachowaniu niezależnych limitów per-engine | `scripts/risk_policy_contract.py` + polityki GPW/US itd. | Nie istnieje jeden globalny próg ryzyka BriefRooms |
@@ -96,9 +96,9 @@ Statistical Gates / Shadow / Promotion / Rollback
 
 ### Aktualny rollout DecisionEnvelope / MarketSnapshot
 
-- GPW Daily final decisions: **canonicalized**.
-- US Daily new-entry i FLAT: **canonicalized**.
-- US post-entry HOLD/CLOSE: **partial**.
+- Legacy GPW Daily final-decision path: **canonicalized**, ale nie jest już aktywnym produktem tradingowym.
+- Legacy US Daily new-entry / FLAT path: **canonicalized**; post-entry HOLD/CLOSE: **partial**. Nie jest już aktywnym stock product authority.
+- Stock Trading v2: **production Champion**; produkcyjny routing i portfolio state są obsługiwane przez `stock_trading_v2_production_bridge.py`, `stock_trading_portfolio.py` oraz NO RETROACTIVE airlock. Pełny rollout P0.2/P0.3 dla każdego wewnętrznego eventu v2 jest osobnym zadaniem migracyjnym i nie należy utożsamiać go ze starymi nazwami Daily GPW/US.
 - Daily EUR/USD: **partial**.
 - WES: **partial**.
 - BRACE-SPX: **not yet canonicalized** dla DecisionEnvelope/MarketSnapshot path.
@@ -121,9 +121,9 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `AD-08` | Geopolitical adapter | `scripts/belief_geopolitical_forecast_adapter.py`, `scripts/belief_geopolitical_live.py` | Translacja GSE/geopolityki do kontrolowanej warstwy Belief |
 | `AD-09` | WES Assets Adapter | `scripts/belief_wes_assets_adapter.py` | Pokrycie aktywów WES dla warstwy Belief |
 | `AD-10` | Data Quality Adapter | `scripts/belief_data_quality_adapter.py` | Jawna jakość/braki; brak danych nie jest sygnałem neutralnym |
-| `AD-11` | Daily Engine Adapters | `scripts/daily_engine_adapters.py` | Normalizacja istniejących GPW/US do `daily-engine-output-v1` |
+| `AD-11` | Daily Engine Adapters (legacy) | `scripts/daily_engine_adapters.py` | Compatibility normalization dawnych GPW/US; nie jest aktywnym stock decision path |
 | `AD-12` | Market/Decision canonical adapters | `scripts/market_snapshot_adapters.py`, `scripts/decision_envelope_adapters.py` | Przejście natywnych payloadów do kanonicznych kontraktów bez zmiany decyzji |
-| `AD-13` | GPW / US domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Market-specific integration, persistence guards i lifecycle integration |
+| `AD-13` | Legacy GPW / US Daily domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Utrzymanie historycznych kontraktów, lineage, settlement i compatibility; bez production stock authority po promocji v2 |
 
 ### Twarde zasady adapterów
 
@@ -166,10 +166,10 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 
 | ID | Silnik | Horyzont / rola | Stan architektoniczny |
 |---|---|---|---|
-| `TR-01` | Daily GPW | 1–2 sesje; wybór, risk plan, lifecycle, MISS/rejected-candidate learning | Aktywny istniejący engine; GPW ma własne source/data gates i risk policy |
-| `TR-02` | Daily US Stocks | Krótkoterminowy Daily US; własny lifecycle/risk/memory | Aktywny istniejący engine, logicznie oddzielony od GPW |
+| `TR-01` | Legacy GPW Daily pipeline | Historyczny GPW Daily: candidate research, settlement, lineage i MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Kod i workflow mogą działać jako legacy research/settlement compatibility, ale nie są production Championem i nie mają prawa przyjmować pozycji do portfela v2 |
+| `TR-02` | Legacy US Daily pipeline | Historyczny US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Zachowany jako migration/history compatibility; aktywny stock authority należy do v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract | Historycznie rollout shadow; własne lifecycle/event overlay/ABC learning |
-| `TR-04` | Stock Trading v2 | Dynamic US/GPW universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **Implementation complete in shadow** na snapshot mapy; production promotion wymaga prospective statistical gate |
+| `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — CANARY**. `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; workflow `stock-trading-v2-production.yml` rewaliduje i przyjmuje wyłącznie bieżące prospektywne opportunities |
 | `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; tygodniowy paper/research + WES memory/counterfactual/belief bridges | Weekly v4 = experimental paper research; WES ma własną pamięć i counterfactual layer |
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance, paper control | `ACTIVE_BASELINE + BRACE_SHADOW`; promocja deterministyczna, LLM nie może promować |
@@ -305,9 +305,9 @@ Public UI             -> renderuje stan; NIE jest źródłem decyzji
 - **Belief Core v2:** engineering-complete dla shadow data collection; decision-independent.
 - **Evidence adapters:** rzeczywista modularna warstwa; podstawowe market/technical/liquidity/regime adapters są deterministyczne.
 - **GSE v1:** shadow-only forecasting; bez execution i auto-tuning authority.
-- **Daily GPW / US:** istniejące odrębne engine'y; canonical rollout najbardziej zaawansowany.
+- **Legacy Daily GPW / US:** nie są już aktywnymi produktami stock-tradingowymi; pozostają śledzalne jako deprecated migration/research/settlement paths.
 - **Daily EUR/USD:** odrębny Daily engine, własny learning/lifecycle; canonical rollout partial.
-- **Stock Trading v2:** implementation complete in shadow; promotion do produkcji nadal zależna od prospective statistical evidence/gate.
+- **Stock Trading v2:** **aktywny production Champion w fazie CANARY** dla GPW i US. V1 jest Challengerem/rodzicem rollback, a legacy candidate admission jest wyłączone.
 - **Weekly v4:** experimental paper-trading research layer.
 - **Portfolio 10K:** zachowany baseline/champion.
 - **BRACE Portfolio:** `ACTIVE_BASELINE + BRACE_SHADOW`, z deterministic controller i fallbackiem.
@@ -372,6 +372,13 @@ Najważniejsze dokumenty szczegółowe użyte do utworzenia v1.0:
 - `ai-outlook-engine-v1.md`
 - `ai-tournament-methodology-v1.md`
 - `BRIEFROOMS_CHANGE_RULES.md`
+
+## 16. Migration record — Stock Trading consolidation
+
+- 2026-09-18: aktywna architektura stock trading została skonsolidowana pod `TR-04 Stock Trading v2`.
+- `TR-01 Daily GPW` i `TR-02 Daily US` zachowują stabilne ID wyłącznie dla traceability i są oznaczone `DEPRECATED AS PRODUCT / REPLACED_BY TR-04`.
+- Nie usuwamy ich kodu ani historycznych ledgerów w ramach tej zmiany, ponieważ część ścieżek nadal pełni funkcje research, settlement, compatibility lub rollback lineage. Ich output nie może być traktowany jako production admission do portfela v2.
+- Produkcyjny authority określa `data/investments/stock_trading_policy.json`: `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`.
 
 ---
 
