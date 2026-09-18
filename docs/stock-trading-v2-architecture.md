@@ -102,6 +102,16 @@ research/shadow opportunity
 
 A replay, old candidate or historical research artifact can never be converted into a retroactive LIVE entry.
 
+The same invariant applies to exits. A current SL/TP geometry may only inspect market bars whose timestamp is at or after the moment that geometry became effective:
+
+```text
+trigger_window_start >= max(opened_at, risk_last_changed_at)
+```
+
+This prevents two classes of false execution: a pre-entry candle closing a position that did not yet exist, and an earlier same-day low/high being reused after a later SL/TP ratchet. If no post-effective intraday bar exists yet, the engine must hold with a data error rather than synthesize an SL/TP fill.
+
+For new v2 admissions the production bridge also requires a prospectively observed execution quote no older than 2 minutes. Stale research prices and delayed quotes remain non-executable.
+
 ## Learning / challenger boundary
 
 Stock Trading v2 is now the engine-level production Champion. V1 is the registered Challenger.

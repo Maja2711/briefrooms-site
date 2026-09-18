@@ -276,8 +276,10 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
 def _stooq_symbol(symbol: str, market: str) -> str:
     raw = str(symbol or "").strip().upper()
     if market == "GPW":
+        # Stooq's quote endpoint uses the bare GPW ticker (e.g. lpp), not
+        # Yahoo's .WA suffix and not a synthetic .pl suffix.
         base = raw[:-3] if raw.endswith(".WA") else raw
-        return f"{base.lower()}.pl"
+        return base.lower()
     if market == "US":
         return raw.lower() if raw.endswith(".us") else f"{raw.lower()}.us"
     raise ValueError(f"Unsupported market: {market}")

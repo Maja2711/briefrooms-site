@@ -72,6 +72,10 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
         self.assertEqual('PRE', enriched['markets']['US']['quote_session']['market_state'])
         self.assertEqual('quote_enriched', audits[0]['action'])
 
+    def test_stooq_gpw_symbol_is_bare_ticker(self):
+        self.assertEqual('lpp', quotes._stooq_symbol('LPP.WA', 'GPW'))
+        self.assertEqual('pge', quotes._stooq_symbol('PGE', 'GPW'))
+
     def test_execution_quote_uses_fresh_independent_fallback(self):
         now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
         stale_yahoo = {

@@ -3,7 +3,9 @@
   align-items:stretch!important;
 }
 .str-open-grid>.str-market-ticket-panel{
-  display:flex!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:14px!important;
   align-self:stretch!important;
   min-width:0!important;
   height:auto!important;
@@ -16,6 +18,53 @@
   min-height:264px!important;
   height:auto!important;
   box-sizing:border-box!important;
+}
+
+/* Never let the generic display:flex override reveal collapsed tickets. */
+.str-open-grid>.str-market-ticket-panel>.str-position.is-extra{
+  display:none!important;
+}
+
+/* When the user explicitly expands all tickets, give the market the full
+   dashboard width instead of squeezing three cards into one half-column. */
+.str-open-grid>.str-market-ticket-panel.is-expanded-market{
+  grid-column:1 / -1!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+.str-open-grid>.str-market-ticket-panel.is-expanded-market>.str-position{
+  min-width:0!important;
+}
+.str-open-grid .str-company-name span{
+  min-width:0!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* Price cells must remain readable on ordinary laptop widths. Four columns
+   inside a card are too narrow once the company mark and card padding are
+   accounted for, especially for USD values with thousands separators. */
+.str-open-grid .str-metrics{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.str-open-grid .str-metrics>div{
+  min-width:0!important;
+}
+.str-open-grid .str-metrics strong{
+  max-width:100%!important;
+  font-size:15px!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+
+/* Expanded cards are intentionally narrower. Put P&L below metadata so the
+   cash result never escapes the card boundary or gets clipped. */
+.str-open-grid>.str-market-ticket-panel.is-expanded-market .str-position-footer{
+  flex-direction:column!important;
+  align-items:stretch!important;
+}
+.str-open-grid>.str-market-ticket-panel.is-expanded-market .str-pnl{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
 }
 .str-open-grid>.str-market-ticket-panel>.str-position>.str-position-body{
   flex:1 1 auto!important;
@@ -101,11 +150,21 @@
   white-space:nowrap!important;
 }
 
+@media(max-width:1380px){
+  .str-open-grid>.str-market-ticket-panel.is-expanded-market{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
 @media(max-width:1180px){
   .str-open-grid>.str-market-ticket-panel>.str-position{
     min-height:0!important;
   }
   .stock-room-hero-switcher{
     justify-content:flex-start!important;
+  }
+}
+@media(max-width:900px){
+  .str-open-grid>.str-market-ticket-panel.is-expanded-market{
+    grid-template-columns:minmax(0,1fr)!important;
   }
 }

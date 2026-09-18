@@ -231,7 +231,11 @@ class StockTradingPortfolioTests(unittest.TestCase):
         position['risk_review_date'] = '2026-09-08'
         observations = {
             'AAA': {
-                'snapshot': {'high': 104.0, 'low': 99.0, 'last': 103.0},
+                'snapshot': {
+                    'high': 104.0, 'low': 99.0, 'last': 103.0,
+                    'trigger_window_start': '2026-09-09T12:00:00+00:00',
+                    'post_effective_only': True,
+                },
                 'closes': [100 + i * 0.1 for i in range(50)],
                 'atr': 2.0,
             }
@@ -250,7 +254,11 @@ class StockTradingPortfolioTests(unittest.TestCase):
         old_stop, old_target = position['stop'], position['target']
         observations = {
             'AAA': {
-                'snapshot': {'high': 101.0, 'low': 99.0, 'last': 100.0},
+                'snapshot': {
+                    'high': 101.0, 'low': 99.0, 'last': 100.0,
+                    'trigger_window_start': '2026-09-09T12:00:00+00:00',
+                    'post_effective_only': True,
+                },
                 'closes': [100.0] * 50,
                 'atr': 20.0,
             }
@@ -291,10 +299,64 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertEqual(102.0, observation['snapshot']['high'])
         self.assertEqual(101.0, observation['snapshot']['last'])
 
+    def test_intraday_observation_excludes_bars_before_current_risk_geometry(self):
+        tz = ZoneInfo('Europe/Warsaw')
+        now = datetime(2026, 9, 18, 12, 30, tzinfo=tz)
+        opened_at = '2026-09-18T09:00:00+02:00'
+        risk_effective_at = '2026-09-18T12:00:00+02:00'
+        daily_stamps = [int(datetime(2026, 7, 1, 17, 0, tzinfo=tz).timestamp()) + i * 86400 for i in range(60)]
+        daily = {
+            'timestamp': daily_stamps,
+            'indicators': {'quote': [{
+                'high': [102.0] * 60,
+                'low': [98.0] * 60,
+                'close': [100.0] * 60,
+            }]},
+        }
+        before_risk_change = int(datetime(2026, 9, 18, 11, 55, tzinfo=tz).timestamp())
+        after_risk_change = int(datetime(2026, 9, 18, 12, 5, tzinfo=tz).timestamp())
+        intraday = {
+            'timestamp': [before_risk_change, after_risk_change],
+            'indicators': {'quote': [{
+                'high': [101.0, 102.0],
+                'low': [90.0, 99.0],
+                'close': [100.0, 101.0],
+            }]},
+        }
+        with patch.object(stock, '_chart', side_effect=[daily, intraday]):
+            observation = stock._daily_observation(
+                'AAA.WA',
+                'GPW',
+                now,
+                opened_at=opened_at,
+                risk_effective_at=risk_effective_at,
+            )
+        self.assertEqual(99.0, observation['snapshot']['low'])
+        self.assertEqual('2026-09-18T12:05:00+02:00', observation['snapshot']['trigger_window_start'])
+        self.assertTrue(observation['snapshot']['post_effective_only'])
+
+    def test_review_fails_closed_when_same_day_trigger_window_is_unverified(self):
+        state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'US')[0]
+        state['markets']['US']['open_positions'] = [position]
+        observations = {
+            'AAA': {
+                'snapshot': {'high': 102.0, 'low': 94.0, 'last': 96.0},
+                'closes': [100.0] * 50,
+                'atr': 2.0,
+            }
+        }
+        updated, audit = stock.review_market(state, 'US', observations=observations, now=self.now, policy=self.policy)
+        self.assertEqual(1, len(stock.open_positions(updated, 'US')))
+        self.assertEqual('hold_data_error', audit[0]['action'])
+        self.assertEqual('unverified_post_effective_trigger_window', audit[0]['reason'])
+        self.assertEqual([], updated['markets']['US']['closed_positions'])
+
     def test_stop_or_take_profit_closes_immediately_regardless_of_age(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]
         position['opened_at'] = '2026-01-01T10:00:00+00:00'
+        position['risk_last_changed_at'] = '2026-01-01T10:00:00+00:00'
         state['markets']['US']['open_positions'] = [position]
         observations = {
             'AAA': {'snapshot': {'high': 102.0, 'low': 94.0, 'last': 96.0}, 'closes': [100.0] * 50, 'atr': 2.0}
@@ -308,7 +370,11 @@ class StockTradingPortfolioTests(unittest.TestCase):
         position = stock.open_positions(state, 'US')[0]
         state['markets']['US']['open_positions'] = [position]
         closes = [150.0] * 30 + [140.0] * 10 + [130.0] * 9 + [100.0]
-        observations = {'AAA': {'snapshot': {'high': 101.0, 'low': 99.0, 'last': 100.0}, 'closes': closes, 'atr': 2.0}}
+        observations = {'AAA': {'snapshot': {
+            'high': 101.0, 'low': 99.0, 'last': 100.0,
+            'trigger_window_start': '2026-09-09T12:00:00+00:00',
+            'post_effective_only': True,
+        }, 'closes': closes, 'atr': 2.0}}
         updated, audit = stock.review_market(state, 'US', observations=observations, now=self.now, policy=self.policy)
         self.assertEqual([], stock.open_positions(updated, 'US'))
         self.assertEqual('model_thesis_invalidated', audit[0]['reason'])

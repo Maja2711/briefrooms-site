@@ -292,7 +292,8 @@
 
   function marketTicketPanel(market) {
     const positions = openPositions(market);
-    return `<div class="str-market-ticket-panel" id="str-market-${market.toLowerCase()}">
+    const expandedClass = state.expanded && positions.length > 1 ? ' is-expanded-market' : '';
+    return `<div class="str-market-ticket-panel${expandedClass}" id="str-market-${market.toLowerCase()}">
       ${positions.length ? positions.map((p,i) => openPositionCard(p, market, i)).join('') : emptyMarketCard(market)}
     </div>`;
   }

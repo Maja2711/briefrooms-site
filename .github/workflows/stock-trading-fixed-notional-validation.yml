@@ -9,10 +9,15 @@ on:
       - "data/investments/stock_trading_policy.json"
       - "data/investments/stock_trading_portfolio.json"
       - "assets/stock-trading-room.css"
+      - "assets/stock-trading-ticket-fixes-v2.css"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_quote_enricher.py"
+      - "scripts/audit_stock_trading_ui.py"
       - "scripts/stock_trading_v2_production_bridge.py"
       - "scripts/stock-trading-public.js"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_quote_enricher.py"
+      - "tests/test_stock_trading_quote_enricher.py"
       - "tests/test_stock_trading_v2_production_bridge.py"
       - "docs/ARCHITECTURE_MAP_EN.md"
       - "docs/ARCHITECTURE_MAP_PL.md"
@@ -27,7 +32,10 @@ on:
       - "data/investments/stock_trading_policy.json"
       - "data/investments/stock_trading_portfolio.json"
       - "assets/stock-trading-room.css"
+      - "assets/stock-trading-ticket-fixes-v2.css"
       - "scripts/stock_trading_portfolio.py"
+      - "scripts/stock_trading_quote_enricher.py"
+      - "scripts/audit_stock_trading_ui.py"
       - "scripts/stock-trading-public.js"
       - "tests/test_stock_trading_portfolio.py"
 
@@ -48,7 +56,7 @@ jobs:
 
       - name: Compile fixed-notional runtime
         run: |
-          python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_v2_production_bridge.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_v2_production_bridge.py
+          python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_quote_enricher.py             scripts/stock_trading_v2_production_bridge.py             scripts/audit_stock_trading_ui.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_quote_enricher.py             tests/test_stock_trading_v2_production_bridge.py
           node --check scripts/stock-trading-public.js
 
       - name: Validate policy contract
@@ -98,4 +106,30 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python -m unittest             tests.test_stock_trading_portfolio             tests.test_stock_trading_v2_production_bridge -v
+          python -m unittest             tests.test_stock_trading_portfolio             tests.test_stock_trading_quote_enricher             tests.test_stock_trading_v2_production_bridge -v
+
+      - name: Install Chromium for laptop UI audit
+        run: |
+          python -m pip install playwright==1.54.0
+          python -m playwright install chromium
+
+      - name: Validate Stock Trading laptop layouts
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/stock-trading-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/pl/inwestycje/stock-trading.html >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          python -u scripts/audit_stock_trading_ui.py
+
+      - name: Upload Stock Trading UI evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-trading-ui-audit
+          path: |
+            data/internal/stock_trading_ui_audit.json
+            data/internal/stock_trading_ui_screenshots/*.png
+          if-no-files-found: error
