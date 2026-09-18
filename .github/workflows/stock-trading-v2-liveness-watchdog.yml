@@ -1,0 +1,179 @@
+name: Stock Trading v2 Liveness Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Lightweight, staggered watchdog. It dispatches heavy discovery only when stale.
+    - cron: "3,13,23,33,43,53 6-22 * * 1-5"
+  workflow_run:
+    workflows:
+      - "Update Investment Room Quotes"
+      - "Daily EURUSD A-B-C Live Shadow"
+      - "Maintain Weekly Paper Positions"
+      - "Publish PL and EN News"
+      - "Update Weekly Live Prices"
+      - "Audit Automation Health"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-v2-liveness-watchdog.yml"
+      - ".github/workflows/stock-trading-v2-continuous-discovery.yml"
+      - ".github/workflows/stock-trading-v2-production.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: stock-trading-v2-liveness-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Read v2 branch and evaluate liveness
+        id: liveness
+        run: |
+          set -euo pipefail
+          git fetch origin stock-trading-v2
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import subprocess
+          from datetime import datetime, time, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(timezone.utc)
+          max_discovery_age_minutes = 30.0
+          max_fresh_opportunity_minutes = 45.0
+
+          def active(tz_name, start, end):
+              local = now.astimezone(ZoneInfo(tz_name))
+              return local.weekday() < 5 and start <= local.time().replace(tzinfo=None) <= end
+
+          def parse_iso(value):
+              if not value:
+                  return None
+              try:
+                  return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+              except Exception:
+                  return None
+
+          def read_ref_json(ref, path):
+              proc = subprocess.run(
+                  ["git", "show", f"{ref}:{path}"],
+                  text=True,
+                  capture_output=True,
+              )
+              if proc.returncode != 0:
+                  return None
+              try:
+                  payload = json.loads(proc.stdout)
+                  return payload if isinstance(payload, dict) else None
+              except Exception:
+                  return None
+
+          opportunity = {}
+          for market in ("GPW", "US"):
+              payload = read_ref_json(
+                  "origin/stock-trading-v2",
+                  f"data/investments/stock_trading_v2_opportunity/{market.lower()}.json",
+              )
+              generated = parse_iso((payload or {}).get("generated_at"))
+              age = None if generated is None else max(0.0, (now - generated).total_seconds() / 60.0)
+              opportunity[market] = {"generated_at": generated, "age_minutes": age}
+
+          active_market = {
+              "GPW": active("Europe/Warsaw", time(8, 40), time(17, 20)),
+              "US": active("America/New_York", time(9, 35), time(16, 35)),
+          }
+
+          due = []
+          for market in ("GPW", "US"):
+              age = opportunity[market]["age_minutes"]
+              if active_market[market] and (age is None or age > max_discovery_age_minutes):
+                  due.append(market)
+
+          if len(due) == 2:
+              requested = "BOTH"
+          elif len(due) == 1:
+              requested = due[0]
+          else:
+              requested = "NONE"
+
+          production_state = {}
+          state_path = Path("data/investments/stock_trading_v2_production_state.json")
+          if state_path.exists():
+              try:
+                  production_state = json.loads(state_path.read_text(encoding="utf-8"))
+              except Exception:
+                  production_state = {}
+          last_production = parse_iso(production_state.get("last_run_at"))
+          production_due = False
+          if requested == "NONE":
+              for market in ("GPW", "US"):
+                  generated = opportunity[market]["generated_at"]
+                  age = opportunity[market]["age_minutes"]
+                  if (
+                      active_market[market]
+                      and generated is not None
+                      and age is not None
+                      and age <= max_fresh_opportunity_minutes
+                      and (last_production is None or last_production < generated)
+                  ):
+                      production_due = True
+
+          diag = {
+              "now_utc": now.isoformat(),
+              "active_market": active_market,
+              "opportunity_age_minutes": {
+                  market: opportunity[market]["age_minutes"] for market in ("GPW", "US")
+              },
+              "requested": requested,
+              "production_due": production_due,
+              "last_production": last_production.isoformat() if last_production else None,
+          }
+          print(f"requested={requested}")
+          print(f"production_due={'true' if production_due else 'false'}")
+          print("diagnostic=" + json.dumps(diag, separators=(",", ":")))
+          PY
+
+      - name: Show liveness diagnosis
+        run: echo '${{ steps.liveness.outputs.diagnostic }}'
+
+      - name: Dispatch stale v2 discovery
+        if: steps.liveness.outputs.requested != 'NONE'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_MARKET: ${{ steps.liveness.outputs.requested }}
+        run: |
+          set -euo pipefail
+          RUNNING="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" --jq '[.workflow_runs[] | select(.name == "Stock Trading v2 Continuous Discovery" and (.status == "queued" or .status == "in_progress"))] | length')"
+          if [[ "$RUNNING" != "0" ]]; then
+            echo "Continuous discovery already queued/running; watchdog will not duplicate it."
+            exit 0
+          fi
+          echo "Dispatching Stock Trading v2 discovery for ${REQUESTED_MARKET}."
+          gh workflow run stock-trading-v2-continuous-discovery.yml --ref main -f market="${REQUESTED_MARKET}"
+
+      - name: Recover production bridge if discovery is fresh but production lagged
+        if: steps.liveness.outputs.requested == 'NONE' && steps.liveness.outputs.production_due == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUNNING="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" --jq '[.workflow_runs[] | select(.name == "Stock Trading v2 Production Champion" and (.status == "queued" or .status == "in_progress"))] | length')"
+          if [[ "$RUNNING" != "0" ]]; then
+            echo "Production Champion already queued/running; watchdog will not duplicate it."
+            exit 0
+          fi
+          echo "Fresh v2 opportunity is newer than production state; dispatching production bridge."
+          gh workflow run stock-trading-v2-production.yml --ref main
