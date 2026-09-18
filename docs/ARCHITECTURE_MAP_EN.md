@@ -306,9 +306,9 @@ Public UI             -> renders state; is NOT a decision source
 - **Belief Core v2:** engineering-complete for shadow data collection; decision-independent.
 - **Evidence adapters:** real modular layer; core market/technical/liquidity/regime adapters are deterministic.
 - **GSE v1:** shadow-only forecasting; no execution or auto-tuning authority.
-- **Daily GPW / US:** separate existing engines; most advanced canonical rollout.
+- **Legacy Daily GPW / US:** no longer active stock-trading products; retained as deprecated migration/research/settlement paths.
 - **Daily EUR/USD:** independent Daily engine with own lifecycle/learning; canonical rollout partial.
-- **Stock Trading v2:** implementation complete in shadow; production promotion remains conditional on prospective statistical evidence/gate.
+- **Stock Trading v2:** **active production Champion in CANARY** for GPW and US. V1 is Challenger/rollback lineage and legacy candidate admission is disabled.
 - **Weekly v4:** experimental paper-trading research layer.
 - **Portfolio 10K:** preserved baseline/champion.
 - **BRACE Portfolio:** `ACTIVE_BASELINE + BRACE_SHADOW`, deterministic controller and fallback.
