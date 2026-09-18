@@ -536,6 +536,7 @@ def score_candidate(
         "sector": candidate.get("sector"),
         "industry": candidate.get("industry"),
         "frontier_rank": candidate.get("frontier_rank"),
+        "relationship_rank": candidate.get("relationship_rank") or candidate.get("frontier_rank"),
         "opportunity_score": candidate.get("opportunity_score"),
         "direction": "UP" if direction > 0 else "DOWN" if direction < 0 else "FLAT",
         "attention_score": round(attention, 6),
@@ -546,6 +547,13 @@ def score_candidate(
         "peer_context": {
             **peer,
             "peers": deepcopy(peers),
+        },
+        "reference_market_state": {
+            "session_date": (candidate.get("features") or {}).get("latest_session"),
+            "price": _finite((candidate.get("features") or {}).get("last_close")),
+            "observed_at": (candidate.get("freshness") or {}).get("observed_at") or _iso(now),
+            "source": "opportunity_frontier.features.last_close",
+            "point_in_time_frozen": True,
         },
         "time_context": {
             "frontier_observed_at": (candidate.get("freshness") or {}).get("observed_at"),
@@ -571,7 +579,10 @@ def allocate_attention(
 
     ordered = sorted(
         (dict(row) for row in scored),
-        key=lambda row: (float(row.get("attention_score") or 0.0), -int(row.get("frontier_rank") or 9999)),
+        key=lambda row: (
+            float(row.get("attention_score") or 0.0),
+            -int(row.get("frontier_rank") or row.get("relationship_rank") or 9999),
+        ),
         reverse=True,
     )
     queue: list[dict[str, Any]] = []
@@ -591,12 +602,13 @@ def allocate_attention(
             "trigger_type": row.get("trigger_type"),
             "deep_belief_eligible": row.get("deep_belief_eligible"),
             "frontier_rank": row.get("frontier_rank"),
+            "relationship_rank": row.get("relationship_rank"),
         })
         selected.add(symbol)
 
     exploration = sorted(
         (dict(row) for row in scored if str(row.get("symbol") or "") not in selected),
-        key=lambda row: int(row.get("frontier_rank") or 9999),
+        key=lambda row: int(row.get("frontier_rank") or row.get("relationship_rank") or 9999),
     )
     for row in exploration[:exploration_slots]:
         if len(queue) >= max_total:
@@ -641,7 +653,9 @@ def build_snapshot(
     generated = generated_at or datetime.now(timezone.utc)
     event_snapshot = event_snapshot if isinstance(event_snapshot, Mapping) else {}
     events = [dict(row) for row in event_snapshot.get("events") or [] if isinstance(row, Mapping)]
-    candidates = [dict(row) for row in frontier.get("candidates") or [] if isinstance(row, Mapping)]
+    frontier_candidates = [dict(row) for row in frontier.get("candidates") or [] if isinstance(row, Mapping)]
+    relationship_pool = [dict(row) for row in frontier.get("relationship_pool") or [] if isinstance(row, Mapping)]
+    candidates = relationship_pool or frontier_candidates
 
     scored = [
         score_candidate(candidate, candidates, events, now=generated, config=config)
@@ -665,7 +679,8 @@ def build_snapshot(
         "source_frontier_sha256": frontier.get("frontier_sha256"),
         "source_frontier_generated_at": frontier.get("generated_at"),
         "source_event_snapshot_generated_at": event_snapshot.get("generated_at"),
-        "frontier_size": len(candidates),
+        "frontier_size": len(frontier_candidates),
+        "relationship_pool_size": len(candidates),
         "event_count_seen": len(events),
         "candidate_count": len(scored),
         "candidates": scored,
@@ -768,15 +783,21 @@ def freeze_observations(
         for row in snapshot.get("candidates") or []
         if isinstance(row, Mapping)
     }
-    queue_symbols = {
-        str(row.get("symbol") or "")
+    queue_sources = {
+        str(row.get("symbol") or ""): str(row.get("attention_source") or "")
         for row in snapshot.get("attention_queue") or []
-        if isinstance(row, Mapping) and row.get("attention_source") == "trigger"
+        if isinstance(row, Mapping) and str(row.get("symbol") or "")
     }
+    freeze_exploration = history_cfg.get("freeze_exploration_controls") is True
     written = existing = 0
-    for symbol in sorted(queue_symbols):
+    for symbol in sorted(queue_sources):
         row = candidates.get(symbol)
-        if not isinstance(row, Mapping) or float(row.get("attention_score") or 0.0) < minimum:
+        source = queue_sources[symbol]
+        if not isinstance(row, Mapping):
+            continue
+        if source == "trigger" and float(row.get("attention_score") or 0.0) < minimum:
+            continue
+        if source == "exploration" and not freeze_exploration:
             continue
         observation_id = _observation_id(snapshot, row)
         payload = {
@@ -788,11 +809,13 @@ def freeze_observations(
             "session_date": (row.get("time_context") or {}).get("latest_market_session"),
             "attention_score": row.get("attention_score"),
             "attention_tier": row.get("attention_tier"),
+            "attention_source": source,
             "trigger_type": row.get("trigger_type"),
             "direction": row.get("direction"),
             "components": deepcopy(row.get("components") or {}),
             "event_context": deepcopy(row.get("event_context") or []),
             "peer_context": deepcopy(row.get("peer_context") or {}),
+            "reference_market_state": deepcopy(row.get("reference_market_state") or {}),
             "frontier_rank": row.get("frontier_rank"),
             "source_frontier_sha256": snapshot.get("source_frontier_sha256"),
             "source_event_snapshot_generated_at": snapshot.get("source_event_snapshot_generated_at"),

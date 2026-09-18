@@ -39,6 +39,7 @@ def candidate(
         "score_components": {"trend_quality": 95.0},
         "features": {
             "latest_session": "2026-09-18",
+            "last_close": 100.0,
             "returns": {"1": r1, "5": r5, "20": r20, "60": r60},
             "atr_fraction": 0.03,
             "realized_volatility_20d": 0.025,
@@ -164,6 +165,57 @@ class MarketRelationshipTriggerTest(unittest.TestCase):
             self.assertGreaterEqual(second["existing"], 1)
             files = list(root.rglob("*.json"))
             self.assertGreaterEqual(len(files), 1)
+            frozen = [__import__("json").loads(path.read_text(encoding="utf-8")) for path in files]
+            sources = {row["attention_source"] for row in frozen}
+            self.assertIn("trigger", sources)
+            trigger_rows = [row for row in frozen if row["attention_source"] == "trigger"]
+            self.assertTrue(trigger_rows)
+            self.assertEqual(100.0, trigger_rows[0]["reference_market_state"]["price"])
+            self.assertTrue(trigger_rows[0]["reference_market_state"]["point_in_time_frozen"])
+
+    def test_trigger_and_exploration_queue_sources_are_explicit(self) -> None:
+        quiet = [
+            candidate("AAA", 1, 80.0, r1=0.001, r5=0.005, r20=0.01, r60=0.02, volume=1.0, sector="Industrials", industry="Machinery"),
+            candidate("BBB", 2, 78.0, r1=0.001, r5=0.004, r20=0.009, r60=0.018, volume=1.0, sector="Health Care", industry="Medical"),
+        ]
+        quiet_snapshot = trigger.build_snapshot(
+            frontier(quiet),
+            {"generated_at": "2026-09-18T18:55:00Z", "events": []},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertEqual({"exploration"}, {row["attention_source"] for row in quiet_snapshot["attention_queue"]})
+
+        hot_snapshot = trigger.build_snapshot(
+            frontier(self.rows),
+            {"generated_at": "2026-09-18T18:55:00Z", "events": [direct_event()]},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertIn("trigger", {row["attention_source"] for row in hot_snapshot["attention_queue"]})
+
+    def test_relationship_pool_can_surface_non_frontier_lagger(self) -> None:
+        lagger = candidate("LAG", 99, 70.0, r1=0.04, r5=0.08, r20=0.12, r60=0.18, volume=2.2)
+        lagger["frontier_rank"] = None
+        lagger["relationship_rank"] = 3
+        base = frontier(self.rows[:2])
+        base["relationship_pool"] = [dict(self.rows[0]), dict(self.rows[1]), lagger]
+        base["relationship_pool"][0]["relationship_rank"] = 1
+        base["relationship_pool"][1]["relationship_rank"] = 2
+        base["relationship_pool_size"] = 3
+        base.pop("frontier_sha256", None)
+        base["frontier_sha256"] = contracts.payload_sha256(base)
+        event = direct_event()
+        event["event_id"] = "corp-lag-1"
+        event["entity_symbols"] = ["LAG"]
+        snapshot = trigger.build_snapshot(
+            base,
+            {"generated_at": "2026-09-18T18:55:00Z", "events": [event]},
+            self.config,
+            generated_at=self.now,
+        )
+        self.assertIn("LAG", {row["symbol"] for row in snapshot["candidates"]})
+        self.assertGreater(snapshot["relationship_pool_size"], snapshot["frontier_size"])
 
     def test_snapshot_contract_stays_shadow_only(self) -> None:
         snapshot = trigger.build_snapshot(

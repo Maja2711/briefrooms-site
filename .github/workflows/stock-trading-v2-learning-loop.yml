@@ -57,12 +57,14 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile \
+            scripts/briefrooms_market_relationship_outcomes.py \
             scripts/stock_trading_v2_challenger_factory.py \
             scripts/stock_trading_v2_exact_replay.py \
             scripts/stock_trading_v2_replay_tournament.py \
             scripts/stock_trading_v2_exact_challenger_eval.py \
             scripts/test_stock_trading_v2_challenger_factory.py
           python scripts/test_stock_trading_v2_challenger_factory.py
+          python -m unittest tests.test_briefrooms_market_relationship_outcomes -v
 
       - name: Freeze candidate and canonical admission experience prospectively
         run: |
@@ -99,6 +101,18 @@ jobs:
           set -euo pipefail
           python scripts/stock_trading_v2_outcome_replay.py
           python scripts/stock_trading_v2_outcome_replay.py --verify
+
+      - name: Settle matured relationship-trigger follow-through
+        run: |
+          set -euo pipefail
+          python scripts/briefrooms_market_relationship_outcomes.py \
+            --history-root data/investments/market_relationship_trigger_history \
+            --outcome-root data/investments/market_relationship_trigger_outcomes \
+            --report data/investments/market_relationship_trigger_learning.json
+          python scripts/briefrooms_market_relationship_outcomes.py \
+            --outcome-root data/investments/market_relationship_trigger_outcomes \
+            --report data/investments/market_relationship_trigger_learning.json \
+            --verify
 
       - name: Measure opportunity regret and gate attribution
         run: |
@@ -142,6 +156,10 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/stock_trading_v2_policy_learner.py --verify
+          python scripts/briefrooms_market_relationship_outcomes.py \
+            --outcome-root data/investments/market_relationship_trigger_outcomes \
+            --report data/investments/market_relationship_trigger_learning.json \
+            --verify
           python scripts/stock_trading_v2_challenger_eval.py
           python scripts/stock_trading_v2_exact_challenger_eval.py \
             --challengers data/investments/stock_trading_v2_challengers \
@@ -174,6 +192,8 @@ jobs:
             data/investments/stock_trading_v2_tournaments \
             data/investments/stock_trading_v2_challengers \
             data/investments/stock_trading_v2_challenger_evaluations \
+            data/investments/market_relationship_trigger_outcomes \
+            data/investments/market_relationship_trigger_learning.json \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No new learning evidence."

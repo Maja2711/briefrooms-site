@@ -16,6 +16,7 @@ CONFIG = {
             "minimum_history_sessions": 80,
             "history_candidates_from_stage_zero": 2,
             "frontier_size": 2,
+            "relationship_pool_size": 3,
             "discovery_minimum_median_turnover": 1000,
             "production_liquidity_reference": 100000,
             "candidate_freshness_minutes": 75,
@@ -145,6 +146,9 @@ class StockTradingV2DiscoveryTests(unittest.TestCase):
             generated_at=datetime(2026, 9, 16, 16, 0, tzinfo=timezone.utc),
         )
         self.assertEqual(payload["candidates"][0]["symbol"], "UP")
+        self.assertEqual(3, payload["relationship_pool_size"])
+        self.assertEqual(["UP", "FLAT", "DOWN"], [row["symbol"] for row in payload["relationship_pool"]])
+        self.assertEqual(3, payload["relationship_pool"][2]["relationship_rank"])
         self.assertEqual(payload["cash_alternative"]["status"], "AVAILABLE")
         self.assertIsNone(payload["global_selection_cutoff"])
         self.assertFalse(payload["governance"]["production_decision_influence"])
