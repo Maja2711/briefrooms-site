@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/home-market-signal-v6.js"
+      - "scripts/home-market-signal-guard-v1.js"
       - "scripts/install_home_market_signal_bar.py"
       - "tests/test_home_weekly_top_position.js"
       - ".github/workflows/home-market-signal-bar.yml"
@@ -42,6 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check scripts/home-market-signal-v6.js
+          node --check scripts/home-market-signal-guard-v1.js
           node --test tests/test_home_weekly_top_position.js
           python -m py_compile scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py
@@ -92,6 +94,7 @@ jobs:
           headers={'User-Agent':'BriefRooms-Homepage-Market-Signal-Verifier/3.0','Cache-Control':'no-cache'}
           pages={'pl':'https://briefrooms.com/pl/','en':'https://briefrooms.com/en/'}
           client='https://briefrooms.com/scripts/home-market-signal-v6.js'
+          guard='https://briefrooms.com/scripts/home-market-signal-guard-v1.js'
           portfolio_url='https://briefrooms.com/data/investments/stock_trading_portfolio.json'
           last={}
           success=False
@@ -106,6 +109,7 @@ jobs:
                           body=r.read().decode('utf-8',errors='replace')
                       page_ok=(
                           '/scripts/home-market-signal-v6.js' in body
+                          and '/scripts/home-market-signal-guard-v1.js' in body
                           and 'home-weekly-top-position.js' not in body
                           and 'br-share-strip' in body
                       )
@@ -130,6 +134,21 @@ jobs:
                   ok=ok and client_ok
               except Exception as exc:
                   last['client']={'error':f'{type(exc).__name__}: {exc}'}
+                  ok=False
+
+              try:
+                  req=urllib.request.Request(guard+f'?verify={token}',headers=headers)
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      guard_script=r.read().decode('utf-8',errors='replace')
+                  guard_ok=(
+                      'BRIEFROOMS STOCK TRADING · OPEN' in guard_script
+                      and 'MutationObserver' in guard_script
+                      and 'isCanonicalWeeklyName' in guard_script
+                  )
+                  last['guard']={'served':guard_ok,'version':1}
+                  ok=ok and guard_ok
+              except Exception as exc:
+                  last['guard']={'error':f'{type(exc).__name__}: {exc}'}
                   ok=False
 
               try:
@@ -163,6 +182,7 @@ jobs:
               'status':'passed' if success else 'failed',
               'asset_version':6,
               'asset_path':'/scripts/home-market-signal-v6.js',
+              'label_guard':'/scripts/home-market-signal-guard-v1.js',
               'priority':['open_canonical_weekly','open_stock_trading_portfolio'],
               'weekly_allowlist':['eurusd','sp500_futures','btcusd'],
               'legacy_daily_feeds_excluded':True,
