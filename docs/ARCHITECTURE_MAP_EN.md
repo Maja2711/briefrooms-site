@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.0  
-**Snapshot date:** 2026-09-17  
-**Base `main` commit:** `7c8b49afc72081a2c86fb743b26b6215f130b0da`  
+**Map version:** 1.1  
+**Snapshot date:** 2026-09-18  
+**Base `main` commit:** `e4194467fb80dbc085dcb0c4bd30bdaee5eee18b`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -56,8 +56,8 @@ READ-ONLY BRIDGES / CONSUMERS       VERIFICATION
         |                            + calibration
         v                                |
 DECISION / RESEARCH ENGINES              |
-GPW / US / EURUSD / WES /                 |
-Stock Trading v2 / Portfolio10K / BRACE   |
+Stock Trading v2 / EURUSD / WES /         |
+Portfolio10K / BRACE                      |
         |                                 |
         v                                 |
 CANONICAL DECISION ENVELOPE               |
@@ -88,7 +88,7 @@ Statistical Gates / Shadow / Promotion / Rollback
 |---|---|---|---|---|
 | `CF-01` | Instrument Registry | Stable instrument identity and symbol routing | `scripts/instrument_registry.py`, `docs/CANONICAL_INSTRUMENT_REGISTRY.md` | Authority for governed static instruments; dynamic equities use deterministic scoped IDs during migration |
 | `CF-02` | Canonical MarketSnapshot | Immutable point-in-time market fact, provenance, timestamp lineage and DataQuality | `scripts/canonical_market_snapshot.py`, `scripts/market_snapshot_adapters.py`, `docs/CANONICAL_MARKET_SNAPSHOT.md` | Does not rank or decide; fails closed on invalid data quality |
-| `CF-03` | Daily Engine Contract | Shared presentation/normalization contract for Daily engines | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Anti-corruption layer; does not change native GPW/US decisions |
+| `CF-03` | Daily Engine Contract (legacy compatibility) | Historical normalization contract for former GPW/US Daily paths and Daily EUR/USD | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Compatibility/migration only for stocks; active stock product authority is `TR-04` Stock Trading v2 |
 | `CF-04` | Canonical Epistemic State | Canonical epistemic-state snapshot for consumers | `scripts/canonical_epistemic_state.py`, `scripts/canonical_epistemic_state_builder.py`, canonical epistemic-state docs | Information layer, not execution authority |
 | `CF-05` | DecisionEnvelope | Binds a decision to engine/version/time/snapshot/risk/lineage | `scripts/decision_envelope.py`, `scripts/decision_envelope_adapters.py`, `docs/CANONICAL_DECISION_ENVELOPE.md` | Standardizes the decision record; does not originate a decision |
 | `CF-06` | RiskPolicy Contract | Shared assessment shape while preserving independent per-engine limits | `scripts/risk_policy_contract.py` plus GPW/US/etc. policies | There is no one global BriefRooms risk threshold |
@@ -96,9 +96,9 @@ Statistical Gates / Shadow / Promotion / Rollback
 
 ### Current DecisionEnvelope / MarketSnapshot rollout
 
-- GPW Daily final decisions: **canonicalized**.
-- US Daily new-entry and FLAT: **canonicalized**.
-- US post-entry HOLD/CLOSE: **partial**.
+- Legacy GPW Daily final-decision path: **canonicalized**, but it is no longer an active trading product.
+- Legacy US Daily new-entry / FLAT path: **canonicalized**; post-entry HOLD/CLOSE: **partial**. It is no longer the active stock product authority.
+- Stock Trading v2: **production Champion**; production routing and portfolio state are handled by `stock_trading_v2_production_bridge.py`, `stock_trading_portfolio.py` and the NO RETROACTIVE airlock. Full P0.2/P0.3 rollout for every internal v2 event remains a separate migration concern and must not be conflated with the former Daily GPW/US labels.
 - Daily EUR/USD: **partial**.
 - WES: **partial**.
 - BRACE-SPX: **not yet canonicalized** on the DecisionEnvelope/MarketSnapshot path.
@@ -121,9 +121,9 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `AD-08` | Geopolitical adapter | `scripts/belief_geopolitical_forecast_adapter.py`, `scripts/belief_geopolitical_live.py` | Translates GSE/geopolitical state into the governed Belief layer |
 | `AD-09` | WES Assets Adapter | `scripts/belief_wes_assets_adapter.py` | WES asset coverage for Belief |
 | `AD-10` | Data Quality Adapter | `scripts/belief_data_quality_adapter.py` | Explicit quality/missingness; absent data is not a neutral signal |
-| `AD-11` | Daily Engine Adapters | `scripts/daily_engine_adapters.py` | Normalizes existing GPW/US outputs to `daily-engine-output-v1` |
+| `AD-11` | Daily Engine Adapters (legacy) | `scripts/daily_engine_adapters.py` | Compatibility normalization for former GPW/US paths; not the active stock decision path |
 | `AD-12` | Market/Decision canonical adapters | `scripts/market_snapshot_adapters.py`, `scripts/decision_envelope_adapters.py` | Converts native payloads to canonical contracts without changing decisions |
-| `AD-13` | GPW / US domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Market-specific integration, persistence guards and lifecycle integration |
+| `AD-13` | Legacy GPW / US Daily domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Historical contracts, lineage, settlement and compatibility; no production stock authority after v2 promotion |
 
 ### Hard adapter rules
 
@@ -166,10 +166,10 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 
 | ID | Engine | Horizon / role | Architectural state |
 |---|---|---|---|
-| `TR-01` | Daily GPW | 1–2 sessions; selection, risk plan, lifecycle, MISS/rejected-candidate learning | Existing active engine; GPW owns its source/data gates and risk policy |
-| `TR-02` | Daily US Stocks | Short-horizon US Daily; independent lifecycle/risk/memory | Existing active engine, logically separate from GPW |
+| `TR-01` | Legacy GPW Daily pipeline | Historical GPW Daily candidate research, settlement, lineage and MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Code/workflows may remain for legacy research/settlement compatibility, but are not the production Champion and may not admit positions into the v2 portfolio |
+| `TR-02` | Legacy US Daily pipeline | Historical US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Retained for migration/history compatibility; active stock authority belongs to v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; shared Daily contract | Historically shadow rollout; independent lifecycle/event overlay/ABC learning |
-| `TR-04` | Stock Trading v2 | Dynamic US/GPW universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **Implementation complete in shadow** at this map snapshot; production promotion requires prospective statistical gate |
+| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — CANARY**. `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `stock-trading-v2-production.yml` revalidates and admits only current prospective opportunities |
 | `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; weekly paper/research plus WES memory/counterfactual/belief bridges | Weekly v4 = experimental paper research; WES owns separate memory/counterfactual layers |
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control, optimizer, governance, paper control | `ACTIVE_BASELINE + BRACE_SHADOW`; deterministic promotion controller; LLM cannot promote |
@@ -249,8 +249,9 @@ The publication layer **must not become a hidden authority source for a decision
 
 - Belief Core / Epistemic / causal graph / calibration,
 - BRACE entity + portfolio,
-- Daily GPW / US / EURUSD,
-- Stock Trading v2 discovery/learning/validation,
+- legacy GPW/US Daily compatibility and settlement workflows,
+- Daily EUR/USD,
+- Stock Trading v2 discovery/learning/validation/production,
 - Weekly/WES,
 - GSE,
 - Autonomous Policy Observatory/Promotion/Closed Loop,
@@ -305,9 +306,9 @@ Public UI             -> renders state; is NOT a decision source
 - **Belief Core v2:** engineering-complete for shadow data collection; decision-independent.
 - **Evidence adapters:** real modular layer; core market/technical/liquidity/regime adapters are deterministic.
 - **GSE v1:** shadow-only forecasting; no execution or auto-tuning authority.
-- **Daily GPW / US:** separate existing engines; most advanced canonical rollout.
+- **Legacy Daily GPW / US:** no longer active stock-trading products; retained as deprecated migration/research/settlement paths.
 - **Daily EUR/USD:** independent Daily engine with own lifecycle/learning; canonical rollout partial.
-- **Stock Trading v2:** implementation complete in shadow; production promotion remains conditional on prospective statistical evidence/gate.
+- **Stock Trading v2:** **active production Champion in CANARY** for GPW and US. V1 is Challenger/rollback lineage and legacy candidate admission is disabled.
 - **Weekly v4:** experimental paper-trading research layer.
 - **Portfolio 10K:** preserved baseline/champion.
 - **BRACE Portfolio:** `ACTIVE_BASELINE + BRACE_SHADOW`, deterministic controller and fallback.

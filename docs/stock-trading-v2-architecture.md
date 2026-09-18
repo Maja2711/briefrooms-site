@@ -1,54 +1,115 @@
-# Stock Trading v2 — shadow architecture
+# Stock Trading v2 — production architecture
 
-Status: **implementation complete in shadow mode**. Production promotion is intentionally disabled until the separate statistical Champion–Challenger gate has sufficient prospective holdout evidence.
+Status: **PRODUCTION CHAMPION — CANARY** for the GPW and US stock product.
+
+The production policy is authoritative:
+
+- `champion_engine = v2`
+- `challenger_engine = v1`
+- `legacy_candidate_admission_enabled = false`
+
+The former Daily GPW and Daily US paths are no longer separate active stock-trading products. Their code may remain temporarily for research, settlement, historical lineage and migration compatibility, but they do not own production stock admission.
 
 ## Objective
 
-Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty portfolio slots are not a reason to trade. `CASH` is a first-class alternative, and the system may select `BUY`, `HOLD`, `CASH` or `REPLACE` only after comparing the best currently observed opportunities with the current portfolio.
+Stock Trading v2 optimizes net expectancy with explicit opportunity cost. `CASH` is a first-class alternative. Empty portfolio slots do not by themselves authorize a trade.
+
+The active stock product covers both markets:
+
+```text
+STOCK TRADING v2
+├── GPW
+└── US
+```
 
 ## Decision path
 
 1. **Dynamic universe**
-   - US: official Nasdaq Trader symbol directories; thousands of eligible common/ADR equity instruments rather than a fixed hand-maintained list.
-   - GPW: official GPW Main Market company search.
-2. **Stage zero / broad discovery**
-   - Preferred US path: Nasdaq live screener joined to the audited dynamic universe, preserving liquidity, mover and mid-cap lanes.
-   - If the live Nasdaq screener is unavailable, the engine uses an explicitly degraded rotating shard of the audited universe. It makes no live-liquidity claim. Historical discovery downstream must still prove turnover, momentum and volatility.
+   - US: audited dynamic equity universe.
+   - GPW: audited GPW Main Market universe.
+2. **Broad discovery**
+   - Wide candidate discovery with explicit degraded-mode handling when a preferred live source is unavailable.
 3. **Opportunity Frontier**
    - Multi-horizon momentum, trend, turnover, volume impulse, volatility quality and risk-adjusted momentum.
-   - No global selection cutoff. The frontier is continuously refreshed during each market's configured session window.
 4. **Deep Evidence**
-   - US primary evidence: SEC EDGAR filings; secondary evidence: news discovery.
-   - GPW primary evidence: ESPI/EBI/PAP; secondary evidence: independent news.
-   - Primary evidence is not an automatic trade signal. Directional overlays are bounded and provider degradation is explicit.
+   - US: SEC/primary corporate evidence plus secondary news.
+   - GPW: ESPI/EBI/PAP plus secondary news.
 5. **Research risk plan**
-   - Deterministic SL/TP geometry from completed-session price/ATR information.
-   - A research plan is never execution-ready. A future production path must revalidate price, freshness and intraday risk before entry.
+   - Deterministic SL/TP geometry from available completed-session information.
+   - Research output is non-executable until the production bridge revalidates it.
 6. **Portfolio Opportunity Engine**
    - Compares new candidates, current positions and cash.
-   - `BUY`: candidate clears the configured cash edge and a slot is free.
-   - `REPLACE`: book is full and candidate clears both the cash edge and replacement hysteresis over the weakest current position.
-   - Otherwise `HOLD` or `CASH`.
-   - Maximum one research action per market cycle.
-7. **Immutable learning loop**
-   - Selected and rejected candidates are frozen prospectively into the same Experience Store.
-   - Continuous intraday observations are deduplicated by market/symbol/day/selection state to avoid overweighting repeated scans.
-   - Canonical Champion admission is frozen before outcomes are known.
-   - Counterfactual replay settles 1/2/5/10/20/60/120-session outcomes.
+   - Candidate ranking is not a single hard admission cutoff.
+   - Production search continues through ranked candidates until capacity is filled or the eligible frontier is exhausted.
+7. **Production revalidation**
+   - `scripts/stock_trading_v2_production_bridge.py` revalidates opportunity age, live session state, quote freshness and risk geometry.
+   - Only a fresh prospective opportunity may become a canonical portfolio admission.
+8. **Immutable learning loop**
+   - Selected and rejected candidates are frozen prospectively.
+   - Counterfactual replay settles later outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
-   - HOLD/EXIT decisions have a separate immutable position-experience ledger.
-8. **Policy learning and promotion**
-   - Learning may create future-only Challenger policies; it cannot rewrite production automatically.
-   - Promotion requires the separate fixed-N statistical holdout gate.
-   - `production_promotion_enabled=false` remains an intentional safety invariant.
+   - HOLD/EXIT experiences are tracked separately where applicable.
+
+## Production phase
+
+Current configured phase starts at `CANARY`.
+
+The production config currently defines:
+
+- canary maximum: 1 open position per market;
+- full maximum: 3 open positions per market;
+- automatic canary progression is enabled under the configured healthy-session requirements;
+- maximum opportunity age and execution-quote freshness are enforced;
+- minimum reward/risk and maximum risk percentage are enforced;
+- new entries require the regular session.
+
+Runtime truth lives in:
+
+- `data/investments/stock_trading_policy.json`
+- `data/investments/stock_trading_v2_production_config.json`
+- `data/investments/stock_trading_v2_production_state.json`
 
 ## Operational workflows
 
-- `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
-- `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → evidence → portfolio comparison → experience/admission freeze.
-- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, regret, Challenger learning and evaluation.
-- `.github/workflows/stock-trading-v2-validation.yml` — compile/config/unit/integrity/live-smoke validation.
+- `.github/workflows/stock-trading-v2-universe-refresh.yml`
+- `.github/workflows/stock-trading-v2-continuous-discovery.yml`
+- `.github/workflows/stock-trading-v2-learning-loop.yml`
+- `.github/workflows/stock-trading-v2-validation.yml`
+- `.github/workflows/stock-trading-v2-production.yml` — production Champion admission and canonical portfolio persistence.
 
-## Production boundary
+Legacy workflows such as `gpw-daily-pick-pl.yml` and US Daily workflows may still run for historical settlement, research compatibility or migration support. They are not separate active products and cannot override the v2 production authority.
 
-The v2 branch reads the current canonical portfolio and policy from `main` for shadow comparisons, but it does not merge `main`, mutate the production portfolio, or activate a Challenger. The production boundary remains intact until prospective evidence satisfies the explicit promotion gate.
+## Production boundary and anti-hindsight invariant
+
+The v2 opportunity frontier is research input, not a historical fill.
+
+The production bridge must observe the opportunity prospectively and then obtain a fresh execution-time quote. The NO RETROACTIVE airlock validates persistence before any state is committed.
+
+Therefore:
+
+```text
+research/shadow opportunity
+    -> fresh production revalidation
+    -> current LIVE decision
+    -> canonical portfolio persistence
+```
+
+A replay, old candidate or historical research artifact can never be converted into a retroactive LIVE entry.
+
+## Learning / challenger boundary
+
+Stock Trading v2 is now the engine-level production Champion. V1 is the registered Challenger.
+
+Component-level changes inside v2 still follow governed future-only learning:
+
+```text
+Experience
+ -> Regret
+ -> Challenger
+ -> Replay / Holdout
+ -> Shadow
+ -> Statistical/Governance Gate
+ -> Promotion or Reject
+```
+
+No learning step may rewrite closed history, fabricate prior execution or silently weaken hard safety invariants.
