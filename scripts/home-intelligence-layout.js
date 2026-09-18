@@ -9,7 +9,8 @@
     lab:'BriefRooms Lab — modele, testy i wyniki',
     shareTitle:'BriefRooms Ci się przydał? Podaj dalej.',
     shareText:'Krótkie briefy, konkretne źródła i mniej informacyjnego szumu.',
-    engine:'BriefRooms Trading Engine · WEEKLY',
+    engineWeekly:'BriefRooms Trading Engine · WEEKLY',
+    engineStock:'BriefRooms Stock Trading · OPEN',
     thoughtLabel:'Myśl AXIOM-a'
   }:{
     eyebrow:'Latest briefs',
@@ -18,7 +19,8 @@
     lab:'BriefRooms Lab — models, tests and results',
     shareTitle:'Found BriefRooms useful? Share it.',
     shareText:'Concise briefs, concrete sources and less information noise.',
-    engine:'BriefRooms Trading Engine · WEEKLY',
+    engineWeekly:'BriefRooms Trading Engine · WEEKLY',
+    engineStock:'BriefRooms Stock Trading · OPEN',
     thoughtLabel:'AXIOM thought'
   };
 
@@ -122,7 +124,28 @@
     const signal=document.getElementById('home-market-signal');
     const head=document.querySelector('.main-head');
     if(!signal||!head)return;
-    setText(signal.querySelector('.home-market-signal__kicker'),copy.engine);
+
+    const name=String(signal.querySelector('.home-market-signal__name')?.textContent||'').toUpperCase();
+    const kind=String(signal.getAttribute('data-signal-kind')||'').toLowerCase();
+    const href=String(signal.getAttribute('href')||'').toLowerCase();
+
+    const canonicalWeekly=
+      kind==='weekly' ||
+      href.includes('pozycje-tygodniowe') ||
+      href.includes('open-weekly-positions') ||
+      name.includes('EUR/USD') ||
+      name.includes('EURUSD') ||
+      name.includes('S&P 500') ||
+      name.includes('SP500') ||
+      name.includes('BTC/USD') ||
+      name.includes('BTCUSD') ||
+      name.includes('BTC-USD');
+
+    setText(
+      signal.querySelector('.home-market-signal__kicker'),
+      canonicalWeekly?copy.engineWeekly:copy.engineStock
+    );
+
     if(signal.parentNode!==head)head.appendChild(signal);
   }
 
