@@ -146,6 +146,40 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertLess(position['quantity'], 1.0)
         self.assertAlmostEqual(5000.0, position['entry'] * position['quantity'], places=2)
 
+    def test_history_normalization_uses_fixed_5000_and_fractional_quantity(self):
+        row = {
+            'market': 'GPW',
+            'entry': 24040.0,
+            'exit_price': 23264.3494,
+        }
+        metrics = stock.history_normalized_metrics(row)
+        self.assertEqual('FIXED_NOTIONAL_HISTORY_V1', metrics['history_normalization_version'])
+        self.assertEqual('PLN', metrics['history_position_currency'])
+        self.assertEqual(5000.0, metrics['history_target_position_notional'])
+        self.assertLess(metrics['history_normalized_quantity'], 1.0)
+        self.assertAlmostEqual(5000.0, 24040.0 * metrics['history_normalized_quantity'], places=2)
+        self.assertEqual(-161.33, metrics['history_normalized_pnl_amount'])
+
+    def test_legacy_closure_gets_5k_history_normalization_without_fake_execution_quantity(self):
+        legacy = {
+            'position_id': 'us:legacy:MU',
+            'market': 'US',
+            'status': 'OPEN',
+            'entry': 1017.91,
+            'stop': 981.48601074,
+            'target': 1111.0,
+        }
+        closure = stock._closure(
+            legacy,
+            now=self.now,
+            exit_price=981.48601074,
+            reason='stop_loss',
+        )
+        self.assertNotIn('quantity', closure)
+        self.assertEqual('USD', closure['history_position_currency'])
+        self.assertEqual(5000.0, closure['history_target_position_notional'])
+        self.assertEqual(-178.92, closure['history_normalized_pnl_amount'])
+
     def test_fixed_notional_pnl_is_cash_exposure_not_one_share_move(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate('US', 'AAA'), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]
