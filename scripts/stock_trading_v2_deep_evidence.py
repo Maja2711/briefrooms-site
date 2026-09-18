@@ -584,6 +584,70 @@ def research_risk_plan(candidate: Mapping[str, Any], *, market: str, config: Map
     }
 
 
+def build_candidate_evidence(
+    candidate: Mapping[str, Any],
+    raw_evidence: Sequence[Mapping[str, Any]],
+    provider_meta: Mapping[str, Any],
+    *,
+    market: str,
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build one authority-weighted research row without assigning a rank.
+
+    This is the shared unit used by both the broad Deep Evidence arm and the
+    Trigger-directed lazy research arm. It does not fetch data and carries no
+    production authority.
+    """
+    market = str(market).upper()
+    if market not in contracts.SUPPORTED_MARKETS:
+        raise contracts.ContractError("deep evidence candidate market unsupported")
+    evidence = _dedupe_evidence(raw_evidence)
+    status = provider_status(provider_meta)
+    metrics = evidence_metrics(
+        evidence,
+        status=status,
+        config=config,
+        returns=(candidate.get("features") or {}).get("returns") or {},
+    )
+    base_score = float(candidate.get("opportunity_score") or 0.0)
+    data_penalty = (
+        float((config.get("scoring") or {}).get("degraded_provider_penalty_points") or 2.0)
+        if status == "DEGRADED"
+        else 0.0
+    )
+    deep_score = _clamp(base_score + float(metrics["total_overlay_points"]) - data_penalty)
+    if status == "DATA_ERROR":
+        deep_score = max(0.0, base_score - 10.0)
+    return {
+        "symbol": str(candidate.get("symbol") or "").upper(),
+        "market_data_symbol": candidate.get("market_data_symbol"),
+        "name": candidate.get("name"),
+        "frontier_rank": candidate.get("frontier_rank"),
+        "relationship_rank": candidate.get("relationship_rank"),
+        "opportunity_score": round(base_score, 6),
+        "deep_opportunity_score": round(deep_score, 6),
+        "evidence_status": status,
+        "evidence_metrics": metrics,
+        "provider_health": deepcopy(dict(provider_meta)),
+        "evidence": evidence,
+        "liquidity": deepcopy(candidate.get("liquidity") or {}),
+        "freshness": deepcopy(candidate.get("freshness") or {}),
+        "features": {
+            "latest_session": (candidate.get("features") or {}).get("latest_session"),
+            "last_close": (candidate.get("features") or {}).get("last_close"),
+            "returns": deepcopy((candidate.get("features") or {}).get("returns") or {}),
+            "atr_fraction": (candidate.get("features") or {}).get("atr_fraction"),
+            "median_turnover_20d": (candidate.get("features") or {}).get("median_turnover_20d"),
+            "volume_ratio_20d": (candidate.get("features") or {}).get("volume_ratio_20d"),
+        },
+        "research_risk_plan": research_risk_plan(candidate, market=market, config=config),
+        "admission": {
+            "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON",
+            "production_decision_influence": False,
+        },
+    }
+
+
 def build_deep_evidence(
     frontier: Mapping[str, Any],
     evidence_by_symbol: Mapping[str, tuple[Sequence[Mapping[str, Any]], Mapping[str, Any]]],
@@ -600,48 +664,18 @@ def build_deep_evidence(
     rows: list[dict[str, Any]] = []
     for candidate in list(frontier.get("candidates") or [])[:limit]:
         symbol = str(candidate.get("symbol") or "").upper()
-        raw_evidence, provider_meta = evidence_by_symbol.get(symbol, ([], {"primary": {"ok": False}, "secondary": {"ok": False}}))
-        evidence = _dedupe_evidence(raw_evidence)
-        status = provider_status(provider_meta)
-        metrics = evidence_metrics(
-            evidence,
-            status=status,
-            config=config,
-            returns=(candidate.get("features") or {}).get("returns") or {},
+        raw_evidence, provider_meta = evidence_by_symbol.get(
+            symbol,
+            ([], {"primary": {"ok": False}, "secondary": {"ok": False}}),
         )
-        base_score = float(candidate.get("opportunity_score") or 0.0)
-        data_penalty = float((config.get("scoring") or {}).get("degraded_provider_penalty_points") or 2.0) if status == "DEGRADED" else 0.0
-        deep_score = _clamp(base_score + float(metrics["total_overlay_points"]) - data_penalty)
-        if status == "DATA_ERROR":
-            deep_score = max(0.0, base_score - 10.0)
         rows.append(
-            {
-                "symbol": symbol,
-                "market_data_symbol": candidate.get("market_data_symbol"),
-                "name": candidate.get("name"),
-                "frontier_rank": candidate.get("frontier_rank"),
-                "opportunity_score": round(base_score, 6),
-                "deep_opportunity_score": round(deep_score, 6),
-                "evidence_status": status,
-                "evidence_metrics": metrics,
-                "provider_health": deepcopy(dict(provider_meta)),
-                "evidence": evidence,
-                "liquidity": deepcopy(candidate.get("liquidity") or {}),
-                "freshness": deepcopy(candidate.get("freshness") or {}),
-                "features": {
-                    "latest_session": (candidate.get("features") or {}).get("latest_session"),
-                    "last_close": (candidate.get("features") or {}).get("last_close"),
-                    "returns": deepcopy((candidate.get("features") or {}).get("returns") or {}),
-                    "atr_fraction": (candidate.get("features") or {}).get("atr_fraction"),
-                    "median_turnover_20d": (candidate.get("features") or {}).get("median_turnover_20d"),
-                    "volume_ratio_20d": (candidate.get("features") or {}).get("volume_ratio_20d"),
-                },
-                "research_risk_plan": research_risk_plan(candidate, market=market, config=config),
-                "admission": {
-                    "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON",
-                    "production_decision_influence": False,
-                },
-            }
+            build_candidate_evidence(
+                candidate,
+                raw_evidence,
+                provider_meta,
+                market=market,
+                config=config,
+            )
         )
     rows.sort(key=lambda row: (float(row["deep_opportunity_score"]), float(row["opportunity_score"])), reverse=True)
     for rank, row in enumerate(rows, start=1):

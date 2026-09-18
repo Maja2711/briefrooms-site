@@ -16,6 +16,7 @@ on:
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
       - "scripts/briefrooms_market_relationship_trigger.py"
+      - "scripts/briefrooms_trigger_deep_belief.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
       - "scripts/stock_trading_v2_opportunity_engine.py"
       - "scripts/stock_trading_v2_opportunity_experience.py"
@@ -98,6 +99,7 @@ jobs:
           python -m py_compile \
             scripts/stock_trading_v2_discovery.py \
             scripts/briefrooms_market_relationship_trigger.py \
+            scripts/briefrooms_trigger_deep_belief.py \
             scripts/stock_trading_v2_deep_evidence.py \
             scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_opportunity_experience.py \
@@ -141,6 +143,14 @@ jobs:
             --events /tmp/briefrooms-event-intelligence.json \
             --output data/investments/market_relationship_trigger/us.json \
             --history-root data/investments/market_relationship_trigger_history
+          python scripts/briefrooms_trigger_deep_belief.py \
+            --trigger data/investments/market_relationship_trigger/us.json \
+            --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --output data/investments/market_relationship_deep_belief/us.json \
+            --history-root data/investments/market_relationship_deep_belief_history
+          python scripts/briefrooms_trigger_deep_belief.py \
+            --output data/investments/market_relationship_deep_belief/us.json \
+            --verify
           python scripts/stock_trading_v2_deep_evidence.py \
             --market US \
             --frontier data/investments/stock_trading_v2_frontier/us.json \
@@ -211,6 +221,8 @@ jobs:
               assert frontier['governance']['production_decision_influence'] is False
               if market == 'us':
                   from scripts.briefrooms_market_relationship_trigger import load_config as load_trigger_config, validate_snapshot as validate_trigger_snapshot
+                  from scripts.briefrooms_trigger_deep_belief import validate_snapshot as validate_trigger_deep_belief_snapshot
+                  from scripts.stock_trading_v2_deep_evidence import load_config as load_evidence_config
                   trigger_path=Path('data/investments/market_relationship_trigger/us.json')
                   if us_active_this_cycle:
                       assert trigger_path.exists(), 'US Trigger snapshot missing from an active US discovery cycle'
@@ -222,6 +234,19 @@ jobs:
                       assert len(trigger['attention_queue']) <= 6
                       if us_active_this_cycle:
                           assert trigger['source_frontier_sha256'] == frontier['frontier_sha256']
+                  deep_belief_path=Path('data/investments/market_relationship_deep_belief/us.json')
+                  if us_active_this_cycle:
+                      assert deep_belief_path.exists(), 'US Trigger Deep BELIEF shadow snapshot missing from an active US cycle'
+                  if deep_belief_path.exists():
+                      deep_belief=json.loads(deep_belief_path.read_text(encoding='utf-8'))
+                      validate_trigger_deep_belief_snapshot(
+                          deep_belief,
+                          trigger_config=load_trigger_config(),
+                          evidence_config=load_evidence_config(),
+                      )
+                      assert deep_belief['source_frontier_sha256'] == frontier['frontier_sha256']
+                      assert deep_belief['governance']['production_decision_influence'] is False
+                      assert deep_belief['target_count'] <= 2
               if evidence_path.exists():
                   evidence=json.loads(evidence_path.read_text(encoding='utf-8'))
                   validate_deep_evidence(evidence)
@@ -249,6 +274,8 @@ jobs:
             data/investments/stock_trading_v2_admission \
             data/investments/market_relationship_trigger \
             data/investments/market_relationship_trigger_history \
+            data/investments/market_relationship_deep_belief \
+            data/investments/market_relationship_deep_belief_history \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No shadow opportunity changes to commit."
