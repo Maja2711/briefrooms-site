@@ -126,4 +126,4 @@ Obie wersje Stock Trading pokazują:
 - quantity / liczbę akcji,
 - P&L policzony od całej ekspozycji.
 
-Nowe pozycje pokazują około 5 000 PLN lub 5 000 USD entry notional. Legacy pozycje bez historycznie zamrożonej quantity są jawnie oznaczone jako legacy zamiast otrzymać zmyślony nominał.
+Nowe pozycje pokazują około 5 000 PLN lub 5 000 USD entry notional. W historii wszystkie zamknięte transakcje są prezentowane na wspólnej bazie 5K przez jawne pola `history_normalized_*`; derived quantity i P&L są analityczne, a oryginalne execution facts pozostają bez zmian.
