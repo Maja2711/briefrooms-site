@@ -280,6 +280,24 @@ def process_market(
         payload = _candidate_payload(market, selection, opportunity, now_utc)
         canonical, action = portfolio.admit_candidate(canonical, market, payload, now=now_utc.astimezone(portfolio.MARKET_TZ[market]), policy=production_policy)
         action = {**action, "source_engine": "v2", "phase": phase, "deep_rank": candidate.get("deep_rank"), "utility": candidate.get("utility")}
+        if action.get("action") == "open":
+            # The production-state audit is itself scanned by the NO RETROACTIVE
+            # EXECUTION airlock.  Every newly recorded open event therefore needs
+            # explicit execution provenance, not only the canonical position.
+            opened_at = now_utc.astimezone(portfolio.MARKET_TZ[market]).isoformat()
+            position_id = action.get("position_id")
+            for position in portfolio.open_positions(canonical, market):
+                if position.get("position_id") == position_id and position.get("opened_at"):
+                    opened_at = str(position["opened_at"])
+                    break
+            action["opened_at"] = opened_at
+            action["entry_decision_at"] = opened_at
+            action["execution_provenance"] = {
+                "source": "stock_trading_v2_production_bridge",
+                "quote_observed_at": (quote or {}).get("observed_at"),
+                "quote_received_at": (quote or {}).get("received_at"),
+                "recorded_at": now_utc.isoformat().replace("+00:00", "Z"),
+            }
         audits.append(action)
         _tag_opened_position(canonical, market, action, candidate, quote, phase)
         # A rejection here is not terminal.  Keep searching the ranked frontier.
