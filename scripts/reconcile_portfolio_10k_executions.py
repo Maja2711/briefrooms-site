@@ -173,6 +173,10 @@ def close_position(
 
 
 def reconcile(public: dict[str, Any], paper: dict[str, Any], orders: dict[str, Any]) -> dict[str, Any]:
+    public["state_role"] = "BRACE_CONTROLLED_PUBLIC_PORTFOLIO"
+    public["controlled_by"] = "brace-portfolio-engine"
+    public["baseline_benchmark_path"] = "/data/portfolio10k/baseline_portfolio.json"
+    public["baseline_benchmark_immutable"] = True
     executed = [
         order for order in orders.get("orders", [])
         if str(order.get("status")) == "PAPER_EXECUTED"

@@ -12,22 +12,23 @@
   const portfolioUrl = isEn
     ? '/data/investments/portfolio_10k_usd.json'
     : '/data/investments/portfolio_10k.json';
-  const braceUrl = '/data/investments/portfolio_10k_brace.json';
-  const CONTROLLER_VERSION = 'resilient-v9';
-  const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const braceUrl = '/data/portfolio10k/public/brace_engine_public.json';
+  const CONTROLLER_VERSION = 'resilient-v10';
+  const LIVE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+  const CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
   const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
   const COLORS = ['#15964d', '#2768c7', '#7050c8', '#d99a25', '#22a2a8', '#d35d76', '#8291a8', '#bcc4ce'];
   const NAV_ORDER = ['news', 'investing', 'health', 'science', 'geopolitics', 'about'];
 
   const T = isEn ? {
-    active: 'ACTIVE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
+    active: 'ACTIVE', live: 'LIVE', cached: 'CACHED', stale: 'STALE', loading: 'Loading data…', unavailable: 'Data temporarily unavailable',
     portfolio: '10K Portfolio', benchmark: 'Benchmark', rule: 'Rule',
     fallback: 'This section is available. Its detailed data is temporarily being refreshed.',
     braceUnavailable: 'BRACE data is temporarily unavailable. Portfolio data remains active.',
     market: 'Market data', values: 'values in USD', position: 'Position',
     error: 'The investment room recovered its navigation, but current portfolio data could not be loaded.'
   } : {
-    active: 'AKTYWNY', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
+    active: 'AKTYWNY', live: 'LIVE', cached: 'CACHED', stale: 'STALE', loading: 'Ładowanie danych…', unavailable: 'Dane chwilowo niedostępne',
     portfolio: 'Portfel 10K', benchmark: 'Benchmark', rule: 'Zasada',
     fallback: 'Ta sekcja jest dostępna. Jej szczegółowe dane są chwilowo odświeżane.',
     braceUnavailable: 'Dane BRACE są chwilowo niedostępne. Dane portfela pozostają aktywne.',
@@ -120,14 +121,16 @@
   }
 
   function cacheKey(kind) {
-    return `briefrooms:investment-room:${kind}:${lang}:v9`;
+    return `briefrooms:investment-room:${kind}:${lang}:v10`;
   }
 
   function readCache(kind, validator) {
     try {
       const cached = JSON.parse(window.localStorage.getItem(cacheKey(kind)) || 'null');
-      if (!cached || Date.now() - Number(cached.savedAt || 0) > CACHE_MAX_AGE_MS) return null;
-      return validator(cached.payload) ? cached.payload : null;
+      const savedAt = Number(cached?.savedAt || 0);
+      const ageMs = Date.now() - savedAt;
+      if (!cached || !savedAt || ageMs < 0 || ageMs > CACHE_MAX_AGE_MS) return null;
+      return validator(cached.payload) ? { payload: cached.payload, savedAt, ageMs } : null;
     } catch (_) {
       return null;
     }
@@ -147,7 +150,33 @@
   }
 
   function validBrace(payload) {
-    return Boolean(payload?.portfolio && Number.isFinite(Number(payload.portfolio.score)));
+    return Boolean(payload?.controller_status && payload?.generated_at);
+  }
+
+  function payloadAgeMs(payload, field) {
+    const value = payload?.[field];
+    const timestamp = value ? new Date(value).valueOf() : NaN;
+    return Number.isFinite(timestamp) ? Math.max(0, Date.now() - timestamp) : Infinity;
+  }
+
+  function freshnessState(payload, source, field) {
+    const ageMs = payloadAgeMs(payload, field);
+    if (ageMs > LIVE_MAX_AGE_MS) return 'STALE';
+    return source === 'network' ? 'LIVE' : 'CACHED';
+  }
+
+  function braceStatusLabel(status) {
+    const value = String(status || 'BRACE').toUpperCase();
+    return ({
+      PROBATIONARY_CONTROL: 'PROBATIONARY',
+      ACTIVE_PAPER_CONTROL: 'ACTIVE PAPER',
+      ACTIVE_CONTROL: 'ACTIVE',
+      ACTIVE_BASELINE: 'BASELINE',
+      FALLBACK_BASELINE: 'FALLBACK',
+      SAFE_MODE: 'SAFE MODE',
+      DEGRADED: 'DEGRADED',
+      SUSPENDED: 'SUSPENDED'
+    })[value] || value.replaceAll('_', ' ');
   }
 
   async function fetchJson(url, timeoutMs = 8000, cacheBust = false) {
@@ -280,7 +309,8 @@
     setText('#updated-at', portfolio.last_updated_at
       ? new Date(portfolio.last_updated_at).toLocaleString(locale)
       : '—');
-    setText('#data-status', `${T.active} · ${currency}`);
+    const freshness = freshnessState(portfolio, source, 'last_updated_at');
+    setText('#data-status', `${T[freshness.toLowerCase()]} · ${currency}`);
     setText('#data-freshness', `${T.market}: ${portfolio.last_market_session || '—'} · ${T.values}`);
     setText('#broker-note', isEn
       ? (portfolio.broker_note_en || portfolio.broker_note_pl || '')
@@ -290,8 +320,8 @@
     if (returnElement) returnElement.className = result >= 0 ? 'positive' : 'negative';
     const badge = $('.live-badge');
     if (badge) {
-      badge.innerHTML = `<i></i> ${T.active}`;
-      badge.dataset.automationStatus = 'healthy';
+      badge.innerHTML = `<i></i> ${T[freshness.toLowerCase()]}`;
+      badge.dataset.automationStatus = freshness.toLowerCase();
     }
 
     renderAllocation(positions);
@@ -302,27 +332,50 @@
     document.body.dataset.investmentData = 'ready';
     document.body.dataset.investmentCurrency = currency;
     document.body.dataset.investmentDataSource = source;
-    document.body.dataset.investmentNetwork = source === 'network' ? 'healthy' : 'refreshing';
+    document.body.dataset.investmentFreshness = freshness.toLowerCase();
+    document.body.dataset.investmentNetwork = freshness.toLowerCase();
     state.loaded = true;
     state.dataSource = source;
   }
 
-  function renderBrace(brace) {
+  function renderBrace(brace, source = 'network') {
     state.brace = brace;
-    const score = num(brace?.portfolio?.score);
-    const confidence = num(brace?.portfolio?.confidence);
+    const recommendations = Array.isArray(brace?.position_recommendations) ? brace.position_recommendations : [];
+    const summary = brace?.analysis_summary || {};
+    const scores = recommendations.map(item => num(item.final_score, NaN)).filter(Number.isFinite);
+    const confidences = recommendations.map(item => num(item.confidence, NaN)).filter(Number.isFinite);
+    const score = Number.isFinite(Number(summary.portfolio_score))
+      ? Number(summary.portfolio_score)
+      : (scores.length ? scores.reduce((a,b)=>a+b,0) / scores.length : 0);
+    const confidence = Number.isFinite(Number(summary.portfolio_confidence))
+      ? Number(summary.portfolio_confidence) * 100
+      : (confidences.length ? confidences.reduce((a,b)=>a+b,0) / confidences.length * 100 : 0);
+    const decisionCounts = Object.keys(summary.decision_counts || {}).length
+      ? summary.decision_counts
+      : recommendations.reduce((acc,item) => {
+          const key = String(item.action || 'HOLD').toUpperCase();
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+    const freshness = freshnessState(brace, source, 'generated_at');
+    const status = braceStatusLabel(brace?.controller_status);
     setText('#brace-score', score.toFixed(1));
     setText('#side-brace-score', score.toFixed(0));
     setText('#brace-confidence', `${confidence.toFixed(1)}%`);
     const track = $('#brace-track');
     if (track) track.style.width = `${Math.min(score, 100)}%`;
     const counts = $('#brace-counts');
-    if (counts) counts.innerHTML = Object.entries(brace?.portfolio?.decision_counts || {})
+    if (counts) counts.innerHTML = Object.entries(decisionCounts)
       .slice(0, 4).map(([key, value]) => `<span>${escapeHtml(key)}: <b>${escapeHtml(value)}</b></span>`).join('');
+    $('[data-brace-status]').forEach(element => {
+      element.textContent = `${status} · ${freshness}`;
+      element.dataset.braceFreshness = freshness.toLowerCase();
+    });
     const impact = isEn
-      ? `BRACE analysed ${brace?.portfolio?.positions_reviewed || 0} positions. Market regime: ${brace?.market_context?.regime || '—'}.`
-      : `BRACE przeanalizował ${brace?.portfolio?.positions_reviewed || 0} pozycji. Reżim rynku: ${brace?.market_context?.regime || '—'}.`;
+      ? `BRACE controls the paper portfolio in ${status} mode and currently assesses ${Number(summary.positions_reviewed ?? recommendations.length)} active positions.`
+      : `BRACE steruje portfelem paper w trybie ${status} i obecnie ocenia ${Number(summary.positions_reviewed ?? recommendations.length)} aktywnych pozycji.`;
     setText('#brace-impact', impact);
+    document.body.dataset.investmentBrace = freshness.toLowerCase();
   }
 
   function ensurePanelsAreUsable() {
@@ -380,7 +433,7 @@
   function loadPortfolio() {
     if (state.portfolioPromise) return state.portfolioPromise;
     const cached = !state.loaded ? readCache('portfolio', validPortfolio) : null;
-    if (cached) renderPortfolio(cached, 'cache');
+    if (cached) renderPortfolio(cached.payload, 'cache');
     state.portfolioPromise = (async () => {
       try {
         const portfolio = await fetchJsonResilient(portfolioUrl, validPortfolio);
@@ -402,18 +455,19 @@
   function loadBrace() {
     if (state.bracePromise) return state.bracePromise;
     const cached = !state.brace ? readCache('brace', validBrace) : null;
-    if (cached) renderBrace(cached);
+    if (cached) renderBrace(cached.payload, 'cache');
     state.bracePromise = (async () => {
       try {
         const brace = await fetchJsonResilient(braceUrl, validBrace);
-        renderBrace(brace);
+        renderBrace(brace, 'network');
         writeCache('brace', brace);
         clearBraceRetry();
-        document.body.dataset.investmentBrace = 'ready';
         return true;
       } catch (_) {
         if (!state.brace) setText('#brace-impact', T.braceUnavailable);
-        document.body.dataset.investmentBrace = state.brace ? 'cached' : 'error';
+        document.body.dataset.investmentBrace = state.brace
+          ? freshnessState(state.brace, 'cache', 'generated_at').toLowerCase()
+          : 'error';
         scheduleBraceRetry();
         return Boolean(state.brace);
       } finally {

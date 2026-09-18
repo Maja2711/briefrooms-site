@@ -15,6 +15,7 @@ from brace_portfolio_candidates import rank_candidates
 from brace_portfolio_config import EngineConfig, load_config
 from brace_portfolio_data import (
     BASELINE_PORTFOLIO_PATH,
+    CONTROLLED_PORTFOLIO_PATH,
     ENGINE_DATA_ROOT,
     YFinanceProvider,
     assert_baseline_unchanged,
@@ -484,17 +485,18 @@ def run_cycle(
     config, _ = load_config()
     baseline_before = read_json(BASELINE_PORTFOLIO_PATH)
     baseline_copy = copy.deepcopy(baseline_before)
+    controlled_portfolio = read_json(CONTROLLED_PORTFOLIO_PATH)
     registry = read_json(REGISTRY_PATH)
     paper_portfolio = read_json(PAPER_PATH)
     analysis_portfolio = (
         baseline_before
         if mode == "research"
-        else live_analysis_portfolio(registry, baseline_before, paper_portfolio)
+        else live_analysis_portfolio(registry, controlled_portfolio, paper_portfolio)
     )
     universe = read_json(UNIVERSE_PATH)
     previous_analysis = read_json(ANALYSIS_PATH)
     freshness = data_freshness_report(
-        baseline_before,
+        controlled_portfolio or analysis_portfolio,
         config,
         now,
         "monitor" if mode == "monitor" else "analysis",

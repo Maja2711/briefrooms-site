@@ -80,7 +80,10 @@
     const positionRecommendations=(data.position_recommendations||[]).filter(item=>!activeIds.size||activeIds.has(String(item.instrument||item.instrument_id||'').toLowerCase()));
     const lastLearning=loop.last_review_at||data.last_research_run||data.last_incremental_learning;
     const nextLearning=loop.next_scheduled_review_at||weeklyLearningSchedule().toISOString();
-    document.getElementById('brace-control-updated').textContent=dateTime(data.generated_at);
+    const generatedMs=new Date(data.generated_at||0).valueOf();
+    const ageMs=Number.isFinite(generatedMs)?Math.max(0,Date.now()-generatedMs):Infinity;
+    const sourceState=ageMs<=2*60*60*1000?'LIVE':'STALE';
+    document.getElementById('brace-control-updated').textContent=`${sourceState} · ${dateTime(data.generated_at)}`;
     root.innerHTML=`<div class="control-status ${tone(data.controller_status)}"><span>${esc(T.status)}</span><strong>${esc(data.display_status||data.controller_status)}</strong><small>${esc(T.paperOnly)}</small></div>
       ${summary?`<p class="control-summary">${esc(summary)}</p>`:''}
       <div class="control-metrics">${metric(T.champion,`${data.champion?.methodology_id||'—'} ${data.champion?.version||''}`,data.champion?.status||'')}${metric(T.challenger,`${data.challenger?.methodology_id||'—'} ${data.challenger?.version||''}`,data.challenger?.status||'')}${metric(T.risk,risk.safe_mode?T.safe:T.monitored,risk.status||'')}${metric(T.target,targetLabel(target.status),`P: ${pct(target.probability_of_reaching_target)}`)}</div>

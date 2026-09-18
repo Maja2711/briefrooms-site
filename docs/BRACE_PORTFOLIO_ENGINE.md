@@ -2,13 +2,13 @@
 
 ## Production state
 
-The first deployment state is deliberately:
+The current paper-control state is `PROBATIONARY_CONTROL`. BRACE controls a
+separate model portfolio only; it has no real-broker credentials or order path.
 
-`ACTIVE_BASELINE + BRACE_SHADOW`
-
-The existing Portfolio 10K methodology remains the champion, benchmark and
-automatic fallback. Its entry prices, closed history, staged entries and prior
-decisions are immutable. BRACE has no real-broker credentials or order path.
+The original pre-control Portfolio 10K state is preserved separately as an
+immutable benchmark. It is not the same file as the BRACE-controlled public
+portfolio and cannot be changed by execution reconciliation or market-data
+refreshes.
 
 ## Control lifecycle
 
@@ -56,7 +56,10 @@ diagnostics after failure.
 
 ## Data map
 
-- `data/investments/portfolio_10k.json`: preserved production baseline.
+- `data/portfolio10k/baseline_portfolio.json`: immutable Portfolio 10K
+  benchmark captured immediately before BRACE paper-control authorization.
+- `data/investments/portfolio_10k.json`: BRACE-controlled public portfolio
+  state reconciled from the paper execution ledger and refreshed market data.
 - `data/portfolio10k/config.json`: immutable risk and autonomy policy.
 - `data/portfolio10k/universe.json`: approved cash-stock and UCITS ETF universe.
 - `data/portfolio10k/methodology_registry.json`: champion, challenger, baseline
@@ -69,7 +72,22 @@ diagnostics after failure.
 - `data/portfolio10k/promotion_history.json`: append-only production status
   changes.
 - `data/portfolio10k/paper_portfolio.json`: created only for model control.
-- `data/portfolio10k/public/brace_engine_public.json`: sanitized website state.
+- `data/portfolio10k/public/brace_engine_public.json`: the single canonical
+  current BRACE frontend source. The legacy
+  `data/investments/portfolio_10k_brace.json` may remain as a historical
+  research artifact but is not read by the current dashboard.
+
+## Frontend freshness contract
+
+The Portfolio 10K dashboard exposes data provenance explicitly:
+
+- `LIVE`: a network payload whose own timestamp is no more than 2 hours old;
+- `CACHED`: a local fallback whose payload is still within the 2-hour freshness window;
+- `STALE`: data older than 2 hours but no older than the 6-hour hard cache limit.
+
+Cached portfolio or BRACE data older than 6 hours is rejected rather than
+presented as current. The BRACE control panel fetches the canonical public
+snapshot with `cache: no-store`.
 
 The large raw market cache stays outside version control. Reproducibility is
 provided by the research manifest, parameter version, data hash and code hash.

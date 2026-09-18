@@ -217,6 +217,11 @@ def build(now: datetime | None = None) -> dict:
         ),
         "generated_at": now_iso,
         "source_portfolio_id": source.get("portfolio_id"),
+        "state_role": "BRACE_CONTROLLED_PUBLIC_PORTFOLIO_USD_VIEW",
+        "controlled_by": source.get("controlled_by") or "brace-portfolio-engine",
+        "baseline_benchmark_path": source.get("baseline_benchmark_path")
+        or "/data/portfolio10k/baseline_portfolio.json",
+        "baseline_benchmark_immutable": True,
         # Compatibility aliases used by shared renderers. In this USD dataset
         # the numeric values are denominated in USD despite the historic key names.
         "starting_capital_pln": STARTING_CAPITAL_USD,
