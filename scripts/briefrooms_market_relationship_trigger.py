@@ -588,6 +588,7 @@ def allocate_attention(
             "attention_source": "trigger",
             "attention_score": row.get("attention_score"),
             "attention_tier": row.get("attention_tier"),
+            "attention_source": source,
             "trigger_type": row.get("trigger_type"),
             "deep_belief_eligible": row.get("deep_belief_eligible"),
             "frontier_rank": row.get("frontier_rank"),
@@ -768,15 +769,21 @@ def freeze_observations(
         for row in snapshot.get("candidates") or []
         if isinstance(row, Mapping)
     }
-    queue_symbols = {
-        str(row.get("symbol") or "")
+    queue_sources = {
+        str(row.get("symbol") or ""): str(row.get("attention_source") or "")
         for row in snapshot.get("attention_queue") or []
-        if isinstance(row, Mapping) and row.get("attention_source") == "trigger"
+        if isinstance(row, Mapping) and str(row.get("symbol") or "")
     }
+    freeze_exploration = history_cfg.get("freeze_exploration_controls") is True
     written = existing = 0
-    for symbol in sorted(queue_symbols):
+    for symbol in sorted(queue_sources):
         row = candidates.get(symbol)
-        if not isinstance(row, Mapping) or float(row.get("attention_score") or 0.0) < minimum:
+        source = queue_sources[symbol]
+        if not isinstance(row, Mapping):
+            continue
+        if source == "trigger" and float(row.get("attention_score") or 0.0) < minimum:
+            continue
+        if source == "exploration" and not freeze_exploration:
             continue
         observation_id = _observation_id(snapshot, row)
         payload = {
