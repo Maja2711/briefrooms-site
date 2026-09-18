@@ -625,6 +625,11 @@ def allocate_attention(
         })
         selected.add(symbol)
 
+    trigger_symbols = {
+        str(row.get("symbol") or "")
+        for row in queue
+        if row.get("attention_source") == "trigger"
+    }
     deep_queue = [
         {
             "symbol": row.get("symbol"),
@@ -635,6 +640,7 @@ def allocate_attention(
         }
         for row in ordered
         if row.get("deep_belief_eligible") is True
+        and str(row.get("symbol") or "") in trigger_symbols
     ][:deep_slots]
     return queue, deep_queue
 
@@ -671,7 +677,7 @@ def build_snapshot(
 
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "version": "market-relationship-trigger-v1.0.0",
+        "version": "market-relationship-trigger-v1.1.0",
         "market": market,
         "generated_at": _iso(generated),
         "mode": "shadow_attention_allocator",
@@ -740,6 +746,15 @@ def validate_snapshot(payload: Mapping[str, Any], config: Mapping[str, Any]) -> 
     deep = payload.get("deep_belief_queue") or []
     if len(deep) > int(market_cfg.get("maximum_deep_belief_slots") or 2):
         raise contracts.ContractError("relationship trigger exceeded deep belief budget")
+    trigger_attention_symbols = {
+        str((row or {}).get("symbol") or "")
+        for row in queue
+        if (row or {}).get("attention_source") == "trigger"
+    }
+    for row in deep:
+        symbol = str((row or {}).get("symbol") or "")
+        if symbol not in trigger_attention_symbols:
+            raise contracts.ContractError("deep belief target escaped trigger attention budget")
 
     body = dict(payload)
     stored = str(body.pop("snapshot_sha256", ""))
