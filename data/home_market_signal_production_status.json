@@ -1,14 +1,18 @@
 {
-  "schema_version": "home-market-signal-production-v1",
-  "verified_at": "2026-08-19T19:58:44+00:00",
+  "schema_version": "home-market-signal-production-v2",
+  "verified_at": "2026-09-18T18:45:21+00:00",
   "status": "passed",
-  "asset_version": 3,
+  "asset_version": 4,
   "priority": [
-    "open_weekly",
-    "locale_daily",
-    "other_market_daily"
+    "open_canonical_weekly",
+    "open_stock_trading_portfolio"
   ],
-  "resolved_daily_hidden": true,
+  "weekly_allowlist": [
+    "eurusd",
+    "sp500_futures",
+    "btcusd"
+  ],
+  "legacy_daily_feeds_excluded": true,
   "checks": {
     "pl": {
       "page": true
@@ -18,21 +22,13 @@
     },
     "client": {
       "served": true,
-      "version": 3
+      "version": 4
     },
-    "gpw": {
+    "stock_trading_portfolio": {
       "feed": true,
-      "decision": "TRANSAKCJA",
-      "date": "2026-08-19",
-      "outcome_status": "RESOLVED",
-      "ticker": "PKO"
-    },
-    "us": {
-      "feed": true,
-      "decision": "TRADE",
-      "date": "2026-08-19",
-      "outcome_status": "PENDING",
-      "ticker": "MRK"
+      "updated_at": "2026-09-18T18:23:19+00:00",
+      "gpw_open": 0,
+      "us_open": 3
     }
   }
 }
