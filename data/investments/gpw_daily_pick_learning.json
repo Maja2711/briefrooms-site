@@ -1,17 +1,17 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-09-17T23:26:00+02:00",
-  "resolved_trades": 12,
+  "updated_at": "2026-09-18T14:01:01+02:00",
+  "resolved_trades": 14,
   "adaptation_active": true,
   "minimum_sample": 8,
   "method": "bayesian_shrinkage_historical_overlay_v1",
   "automatic_weight_changes": false,
-  "global_average_r": -0.159,
-  "recent_average_r": -0.159,
+  "global_average_r": 0.078,
+  "recent_average_r": 0.078,
   "recent_window": 20,
-  "win_rate": 0.3333,
-  "stop_rate": 0.5833,
-  "target_rate": 0.25,
+  "win_rate": 0.4286,
+  "stop_rate": 0.5,
+  "target_rate": 0.3571,
   "sector_expectancy": [
     {
       "sector": "banki",
@@ -33,9 +33,9 @@
     },
     {
       "sector": "handel",
-      "sample": 4,
-      "average_r": -0.104,
-      "shrunk_r": -0.03
+      "sample": 6,
+      "average_r": 0.431,
+      "shrunk_r": 0.162
     },
     {
       "sector": "surowce",
@@ -45,41 +45,18 @@
     }
   ],
   "last_lesson": {
-    "date": "2026-09-14",
+    "date": "2026-09-17",
     "symbol": "LPP",
     "sector": "handel",
-    "return_percent": -0.93,
-    "r_multiple": -0.208,
-    "exit_reason": "koniec_horyzontu",
-    "lesson": "LPP: horyzont zakończył się słabo (-0.21R). Wynik obniża ocenę podobnych układów dopiero w ramach zbiorczej próby."
+    "return_percent": 3.985,
+    "r_multiple": 1.5,
+    "exit_reason": "target",
+    "lesson": "LPP: cel został osiągnięty (1.50R). Wynik jest dodatnim dowodem, ale pojedynczy sukces nie zwiększa wag strategii."
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  },
-  "event_expectancy": [
-    {
-      "event_type": "earnings",
-      "label": "wyniki / raport okresowy",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.792,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    },
-    {
-      "event_type": "regulatory",
-      "label": "regulacja / spór prawny",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.799,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    }
-  ],
-  "event_learning_method": "event_family_bayesian_shrinkage_v1"
+  }
 }
