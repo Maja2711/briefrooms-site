@@ -126,4 +126,4 @@ Both Stock Trading language versions display:
 - quantity / shares,
 - P&L calculated from the full exposure.
 
-New positions show approximately PLN 5,000 or USD 5,000 entry notional. Legacy positions without historically frozen quantity are explicitly labelled as legacy instead of receiving an invented notional.
+New positions show approximately PLN 5,000 or USD 5,000 entry notional. In history, all closed trades are presented on the same 5K basis through explicit `history_normalized_*` fields; derived quantity and P&L are analytical while original execution facts remain unchanged.
