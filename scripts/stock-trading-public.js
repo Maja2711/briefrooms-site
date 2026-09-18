@@ -23,6 +23,7 @@
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
     entry: 'Cena wejścia', last: 'Ostatni kurs', closedMarket: 'rynek zamknięty',
     sl: 'SL', tp: 'TP', entered: 'Wejście', pnl: 'P&L (od wejścia)',
+    positionValue: 'Wartość pozycji', shares: 'Liczba akcji', legacySizing: 'Nominał legacy: nieokreślony',
     summary: 'Podsumowanie wyników', summaryLead: 'Twoje wyniki w liczbach. Konsekwencja buduje przewagę.',
     totalReturn: 'Łączny zwrot', winRate: 'Win rate', avgRR: 'Średnie R:R', avgHold: 'Średni czas trzymania',
     noClosed: 'Brak zamkniętych transakcji',
@@ -55,6 +56,7 @@
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
     entry: 'Entry price', last: 'Last price', closedMarket: 'market closed',
     sl: 'SL', tp: 'TP', entered: 'Entry', pnl: 'P&L (since entry)',
+    positionValue: 'Position value', shares: 'Shares', legacySizing: 'Legacy notional: undefined',
     summary: 'Performance summary', summaryLead: 'Your results in numbers. Consistency builds an edge.',
     totalReturn: 'Total return', winRate: 'Win rate', avgRR: 'Average R:R', avgHold: 'Average holding time',
     noClosed: 'No closed trades',
@@ -223,8 +225,10 @@
     const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
     const stop = firstNumber(position, ['stop','sl','stop_loss']);
     const target = firstNumber(position, ['target','tp','take_profit']);
+    const quantity = firstNumber(position, ['quantity']);
+    const notional = firstNumber(position, ['entry_notional','target_position_notional']);
     const p = entry !== null && mark !== null && entry !== 0 ? ((mark - entry) / entry) * 100 : null;
-    const abs = entry !== null && mark !== null ? mark - entry : null;
+    const abs = entry !== null && mark !== null && quantity !== null ? (mark - entry) * quantity : null;
     const clock = marketClock(market);
     const ticker = String(position.ticker || position.symbol || '—').toUpperCase();
     const name = position.name || ticker;
@@ -252,6 +256,8 @@
               <span>${esc(T.entered)}: <b>${dateTime(position.opened_at, market, true)}</b></span>
               <span class="str-meta-pill">${esc(T.sector)}: ${esc(sector)}</span>
               <span class="str-meta-pill">${esc(T.marketChip)}: ${market === 'GPW' ? 'GPW' : 'USA'}</span>
+              ${notional !== null ? `<span class="str-meta-pill"><b>${esc(T.positionValue)}: ${money(notional, market)}</b></span>` : `<span class="str-meta-pill">${esc(T.legacySizing)}</span>`}
+              ${quantity !== null ? `<span class="str-meta-pill">${esc(T.shares)}: ${quantity.toLocaleString(locale,{maximumFractionDigits:8})}</span>` : ''}
               ${score !== null ? `<span class="str-meta-pill">${esc(T.score)}: ${score.toLocaleString(locale,{maximumFractionDigits:2})}</span>` : ''}
             </div>
             <div class="str-pnl ${p === null || p === 0 ? 'is-neutral' : p > 0 ? 'is-positive' : 'is-negative'}">
@@ -309,8 +315,9 @@
     if (explicit !== null) return explicit;
     const entry = firstNumber(p, ['entry','entry_price','open_price']);
     const exit = firstNumber(p, ['exit','exit_price','close_price','closed_mark','last_mark']);
-    if (entry === null || exit === null) return null;
-    return exit-entry;
+    const quantity = firstNumber(p, ['quantity']);
+    if (entry === null || exit === null || quantity === null) return null;
+    return (exit-entry) * quantity;
   }
 
   function allClosed() {
