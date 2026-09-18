@@ -269,3 +269,50 @@
     grid-template-columns:minmax(0,1fr)!important;
   }
 }
+
+
+/* Stock Trading hero: keep all three Trading Room destinations in one horizontal row. */
+@media(min-width:1251px){
+  .stock-room-hero{
+    grid-template-columns:minmax(0,1.4fr) minmax(210px,.52fr) minmax(360px,.78fr)!important;
+  }
+}
+.stock-room-hero-switcher{
+  width:100%!important;
+  display:flex!important;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:10px!important;
+}
+.stock-room-hero-switcher a{
+  display:inline-flex!important;
+  flex:1 1 0!important;
+  min-width:0!important;
+  min-height:42px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:9px 10px!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+}
+@media(max-width:1250px){
+  .stock-room-hero-switcher{
+    grid-column:1 / -1!important;
+    justify-content:center!important;
+    max-width:560px!important;
+    margin:0 auto!important;
+  }
+}
+@media(max-width:620px){
+  .stock-room-hero-switcher{
+    gap:6px!important;
+    max-width:none!important;
+  }
+  .stock-room-hero-switcher a{
+    min-height:40px!important;
+    padding:8px 6px!important;
+    font-size:9px!important;
+  }
+}

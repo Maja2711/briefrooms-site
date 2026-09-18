@@ -68,6 +68,26 @@ def run() -> int:
                         page.wait_for_selector(".str-overview-position", timeout=15000)
                         page.wait_for_timeout(600)
 
+                        nav_rects = page.locator(".stock-room-hero-switcher a").evaluate_all(
+                            "els => els.map(el => { const r=el.getBoundingClientRect(); return {left:r.left, top:r.top, right:r.right, width:r.width, height:r.height}; })"
+                        )
+                        if len(nav_rects) != 3:
+                            failures.append(f"{label}: expected 3 Trading Room hero buttons, got {len(nav_rects)}")
+                        elif max(abs(item["top"] - nav_rects[0]["top"]) for item in nav_rects) > 2:
+                            failures.append(f"{label}: Trading Room hero buttons are not in one horizontal row")
+                        elif any(item["width"] < 86 for item in nav_rects):
+                            failures.append(f"{label}: Trading Room hero button too narrow")
+
+                        expected_motto = (
+                            "Przewaga nie bierze się z aktywności. Bierze się z selekcji."
+                            if language == "pl"
+                            else "The edge is not activity. The edge is selection."
+                        )
+                        motto = " ".join(page.locator(".stock-room-quote p").inner_text().split())
+                        normalized_motto = motto.strip('„”“”"')
+                        if normalized_motto != expected_motto:
+                            failures.append(f"{label}: unexpected hero motto: {motto}")
+
                         overview_total = page.locator(".str-overview-position").count()
                         overview_visible = visible_count(page, ".str-overview-position")
                         us_overview = page.locator('.str-overview-position[data-summary-market="US"]').count()
@@ -135,6 +155,8 @@ def run() -> int:
                         page.screenshot(path=str(detail_shot), full_page=True)
                         rows.append({
                             "case": label,
+                            "hero_nav_rects": nav_rects,
+                            "motto": motto,
                             "overview_total": overview_total,
                             "overview_visible": overview_visible,
                             "us_overview_positions": us_overview,
