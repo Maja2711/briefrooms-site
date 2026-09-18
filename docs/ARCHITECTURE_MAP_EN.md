@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.0  
-**Snapshot date:** 2026-09-17  
-**Base `main` commit:** `7c8b49afc72081a2c86fb743b26b6215f130b0da`  
+**Map version:** 1.1  
+**Snapshot date:** 2026-09-18  
+**Base `main` commit:** `e4194467fb80dbc085dcb0c4bd30bdaee5eee18b`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -56,8 +56,8 @@ READ-ONLY BRIDGES / CONSUMERS       VERIFICATION
         |                            + calibration
         v                                |
 DECISION / RESEARCH ENGINES              |
-GPW / US / EURUSD / WES /                 |
-Stock Trading v2 / Portfolio10K / BRACE   |
+Stock Trading v2 / EURUSD / WES /         |
+Portfolio10K / BRACE                      |
         |                                 |
         v                                 |
 CANONICAL DECISION ENVELOPE               |
@@ -88,7 +88,7 @@ Statistical Gates / Shadow / Promotion / Rollback
 |---|---|---|---|---|
 | `CF-01` | Instrument Registry | Stable instrument identity and symbol routing | `scripts/instrument_registry.py`, `docs/CANONICAL_INSTRUMENT_REGISTRY.md` | Authority for governed static instruments; dynamic equities use deterministic scoped IDs during migration |
 | `CF-02` | Canonical MarketSnapshot | Immutable point-in-time market fact, provenance, timestamp lineage and DataQuality | `scripts/canonical_market_snapshot.py`, `scripts/market_snapshot_adapters.py`, `docs/CANONICAL_MARKET_SNAPSHOT.md` | Does not rank or decide; fails closed on invalid data quality |
-| `CF-03` | Daily Engine Contract | Shared presentation/normalization contract for Daily engines | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Anti-corruption layer; does not change native GPW/US decisions |
+| `CF-03` | Daily Engine Contract (legacy compatibility) | Historical normalization contract for former GPW/US Daily paths and Daily EUR/USD | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Compatibility/migration only for stocks; active stock product authority is `TR-04` Stock Trading v2 |
 | `CF-04` | Canonical Epistemic State | Canonical epistemic-state snapshot for consumers | `scripts/canonical_epistemic_state.py`, `scripts/canonical_epistemic_state_builder.py`, canonical epistemic-state docs | Information layer, not execution authority |
 | `CF-05` | DecisionEnvelope | Binds a decision to engine/version/time/snapshot/risk/lineage | `scripts/decision_envelope.py`, `scripts/decision_envelope_adapters.py`, `docs/CANONICAL_DECISION_ENVELOPE.md` | Standardizes the decision record; does not originate a decision |
 | `CF-06` | RiskPolicy Contract | Shared assessment shape while preserving independent per-engine limits | `scripts/risk_policy_contract.py` plus GPW/US/etc. policies | There is no one global BriefRooms risk threshold |
@@ -123,7 +123,7 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `AD-10` | Data Quality Adapter | `scripts/belief_data_quality_adapter.py` | Explicit quality/missingness; absent data is not a neutral signal |
 | `AD-11` | Daily Engine Adapters | `scripts/daily_engine_adapters.py` | Normalizes existing GPW/US outputs to `daily-engine-output-v1` |
 | `AD-12` | Market/Decision canonical adapters | `scripts/market_snapshot_adapters.py`, `scripts/decision_envelope_adapters.py` | Converts native payloads to canonical contracts without changing decisions |
-| `AD-13` | GPW / US domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Market-specific integration, persistence guards and lifecycle integration |
+| `AD-13` | Legacy GPW / US Daily domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Historical contracts, lineage, settlement and compatibility; no production stock authority after v2 promotion |
 
 ### Hard adapter rules
 
