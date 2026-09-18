@@ -292,11 +292,60 @@ def iter_outcomes(root: Path = OUTCOME_ROOT) -> Iterable[dict[str, Any]]:
 
 
 def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    settled = [
+        row for row in outcomes
+        if (row.get("replay") or {}).get("status") == "SETTLED"
+    ]
+
+    controls_by_horizon: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
+    for row in settled:
+        if str(row.get("attention_source") or "") == "exploration":
+            controls_by_horizon[int(row.get("horizon_sessions") or 0)].append(row)
+
+    def aggregate(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        returns = [
+            float((row.get("replay") or {}).get("directional_return") or 0.0)
+            for row in rows
+        ]
+        continuation = [
+            bool((row.get("replay") or {}).get("continuation"))
+            for row in rows
+        ]
+        symbols = {str(row.get("symbol") or "") for row in rows if str(row.get("symbol") or "")}
+        return {
+            "observations": len(rows),
+            "unique_symbols": len(symbols),
+            "mean_directional_return": round(statistics.mean(returns), 8) if returns else None,
+            "median_directional_return": round(statistics.median(returns), 8) if returns else None,
+            "continuation_rate": round(sum(continuation) / len(continuation), 8) if continuation else None,
+        }
+
+    control_stats = {
+        horizon: aggregate(rows)
+        for horizon, rows in controls_by_horizon.items()
+    }
+    attention_benchmarks: list[dict[str, Any]] = []
+    for horizon in HORIZONS:
+        stats = dict(control_stats.get(horizon) or {
+            "observations": 0,
+            "unique_symbols": 0,
+            "mean_directional_return": None,
+            "median_directional_return": None,
+            "continuation_rate": None,
+        })
+        stats.update({
+            "horizon_sessions": horizon,
+            "benchmark": "EXPLORATION_CONTROL",
+            "control_design": "NON_RANDOMIZED_ATTENTION_CONTROL",
+            "ready_for_incremental_alpha_test": (
+                int(stats["observations"]) >= 20
+                and int(stats["unique_symbols"]) >= 6
+            ),
+        })
+        attention_benchmarks.append(stats)
+
     groups: dict[tuple[int, str, str, str, str], list[Mapping[str, Any]]] = defaultdict(list)
-    for row in outcomes:
-        replay = row.get("replay") or {}
-        if replay.get("status") != "SETTLED":
-            continue
+    for row in settled:
         key = (
             int(row.get("horizon_sessions") or 0),
             str(row.get("attention_source") or "unknown"),
@@ -308,51 +357,86 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
 
     group_rows: list[dict[str, Any]] = []
     for (horizon, attention_source, trigger_type, relation, event_kind), rows in sorted(groups.items()):
-        returns = [
-            float((row.get("replay") or {}).get("directional_return") or 0.0)
-            for row in rows
-        ]
-        continuation = [
-            bool((row.get("replay") or {}).get("continuation"))
-            for row in rows
-        ]
-        symbols = {str(row.get("symbol") or "") for row in rows}
+        stats = aggregate(rows)
+        mean_return = stats["mean_directional_return"]
+        continuation_rate = stats["continuation_rate"]
         lead_lag = [row for row in rows if row.get("lead_lag_watch") is True]
+        control = control_stats.get(horizon)
+        control_ready = bool(
+            control
+            and int(control["observations"]) >= 20
+            and int(control["unique_symbols"]) >= 6
+        )
+        mean_excess = (
+            round(float(mean_return) - float(control["mean_directional_return"]), 8)
+            if control_ready
+            and mean_return is not None
+            and control.get("mean_directional_return") is not None
+            else None
+        )
+        continuation_lift = (
+            round(float(continuation_rate) - float(control["continuation_rate"]), 8)
+            if control_ready
+            and continuation_rate is not None
+            and control.get("continuation_rate") is not None
+            else None
+        )
+        trigger_evidence_ready = (
+            attention_source == "trigger"
+            and int(stats["observations"]) >= 30
+            and int(stats["unique_symbols"]) >= 8
+            and mean_return is not None
+            and float(mean_return) > 0.0
+            and continuation_rate is not None
+            and float(continuation_rate) >= 0.58
+        )
+        if attention_source == "exploration":
+            promotion_state = "CONTROL_ARM_ONLY"
+        elif trigger_evidence_ready and not control_ready:
+            promotion_state = "WAITING_FOR_EXPLORATION_CONTROL"
+        elif (
+            trigger_evidence_ready
+            and control_ready
+            and mean_excess is not None
+            and mean_excess > 0.0
+            and continuation_lift is not None
+            and continuation_lift > 0.0
+        ):
+            promotion_state = "ELIGIBLE_FOR_WEIGHT_CHALLENGER"
+        elif trigger_evidence_ready and control_ready:
+            promotion_state = "TRIGGER_NOT_BEATING_EXPLORATION_CONTROL"
+        else:
+            promotion_state = "COLLECT_MORE_PROSPECTIVE_EVIDENCE"
+
         group_rows.append({
             "horizon_sessions": horizon,
             "attention_source": attention_source,
             "trigger_type": trigger_type,
             "event_relation": relation,
             "event_kind": event_kind,
-            "observations": len(rows),
-            "unique_symbols": len(symbols),
-            "mean_directional_return": round(statistics.mean(returns), 8) if returns else None,
-            "median_directional_return": round(statistics.median(returns), 8) if returns else None,
-            "continuation_rate": round(sum(continuation) / len(continuation), 8) if continuation else None,
+            **stats,
             "lead_lag_observations": len(lead_lag),
-            "promotion_state": (
-                "ELIGIBLE_FOR_WEIGHT_CHALLENGER"
-                if attention_source == "trigger"
-                and len(rows) >= 30
-                and len(symbols) >= 8
-                and statistics.mean(returns) > 0
-                and sum(continuation) / len(continuation) >= 0.58
-                else "CONTROL_ARM_ONLY"
-                if attention_source == "exploration"
-                else "COLLECT_MORE_PROSPECTIVE_EVIDENCE"
+            "exploration_control_ready": control_ready,
+            "exploration_control_observations": int((control or {}).get("observations") or 0),
+            "exploration_control_unique_symbols": int((control or {}).get("unique_symbols") or 0),
+            "exploration_control_mean_directional_return": (
+                (control or {}).get("mean_directional_return")
             ),
+            "exploration_control_continuation_rate": (
+                (control or {}).get("continuation_rate")
+            ),
+            "mean_excess_vs_exploration": mean_excess,
+            "continuation_lift_vs_exploration": continuation_lift,
+            "promotion_state": promotion_state,
         })
 
-    settled = [
-        row for row in outcomes
-        if (row.get("replay") or {}).get("status") == "SETTLED"
-    ]
     payload: dict[str, Any] = {
         "schema_version": REPORT_SCHEMA,
         "generated_at": _iso_now(),
         "mode": "shadow_prospective_relationship_learning",
         "settled_outcomes": len(settled),
         "outcome_records": len(outcomes),
+        "attention_benchmarks": attention_benchmarks,
         "groups": group_rows,
         "promotion_policy": {
             "automatic_promotion": False,
@@ -361,19 +445,23 @@ def build_learning_report(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, An
             "minimum_unique_symbols": 8,
             "minimum_continuation_rate": 0.58,
             "positive_mean_directional_return_required": True,
+            "minimum_exploration_control_observations": 20,
+            "minimum_exploration_control_unique_symbols": 6,
+            "positive_incremental_mean_vs_exploration_required": True,
+            "positive_continuation_lift_vs_exploration_required": True,
             "requires_separate_challenger_holdout": True,
         },
         "governance": {
             "production_decision_influence": False,
             "automatic_policy_writeback": False,
             "correlation_is_not_causation": True,
+            "exploration_control_is_non_randomized": True,
             "prospective_only": True,
         },
     }
     payload["report_sha256"] = contracts.payload_sha256(payload)
     validate_report(payload)
     return payload
-
 
 def validate_report(payload: Mapping[str, Any]) -> None:
     if payload.get("schema_version") != REPORT_SCHEMA:
