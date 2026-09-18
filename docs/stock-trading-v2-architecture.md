@@ -85,6 +85,19 @@ Runtime truth lives in:
 
 Legacy workflows such as `gpw-daily-pick-pl.yml` and US Daily workflows may still run for historical settlement, research compatibility or migration support. They are not separate active products and cannot override the v2 production authority.
 
+### Single production admission authority
+
+While `champion_engine=v2` and `legacy_candidate_admission_enabled=false`, there is exactly one code path allowed to create a new canonical Stock Trading position:
+
+```text
+stock_trading_v2_production_bridge.py
+  -> fresh execution quote
+  -> portfolio.admit_candidate(..., authority="v2_production_bridge")
+  -> canonical portfolio
+```
+
+`stock_trading_portfolio.py --mode run` is a lifecycle/review worker only in this regime. Its legacy `sync-candidates` mode is fail-closed and performs no state write. Daily GPW/US candidate workflows publish research/candidate state only and never stage `stock_trading_portfolio.json`. This prevents any parallel legacy writer from bypassing fresh-quote revalidation or racing the canonical v2 writer.
+
 ## Production boundary and anti-hindsight invariant
 
 The v2 opportunity frontier is research input, not a historical fill.
