@@ -12,6 +12,8 @@ from scripts.no_retroactive_execution import (
     assert_shadow_cannot_publish_live,
 )
 
+from scripts.verify_no_retroactive_execution import _path_is_canonical, _path_is_non_live
+
 UTC = timezone.utc
 RUN = datetime(2026, 9, 17, 19, 19, tzinfo=UTC)
 
@@ -95,6 +97,16 @@ class NoRetroactiveExecutionTests(unittest.TestCase):
     def test_recovery_cannot_create_new_live_fill(self):
         with self.assertRaises(RetroactiveExecutionError):
             assert_recovery_execution_allowed(recovery_mode=True, fill_persisted_before_run=False, mode="LIVE")
+
+    def test_brace_analysis_json_is_explicitly_non_executable(self):
+        path = "data/portfolio10k/analysis.json"
+        self.assertTrue(_path_is_non_live(path))
+        self.assertFalse(_path_is_canonical(path, {"optimization": {"rebalance_plan": [{"action": "OPEN"}]}}))
+
+    def test_brace_paper_portfolio_remains_canonical_execution_state(self):
+        path = "data/portfolio10k/paper_portfolio.json"
+        self.assertFalse(_path_is_non_live(path))
+        self.assertTrue(_path_is_canonical(path, {"positions": []}))
 
     def test_entry_before_decision_is_blocked(self):
         with self.assertRaises(RetroactiveExecutionError):
