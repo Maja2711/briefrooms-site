@@ -76,7 +76,13 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertEqual(len(portfolio.open_positions(state, "US")), 1)
         self.assertEqual(portfolio.open_positions(state, "US")[0]["symbol"], "GOOD")
         self.assertTrue(any(row.get("reason") == "research_risk_invalid" for row in audits))
-        self.assertTrue(any(row.get("action") == "open" for row in audits))
+        opened = next(row for row in audits if row.get("action") == "open")
+        self.assertEqual(opened["opened_at"], portfolio.open_positions(state, "US")[0]["opened_at"])
+        self.assertEqual(opened["entry_decision_at"], opened["opened_at"])
+        self.assertEqual(
+            opened["execution_provenance"]["source"],
+            "stock_trading_v2_production_bridge",
+        )
 
     def test_canary_capacity_is_one_position_per_market(self):
         policy = portfolio.load_policy()
