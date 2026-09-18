@@ -747,7 +747,7 @@ def validate_snapshot(payload: Mapping[str, Any], config: Mapping[str, Any]) -> 
         raise contracts.ContractError("relationship trigger snapshot hash mismatch")
 
 
-def _observation_id(snapshot: Mapping[str, Any], row: Mapping[str, Any]) -> str:
+def observation_id(snapshot: Mapping[str, Any], row: Mapping[str, Any]) -> str:
     event = ((row.get("event_context") or [{}])[0] or {})
     session = (row.get("time_context") or {}).get("latest_market_session")
     score_band = int(float(row.get("attention_score") or 0.0) // 5) * 5
@@ -799,7 +799,7 @@ def freeze_observations(
             continue
         if source == "exploration" and not freeze_exploration:
             continue
-        observation_id = _observation_id(snapshot, row)
+        observation_id = observation_id(snapshot, row)
         payload = {
             "schema_version": HISTORY_SCHEMA_VERSION,
             "observation_id": observation_id,
