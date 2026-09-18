@@ -68,7 +68,8 @@ jobs:
           exit 1
 
       - name: Request Pages build
-        if: steps.commit.outputs.changed == 'true'
+        # Always rebuild Pages after the selector/client changes. The HTML may already
+        # contain the current asset version, so changed=false must not suppress deploy.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
