@@ -7,6 +7,7 @@ on:
       - stock-trading-v2
     paths:
       - ".github/workflows/stock-trading-v2-validation.yml"
+      - ".github/workflows/stock-trading-v2-learning-loop.yml"
       - "scripts/briefrooms_market_relationship_trigger.py"
       - "scripts/briefrooms_market_relationship_outcomes.py"
       - "scripts/briefrooms_trigger_deep_belief.py"
@@ -84,6 +85,7 @@ on:
       - "data/investments/stock_trading_v2_frontier/**"
       - "data/investments/stock_trading_v2_evidence/**"
       - "data/investments/stock_trading_v2_opportunity/**"
+      - "data/investments/market_relationship_deep_belief_learning.json"
 
 permissions:
   contents: read
@@ -191,6 +193,18 @@ jobs:
           python scripts/stock_trading_v2_position_experience.py --verify
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.briefrooms_trigger_deep_belief_learning import validate_report
+          path=Path('data/investments/market_relationship_deep_belief_learning.json')
+          if path.exists():
+              payload=json.loads(path.read_text(encoding='utf-8'))
+              validate_report(payload)
+              print('DEEP_RESEARCH_LEARNING_OPTIONAL_OK', payload.get('linked_outcome_rows'))
+          else:
+              print('DEEP_RESEARCH_LEARNING_OPTIONAL_OK', 'not-yet-materialized')
+          PY
 
       - name: Smoke-test live dynamic universes and resilient US broad prefilter
         continue-on-error: true
