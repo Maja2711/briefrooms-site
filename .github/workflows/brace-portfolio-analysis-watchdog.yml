@@ -37,11 +37,28 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Inspect BRACE analysis liveness
+      - name: Inspect BRACE analysis liveness and public control projection
         id: liveness
         run: |
           python scripts/brace_portfolio_analysis_liveness.py
           python scripts/brace_portfolio_analysis_liveness.py --github-output >> "$GITHUB_OUTPUT"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          path = Path("data/portfolio10k/public/brace_engine_public.json")
+          payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+          required = (
+              "control_authorization",
+              "active_portfolio_ids",
+              "position_recommendations",
+              "learning_loop",
+              "control_summary_pl",
+              "control_summary_en",
+          )
+          missing = [key for key in required if key not in payload]
+          print("projection_missing=" + str(bool(missing)).lower())
+          print("projection_missing_fields=" + ",".join(missing))
+          PY
 
       - name: Report healthy analysis
         if: steps.liveness.outputs.overdue != 'true'
@@ -51,7 +68,7 @@ jobs:
           echo "Latest required slot: ${{ steps.liveness.outputs.latest_required_slot }}"
 
       - name: Start immutable recovery execution clock
-        if: steps.liveness.outputs.overdue == 'true'
+        if: steps.liveness.outputs.overdue == 'true' || steps.liveness.outputs.projection_missing == 'true'
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -74,15 +91,18 @@ jobs:
         run: python scripts/brace_portfolio_engine.py --mode daily --network
 
       - name: Restore authorised BRACE control projection
-        if: steps.liveness.outputs.overdue == 'true'
+        if: steps.liveness.outputs.overdue == 'true' || steps.liveness.outputs.projection_missing == 'true'
         run: python scripts/brace_portfolio_user_control.py --republish
 
-      - name: Assert recovery produced a current analysis
-        if: steps.liveness.outputs.overdue == 'true'
+      - name: Assert analysis is current after repair
+        if: steps.liveness.outputs.overdue == 'true' || steps.liveness.outputs.projection_missing == 'true'
         run: python scripts/brace_portfolio_analysis_liveness.py --assert-current
 
       - name: Commit recovered state through NO RETROACTIVE airlock
-        if: steps.liveness.outputs.overdue == 'true'
+        if: steps.liveness.outputs.overdue == 'true' || steps.liveness.outputs.projection_missing == 'true'
+        env:
+          ANALYSIS_OVERDUE: ${{ steps.liveness.outputs.overdue }}
+          PROJECTION_MISSING: ${{ steps.liveness.outputs.projection_missing }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -93,7 +113,12 @@ jobs:
             exit 0
           fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-          git commit -m "Recover overdue BRACE daily analysis"
+          if [ "$ANALYSIS_OVERDUE" = "true" ]; then
+            commit_message="Recover overdue BRACE daily analysis"
+          else
+            commit_message="Repair BRACE public control projection"
+          fi
+          git commit -m "$commit_message"
           for attempt in 1 2 3; do
             if git pull --rebase origin main; then
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
@@ -106,7 +131,7 @@ jobs:
           exit 1
 
       - name: Upload recovery diagnostics after failure
-        if: failure() && steps.liveness.outputs.overdue == 'true'
+        if: failure() && (steps.liveness.outputs.overdue == 'true' || steps.liveness.outputs.projection_missing == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: brace-analysis-recovery-diagnostics
