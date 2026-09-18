@@ -19,7 +19,7 @@ import math
 import statistics
 import tempfile
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -391,6 +391,43 @@ def fetch_history(symbol: str) -> list[discovery.Bar]:
     return bars
 
 
+def _business_days_elapsed(session_date: str, today: date) -> int:
+    try:
+        start = date.fromisoformat(str(session_date))
+    except ValueError:
+        return 0
+    if today <= start:
+        return 0
+    count = 0
+    cursor = start + timedelta(days=1)
+    while cursor <= today:
+        if cursor.weekday() < 5:
+            count += 1
+        cursor += timedelta(days=1)
+    return count
+
+
+def _expected_outcome_path(root: Path, observation: Mapping[str, Any], horizon: int) -> Path:
+    symbol = str(observation.get("symbol") or "").replace("/", "-")
+    day = str(observation.get("session_date") or "unknown")
+    oid = outcome_id(str(observation.get("observation_id") or ""), horizon)
+    return root / "us" / day / symbol / f"{oid}-h{horizon}.json"
+
+
+def due_horizons(
+    observation: Mapping[str, Any],
+    *,
+    outcome_root: Path,
+    today: date,
+) -> list[int]:
+    elapsed = _business_days_elapsed(str(observation.get("session_date") or ""), today)
+    return [
+        horizon
+        for horizon in HORIZONS
+        if elapsed >= horizon and not _expected_outcome_path(outcome_root, observation, horizon).exists()
+    ]
+
+
 def settle_all(
     *,
     history_root: Path = HISTORY_ROOT,
@@ -398,9 +435,19 @@ def settle_all(
     report_path: Path = REPORT_PATH,
 ) -> dict[str, Any]:
     observations = list(iter_observations(history_root))
-    by_symbol: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    today = datetime.now(timezone.utc).date()
+    by_symbol: dict[str, list[tuple[dict[str, Any], list[int]]]] = defaultdict(list)
+    pending_not_due = 0
     for observation in observations:
-        by_symbol[str(observation.get("symbol") or "")].append(observation)
+        due = due_horizons(observation, outcome_root=outcome_root, today=today)
+        if not due:
+            if any(
+                not _expected_outcome_path(outcome_root, observation, horizon).exists()
+                for horizon in HORIZONS
+            ):
+                pending_not_due += 1
+            continue
+        by_symbol[str(observation.get("symbol") or "")].append((observation, due))
 
     written = existing = unresolved = unplayable = provider_errors = 0
     for symbol, rows in sorted(by_symbol.items()):
@@ -411,13 +458,8 @@ def settle_all(
         except Exception:
             provider_errors += 1
             continue
-        for observation in rows:
-            for horizon in HORIZONS:
-                oid = outcome_id(str(observation.get("observation_id") or ""), horizon)
-                expected = outcome_root / "us" / str(observation.get("session_date") or "unknown") / symbol / f"{oid}-h{horizon}.json"
-                if expected.exists():
-                    existing += 1
-                    continue
+        for observation, due in rows:
+            for horizon in due:
                 replay = settle_horizon(observation, bars, horizon_sessions=horizon)
                 if replay is None:
                     unresolved += 1
@@ -442,6 +484,8 @@ def settle_all(
         "unresolved": unresolved,
         "unplayable": unplayable,
         "provider_errors": provider_errors,
+        "pending_not_due": pending_not_due,
+        "symbols_fetched": len(by_symbol),
         "settled_outcomes": report["settled_outcomes"],
         "production_decision_influence": False,
     }
