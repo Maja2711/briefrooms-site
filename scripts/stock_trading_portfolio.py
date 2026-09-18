@@ -74,6 +74,40 @@ def _iso(now: datetime) -> str:
     return now.isoformat(timespec="seconds")
 
 
+def _market_datetime(value: Any, market: str) -> datetime | None:
+    """Parse a timestamp into the exchange timezone without inventing a date."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    tz = MARKET_TZ.get(str(market or "").upper())
+    if parsed.tzinfo is None:
+        if tz is None:
+            return None
+        parsed = parsed.replace(tzinfo=tz)
+    return parsed.astimezone(tz) if tz is not None else parsed
+
+
+def risk_geometry_effective_from(position: Mapping[str, Any]) -> datetime | None:
+    """Earliest timestamp from which the *current* SL/TP geometry may trigger.
+
+    For a long position the current risk geometry did not exist before the
+    position was opened, and a later ratchet did not exist before its
+    risk_last_changed_at timestamp.  Using any earlier candle would be a
+    retroactive fill.
+    """
+    market = str(position.get("market") or "").upper()
+    candidates = [
+        _market_datetime(position.get("opened_at"), market),
+        _market_datetime(position.get("risk_last_changed_at"), market),
+    ]
+    valid = [value for value in candidates if value is not None]
+    return max(valid) if valid else None
+
+
 def history_normalized_metrics(
     position: Mapping[str, Any],
     market: str | None = None,
@@ -517,6 +551,19 @@ def thesis_score(closes: Iterable[float]) -> float | None:
 
 def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, Any], closes: Iterable[float], atr: float, now: datetime, market_cfg: Mapping[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None, dict[str, Any]]:
     """Review one open LONG position. Returns (position, closure, audit)."""
+    market = str(position.get("market") or "").upper()
+    effective_from = risk_geometry_effective_from(position)
+    if effective_from is not None and effective_from.date() == now.astimezone(effective_from.tzinfo).date():
+        window_start = _market_datetime(snapshot.get("trigger_window_start"), market)
+        if snapshot.get("post_effective_only") is not True or window_start is None or window_start < effective_from:
+            audit = {
+                "action": "hold_data_error",
+                "reason": "unverified_post_effective_trigger_window",
+                "position_id": position.get("position_id"),
+                "risk_effective_from": _iso(effective_from),
+                "trigger_window_start": snapshot.get("trigger_window_start"),
+            }
+            return deepcopy(dict(position)), None, audit
     try:
         high, low, last = float(snapshot["high"]), float(snapshot["low"]), float(snapshot["last"])
     except (KeyError, TypeError, ValueError):
@@ -687,7 +734,14 @@ def _chart(symbol: str, *, interval: str, range_value: str) -> dict[str, Any]:
     raise RuntimeError(f"Yahoo chart unavailable for {symbol}: {'|'.join(failures)}")
 
 
-def _daily_observation(symbol: str, market: str, now: datetime, *, opened_at: str | None = None) -> dict[str, Any]:
+def _daily_observation(
+    symbol: str,
+    market: str,
+    now: datetime,
+    *,
+    opened_at: str | None = None,
+    risk_effective_at: str | None = None,
+) -> dict[str, Any]:
     daily = _chart(symbol, interval="1d", range_value="6mo")
     stamps = daily.get("timestamp") or []
     quote = ((daily.get("indicators") or {}).get("quote") or [{}])[0]
@@ -715,12 +769,10 @@ def _daily_observation(symbol: str, market: str, now: datetime, *, opened_at: st
     iquote = ((intraday.get("indicators") or {}).get("quote") or [{}])[0]
     tz = MARKET_TZ[market]
     points: list[tuple[datetime, float, float, float]] = []
-    opened_dt = None
-    if opened_at:
-        try:
-            opened_dt = datetime.fromisoformat(str(opened_at).replace("Z", "+00:00")).astimezone(tz)
-        except (TypeError, ValueError):
-            opened_dt = None
+    opened_dt = _market_datetime(opened_at, market)
+    risk_effective_dt = _market_datetime(risk_effective_at, market)
+    trigger_candidates = [value for value in (opened_dt, risk_effective_dt) if value is not None]
+    trigger_from = max(trigger_candidates) if trigger_candidates else None
     for index, stamp in enumerate(istamps):
         try:
             high = float((iquote.get("high") or [])[index])
@@ -731,10 +783,11 @@ def _daily_observation(symbol: str, market: str, now: datetime, *, opened_at: st
         dt = datetime.fromtimestamp(int(stamp), tz)
         if dt.date() != now.date():
             continue
-        # A position opened today must never be evaluated against bars that
-        # occurred before its actual entry.  That would manufacture a
-        # retroactive SL/TP hit from market history the position never lived.
-        if opened_dt is not None and opened_dt.date() == now.date() and dt < opened_dt:
+        # The current SL/TP geometry may only see candles that began after the
+        # geometry became effective.  This blocks both pre-entry fills and the
+        # subtler case where a newly ratcheted stop is applied to an earlier
+        # same-day low.
+        if trigger_from is not None and trigger_from.date() == now.date() and dt < trigger_from:
             continue
         points.append((dt, high, low, close))
     if points:
@@ -744,11 +797,22 @@ def _daily_observation(symbol: str, market: str, now: datetime, *, opened_at: st
             "last": points[-1][3],
             "observed_at": _iso(points[-1][0]),
             "provider": "Yahoo",
+            "trigger_window_start": _iso(points[0][0]),
+            "trigger_effective_from": _iso(trigger_from) if trigger_from is not None else None,
+            "post_effective_only": True,
         }
     else:
-        if opened_dt is not None and opened_dt.date() == now.date():
-            raise RuntimeError("no_post_entry_intraday_bar_yet")
-        snapshot = {"high": rows[-1][0], "low": rows[-1][1], "last": rows[-1][2], "provider": "Yahoo:daily_fallback"}
+        if trigger_from is not None and trigger_from.date() == now.date():
+            raise RuntimeError("no_post_effective_intraday_bar_yet")
+        snapshot = {
+            "high": rows[-1][0],
+            "low": rows[-1][1],
+            "last": rows[-1][2],
+            "provider": "Yahoo:daily_fallback",
+            "trigger_window_start": _iso(now),
+            "trigger_effective_from": _iso(trigger_from) if trigger_from is not None else None,
+            "post_effective_only": True,
+        }
     return {"snapshot": snapshot, "closes": closes, "atr": atr}
 
 
@@ -789,7 +853,13 @@ def run_market(state: Mapping[str, Any], market: str, *, now: datetime, policy: 
     for position in open_positions(state, market):
         symbol = str(position.get("symbol") or "")
         try:
-            observations[symbol] = _daily_observation(symbol, market, now, opened_at=position.get("opened_at"))
+            observations[symbol] = _daily_observation(
+                symbol,
+                market,
+                now,
+                opened_at=position.get("opened_at"),
+                risk_effective_at=position.get("risk_last_changed_at"),
+            )
         except Exception as exc:
             audits.append({"action": "observation_error", "market": market, "symbol": symbol, "error": f"{type(exc).__name__}:{str(exc)[:160]}"})
     updated, review_audit = review_market(state, market, observations=observations, now=now, policy=policy)
