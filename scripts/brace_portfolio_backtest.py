@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from statistics import mean, pstdev
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
+from brace_portfolio_config import default_methodology_version
+
 TRADING_DAYS = 252
 
 
@@ -365,7 +367,7 @@ def run_walk_forward(
     result = {
         "schema_version": "1.0.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
-        "methodology_version": "brace-portfolio-v3.0.0",
+        "methodology_version": default_methodology_version(),
         "data_freshness": "historical_point_in_time",
         "source_metadata": {
             "engine": "brace_portfolio_backtest.py",
