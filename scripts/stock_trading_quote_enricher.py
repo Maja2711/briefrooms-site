@@ -9,6 +9,8 @@ that a delayed or old quote is live.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import math
 import tempfile
@@ -26,6 +28,17 @@ USER_AGENT = "BriefRooms-Stock-Trading-Quotes/1.0"
 UTC = ZoneInfo("UTC")
 MARKET_TZ = {"GPW": ZoneInfo("Europe/Warsaw"), "US": ZoneInfo("America/New_York")}
 VALID_STATES = {"PRE", "REGULAR", "POST", "CLOSED"}
+
+EXECUTION_DEFAULT_MAX_AGE_SECONDS = 300
+
+
+class ExecutionQuoteUnavailable(RuntimeError):
+    """No independently observed quote is fresh enough for a new LIVE entry."""
+
+    def __init__(self, message: str, diagnostics: list[dict[str, Any]] | None = None):
+        super().__init__(message)
+        self.diagnostics = diagnostics or []
+
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -83,6 +96,12 @@ def _request_json(url: str) -> dict[str, Any]:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"})
     with urllib.request.urlopen(req, timeout=20) as response:
         return json.load(response)
+
+def _request_text(url: str) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return response.read().decode("utf-8", errors="replace")
+
 
 
 def _chart(symbol: str) -> dict[str, Any]:
@@ -251,6 +270,140 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
         "source_verified": True,
         "capture_age_seconds": capture_age,
     }
+
+
+
+def _stooq_symbol(symbol: str, market: str) -> str:
+    raw = str(symbol or "").strip().upper()
+    if market == "GPW":
+        return raw[:-3].lower() if raw.endswith(".WA") else raw.lower()
+    if market == "US":
+        return raw.lower() if raw.endswith(".us") else f"{raw.lower()}.us"
+    raise ValueError(f"Unsupported market: {market}")
+
+
+def _stooq_quote(symbol: str, market: str, *, now_utc: datetime | None = None) -> dict[str, Any]:
+    """Independent last-quote fallback.
+
+    Stooq uses bare symbols for GPW and .us for US.  We currently admit this
+    fallback only for GPW because its timestamp can be interpreted in the GPW
+    local clock without guessing another exchange's timestamp convention.
+    """
+    market = market.upper()
+    if market != "GPW":
+        raise RuntimeError("Stooq execution fallback is enabled only for GPW")
+    now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
+    stooq_symbol = _stooq_symbol(symbol, market)
+    params = urllib.parse.urlencode({
+        "s": stooq_symbol,
+        "f": "sd2t2ohlcv",
+        "h": "",
+        "e": "csv",
+    })
+    raw = _request_text(f"https://stooq.com/q/l/?{params}")
+    rows = list(csv.DictReader(io.StringIO(raw)))
+    if not rows:
+        raise RuntimeError("Stooq quote returned no rows")
+    row = rows[0]
+    close = _float(row.get("Close") or row.get("close"))
+    date_text = str(row.get("Date") or row.get("date") or "").strip()
+    time_text = str(row.get("Time") or row.get("time") or "").strip()
+    if close is None or close <= 0 or not date_text or not time_text or "N/D" in {date_text.upper(), time_text.upper()}:
+        raise RuntimeError("Stooq quote is incomplete")
+    observed_local = datetime.fromisoformat(f"{date_text}T{time_text}").replace(tzinfo=MARKET_TZ[market])
+    observed_utc = observed_local.astimezone(UTC)
+    age_seconds = max(0, int((now_utc - observed_utc).total_seconds()))
+    if observed_utc > now_utc.replace(microsecond=0):
+        raise RuntimeError("Stooq quote timestamp is in the future")
+    state = _clock_fallback_state(market, now_utc)
+    return {
+        "price": round(float(close), 8),
+        "market_state": state,
+        "state_source": "clock_fallback_for_stooq",
+        "price_kind": "last",
+        "observed_at": _iso(observed_local),
+        "received_at": _iso(now_utc),
+        "provider": "Stooq current quote",
+        "delay_status": "measured_from_observation",
+        "delay_minutes": round(age_seconds / 60.0, 2),
+        "is_realtime": age_seconds <= 120,
+        "source_verified": True,
+        "capture_age_seconds": age_seconds,
+    }
+
+
+def execution_quote_candidates(symbol: str, market: str, *, now_utc: datetime | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Collect executable quote candidates without hiding provider failures."""
+    market = market.upper()
+    now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
+    candidates: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
+
+    providers = [("Yahoo Finance chart", quote_for_symbol)]
+    if market == "GPW":
+        providers.append(("Stooq current quote", _stooq_quote))
+
+    for provider_name, provider in providers:
+        try:
+            quote = provider(symbol, market, now_utc=now_utc)
+            candidates.append(quote)
+            diagnostics.append({
+                "provider": quote.get("provider") or provider_name,
+                "status": "ok",
+                "market_state": quote.get("market_state"),
+                "observed_at": quote.get("observed_at"),
+                "capture_age_seconds": quote.get("capture_age_seconds"),
+                "delay_minutes": quote.get("delay_minutes"),
+            })
+        except Exception as exc:
+            diagnostics.append({
+                "provider": provider_name,
+                "status": "error",
+                "error": f"{type(exc).__name__}:{str(exc)[:180]}",
+            })
+    return candidates, diagnostics
+
+
+def execution_quote_for_symbol(
+    symbol: str,
+    market: str,
+    *,
+    now_utc: datetime | None = None,
+    maximum_age_seconds: int = EXECUTION_DEFAULT_MAX_AGE_SECONDS,
+) -> dict[str, Any]:
+    """Return the freshest independently observed quote eligible for a new entry.
+
+    Research/reference prices are never promoted to fills.  A candidate remains
+    READY when all available execution quotes are stale, closed-session, or lack
+    an observation timestamp.
+    """
+    market = market.upper()
+    now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
+    candidates, diagnostics = execution_quote_candidates(symbol, market, now_utc=now_utc)
+    eligible: list[dict[str, Any]] = []
+    for quote in candidates:
+        age = _float(quote.get("capture_age_seconds"))
+        if quote.get("market_state") != "REGULAR":
+            continue
+        if age is None or age < 0 or age > float(maximum_age_seconds):
+            continue
+        delay_minutes = _float(quote.get("delay_minutes"))
+        if delay_minutes is not None and delay_minutes * 60.0 > float(maximum_age_seconds):
+            continue
+        eligible.append(quote)
+    if not eligible:
+        raise ExecutionQuoteUnavailable(
+            f"No execution quote <= {maximum_age_seconds}s for {symbol}",
+            diagnostics=diagnostics,
+        )
+    eligible.sort(key=lambda q: float(q.get("capture_age_seconds") or 0.0))
+    chosen = dict(eligible[0])
+    chosen["execution_quote_policy"] = {
+        "maximum_age_seconds": int(maximum_age_seconds),
+        "provider_candidates": diagnostics,
+        "selected_provider": chosen.get("provider"),
+    }
+    return chosen
 
 
 def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_utc: datetime | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
