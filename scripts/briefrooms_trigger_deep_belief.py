@@ -58,8 +58,16 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def snapshot_id(trigger_snapshot_sha256: str) -> str:
-    raw = f"{trigger_snapshot_sha256}|{SCHEMA_VERSION}|{BACKEND}".encode("utf-8")
+def snapshot_id(
+    trigger_snapshot_sha256: str,
+    *,
+    trigger_config_version: str,
+    evidence_config_version: str,
+) -> str:
+    raw = (
+        f"{trigger_snapshot_sha256}|{SCHEMA_VERSION}|{BACKEND}|"
+        f"{trigger_config_version}|{evidence_config_version}"
+    ).encode("utf-8")
     return "tdb-" + hashlib.sha256(raw).hexdigest()[:24]
 
 
@@ -199,12 +207,18 @@ def build_snapshot(
     reference_slots = int(evidence_config.get("frontier_candidates_to_enrich") or 10)
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "snapshot_id": snapshot_id(str(trigger_snapshot.get("snapshot_sha256") or "")),
+        "snapshot_id": snapshot_id(
+            str(trigger_snapshot.get("snapshot_sha256") or ""),
+            trigger_config_version=str(trigger_config.get("version") or "unknown"),
+            evidence_config_version=str(evidence_config.get("version") or "unknown"),
+        ),
         "market": "US",
         "generated_at": generated_at or _iso_now(),
         "mode": "shadow_trigger_directed_lazy_research",
         "research_backend": BACKEND,
         "belief_mode": BELIEF_MODE,
+        "trigger_config_version": trigger_config.get("version"),
+        "evidence_config_version": evidence_config.get("version"),
         "full_belief_core_invocation": False,
         "source_trigger_snapshot_sha256": trigger_snapshot.get("snapshot_sha256"),
         "source_frontier_sha256": frontier.get("frontier_sha256"),
@@ -330,8 +344,8 @@ def persist_snapshot(root: Path, payload: Mapping[str, Any]) -> bool:
         existing = _read_json(path)
         if not isinstance(existing, Mapping):
             raise contracts.ContractError("existing trigger deep belief history unreadable")
-        if existing.get("source_trigger_snapshot_sha256") != payload.get("source_trigger_snapshot_sha256"):
-            raise contracts.ContractError("trigger deep belief immutable history lineage conflict")
+        if dict(existing) != dict(payload):
+            raise contracts.ContractError("trigger deep belief immutable history conflict")
         return False
     body = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
@@ -341,8 +355,18 @@ def persist_snapshot(root: Path, payload: Mapping[str, Any]) -> bool:
     return True
 
 
-def find_existing(root: Path, trigger_snapshot_sha256: str) -> dict[str, Any] | None:
-    sid = snapshot_id(trigger_snapshot_sha256)
+def find_existing(
+    root: Path,
+    trigger_snapshot_sha256: str,
+    *,
+    trigger_config_version: str,
+    evidence_config_version: str,
+) -> dict[str, Any] | None:
+    sid = snapshot_id(
+        trigger_snapshot_sha256,
+        trigger_config_version=trigger_config_version,
+        evidence_config_version=evidence_config_version,
+    )
     if not root.exists():
         return None
     matches = list(root.rglob(f"{sid}.json"))
@@ -369,7 +393,12 @@ def run(
         raise TriggerDeepBeliefError("trigger snapshot or frontier unavailable")
     validate_inputs(trigger_snapshot, frontier, trigger_config)
 
-    existing = find_existing(history_root, str(trigger_snapshot.get("snapshot_sha256") or ""))
+    existing = find_existing(
+        history_root,
+        str(trigger_snapshot.get("snapshot_sha256") or ""),
+        trigger_config_version=str(trigger_config.get("version") or "unknown"),
+        evidence_config_version=str(evidence_config.get("version") or "unknown"),
+    )
     if existing is not None:
         validate_snapshot(existing, trigger_config=trigger_config, evidence_config=evidence_config)
         output_path.parent.mkdir(parents=True, exist_ok=True)
