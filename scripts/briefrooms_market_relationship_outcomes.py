@@ -108,24 +108,30 @@ def settle_horizon(
         }
 
     ordered = sorted(bars, key=_bar_day)
-    base_candidates = [bar for bar in ordered if _bar_day(bar) <= session]
     future = [bar for bar in ordered if _bar_day(bar) > session]
-    if not base_candidates:
-        return {
-            "status": "UNPLAYABLE",
-            "reason": "reference_session_missing",
-            "horizon_sessions": horizon_sessions,
-        }
     if len(future) < horizon_sessions:
         return None
 
-    base = base_candidates[-1]
-    reference = _bar_value(base, "close")
-    terminal = _bar_value(future[horizon_sessions - 1], "close")
-    if reference is None or terminal is None or reference <= 0:
+    reference_state = observation.get("reference_market_state") or {}
+    reference = _finite(reference_state.get("price"))
+    if reference_state.get("point_in_time_frozen") is not True:
         return {
             "status": "UNPLAYABLE",
-            "reason": "reference_or_terminal_close_missing",
+            "reason": "reference_not_point_in_time_frozen",
+            "horizon_sessions": horizon_sessions,
+        }
+    if reference is None or reference <= 0:
+        return {
+            "status": "UNPLAYABLE",
+            "reason": "frozen_reference_price_missing",
+            "horizon_sessions": horizon_sessions,
+        }
+
+    terminal = _bar_value(future[horizon_sessions - 1], "close")
+    if terminal is None:
+        return {
+            "status": "UNPLAYABLE",
+            "reason": "terminal_close_missing",
             "horizon_sessions": horizon_sessions,
         }
 
@@ -149,8 +155,11 @@ def settle_horizon(
     return {
         "status": "SETTLED",
         "horizon_sessions": horizon_sessions,
-        "reference_session": _bar_day(base),
-        "reference_close": round(reference, 8),
+        "reference_session": str(reference_state.get("session_date") or session),
+        "reference_price": round(reference, 8),
+        "reference_observed_at": reference_state.get("observed_at"),
+        "reference_price_source": reference_state.get("source"),
+        "reference_point_in_time_frozen": True,
         "terminal_session": _bar_day(window[-1]),
         "terminal_close": round(terminal, 8),
         "raw_return": round(raw_return, 8),
