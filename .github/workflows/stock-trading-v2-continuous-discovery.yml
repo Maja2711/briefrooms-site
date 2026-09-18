@@ -186,15 +186,19 @@ jobs:
           fi
 
       - name: Validate generated frontiers evidence opportunity decisions and immutable stores
+        env:
+          US_ACTIVE_THIS_CYCLE: ${{ steps.market_window.outputs.us }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           from scripts.stock_trading_v2_discovery import validate_frontier
           from scripts.stock_trading_v2_deep_evidence import validate_deep_evidence
           from scripts.stock_trading_v2_opportunity_engine import validate_opportunity
 
+          us_active_this_cycle=os.environ.get('US_ACTIVE_THIS_CYCLE','false').lower() == 'true'
           for market in ('gpw','us'):
               frontier_path=Path(f'data/investments/stock_trading_v2_frontier/{market}.json')
               evidence_path=Path(f'data/investments/stock_trading_v2_evidence/{market}.json')
@@ -208,12 +212,16 @@ jobs:
               if market == 'us':
                   from scripts.briefrooms_market_relationship_trigger import load_config as load_trigger_config, validate_snapshot as validate_trigger_snapshot
                   trigger_path=Path('data/investments/market_relationship_trigger/us.json')
-                  assert trigger_path.exists()
-                  trigger=json.loads(trigger_path.read_text(encoding='utf-8'))
-                  validate_trigger_snapshot(trigger, load_trigger_config())
-                  assert trigger['governance']['production_decision_influence'] is False
-                  assert trigger['governance']['deep_belief_execution'] is False
-                  assert len(trigger['attention_queue']) <= 6
+                  if us_active_this_cycle:
+                      assert trigger_path.exists(), 'US Trigger snapshot missing from an active US discovery cycle'
+                  if trigger_path.exists():
+                      trigger=json.loads(trigger_path.read_text(encoding='utf-8'))
+                      validate_trigger_snapshot(trigger, load_trigger_config())
+                      assert trigger['governance']['production_decision_influence'] is False
+                      assert trigger['governance']['deep_belief_execution'] is False
+                      assert len(trigger['attention_queue']) <= 6
+                      if us_active_this_cycle:
+                          assert trigger['source_frontier_sha256'] == frontier['frontier_sha256']
               if evidence_path.exists():
                   evidence=json.loads(evidence_path.read_text(encoding='utf-8'))
                   validate_deep_evidence(evidence)
