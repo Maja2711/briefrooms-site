@@ -48,6 +48,9 @@ jobs:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode daily --network
 
+      - name: Restore authorised BRACE control projection
+        run: python scripts/brace_portfolio_user_control.py --republish
+
       - name: Assert daily analysis is current after run
         run: python scripts/brace_portfolio_analysis_liveness.py --assert-current
 
