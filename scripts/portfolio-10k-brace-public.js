@@ -1,212 +1,124 @@
 (() => {
   'use strict';
 
+  const SOURCE = '/data/portfolio10k/public/brace_engine_public.json';
   const lang = window.BR_PORTFOLIO_10K?.lang === 'en' ? 'en' : 'pl';
   const locale = lang === 'en' ? 'en-US' : 'pl-PL';
   const T = lang === 'pl' ? {
-    loading: 'BRACE buduje pierwszy przegląd…', unavailable: 'Dane BRACE są chwilowo niedostępne.',
-    score: 'Conviction score', confidence: 'Pewność danych', regime: 'Reżim rynku', status: 'Status modelu',
-    challenger: 'challenger / tryb równoległy', positions: 'Analiza pozycji', backtest: 'Test historyczny BRACE-Lite',
-    decision: 'Decyzja', strongest: 'Najmocniejszy argument', weakest: 'Największe ryzyko', catalyst: 'Następny katalizator',
-    thesisClock: 'Zegar tezy', evidence: 'Rejestr dowodów', contradictions: 'Sprzeczności do zbadania', noContradictions: 'Brak istotnych sprzeczności',
-    noEvidence: 'Brak wystarczających dowodów do publikacji.', noBacktest: 'Backtest oczekuje na pierwszy pełny przebieg.',
-    model: 'Model', cagr: 'CAGR', drawdown: 'Maks. obsunięcie', sharpe: 'Sharpe', turnover: 'Obrót roczny',
-    generated: 'Aktualizacja', quality: 'jakość', decay: 'waga po wygaszeniu', adaptive: 'mnożnik uczenia',
-    promotionTitle: 'Bramka awansu champion–challenger', promoted: 'KANDYDAT DO POTWIERDZENIA LIVE', notPromoted: 'NIE AWANSOWAŁ', championLabel: 'Obecny champion',
-    learningTitle: 'BRACE 2.0 · system uczenia', learningStatus: 'Stan uczenia', memory: 'Decyzje w pełnej pamięci', outcomes: 'Oceny wyników', activeSignals: 'Aktywne mnożniki', minSample: 'Minimalna próba',
-    objective: 'Cel modelu', topSignals: 'Najbardziej wiarygodne sygnały', weakSignals: 'Sygnały wymagające ostrożności', noSignals: 'Model dopiero zbiera wyniki. Mnożniki pozostają neutralne.',
-    reliability: 'wiarygodność', samples: 'próba', multiplier: 'mnożnik', nextReview: 'Zmiany obowiązują od następnego przeglądu',
-    decisions: {
-      ADD_REVIEW: 'PRZEGLĄD DOKUPIENIA', HOLD: 'TRZYMAJ', HOLD_BUILD_EVIDENCE: 'BUDUJ DOWODY',
-      WAIT_FOR_EVENT: 'CZEKAJ NA WYDARZENIE', WAIT_INVESTIGATE: 'ZBADAJ SPRZECZNOŚCI',
-      TRIM_REVIEW: 'PRZEGLĄD REDUKCJI', THESIS_REVIEW: 'PILNY PRZEGLĄD TEZY', EXIT_REVIEW: 'PRZEGLĄD WYJŚCIA'
-    },
-    pillars: {
-      business_quality: 'Jakość biznesu', results_revisions: 'Wyniki i rewizje', attractiveness: 'Wycena',
-      confirmation: 'Potwierdzenie rynku', risk: 'Odporność na ryzyko', context: 'Kontekst', events_information: 'Informacje'
-    },
-    models: { buy_hold: 'Buy & Hold', baseline: 'Model bazowy', brace_standard: 'BRACE-Lite', benchmark: 'Benchmark' }
+    loading:'Ładowanie bieżącego stanu BRACE…', unavailable:'Publiczny stan BRACE jest chwilowo niedostępny.',
+    score:'Ocena portfela', confidence:'Pewność', status:'Stan kontrolera', positions:'Pozycje przeanalizowane',
+    learning:'Pętla uczenia', samples:'Dojrzałe próbki', next:'Następny przegląd', decisions:'Ocena pozycji',
+    currentWeight:'Bieżąca waga', proposedWeight:'Proponowana waga', promotion:'Bramka champion–challenger',
+    baseline:'Immutable baseline', shadow:'Wynik BRACE / shadow', updated:'Aktualizacja', canonical:'KANONICZNE ŹRÓDŁO',
+    noPositions:'Brak bieżących ocen pozycji.', noLearning:'Stan uczenia nie został jeszcze opublikowany.',
+    actions:{HOLD:'TRZYMAJ',WATCH:'OBSERWUJ',REDUCE:'REDUKUJ',EXIT:'WYJDŹ',ADD:'DOKUP',REPLACE:'ZAMIEŃ',NO_ACTION:'BEZ ZMIAN'}
   } : {
-    loading: 'BRACE is building its first review…', unavailable: 'BRACE data is temporarily unavailable.',
-    score: 'Conviction score', confidence: 'Data confidence', regime: 'Market regime', status: 'Model status',
-    challenger: 'challenger / shadow mode', positions: 'Position analysis', backtest: 'BRACE-Lite historical test',
-    decision: 'Decision', strongest: 'Strongest argument', weakest: 'Largest risk', catalyst: 'Next catalyst',
-    thesisClock: 'Thesis clock', evidence: 'Evidence ledger', contradictions: 'Contradictions to investigate', noContradictions: 'No material contradictions',
-    noEvidence: 'Insufficient evidence to publish.', noBacktest: 'The backtest is waiting for its first complete run.',
-    model: 'Model', cagr: 'CAGR', drawdown: 'Max drawdown', sharpe: 'Sharpe', turnover: 'Annual turnover',
-    generated: 'Updated', quality: 'quality', decay: 'decayed weight', adaptive: 'learning multiplier',
-    promotionTitle: 'Champion–challenger promotion gate', promoted: 'ELIGIBLE FOR LIVE CONFIRMATION', notPromoted: 'NOT PROMOTED', championLabel: 'Current champion',
-    learningTitle: 'BRACE 2.0 · learning system', learningStatus: 'Learning status', memory: 'Decisions in full memory', outcomes: 'Outcome evaluations', activeSignals: 'Active multipliers', minSample: 'Minimum sample',
-    objective: 'Model objective', topSignals: 'Most reliable signals', weakSignals: 'Signals requiring caution', noSignals: 'The model is still collecting outcomes. Multipliers remain neutral.',
-    reliability: 'reliability', samples: 'sample', multiplier: 'multiplier', nextReview: 'Changes apply from the next review',
-    decisions: {
-      ADD_REVIEW: 'REVIEW ADDING', HOLD: 'HOLD', HOLD_BUILD_EVIDENCE: 'BUILD EVIDENCE',
-      WAIT_FOR_EVENT: 'WAIT FOR EVENT', WAIT_INVESTIGATE: 'INVESTIGATE CONFLICT',
-      TRIM_REVIEW: 'REVIEW TRIMMING', THESIS_REVIEW: 'URGENT THESIS REVIEW', EXIT_REVIEW: 'REVIEW EXIT'
-    },
-    pillars: {
-      business_quality: 'Business quality', results_revisions: 'Results & revisions', attractiveness: 'Valuation',
-      confirmation: 'Market confirmation', risk: 'Risk resilience', context: 'Context', events_information: 'Information'
-    },
-    models: { buy_hold: 'Buy & Hold', baseline: 'Baseline model', brace_standard: 'BRACE-Lite', benchmark: 'Benchmark' }
+    loading:'Loading current BRACE state…', unavailable:'The public BRACE state is temporarily unavailable.',
+    score:'Portfolio score', confidence:'Confidence', status:'Controller state', positions:'Positions reviewed',
+    learning:'Learning loop', samples:'Mature samples', next:'Next review', decisions:'Position assessment',
+    currentWeight:'Current weight', proposedWeight:'Proposed weight', promotion:'Champion–challenger gate',
+    baseline:'Immutable baseline', shadow:'BRACE / shadow return', updated:'Updated', canonical:'CANONICAL SOURCE',
+    noPositions:'No current position assessments are available.', noLearning:'Learning state has not been published yet.',
+    actions:{HOLD:'HOLD',WATCH:'WATCH',REDUCE:'REDUCE',EXIT:'EXIT',ADD:'ADD',REPLACE:'REPLACE',NO_ACTION:'NO CHANGE'}
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
-  const pct = (value, digits = 1) => num(value) === null ? '—' : (num(value) * 100).toLocaleString(locale, {minimumFractionDigits: digits, maximumFractionDigits: digits}) + '%';
-  const score = value => num(value) === null ? '—' : num(value).toLocaleString(locale, {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '/100';
-  const tone = value => num(value) === null ? 'neutral' : num(value) >= 70 ? 'positive' : num(value) < 45 ? 'negative' : 'neutral';
-  const dateFmt = value => {
-    if (!value) return '—';
-    const d = new Date(String(value).length === 10 ? value + 'T12:00:00Z' : value);
-    return Number.isNaN(d.valueOf()) ? esc(value) : d.toLocaleDateString(locale, {year:'numeric', month:'short', day:'2-digit'});
+  const pct = (value, digits=1) => {
+    const n=num(value); return n===null?'—':(n*100).toLocaleString(locale,{minimumFractionDigits:digits,maximumFractionDigits:digits})+'%';
   };
+  const score = value => {
+    const n=num(value); return n===null?'—':n.toLocaleString(locale,{minimumFractionDigits:1,maximumFractionDigits:1})+'/100';
+  };
+  const dateTime = value => {
+    if(!value)return '—'; const d=new Date(value);
+    return Number.isNaN(d.valueOf())?String(value):d.toLocaleString(locale,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  };
+  const actionLabel = value => T.actions[String(value||'')] || String(value||'—').replaceAll('_',' ');
+  const card = (label,value,sub='') => `<article class="brace-kpi"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(sub)}</span></article>`;
 
-  function summaryCard(label, value, sub, cls = '') {
-    return `<article class="brace-kpi"><small>${esc(label)}</small><strong class="${esc(cls)}">${esc(value)}</strong><span>${esc(sub || '')}</span></article>`;
-  }
-
-  function renderSummary(data) {
-    const box = document.getElementById('brace-summary');
-    if (!box) return;
-    const portfolio = data.portfolio || {};
-    const context = data.market_context || {};
-    const counts = Object.entries(portfolio.decision_counts || {}).map(([key, value]) => `${T.decisions[key] || key}: ${value}`).join(' · ');
-    box.innerHTML = [
-      summaryCard(T.score, score(portfolio.score), counts || T.challenger, tone(portfolio.score)),
-      summaryCard(T.confidence, score(portfolio.confidence), `${Math.round((num(portfolio.positions_reviewed) || 0))} ${T.positions.toLowerCase()}`, tone(portfolio.confidence)),
-      summaryCard(T.regime, String(context.regime || 'pending').replaceAll('_', ' '), context.market_date ? dateFmt(context.market_date) : '—'),
-      summaryCard(T.status, data.status || 'initialising', T.challenger)
+  function renderSummary(data){
+    const box=document.getElementById('brace-summary'); if(!box)return;
+    const summary=data.analysis_summary||{};
+    const confidenceRaw=num(summary.confidence);
+    const confidence=confidenceRaw===null?null:(confidenceRaw<=1?confidenceRaw:confidenceRaw/100);
+    const counts=Object.entries(summary.decision_counts||{}).map(([k,v])=>`${actionLabel(k)}: ${v}`).join(' · ');
+    box.innerHTML=[
+      card(T.score,score(summary.portfolio_score),counts||T.canonical),
+      card(T.confidence,pct(confidence),`${summary.positions_reviewed||0} · ${T.positions}`),
+      card(T.status,String(data.display_status||data.controller_status||'—').replaceAll('_',' '),String(summary.analysis_liveness_status||data.data_freshness||'—')),
+      card(T.updated,dateTime(summary.generated_at||data.generated_at),T.canonical)
     ].join('');
-    const meta = document.getElementById('brace-meta');
-    if (meta) meta.textContent = `${T.generated}: ${dateFmt(data.generated_at)}`;
+    const meta=document.getElementById('brace-meta');
+    if(meta)meta.textContent=`${T.canonical} · ${dateTime(data.generated_at)}`;
   }
 
-  function signalTable(items) {
-    if (!items?.length) return `<p class="brace-empty">${esc(T.noSignals)}</p>`;
-    const rows = items.map(item => `<tr><td><b>${esc(String(item.code || '').replaceAll('_', ' '))}</b></td><td>${pct(item.posterior_mean, 1)}</td><td>${(num(item.effective_samples) || 0).toFixed(1)}</td><td>×${(num(item.multiplier) || 1).toFixed(3)}</td></tr>`).join('');
-    return `<div class="table-scroll"><table class="audit brace-table"><thead><tr><th>Signal</th><th>${esc(T.reliability)}</th><th>${esc(T.samples)}</th><th>${esc(T.multiplier)}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  }
-
-  function renderLearning(data) {
-    const box = document.getElementById('brace-learning');
-    if (!box) return;
-    const learning = data.learning || {};
-    const objective = lang === 'pl' ? learning.objective?.primary_pl : learning.objective?.primary_en;
-    const governance = lang === 'pl' ? learning.governance_pl : learning.governance_en;
-    box.innerHTML = `
-      <div class="brace-summary">
-        ${summaryCard(T.learningStatus, String(learning.status || 'collecting_memory').replaceAll('_', ' '), T.nextReview)}
-        ${summaryCard(T.memory, String(Math.round(num(learning.decisions_stored) || 0)), T.objective)}
-        ${summaryCard(T.outcomes, String(Math.round(num(learning.outcome_events_stored) || 0)), Object.entries(learning.evaluated_horizons || {}).map(([k,v]) => `${k}: ${v}`).join(' · ') || '—')}
-        ${summaryCard(T.activeSignals, String(Math.round(num(learning.active_multipliers) || 0)), `${T.minSample}: ${num(learning.minimum_effective_samples) || 8}`)}
-      </div>
-      <div class="status-note" style="margin:16px 0"><b>${esc(T.objective)}</b><br>${esc(objective || '—')}<br><small>${esc(governance || '')}</small></div>
-      <div class="brace-learning-columns">
-        <div><h4>${esc(T.topSignals)}</h4>${signalTable(learning.top_reliable_signals)}</div>
-        <div><h4>${esc(T.weakSignals)}</h4>${signalTable(learning.signals_needing_review)}</div>
-      </div>`;
-  }
-
-  function pillarRows(pillars) {
-    return Object.entries(T.pillars).map(([key, label]) => {
-      const value = num(pillars?.[key]);
-      const width = value === null ? 0 : Math.max(2, Math.min(100, value));
-      return `<div class="brace-pillar"><span>${esc(label)}</span><div class="brace-track"><i style="width:${width}%"></i></div><b>${value === null ? '—' : value.toFixed(0)}</b></div>`;
-    }).join('');
-  }
-
-  function evidenceRows(items) {
-    if (!items?.length) return `<p class="brace-empty">${esc(T.noEvidence)}</p>`;
-    return items.slice(0, 7).map(item => {
-      const direction = num(item.direction) < 0 ? 'negative' : num(item.direction) > 0 ? 'positive' : 'neutral';
-      const description = lang === 'pl' ? item.description_pl : item.description_en;
-      const multiplier = num(item.adaptive_multiplier);
-      const adaptive = multiplier === null ? '' : ` · ${esc(T.adaptive)} ×${multiplier.toFixed(3)}`;
-      return `<article class="brace-evidence ${direction}"><b>${esc(description || item.code)}</b><span>${esc(item.source || '')} · ${dateFmt(item.observed_at)} · ${esc(T.quality)} ${(num(item.quality) || 0).toFixed(2)} · ${esc(T.decay)} ${(num(item.decayed_weight) || 0).toFixed(2)}${adaptive}</span></article>`;
-    }).join('');
-  }
-
-  function positionCard(position) {
-    const decision = position.decision?.code || 'HOLD';
-    const contradictions = position.contradictions || [];
-    const clock = position.thesis_clock || {};
-    const clockText = `${(num(clock.quarters_elapsed) || 0).toFixed(1)} / ${num(clock.target_quarters) || '—'} Q · ${String(clock.status || 'pending').replaceAll('_', ' ')}`;
-    return `<article class="brace-position ${decision.includes('EXIT') || decision.includes('THESIS') ? 'alert' : decision.includes('TRIM') || decision.includes('WAIT') ? 'review' : ''}">
-      <div class="brace-position-head"><div><div class="symbol">${esc(position.broker_symbol)}</div><h3>${esc(position.label)}</h3></div><span class="brace-decision ${esc(decision)}">${esc(T.decisions[decision] || decision)}</span></div>
-      <div class="brace-scoreline"><div><small>${esc(T.score)}</small><strong class="${tone(position.score)}">${esc(score(position.score))}</strong></div><div><small>${esc(T.confidence)}</small><strong>${esc(score(position.confidence))}</strong></div></div>
-      <div class="brace-pillars">${pillarRows(position.pillar_scores)}</div>
-      <div class="brace-facts"><div><small>${esc(T.strongest)}</small><b>${esc(position.strongest_argument || '—')}</b></div><div><small>${esc(T.weakest)}</small><b>${esc(position.largest_risk || '—')}</b></div><div><small>${esc(T.catalyst)}</small><b>${esc(lang === 'pl' ? position.next_catalyst_pl : position.next_catalyst_en)}</b></div><div><small>${esc(T.thesisClock)}</small><b>${esc(clockText)}</b></div></div>
-      <div class="brace-contradictions"><b>${esc(T.contradictions)}:</b> ${contradictions.length ? contradictions.map(x => `<span>${esc(String(x).replaceAll('_', ' '))}</span>`).join('') : `<em>${esc(T.noContradictions)}</em>`}</div>
-      <details><summary>${esc(T.evidence)}</summary><div class="brace-evidence-list">${evidenceRows(position.evidence_ledger)}</div></details>
-    </article>`;
-  }
-
-  function renderPositions(data) {
-    const box = document.getElementById('brace-positions');
-    if (!box) return;
-    box.innerHTML = data.positions?.length ? data.positions.map(positionCard).join('') : `<div class="loading">${esc(T.loading)}</div>`;
-    const note = document.getElementById('brace-note');
-    const limitations = lang === 'pl' ? data.limitations_pl : data.limitations_en;
-    if (note) note.textContent = (limitations || []).join(' ');
-  }
-
-  function metricCell(value, kind) {
-    if (num(value) === null) return '—';
-    return kind === 'ratio' ? num(value).toFixed(2) : pct(value, 1);
-  }
-
-  function promotionGate(gate) {
-    if (!gate?.status) return '';
-    const promoted = gate.status === 'eligible_for_live_confirmation';
-    const reason = lang === 'pl' ? gate.reason_pl : gate.reason_en;
-    const champion = T.models[gate.champion] || gate.champion || '—';
-    return `<div class="status-note ${promoted ? 'ok' : ''}" style="margin:0 0 16px"><b>${esc(T.promotionTitle)} — ${esc(promoted ? T.promoted : T.notPromoted)}</b><br>${esc(reason || '')}<br><small>${esc(T.championLabel)}: ${esc(champion)}</small></div>`;
-  }
-
-  function renderBacktest(data) {
-    const box = document.getElementById('brace-backtest');
-    if (!box) return;
-    const metrics = data.metrics || {};
-    if (!Object.keys(metrics).length) {
-      box.innerHTML = `<div class="loading">${esc(T.noBacktest)}</div>`;
+  function renderLearning(data){
+    const box=document.getElementById('brace-learning'); if(!box)return;
+    const loop=data.learning_loop||{};
+    if(!Object.keys(loop).length){
+      box.innerHTML=`<div class="status-note"><b>${esc(T.learning)}</b><br>${esc(T.noLearning)}<br><small>${esc(dateTime(data.last_incremental_learning))}</small></div>`;
       return;
     }
-    const order = ['buy_hold', 'baseline', 'brace_standard', 'benchmark'];
-    const rows = order.filter(key => metrics[key]).map(key => `<tr><td><b>${esc(T.models[key] || key)}</b></td><td>${metricCell(metrics[key].cagr)}</td><td>${metricCell(metrics[key].max_drawdown)}</td><td>${metricCell(metrics[key].sharpe_zero_rf, 'ratio')}</td><td>${metricCell(metrics[key].annualized_turnover)}</td></tr>`).join('');
-    const method = lang === 'pl' ? data.methodology_pl : data.methodology_en;
-    box.innerHTML = `${promotionGate(data.promotion_gate)}<div class="table-scroll"><table class="audit brace-table"><thead><tr><th>${esc(T.model)}</th><th>${esc(T.cagr)}</th><th>${esc(T.drawdown)}</th><th>${esc(T.sharpe)}</th><th>${esc(T.turnover)}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="brace-method">${esc(method || '')}</p>`;
+    box.innerHTML=`<div class="brace-summary">
+      ${card(T.learning,String(loop.status||'—').replaceAll('_',' '),loop.active_parameters?'ACTIVE':'WARMUP')}
+      ${card(T.samples,`${num(loop.effective_samples)??0}/${num(loop.minimum_effective_samples)??'—'}`,`${loop.outcome_events||0} events`)}
+      ${card(T.next,dateTime(loop.next_scheduled_review_at),loop.overdue?'OVERDUE':'CURRENT')}
+    </div><div class="status-note">${esc(lang==='pl'?(loop.explanation_pl||''):(loop.explanation_en||''))}</div>`;
   }
 
-  async function json(url) {
-    const response = await fetch(url + '?v=' + Date.now(), {cache: 'no-store'});
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    return response.json();
+  function renderPositions(data){
+    const box=document.getElementById('brace-positions'); if(!box)return;
+    const activeIds=new Set((data.active_portfolio_ids||[]).map(x=>String(x||'').toLowerCase()));
+    const rows=(data.position_recommendations||[]).filter(item=>!activeIds.size||activeIds.has(String(item.instrument||item.instrument_id||'').toLowerCase()));
+    if(!rows.length){box.innerHTML=`<div class="brace-empty">${esc(T.noPositions)}</div>`;return;}
+    box.hidden=false;
+    const heading=box.previousElementSibling; if(heading?.classList?.contains('brace-section-title'))heading.hidden=false;
+    box.innerHTML=rows.map(item=>{
+      const confidence=num(item.confidence);
+      const rationale=lang==='pl'?item.rationale_pl:item.rationale_en;
+      const reports=Number(item.material_event_context?.report_count||0);
+      return `<article class="brace-position">
+        <div class="brace-position-head"><div><div class="symbol">${esc(item.broker_symbol||item.instrument||'—')}</div></div><span class="brace-decision">${esc(actionLabel(item.action))}</span></div>
+        <div class="brace-scoreline"><div><small>${esc(T.score)}</small><strong>${esc(score(item.final_score))}</strong></div><div><small>${esc(T.confidence)}</small><strong>${esc(pct(confidence))}</strong></div></div>
+        <div class="brace-facts"><div><small>${esc(T.currentWeight)}</small><b>${esc(pct(item.current_weight))}</b></div><div><small>${esc(T.proposedWeight)}</small><b>${esc(pct(item.proposed_weight))}</b></div></div>
+        <p>${esc(rationale||'')}</p><small>${reports} material reports</small>
+      </article>`;
+    }).join('');
+    const note=document.getElementById('brace-note');
+    if(note)note.textContent=lang==='pl'
+      ? 'Bieżący panel BRACE korzysta wyłącznie z publicznego, kanonicznego brace_engine_public.json.'
+      : 'The live BRACE panel uses only the canonical public brace_engine_public.json.';
   }
 
-  async function load() {
-    const positions = document.getElementById('brace-positions');
-    if (positions) positions.innerHTML = `<div class="loading">${esc(T.loading)}</div>`;
-    const [live, backtest, control] = await Promise.allSettled([
-      json('/data/investments/portfolio_10k_brace.json'),
-      json('/data/investments/portfolio_10k_brace_backtest.json'),
-      json('/data/portfolio10k/public/brace_engine_public.json')
-    ]);
-    const controlled = control.status === 'fulfilled' && ['PROBATIONARY_CONTROL','ACTIVE_PAPER_CONTROL','ACTIVE_CONTROL'].includes(String(control.value?.controller_status || ''));
-    if (live.status === 'fulfilled') {
-      renderSummary(live.value);
-      renderLearning(live.value);
-      if (controlled && positions) {
-        positions.hidden = true;
-        const heading = positions.previousElementSibling;
-        if (heading?.classList?.contains('brace-section-title')) heading.hidden = true;
-      } else {
-        renderPositions(live.value);
-      }
-    } else if (positions) {
-      positions.innerHTML = `<div class="error">${esc(T.unavailable)}</div>`;
+  function renderBacktest(data){
+    const box=document.getElementById('brace-backtest'); if(!box)return;
+    const progress=data.promotion_progress||{}, shadow=data.shadow||{}, baseline=data.baseline||{};
+    box.innerHTML=`<div class="brace-summary">
+      ${card(T.promotion,`${progress.passed||0}/${progress.total||0}`,`${num(progress.percentage)??0}%`)}
+      ${card(T.baseline,baseline.immutable?'IMMUTABLE':'—',baseline.source||'—')}
+      ${card(T.shadow,pct(shadow.shadow_return),`baseline ${pct(shadow.baseline_return)}`)}
+    </div>`;
+  }
+
+  function render(data){
+    renderSummary(data); renderLearning(data); renderPositions(data); renderBacktest(data);
+  }
+
+  async function load(){
+    const positions=document.getElementById('brace-positions');
+    if(positions)positions.innerHTML=`<div class="loading">${esc(T.loading)}</div>`;
+    try{
+      const response=await fetch(`${SOURCE}?v=${Date.now()}`,{cache:'no-store'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const data=await response.json();
+      if(data?.frontend_contract?.canonical_source!==SOURCE)throw new Error('canonical source contract mismatch');
+      render(data);
+    }catch(error){
+      if(positions)positions.innerHTML=`<div class="error">${esc(T.unavailable)}</div>`;
+      const summary=document.getElementById('brace-summary');
+      if(summary)summary.innerHTML=`<div class="error">${esc(T.unavailable)}</div>`;
     }
-    renderBacktest(backtest.status === 'fulfilled' ? backtest.value : {});
   }
 
   load();
