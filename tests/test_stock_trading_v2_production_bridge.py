@@ -10,13 +10,15 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.cfg = {
             "maximum_risk_percent": 0.07,
             "minimum_reward_risk": 1.5,
-            "maximum_execution_quote_age_minutes": 20,
+            "maximum_execution_quote_age_minutes": 5,
             "maximum_opportunity_age_minutes": 90,
             "require_regular_session_for_new_entry": True,
             "canary_max_open_positions_per_market": 1,
             "full_max_open_positions_per_market": 3,
             "auto_promote_canary": True,
             "healthy_market_sessions_required": 2,
+            "healthy_sessions_per_market_required": 1,
+            "full_cycle_max_new_positions_per_market": 3,
             "require_both_markets_before_full": True,
         }
         self.now = datetime(2026, 9, 17, 15, 0, tzinfo=timezone.utc)
@@ -111,6 +113,86 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertEqual(runtime["phase"], "CANARY")
         bridge.maybe_promote(runtime, self.cfg, ["GPW:2026-09-17", "US:2026-09-17"], self.now)
         self.assertEqual(runtime["phase"], "FULL")
+
+    def test_full_phase_can_fill_all_three_slots_in_one_cycle(self):
+        policy = portfolio.load_policy()
+        state = portfolio.empty_state(now=self.now, policy=policy)
+        candidates = [
+            self.candidate("AAA", 1, 95),
+            self.candidate("BBB", 2, 90),
+            self.candidate("CCC", 3, 85),
+        ]
+        opportunity = {
+            "generated_at": self.now.isoformat(),
+            "cash": {"utility": 50.0, "minimum_new_position_edge_points": 5.0},
+            "decision": {"action": "BUY", "candidate": candidates[0]},
+            "evaluated_candidates": candidates,
+        }
+        state, audits, healthy = bridge.process_market(
+            state,
+            "US",
+            opportunity,
+            config=self.cfg,
+            runtime={"phase": "FULL"},
+            now_utc=self.now,
+            quote_fetcher=self.quote,
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(3, len(portfolio.open_positions(state, "US")))
+        self.assertEqual(3, sum(1 for row in audits if row.get("action") == "open"))
+
+    def test_candidate_below_cash_edge_is_not_filled(self):
+        policy = portfolio.load_policy()
+        state = portfolio.empty_state(now=self.now, policy=policy)
+        strong = self.candidate("AAA", 1, 90)
+        weak = self.candidate("BBB", 2, 54)
+        opportunity = {
+            "generated_at": self.now.isoformat(),
+            "cash": {"utility": 50.0, "minimum_new_position_edge_points": 5.0},
+            "decision": {"action": "BUY", "candidate": strong},
+            "evaluated_candidates": [strong, weak],
+        }
+        state, audits, _ = bridge.process_market(
+            state,
+            "US",
+            opportunity,
+            config=self.cfg,
+            runtime={"phase": "FULL"},
+            now_utc=self.now,
+            quote_fetcher=self.quote,
+        )
+        self.assertEqual(["AAA"], [row["symbol"] for row in portfolio.open_positions(state, "US")])
+        self.assertTrue(any(row.get("reason") == "candidate_does_not_beat_cash_edge" for row in audits))
+
+    def test_stale_execution_quote_is_ready_not_filled(self):
+        policy = portfolio.load_policy()
+        state = portfolio.empty_state(now=self.now, policy=policy)
+        candidate = self.candidate("AAA", 1, 90)
+
+        def stale_quote(symbol, market, *, now_utc=None):
+            raise bridge.quotes.ExecutionQuoteUnavailable(
+                "stale",
+                diagnostics=[{"provider": "test", "capture_age_seconds": 900}],
+            )
+
+        opportunity = {
+            "generated_at": self.now.isoformat(),
+            "cash": {"utility": 50.0, "minimum_new_position_edge_points": 5.0},
+            "decision": {"action": "BUY", "candidate": candidate},
+            "evaluated_candidates": [candidate],
+        }
+        state, audits, healthy = bridge.process_market(
+            state,
+            "US",
+            opportunity,
+            config=self.cfg,
+            runtime={"phase": "FULL"},
+            now_utc=self.now,
+            quote_fetcher=stale_quote,
+        )
+        self.assertFalse(healthy)
+        self.assertEqual([], portfolio.open_positions(state, "US"))
+        self.assertEqual("ready_waiting_fresh_quote", audits[0]["action"])
 
 
 if __name__ == "__main__":
