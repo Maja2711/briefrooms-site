@@ -103,6 +103,11 @@ class NoRetroactiveExecutionTests(unittest.TestCase):
         self.assertTrue(_path_is_non_live(path))
         self.assertFalse(_path_is_canonical(path, {"optimization": {"rebalance_plan": [{"action": "OPEN"}]}}))
 
+    def test_brace_immutable_baseline_is_non_executable_benchmark(self):
+        path = "data/portfolio10k/baseline_portfolio.json"
+        self.assertTrue(_path_is_non_live(path))
+        self.assertFalse(_path_is_canonical(path, {"positions": [{"status": "active", "entry_price": 100.0}]}))
+
     def test_brace_paper_portfolio_remains_canonical_execution_state(self):
         path = "data/portfolio10k/paper_portfolio.json"
         self.assertFalse(_path_is_non_live(path))
