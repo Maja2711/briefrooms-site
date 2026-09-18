@@ -6,6 +6,7 @@ import copy
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional
 
+from brace_portfolio_config import default_methodology_version
 from brace_portfolio_data import canonical_sha256
 
 
@@ -53,7 +54,7 @@ def update_learning_state(
             current
             or {
                 "schema_version": "1.0.0",
-                "methodology_version": "brace-portfolio-v3.0.0",
+                "methodology_version": default_methodology_version(),
                 "data_freshness": "current",
                 "source_metadata": {
                     "engine": "brace_portfolio_learning.py",
@@ -64,7 +65,15 @@ def update_learning_state(
             }
         )
     )
+    state["methodology_version"] = str(
+        decision.get("methodology_version")
+        or default_methodology_version()
+    )
     evaluated = evaluate_outcome(decision, outcome)
+    evaluated["methodology_version"] = str(
+        decision.get("methodology_version")
+        or state["methodology_version"]
+    )
     existing = {
         str(item.get("decision_id")): item for item in state.get("outcomes", [])
     }

@@ -12,7 +12,12 @@ from typing import Any, Dict, Mapping, Optional
 from brace_portfolio_analysis_liveness import assess_analysis_liveness
 from brace_portfolio_backtest import run_walk_forward
 from brace_portfolio_candidates import rank_candidates
-from brace_portfolio_config import EngineConfig, load_config
+from brace_portfolio_config import (
+    EngineConfig,
+    configured_methodology_semver,
+    configured_methodology_version,
+    load_config,
+)
 from brace_portfolio_data import (
     BASELINE_PORTFOLIO_PATH,
     CONTROLLED_PORTFOLIO_PATH,
@@ -231,6 +236,7 @@ def _analysis_from_market(
     market: Mapping[str, Any],
     config: EngineConfig,
     generated_at: datetime,
+    methodology_version: str,
 ) -> tuple[Dict[str, Any], Dict[str, Any]]:
     by_id = _universe_by_id(universe)
     baseline_positions = {
@@ -302,7 +308,7 @@ def _analysis_from_market(
     report = {
         "schema_version": "1.0.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
-        "methodology_version": "brace-portfolio-v3.0.0",
+        "methodology_version": methodology_version,
         "data_freshness": market.get("data_freshness"),
         "execution_mode": "RESEARCH",
         "executable": False,
@@ -340,13 +346,14 @@ def _append_shadow(
     record: Mapping[str, Any],
     baseline: Mapping[str, Any],
     generated_at: datetime,
+    methodology_version: str,
 ) -> Dict[str, Any]:
     updated = copy.deepcopy(
         dict(
             current
             or {
                 "schema_version": "1.0.0",
-                "methodology_version": "brace-portfolio-v3.0.0",
+                "methodology_version": methodology_version,
                 "data_freshness": "current",
                 "source_metadata": {
                     "engine": "brace_portfolio_engine.py",
@@ -414,6 +421,7 @@ def _operational_state(
     baseline_unchanged: bool,
     generated_at: datetime,
     analysis: Mapping[str, Any],
+    methodology_version: str,
 ) -> Dict[str, Any]:
     liveness = assess_analysis_liveness(analysis, generated_at)
     safe_mode = bool(freshness.get("safe_mode")) or bool(liveness.get("overdue"))
@@ -423,7 +431,7 @@ def _operational_state(
     return {
         "schema_version": "1.0.0",
         "generated_at": generated_at.isoformat(timespec="seconds"),
-        "methodology_version": "brace-portfolio-v3.0.0",
+        "methodology_version": methodology_version,
         "data_freshness": "unsafe" if safe_mode else "current",
         "source_metadata": {"engine": "brace_portfolio_engine.py"},
         "safe_mode": safe_mode,
@@ -482,7 +490,9 @@ def run_cycle(
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
-    config, _ = load_config()
+    config, config_document = load_config()
+    methodology_version = configured_methodology_version(config_document)
+    methodology_semver = configured_methodology_semver(config_document)
     baseline_before = read_json(BASELINE_PORTFOLIO_PATH)
     baseline_copy = copy.deepcopy(baseline_before)
     controlled_portfolio = read_json(CONTROLLED_PORTFOLIO_PATH)
@@ -505,7 +515,7 @@ def run_cycle(
     analysis = previous_analysis or {
         "schema_version": "1.0.0",
         "generated_at": now.isoformat(timespec="seconds"),
-        "methodology_version": "brace-portfolio-v3.0.0",
+        "methodology_version": methodology_version,
         "data_freshness": "not_yet_analyzed",
         "source_metadata": source_metadata(),
         "positions": [],
@@ -517,7 +527,7 @@ def run_cycle(
     pending = read_json(PENDING_PATH) or {
         "schema_version": "1.0.0",
         "generated_at": now.isoformat(timespec="seconds"),
-        "methodology_version": "brace-portfolio-v3.0.0",
+        "methodology_version": methodology_version,
         "data_freshness": "not_yet_analyzed",
         "source_metadata": {"engine": "brace_portfolio_decision.py"},
         "safe_mode": True,
@@ -535,7 +545,12 @@ def run_cycle(
         if not market.get("instruments"):
             raise ValueError("Market cache is empty; a data provider is required")
         analysis, optimization = _analysis_from_market(
-            analysis_portfolio, universe, market, config, now
+            analysis_portfolio,
+            universe,
+            market,
+            config,
+            now,
+            methodology_version,
         )
         analysis["last_incremental_learning"] = (
             now.isoformat(timespec="seconds") if mode == "daily" else previous_analysis.get(
@@ -561,7 +576,7 @@ def run_cycle(
                 optimization,
                 config,
                 now,
-                str(current_challenger.get("version") or "3.0.0"),
+                str(current_challenger.get("version") or methodology_semver),
                 str(market.get("generated_at") or now.isoformat()),
                 bool(freshness.get("safe_mode")),
                 read_json(PENDING_PATH),
@@ -581,7 +596,13 @@ def run_cycle(
                 item["signal_price"] = prices.get(item.get("instrument"))
                 item["hypothetical_execution_status"] = "AWAITING_FUTURE_OUTCOME"
                 item["costs"] = config.transaction_cost_buffer
-            shadow = _append_shadow(shadow, record, baseline_before, now)
+            shadow = _append_shadow(
+                shadow,
+                record,
+                baseline_before,
+                now,
+                methodology_version,
+            )
             write_json_atomic(SHADOW_PATH, shadow)
         if mode == "daily":
             learning = read_json(LEARNING_PATH)
@@ -602,7 +623,13 @@ def run_cycle(
 
     assert_baseline_unchanged(baseline_copy, read_json(BASELINE_PORTFOLIO_PATH))
     _record_baseline_validation(registry, baseline_before, now)
-    operational = _operational_state(freshness, True, now, analysis)
+    operational = _operational_state(
+        freshness,
+        True,
+        now,
+        analysis,
+        methodology_version,
+    )
     write_json_atomic(OPERATIONAL_PATH, operational)
     validation = read_json(VALIDATION_PATH)
     promotion_history = read_json(PROMOTION_HISTORY_PATH)

@@ -298,6 +298,35 @@ class EngineConfig:
             )
 
 
+def configured_methodology_version(raw: Mapping[str, Any]) -> str:
+    value = str(raw.get("methodology_version") or "").strip()
+    prefix = "brace-portfolio-v"
+    if not value.startswith(prefix):
+        raise ValueError(
+            "BRACE methodology_version must use brace-portfolio-vMAJOR.MINOR.PATCH"
+        )
+    semver = value[len(prefix):]
+    parts = semver.split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        raise ValueError(
+            "BRACE methodology_version must use brace-portfolio-vMAJOR.MINOR.PATCH"
+        )
+    return value
+
+
+def configured_methodology_semver(raw: Mapping[str, Any]) -> str:
+    return configured_methodology_version(raw).removeprefix("brace-portfolio-v")
+
+
+def default_methodology_version() -> str:
+    raw = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    return configured_methodology_version(raw)
+
+
+def default_methodology_semver() -> str:
+    return default_methodology_version().removeprefix("brace-portfolio-v")
+
+
 def load_config(
     path: Path = DEFAULT_CONFIG_PATH,
     adaptive_path: Path | None = None,
@@ -334,6 +363,9 @@ def load_config(
 
     merged["adaptive_policy_runtime"] = adaptive_metadata
     merged["portfolio_evolution_runtime"] = portfolio_metadata
+    if not merged.get("methodology_version"):
+        merged["methodology_version"] = default_methodology_version()
+    configured_methodology_version(merged)
     return EngineConfig.from_mapping(merged), merged
 
 
