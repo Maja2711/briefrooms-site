@@ -6,7 +6,7 @@
   const T = lang === 'pl' ? {
     loading: 'BRACE buduje pierwszy przegląd…', unavailable: 'Dane BRACE są chwilowo niedostępne.',
     score: 'Conviction score', confidence: 'Pewność danych', regime: 'Reżim rynku', status: 'Status modelu',
-    challenger: 'challenger / tryb równoległy', positions: 'Analiza pozycji', backtest: 'Test historyczny BRACE-Lite',
+    challenger: 'kanoniczny stan kontroli', positions: 'Analiza pozycji', backtest: 'Test historyczny BRACE-Lite',
     decision: 'Decyzja', strongest: 'Najmocniejszy argument', weakest: 'Największe ryzyko', catalyst: 'Następny katalizator',
     thesisClock: 'Zegar tezy', evidence: 'Rejestr dowodów', contradictions: 'Sprzeczności do zbadania', noContradictions: 'Brak istotnych sprzeczności',
     noEvidence: 'Brak wystarczających dowodów do publikacji.', noBacktest: 'Backtest oczekuje na pierwszy pełny przebieg.',
@@ -29,7 +29,7 @@
   } : {
     loading: 'BRACE is building its first review…', unavailable: 'BRACE data is temporarily unavailable.',
     score: 'Conviction score', confidence: 'Data confidence', regime: 'Market regime', status: 'Model status',
-    challenger: 'challenger / shadow mode', positions: 'Position analysis', backtest: 'BRACE-Lite historical test',
+    challenger: 'canonical control state', positions: 'Position analysis', backtest: 'BRACE-Lite historical test',
     decision: 'Decision', strongest: 'Strongest argument', weakest: 'Largest risk', catalyst: 'Next catalyst',
     thesisClock: 'Thesis clock', evidence: 'Evidence ledger', contradictions: 'Contradictions to investigate', noContradictions: 'No material contradictions',
     noEvidence: 'Insufficient evidence to publish.', noBacktest: 'The backtest is waiting for its first complete run.',
@@ -69,14 +69,22 @@
   function renderSummary(data) {
     const box = document.getElementById('brace-summary');
     if (!box) return;
-    const portfolio = data.portfolio || {};
-    const context = data.market_context || {};
-    const counts = Object.entries(portfolio.decision_counts || {}).map(([key, value]) => `${T.decisions[key] || key}: ${value}`).join(' · ');
+    const recommendations = data.position_recommendations || [];
+    const scores = recommendations.map(item => num(item.final_score)).filter(value => value !== null);
+    const confidences = recommendations.map(item => num(item.confidence)).filter(value => value !== null);
+    const averageScore = scores.length ? scores.reduce((a,b)=>a+b,0) / scores.length : null;
+    const averageConfidence = confidences.length ? confidences.reduce((a,b)=>a+b,0) / confidences.length * 100 : null;
+    const decisionCounts = recommendations.reduce((acc,item) => {
+      const key = String(item.action || 'HOLD').toUpperCase();
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const counts = Object.entries(decisionCounts).map(([key, value]) => `${key}: ${value}`).join(' · ');
     box.innerHTML = [
-      summaryCard(T.score, score(portfolio.score), counts || T.challenger, tone(portfolio.score)),
-      summaryCard(T.confidence, score(portfolio.confidence), `${Math.round((num(portfolio.positions_reviewed) || 0))} ${T.positions.toLowerCase()}`, tone(portfolio.confidence)),
-      summaryCard(T.regime, String(context.regime || 'pending').replaceAll('_', ' '), context.market_date ? dateFmt(context.market_date) : '—'),
-      summaryCard(T.status, data.status || 'initialising', T.challenger)
+      summaryCard(T.score, score(averageScore), counts || T.challenger, tone(averageScore)),
+      summaryCard(T.confidence, score(averageConfidence), `${recommendations.length} ${T.positions.toLowerCase()}`, tone(averageConfidence)),
+      summaryCard(T.regime, String(data.risk?.status || 'MONITORED').replaceAll('_', ' '), data.data_freshness || '—'),
+      summaryCard(T.status, data.display_status || data.controller_status || 'initialising', T.challenger)
     ].join('');
     const meta = document.getElementById('brace-meta');
     if (meta) meta.textContent = `${T.generated}: ${dateFmt(data.generated_at)}`;
@@ -91,21 +99,17 @@
   function renderLearning(data) {
     const box = document.getElementById('brace-learning');
     if (!box) return;
-    const learning = data.learning || {};
-    const objective = lang === 'pl' ? learning.objective?.primary_pl : learning.objective?.primary_en;
-    const governance = lang === 'pl' ? learning.governance_pl : learning.governance_en;
+    const learning = data.learning_loop || {};
+    const explanation = lang === 'pl' ? learning.explanation_pl : learning.explanation_en;
+    const activeOverrides = Object.keys(learning.active_overrides || {}).length;
     box.innerHTML = `
       <div class="brace-summary">
-        ${summaryCard(T.learningStatus, String(learning.status || 'collecting_memory').replaceAll('_', ' '), T.nextReview)}
-        ${summaryCard(T.memory, String(Math.round(num(learning.decisions_stored) || 0)), T.objective)}
-        ${summaryCard(T.outcomes, String(Math.round(num(learning.outcome_events_stored) || 0)), Object.entries(learning.evaluated_horizons || {}).map(([k,v]) => `${k}: ${v}`).join(' · ') || '—')}
-        ${summaryCard(T.activeSignals, String(Math.round(num(learning.active_multipliers) || 0)), `${T.minSample}: ${num(learning.minimum_effective_samples) || 8}`)}
+        ${summaryCard(T.learningStatus, String(learning.status || 'WARMUP').replaceAll('_', ' '), T.nextReview)}
+        ${summaryCard(T.memory, String(Math.round(num(learning.eligible_events) || 0)), T.objective)}
+        ${summaryCard(T.outcomes, String(Math.round(num(learning.outcome_events) || 0)), `${T.samples}: ${num(learning.effective_samples) || 0}`)}
+        ${summaryCard(T.activeSignals, String(activeOverrides), `${T.minSample}: ${num(learning.minimum_effective_samples) || 12}`)}
       </div>
-      <div class="status-note" style="margin:16px 0"><b>${esc(T.objective)}</b><br>${esc(objective || '—')}<br><small>${esc(governance || '')}</small></div>
-      <div class="brace-learning-columns">
-        <div><h4>${esc(T.topSignals)}</h4>${signalTable(learning.top_reliable_signals)}</div>
-        <div><h4>${esc(T.weakSignals)}</h4>${signalTable(learning.signals_needing_review)}</div>
-      </div>`;
+      <div class="status-note" style="margin:16px 0"><b>${esc(T.objective)}</b><br>${esc(explanation || '—')}</div>`;
   }
 
   function pillarRows(pillars) {
@@ -187,22 +191,22 @@
   async function load() {
     const positions = document.getElementById('brace-positions');
     if (positions) positions.innerHTML = `<div class="loading">${esc(T.loading)}</div>`;
-    const [live, backtest, control] = await Promise.allSettled([
-      json('/data/investments/portfolio_10k_brace.json'),
-      json('/data/investments/portfolio_10k_brace_backtest.json'),
-      json('/data/portfolio10k/public/brace_engine_public.json')
+    const [canonical, backtest] = await Promise.allSettled([
+      json('/data/portfolio10k/public/brace_engine_public.json'),
+      json('/data/investments/portfolio_10k_brace_backtest.json')
     ]);
-    const controlled = control.status === 'fulfilled' && ['PROBATIONARY_CONTROL','ACTIVE_PAPER_CONTROL','ACTIVE_CONTROL'].includes(String(control.value?.controller_status || ''));
-    if (live.status === 'fulfilled') {
-      renderSummary(live.value);
-      renderLearning(live.value);
-      if (controlled && positions) {
-        positions.hidden = true;
+    if (canonical.status === 'fulfilled') {
+      renderSummary(canonical.value);
+      renderLearning(canonical.value);
+      const controlled = ['PROBATIONARY_CONTROL','ACTIVE_PAPER_CONTROL','ACTIVE_CONTROL'].includes(String(canonical.value?.controller_status || ''));
+      if (positions) {
+        positions.hidden = controlled;
         const heading = positions.previousElementSibling;
-        if (heading?.classList?.contains('brace-section-title')) heading.hidden = true;
-      } else {
-        renderPositions(live.value);
+        if (heading?.classList?.contains('brace-section-title')) heading.hidden = controlled;
       }
+      document.querySelectorAll('[data-brace-status]').forEach(element => {
+        element.textContent = String(canonical.value?.controller_status || 'BRACE').replaceAll('_', ' ');
+      });
     } else if (positions) {
       positions.innerHTML = `<div class="error">${esc(T.unavailable)}</div>`;
     }
