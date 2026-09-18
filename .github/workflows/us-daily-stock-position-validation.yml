@@ -69,6 +69,7 @@ jobs:
           lifecycle=Path('scripts/us_daily_stock_position_lifecycle.py').read_text(encoding='utf-8')
           runtime=Path('scripts/us_daily_stock_runtime.py').read_text(encoding='utf-8')
           monitor=Path('.github/workflows/us-daily-stock-position-monitor.yml').read_text(encoding='utf-8')
+          v2prod=Path('.github/workflows/stock-trading-v2-production.yml').read_text(encoding='utf-8')
           daily=Path('.github/workflows/us-daily-stock-en.yml').read_text(encoding='utf-8')
           history=Path('scripts/build_daily_stock_history_index.py').read_text(encoding='utf-8')
           portfolio=Path('scripts/stock_trading_portfolio.py').read_text(encoding='utf-8')
@@ -79,6 +80,8 @@ jobs:
           assert 'canonical_history_payloads' in history
           assert '*/5 13-21 * * 1-5' in monitor
           assert 'stock_trading_portfolio.py --mode run --market US' in monitor
+          assert 'group: stock-trading-state-writer' in monitor
+          assert 'group: stock-trading-state-writer' in v2prod
           assert 'us-daily-stock-en' not in monitor
           assert policy['champion_engine']=='v2'
           assert policy['legacy_candidate_admission_enabled'] is False
