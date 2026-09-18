@@ -273,6 +273,7 @@
     link.id = 'home-market-signal';
     link.className = 'home-market-signal';
     link.href = signal.href;
+    link.setAttribute('data-signal-kind', signal.kind);
     link.setAttribute('aria-label', kickerText + ': ' + signalName(signal, lang));
 
     var kicker = document.createElement('span');
