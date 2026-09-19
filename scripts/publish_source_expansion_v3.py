@@ -70,7 +70,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v5"
+HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v6"
 HOMEPAGE_LIMIT = 12
 HOMEPAGE_TARGET_SOURCE_CAP = 2
 HOMEPAGE_EMERGENCY_SOURCE_CAP = 3
