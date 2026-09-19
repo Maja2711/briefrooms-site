@@ -220,7 +220,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         }
 
         result, _ = enforce_payload(payload, {}, now)
-        self.assertEqual(len(result["home"]), 10)
+        self.assertEqual(len(result["home"]), 12)
         titles = {item["title"] for item in result["home"]}
         self.assertNotIn("Missing image", titles)
         self.assertNotIn("HTTP image", titles)
