@@ -47,6 +47,7 @@ PL = [
         ("Nauka w Polsce", "https://naukawpolsce.pl/naukowy/rss.xml"),
         ("RMF24", "https://www.rmf24.pl/nauka/feed"),
         ("Polsat News", "https://www.polsatnews.pl/rss/technologie.xml"),
+        ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
     ]),
     ("sport", "Sport", [
         ("Polsat Sport", "https://www.polsatsport.pl/rss/wszystkie.xml"),
