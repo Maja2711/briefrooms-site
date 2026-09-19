@@ -21,6 +21,7 @@ STATE_PATH = NEWS_DIR / "homepage_exposure.json"
 HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 10
+HOME_RESERVE_LIMIT = 10
 POLICY_VERSION = "max-72h-first-display-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
 
@@ -63,7 +64,7 @@ def _homepage_image_url(story: dict[str, Any]) -> str:
 
 
 def _candidate_sequence(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
-    """Keep publisher homepage order, then use section rows as image-qualified replacements."""
+    """Use only publisher-approved homepage and reserve candidates."""
     seen: set[str] = set()
 
     def emit(story: Any) -> dict[str, Any] | None:
@@ -75,22 +76,8 @@ def _candidate_sequence(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
         seen.add(identity)
         return story
 
-    for story in payload.get("home") or []:
-        accepted = emit(story)
-        if accepted is not None:
-            yield accepted
-
-    sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
-    labels = payload.get("labels") if isinstance(payload.get("labels"), dict) else {}
-    max_rows = max((len(rows) for rows in sections.values() if isinstance(rows, list)), default=0)
-    for index in range(max_rows):
-        for section_id, rows in sections.items():
-            if not isinstance(rows, list) or index >= len(rows):
-                continue
-            story = dict(rows[index]) if isinstance(rows[index], dict) else None
-            if story is None:
-                continue
-            story.setdefault("category", labels.get(section_id, section_id))
+    for field in ("home", "home_reserve"):
+        for story in payload.get(field) or []:
             accepted = emit(story)
             if accepted is not None:
                 yield accepted
@@ -118,34 +105,32 @@ def enforce_payload(
     now: datetime,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     current = now.astimezone(timezone.utc)
+    candidates = list(_candidate_sequence(payload))
     selected: list[dict[str, Any]] = []
+    reserve: list[dict[str, Any]] = []
     expired_count = 0
     source_stale_count = 0
     image_rejected_count = 0
     topic_duplicate_rejected_count = 0
+    reserve_topic_duplicate_rejected_count = 0
 
-    for story in _candidate_sequence(payload):
-        if len(selected) >= HOME_LIMIT:
-            break
+    def qualify(story: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
         if not _homepage_image_url(story):
-            image_rejected_count += 1
-            continue
+            return None, "image"
         if not _source_is_fresh(story, current):
-            source_stale_count += 1
-            continue
+            return None, "source_stale"
 
         identity = base.normalized_identity(story)
         if not identity:
-            continue
+            return None, "identity"
         exposure = state_lang.get(identity)
         first_seen = _first_seen(story, exposure if isinstance(exposure, dict) else None, current)
         if first_seen is None:
-            continue
+            return None, "timestamp"
 
         age = current - first_seen
         if age < -FUTURE_TOLERANCE or age > HOME_MAX_AGE:
-            expired_count += 1
-            continue
+            return None, "expired"
 
         if not isinstance(exposure, dict):
             state_lang[identity] = {
@@ -154,16 +139,58 @@ def enforce_payload(
                 "title": str(story.get("title") or ""),
             }
 
-        if any(homepage_same_topic(story, previous) for previous in selected):
-            topic_duplicate_rejected_count += 1
-            continue
-
         copy = dict(story)
         copy["homepage_first_seen_at"] = _iso(first_seen)
         copy["homepage_expires_at"] = _iso(first_seen + HOME_MAX_AGE)
+        return copy, "ok"
+
+    for story in candidates:
+        if len(selected) >= HOME_LIMIT:
+            break
+        copy, reason = qualify(story)
+        if copy is None:
+            if reason == "image":
+                image_rejected_count += 1
+            elif reason == "source_stale":
+                source_stale_count += 1
+            elif reason == "expired":
+                expired_count += 1
+            continue
+        if any(homepage_same_topic(copy, previous) for previous in selected):
+            topic_duplicate_rejected_count += 1
+            continue
         selected.append(copy)
 
+    selected_ids = {
+        base.normalized_identity(story)
+        for story in selected
+        if base.normalized_identity(story)
+    }
+    approved_topics = list(selected)
+    reserve_ids: set[str] = set()
+
+    for story in candidates:
+        if len(reserve) >= HOME_RESERVE_LIMIT:
+            break
+        identity = base.normalized_identity(story)
+        if not identity or identity in selected_ids or identity in reserve_ids:
+            continue
+        copy, reason = qualify(story)
+        if copy is None:
+            continue
+        duplicate = next(
+            (previous for previous in approved_topics if homepage_same_topic(copy, previous)),
+            None,
+        )
+        if duplicate is not None:
+            reserve_topic_duplicate_rejected_count += 1
+            continue
+        reserve.append(copy)
+        reserve_ids.add(identity)
+        approved_topics.append(copy)
+
     payload["home"] = selected
+    payload["home_reserve"] = reserve
     payload["homepage_policy"] = {
         "version": POLICY_VERSION,
         "max_display_hours": 72,
@@ -171,6 +198,8 @@ def enforce_payload(
         "also_requires_source_age_hours_lte": 72,
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": HOME_LIMIT,
+        "reserve_story_limit": HOME_RESERVE_LIMIT,
+        "runtime_backfill_policy": "approved_home_reserve_only",
         "requires_https_image": True,
         "image_policy_version": IMAGE_POLICY_VERSION,
     }
@@ -181,13 +210,16 @@ def enforce_payload(
         "published_count": len(selected),
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": HOME_LIMIT,
+        "reserve_count": len(reserve),
+        "reserve_story_limit": HOME_RESERVE_LIMIT,
+        "runtime_backfill_policy": "approved_home_reserve_only",
         "expired_exposure_rejected": expired_count,
         "source_stale_rejected": source_stale_count,
         "image_rejected": image_rejected_count,
         "topic_duplicate_rejected": topic_duplicate_rejected_count,
+        "reserve_topic_duplicate_rejected": reserve_topic_duplicate_rejected_count,
     }
     return payload, state_lang
-
 
 def _load_state() -> dict[str, Any]:
     try:
@@ -236,28 +268,43 @@ def validate_files() -> None:
         if policy.get("requires_https_image") is not True or policy.get("image_policy_version") != IMAGE_POLICY_VERSION:
             raise RuntimeError(f"{lang} homepage HTTPS-image policy missing")
 
+        if policy.get("runtime_backfill_policy") != "approved_home_reserve_only":
+            raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
+        if int(policy.get("reserve_story_limit") or 0) != HOME_RESERVE_LIMIT:
+            raise RuntimeError(f"{lang} homepage reserve limit missing")
+
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
+        reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
         if len(home) != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage has {len(home)} stories; exactly {HOME_LIMIT} are required")
+        if len(reserve) > HOME_RESERVE_LIMIT:
+            raise RuntimeError(f"{lang} homepage reserve exceeds {HOME_RESERVE_LIMIT} stories")
+
         identities: set[str] = set()
-        for index, story in enumerate(home):
-            identity = base.normalized_identity(story)
-            if not identity or identity in identities:
-                raise RuntimeError(f"{lang} homepage contains a duplicate or invalid story")
-            identities.add(identity)
-            for previous in home[:index]:
-                if homepage_same_topic(story, previous):
+        approved: list[dict[str, Any]] = []
+        for scope, rows in (("homepage", home), ("homepage reserve", reserve)):
+            for story in rows:
+                identity = base.normalized_identity(story)
+                if not identity or identity in identities:
+                    raise RuntimeError(f"{lang} {scope} contains a duplicate or invalid story")
+                duplicate = next(
+                    (previous for previous in approved if homepage_same_topic(story, previous)),
+                    None,
+                )
+                if duplicate is not None:
                     raise RuntimeError(
-                        f"{lang} homepage contains topic duplicate: "
-                        f"{previous.get('title')} <> {story.get('title')}"
+                        f"{lang} {scope} contains topic duplicate: "
+                        f"{duplicate.get('title')} <> {story.get('title')}"
                     )
-            if not _homepage_image_url(story):
-                raise RuntimeError(f"{lang} homepage contains story without HTTPS image: {story.get('title')}")
-            if not _source_is_fresh(story, now):
-                raise RuntimeError(f"{lang} homepage contains source-stale story: {story.get('title')}")
-            first_seen = _parse_time(story.get("homepage_first_seen_at"))
-            if first_seen is None or now - first_seen > HOME_MAX_AGE:
-                raise RuntimeError(f"{lang} homepage contains overexposed story: {story.get('title')}")
+                identities.add(identity)
+                approved.append(story)
+                if not _homepage_image_url(story):
+                    raise RuntimeError(f"{lang} {scope} contains story without HTTPS image: {story.get('title')}")
+                if not _source_is_fresh(story, now):
+                    raise RuntimeError(f"{lang} {scope} contains source-stale story: {story.get('title')}")
+                first_seen = _parse_time(story.get("homepage_first_seen_at"))
+                if first_seen is None or now - first_seen > HOME_MAX_AGE:
+                    raise RuntimeError(f"{lang} {scope} contains overexposed story: {story.get('title')}")
 
 
 def main() -> None:

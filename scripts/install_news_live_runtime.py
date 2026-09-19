@@ -16,7 +16,7 @@ PAGES = [
 ]
 VERSION = "6"
 RUNTIME_REVISION = "image2"
-FLOOR_VERSION = "2"
+FLOOR_VERSION = "3"
 LAB_VERSION = "1"
 INTELLIGENCE_VERSION = "1"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}&rev={RUNTIME_REVISION}" defer></script>'

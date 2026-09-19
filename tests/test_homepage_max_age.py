@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from scripts.enforce_homepage_max_age import (
     HOME_LIMIT,
     HOME_MAX_AGE,
+    HOME_RESERVE_LIMIT,
     IMAGE_POLICY_VERSION,
     enforce_payload,
 )
@@ -81,7 +82,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         late_result, _ = enforce_payload(late_payload, state, late)
         self.assertEqual(late_result["home"], [])
 
-    def test_expired_home_story_is_replaced_by_next_eligible_section_story(self) -> None:
+    def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
         expired = self._story("Expired", now)
         replacement = self._story("Replacement", now - timedelta(hours=1))
@@ -94,6 +95,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         }
         payload = {
             "home": [expired],
+            "home_reserve": [replacement],
             "sections": {"health": [expired, replacement]},
             "labels": {"health": "Health"},
             "health": {},
@@ -104,7 +106,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertIn("homepage_first_seen_at", result["home"][0])
         self.assertIn("homepage_expires_at", result["home"][0])
 
-    def test_homepage_fills_to_exactly_ten_from_section_backfill(self) -> None:
+    def test_homepage_fills_to_exactly_ten_from_curated_reserve(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         initial = [self._story(f"Home {index}", now - timedelta(minutes=index), "Politics") for index in range(6)]
         replacements = [
@@ -113,6 +115,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         ]
         payload = {
             "home": initial,
+            "home_reserve": replacements,
             "sections": {"politics": initial, "economy": replacements},
             "labels": {"politics": "Politics", "economy": "Economy"},
             "health": {},
@@ -128,6 +131,79 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertTrue(result["homepage_policy"]["requires_https_image"])
         self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
 
+    def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
+        now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+        chosen_noise = self._story(
+            "Eksperci: zmiany prawne to najskuteczniejszy sposób walki z hałasem w naszym otoczeniu",
+            now - timedelta(minutes=10),
+            "Health",
+        )
+        chosen_noise["source"] = "Nauka w Polsce"
+        duplicate_noise = self._story(
+            "Skąd się bierze hałas w miastach?",
+            now - timedelta(minutes=20),
+            "Health",
+        )
+        duplicate_noise["source"] = "Nauka w Polsce"
+        water = self._story(
+            "Prof. Rybicki: wyzwaniem są zarówno niedobory wody, jak i jej nadmiar",
+            now - timedelta(minutes=30),
+            "Science",
+        )
+        water["source"] = "Nauka w Polsce"
+
+        distinct = [
+            self._story("Inflacja spadła poniżej prognoz", now - timedelta(minutes=31), "Economy"),
+            self._story("Parlament przyjął ustawę o cyberbezpieczeństwie", now - timedelta(minutes=32), "Politics"),
+            self._story("Teleskop wykrył atmosferę odległej planety", now - timedelta(minutes=33), "Science"),
+            self._story("Polska wygrała mecz kwalifikacyjny", now - timedelta(minutes=34), "Sport"),
+            self._story("Bank centralny utrzymał stopy procentowe", now - timedelta(minutes=35), "Economy"),
+            self._story("Robot laboratoryjny przyspiesza syntezę leków", now - timedelta(minutes=36), "Science"),
+            self._story("Samorządy dostaną nowe finansowanie", now - timedelta(minutes=37), "Politics"),
+            self._story("Tenisista awansował do finału turnieju", now - timedelta(minutes=38), "Sport"),
+            self._story("Eksport przemysłowy przyspieszył", now - timedelta(minutes=39), "Economy"),
+        ]
+        payload = {
+            "home": [chosen_noise] + distinct,
+            "home_reserve": [duplicate_noise, water],
+            "sections": {"health": [duplicate_noise], "science": [water]},
+            "labels": {"health": "Health", "science": "Science"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        visible_titles = [item["title"] for item in result["home"]]
+        reserve_titles = [item["title"] for item in result["home_reserve"]]
+
+        self.assertEqual(len(result["home"]), HOME_LIMIT)
+        self.assertNotIn(duplicate_noise["title"], visible_titles + reserve_titles)
+        self.assertIn(water["title"], reserve_titles)
+        self.assertLessEqual(len(result["home_reserve"]), HOME_RESERVE_LIMIT)
+        self.assertEqual(
+            result["homepage_policy"]["runtime_backfill_policy"],
+            "approved_home_reserve_only",
+        )
+
+    def test_raw_sections_cannot_bypass_homepage_selection(self) -> None:
+        now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
+        initial = [self._story(f"Approved {index}", now - timedelta(minutes=index)) for index in range(4)]
+        raw_sections = [
+            self._story(f"Raw section {index}", now - timedelta(minutes=20 + index))
+            for index in range(12)
+        ]
+        payload = {
+            "home": initial,
+            "home_reserve": [],
+            "sections": {"health": raw_sections},
+            "labels": {"health": "Health"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        self.assertEqual([item["title"] for item in result["home"]], [item["title"] for item in initial])
+        self.assertEqual(result["home_reserve"], [])
+        self.assertEqual(result["health"]["homepage_freshness"]["status"], "underfilled")
+
     def test_missing_and_http_images_are_rejected_and_replaced(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         missing = dict(self._story("Missing image", now), image="")
@@ -135,6 +211,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         valid = [self._story(f"Valid {index}", now - timedelta(minutes=index + 1)) for index in range(12)]
         payload = {
             "home": [missing, insecure] + valid[:4],
+            "home_reserve": valid[4:],
             "sections": {"health": [missing, insecure] + valid},
             "labels": {"health": "Health"},
             "health": {},

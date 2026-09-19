@@ -111,7 +111,7 @@
     card.rel = 'noopener noreferrer external';
     card.dataset.homePublishedAt = published;
     if (story.homepage_first_seen_at) card.dataset.homeFirstSeenAt = String(story.homepage_first_seen_at);
-    card.dataset.homeCardFloor = 'image-feed';
+    card.dataset.homeCardFloor = 'approved-home-reserve';
 
     var thumb = element(document, 'div', 'thumb has-image');
     var image = document.createElement('img');
@@ -153,15 +153,11 @@
       output.push(story);
     }
 
+    // Runtime recovery may use only server-approved homepage candidates.
+    // Never backfill from raw section rows: that bypasses homepage ranking,
+    // source/section diversity and topic-level duplicate suppression.
     (Array.isArray(data && data.home) ? data.home : []).forEach(add);
-    var sections = data && typeof data.sections === 'object' && data.sections ? data.sections : {};
-    var rows = Object.values(sections).filter(Array.isArray);
-    var maxRows = rows.reduce(function (max, items) { return Math.max(max, items.length); }, 0);
-    for (var index = 0; index < maxRows; index += 1) {
-      rows.forEach(function (items) {
-        if (index < items.length) add(items[index]);
-      });
-    }
+    (Array.isArray(data && data.home_reserve) ? data.home_reserve : []).forEach(add);
     return output;
   }
 

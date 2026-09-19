@@ -68,7 +68,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             rendered = path.read_text(encoding='utf-8')
 
         live_url = '/scripts/news-live.js?v=6&rev=image2'
-        floor_url = '/scripts/home-card-floor.js?v=2'
+        floor_url = '/scripts/home-card-floor.js?v=3'
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)
         self.assertLess(rendered.index(live_url), rendered.index(floor_url))
@@ -92,7 +92,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         lab_url = '/scripts/home-lab.js?v=1'
         intelligence_url = '/scripts/home-intelligence-layout.js?v=1'
         live_url = '/scripts/news-live.js?v=6&rev=image2'
-        floor_url = '/scripts/home-card-floor.js?v=2'
+        floor_url = '/scripts/home-card-floor.js?v=3'
         self.assertEqual(rendered.count(lab_url), 1)
         self.assertEqual(rendered.count(intelligence_url), 1)
         self.assertEqual(rendered.count(live_url), 1)
@@ -131,6 +131,8 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         source = script.read_text(encoding='utf-8')
         self.assertIn('var MIN_CARDS = 10;', source)
         self.assertIn('function safeImageUrl(value)', source)
+        self.assertIn("data.home_reserve", source)
+        self.assertNotIn("Object.values(sections)", source)
         self.assertIn('function makeImageCard(document, story, lang, nowMs)', source)
         self.assertIn("image.addEventListener('error', onFailure", source)
         self.assertIn("context.failedStoryIds.add(cardIdentity(card));", source)

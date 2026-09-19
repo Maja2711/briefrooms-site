@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 from scripts.dedupe_home_brief_stories import same_topic
+from scripts import publish_source_expansion_v3 as source_v3
 from scripts.publish_source_expansion_v3 import homepage_ranked_select
 
 
@@ -144,8 +145,80 @@ class LiveNewsPublisherTests(unittest.TestCase):
         noise_count = sum("hałas" in title.casefold() for title in titles)
         self.assertEqual(len(selected), 10)
         self.assertEqual(noise_count, 1)
-        self.assertEqual(diagnostics["version"], "homepage-editorial-v2")
+        self.assertEqual(diagnostics["version"], "homepage-editorial-v3")
         self.assertLessEqual(max(diagnostics["source_mix"].values()), 3)
+
+    def test_homepage_runtime_reserve_uses_same_topic_dedupe_as_visible_home(self) -> None:
+        now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+
+        def row(source: str, title: str, idx: int, section: str) -> dict:
+            return {
+                "source": source,
+                "publisher_source": source,
+                "title": title,
+                "summary": title + " — pełny opis materiału z dodatkowymi faktami i kontekstem.",
+                "link": f"https://example.com/{section}/{idx}",
+                "image": f"https://example.com/{idx}.jpg",
+                "published_at": (now - timedelta(minutes=idx)).isoformat(),
+                "published_at_basis": "source",
+                "canonical_event_id": f"evt_{section}_{idx}",
+                "corroboration_score": 50.0,
+                "claim_adjusted_corroboration_score": 50.0,
+                "independent_evidence_paths": 2,
+                "claim_consistency_status": "consistent",
+                "contradiction_score": 0.0,
+                "provenance_role": "original",
+                "origin_source": source,
+            }
+
+        sections = {
+            "zdrowie": [
+                row("Nauka w Polsce", "Eksperci: zmiany prawne to najskuteczniejszy sposób walki z hałasem w naszym otoczeniu", 1, "zdrowie"),
+                row("Nauka w Polsce", "Skąd się bierze hałas w miastach?", 2, "zdrowie"),
+                row("Nauka w Polsce", "Nowa metoda obrazowania komórek", 3, "zdrowie"),
+                row("Health 2", "Nowe badanie nad snem", 4, "zdrowie"),
+                row("Health 3", "Program szczepień sezonowych", 5, "zdrowie"),
+            ],
+            "polityka": [
+                row("P1", "Parlament przyjął ustawę o cyberbezpieczeństwie", 10, "polityka"),
+                row("P1", "Rząd przedstawił plan energetyczny", 11, "polityka"),
+                row("P2", "Samorządy dostaną nowe finansowanie", 12, "polityka"),
+                row("P2", "Ministerstwo zmienia zasady zamówień", 13, "polityka"),
+                row("P3", "Senat przyjął poprawki do ustawy", 14, "polityka"),
+            ],
+            "ekonomia": [
+                row("E1", "Inflacja spadła poniżej prognoz", 20, "ekonomia"),
+                row("E1", "Bank centralny utrzymał stopy procentowe", 21, "ekonomia"),
+                row("E2", "Eksport przemysłowy przyspieszył", 22, "ekonomia"),
+                row("E2", "Rynek pracy dodał nowe etaty", 23, "ekonomia"),
+                row("E3", "Produkcja przemysłowa wzrosła", 24, "ekonomia"),
+            ],
+            "nauka": [
+                row("N1", "Teleskop wykrył atmosferę odległej planety", 30, "nauka"),
+                row("N1", "Nowy materiał magazynuje energię cieplną", 31, "nauka"),
+                row("N2", "Badacze opisali mechanizm regeneracji nerwów", 32, "nauka"),
+                row("N2", "Robot laboratoryjny przyspiesza syntezę leków", 33, "nauka"),
+                row("N3", "Nowy detektor mierzy promieniowanie kosmiczne", 34, "nauka"),
+            ],
+            "sport": [
+                row("S1", "Polska wygrała mecz kwalifikacyjny", 40, "sport"),
+                row("S1", "Rekord kraju w biegu na 400 metrów", 41, "sport"),
+                row("S2", "Tenisista awansował do finału turnieju", 42, "sport"),
+                row("S2", "Kolarz wygrał etap wyścigu", 43, "sport"),
+                row("S3", "Siatkarki wygrały turniej", 44, "sport"),
+            ],
+        }
+        labels = {key: key.title() for key in sections}
+        visible = source_v3.homepage_round_robin(sections, labels, limit=10, now=now)
+        reserve = list(source_v3._LAST_HOMEPAGE_RESERVE)
+        titles = [item["title"] for item in visible + reserve]
+
+        self.assertEqual(len(visible), 10)
+        self.assertGreaterEqual(len(reserve), 1)
+        self.assertEqual(sum("hałas" in title.casefold() for title in titles), 1)
+        diagnostics = source_v3._LAST_HOMEPAGE_DIAGNOSTICS
+        self.assertEqual(diagnostics["runtime_backfill_policy"], "approved_home_reserve_only")
+        self.assertEqual(diagnostics["reserve_count"], len(reserve))
 
 
 if __name__ == "__main__":
