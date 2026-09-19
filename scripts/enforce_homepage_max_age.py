@@ -64,7 +64,7 @@ def _homepage_image_url(story: dict[str, Any]) -> str:
 
 
 def _candidate_sequence(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
-    """Keep publisher homepage order, then use section rows as image-qualified replacements."""
+    """Use only publisher-approved homepage and reserve candidates."""
     seen: set[str] = set()
 
     def emit(story: Any) -> dict[str, Any] | None:
@@ -76,27 +76,8 @@ def _candidate_sequence(payload: dict[str, Any]) -> Iterable[dict[str, Any]]:
         seen.add(identity)
         return story
 
-    for story in payload.get("home") or []:
-        accepted = emit(story)
-        if accepted is not None:
-            yield accepted
-
-    for story in payload.get("home_reserve") or []:
-        accepted = emit(story)
-        if accepted is not None:
-            yield accepted
-
-    sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
-    labels = payload.get("labels") if isinstance(payload.get("labels"), dict) else {}
-    max_rows = max((len(rows) for rows in sections.values() if isinstance(rows, list)), default=0)
-    for index in range(max_rows):
-        for section_id, rows in sections.items():
-            if not isinstance(rows, list) or index >= len(rows):
-                continue
-            story = dict(rows[index]) if isinstance(rows[index], dict) else None
-            if story is None:
-                continue
-            story.setdefault("category", labels.get(section_id, section_id))
+    for field in ("home", "home_reserve"):
+        for story in payload.get(field) or []:
             accepted = emit(story)
             if accepted is not None:
                 yield accepted
