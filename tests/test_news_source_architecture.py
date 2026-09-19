@@ -40,6 +40,12 @@ class CuratedSourceArchitectureTests(unittest.TestCase):
         self.assertEqual(source_profile("FDA").tier, "primary")
         self.assertEqual(source_profile("ESA").tier, "primary")
 
+    def test_polish_ai_technology_source_is_registered_and_in_science_pool(self) -> None:
+        self.assertEqual(source_profile("Spider's Web").tier, "quality")
+        by_section = {section_id: feeds for section_id, _, feeds in base.PL}
+        science_sources = {source for source, _ in by_section["nauka"]}
+        self.assertIn("Spider's Web", science_sources)
+
     def test_pap_science_desk_inherits_wire_tier(self) -> None:
         profile = source_profile("Nauka w Polsce")
         self.assertEqual(profile.tier, "wire")

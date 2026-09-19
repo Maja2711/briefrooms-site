@@ -145,7 +145,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
         noise_count = sum("hałas" in title.casefold() for title in titles)
         self.assertEqual(len(selected), 12)
         self.assertEqual(noise_count, 1)
-        self.assertEqual(diagnostics["version"], "homepage-editorial-v5")
+        self.assertEqual(diagnostics["version"], "homepage-editorial-v6")
         self.assertLessEqual(max(diagnostics["source_mix"].values()), 3)
 
     def test_homepage_lane_uses_semantics_across_source_desks(self) -> None:
@@ -160,6 +160,10 @@ class LiveNewsPublisherTests(unittest.TestCase):
         ai_science_story = {
             "title": "OpenAI prezentuje nowy model AI do pracy z kodem",
             "summary": "Nowy model sztucznej inteligencji ma lepiej wykonywać zadania programistyczne.",
+        }
+        business_ai_product_story = {
+            "title": "OpenAI prezentuje nowy model do programowania",
+            "summary": "Nowy model AI ma poprawić pracę z kodem i agentami.",
         }
         economic_ai_story = {
             "title": "Spółki technologiczne zwiększają wydatki na AI",
@@ -176,6 +180,10 @@ class LiveNewsPublisherTests(unittest.TestCase):
         )
         self.assertEqual(
             source_v3.homepage_lane(ai_science_story, "nauka"),
+            "ai_technologia",
+        )
+        self.assertEqual(
+            source_v3.homepage_lane(business_ai_product_story, "ekonomia"),
             "ai_technologia",
         )
         self.assertEqual(
