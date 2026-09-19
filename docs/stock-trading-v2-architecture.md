@@ -1,6 +1,6 @@
 # Stock Trading v2 — shadow architecture
 
-Status: **implementation complete in shadow mode**. Production promotion is intentionally disabled until the separate statistical Champion–Challenger gate has sufficient prospective holdout evidence.
+Status: **shadow discovery/learning with bounded automatic production promotion**. Production remains unchanged until an exact executable Challenger passes its pre-registered fresh prospective holdout; only then may an allowlisted deterministic config patch be materialized automatically.
 
 ## Objective
 
@@ -54,17 +54,19 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - HOLD/EXIT decisions have a separate immutable position-experience ledger.
    - Trigger-directed deep research is joined to 1/3/5/20-session Trigger outcomes by exact observation ID; the report measures evidence yield, score update and directional-update/outcome agreement without claiming causality.
 10. **Policy learning and promotion**
-   - Learning may create future-only Challenger policies; it cannot rewrite production automatically.
-   - Promotion requires the separate fixed-N statistical holdout gate.
-   - `production_promotion_enabled=false` remains an intentional safety invariant.
+   - Learning creates future-only Challenger policies and exact Factory deployment artifacts.
+   - Promotion requires Replay Tournament robustness plus a separate fixed-N fresh prospective holdout.
+   - An exact formal PASS may be promoted automatically only through `stock_trading_v2_auto_promote.py`.
+   - Auto-promotion is limited to allowlisted deterministic `config_patch` operations, must match the current Champion manifest revision/component version and the exact replay baseline, and writes an immutable production promotion record.
+   - Arbitrary source-code generation or self-modifying production code is not permitted by this path.
 
 ## Operational workflows
 
 - `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
 - `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → relationship/trigger attention → max-two targeted deep-research shadow arm → broad Champion evidence → portfolio comparison → experience/admission freeze.
-- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning and evaluation.
+- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning/evaluation, evidence commit, then bounded automatic production promotion for exact formal-PASS Challengers.
 - `.github/workflows/stock-trading-v2-validation.yml` — compile/config/unit/integrity/live-smoke validation.
 
 ## Production boundary
 
-The v2 branch reads the current canonical portfolio and policy from `main` for shadow comparisons, but it does not merge `main`, mutate the production portfolio, or activate a Challenger. The production boundary remains intact until prospective evidence satisfies the explicit promotion gate.
+The v2 branch reads the current canonical portfolio and policy from `main` without merging `main`. Discovery, Trigger routing and research remain non-production until their own deployment adapter exists. For components with an exact deployment adapter, a Challenger can cross the production boundary only after a formal fresh-holdout PASS. The promotion engine re-reads the latest `main`, requires the Challenger's base manifest revision/component version and replay baseline to still match, applies only allowlisted JSON replacements, increments the Champion manifest revision, records Challenger/evaluation/evidence hashes, validates cross-file invariants, and then pushes the deterministic production change to `main`. Any mismatch fails closed.
