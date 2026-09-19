@@ -235,9 +235,9 @@ jobs:
                       if homepage_policy.get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
                       freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
-                      if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                      if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness editorial selector missing')
-                      if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                      if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness homepage diagnostics missing')
                       if homepage_policy.get('target_story_count') != 12 or homepage_policy.get('minimum_story_count') != 12:
                           last.append(f'{path}: homepage twelve-story contract missing')
