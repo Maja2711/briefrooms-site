@@ -22,6 +22,12 @@ Nowy subsystem musi otrzymać stabilny `module_id`. Zastąpiony albo wycofywany 
 
 Jeżeli zmiana architektury nie zmienia top-level dependency graph, mapa nadal musi zostać sprawdzona, a dotknięty wpis modułu/statusu/referencji zaktualizowany, jeśli jest to potrzebne. Rozjazd pomiędzy kodem runtime i mapą traktujemy jako defekt architektoniczny.
 
+## Obowiązkowy bootstrap AI / agentów
+
+Plik `AGENTS.md` w katalogu głównym repozytorium jest obowiązkowym punktem wejścia dla AI i agentów kodujących. Przed projektowaniem lub wdrażaniem zmiany dotyczącej architektury, tradingu, learningu, Belief/Epistemic, decision logic, risk, workflow, persystencji, promocji/rollbacku lub execution agent musi najpierw otworzyć kanoniczną Architecture Map, zidentyfikować dotknięte `module_id`, przeczytać wskazaną dokumentację szczegółową i dopiero potem analizować implementację.
+
+Agent nie może rekonstruować architektury BriefRooms z pamięci rozmowy ani rozpoczynać nowego subsystemu bez wcześniejszego sprawdzenia, czy równoważna lub nakładająca się funkcja już istnieje. `README.md` utrzymuje widoczny wskaźnik do tego bootstrapu, a `scripts/validate_architecture_bootstrap.py` wraz z workflow `Architecture Bootstrap Guard` chronią jego obecność oraz synchronizację wersji map PL/EN.
+
 ## Wymóg pull requestu
 
 PR architektoniczny jest niekompletny, dopóki nie istnieją obie wersje językowe oraz obie kanoniczne Architecture Maps poprawnie opisujące system po zmianie. Kod runtime pozostaje źródłem prawdy implementacyjnej; sparowane dokumenty architektury i Architecture Map są czytelnym dla człowieka zapisem projektu.
