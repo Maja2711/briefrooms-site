@@ -161,6 +161,10 @@ class LiveNewsPublisherTests(unittest.TestCase):
             "title": "OpenAI prezentuje nowy model AI do pracy z kodem",
             "summary": "Nowy model sztucznej inteligencji ma lepiej wykonywać zadania programistyczne.",
         }
+        business_ai_product_story = {
+            "title": "OpenAI prezentuje nowy model do programowania",
+            "summary": "Nowy model AI ma poprawić pracę z kodem i agentami.",
+        }
         economic_ai_story = {
             "title": "Spółki technologiczne zwiększają wydatki na AI",
             "summary": "Nakłady inwestycyjne wpływają na wyniki i wyceny firm.",
@@ -176,6 +180,10 @@ class LiveNewsPublisherTests(unittest.TestCase):
         )
         self.assertEqual(
             source_v3.homepage_lane(ai_science_story, "nauka"),
+            "ai_technologia",
+        )
+        self.assertEqual(
+            source_v3.homepage_lane(business_ai_product_story, "ekonomia"),
             "ai_technologia",
         )
         self.assertEqual(
