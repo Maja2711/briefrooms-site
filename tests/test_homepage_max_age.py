@@ -131,6 +131,68 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertTrue(result["homepage_policy"]["requires_https_image"])
         self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
 
+    def test_freshness_reselection_restores_priority_lane_coverage(self) -> None:
+        now = datetime(2026, 9, 19, 13, 0, tzinfo=timezone.utc)
+
+        def lane_story(name: str, lane: str, rank: int, minutes: int, source: str) -> dict:
+            story = self._story(name, now - timedelta(minutes=minutes), lane)
+            story["homepage_lane"] = lane
+            story["homepage_priority_rank"] = rank
+            story["source"] = source
+            return story
+
+        health_expired = lane_story("Badanie profilaktyki serca", "zdrowie", 6, 20, "H0")
+        home = [
+            lane_story("Ustawa krajowa A", "polityka", 1, 1, "P1"),
+            lane_story("Ustawa krajowa B", "polityka", 1, 2, "P2"),
+            lane_story("Debata parlamentarna", "polityka", 1, 3, "P3"),
+            lane_story("Sankcje wobec Rosji", "geopolityka", 2, 4, "G1"),
+            lane_story("NATO wzmacnia wschodnią flankę", "geopolityka", 2, 5, "G2"),
+            lane_story("Inflacja spada", "ekonomia", 3, 6, "E1"),
+            lane_story("Bank centralny o stopach", "ekonomia", 3, 7, "E2"),
+            lane_story("Eksport rośnie", "ekonomia", 3, 8, "E3"),
+            lane_story("Nowy model sztucznej inteligencji", "ai_technologia", 4, 9, "A1"),
+            lane_story("Nowe odkrycie astronomiczne", "nauka", 5, 10, "N1"),
+            health_expired,
+            lane_story("Polska wygrała mecz", "sport", 7, 12, "S1"),
+        ]
+        health_reserve = lane_story("Nowa terapia chorób serca", "zdrowie", 6, 30, "H1")
+        reserve = [
+            health_reserve,
+            lane_story("Kolejna decyzja Sejmu", "polityka", 1, 31, "P4"),
+            lane_story("Kolejny mecz reprezentacji", "sport", 7, 32, "S2"),
+        ]
+        state = {
+            "example.com/badanie-profilaktyki-serca": {
+                "first_seen_at": (now - HOME_MAX_AGE - timedelta(seconds=1)).isoformat(),
+                "source": "H0",
+                "title": health_expired["title"],
+            }
+        }
+        payload = {
+            "home": home,
+            "home_reserve": reserve,
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, state, now)
+        lanes = [item["homepage_lane"] for item in result["home"]]
+        order = {
+            lane: index
+            for index, lane in enumerate(
+                ("polityka", "geopolityka", "ekonomia", "ai_technologia", "nauka", "zdrowie", "sport")
+            )
+        }
+
+        self.assertEqual(len(result["home"]), HOME_LIMIT)
+        self.assertIn(health_reserve["title"], [item["title"] for item in result["home"]])
+        self.assertIn("zdrowie", lanes)
+        self.assertEqual(lanes, sorted(lanes, key=lambda lane: order[lane]))
+        self.assertLessEqual(lanes.count("sport"), 3)
+        freshness = result["health"]["homepage_freshness"]
+        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v1")
+        self.assertEqual(freshness["lane_mix"].get("zdrowie"), 1)
+
     def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
         now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
         chosen_noise = self._story(
