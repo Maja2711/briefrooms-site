@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.3  
-**Snapshot date:** 2026-09-18  
-**Base `main` commit:** `01464a78fadad0934c9fbd784633d556c05ae4a5`  
+**Map version:** 1.4  
+**Snapshot date:** 2026-09-19  
+**Base `main` commit:** `4541344d60a3e6a6076b98d86a033c203a4d3b08`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -19,6 +19,10 @@ Every PR that changes BriefRooms architecture MUST update, in the same PR:
 - `docs/ARCHITECTURE_MAP_PL.md`.
 
 Architecture changes include, in particular: a changed contract, authority boundary, data-flow boundary, adapter, engine, learning/verification loop, persistence semantics, production/shadow boundary, promotion/rollback rule, or safety invariant.
+
+### Mandatory AI / agent bootstrap
+
+Every AI/coding agent making an architecture or investment-logic change must start from repository-root `AGENTS.md`, then open this map, identify the affected `module_id` set, read the referenced detailed documentation, and only then inspect the code. Architecture must not be reconstructed from conversational memory, and a new subsystem must not be created before checking for existing overlapping capability. `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect this mechanism from silent removal or PL/EN map-version drift.
 
 ## 1. L0 — whole-system map
 
@@ -288,6 +292,8 @@ Examples of private durable state include the Learning Outcome Loop and GSE/Beli
 10. **Selected AND rejected matter.** Where supported, rejected candidates are frozen and analyzed for MISS/opportunity regret.
 11. **Production vs shadow is explicit.** Shadow output cannot be presented as a historically executed production trade.
 12. **PL/EN architecture sync.** Every architecture change updates both map versions and required detailed documentation.
+13. **Stock Trading fixed notional + normalized history.** Every new `TR-04` position uses a fixed nominal size of PLN 5,000 (GPW) or USD 5,000 (US) through `FIXED_NOTIONAL_V1`. Closed history, including legacy history, is compared through explicit `FIXED_NOTIONAL_HISTORY_V1` derived analytics with `history_normalized_quantity = 5000 / entry`; prices, timestamps and execution facts remain immutable.
+14. **Architecture bootstrap before architecture work.** An AI/agent starts an architecture change from `AGENTS.md` and the canonical map, not from conversational memory or an isolated code search.
 
 ## 11. Authority map — what each layer may NOT do
 
@@ -304,7 +310,7 @@ LLM                   -> may interpret/propose; does NOT self-promote where gove
 Public UI             -> renders state; is NOT a decision source
 ```
 
-## 12. Important subsystem status at map snapshot 1.0
+## 12. Important subsystem status at map snapshot 1.4
 
 - **Belief Core v2:** engineering-complete for shadow data collection; decision-independent.
 - **Evidence adapters:** real modular layer; core market/technical/liquidity/regime adapters are deterministic.
@@ -337,20 +343,24 @@ Experience Graph / Learning Fabric
 
 Candidate evolution targets include adapters, evidence assessment, belief update/calibration, candidate discovery, ranking, entry, risk, exit, portfolio and event intelligence. Each component needs both a local quality metric and an end-to-end system-impact metric.
 
-## 14. How AXIOM should use this map
+## 14. How AXIOM and other agents should use this map
 
-In future BriefRooms work:
+Every new session or agent working on BriefRooms architecture starts from repository-root `AGENTS.md`. Then:
 
-1. First identify the `module_id` from this map.
-2. Open this map and the module's detailed document instead of reconstructing architecture from conversational memory.
-3. When code changes architecture, update the relevant PL+EN map sections in the same PR.
-4. Every new subsystem receives a stable `module_id` plus responsibility, authority, inputs, outputs, state, learning mode, safety invariants and code/docs references.
-5. When a module is replaced, preserve the trail: mark status/migration/deprecation instead of silently erasing it.
+1. Open this canonical map before designing the change.
+2. Identify the affected stable `module_id` set.
+3. Open the referenced detailed documents instead of reconstructing architecture from conversational memory.
+4. Inspect actual runtime code, readers/writers, workflows, state and tests, and search for existing/overlapping capability.
+5. Establish the impact surface: contracts, authority, state ownership, upstream/downstream consumers, migration, rollback and required tests.
+6. When architecture changes, update the relevant PL+EN map sections in the same PR.
+7. Create a new subsystem only after demonstrating that equivalent capability does not already exist; assign a stable `module_id` and document responsibility, authority, inputs, outputs, state, learning mode, safety invariants and code/docs references.
 
 ## 15. Source documents for map v1.0
 
 Primary detailed documents used to build this map:
 
+- `AGENTS.md`
+- `scripts/validate_architecture_bootstrap.py`
 - `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
 - `BELIEF_CORE.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`

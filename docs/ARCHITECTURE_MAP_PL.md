@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.3  
-**Stan na:** 2026-09-18  
-**Bazowy commit `main`:** `01464a78fadad0934c9fbd784633d556c05ae4a5`  
+**Wersja mapy:** 1.4  
+**Stan na:** 2026-09-19  
+**Bazowy commit `main`:** `4541344d60a3e6a6076b98d86a033c203a4d3b08`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -19,6 +19,10 @@ Każdy PR zmieniający architekturę BriefRooms MUSI w tym samym PR zaktualizowa
 - `docs/ARCHITECTURE_MAP_EN.md`.
 
 Za zmianę architektury uważa się w szczególności: zmianę kontraktu, authority, przepływu danych, adaptera, silnika, pętli learning/verification, semantyki persystencji, granicy production/shadow, reguł promocji/rollbacku albo invariantów bezpieczeństwa.
+
+### Obowiązkowy bootstrap AI / agentów
+
+Każdy AI/agent pracujący nad zmianą architektury lub logiki inwestycyjnej musi zacząć od repozytoryjnego `AGENTS.md`, a następnie otworzyć tę mapę, wskazać dotknięte `module_id`, przeczytać dokumentację szczegółową i dopiero potem wejść w kod. Nie wolno rekonstruować architektury z pamięci rozmowy ani tworzyć nowego subsystemu bez sprawdzenia istniejących, nakładających się możliwości. `scripts/validate_architecture_bootstrap.py` oraz workflow `Architecture Bootstrap Guard` chronią trwałość tego mechanizmu.
 
 ## 1. L0 — mapa całego systemu
 
@@ -289,6 +293,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 11. **Production vs shadow is explicit.** Shadow output nie może być prezentowany jako historycznie wykonana transakcja produkcyjna.
 12. **PL/EN architecture sync.** Zmiana architektury aktualizuje obie wersje mapy i wymaganą dokumentację.
 13. **Stock Trading fixed notional + normalized history.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Zamknięta historia — także legacy — jest porównywana przez jawne derived analytics `FIXED_NOTIONAL_HISTORY_V1`, gdzie `history_normalized_quantity = 5000 / entry`. Ceny, timestampy i execution facts pozostają immutable.
+14. **Architecture bootstrap before architecture work.** AI/agent rozpoczyna zmianę od `AGENTS.md` i kanonicznej mapy, a nie od pamięci rozmowy ani izolowanego wyszukiwania kodu.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -305,7 +310,7 @@ LLM                   -> może interpretować/proponować; NIE może samodzielni
 Public UI             -> renderuje stan; NIE jest źródłem decyzji
 ```
 
-## 12. Status ważniejszych subsystemów na snapshot 1.1
+## 12. Status ważniejszych subsystemów na snapshot 1.4
 
 - **Belief Core v2:** engineering-complete dla shadow data collection; decision-independent.
 - **Evidence adapters:** rzeczywista modularna warstwa; podstawowe market/technical/liquidity/regime adapters są deterministyczne.
@@ -338,20 +343,24 @@ Experience Graph / Learning Fabric
 
 Potencjalne moduły ewolucji: adaptery, evidence assessment, belief update/calibration, candidate discovery, ranking, entry, risk, exit, portfolio, event intelligence. Każdy moduł musi mieć lokalną metrykę jakości oraz end-to-end metrykę wpływu na system.
 
-## 14. Jak AXIOM ma korzystać z mapy
+## 14. Jak AXIOM i inni agenci mają korzystać z mapy
 
-W przyszłych rozmowach o BriefRooms:
+Każda nowa sesja lub agent pracujący nad architekturą BriefRooms zaczyna od repozytoryjnego `AGENTS.md`. Następnie:
 
-1. Najpierw identyfikujemy `module_id` z tej mapy.
-2. Następnie otwieramy mapę i dokument modułu zamiast rekonstruować architekturę z pamięci.
-3. Przy zmianie kodu aktualizujemy odpowiednie sekcje mapy PL+EN w tym samym PR.
-4. Jeśli powstaje nowy subsystem, dostaje stabilny `module_id` i wpis: responsibility, authority, inputs, outputs, state, learning mode, safety invariants, code/docs.
-5. Jeśli moduł zostaje zastąpiony, nie usuwamy śladu bez wyjaśnienia; oznaczamy status/migrację/deprecation.
+1. Otwiera tę kanoniczną mapę przed projektowaniem zmiany.
+2. Identyfikuje dotknięte `module_id`.
+3. Otwiera wskazane dokumenty szczegółowe zamiast rekonstruować architekturę z pamięci rozmowy.
+4. Sprawdza rzeczywisty kod runtime, readers/writers, workflowy, state i testy oraz wyszukuje istniejące/nakładające się możliwości.
+5. Określa impact surface: kontrakty, authority, state ownership, upstream/downstream, migrację, rollback i wymagane testy.
+6. Przy zmianie architektury aktualizuje odpowiednie sekcje mapy PL+EN w tym samym PR.
+7. Nowy subsystem powstaje dopiero po wykazaniu braku równoważnej funkcji; dostaje stabilny `module_id` oraz responsibility, authority, inputs, outputs, state, learning mode, safety invariants i code/docs.
 
 ## 15. Dokumenty źródłowe mapy
 
 Najważniejsze dokumenty szczegółowe użyte do utworzenia v1.0:
 
+- `AGENTS.md`
+- `scripts/validate_architecture_bootstrap.py`
 - `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
 - `BELIEF_CORE.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
