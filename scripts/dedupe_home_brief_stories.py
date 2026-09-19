@@ -46,7 +46,7 @@ TOPIC_GENERIC = {
 TOPIC_SUFFIXES = (
     "owego", "owej", "owych", "ami", "ach", "anie", "enie", "owie", "ego", "emu",
     "owa", "owe", "owi", "om", "ow", "em", "ie", "y", "a", "u",
-    "ingly", "ments", "ment", "ation", "ions", "ing", "ers", "ies", "ed", "es", "s",
+    "ingly", "ments", "ment", "ation", "ions", "ing", "ers", "ies", "ed", "es",
 )
 
 
