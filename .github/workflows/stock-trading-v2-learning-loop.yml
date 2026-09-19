@@ -64,15 +64,12 @@ jobs:
             scripts/stock_trading_v2_exact_replay.py \
             scripts/stock_trading_v2_replay_tournament.py \
             scripts/stock_trading_v2_exact_challenger_eval.py \
-            scripts/stock_trading_v2_auto_promote.py \
-            scripts/test_stock_trading_v2_challenger_factory.py \
-            tests/test_stock_trading_v2_auto_promote.py
+            scripts/test_stock_trading_v2_challenger_factory.py
           python scripts/test_stock_trading_v2_challenger_factory.py
           python -m unittest \
             tests.test_briefrooms_market_relationship_outcomes \
             tests.test_briefrooms_trigger_deep_belief \
-            tests.test_briefrooms_trigger_deep_belief_learning \
-            tests.test_stock_trading_v2_auto_promote -v
+            tests.test_briefrooms_trigger_deep_belief_learning -v
 
       - name: Freeze candidate and canonical admission experience prospectively
         run: |
@@ -199,7 +196,7 @@ jobs:
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
-      - name: Commit closed-loop evidence before production promotion
+      - name: Commit closed-loop research evidence
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -232,59 +229,4 @@ jobs:
             git rebase origin/stock-trading-v2
             sleep $((attempt*3))
           done
-          exit 1
-
-      - name: Auto-promote exact formal PASS to production
-        run: |
-          set -euo pipefail
-          EVIDENCE_COMMIT="$(git rev-parse HEAD)"
-          PROD_WORKTREE="/tmp/stock-trading-v2-main-promotion"
-
-          for attempt in 1 2 3 4 5; do
-            git worktree remove --force "$PROD_WORKTREE" 2>/dev/null || true
-            rm -rf "$PROD_WORKTREE"
-            git worktree prune
-            git fetch origin main
-            git worktree add --detach "$PROD_WORKTREE" origin/main
-            PRODUCTION_BASE_SHA="$(git -C "$PROD_WORKTREE" rev-parse HEAD)"
-
-            python scripts/stock_trading_v2_auto_promote.py \
-              --challengers data/investments/stock_trading_v2_challengers \
-              --evaluations data/investments/stock_trading_v2_challenger_evaluations \
-              --production-root "$PROD_WORKTREE" \
-              --config data/investments/stock_trading_v2_auto_promotion_config.json \
-              --evidence-commit "$EVIDENCE_COMMIT" \
-              --production-base-sha "$PRODUCTION_BASE_SHA" \
-              --apply
-
-            python scripts/stock_trading_v2_auto_promote.py \
-              --production-root "$PROD_WORKTREE" \
-              --config data/investments/stock_trading_v2_auto_promotion_config.json \
-              --verify-production
-
-            if [[ -z "$(git -C "$PROD_WORKTREE" status --porcelain)" ]]; then
-              echo "No exact formal-PASS Challenger eligible for production."
-              git worktree remove --force "$PROD_WORKTREE"
-              exit 0
-            fi
-
-            git -C "$PROD_WORKTREE" config user.name "github-actions[bot]"
-            git -C "$PROD_WORKTREE" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git -C "$PROD_WORKTREE" add \
-              data/investments/gpw_daily_pick_config.json \
-              data/investments/stock_trading_policy.json \
-              data/investments/stock_trading_champion_manifest.json \
-              data/investments/stock_trading_promotions
-            git -C "$PROD_WORKTREE" commit -m "Stock Trading: auto-promote exact Challenger"
-
-            if git -C "$PROD_WORKTREE" push origin HEAD:main; then
-              git worktree remove --force "$PROD_WORKTREE"
-              exit 0
-            fi
-
-            git worktree remove --force "$PROD_WORKTREE" 2>/dev/null || true
-            sleep $((attempt*3))
-          done
-
-          echo "Automatic production promotion could not be pushed safely after retries."
           exit 1
