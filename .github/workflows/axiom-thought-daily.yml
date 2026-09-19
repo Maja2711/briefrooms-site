@@ -2,6 +2,13 @@ name: Morning AXIOM Daily
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/axiom-thought-daily.yml"
+      - "scripts/publish_axiom_thought.py"
+      - "scripts/axiom_thought_guard.py"
+      - "docs/axiom-thought-principles.md"
   schedule:
     # GitHub cron uses UTC. Two runs make publication robust across CET/CEST;
     # the publisher is idempotent and exits if Warsaw's date is already present.
@@ -22,7 +29,9 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AXIOM_THOUGHT_MODEL: gemini-3.5-flash
-      AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite\n      AXIOM_THOUGHT_MAX_ATTEMPTS: "10"\n      AXIOM_THOUGHT_RESERVE_TARGET: "10"
+      AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
+      AXIOM_THOUGHT_MAX_ATTEMPTS: "10"
+      AXIOM_THOUGHT_RESERVE_TARGET: "10"
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
