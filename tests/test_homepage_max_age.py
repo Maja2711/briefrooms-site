@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from scripts.enforce_homepage_max_age import (
     HOME_LIMIT,
     HOME_MAX_AGE,
+    HOME_RESERVE_LIMIT,
     IMAGE_POLICY_VERSION,
     enforce_payload,
 )
@@ -127,6 +128,59 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(result["homepage_policy"]["target_story_count"], 10)
         self.assertTrue(result["homepage_policy"]["requires_https_image"])
         self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
+
+    def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
+        now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+        chosen_noise = self._story(
+            "Eksperci: zmiany prawne to najskuteczniejszy sposób walki z hałasem w naszym otoczeniu",
+            now - timedelta(minutes=10),
+            "Health",
+        )
+        chosen_noise["source"] = "Nauka w Polsce"
+        duplicate_noise = self._story(
+            "Skąd się bierze hałas w miastach?",
+            now - timedelta(minutes=20),
+            "Health",
+        )
+        duplicate_noise["source"] = "Nauka w Polsce"
+        water = self._story(
+            "Prof. Rybicki: wyzwaniem są zarówno niedobory wody, jak i jej nadmiar",
+            now - timedelta(minutes=30),
+            "Science",
+        )
+        water["source"] = "Nauka w Polsce"
+
+        distinct = [
+            self._story("Inflacja spadła poniżej prognoz", now - timedelta(minutes=31), "Economy"),
+            self._story("Parlament przyjął ustawę o cyberbezpieczeństwie", now - timedelta(minutes=32), "Politics"),
+            self._story("Teleskop wykrył atmosferę odległej planety", now - timedelta(minutes=33), "Science"),
+            self._story("Polska wygrała mecz kwalifikacyjny", now - timedelta(minutes=34), "Sport"),
+            self._story("Bank centralny utrzymał stopy procentowe", now - timedelta(minutes=35), "Economy"),
+            self._story("Robot laboratoryjny przyspiesza syntezę leków", now - timedelta(minutes=36), "Science"),
+            self._story("Samorządy dostaną nowe finansowanie", now - timedelta(minutes=37), "Politics"),
+            self._story("Tenisista awansował do finału turnieju", now - timedelta(minutes=38), "Sport"),
+            self._story("Eksport przemysłowy przyspieszył", now - timedelta(minutes=39), "Economy"),
+        ]
+        payload = {
+            "home": [chosen_noise] + distinct,
+            "home_reserve": [duplicate_noise, water],
+            "sections": {"health": [duplicate_noise], "science": [water]},
+            "labels": {"health": "Health", "science": "Science"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        visible_titles = [item["title"] for item in result["home"]]
+        reserve_titles = [item["title"] for item in result["home_reserve"]]
+
+        self.assertEqual(len(result["home"]), HOME_LIMIT)
+        self.assertNotIn(duplicate_noise["title"], visible_titles + reserve_titles)
+        self.assertIn(water["title"], reserve_titles)
+        self.assertLessEqual(len(result["home_reserve"]), HOME_RESERVE_LIMIT)
+        self.assertEqual(
+            result["homepage_policy"]["runtime_backfill_policy"],
+            "approved_home_reserve_only",
+        )
 
     def test_missing_and_http_images_are_rejected_and_replaced(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
