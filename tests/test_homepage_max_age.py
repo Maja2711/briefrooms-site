@@ -106,7 +106,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertIn("homepage_first_seen_at", result["home"][0])
         self.assertIn("homepage_expires_at", result["home"][0])
 
-    def test_homepage_fills_to_exactly_ten_from_curated_reserve(self) -> None:
+    def test_homepage_fills_to_exactly_twelve_from_curated_reserve(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         initial = [self._story(f"Home {index}", now - timedelta(minutes=index), "Politics") for index in range(6)]
         replacements = [
@@ -122,12 +122,12 @@ class HomepageExposureCapTests(unittest.TestCase):
         }
 
         result, _ = enforce_payload(payload, {}, now)
-        self.assertEqual(HOME_LIMIT, 10)
-        self.assertEqual(len(result["home"]), 10)
-        self.assertEqual(len({item["link"] for item in result["home"]}), 10)
+        self.assertEqual(HOME_LIMIT, 12)
+        self.assertEqual(len(result["home"]), 12)
+        self.assertEqual(len({item["link"] for item in result["home"]}), 12)
         self.assertTrue(all(item["image"].startswith("https://") for item in result["home"]))
         self.assertEqual(result["health"]["homepage_freshness"]["status"], "ok")
-        self.assertEqual(result["homepage_policy"]["target_story_count"], 10)
+        self.assertEqual(result["homepage_policy"]["target_story_count"], 12)
         self.assertTrue(result["homepage_policy"]["requires_https_image"])
         self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
 
@@ -162,6 +162,8 @@ class HomepageExposureCapTests(unittest.TestCase):
             self._story("Samorządy dostaną nowe finansowanie", now - timedelta(minutes=37), "Politics"),
             self._story("Tenisista awansował do finału turnieju", now - timedelta(minutes=38), "Sport"),
             self._story("Eksport przemysłowy przyspieszył", now - timedelta(minutes=39), "Economy"),
+            self._story("Nowa metoda magazynowania energii", now - timedelta(minutes=40), "Science"),
+            self._story("Program szczepień sezonowych rozszerzony", now - timedelta(minutes=41), "Health"),
         ]
         payload = {
             "home": [chosen_noise] + distinct,
@@ -208,7 +210,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         missing = dict(self._story("Missing image", now), image="")
         insecure = dict(self._story("HTTP image", now), image="http://images.example.com/http.jpg")
-        valid = [self._story(f"Valid {index}", now - timedelta(minutes=index + 1)) for index in range(12)]
+        valid = [self._story(f"Valid {index}", now - timedelta(minutes=index + 1)) for index in range(14)]
         payload = {
             "home": [missing, insecure] + valid[:4],
             "home_reserve": valid[4:],
