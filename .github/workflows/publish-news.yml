@@ -22,6 +22,7 @@ on:
       - "scripts/render_live_news_static.py"
       - "scripts/generate_permanent_briefs.py"
       - "scripts/news-live.js"
+      - "scripts/home-card-floor.js"
       - "scripts/home-briefs.js"
       - "scripts/install_news_live_runtime.py"
       - "tests/test_publish_live_news.py"
@@ -35,6 +36,7 @@ on:
       - "tests/test_homepage_static.py"
       - "tests/test_install_news_live_runtime.py"
       - "tests/home_briefs_policy.test.js"
+      - "tests/home_card_floor_policy.test.js"
       - ".github/workflows/publish-news.yml"
 
 permissions:
@@ -94,8 +96,10 @@ jobs:
             tests.test_news_quality \
             tests.test_install_news_live_runtime -v
           node --check scripts/news-live.js
+          node --check scripts/home-card-floor.js
           node --check scripts/home-briefs.js
           node --test tests/home_briefs_policy.test.js
+          node --test tests/home_card_floor_policy.test.js
 
       - name: Build fresh PL and EN news data and pages
         id: build
