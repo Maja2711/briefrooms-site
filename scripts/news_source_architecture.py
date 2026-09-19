@@ -97,6 +97,7 @@ for _name in (
     "The Guardian",
     "Bankier.pl",
     "Business Insider Polska",
+    "Spider's Web",
     "TVP Sport",
     "Przegląd Sportowy / Onet Sport",
     "SportoweFakty WP",
