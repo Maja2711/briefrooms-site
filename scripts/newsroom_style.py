@@ -37,11 +37,12 @@ NEWSROOM_CSS = r"""
       padding:0 24px 64px!important;
     }
     body[data-page="news"] .section-tabs{
-      top:10px!important;margin:18px auto 30px!important;max-width:1180px!important;
+      top:calc(var(--br-site-header-height, 84px) + 8px)!important;margin:18px auto 30px!important;max-width:1180px!important;
       background:rgba(6,19,31,.86)!important;border-color:rgba(255,255,255,.12)!important;
       box-shadow:0 18px 44px rgba(0,0,0,.26)!important;
     }
     body[data-page="news"] section.card{
+      scroll-margin-top:calc(var(--br-site-header-height, 84px) + 92px)!important;
       background:transparent!important;border:0!important;border-radius:0!important;
       box-shadow:none!important;padding:10px 0 24px!important;margin:18px 0 26px!important;
     }
