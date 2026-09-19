@@ -191,7 +191,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(lanes, sorted(lanes, key=lambda lane: order[lane]))
         self.assertLessEqual(lanes.count("sport"), 3)
         freshness = result["health"]["homepage_freshness"]
-        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v1")
+        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v2")
         self.assertEqual(freshness["lane_mix"].get("zdrowie"), 1)
 
     def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
