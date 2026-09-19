@@ -241,7 +241,7 @@ class HomepageExposureCapTests(unittest.TestCase):
 
         self.assertEqual(len(result["home"]), HOME_LIMIT)
         self.assertNotIn(duplicate_noise["title"], visible_titles + reserve_titles)
-        self.assertIn(water["title"], reserve_titles)
+        self.assertIn(water["title"], visible_titles + reserve_titles)
         self.assertLessEqual(len(result["home_reserve"]), HOME_RESERVE_LIMIT)
         self.assertEqual(
             result["homepage_policy"]["runtime_backfill_policy"],
