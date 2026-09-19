@@ -282,6 +282,33 @@ class AutoPromotionTests(unittest.TestCase):
             )
             self.assertEqual("NO_ELIGIBLE_PROMOTION", result["status"])
 
+    def test_production_baseline_drift_blocks_promotion(self) -> None:
+        challenger = self._challenger()
+        evaluation = self._evaluation(challenger)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            production = root / "production"
+            self._write_production(production)
+            gpw_path = production / "data/investments/gpw_daily_pick_config.json"
+            gpw = json.loads(gpw_path.read_text())
+            gpw["minimum_composite_score"] = 73
+            gpw_path.write_text(json.dumps(gpw), encoding="utf-8")
+            policy_path = production / "data/investments/stock_trading_policy.json"
+            policy = json.loads(policy_path.read_text())
+            policy["markets"]["GPW"]["minimum_entry_score"] = 73
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+            challengers, evaluations, config_path = self._write_inputs(root, challenger, evaluation)
+            with self.assertRaises(contracts.ContractError):
+                promote.run(
+                    challenger_root=challengers,
+                    evaluation_root=evaluations,
+                    production_root=production,
+                    config_path=config_path,
+                    evidence_commit="abc123",
+                    production_base_sha="main123",
+                    apply=True,
+                )
+
     def test_non_allowlisted_patch_is_rejected(self) -> None:
         challenger = self._challenger()
         bad = copy.deepcopy(challenger)
