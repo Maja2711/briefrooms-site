@@ -23,10 +23,9 @@
   'use strict';
 
   var QUALITY_STATUS = 'passed_strict_v7';
-  var CARD_LIMIT = 10;
+  var CARD_LIMIT = 12;
   var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
-  var TOPIC_ORDER = ['politics', 'economy', 'health'];
   var CONFIG = {
     pl: {
       feed: '/pl/home_brief.json',
@@ -126,26 +125,10 @@
       if (!identity || seen.has(identity)) return false;
       seen.add(identity);
       return true;
-    }).sort(function (a, b) {
-      return timestamp(b.published_at) - timestamp(a.published_at);
     });
 
-    var selected = [];
-    var selectedIds = new Set();
-    function add(item) {
-      if (!item) return;
-      var identity = String(item.link || item.title || '');
-      if (!identity || selectedIds.has(identity)) return;
-      selectedIds.add(identity);
-      selected.push(item);
-    }
-
-    TOPIC_ORDER.forEach(function (topic) {
-      add(fresh.find(function (item) { return topicForCategory(item.category) === topic; }));
-    });
-    fresh.filter(function (item) { return Boolean(topicForCategory(item.category)); }).forEach(add);
-    fresh.forEach(add);
-    return selected.slice(0, CARD_LIMIT);
+    // Keep the editorial order supplied by the feed.
+    return fresh.slice(0, CARD_LIMIT);
   }
 
   function fallbackLabel(category) {
@@ -205,7 +188,7 @@
     });
     container.replaceChildren(fragment);
     container.dataset.homeFreshnessPolicy = 'max-72h-v1';
-    container.dataset.homePriority = 'politics-economy-health';
+    container.dataset.homePriority = 'politics-geopolitics-economy-ai-science-health-sport';
     return true;
   }
 
