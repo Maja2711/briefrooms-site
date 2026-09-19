@@ -145,8 +145,43 @@ class LiveNewsPublisherTests(unittest.TestCase):
         noise_count = sum("hałas" in title.casefold() for title in titles)
         self.assertEqual(len(selected), 12)
         self.assertEqual(noise_count, 1)
-        self.assertEqual(diagnostics["version"], "homepage-editorial-v4")
+        self.assertEqual(diagnostics["version"], "homepage-editorial-v5")
         self.assertLessEqual(max(diagnostics["source_mix"].values()), 3)
+
+    def test_homepage_lane_uses_semantics_across_source_desks(self) -> None:
+        geopolitical_business_story = {
+            "title": "Przełomowe porozumienie w sprawie Grenlandii. Donald Trump komentuje umowę",
+            "summary": "USA zawarły międzynarodowe porozumienie dotyczące bezpieczeństwa Grenlandii.",
+        }
+        health_science_story = {
+            "title": "Przewlekły stres niszczy serce. Kolejne badania to potwierdzają",
+            "summary": "Badacze opisują wpływ przewlekłego stresu na ryzyko chorób serca.",
+        }
+        ai_science_story = {
+            "title": "OpenAI prezentuje nowy model AI do pracy z kodem",
+            "summary": "Nowy model sztucznej inteligencji ma lepiej wykonywać zadania programistyczne.",
+        }
+        economic_ai_story = {
+            "title": "Spółki technologiczne zwiększają wydatki na AI",
+            "summary": "Nakłady inwestycyjne wpływają na wyniki i wyceny firm.",
+        }
+
+        self.assertEqual(
+            source_v3.homepage_lane(geopolitical_business_story, "ekonomia"),
+            "geopolityka",
+        )
+        self.assertEqual(
+            source_v3.homepage_lane(health_science_story, "nauka"),
+            "zdrowie",
+        )
+        self.assertEqual(
+            source_v3.homepage_lane(ai_science_story, "nauka"),
+            "ai_technologia",
+        )
+        self.assertEqual(
+            source_v3.homepage_lane(economic_ai_story, "ekonomia"),
+            "ekonomia",
+        )
 
     def test_homepage_priority_order_and_sport_hard_cap(self) -> None:
         now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
