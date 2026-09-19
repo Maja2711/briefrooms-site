@@ -222,12 +222,16 @@ def _homepage_summary_bonus(story: dict[str, Any]) -> float:
     return 1.0
 
 
-def _homepage_score(story: dict[str, Any], section_id: str, now: datetime) -> float:
+def _homepage_score(
+    story: dict[str, Any],
+    section_id: str,
+    now: datetime,
+    sport_support: dict[str, int] | None = None,
+) -> float:
     score = source_expansion_editorial_score(story, section_id, now) + _homepage_summary_bonus(story)
     if section_id == "sport":
         try:
-            support = filtered._sport_entity_support([story])
-            hot = filtered.sport_hot_score(story, now, support)
+            hot = filtered.sport_hot_score(story, now, sport_support or {})
             if (
                 hot >= filtered.HOME_HOT_SPORT_THRESHOLD
                 and filtered._is_live_sport(story)
@@ -248,6 +252,10 @@ def homepage_ranked_select(
     """Choose the best homepage set globally, then enforce editorial diversity."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     ranked: list[tuple[float, float, str, dict[str, Any]]] = []
+    try:
+        sport_support = filtered._sport_entity_support(sections.get("sport") or [])
+    except Exception:
+        sport_support = {}
     for section_id, rows in sections.items():
         for raw in rows:
             if not isinstance(raw, dict) or not raw.get("image"):
@@ -256,7 +264,7 @@ def homepage_ranked_select(
             story["category"] = labels.get(section_id, section_id)
             story["_homepage_section_id"] = section_id
             ranked.append((
-                _homepage_score(story, section_id, current),
+                _homepage_score(story, section_id, current, sport_support),
                 float(base.story_time(story) or 0.0),
                 base.normalized_identity(story),
                 story,
