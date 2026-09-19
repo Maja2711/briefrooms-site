@@ -59,8 +59,8 @@ def _atomic(path: Path, payload: Mapping[str, Any]) -> None:
 def validate_config(config: Mapping[str, Any]) -> None:
     if config.get("schema_version") != CONFIG_SCHEMA:
         raise contracts.ContractError("auto-promotion config schema mismatch")
-    if config.get("automatic_production_promotion_enabled") is not True:
-        raise contracts.ContractError("automatic production promotion is not enabled")
+    if not isinstance(config.get("automatic_production_promotion_enabled"), bool):
+        raise contracts.ContractError("automatic production promotion flag must be boolean")
     if config.get("require_exact_replay") is not True:
         raise contracts.ContractError("auto-promotion must require exact replay")
     if config.get("require_formal_holdout_pass") is not True:
@@ -396,6 +396,13 @@ def run(
 ) -> dict[str, Any]:
     config = _read(config_path)
     validate_config(config)
+    if config.get("automatic_production_promotion_enabled") is not True:
+        return {
+            "schema_version": "stock-trading-v2-auto-promotion-run-v1",
+            "status": "DISABLED",
+            "eligible": 0,
+            "applied": False,
+        }
     manifest = _read(production_root / MANIFEST_REL)
     challengers = _iter_json_files(challenger_root)
     evaluations = _iter_json_files(evaluation_root)
