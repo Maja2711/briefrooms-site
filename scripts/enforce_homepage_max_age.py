@@ -24,7 +24,7 @@ HOME_LIMIT = 12
 HOME_RESERVE_LIMIT = 12
 POLICY_VERSION = "max-72h-first-display-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
-POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v1"
+POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v2"
 HOMEPAGE_PRIORITY_ORDER = (
     "polityka",
     "geopolityka",
@@ -206,16 +206,24 @@ def _select_editorial_candidates(
             if try_add(story, TARGET_SOURCE_CAP, TARGET_SECTION_CAP, TARGET_LANE_CAP):
                 break
 
+    # Fill every remaining slot in editorial-priority order, not in the
+    # technical home-then-reserve sequence. This prevents lower-priority lanes
+    # from occupying slots while eligible higher-priority reserve stories exist.
     for source_cap, section_cap, lane_cap in (
         (TARGET_SOURCE_CAP, TARGET_SECTION_CAP, TARGET_LANE_CAP),
         (EMERGENCY_SOURCE_CAP, EMERGENCY_SECTION_CAP, EMERGENCY_LANE_CAP),
         (4, 7, 5),
         (limit, limit, limit),
     ):
-        for story in candidates:
+        for lane in HOMEPAGE_PRIORITY_ORDER:
             if len(selected) >= limit:
                 break
-            try_add(story, source_cap, section_cap, lane_cap)
+            for story in candidates:
+                if len(selected) >= limit:
+                    break
+                if _homepage_lane(story) != lane:
+                    continue
+                try_add(story, source_cap, section_cap, lane_cap)
         if len(selected) >= limit:
             break
 
@@ -345,6 +353,7 @@ def enforce_payload(
         "topic_duplicate_rejected": selection_diag["topic_duplicates_suppressed"],
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
         "reserve_topic_duplicate_rejected": reserve_diag["topic_duplicates_suppressed"],
+        "fill_order": "priority_lane_then_candidate_quality",
     }
     return payload, state_lang
 
