@@ -195,7 +195,9 @@ def _published_epoch(item: dict) -> float | None:
 
 def same_topic(a: dict, b: dict) -> bool:
     """Homepage-level guard: one reader-visible topic/event gets one card."""
-    if same_story(a, b):
+    link_a = str(a.get("link") or "").strip()
+    link_b = str(b.get("link") or "").strip()
+    if link_a and link_b and link_a == link_b:
         return True
 
     event_a = str(a.get("canonical_event_id") or "")
