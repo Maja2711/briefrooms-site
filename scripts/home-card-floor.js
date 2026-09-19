@@ -22,7 +22,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var MIN_CARDS = 10;
+  var MIN_CARDS = 12;
   var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   var RECHECK_DELAYS_MS = [250, 800, 1800, 3600];
@@ -252,7 +252,7 @@
       return markStatus(container) >= MIN_CARDS;
     } catch (error) {
       if (context.console && typeof context.console.warn === 'function') {
-        context.console.warn('BriefRooms image-only homepage could not replenish ten cards.', error);
+        context.console.warn('BriefRooms image-only homepage could not replenish twelve cards.', error);
       }
       return false;
     } finally {
