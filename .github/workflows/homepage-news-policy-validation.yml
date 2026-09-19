@@ -8,9 +8,14 @@ on:
       - "scripts/home-intelligence-layout.js"
       - "scripts/install_news_live_runtime.py"
       - "scripts/sync_home_lab.py"
+      - "scripts/dedupe_home_brief_stories.py"
+      - "scripts/publish_source_expansion_v3.py"
+      - "scripts/enforce_homepage_max_age.py"
       - "tests/home_briefs_policy.test.js"
       - "tests/test_install_news_live_runtime.py"
       - "tests/test_homepage_static.py"
+      - "tests/test_publish_live_news.py"
+      - "tests/test_homepage_max_age.py"
       - ".github/workflows/homepage-news-policy-validation.yml"
   workflow_dispatch:
 
@@ -32,13 +37,23 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install news test dependencies
+        run: python -m pip install feedparser requests
+
       - name: Validate homepage policy code
         run: |
           set -euo pipefail
-          python -m py_compile scripts/install_news_live_runtime.py scripts/sync_home_lab.py
+          python -m py_compile \
+            scripts/install_news_live_runtime.py \
+            scripts/sync_home_lab.py \
+            scripts/dedupe_home_brief_stories.py \
+            scripts/publish_source_expansion_v3.py \
+            scripts/enforce_homepage_max_age.py
           python -m unittest \
             tests.test_install_news_live_runtime \
-            tests.test_homepage_static -v
+            tests.test_homepage_static \
+            tests.test_publish_live_news \
+            tests.test_homepage_max_age -v
           node --check scripts/news-live.js
           node --check scripts/home-briefs.js
           node --check scripts/home-intelligence-layout.js

@@ -10,8 +10,10 @@ from urllib.parse import urlsplit
 
 try:
     from . import publish_live_news as base
+    from .dedupe_home_brief_stories import same_topic as homepage_same_topic
 except ImportError:
     import publish_live_news as base
+    from dedupe_home_brief_stories import same_topic as homepage_same_topic
 
 ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
@@ -120,6 +122,7 @@ def enforce_payload(
     expired_count = 0
     source_stale_count = 0
     image_rejected_count = 0
+    topic_duplicate_rejected_count = 0
 
     for story in _candidate_sequence(payload):
         if len(selected) >= HOME_LIMIT:
@@ -151,6 +154,10 @@ def enforce_payload(
                 "title": str(story.get("title") or ""),
             }
 
+        if any(homepage_same_topic(story, previous) for previous in selected):
+            topic_duplicate_rejected_count += 1
+            continue
+
         copy = dict(story)
         copy["homepage_first_seen_at"] = _iso(first_seen)
         copy["homepage_expires_at"] = _iso(first_seen + HOME_MAX_AGE)
@@ -177,6 +184,7 @@ def enforce_payload(
         "expired_exposure_rejected": expired_count,
         "source_stale_rejected": source_stale_count,
         "image_rejected": image_rejected_count,
+        "topic_duplicate_rejected": topic_duplicate_rejected_count,
     }
     return payload, state_lang
 
@@ -232,11 +240,17 @@ def validate_files() -> None:
         if len(home) != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage has {len(home)} stories; exactly {HOME_LIMIT} are required")
         identities: set[str] = set()
-        for story in home:
+        for index, story in enumerate(home):
             identity = base.normalized_identity(story)
             if not identity or identity in identities:
                 raise RuntimeError(f"{lang} homepage contains a duplicate or invalid story")
             identities.add(identity)
+            for previous in home[:index]:
+                if homepage_same_topic(story, previous):
+                    raise RuntimeError(
+                        f"{lang} homepage contains topic duplicate: "
+                        f"{previous.get('title')} <> {story.get('title')}"
+                    )
             if not _homepage_image_url(story):
                 raise RuntimeError(f"{lang} homepage contains story without HTTPS image: {story.get('title')}")
             if not _source_is_fresh(story, now):

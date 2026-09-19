@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ try:
         corroboration_bonus,
         public_event_policy,
     )
+    from .dedupe_home_brief_stories import same_topic as homepage_same_topic
     from .news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -51,6 +53,7 @@ except ImportError:
         corroboration_bonus,
         public_event_policy,
     )
+    from dedupe_home_brief_stories import same_topic as homepage_same_topic
     from news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -65,6 +68,13 @@ except ImportError:
     )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v2"
+HOMEPAGE_TARGET_SOURCE_CAP = 2
+HOMEPAGE_EMERGENCY_SOURCE_CAP = 3
+HOMEPAGE_TARGET_SECTION_CAP = 3
+HOMEPAGE_EMERGENCY_SECTION_CAP = 4
+_LAST_HOMEPAGE_DIAGNOSTICS: dict[str, Any] = {}
 
 _original_fetch_all = base.fetch_all
 _original_select_sections = base.select_sections
@@ -200,6 +210,142 @@ def select_sections(
     return selected, health
 
 
+def _homepage_summary_bonus(story: dict[str, Any]) -> float:
+    title = " ".join(str(story.get("title") or "").casefold().split())
+    summary = " ".join(str(story.get("summary") or story.get("ai_summary") or "").casefold().split())
+    if not summary or summary == title:
+        return -18.0
+    if len(summary) >= 160:
+        return 7.0
+    if len(summary) >= 80:
+        return 4.0
+    return 1.0
+
+
+def _homepage_score(
+    story: dict[str, Any],
+    section_id: str,
+    now: datetime,
+    sport_support: dict[str, int] | None = None,
+) -> float:
+    score = source_expansion_editorial_score(story, section_id, now) + _homepage_summary_bonus(story)
+    if section_id == "sport":
+        try:
+            hot = filtered.sport_hot_score(story, now, sport_support or {})
+            if (
+                hot >= filtered.HOME_HOT_SPORT_THRESHOLD
+                and filtered._is_live_sport(story)
+                and not filtered._is_future_sport(story)
+            ):
+                score += 250.0
+        except Exception:
+            pass
+    return score
+
+
+def homepage_ranked_select(
+    sections: dict[str, list[dict[str, Any]]],
+    labels: dict[str, str],
+    limit: int = 10,
+    now: datetime | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Choose the best homepage set globally, then enforce editorial diversity."""
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    ranked: list[tuple[float, float, str, dict[str, Any]]] = []
+    try:
+        sport_support = filtered._sport_entity_support(sections.get("sport") or [])
+    except Exception:
+        sport_support = {}
+    for section_id, rows in sections.items():
+        for raw in rows:
+            if not isinstance(raw, dict) or not raw.get("image"):
+                continue
+            story = dict(raw)
+            story["category"] = labels.get(section_id, section_id)
+            story["_homepage_section_id"] = section_id
+            ranked.append((
+                _homepage_score(story, section_id, current, sport_support),
+                float(base.story_time(story) or 0.0),
+                base.normalized_identity(story),
+                story,
+            ))
+    ranked.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
+
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[str] = set()
+    source_counts: dict[str, int] = {}
+    section_counts: dict[str, int] = {}
+    topic_rejected = 0
+    cap_rejected = 0
+
+    def try_add(story: dict[str, Any], source_cap: int, section_cap: int) -> bool:
+        nonlocal topic_rejected, cap_rejected
+        identity = base.normalized_identity(story)
+        if not identity or identity in selected_ids:
+            return False
+        source = str(story.get("source") or "unknown")
+        section_id = str(story.get("_homepage_section_id") or "")
+        if source_counts.get(source, 0) >= source_cap or section_counts.get(section_id, 0) >= section_cap:
+            cap_rejected += 1
+            return False
+        if any(homepage_same_topic(story, previous) for previous in selected):
+            topic_rejected += 1
+            return False
+        selected.append(story)
+        selected_ids.add(identity)
+        source_counts[source] = source_counts.get(source, 0) + 1
+        section_counts[section_id] = section_counts.get(section_id, 0) + 1
+        return True
+
+    passes = (
+        (HOMEPAGE_TARGET_SOURCE_CAP, HOMEPAGE_TARGET_SECTION_CAP),
+        (HOMEPAGE_EMERGENCY_SOURCE_CAP, HOMEPAGE_EMERGENCY_SECTION_CAP),
+        (4, 5),
+        (limit, limit),
+    )
+    for source_cap, section_cap in passes:
+        for _, _, _, story in ranked:
+            if len(selected) >= limit:
+                break
+            try_add(story, source_cap, section_cap)
+        if len(selected) >= limit:
+            break
+
+    public = []
+    for story in selected[:limit]:
+        copy = dict(story)
+        copy.pop("_homepage_section_id", None)
+        public.append(copy)
+
+    diagnostics = {
+        "status": "ok" if len(public) == limit else "underfilled",
+        "version": HOMEPAGE_EDITORIAL_SELECTION_VERSION,
+        "mode": "global_editorial_score_then_topic_dedupe_source_and_section_diversity",
+        "target_story_count": limit,
+        "published_count": len(public),
+        "target_max_cards_per_source": HOMEPAGE_TARGET_SOURCE_CAP,
+        "emergency_max_cards_per_source": HOMEPAGE_EMERGENCY_SOURCE_CAP,
+        "target_max_cards_per_section": HOMEPAGE_TARGET_SECTION_CAP,
+        "emergency_max_cards_per_section": HOMEPAGE_EMERGENCY_SECTION_CAP,
+        "topic_duplicates_suppressed": topic_rejected,
+        "diversity_cap_rejections": cap_rejected,
+        "source_mix": source_counts,
+        "section_mix": section_counts,
+    }
+    return public, diagnostics
+
+
+def homepage_round_robin(
+    sections: dict[str, list[dict[str, Any]]],
+    labels: dict[str, str],
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    global _LAST_HOMEPAGE_DIAGNOSTICS
+    selected, diagnostics = homepage_ranked_select(sections, labels, limit)
+    _LAST_HOMEPAGE_DIAGNOSTICS = diagnostics
+    return selected
+
+
 def _wire_adapter_errors(errors: list[Any]) -> list[str]:
     result: list[str] = []
     for raw in errors:
@@ -249,6 +395,7 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
         "status": "active",
         **public_claim_policy(),
     }
+    health["homepage_editorial_selection"] = dict(_LAST_HOMEPAGE_DIAGNOSTICS)
     selection = health.setdefault("editorial_selection", {})
     selection["mode"] = (
         "canonical_event_then_claim_consistency_adjusted_corroboration_origin_authority_public_impact_recency_and_publisher_diversity"
@@ -280,6 +427,17 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} Claim Intelligence missing or outdated")
         if claim_policy.get("contradiction_detection_version") != CONTRADICTION_DETECTION_VERSION:
             raise RuntimeError(f"{lang} contradiction detection missing or outdated")
+
+        homepage_selection = (payload.get("health") or {}).get("homepage_editorial_selection") or {}
+        if homepage_selection.get("version") != HOMEPAGE_EDITORIAL_SELECTION_VERSION:
+            raise RuntimeError(f"{lang} homepage editorial selection missing or outdated")
+        home = payload.get("home") if isinstance(payload.get("home"), list) else []
+        for index, story in enumerate(home):
+            for previous in home[:index]:
+                if homepage_same_topic(story, previous):
+                    raise RuntimeError(
+                        f"{lang} homepage topic duplicate: {previous.get('title')} <> {story.get('title')}"
+                    )
 
         sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
         for section_id, stories in sections.items():
@@ -335,6 +493,7 @@ def validate(max_age_minutes: int = 30) -> None:
 
 base.fetch_all = fetch_all
 base.select_sections = select_sections
+base.round_robin = homepage_round_robin
 base.build_language = build_language
 base.validate = validate
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -36,6 +37,18 @@ ENTITY_PATTERNS = {
     "mogilno_hospital": r"mogiln|szpitala w mogilnie|szpital w mogilnie",
     "electric_scooter_teen": r"hulajnog|15\s*latek|piętnastolet|predkoscia ponad 60|prędkością ponad 60",
 }
+
+TOPIC_GENERIC = {
+    "aktualn", "analiz", "badani", "ekspert", "informac", "miast", "now", "raport",
+    "spraw", "temat", "wynik", "zmian", "polsk", "swiat", "today", "report", "study",
+    "expert", "city", "cities", "change", "changes", "new", "latest",
+}
+TOPIC_SUFFIXES = (
+    "owego", "owej", "owych", "ami", "ach", "anie", "enie", "owie", "ego", "emu",
+    "owa", "owe", "owi", "om", "ow", "em", "ie", "y", "a", "u",
+    "ingly", "ments", "ment", "ation", "ions", "ing", "ers", "ies", "ed", "es",
+)
+
 
 EVENT_PATTERNS = {
     "death": r"zmar|śmier|smier|nie żyje|nie zyje|odszed|dead|death|dies|died",
@@ -134,6 +147,84 @@ def same_story(a: dict, b: dict) -> bool:
         if link_overlap >= 0.5 and (shared_entities or shared_events or overlap >= 0.25):
             return True
     return False
+
+
+def _topic_stem(word: str) -> str:
+    token = clean(word)
+    if not token:
+        return ""
+    for suffix in TOPIC_SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            return token[: -len(suffix)]
+    return token
+
+
+def topic_tokens(item: dict) -> tuple[set[str], set[str]]:
+    """Return headline topic terms and the subset used as common-noun anchors."""
+    title = str(item.get("title") or "")
+    raw_words = re.findall(r"[^\W\d_]+", title, flags=re.UNICODE)
+    all_terms: set[str] = set()
+    lowercase_terms: set[str] = set()
+    for raw in raw_words:
+        folded = clean(raw)
+        if len(folded) < 4 or folded in STOPWORDS:
+            continue
+        stem = _topic_stem(folded)
+        if len(stem) < 4 or stem in TOPIC_GENERIC:
+            continue
+        all_terms.add(stem)
+        # A lower-case occurrence is a useful signal that this is a topic noun
+        # rather than merely the same person/company name in two unrelated stories.
+        if raw == raw.lower():
+            lowercase_terms.add(stem)
+    return all_terms, lowercase_terms
+
+
+def _published_epoch(item: dict) -> float | None:
+    raw = item.get("published_at") or item.get("timestamp")
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).timestamp()
+
+
+def same_topic(a: dict, b: dict) -> bool:
+    """Homepage-level guard: one reader-visible topic/event gets one card."""
+    link_a = str(a.get("link") or "").strip()
+    link_b = str(b.get("link") or "").strip()
+    if link_a and link_b and link_a == link_b:
+        return True
+
+    event_a = str(a.get("canonical_event_id") or "")
+    event_b = str(b.get("canonical_event_id") or "")
+    if event_a and event_b and event_a == event_b:
+        return True
+
+    at, alower = topic_tokens(a)
+    bt, blower = topic_tokens(b)
+    if not at or not bt:
+        return False
+    shared = at & bt
+    overlap = len(shared) / max(1, min(len(at), len(bt)))
+    if len(shared) >= 2 and overlap >= 0.45:
+        return True
+
+    same_source = bool(a.get("source")) and str(a.get("source")) == str(b.get("source"))
+    category_a = str(a.get("category") or a.get("_homepage_section_id") or "")
+    category_b = str(b.get("category") or b.get("_homepage_section_id") or "")
+    same_category = bool(category_a) and category_a == category_b
+    ta, tb = _published_epoch(a), _published_epoch(b)
+    close_in_time = ta is not None and tb is not None and abs(ta - tb) <= 18 * 3600
+    common_noun_anchor = {
+        token for token in shared
+        if len(token) >= 5 and token not in TOPIC_GENERIC and (token in alower or token in blower)
+    }
+    return bool(same_source and same_category and close_in_time and common_noun_anchor)
 
 
 def item_rank(item: dict) -> tuple[int, int, int]:
