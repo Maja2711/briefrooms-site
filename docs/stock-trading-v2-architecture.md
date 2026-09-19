@@ -1,6 +1,6 @@
 # Stock Trading v2 — shadow architecture
 
-Status: **shadow discovery/learning with bounded automatic production promotion**. Production remains unchanged until an exact executable Challenger passes its pre-registered fresh prospective holdout; only then may an allowlisted deterministic config patch be materialized automatically.
+Status: **research/evidence branch for Stock Trading v2**. This branch may discover, freeze, replay and evaluate Challengers, but it has no direct production write authority. Production promotion is owned by the main-branch Stock Trading Component Promotion path.
 
 ## Objective
 
@@ -53,20 +53,27 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Opportunity Regret attributes false positives and false negatives to decision gates.
    - HOLD/EXIT decisions have a separate immutable position-experience ledger.
    - Trigger-directed deep research is joined to 1/3/5/20-session Trigger outcomes by exact observation ID; the report measures evidence yield, score update and directional-update/outcome agreement without claiming causality.
-10. **Policy learning and promotion**
+10. **Policy learning and promotion boundary**
    - Learning creates future-only Challenger policies and exact Factory deployment artifacts.
-   - Promotion requires Replay Tournament robustness plus a separate fixed-N fresh prospective holdout.
-   - An exact formal PASS may be promoted automatically only through `stock_trading_v2_auto_promote.py`.
-   - Auto-promotion is limited to allowlisted deterministic `config_patch` operations, must match the current Champion manifest revision/component version and the exact replay baseline, and writes an immutable production promotion record.
-   - Arbitrary source-code generation or self-modifying production code is not permitted by this path.
+   - Replay Tournament and the fixed-N fresh prospective holdout remain research gates on this branch.
+   - A formal PASS is evidence only; this branch cannot materialize it into production.
+   - A Challenger may nominate only an exact bounded deployment artifact that can be independently revalidated by `main`.
+   - Production admission is owned exclusively by `.github/workflows/stock-trading-component-promotion.yml` on `main`, which performs candidate intake, exact binding, current-Champion checks, health checks and rollback.
+   - Arbitrary source-code generation, self-modifying production code and direct pushes from this branch to production state are forbidden.
 
 ## Operational workflows
 
 - `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
 - `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → relationship/trigger attention → max-two targeted deep-research shadow arm → broad Champion evidence → portfolio comparison → experience/admission freeze.
-- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning/evaluation, evidence commit, then bounded automatic production promotion for exact formal-PASS Challengers.
+- `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning/evaluation and immutable evidence commit. It does not write production.
 - `.github/workflows/stock-trading-v2-validation.yml` — compile/config/unit/integrity/live-smoke validation.
 
-## Production boundary
+## Branch and production authority
 
-The v2 branch reads the current canonical portfolio and policy from `main` without merging `main`. Discovery, Trigger routing and research remain non-production until their own deployment adapter exists. For components with an exact deployment adapter, a Challenger can cross the production boundary only after a formal fresh-holdout PASS. The promotion engine re-reads the latest `main`, requires the Challenger's base manifest revision/component version and replay baseline to still match, applies only allowlisted JSON replacements, increments the Champion manifest revision, records Challenger/evaluation/evidence hashes, validates cross-file invariants, and then pushes the deterministic production change to `main`. Any mismatch fails closed.
+`main` is the only production/governance branch. It owns canonical portfolio state, production policy, Champion manifests, execution/paper-control paths and production promotion.
+
+`stock-trading-v2` is a research/evidence branch. It may read frozen production snapshots from `main`, run discovery, Market Relationship / Trigger research, Deep BELIEF proxy research, prospective settlement, regret analysis, Challenger generation and formal holdout evaluation. It may persist those research artifacts only to the research branch.
+
+A Challenger crosses the production boundary only through the main-owned `Stock Trading Component Promotion` workflow. That workflow independently reads research evidence, admits only production-owned bounded deployments, cryptographically binds the exact evaluated candidate, verifies the current Champion revision, performs health checks and owns rollback.
+
+**Invariant:** no workflow executing from `stock-trading-v2` may push a production mutation directly to `main`.
