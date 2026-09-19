@@ -230,7 +230,14 @@ def select_sections(
 _AI_PATTERN = re.compile(
     r"\b(ai|sztuczn\w* inteligenc\w*|artificial intelligence|chatgpt|openai|anthropic|claude|gemini|copilot|"
     r"llm|large language model\w*|model\w* język\w*|uczeni\w* maszyn\w*|machine learning|deepmind|"
-    r"neural\w*|sieci neur\w*|generative ai|genai)\b",
+    r"neural\w*|sieci neur\w*|generative ai|genai|mistral|perplexity|xai|grok|hugging face|"
+    r"cerebras|groq|nvidia\w* ai|cuda\w*)\b",
+    re.I,
+)
+_AI_ECONOMIC_PATTERN = re.compile(
+    r"\b(wycena|wartość spółk|wartosc spol|przychod\w*|zysk\w*|strat\w*|wynik\w* finans\w*|"
+    r"akcj\w*|giełd\w*|gield\w*|inwestycj\w*|finansowan\w*|rund\w* finans\w*|pozyska\w* kapitał|"
+    r"pozyska\w* kapital|przeję\w*|przejec\w*|fuzj\w*|ipo|obligac\w*|kapitalizac\w*)\b",
     re.I,
 )
 _GEO_ENTITY_PATTERN = re.compile(
@@ -282,6 +289,10 @@ def homepage_lane(story: dict[str, Any], section_id: str) -> str:
     if section == "polityka":
         return "polityka"
     if section in {"ekonomia", "business"}:
+        # Product/model/research AI stories should not be trapped in a broad
+        # business desk. Financing, valuation, earnings and M&A remain economy.
+        if _AI_PATTERN.search(text) and not _AI_ECONOMIC_PATTERN.search(text):
+            return "ai_technologia"
         return "ekonomia"
     if section in {"nauka", "science"}:
         if _AI_PATTERN.search(text):
