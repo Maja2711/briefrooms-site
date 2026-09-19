@@ -189,6 +189,8 @@ def enforce_payload(
         reserve_ids.add(identity)
         approved_topics.append(copy)
 
+    selected.sort(key=lambda story: int(story.get("homepage_priority_rank") or 999))
+    reserve.sort(key=lambda story: int(story.get("homepage_priority_rank") or 999))
     payload["home"] = selected
     payload["home_reserve"] = reserve
     payload["homepage_policy"] = {
