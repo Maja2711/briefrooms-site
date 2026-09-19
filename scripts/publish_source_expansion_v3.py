@@ -349,12 +349,14 @@ def homepage_round_robin(
     sections: dict[str, list[dict[str, Any]]],
     labels: dict[str, str],
     limit: int = 10,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     global _LAST_HOMEPAGE_DIAGNOSTICS, _LAST_HOMEPAGE_RESERVE
     planned, diagnostics = homepage_ranked_select(
         sections,
         labels,
         limit + HOMEPAGE_RESERVE_LIMIT,
+        now=now,
     )
     selected = planned[:limit]
     reserve = planned[limit : limit + HOMEPAGE_RESERVE_LIMIT]
