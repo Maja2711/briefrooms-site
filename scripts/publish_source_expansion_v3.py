@@ -472,10 +472,14 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} homepage reserve exceeds {HOMEPAGE_RESERVE_LIMIT} stories")
         approved = list(home)
         for story in reserve:
-            if any(homepage_same_topic(story, previous) for previous in approved):
+            duplicate = next(
+                (previous for previous in approved if homepage_same_topic(story, previous)),
+                None,
+            )
+            if duplicate is not None:
                 raise RuntimeError(
                     f"{lang} homepage reserve topic duplicate: "
-                    f"{previous.get('title')} <> {story.get('title')}"
+                    f"{duplicate.get('title')} <> {story.get('title')}"
                 )
             approved.append(story)
         for index, story in enumerate(home):
