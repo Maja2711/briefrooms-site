@@ -35,6 +35,9 @@ Homepage publikuje **dokładnie 12 kart wiadomości**. Selekcja korzysta z jedne
 
 Klasyfikacja pasma jest **semantyczna**, a nie wyłącznie odziedziczona po dziale źródła: materiał biznesowy o sankcjach, wojnie lub porozumieniu międzynarodowym może zostać sklasyfikowany jako geopolityka, materiał z działu nauki dotyczący chorób, terapii lub zdrowia — jako zdrowie, a materiał o nowym modelu, produkcie lub przełomie AI — jako AI / technologie AI także wtedy, gdy pochodzi z ogólnego feedu biznesowego. Materiały o finansowaniu, wycenie, wynikach lub transakcjach spółek AI pozostają ekonomią. Po odrzuceniu karty przez limit 72h, brak zdjęcia albo inny guard system ponownie stosuje kolejność pasm i limity do faktycznie publikowanej dwunastki; rezerwa nie może zniekształcić końcowej polityki redakcyjnej.
 
+### EN homepage — krótkie życie surowych komunikatów instytucjonalnych
+W angielskiej wersji homepage surowe, szczegółowe komunikaty banków centralnych — np. **FOMC statement**, decyzja polityki pieniężnej, minutes albo techniczny release wyników ankiety ECB — są materiałem homepage **wyłącznie w dniu publikacji**. Od następnego dnia dokument pozostaje dostępny w News/Business i jako źródło, ale nie konkuruje o miejsce w 12 kartach głównych. Następnego dnia homepage preferuje świeżą reakcję rynku, analizę konsekwencji, zmianę oczekiwań co do stóp albo nową wypowiedź decydenta.
+
 ## Stały rytm aktualizacji strony i newsów
 1. Strona główna oraz pliki newsów PL i EN są odświeżane co 4 godziny.
 2. Przed każdym przebiegiem zapisywany jest ostatni poprawny zestaw kart.
