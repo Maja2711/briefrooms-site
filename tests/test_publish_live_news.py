@@ -109,10 +109,30 @@ class LiveNewsPublisherTests(unittest.TestCase):
                 row("Nauka w Polsce", "Skąd się bierze hałas w miastach?", 2, "zdrowie"),
                 row("Nauka w Polsce", "Nowa metoda obrazowania komórek", 3, "zdrowie"),
             ],
-            "polityka": [row("Source P", f"Polityka ważny temat {i}", 10+i, "polityka") for i in range(4)],
-            "ekonomia": [row("Source E", f"Gospodarka ważny temat {i}", 20+i, "ekonomia") for i in range(4)],
-            "nauka": [row("Source N", f"Nauka ważny temat {i}", 30+i, "nauka") for i in range(4)],
-            "sport": [row("Source S", f"Sport ważny temat {i}", 40+i, "sport") for i in range(4)],
+            "polityka": [
+                row("Source P", "Parlament przyjął ustawę o cyberbezpieczeństwie", 10, "polityka"),
+                row("Source P", "Rząd przedstawił plan energetyczny", 11, "polityka"),
+                row("Source P2", "Samorządy dostaną nowe finansowanie", 12, "polityka"),
+                row("Source P2", "Ministerstwo zmienia zasady zamówień", 13, "polityka"),
+            ],
+            "ekonomia": [
+                row("Source E", "Inflacja spadła poniżej prognoz", 20, "ekonomia"),
+                row("Source E", "Bank centralny utrzymał stopy procentowe", 21, "ekonomia"),
+                row("Source E2", "Eksport przemysłowy przyspieszył", 22, "ekonomia"),
+                row("Source E2", "Rynek pracy dodał nowe etaty", 23, "ekonomia"),
+            ],
+            "nauka": [
+                row("Source N", "Teleskop wykrył atmosferę odległej planety", 30, "nauka"),
+                row("Source N", "Nowy materiał magazynuje energię cieplną", 31, "nauka"),
+                row("Source N2", "Badacze opisali mechanizm regeneracji nerwów", 32, "nauka"),
+                row("Source N2", "Robot laboratoryjny przyspiesza syntezę leków", 33, "nauka"),
+            ],
+            "sport": [
+                row("Source S", "Polska wygrała mecz kwalifikacyjny", 40, "sport"),
+                row("Source S", "Rekord kraju w biegu na 400 metrów", 41, "sport"),
+                row("Source S2", "Tenisista awansował do finału turnieju", 42, "sport"),
+                row("Source S2", "Kolarz wygrał etap wyścigu", 43, "sport"),
+            ],
         }
         selected, diagnostics = homepage_ranked_select(
             sections,
