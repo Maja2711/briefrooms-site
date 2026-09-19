@@ -331,7 +331,7 @@ def select_sections(config: list[tuple[str, str, list[tuple[str, str]]]], fetche
     return selected, health
 
 
-def round_robin(sections: dict[str, list[dict[str, Any]]], labels: dict[str, str], limit: int = 10) -> list[dict[str, Any]]:
+def round_robin(sections: dict[str, list[dict[str, Any]]], labels: dict[str, str], limit: int = 12) -> list[dict[str, Any]]:
     output: list[dict[str, Any]] = []
     for index in range(max((len(items) for items in sections.values()), default=0)):
         for section_id, items in sections.items():
