@@ -196,7 +196,7 @@ jobs:
                       if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v4':
                           last.append(f'{path}: editorial policy v4 missing')
                       homepage_selection = payload.get('health', {}).get('homepage_editorial_selection', {})
-                      if homepage_selection.get('version') != 'homepage-editorial-v4':
+                      if homepage_selection.get('version') != 'homepage-editorial-v5':
                           last.append(f'{path}: homepage editorial selector v4 missing')
                       if homepage_selection.get('runtime_backfill_policy') != 'approved_home_reserve_only':
                           last.append(f'{path}: homepage curated reserve policy missing')
@@ -205,6 +205,8 @@ jobs:
                           last.append(f'{path}: homepage priority order mismatch')
                       if homepage_selection.get('sport_hard_cap') != 3:
                           last.append(f'{path}: homepage sport hard cap mismatch')
+                      if homepage_selection.get('version') == 'homepage-editorial-v5' and homepage_selection.get('priority_order') != expected_priority:
+                          last.append(f'{path}: homepage semantic priority contract missing')
                       selection_policy = payload.get('health', {}).get('editorial_selection', {})
                       if selection_policy.get('version') != 'curated-source-tiers-v2':
                           last.append(f'{path}: curated source policy v2 missing')
@@ -232,6 +234,11 @@ jobs:
                       homepage_policy = payload.get('homepage_policy', {})
                       if homepage_policy.get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
+                      freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
+                      if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                          last.append(f'{path}: post-freshness editorial selector missing')
+                      if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                          last.append(f'{path}: post-freshness homepage diagnostics missing')
                       if homepage_policy.get('target_story_count') != 12 or homepage_policy.get('minimum_story_count') != 12:
                           last.append(f'{path}: homepage twelve-story contract missing')
                       if homepage_policy.get('runtime_backfill_policy') != 'approved_home_reserve_only':
