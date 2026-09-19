@@ -138,15 +138,91 @@ class LiveNewsPublisherTests(unittest.TestCase):
         selected, diagnostics = homepage_ranked_select(
             sections,
             {key: key.title() for key in sections},
-            limit=10,
+            limit=12,
             now=now,
         )
         titles = [item["title"] for item in selected]
         noise_count = sum("hałas" in title.casefold() for title in titles)
-        self.assertEqual(len(selected), 10)
+        self.assertEqual(len(selected), 12)
         self.assertEqual(noise_count, 1)
-        self.assertEqual(diagnostics["version"], "homepage-editorial-v3")
+        self.assertEqual(diagnostics["version"], "homepage-editorial-v4")
         self.assertLessEqual(max(diagnostics["source_mix"].values()), 3)
+
+    def test_homepage_priority_order_and_sport_hard_cap(self) -> None:
+        now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+
+        def row(source: str, title: str, idx: int, section: str, score: float = 50.0) -> dict:
+            return {
+                "source": source,
+                "publisher_source": source,
+                "title": title,
+                "summary": title + " — pełny opis materiału z dodatkowymi faktami i kontekstem.",
+                "link": f"https://priority.example.com/{section}/{idx}",
+                "image": f"https://priority.example.com/{idx}.jpg",
+                "published_at": (now - timedelta(minutes=idx)).isoformat(),
+                "published_at_basis": "source",
+                "canonical_event_id": f"evt_priority_{section}_{idx}",
+                "corroboration_score": score,
+                "claim_adjusted_corroboration_score": score,
+                "independent_evidence_paths": 2,
+                "claim_consistency_status": "consistent",
+                "contradiction_score": 0.0,
+                "provenance_role": "original",
+                "origin_source": source,
+            }
+
+        sections = {
+            "polityka": [
+                row("P1", "Sejm przyjął ustawę o finansowaniu samorządów", 1, "polityka"),
+                row("P2", "Rząd przedstawił nową reformę administracji", 2, "polityka"),
+                row("G1", "Rosja przeprowadziła atak rakietowy na Ukrainę", 3, "polityka"),
+                row("G2", "NATO wzmacnia obronę granicy z Rosją", 4, "polityka"),
+            ],
+            "ekonomia": [
+                row("E1", "Inflacja spadła poniżej prognoz", 10, "ekonomia"),
+                row("E2", "Bank centralny utrzymał stopy procentowe", 11, "ekonomia"),
+                row("E3", "Eksport przemysłowy przyspieszył", 12, "ekonomia"),
+            ],
+            "nauka": [
+                row("A1", "OpenAI prezentuje nowy model AI", 20, "nauka"),
+                row("A2", "Nowy system sztucznej inteligencji wspiera diagnostykę", 21, "nauka"),
+                row("N1", "Teleskop wykrył atmosferę odległej planety", 22, "nauka"),
+                row("N2", "Badacze opisali nowy materiał kwantowy", 23, "nauka"),
+            ],
+            "zdrowie": [
+                row("H1", "Nowe badanie nad profilaktyką chorób serca", 30, "zdrowie"),
+                row("H2", "Lekarze opisali skuteczniejszą terapię", 31, "zdrowie"),
+            ],
+            "sport": [
+                row(f"S{i}", f"Sportowy wynik numer {i}", 40 + i, "sport", score=99.0)
+                for i in range(1, 7)
+            ],
+        }
+
+        selected, diagnostics = homepage_ranked_select(
+            sections,
+            {key: key.title() for key in sections},
+            limit=12,
+            now=now,
+        )
+        lanes = [story["homepage_lane"] for story in selected]
+        lane_order = {lane: index for index, lane in enumerate(source_v3.HOMEPAGE_PRIORITY_ORDER)}
+
+        self.assertEqual(len(selected), 12)
+        self.assertEqual(lanes, sorted(lanes, key=lambda lane: lane_order[lane]))
+        self.assertLessEqual(lanes.count("sport"), 3)
+        self.assertIn("polityka", lanes)
+        self.assertIn("geopolityka", lanes)
+        self.assertIn("ekonomia", lanes)
+        self.assertIn("ai_technologia", lanes)
+        self.assertIn("nauka", lanes)
+        self.assertIn("zdrowie", lanes)
+        self.assertIn("sport", lanes)
+        self.assertEqual(diagnostics["sport_hard_cap"], 3)
+        self.assertEqual(
+            diagnostics["priority_order"],
+            list(source_v3.HOMEPAGE_PRIORITY_ORDER),
+        )
 
     def test_homepage_runtime_reserve_uses_same_topic_dedupe_as_visible_home(self) -> None:
         now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
@@ -209,11 +285,11 @@ class LiveNewsPublisherTests(unittest.TestCase):
             ],
         }
         labels = {key: key.title() for key in sections}
-        visible = source_v3.homepage_round_robin(sections, labels, limit=10, now=now)
+        visible = source_v3.homepage_round_robin(sections, labels, limit=12, now=now)
         reserve = list(source_v3._LAST_HOMEPAGE_RESERVE)
         titles = [item["title"] for item in visible + reserve]
 
-        self.assertEqual(len(visible), 10)
+        self.assertEqual(len(visible), 12)
         self.assertGreaterEqual(len(reserve), 1)
         self.assertEqual(sum("hałas" in title.casefold() for title in titles), 1)
         diagnostics = source_v3._LAST_HOMEPAGE_DIAGNOSTICS
