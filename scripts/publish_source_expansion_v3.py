@@ -235,8 +235,9 @@ _AI_PATTERN = re.compile(
     re.I,
 )
 _AI_ECONOMIC_PATTERN = re.compile(
-    r"\b(wycena|wartość spółk|wartosc spol|przychod\w*|zysk\w*|strat\w*|wynik\w* finans\w*|"
-    r"akcj\w*|giełd\w*|gield\w*|inwestycj\w*|finansowan\w*|rund\w* finans\w*|pozyska\w* kapitał|"
+    r"\b(wycen\w*|wartość spółk|wartosc spol|przychod\w*|zysk\w*|strat\w*|wynik\w* finans\w*|"
+    r"akcj\w*|giełd\w*|gield\w*|inwestycj\w*|wydatk\w*|nakład\w*|naklad\w*|finansowan\w*|"
+    r"rund\w* finans\w*|pozyska\w* kapitał|"
     r"pozyska\w* kapital|przeję\w*|przejec\w*|fuzj\w*|ipo|obligac\w*|kapitalizac\w*)\b",
     re.I,
 )
