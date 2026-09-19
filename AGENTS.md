@@ -26,6 +26,16 @@ Before creating a new subsystem, first demonstrate that equivalent or overlappin
 
 If the Architecture Map cannot be read, do not make an architecture-affecting change until it is available.
 
+## Branch authority
+
+For Stock Trading v2, branch authority is explicit:
+
+- `main` is the sole production/governance authority. It owns canonical production state, production policy, Champion manifests, production promotion, execution/paper-control paths and architecture documentation.
+- `stock-trading-v2` is a research/evidence runtime branch. It may own discovery state, Trigger/Relationship research, targeted Deep BELIEF proxy research, prospective outcomes, regret, Challenger generation and holdout evaluation.
+- A workflow running research code may read frozen production snapshots from `main`, but it must not directly push a production mutation to `main`.
+- Production promotion of Stock Trading components is owned by the main-branch `Stock Trading Component Promotion` workflow.
+- Before changing `stock-trading-v2`, read that branch's `AGENTS.md` and the canonical map on `main`.
+
 ## Bootstrap integrity
 
 `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect this bootstrap from silent removal or PL/EN map-version drift. They do not replace architectural review.
