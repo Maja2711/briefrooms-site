@@ -162,7 +162,7 @@ def _topic_stem(word: str) -> str:
 def topic_tokens(item: dict) -> tuple[set[str], set[str]]:
     """Return headline topic terms and the subset used as common-noun anchors."""
     title = str(item.get("title") or "")
-    raw_words = re.findall(r"[^\\W\\d_]+", title, flags=re.UNICODE)
+    raw_words = re.findall(r"[^\W\d_]+", title, flags=re.UNICODE)
     all_terms: set[str] = set()
     lowercase_terms: set[str] = set()
     for raw in raw_words:
