@@ -235,9 +235,9 @@ jobs:
                       if homepage_policy.get('version') != 'max-72h-first-display-v1':
                           last.append(f'{path}: homepage 72h first-display policy missing')
                       freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
-                      if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                      if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness editorial selector missing')
-                      if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v1':
+                      if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness homepage diagnostics missing')
                       if homepage_policy.get('target_story_count') != 12 or homepage_policy.get('minimum_story_count') != 12:
                           last.append(f'{path}: homepage twelve-story contract missing')
@@ -245,6 +245,8 @@ jobs:
                           last.append(f'{path}: homepage runtime backfill is not reserve-only')
                       if homepage_policy.get('reserve_story_limit') != 12:
                           last.append(f'{path}: homepage reserve limit missing')
+                      if homepage_policy.get('primary_bulletin_policy_version') != 'en-primary-bulletin-same-day-v1':
+                          last.append(f'{path}: primary bulletin freshness policy missing')
                       home = payload.get('home') if isinstance(payload.get('home'), list) else []
                       reserve = payload.get('home_reserve') if isinstance(payload.get('home_reserve'), list) else []
                       if len(home) != 12:
@@ -262,6 +264,22 @@ jobs:
                           last.append(f'{path}: homepage contains duplicate stories')
                       if len(reserve) > 12:
                           last.append(f'{path}: homepage reserve contains more than 12 stories')
+                      if path.endswith('/en.json'):
+                          primary_sources = {'federal reserve', 'federal reserve board', 'ecb', 'european central bank', 'bank of england', 'bank of japan'}
+                          primary_markers = (
+                              'fomc statement', 'monetary policy statement', 'monetary policy decision',
+                              'interest rate decision', 'rate decision', 'meeting minutes',
+                              'consumer expectations survey results', 'survey results'
+                          )
+                          now_utc = datetime.now(timezone.utc)
+                          for story in home + reserve:
+                              source = str(story.get('source') or '').strip().casefold()
+                              title = str(story.get('title') or '').strip().casefold()
+                              if source in primary_sources and any(marker in title for marker in primary_markers):
+                                  published = datetime.fromisoformat(str(story.get('published_at') or '').replace('Z', '+00:00'))
+                                  if published.astimezone(timezone.utc).date() != now_utc.date():
+                                      last.append(f"{path}: stale primary bulletin on EN homepage: {story.get('title')}")
+                                      break
                       approved = []
                       for story in home + reserve:
                           duplicate = next((old for old in approved if same_topic(story, old)), None)
