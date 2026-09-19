@@ -74,7 +74,9 @@ HOMEPAGE_TARGET_SOURCE_CAP = 2
 HOMEPAGE_EMERGENCY_SOURCE_CAP = 3
 HOMEPAGE_TARGET_SECTION_CAP = 3
 HOMEPAGE_EMERGENCY_SECTION_CAP = 4
+HOMEPAGE_RESERVE_LIMIT = 10
 _LAST_HOMEPAGE_DIAGNOSTICS: dict[str, Any] = {}
+_LAST_HOMEPAGE_RESERVE: list[dict[str, Any]] = []
 
 _original_fetch_all = base.fetch_all
 _original_select_sections = base.select_sections
@@ -335,13 +337,43 @@ def homepage_ranked_select(
     return public, diagnostics
 
 
+def _mix(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(row.get(key) or "unknown")
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
 def homepage_round_robin(
     sections: dict[str, list[dict[str, Any]]],
     labels: dict[str, str],
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    global _LAST_HOMEPAGE_DIAGNOSTICS
-    selected, diagnostics = homepage_ranked_select(sections, labels, limit)
+    global _LAST_HOMEPAGE_DIAGNOSTICS, _LAST_HOMEPAGE_RESERVE
+    planned, diagnostics = homepage_ranked_select(
+        sections,
+        labels,
+        limit + HOMEPAGE_RESERVE_LIMIT,
+    )
+    selected = planned[:limit]
+    reserve = planned[limit : limit + HOMEPAGE_RESERVE_LIMIT]
+    _LAST_HOMEPAGE_RESERVE = [dict(story) for story in reserve]
+
+    diagnostics.update(
+        {
+            "target_story_count": limit,
+            "published_count": len(selected),
+            "reserve_limit": HOMEPAGE_RESERVE_LIMIT,
+            "reserve_count": len(reserve),
+            "source_mix": _mix(selected, "source"),
+            "section_mix": _mix(selected, "category"),
+            "reserve_source_mix": _mix(reserve, "source"),
+            "reserve_section_mix": _mix(reserve, "category"),
+            "runtime_backfill_policy": "approved_home_reserve_only",
+        }
+    )
+    diagnostics["status"] = "ok" if len(selected) == limit else "underfilled"
     _LAST_HOMEPAGE_DIAGNOSTICS = diagnostics
     return selected
 
@@ -357,6 +389,7 @@ def _wire_adapter_errors(errors: list[Any]) -> list[str]:
 
 def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, Any]:
     payload = _original_build_language(lang, config, marker, now)
+    payload["home_reserve"] = [dict(story) for story in _LAST_HOMEPAGE_RESERVE]
     health = payload.setdefault("health", {})
     all_errors = list(health.get("source_errors") or [])
     wire_errors = _wire_adapter_errors(all_errors)
@@ -431,7 +464,20 @@ def validate(max_age_minutes: int = 30) -> None:
         homepage_selection = (payload.get("health") or {}).get("homepage_editorial_selection") or {}
         if homepage_selection.get("version") != HOMEPAGE_EDITORIAL_SELECTION_VERSION:
             raise RuntimeError(f"{lang} homepage editorial selection missing or outdated")
+        if homepage_selection.get("runtime_backfill_policy") != "approved_home_reserve_only":
+            raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
+        reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
+        if len(reserve) > HOMEPAGE_RESERVE_LIMIT:
+            raise RuntimeError(f"{lang} homepage reserve exceeds {HOMEPAGE_RESERVE_LIMIT} stories")
+        approved = list(home)
+        for story in reserve:
+            if any(homepage_same_topic(story, previous) for previous in approved):
+                raise RuntimeError(
+                    f"{lang} homepage reserve topic duplicate: "
+                    f"{previous.get('title')} <> {story.get('title')}"
+                )
+            approved.append(story)
         for index, story in enumerate(home):
             for previous in home[:index]:
                 if homepage_same_topic(story, previous):
