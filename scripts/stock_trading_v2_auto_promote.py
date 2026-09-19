@@ -288,6 +288,26 @@ def apply_one(
         after_hashes[str(target)] = contracts.payload_sha256(document)
 
     _validate_cross_file_invariants(documents)
+    replay = challenger.get("exact_replay") or {}
+    if str(replay.get("adapter") or "") == "entry_threshold_v1":
+        expected_champion = int(replay.get("champion_threshold") or 0)
+        expected_challenger = int(replay.get("challenger_threshold") or 0)
+        if expected_champion <= 0 or expected_challenger <= 0:
+            raise contracts.ContractError("entry threshold replay contract is incomplete")
+        relevant = [
+            row for row in changes
+            if (row["target"], tuple(row["path"])) in {
+                ("gpw_daily_config", ("minimum_composite_score",)),
+                ("stock_trading_policy", ("markets", "GPW", "minimum_entry_score")),
+            }
+        ]
+        if len(relevant) != 2:
+            raise contracts.ContractError("entry promotion must patch both production thresholds")
+        if any(int(row["previous"]) != expected_champion for row in relevant):
+            raise contracts.ContractError("production baseline drifted from exact replay Champion")
+        if any(int(row["value"]) != expected_challenger for row in relevant):
+            raise contracts.ContractError("deployment patch drifted from exact replay Challenger")
+
     timestamp = promoted_at or contracts.iso_utc()
     promotion_identity = {
         "challenger_id": challenger["challenger_id"],
