@@ -28,6 +28,10 @@ Plik `AGENTS.md` w katalogu głównym repozytorium jest obowiązkowym punktem we
 
 Agent nie może rekonstruować architektury BriefRooms z pamięci rozmowy ani rozpoczynać nowego subsystemu bez wcześniejszego sprawdzenia, czy równoważna lub nakładająca się funkcja już istnieje. `README.md` utrzymuje widoczny wskaźnik do tego bootstrapu, a `scripts/validate_architecture_bootstrap.py` wraz z workflow `Architecture Bootstrap Guard` chronią jego obecność oraz synchronizację wersji map PL/EN.
 
+## Semantyczna zgodność runtime
+
+Od Architecture Reconciliation 1.5 sama zgodność numeru wersji PL/EN nie wystarcza. `scripts/validate_architecture_reconciliation.py` sprawdza wybrane krytyczne fakty runtime, authority i wiring przeciwko mapie. `Architecture Bootstrap Guard` wykonuje ten test także cyklicznie, aby wykrywać drift między `main` i aktywną gałęzią research.
+
 ## Wymóg pull requestu
 
 PR architektoniczny jest niekompletny, dopóki nie istnieją obie wersje językowe oraz obie kanoniczne Architecture Maps poprawnie opisujące system po zmianie. Kod runtime pozostaje źródłem prawdy implementacyjnej; sparowane dokumenty architektury i Architecture Map są czytelnym dla człowieka zapisem projektu.
