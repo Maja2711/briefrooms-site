@@ -604,8 +604,18 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
         reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
+        if len(home) != HOMEPAGE_LIMIT:
+            raise RuntimeError(f"{lang} homepage must contain exactly {HOMEPAGE_LIMIT} stories")
         if len(reserve) > HOMEPAGE_RESERVE_LIMIT:
             raise RuntimeError(f"{lang} homepage reserve exceeds {HOMEPAGE_RESERVE_LIMIT} stories")
+        lane_order = {lane: index for index, lane in enumerate(HOMEPAGE_PRIORITY_ORDER)}
+        home_lanes = [str(story.get("homepage_lane") or "") for story in home]
+        if any(lane not in lane_order for lane in home_lanes):
+            raise RuntimeError(f"{lang} homepage contains invalid editorial lane")
+        if home_lanes != sorted(home_lanes, key=lambda lane: lane_order[lane]):
+            raise RuntimeError(f"{lang} homepage priority lanes are out of order")
+        if home_lanes.count("sport") > HOMEPAGE_SPORT_HARD_CAP:
+            raise RuntimeError(f"{lang} homepage exceeds sport hard cap")
         approved = list(home)
         for story in reserve:
             duplicate = next(
