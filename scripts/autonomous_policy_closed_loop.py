@@ -111,12 +111,17 @@ def load_config(repo_root: Path) -> dict[str, Any]:
     if not isinstance(payload, dict) or payload.get("schema_version") != CONFIG_SCHEMA:
         raise ValueError("closed-loop config schema mismatch")
     for key in (
-        "closed_loop_enabled", "automatic_materialization_enabled", "automatic_rollback_enabled",
+        "closed_loop_enabled", "automatic_rollback_enabled",
         "require_pr35_pass", "require_pr36_pass", "require_disjoint_validation_samples",
         "require_hash_committed_validation_epochs",
     ):
         if payload.get(key) is not True:
             raise ValueError(f"closed-loop required control disabled: {key}")
+    materialization = payload.get("automatic_materialization_enabled")
+    if materialization not in {True, False}:
+        raise ValueError("automatic_materialization_enabled must be boolean")
+    if materialization is False and payload.get("production_authority") != "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION":
+        raise ValueError("disabled materialization requires explicit retired production authority")
     for key in (
         "manual_approval_required", "code_mutation_allowed", "arbitrary_parameter_mutation_allowed",
         "hard_safety_gate_mutation_allowed", "trade_execution_allowed",
@@ -466,6 +471,39 @@ def apply_closed_loop(research_state_dir: Path, repo_root: Path, *, now: Optiona
     integrity = pli.verify(research_state_dir, repo_root)
     if integrity.get("production_promotion_enabled") is not False:
         raise RuntimeError("PR35/PR36 research gate must remain frozen")
+
+    if cfg.get("automatic_materialization_enabled") is False:
+        state = load_state(repo_root, create=False, now=now)
+        verification = (
+            verify_state(repo_root, state)
+            if state is not None
+            else {"ok": True, "initialized": False}
+        )
+        report = {
+            "schema_version": REPORT_SCHEMA,
+            "generated_at": _iso(now),
+            "research_methodology_version": 2,
+            "closed_loop_enabled": True,
+            "status": "RESEARCH_ONLY_PRODUCTION_AUTHORITY_RETIRED",
+            "production_authority": cfg.get("production_authority"),
+            "research_gate_remains_frozen": True,
+            "promotions": [],
+            "rollbacks": [],
+            "materialized_config_paths": [],
+            "production_state_path": STATE_PATH,
+            "verification": verification,
+            "safety": {
+                "hard_safety_gate_mutation": False,
+                "arbitrary_parameter_mutation": False,
+                "code_mutation": False,
+                "trade_execution": False,
+                "production_materialization": False,
+                "manual_approval_required_after_formal_gates": False,
+            },
+        }
+        _atomic(research_state_dir / REPORT_FILENAME, report)
+        return report
+
     registry = _research_registry(research_state_dir)
     state = load_state(repo_root, create=True, now=now)
     assert state is not None
