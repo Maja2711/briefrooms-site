@@ -145,7 +145,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
         noise_count = sum("hałas" in title.casefold() for title in titles)
         self.assertEqual(len(selected), 10)
         self.assertEqual(noise_count, 1)
-        self.assertEqual(diagnostics["version"], "homepage-editorial-v2")
+        self.assertEqual(diagnostics["version"], "homepage-editorial-v3")
         self.assertLessEqual(max(diagnostics["source_mix"].values()), 3)
 
     def test_homepage_runtime_reserve_uses_same_topic_dedupe_as_visible_home(self) -> None:
