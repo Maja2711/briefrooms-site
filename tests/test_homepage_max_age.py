@@ -82,7 +82,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         late_result, _ = enforce_payload(late_payload, state, late)
         self.assertEqual(late_result["home"], [])
 
-    def test_expired_home_story_is_replaced_by_next_eligible_section_story(self) -> None:
+    def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
         expired = self._story("Expired", now)
         replacement = self._story("Replacement", now - timedelta(hours=1))
@@ -95,6 +95,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         }
         payload = {
             "home": [expired],
+            "home_reserve": [replacement],
             "sections": {"health": [expired, replacement]},
             "labels": {"health": "Health"},
             "health": {},
@@ -105,7 +106,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertIn("homepage_first_seen_at", result["home"][0])
         self.assertIn("homepage_expires_at", result["home"][0])
 
-    def test_homepage_fills_to_exactly_ten_from_section_backfill(self) -> None:
+    def test_homepage_fills_to_exactly_ten_from_curated_reserve(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         initial = [self._story(f"Home {index}", now - timedelta(minutes=index), "Politics") for index in range(6)]
         replacements = [
@@ -114,6 +115,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         ]
         payload = {
             "home": initial,
+            "home_reserve": replacements,
             "sections": {"politics": initial, "economy": replacements},
             "labels": {"politics": "Politics", "economy": "Economy"},
             "health": {},
@@ -182,6 +184,26 @@ class HomepageExposureCapTests(unittest.TestCase):
             "approved_home_reserve_only",
         )
 
+    def test_raw_sections_cannot_bypass_homepage_selection(self) -> None:
+        now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
+        initial = [self._story(f"Approved {index}", now - timedelta(minutes=index)) for index in range(4)]
+        raw_sections = [
+            self._story(f"Raw section {index}", now - timedelta(minutes=20 + index))
+            for index in range(12)
+        ]
+        payload = {
+            "home": initial,
+            "home_reserve": [],
+            "sections": {"health": raw_sections},
+            "labels": {"health": "Health"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now)
+        self.assertEqual([item["title"] for item in result["home"]], [item["title"] for item in initial])
+        self.assertEqual(result["home_reserve"], [])
+        self.assertEqual(result["health"]["homepage_freshness"]["status"], "underfilled")
+
     def test_missing_and_http_images_are_rejected_and_replaced(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
         missing = dict(self._story("Missing image", now), image="")
@@ -189,6 +211,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         valid = [self._story(f"Valid {index}", now - timedelta(minutes=index + 1)) for index in range(12)]
         payload = {
             "home": [missing, insecure] + valid[:4],
+            "home_reserve": valid[4:],
             "sections": {"health": [missing, insecure] + valid},
             "labels": {"health": "Health"},
             "health": {},
