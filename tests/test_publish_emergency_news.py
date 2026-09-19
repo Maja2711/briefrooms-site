@@ -40,7 +40,26 @@ class LayoutPreservingNewsTests(unittest.TestCase):
         self.assertNotIn("<li>OLD</li>", updated)
         self.assertIn("Fresh story", updated)
         self.assertIn("briefrooms-shared-section-tabs", updated)
+        self.assertIn("top:calc(var(--br-site-header-height, 84px) + 8px)!important", updated)
+        self.assertIn("scroll-margin-top:calc(var(--br-site-header-height, 84px) + 92px)!important", updated)
         self.assertIn('content="marker-1"', updated)
+
+    def test_committed_pl_and_en_news_tabs_follow_scroll_below_site_header(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for relative in ("pl/aktualnosci.html", "en/news.html"):
+            source = (root / relative).read_text(encoding="utf-8")
+            self.assertIn(
+                "top:calc(var(--br-site-header-height, 84px) + 8px)!important",
+                source,
+                relative,
+            )
+            self.assertIn(
+                "scroll-margin-top:calc(var(--br-site-header-height, 84px) + 92px)!important",
+                source,
+                relative,
+            )
+            self.assertIn("overflow-x:auto!important", source, relative)
+            self.assertIn("flex-wrap:nowrap!important", source, relative)
 
     def test_homepage_refresh_changes_only_marked_cards_and_timestamp(self) -> None:
         original = (
