@@ -67,8 +67,8 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             runtime.install(path)
             rendered = path.read_text(encoding='utf-8')
 
-        live_url = '/scripts/news-live.js?v=6&rev=image2'
-        floor_url = '/scripts/home-card-floor.js?v=3'
+        live_url = '/scripts/news-live.js?v=7&rev=priority12'
+        floor_url = '/scripts/home-card-floor.js?v=4'
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)
         self.assertLess(rendered.index(live_url), rendered.index(floor_url))
@@ -91,8 +91,8 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
 
         lab_url = '/scripts/home-lab.js?v=1'
         intelligence_url = '/scripts/home-intelligence-layout.js?v=1'
-        live_url = '/scripts/news-live.js?v=6&rev=image2'
-        floor_url = '/scripts/home-card-floor.js?v=3'
+        live_url = '/scripts/news-live.js?v=7&rev=priority12'
+        floor_url = '/scripts/home-card-floor.js?v=4'
         self.assertEqual(rendered.count(lab_url), 1)
         self.assertEqual(rendered.count(intelligence_url), 1)
         self.assertEqual(rendered.count(live_url), 1)
@@ -119,7 +119,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         self.assertNotIn('paper trading', source.lower())
         self.assertNotIn('innerHTML=', source)
 
-    def test_floor_guard_requires_ten_cards_with_real_https_images(self) -> None:
+    def test_floor_guard_requires_twelve_cards_with_real_https_images(self) -> None:
         script = runtime.ROOT / 'scripts' / 'home-card-floor.js'
         completed = subprocess.run(
             ['node', '--check', str(script)],
@@ -129,7 +129,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         source = script.read_text(encoding='utf-8')
-        self.assertIn('var MIN_CARDS = 10;', source)
+        self.assertIn('var MIN_CARDS = 12;', source)
         self.assertIn('function safeImageUrl(value)', source)
         self.assertIn("data.home_reserve", source)
         self.assertNotIn("Object.values(sections)", source)
@@ -143,7 +143,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
     def test_news_runtime_home_cards_do_not_render_br_placeholders(self) -> None:
         script = runtime.ROOT / 'scripts' / 'news-live.js'
         source = script.read_text(encoding='utf-8')
-        self.assertIn('const HOME_LIMIT = 10;', source)
+        self.assertIn('const HOME_LIMIT = 12;', source)
         self.assertIn("const HOME_IMAGE_POLICY = 'https-image-required-v1';", source)
         self.assertIn('function safeImage(value)', source)
         self.assertNotIn('<div class="fallback-art" aria-hidden="true">BR</div>', source)

@@ -5,10 +5,9 @@
   const feedUrl = `/data/news/${lang}.json`;
   const HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
-  const HOME_LIMIT = 10;
+  const HOME_LIMIT = 12;
   const HOME_POLICY = 'max-72h-first-display-v1';
   const HOME_IMAGE_POLICY = 'https-image-required-v1';
-  const TOPIC_ORDER = ['politics', 'economy', 'health'];
   const text = lang === 'pl' ? {
     source: 'Źródło',
     read: 'Czytaj źródło →',
@@ -97,23 +96,11 @@
         if (!identity || seen.has(identity)) return false;
         seen.add(identity);
         return true;
-      })
-      .sort((a, b) => timestamp(b.published_at) - timestamp(a.published_at));
+      });
 
-    const selected = [];
-    const selectedIds = new Set();
-    const add = story => {
-      if (!story) return;
-      const identity = storyIdentity(story);
-      if (!identity || selectedIds.has(identity)) return;
-      selected.push(story);
-      selectedIds.add(identity);
-    };
-
-    TOPIC_ORDER.forEach(topic => add(fresh.find(story => topicForCategory(story.category) === topic)));
-    fresh.filter(story => topicForCategory(story.category)).forEach(add);
-    fresh.forEach(add);
-    return selected.slice(0, HOME_LIMIT);
+    // The server-side homepage selector is the editorial authority. Preserve
+    // its priority-lane order instead of re-sorting by recency in the browser.
+    return fresh.slice(0, HOME_LIMIT);
   }
 
   function newsCard(story) {
@@ -207,7 +194,7 @@
     const cards = stories.map(homeCard).filter(Boolean).join('');
     container.dataset.homeFreshnessPolicy = HOME_POLICY;
     container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
-    container.dataset.homePriority = 'politics-economy-health';
+    container.dataset.homePriority = 'politics-geopolitics-economy-ai-science-health-sport';
     if (!cards) {
       container.replaceChildren();
       return true;

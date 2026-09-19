@@ -560,7 +560,7 @@ def select_sections(
 def round_robin(
     sections: dict[str, list[dict[str, Any]]],
     labels: dict[str, str],
-    limit: int = 10,
+    limit: int = 12,
 ) -> list[dict[str, Any]]:
     """Put a genuinely hot PL live-sport story first on the homepage."""
     output = _original_round_robin(sections, labels, limit)

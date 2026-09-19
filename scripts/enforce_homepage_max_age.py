@@ -20,8 +20,8 @@ NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
 HOME_MAX_AGE = timedelta(days=3)
 FUTURE_TOLERANCE = timedelta(minutes=10)
-HOME_LIMIT = 10
-HOME_RESERVE_LIMIT = 10
+HOME_LIMIT = 12
+HOME_RESERVE_LIMIT = 12
 POLICY_VERSION = "max-72h-first-display-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
 
@@ -189,6 +189,8 @@ def enforce_payload(
         reserve_ids.add(identity)
         approved_topics.append(copy)
 
+    selected.sort(key=lambda story: int(story.get("homepage_priority_rank") or 999))
+    reserve.sort(key=lambda story: int(story.get("homepage_priority_rank") or 999))
     payload["home"] = selected
     payload["home_reserve"] = reserve
     payload["homepage_policy"] = {
@@ -264,7 +266,7 @@ def validate_files() -> None:
         if policy.get("version") != POLICY_VERSION:
             raise RuntimeError(f"{lang} homepage 72-hour exposure policy missing")
         if policy.get("target_story_count") != HOME_LIMIT or policy.get("minimum_story_count") != HOME_LIMIT:
-            raise RuntimeError(f"{lang} homepage ten-story contract missing")
+            raise RuntimeError(f"{lang} homepage twelve-story contract missing")
         if policy.get("requires_https_image") is not True or policy.get("image_policy_version") != IMAGE_POLICY_VERSION:
             raise RuntimeError(f"{lang} homepage HTTPS-image policy missing")
 

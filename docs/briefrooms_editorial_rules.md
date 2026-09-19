@@ -31,6 +31,8 @@ Komentarz może zostać opublikowany tylko wtedy, gdy spełnia wszystkie warunki
 ## Strona główna
 Krótki opis na karcie jest tworzony z zaakceptowanego pełnego komentarza. Nie może pochodzić z samego tytułu, podpisu autora ani przypadkowego fragmentu RSS.
 
+Homepage publikuje **dokładnie 12 kart wiadomości**. Selekcja korzysta z jednego globalnego rankingu i siedmiu pasm priorytetowych w tej kolejności: **polityka → geopolityka → ekonomia → AI / technologie AI → nauka → zdrowie → sport**. Najpierw wybierany jest najlepszy dostępny materiał z każdego pasma, następnie pozostałe miejsca uzupełnia ranking jakościowy z zachowaniem deduplikacji tematów, dywersyfikacji źródeł i świeżości. **Sport ma twardy limit maksymalnie 3 kart** na widocznej stronie głównej; limit nie może zostać poluzowany przez fallback ani runtime. Awaryjne zastępstwa mogą pochodzić wyłącznie z zatwierdzonej rezerwy homepage, która przechodzi te same reguły tematyczne.
+
 ## Stały rytm aktualizacji strony i newsów
 1. Strona główna oraz pliki newsów PL i EN są odświeżane co 4 godziny.
 2. Przed każdym przebiegiem zapisywany jest ostatni poprawny zestaw kart.

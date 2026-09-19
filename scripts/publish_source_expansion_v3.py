@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -69,12 +70,26 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v3"
+HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v4"
+HOMEPAGE_LIMIT = 12
 HOMEPAGE_TARGET_SOURCE_CAP = 2
 HOMEPAGE_EMERGENCY_SOURCE_CAP = 3
-HOMEPAGE_TARGET_SECTION_CAP = 3
-HOMEPAGE_EMERGENCY_SECTION_CAP = 4
-HOMEPAGE_RESERVE_LIMIT = 10
+HOMEPAGE_TARGET_SECTION_CAP = 5
+HOMEPAGE_EMERGENCY_SECTION_CAP = 6
+HOMEPAGE_TARGET_LANE_CAP = 3
+HOMEPAGE_EMERGENCY_LANE_CAP = 4
+HOMEPAGE_SPORT_HARD_CAP = 3
+HOMEPAGE_RESERVE_LIMIT = 12
+HOMEPAGE_PRIORITY_ORDER = (
+    "polityka",
+    "geopolityka",
+    "ekonomia",
+    "ai_technologia",
+    "nauka",
+    "zdrowie",
+    "sport",
+)
+HOMEPAGE_PRIORITY_INDEX = {lane: index for index, lane in enumerate(HOMEPAGE_PRIORITY_ORDER)}
 _LAST_HOMEPAGE_DIAGNOSTICS: dict[str, Any] = {}
 _LAST_HOMEPAGE_RESERVE: list[dict[str, Any]] = []
 
@@ -212,6 +227,57 @@ def select_sections(
     return selected, health
 
 
+_AI_PATTERN = re.compile(
+    r"\b(ai|sztuczn\w* inteligenc\w*|artificial intelligence|chatgpt|openai|anthropic|claude|gemini|copilot|"
+    r"llm|large language model\w*|model\w* język\w*|uczeni\w* maszyn\w*|machine learning|deepmind|"
+    r"neural\w*|sieci neur\w*|generative ai|genai)\b",
+    re.I,
+)
+_GEO_ENTITY_PATTERN = re.compile(
+    r"\b(ukrain\w*|rosj\w*|usa|stan\w* zjednoczon\w*|chin\w*|nato|unia europejsk\w*|ue|iran\w*|"
+    r"izrael\w*|gaz\w*|palestyn\w*|bliski\w* wsch\w*|białoru\w*|bialoru\w*|niemc\w*|francj\w*|"
+    r"wielk\w* brytani\w*|turcj\w*|tajwan\w*|kore\w*|trump\w*|putin\w*|zelensk\w*)\b",
+    re.I,
+)
+_GEO_ACTION_PATTERN = re.compile(
+    r"\b(wojn\w*|atak\w*|inwaz\w*|sankcj\w*|sojusz\w*|dyplomac\w*|rozejm\w*|pokoj\w*|pokój\w*|"
+    r"bezpiecze\w*|wojsk\w*|arm\w*|rakiet\w*|dron\w*|nuklearn\w*|granica\w*|eskalac\w*|"
+    r"konflikt\w*|obron\w*|szczyt\w*|traktat\w*|porozumien\w*|ultimatum\w*)\b",
+    re.I,
+)
+
+
+def homepage_lane(story: dict[str, Any], section_id: str) -> str:
+    text = " ".join(
+        str(story.get(key) or "")
+        for key in ("title", "summary", "ai_summary")
+    )
+    section = str(section_id or "").casefold()
+
+    if section in {"world-news", "asia-pacific", "europe", "middle-east"}:
+        return "geopolityka"
+    if section == "polityka":
+        if _GEO_ACTION_PATTERN.search(text) and _GEO_ENTITY_PATTERN.search(text):
+            return "geopolityka"
+        return "polityka"
+    if section in {"ekonomia", "business"}:
+        return "ekonomia"
+    if section in {"nauka", "science"}:
+        return "ai_technologia" if _AI_PATTERN.search(text) else "nauka"
+    if section in {"zdrowie", "health"}:
+        return "zdrowie"
+    if section == "sport":
+        return "sport"
+    return "nauka"
+
+
+def _homepage_priority_rank(story: dict[str, Any]) -> int:
+    return HOMEPAGE_PRIORITY_INDEX.get(
+        str(story.get("_homepage_lane") or story.get("homepage_lane") or "nauka"),
+        len(HOMEPAGE_PRIORITY_ORDER),
+    )
+
+
 def _homepage_summary_bonus(story: dict[str, Any]) -> float:
     title = " ".join(str(story.get("title") or "").casefold().split())
     summary = " ".join(str(story.get("summary") or story.get("ai_summary") or "").casefold().split())
@@ -248,12 +314,13 @@ def _homepage_score(
 def homepage_ranked_select(
     sections: dict[str, list[dict[str, Any]]],
     labels: dict[str, str],
-    limit: int = 10,
+    limit: int = HOMEPAGE_LIMIT,
     now: datetime | None = None,
+    blocked_stories: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Choose the best homepage set globally, then enforce editorial diversity."""
+    """Choose homepage stories by editorial priority, quality and diversity."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    ranked: list[tuple[float, float, str, dict[str, Any]]] = []
+    ranked: list[tuple[int, float, float, str, dict[str, Any]]] = []
     try:
         sport_support = filtered._sport_entity_support(sections.get("sport") or [])
     except Exception:
@@ -265,74 +332,134 @@ def homepage_ranked_select(
             story = dict(raw)
             story["category"] = labels.get(section_id, section_id)
             story["_homepage_section_id"] = section_id
+            story["_homepage_lane"] = homepage_lane(story, section_id)
+            story["_homepage_score"] = _homepage_score(story, section_id, current, sport_support)
+            story["_homepage_story_time"] = float(base.story_time(story) or 0.0)
             ranked.append((
-                _homepage_score(story, section_id, current, sport_support),
-                float(base.story_time(story) or 0.0),
+                _homepage_priority_rank(story),
+                float(story["_homepage_score"]),
+                float(story["_homepage_story_time"]),
                 base.normalized_identity(story),
                 story,
             ))
-    ranked.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
+    ranked.sort(key=lambda row: (row[0], -row[1], -row[2], row[3]))
 
+    blocked = list(blocked_stories or [])
+    blocked_sport_count = sum(
+        1 for story in blocked
+        if str(story.get("homepage_lane") or story.get("_homepage_lane") or "") == "sport"
+    )
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
     source_counts: dict[str, int] = {}
     section_counts: dict[str, int] = {}
+    lane_counts: dict[str, int] = {}
     topic_rejected = 0
     cap_rejected = 0
 
-    def try_add(story: dict[str, Any], source_cap: int, section_cap: int) -> bool:
+    def try_add(
+        story: dict[str, Any],
+        source_cap: int,
+        section_cap: int,
+        lane_cap: int,
+    ) -> bool:
         nonlocal topic_rejected, cap_rejected
         identity = base.normalized_identity(story)
         if not identity or identity in selected_ids:
             return False
         source = str(story.get("source") or "unknown")
         section_id = str(story.get("_homepage_section_id") or "")
-        if source_counts.get(source, 0) >= source_cap or section_counts.get(section_id, 0) >= section_cap:
+        lane = str(story.get("_homepage_lane") or "nauka")
+        effective_lane_cap = (
+            max(0, HOMEPAGE_SPORT_HARD_CAP - blocked_sport_count)
+            if lane == "sport"
+            else lane_cap
+        )
+        if (
+            source_counts.get(source, 0) >= source_cap
+            or section_counts.get(section_id, 0) >= section_cap
+            or lane_counts.get(lane, 0) >= effective_lane_cap
+        ):
             cap_rejected += 1
             return False
-        if any(homepage_same_topic(story, previous) for previous in selected):
+        if any(homepage_same_topic(story, previous) for previous in blocked + selected):
             topic_rejected += 1
             return False
         selected.append(story)
         selected_ids.add(identity)
         source_counts[source] = source_counts.get(source, 0) + 1
         section_counts[section_id] = section_counts.get(section_id, 0) + 1
+        lane_counts[lane] = lane_counts.get(lane, 0) + 1
         return True
 
-    passes = (
-        (HOMEPAGE_TARGET_SOURCE_CAP, HOMEPAGE_TARGET_SECTION_CAP),
-        (HOMEPAGE_EMERGENCY_SOURCE_CAP, HOMEPAGE_EMERGENCY_SECTION_CAP),
-        (4, 5),
-        (limit, limit),
-    )
-    for source_cap, section_cap in passes:
-        for _, _, _, story in ranked:
-            if len(selected) >= limit:
-                break
-            try_add(story, source_cap, section_cap)
+    # First secure broad editorial coverage: the best available story from each
+    # priority lane, in the exact order requested by the homepage policy.
+    for lane in HOMEPAGE_PRIORITY_ORDER:
         if len(selected) >= limit:
             break
+        for _, _, _, _, story in ranked:
+            if story.get("_homepage_lane") != lane:
+                continue
+            if try_add(
+                story,
+                HOMEPAGE_TARGET_SOURCE_CAP,
+                HOMEPAGE_TARGET_SECTION_CAP,
+                HOMEPAGE_TARGET_LANE_CAP,
+            ):
+                break
+
+    passes = (
+        (HOMEPAGE_TARGET_SOURCE_CAP, HOMEPAGE_TARGET_SECTION_CAP, HOMEPAGE_TARGET_LANE_CAP),
+        (HOMEPAGE_EMERGENCY_SOURCE_CAP, HOMEPAGE_EMERGENCY_SECTION_CAP, HOMEPAGE_EMERGENCY_LANE_CAP),
+        (4, 7, 5),
+        (limit, limit, limit),
+    )
+    for source_cap, section_cap, lane_cap in passes:
+        for _, _, _, _, story in ranked:
+            if len(selected) >= limit:
+                break
+            try_add(story, source_cap, section_cap, lane_cap)
+        if len(selected) >= limit:
+            break
+
+    selected.sort(
+        key=lambda story: (
+            _homepage_priority_rank(story),
+            -float(story.get("_homepage_score") or 0.0),
+            -float(story.get("_homepage_story_time") or 0.0),
+            base.normalized_identity(story),
+        )
+    )
 
     public = []
     for story in selected[:limit]:
         copy = dict(story)
+        copy["homepage_lane"] = str(copy.pop("_homepage_lane", "nauka"))
+        copy["homepage_priority_rank"] = _homepage_priority_rank(story) + 1
         copy.pop("_homepage_section_id", None)
+        copy.pop("_homepage_score", None)
+        copy.pop("_homepage_story_time", None)
         public.append(copy)
 
     diagnostics = {
         "status": "ok" if len(public) == limit else "underfilled",
         "version": HOMEPAGE_EDITORIAL_SELECTION_VERSION,
-        "mode": "global_editorial_score_then_topic_dedupe_source_and_section_diversity",
+        "mode": "priority_lane_coverage_then_editorial_score_topic_dedupe_and_diversity",
+        "priority_order": list(HOMEPAGE_PRIORITY_ORDER),
+        "sport_hard_cap": HOMEPAGE_SPORT_HARD_CAP,
         "target_story_count": limit,
         "published_count": len(public),
         "target_max_cards_per_source": HOMEPAGE_TARGET_SOURCE_CAP,
         "emergency_max_cards_per_source": HOMEPAGE_EMERGENCY_SOURCE_CAP,
         "target_max_cards_per_section": HOMEPAGE_TARGET_SECTION_CAP,
         "emergency_max_cards_per_section": HOMEPAGE_EMERGENCY_SECTION_CAP,
+        "target_max_cards_per_lane": HOMEPAGE_TARGET_LANE_CAP,
+        "emergency_max_cards_per_lane": HOMEPAGE_EMERGENCY_LANE_CAP,
         "topic_duplicates_suppressed": topic_rejected,
         "diversity_cap_rejections": cap_rejected,
         "source_mix": source_counts,
         "section_mix": section_counts,
+        "lane_mix": lane_counts,
     }
     return public, diagnostics
 
@@ -348,18 +475,23 @@ def _mix(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
 def homepage_round_robin(
     sections: dict[str, list[dict[str, Any]]],
     labels: dict[str, str],
-    limit: int = 10,
+    limit: int = HOMEPAGE_LIMIT,
     now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     global _LAST_HOMEPAGE_DIAGNOSTICS, _LAST_HOMEPAGE_RESERVE
-    planned, diagnostics = homepage_ranked_select(
+    selected, diagnostics = homepage_ranked_select(
         sections,
         labels,
-        limit + HOMEPAGE_RESERVE_LIMIT,
+        limit,
         now=now,
     )
-    selected = planned[:limit]
-    reserve = planned[limit : limit + HOMEPAGE_RESERVE_LIMIT]
+    reserve, reserve_diagnostics = homepage_ranked_select(
+        sections,
+        labels,
+        HOMEPAGE_RESERVE_LIMIT,
+        now=now,
+        blocked_stories=selected,
+    )
     _LAST_HOMEPAGE_RESERVE = [dict(story) for story in reserve]
 
     diagnostics.update(
@@ -372,6 +504,8 @@ def homepage_round_robin(
             "section_mix": _mix(selected, "category"),
             "reserve_source_mix": _mix(reserve, "source"),
             "reserve_section_mix": _mix(reserve, "category"),
+            "reserve_lane_mix": _mix(reserve, "homepage_lane"),
+            "reserve_topic_duplicates_suppressed": reserve_diagnostics.get("topic_duplicates_suppressed", 0),
             "runtime_backfill_policy": "approved_home_reserve_only",
         }
     )
@@ -470,8 +604,18 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
         reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
+        if len(home) != HOMEPAGE_LIMIT:
+            raise RuntimeError(f"{lang} homepage must contain exactly {HOMEPAGE_LIMIT} stories")
         if len(reserve) > HOMEPAGE_RESERVE_LIMIT:
             raise RuntimeError(f"{lang} homepage reserve exceeds {HOMEPAGE_RESERVE_LIMIT} stories")
+        lane_order = {lane: index for index, lane in enumerate(HOMEPAGE_PRIORITY_ORDER)}
+        home_lanes = [str(story.get("homepage_lane") or "") for story in home]
+        if any(lane not in lane_order for lane in home_lanes):
+            raise RuntimeError(f"{lang} homepage contains invalid editorial lane")
+        if home_lanes != sorted(home_lanes, key=lambda lane: lane_order[lane]):
+            raise RuntimeError(f"{lang} homepage priority lanes are out of order")
+        if home_lanes.count("sport") > HOMEPAGE_SPORT_HARD_CAP:
+            raise RuntimeError(f"{lang} homepage exceeds sport hard cap")
         approved = list(home)
         for story in reserve:
             duplicate = next(
